@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 interface AuthState {
   user: User | null;
@@ -50,15 +50,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   initialize: async () => {
-    const { data } = await supabase.auth.getSession();
-    set({
-      session: data.session,
-      user: data.session?.user ?? null,
-      isLoading: false,
-    });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      set({ session, user: session?.user ?? null });
-    });
+    if (!supabaseConfigured) {
+      set({ isLoading: false });
+      return;
+    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      set({ session: data.session, user: data.session?.user ?? null, isLoading: false });
+      supabase.auth.onAuthStateChange((_event, session) => {
+        set({ session, user: session?.user ?? null });
+      });
+    } catch {
+      set({ isLoading: false });
+    }
   },
 }));
