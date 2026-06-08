@@ -8,20 +8,24 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
-      }
+      },
+      "prebuildCommand": "expo prebuild --clean"
     },
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
         "simulator": true
-      }
+      },
+      "prebuildCommand": "expo prebuild --clean"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "prebuildCommand": "expo prebuild --clean"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "prebuildCommand": "expo prebuild --clean"
     }
   },
   "submit": {
