@@ -4,19 +4,25 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import { LowStockBadge } from './LowStockBadge';
 import i18n from '@/lib/i18n';
 import type { InventoryProduct } from '@/types/inventory';
-
-const LOW_STOCK = 3;
+import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   product: InventoryProduct;
   onPress: () => void;
+  isLowStock?: boolean;
 }
 
-export function ProductCard({ product, onPress }: Props) {
-  const isLowStock = product.isActive && product.quantity <= LOW_STOCK;
+export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Props) {
+  const { colors } = useAppTheme();
+  const { textAlign, flexDirection } = useRTL();
+  const threshold = product.lowStockThreshold ?? 3;
+  const isLowStockLocal = product.isActive && product.quantity > 0 && product.quantity <= threshold;
+  const isLowStock = isLowStockProp ?? isLowStockLocal;
   const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
 
   // Translate category name via purchases.categories map with fallback
@@ -31,23 +37,23 @@ export function ProductCard({ product, onPress }: Props) {
       activeOpacity={0.82}
     >
       {/* Top row */}
-      <View style={styles.topRow}>
+      <View style={[styles.topRow, { flexDirection }]}>
         {/* Product thumbnail */}
         <View style={styles.thumbWrap}>
           {product.imageUri ? (
             <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" />
           ) : (
-            <View style={styles.thumbPlaceholder}>
-              <Ionicons name="cube-outline" size={20} color={Colors.primary} />
+            <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
+              <Ionicons name="cube-outline" size={20} color={colors.primary} />
             </View>
           )}
         </View>
 
         <View style={styles.nameWrap}>
-          <Text style={styles.name} numberOfLines={1}>{product.name}</Text>
-          <View style={styles.meta}>
-            <View style={styles.catChip}>
-              <Text style={styles.catText}>{categoryName}</Text>
+          <Text style={[styles.name, { textAlign }]} numberOfLines={1}>{product.name}</Text>
+          <View style={[styles.meta, { flexDirection }]}>
+            <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
+              <Text style={[styles.catText, { color: colors.primaryDark }]}>{categoryName}</Text>
             </View>
             {product.itemId ? (
               <View style={styles.idChip}>
@@ -76,38 +82,38 @@ export function ProductCard({ product, onPress }: Props) {
       <View style={styles.priceRow}>
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.buyPrice')}</Text>
-          <Text style={styles.priceValue}>{product.purchasePrice.toLocaleString('en-US')} IQD</Text>
+          <Text style={styles.priceValue}>{fmtIQD(product.purchasePrice)} IQD</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.sellPrice')}</Text>
-          <Text style={[styles.priceValue, styles.sellPrice]}>{product.sellingPrice.toLocaleString('en-US')} IQD</Text>
+          <Text style={[styles.priceValue, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)} IQD</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.totalValueLabel')}</Text>
-          <Text style={styles.priceValue}>{(product.purchasePrice * product.quantity).toLocaleString('en-US')} IQD</Text>
+          <Text style={styles.priceValue}>{fmtIQD(product.purchasePrice * product.quantity)} IQD</Text>
         </View>
       </View>
 
       {/* Bottom row */}
-      <View style={styles.bottomRow}>
+      <View style={[styles.bottomRow, { flexDirection }]}>
         <View style={styles.bottomLeft}>
           {product.supplierName ? (
-            <View style={styles.supplierRow}>
+            <View style={[styles.supplierRow, { flexDirection }]}>
               <Ionicons name="business-outline" size={12} color={Colors.gray400} />
-              <Text style={styles.supplierText} numberOfLines={1}>{product.supplierName}</Text>
+              <Text style={[styles.supplierText, { textAlign }]} numberOfLines={1}>{product.supplierName}</Text>
             </View>
           ) : null}
           {product.purchaseDate ? (
-            <Text style={styles.dateText}>{product.purchaseDate}</Text>
+            <Text style={[styles.dateText, { textAlign }]}>{product.purchaseDate}</Text>
           ) : null}
         </View>
 
-        <View style={styles.bottomRight}>
+        <View style={[styles.bottomRight, { flexDirection }]}>
           {isLowStock && !isSold && <LowStockBadge />}
           <View style={[styles.payDot, product.paymentStatus === 'paid' ? styles.payDotPaid : styles.payDotDebt]} />
-          <Text style={[styles.payText, product.paymentStatus === 'debt' && styles.payTextDebt]}>
+          <Text style={[styles.payText, product.paymentStatus === 'debt' && styles.payTextDebt, { textAlign }]}>
             {product.paymentStatus === 'paid' ? i18n.t('common.paid') : i18n.t('common.debt')}
           </Text>
         </View>
@@ -150,7 +156,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 10,
-    backgroundColor: Colors.softBlue,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,7 +172,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   catChip: {
-    backgroundColor: Colors.softBlue,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -175,7 +179,6 @@ const styles = StyleSheet.create({
   catText: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.primaryDark,
   },
   idChip: {
     backgroundColor: Colors.gray100,
@@ -217,7 +220,6 @@ const styles = StyleSheet.create({
   priceItem: { flex: 1, alignItems: 'center' },
   priceLabel: { fontSize: 10, color: Colors.gray400, fontWeight: '600', marginBottom: 2 },
   priceValue: { fontSize: 12, fontWeight: '700', color: Colors.black },
-  sellPrice: { color: Colors.primary },
   divider: {
     width: 1,
     backgroundColor: Colors.gray200,

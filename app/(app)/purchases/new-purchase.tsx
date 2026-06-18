@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   Platform,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -24,26 +25,24 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-import { PURCHASE_CATEGORIES } from '@/types/purchases';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { getProductCategories } from '@/lib/sqlite';
+import { generateUniqueProductId } from '@/lib/generateId';
+import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
+import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
   return Math.round(n * f) / f;
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
 export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { colors } = useAppTheme();
@@ -51,7 +50,7 @@ export default function NewPurchaseScreen() {
 
   // ─── Required fields ────────────────────────────────────────────────────────
   const [supplierName, setSupplierName]     = useState('');
-  const [date, setDate]                     = useState(todayISO());
+  const [purchaseDate, setPurchaseDate]     = useState(() => new Date());
   const [productName, setProductName]       = useState('');
   const [qty, setQty]                       = useState('1');
   const [buyIQD, setBuyIQD]                 = useState('');
@@ -61,27 +60,37 @@ export default function NewPurchaseScreen() {
   const [idType, setIdType]                 = useState<PurchaseIdType | null>(null);
   const [sharedId, setSharedId]             = useState('');
   const [customIds, setCustomIds]           = useState<string[]>(['']);
+  const [isGeneratingShared,   setIsGeneratingShared]   = useState(false);
+  const [generatingCustomIdxs, setGeneratingCustomIdxs] = useState<Set<number>>(new Set());
 
   // ─── Optional fields ────────────────────────────────────────────────────────
   const [sellIQD, setSellIQD]               = useState('');
   const [sellUSD, setSellUSD]               = useState('');
   const [category, setCategory]             = useState('');
   const [warranty, setWarranty]             = useState('');
-  const [description, setDescription]       = useState('');
   const [notes, setNotes]                   = useState('');
   const [supplierPhone, setSupplierPhone]   = useState('');
   const [supplierAddress, setSupplierAddress] = useState('');
+  const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
   const [paymentStatus, setPaymentStatus]   = useState<PurchasePaymentStatus>('paid');
+  const [amountPaid, setAmountPaid]         = useState('');
 
   const [imageUri, setImageUri]             = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting]     = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    getProductCategories().then(setAvailableCategories).catch(() => {});
+  }, []);
 
   // ─── Derived ────────────────────────────────────────────────────────────────
-  const qtyNum     = Math.max(1, parseInt(qty) || 1);
-  const buyIQDNum  = parseFloat(buyIQD) || 0;
-  const sellIQDNum = parseFloat(sellIQD) || 0;
-  const totalIQD   = qtyNum * buyIQDNum;
-  const profitIQD  = (sellIQDNum - buyIQDNum) * qtyNum;
+  const qtyNum       = Math.max(1, parseInt(qty) || 1);
+  const buyIQDNum    = parseFloat(buyIQD) || 0;
+  const sellIQDNum   = parseFloat(sellIQD) || 0;
+  const totalIQD     = qtyNum * buyIQDNum;
+  const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
+  const amountPaidNum = Math.max(0, parseFloat(amountPaid) || 0);
+  const remainingDebt = Math.max(0, totalIQD - amountPaidNum);
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
@@ -136,14 +145,48 @@ export default function NewPurchaseScreen() {
     });
   }
 
+  // ─── Random ID generation ────────────────────────────────────────────────────
+  function setCustomGenerating(idx: number, on: boolean) {
+    setGeneratingCustomIdxs((prev) => {
+      const next = new Set(prev);
+      on ? next.add(idx) : next.delete(idx);
+      return next;
+    });
+  }
+
+  async function handleGenerateSharedId() {
+    if (isGeneratingShared) return;
+    setIsGeneratingShared(true);
+    try {
+      setSharedId(await generateUniqueProductId([]));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      Alert.alert(t('common.error'), msg === 'ID_EXHAUSTED'
+        ? t('purchases.idExhausted') : t('common.tryAgain'));
+    } finally {
+      setIsGeneratingShared(false);
+    }
+  }
+
+  async function handleGenerateCustomId(idx: number) {
+    if (generatingCustomIdxs.has(idx)) return;
+    setCustomGenerating(idx, true);
+    try {
+      const siblings = customIds.filter((_, i) => i !== idx);
+      updateCustomId(idx, await generateUniqueProductId(siblings));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      Alert.alert(t('common.error'), msg === 'ID_EXHAUSTED'
+        ? t('purchases.idExhausted') : t('common.tryAgain'));
+    } finally {
+      setCustomGenerating(idx, false);
+    }
+  }
+
   // ─── Validation ─────────────────────────────────────────────────────────────
   function validate(): boolean {
     if (!productName.trim()) {
       Alert.alert(t('common.required'), t('purchases.validationRequired'));
-      return false;
-    }
-    if (!date.trim()) {
-      Alert.alert(t('common.required'), t('purchases.validationDate'));
       return false;
     }
     const q = parseInt(qty) || 0;
@@ -157,6 +200,10 @@ export default function NewPurchaseScreen() {
     }
     if (!idType) {
       Alert.alert(t('common.required'), t('purchases.validationIdType'));
+      return false;
+    }
+    if (paymentStatus === 'debt' && amountPaidNum > totalIQD) {
+      Alert.alert(t('common.error'), t('purchases.validationAmountPaid'));
       return false;
     }
     return true;
@@ -174,7 +221,7 @@ export default function NewPurchaseScreen() {
     setIsSubmitting(true);
     try {
       const purchase = await createPurchase({
-        date,
+        date: purchaseDate.toISOString(),
         supplierName,
         supplierPhone,
         supplierAddress,
@@ -189,16 +236,39 @@ export default function NewPurchaseScreen() {
         idType,
         itemIds: finalItemIds,
         warranty,
-        description,
+        description: '',
         notes,
         paymentStatus,
+        initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
         imageUri,
+        selectedSupplierId,
       });
+
+      if (category.trim()) {
+        try {
+          const { addManagedCategory } = await import('@/lib/sqlite');
+          await addManagedCategory(category.trim());
+        } catch { /* non-critical */ }
+      }
 
       router.replace(`/(app)/purchases/${purchase.id}?new=1` as never);
     } catch (err) {
-      console.error('Failed to save purchase:', err);
-      Alert.alert(t('common.error'), t('common.tryAgain'));
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.startsWith('DUPLICATE_ITEM_ID|')) {
+        const ids = msg.split('|')[1];
+        Alert.alert(t('inventory.duplicateItemIdTitle'), t('inventory.duplicateItemIdBody', { id: ids }));
+      } else if (msg.startsWith('DUPLICATE_PHONE:')) {
+        const existingName = msg.split(':')[1];
+        Alert.alert(
+          t('common.error'),
+          t('suppliers.duplicatePhone') + (existingName ? `\n(${existingName})` : '') + '\n\n' + t('suppliers.useExisting')
+        );
+      } else if (msg === 'DUPLICATE_NAME') {
+        Alert.alert(t('common.error'), t('suppliers.duplicateName') + '\n\n' + t('suppliers.useExisting'));
+      } else {
+        console.error('Failed to save purchase:', err);
+        Alert.alert(t('common.error'), t('common.tryAgain'));
+      }
       setIsSubmitting(false);
     }
   }
@@ -232,21 +302,14 @@ export default function NewPurchaseScreen() {
               returnKeyType="next"
             />
 
-            <AppTextInput
-              label={t('purchases.date')}
-              value={date}
-              onChangeText={setDate}
-              placeholder={t('purchases.datePlaceholder')}
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="next"
-            />
-
-            <AppTextInput
-              label={t('purchases.supplierName')}
-              value={supplierName}
-              onChangeText={setSupplierName}
-              placeholder="e.g. Apple Inc."
-              returnKeyType="next"
+            <SupplierInputForm
+              name={supplierName}
+              phone={supplierPhone}
+              address={supplierAddress}
+              onNameChange={setSupplierName}
+              onPhoneChange={setSupplierPhone}
+              onAddressChange={setSupplierAddress}
+              onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
             />
 
             <AppTextInput
@@ -258,45 +321,9 @@ export default function NewPurchaseScreen() {
               returnKeyType="next"
             />
 
-            {/* Buy Price Row */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.buyPrice')}</Text>
-            <View style={styles.priceRow}>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
-                  value={buyIQD}
-                  onChangeText={onBuyIQDChange}
-                  keyboardType="decimal-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                />
-              </View>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
-                  value={buyUSD}
-                  onChangeText={onBuyUSDChange}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                />
-              </View>
-            </View>
-            <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>{t('purchases.rateNote', { rate: exchangeRate.toLocaleString('en-US') })}</Text>
-
-            {/* Auto Total */}
-            <View style={[styles.totalBox, { backgroundColor: colors.softBlue, borderColor: colors.mediumBlue }]}>
-              <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
-              <Text style={[styles.totalValue, { color: colors.primary }]}>{fmt(totalIQD)} IQD</Text>
-            </View>
-
             {/* ID Type */}
             <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.idType')}</Text>
-            <View style={styles.idTypeRow}>
+            <View style={[styles.idTypeRow, { flexDirection }]}>
               <TouchableOpacity
                 style={[styles.idTypeBtn,
                   idType === 'shared'
@@ -332,13 +359,19 @@ export default function NewPurchaseScreen() {
                 onChangeText={setSharedId}
                 placeholder="e.g. SN-12345"
                 returnKeyType="done"
+                rightElement={
+                  <GenerateIdButton
+                    loading={isGeneratingShared}
+                    onPress={handleGenerateSharedId}
+                  />
+                }
               />
             )}
 
             {idType === 'custom' && (
               <View style={styles.customIdsContainer}>
                 {Array.from({ length: qtyNum }, (_, i) => (
-                  <View key={i} style={styles.customIdRow}>
+                  <View key={i} style={[styles.customIdRow, { flexDirection }]}>
                     <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
                       <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
                     </View>
@@ -351,10 +384,57 @@ export default function NewPurchaseScreen() {
                       returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
                       maxLength={9}
                     />
+                    <GenerateIdButton
+                      loading={generatingCustomIdxs.has(i)}
+                      onPress={() => handleGenerateCustomId(i)}
+                    />
                   </View>
                 ))}
               </View>
             )}
+
+            {/* Buy Price Row */}
+            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.buyPrice')}</Text>
+            <View style={[styles.priceRow, { flexDirection }]}>
+              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
+                <TextInput
+                  style={[styles.priceInput, { color: colors.black }]}
+                  value={buyIQD}
+                  onChangeText={onBuyIQDChange}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.gray400}
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
+                <TextInput
+                  style={[styles.priceInput, { color: colors.black }]}
+                  value={buyUSD}
+                  onChangeText={onBuyUSDChange}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor={colors.gray400}
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+            <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>{t('purchases.rateNote', { rate: fmtExchangeRate(exchangeRate) })}</Text>
+
+            {/* Auto Total */}
+            <View style={[styles.totalBox, { backgroundColor: colors.softBlue, borderColor: colors.mediumBlue, flexDirection }]}>
+              <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
+              <Text style={[styles.totalValue, { color: colors.primary }]}>{fmtIQD(totalIQD)} IQD</Text>
+            </View>
+
+            <DateTimePicker
+              value={purchaseDate}
+              onChange={setPurchaseDate}
+              label={t('purchases.date')}
+              maxDate={new Date()}
+            />
           </PremiumCard>
 
           {/* ── Card 2: Optional ──────────────────────────────── */}
@@ -371,8 +451,8 @@ export default function NewPurchaseScreen() {
 
             {/* Sell Price Row */}
             <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.sellPrice')}</Text>
-            <View style={styles.priceRow}>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+            <View style={[styles.priceRow, { flexDirection }]}>
+              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
                 <TextInput
                   style={[styles.priceInput, { color: colors.black }]}
@@ -384,7 +464,7 @@ export default function NewPurchaseScreen() {
                   returnKeyType="next"
                 />
               </View>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
                 <TextInput
                   style={[styles.priceInput, { color: colors.black }]}
@@ -399,55 +479,20 @@ export default function NewPurchaseScreen() {
             </View>
 
             {sellIQDNum > 0 && (
-              <View style={[styles.totalBox, { backgroundColor: profitIQD >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: profitIQD >= 0 ? '#BBF7D0' : '#FECACA' }]}>
+              <View style={[styles.totalBox, { backgroundColor: profitIQD >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: profitIQD >= 0 ? '#BBF7D0' : '#FECACA', flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
                 <Text style={[styles.totalValue, { color: profitIQD >= 0 ? colors.success : colors.error }]}>
-                  {profitIQD >= 0 ? '+' : ''}{fmt(profitIQD)} IQD
+                  {profitIQD >= 0 ? '+' : ''}{fmtIQD(profitIQD)} IQD
                 </Text>
               </View>
             )}
 
-            {/* Category chips */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.category')}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoryScroll}
-              contentContainerStyle={styles.categoryScrollContent}
-            >
-              {PURCHASE_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip,
-                    category === cat
-                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : { borderColor: colors.gray200, backgroundColor: colors.white }
-                  ]}
-                  onPress={() => setCategory(category === cat ? '' : cat)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.categoryChipText, { color: category === cat ? colors.white : colors.gray500 }, category === cat && styles.categoryChipTextActive]}>
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <AppTextInput
-              label={t('purchases.supplierPhone')}
-              value={supplierPhone}
-              onChangeText={setSupplierPhone}
-              placeholder="e.g. 0770 123 4567"
-              keyboardType="phone-pad"
-              returnKeyType="next"
-            />
-
-            <AppTextInput
-              label={t('purchases.supplierAddress')}
-              value={supplierAddress}
-              onChangeText={setSupplierAddress}
-              placeholder="e.g. Sulaymaniyah, Iraq"
-              returnKeyType="next"
+            {/* Category */}
+            <CategoryAutocompleteInput
+              label={t('purchases.category')}
+              value={category}
+              onChange={setCategory}
+              categories={availableCategories}
             />
 
             <AppTextInput
@@ -459,21 +504,10 @@ export default function NewPurchaseScreen() {
             />
 
             <AppTextInput
-              label={t('purchases.description')}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Product description..."
-              multiline
-              numberOfLines={3}
-              style={styles.textarea}
-              returnKeyType="next"
-            />
-
-            <AppTextInput
               label={t('purchases.notes')}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Any notes..."
+              placeholder={t('purchases.notesPlaceholder')}
               multiline
               numberOfLines={3}
               style={styles.textarea}
@@ -481,9 +515,9 @@ export default function NewPurchaseScreen() {
 
             {/* Payment Status */}
             <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
-            <View style={styles.paymentRow}>
+            <View style={[styles.paymentRow, { flexDirection }]}>
               <TouchableOpacity
-                style={[styles.payBtn, paymentStatus === 'paid' ? styles.payBtnPaid : { borderColor: colors.gray200, backgroundColor: colors.white }]}
+                style={[styles.payBtn, paymentStatus === 'paid' ? styles.payBtnPaid : { borderColor: colors.gray200, backgroundColor: colors.white }, { flexDirection }]}
                 onPress={() => setPaymentStatus('paid')}
                 activeOpacity={0.8}
               >
@@ -491,7 +525,7 @@ export default function NewPurchaseScreen() {
                 <Text style={[styles.payBtnText, { color: paymentStatus === 'paid' ? colors.success : colors.gray500 }]}>{t('purchases.paid')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.payBtn, paymentStatus === 'debt' ? styles.payBtnDebt : { borderColor: colors.gray200, backgroundColor: colors.white }]}
+                style={[styles.payBtn, paymentStatus === 'debt' ? styles.payBtnDebt : { borderColor: colors.gray200, backgroundColor: colors.white }, { flexDirection }]}
                 onPress={() => setPaymentStatus('debt')}
                 activeOpacity={0.8}
               >
@@ -499,6 +533,23 @@ export default function NewPurchaseScreen() {
                 <Text style={[styles.payBtnText, { color: paymentStatus === 'debt' ? colors.error : colors.gray500 }]}>{t('purchases.debt')}</Text>
               </TouchableOpacity>
             </View>
+
+            {paymentStatus === 'debt' && (
+              <>
+                <AppTextInput
+                  label={t('purchases.amountPaid')}
+                  value={amountPaid}
+                  onChangeText={setAmountPaid}
+                  keyboardType="decimal-pad"
+                  placeholder={t('purchases.amountPaidPlaceholder')}
+                  returnKeyType="done"
+                />
+                <View style={[styles.totalBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', flexDirection }]}>
+                  <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
+                  <Text style={[styles.totalValue, { color: colors.error }]}>{fmtIQD(remainingDebt)} IQD</Text>
+                </View>
+              </>
+            )}
           </PremiumCard>
 
           {/* ── Actions ───────────────────────────────────────── */}
@@ -515,8 +566,9 @@ export default function NewPurchaseScreen() {
                 setProductName(''); setDate(todayISO()); setSupplierName('');
                 setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
                 setIdType(null); setSharedId(''); setCustomIds(['']);
-                setCategory(''); setWarranty(''); setDescription(''); setNotes('');
+                setCategory(''); setWarranty(''); setNotes('');
                 setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
+                setAmountPaid('');
                 setImageUri(null);
               }}
               variant="ghost"
@@ -528,6 +580,57 @@ export default function NewPurchaseScreen() {
     </View>
   );
 }
+
+function GenerateIdButton({
+  loading,
+  onPress,
+}: {
+  loading: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const { flexDirection } = useRTL();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={loading}
+      activeOpacity={0.7}
+      style={[
+        genBtnStyles.btn,
+        {
+          backgroundColor: colors.softBlue,
+          borderColor:     colors.primary,
+          opacity:         loading ? 0.5 : 1,
+          flexDirection,
+        },
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator size={12} color={colors.primary} />
+      ) : (
+        <Ionicons name="dice-outline" size={15} color={colors.primary} />
+      )}
+      <Text style={[genBtnStyles.label, { color: colors.primary }]}>
+        {t('purchases.generateId')}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const genBtnStyles = StyleSheet.create({
+  btn: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    height:            36,
+    paddingHorizontal: 10,
+    borderRadius:      8,
+    borderWidth:       1.5,
+    marginStart:       4,
+  },
+  label: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+});
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
@@ -616,18 +719,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize:          14,
   },
-
-  categoryScroll:        { marginBottom: 16 },
-  categoryScrollContent: { gap: 8, paddingBottom: 4 },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical:   7,
-    borderRadius:      Theme.radius.full,
-    borderWidth:       1.5,
-  },
-  categoryChipActive:     { },
-  categoryChipText:       { fontSize: 13, fontWeight: '500' },
-  categoryChipTextActive: { fontWeight: '600' },
 
   paymentRow: { flexDirection: 'row', gap: 10 },
   payBtn: {

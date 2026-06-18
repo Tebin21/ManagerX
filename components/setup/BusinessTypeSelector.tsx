@@ -2,84 +2,113 @@ import React from 'react';
 import { ScrollView, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { MotiView } from 'moti';
-import { BUSINESS_TYPES, BusinessType } from '@/constants/config';
-import { Colors } from '@/constants/colors';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { BUSINESS_TYPES } from '@/constants/config';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
+import { useTranslation } from 'react-i18next';
 import { Theme } from '@/constants/theme';
 
 interface Props {
-  selected: BusinessType | null;
-  onSelect: (type: BusinessType) => void;
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: string;
 }
 
-export function BusinessTypeSelector({ selected, onSelect }: Props) {
+export function BusinessTypeSelector({ value, onChangeText, error }: Props) {
+  const { colors } = useAppTheme();
+  const { textAlign } = useRTL();
+  const { t } = useTranslation();
+
+  // If the stored value is a predefined chip id, show the human-readable label in the
+  // text input. Free-form typed text is shown as-is.
+  const predefined = BUSINESS_TYPES.find((bt) => bt.id === value);
+  const displayValue = predefined ? predefined.label : value;
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      {BUSINESS_TYPES.map((type) => {
-        const isSelected = selected === type.id;
-        return (
-          <TouchableOpacity
-            key={type.id}
-            onPress={() => onSelect(type.id)}
-            activeOpacity={0.8}
-          >
-            <MotiView
-              animate={{
-                borderColor: isSelected ? Colors.primary : Colors.gray200,
-                backgroundColor: isSelected ? Colors.softBlue : '#FFFFFF',
-                scale: isSelected ? 1.02 : 1,
-              }}
-              transition={{ type: 'spring', damping: 18, stiffness: 200 }}
-              style={styles.chip}
+    <View style={styles.wrapper}>
+      <AppTextInput
+        label={t('setup.businessType')}
+        placeholder={t('setup.businessTypePlaceholder')}
+        value={displayValue}
+        onChangeText={onChangeText}
+        error={error}
+        autoCorrect={false}
+        autoCapitalize="words"
+      />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chips}
+        keyboardShouldPersistTaps="handled"
+      >
+        {BUSINESS_TYPES.map((type) => {
+          // Active only when the stored value is this chip's id (set via chip tap).
+          // Manually typed text — even if it matches a label — is never considered active.
+          const isActive = value === type.id;
+          return (
+            <TouchableOpacity
+              key={type.id}
+              onPress={() => onChangeText(type.id)}
+              activeOpacity={0.75}
             >
-              <Text style={styles.emoji}>{type.emoji}</Text>
-              <Text
-                style={[
-                  styles.label,
-                  isSelected && styles.labelSelected,
-                ]}
+              <MotiView
+                animate={{
+                  borderColor: isActive ? colors.primary : colors.gray200,
+                  backgroundColor: isActive ? colors.softBlue : colors.gray50,
+                  scale: isActive ? 1.02 : 1,
+                }}
+                transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+                style={[styles.chip, { borderColor: colors.gray200 }]}
               >
-                {type.labelKey.split('.').pop()?.replace(/([A-Z])/g, ' $1').trim()}
-              </Text>
-            </MotiView>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+                <Text style={styles.chipEmoji}>{type.emoji}</Text>
+                <Text
+                  style={[
+                    styles.chipLabel,
+                    { color: isActive ? colors.primary : colors.gray600, textAlign },
+                    isActive && styles.chipLabelActive,
+                  ]}
+                >
+                  {type.label}
+                </Text>
+              </MotiView>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
+    marginBottom: 16,
+  },
+  chips: {
     paddingVertical: 4,
-    gap: 10,
+    gap: 8,
     flexDirection: 'row',
   },
   chip: {
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: Theme.radius.lg,
     borderWidth: 1.5,
-    borderColor: Colors.gray200,
-    minWidth: 90,
+    minWidth: 86,
     ...Theme.shadow.soft,
   },
-  emoji: {
-    fontSize: 22,
-    marginBottom: 4,
+  chipEmoji: {
+    fontSize: 20,
+    marginBottom: 3,
   },
-  label: {
-    fontSize: 12,
+  chipLabel: {
+    fontSize: 11,
     fontWeight: '500',
-    color: Colors.gray600,
     textAlign: 'center',
   },
-  labelSelected: {
-    color: Colors.primary,
-    fontWeight: '600',
+  chipLabelActive: {
+    fontWeight: '700',
   },
 });

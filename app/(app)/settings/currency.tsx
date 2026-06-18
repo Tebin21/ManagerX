@@ -15,31 +15,20 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function fmtRate(rate: number): string {
-  return rate.toLocaleString('en-US', { maximumFractionDigits: 0 });
-}
+import { fmtRate, fmtExchangeRate, formatDateTime } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
 
 export default function CurrencyScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isRTL } = useRTL();
+  const textAlign = isRTL ? 'right' : 'left';
 
   const exchangeRate   = useSettingsStore((s) => s.exchangeRate);
   const rateUpdatedAt  = useSettingsStore((s) => s.rateUpdatedAt);
   const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);
 
-  const [input, setInput]     = useState(String(exchangeRate));
+  const [input, setInput]     = useState(String(exchangeRate * 100));
   const [saving, setSaving]   = useState(false);
   const [history, setHistory] = useState<ExchangeRateEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -57,19 +46,20 @@ export default function CurrencyScreen() {
 
   async function handleSave() {
     const parsed = parseFloat(input.replace(/,/g, ''));
-    if (isNaN(parsed) || parsed < 100 || parsed > 99999) {
+    if (isNaN(parsed) || parsed < 10000 || parsed > 9999900) {
       Alert.alert(t('common.error'), t('settings.currencyScreen.invalidRate'));
       return;
     }
-    if (parsed === exchangeRate) {
+    const rateToStore = parsed / 100;
+    if (rateToStore === exchangeRate) {
       Alert.alert(t('common.error'), t('settings.currencyScreen.noChange'));
       return;
     }
     setSaving(true);
     try {
-      await setExchangeRate(parsed);
+      await setExchangeRate(rateToStore);
       await loadHistory();
-      Alert.alert(t('settings.currencyScreen.title'), t('settings.currencyScreen.rateUpdated', { rate: fmtRate(parsed) }));
+      Alert.alert(t('settings.currencyScreen.title'), t('settings.currencyScreen.rateUpdated', { rate: fmtExchangeRate(rateToStore) }));
     } catch {
       Alert.alert(t('common.error'), t('common.tryAgain'));
     } finally {
@@ -77,7 +67,7 @@ export default function CurrencyScreen() {
     }
   }
 
-  const inputChanged = parseFloat(input.replace(/,/g, '')) !== exchangeRate;
+  const inputChanged = parseFloat(input.replace(/,/g, '')) / 100 !== exchangeRate;
 
   return (
     <KeyboardAvoidingView
@@ -95,17 +85,22 @@ export default function CurrencyScreen() {
 
           {/* ── Current rate display ── */}
           <LinearGradient
-            colors={[Colors.primaryDark, Colors.primary]}
+            colors={[colors.primaryDark, colors.primary]}
             style={styles.rateCard}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           >
             <Text style={styles.rateLabel}>{t('settings.currencyScreen.currentRate')}</Text>
-            <Text style={styles.rateValue}>
-              1 USD = {fmtRate(exchangeRate)} IQD
+            <Text
+              style={styles.rateValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              100 USD = {fmtExchangeRate(exchangeRate)} IQD
             </Text>
             {rateUpdatedAt ? (
               <Text style={styles.rateUpdated}>
-                {formatDate(rateUpdatedAt)}
+                {formatDateTime(rateUpdatedAt)}
               </Text>
             ) : (
               <Text style={styles.rateUpdated}>{t('settings.currencyScreen.defaultRate')}</Text>
@@ -114,21 +109,24 @@ export default function CurrencyScreen() {
 
           {/* ── Edit rate ── */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.black }]}>{t('settings.currencyScreen.updateRate')}</Text>
-            <Text style={[styles.cardSub, { color: colors.gray400 }]}>
+            <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>{t('settings.currencyScreen.updateRate')}</Text>
+            <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
               {t('settings.currencyScreen.updateSub')}
             </Text>
 
-            <View style={[styles.inputRow, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+            <View style={[styles.inputRow, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={[styles.inputPrefix, { color: colors.primary, backgroundColor: colors.softBlue }]}>
                 {t('settings.currencyScreen.inputPrefix')}
               </Text>
               <TextInput
-                style={[styles.inputField, { color: colors.black }]}
+                style={[styles.inputField, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}
                 value={input}
-                onChangeText={setInput}
+                onChangeText={(text) => {
+                  const raw = text.replace(/[^0-9]/g, '');
+                  setInput(raw ? parseInt(raw, 10).toLocaleString('en-US') : '');
+                }}
                 keyboardType="number-pad"
-                placeholder="e.g. 1500"
+                placeholder="e.g. 150,000"
                 placeholderTextColor={colors.gray400}
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
@@ -139,7 +137,7 @@ export default function CurrencyScreen() {
             <TouchableOpacity
               style={[
                 styles.saveBtn,
-                { backgroundColor: inputChanged ? Colors.primary : colors.gray200 },
+                { backgroundColor: inputChanged ? colors.primary : colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' },
               ]}
               onPress={handleSave}
               disabled={saving || !inputChanged}
@@ -160,10 +158,10 @@ export default function CurrencyScreen() {
 
           {/* ── Rate history ── */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.black }]}>{t('settings.currencyScreen.rateHistory')}</Text>
+            <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>{t('settings.currencyScreen.rateHistory')}</Text>
 
             {loadingHistory ? (
-              <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 16 }} />
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
             ) : history.length === 0 ? (
               <Text style={[styles.emptyText, { color: colors.gray400 }]}>{t('settings.currencyScreen.noHistory')}</Text>
             ) : (
@@ -172,23 +170,23 @@ export default function CurrencyScreen() {
                   key={entry.id}
                   style={[
                     styles.historyRow,
-                    { borderBottomColor: colors.gray100 },
+                    { borderBottomColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
                     i === history.length - 1 && styles.historyRowLast,
                   ]}
                 >
-                  <View style={[styles.historyDot, { backgroundColor: i === 0 ? Colors.primary : colors.gray300 }]} />
+                  <View style={[styles.historyDot, { backgroundColor: i === 0 ? colors.primary : colors.gray300 }]} />
                   <View style={styles.historyContent}>
-                    <Text style={[styles.historyRate, { color: colors.black }]}>
-                      1 USD = {fmtRate(entry.rate)} IQD
+                    <Text style={[styles.historyRate, { color: colors.black, textAlign }]}>
+                      100 USD = {fmtExchangeRate(entry.rate)} IQD
                     </Text>
-                    <Text style={[styles.historyDate, { color: colors.gray400 }]}>
-                      {formatDate(entry.createdAt)}
+                    <Text style={[styles.historyDate, { color: colors.gray400, textAlign }]}>
+                      {formatDateTime(entry.createdAt)}
                       {entry.note ? ` · ${entry.note}` : ''}
                     </Text>
                   </View>
                   {i === 0 && (
-                    <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>{t('settings.currencyScreen.current')}</Text>
+                    <View style={[styles.currentBadge, { backgroundColor: colors.primary + '20' }]}>
+                      <Text style={[styles.currentBadgeText, { color: colors.primary }]}>{t('settings.currencyScreen.current')}</Text>
                     </View>
                   )}
                 </View>
@@ -197,9 +195,9 @@ export default function CurrencyScreen() {
           </PremiumCard>
 
           {/* ── Info note ── */}
-          <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
-            <Ionicons name="information-circle" size={16} color={Colors.primary} />
-            <Text style={[styles.infoText, { color: colors.gray600 }]}>
+          <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="information-circle" size={16} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.gray600, textAlign }]}>
               {t('settings.currencyScreen.infoNote')}
             </Text>
           </View>
@@ -257,7 +255,7 @@ const styles = StyleSheet.create({
   inputSuffix: {
     fontSize: 13,
     fontWeight: '600',
-    paddingRight: 14,
+    paddingHorizontal: 14,
   },
 
   saveBtn: {
@@ -284,12 +282,11 @@ const styles = StyleSheet.create({
   historyDate:    { fontSize: 11, marginTop: 1 },
 
   currentBadge: {
-    backgroundColor: Colors.primary + '20',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  currentBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.primary },
+  currentBadgeText: { fontSize: 10, fontWeight: '700' },
 
   emptyText: { fontSize: 13, textAlign: 'center', paddingVertical: 16 },
 

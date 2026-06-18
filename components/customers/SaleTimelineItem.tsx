@@ -4,14 +4,18 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import type { Sale } from '@/types/sales';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   sale: Sale;
   isLast: boolean;
   onPress: () => void;
   onShare: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const METHOD_LABEL: Record<string, string> = {
@@ -20,20 +24,21 @@ const METHOD_LABEL: Record<string, string> = {
   debt: 'Debt',
 };
 
-const METHOD_COLOR: Record<string, string> = {
-  cash: Colors.success,
-  fib:  Colors.primary,
-  debt: Colors.warning,
-};
-
-export function SaleTimelineItem({ sale, isLast, onPress, onShare, onDelete }: Props) {
+export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDelete }: Props) {
+  const { colors } = useAppTheme();
+  const { isRTL, flexDirection } = useRTL();
+  const { chevronForward } = useDirectionalChevron();
   const hasDebt = sale.remainingDebt > 0;
-  const dateStr = new Date(sale.createdAt).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+
+  const methodColor: Record<string, string> = {
+    cash: Colors.success,
+    fib:  colors.primary,
+    debt: Colors.warning,
+  };
+  const dateStr = formatDateShort(sale.date ?? sale.createdAt);
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { flexDirection }]}>
       {/* Timeline spine */}
       <View style={styles.spine}>
         <View style={[styles.dot, hasDebt ? styles.dotDebt : styles.dotPaid]} />
@@ -43,21 +48,21 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onDelete }: P
       {/* Card */}
       <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.82}>
         {/* Header */}
-        <View style={styles.cardTop}>
+        <View style={[styles.cardTop, { flexDirection }]}>
           <View>
             <Text style={styles.invoice}>{sale.invoiceNumber}</Text>
             <Text style={styles.date}>{dateStr}</Text>
           </View>
-          <View style={styles.badges}>
-            <View style={[styles.methodBadge, { backgroundColor: `${METHOD_COLOR[sale.paymentMethod]}20` }]}>
-              <Text style={[styles.methodText, { color: METHOD_COLOR[sale.paymentMethod] }]}>
+          <View style={[styles.badges, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
+            <View style={[styles.methodBadge, { backgroundColor: `${methodColor[sale.paymentMethod]}20` }]}>
+              <Text style={[styles.methodText, { color: methodColor[sale.paymentMethod] }]}>
                 {METHOD_LABEL[sale.paymentMethod] ?? sale.paymentMethod}
               </Text>
             </View>
             {hasDebt && (
               <View style={styles.debtBadge}>
                 <Text style={styles.debtText}>
-                  {sale.remainingDebt.toLocaleString('en-US')} IQD left
+                  {fmtIQD(sale.remainingDebt)} IQD left
                 </Text>
               </View>
             )}
@@ -66,7 +71,7 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onDelete }: P
 
         {/* Items summary */}
         {sale.items && sale.items.length > 0 && (
-          <View style={styles.itemsRow}>
+          <View style={[styles.itemsRow, { flexDirection }]}>
             <Ionicons name="cube-outline" size={12} color={Colors.gray400} />
             <Text style={styles.itemsSummary} numberOfLines={1}>
               {sale.items.map((i) => i.productName).join(', ')}
@@ -75,39 +80,47 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onDelete }: P
         )}
 
         {/* Totals */}
-        <View style={styles.totalsRow}>
+        <View style={[styles.totalsRow, { flexDirection }]}>
           <View style={styles.totalItem}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={styles.totalValue}>{sale.grandTotal.toLocaleString('en-US')} IQD</Text>
+            <Text style={styles.totalValue}>{fmtIQD(sale.grandTotal)} IQD</Text>
           </View>
           {sale.discountTotal > 0 && (
             <View style={styles.totalItem}>
               <Text style={styles.totalLabel}>Discount</Text>
               <Text style={[styles.totalValue, styles.discountValue]}>
-                -{sale.discountTotal.toLocaleString('en-US')} IQD
+                -{fmtIQD(sale.discountTotal)} IQD
               </Text>
             </View>
           )}
           <View style={styles.totalItem}>
             <Text style={styles.totalLabel}>Paid</Text>
             <Text style={[styles.totalValue, styles.paidValue]}>
-              {sale.paidAmount.toLocaleString('en-US')} IQD
+              {fmtIQD(sale.paidAmount)} IQD
             </Text>
           </View>
         </View>
 
         {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={onShare} hitSlop={8}>
-            <Ionicons name="share-outline" size={14} color={Colors.primary} />
-            <Text style={styles.actionText}>Share</Text>
+        <View style={[styles.actions, { flexDirection }]}>
+          <TouchableOpacity style={[styles.actionBtn, { flexDirection }]} onPress={onShare} hitSlop={8}>
+            <Ionicons name="share-outline" size={14} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.primary }]}>Share</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={onDelete} hitSlop={8}>
-            <Ionicons name="trash-outline" size={14} color={Colors.error} />
-            <Text style={[styles.actionText, { color: Colors.error }]}>Delete</Text>
-          </TouchableOpacity>
+          {onEdit && (
+            <TouchableOpacity style={[styles.actionBtn, { flexDirection }]} onPress={onEdit} hitSlop={8}>
+              <Ionicons name="create-outline" size={14} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDelete]} onPress={onDelete} hitSlop={8}>
+              <Ionicons name="trash-outline" size={14} color={Colors.error} />
+              <Text style={styles.actionTextDelete}>Delete</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.actionRight}>
-            <Ionicons name="chevron-forward" size={16} color={Colors.gray300} />
+            <Ionicons name={chevronForward as never} size={16} color={Colors.gray300} />
           </View>
         </View>
       </TouchableOpacity>
@@ -203,6 +216,8 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.gray100,
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
-  actionRight: { marginLeft: 'auto' },
+  actionText: { fontSize: 12, fontWeight: '600' },
+  actionRight:       { marginStart: 'auto' },
+  actionBtnDelete:   { marginStart: 4 },
+  actionTextDelete:  { fontSize: 12, fontWeight: '600', color: Colors.error },
 });

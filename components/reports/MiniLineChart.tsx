@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop, Circle } from 'react-native-svg';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface DataPoint {
   value: number;
@@ -18,10 +18,12 @@ interface Props {
 export function MiniLineChart({
   data,
   height = 60,
-  color = Colors.primary,
+  color,
   showArea = true,
   showDots = false,
 }: Props) {
+  const { colors } = useAppTheme();
+  const resolvedColor = color ?? colors.primary;
   const [width, setWidth] = useState(0);
 
   if (!data || data.length < 2) return null;
@@ -60,8 +62,8 @@ export function MiniLineChart({
         <Svg width={width} height={height}>
           <Defs>
             <SvgGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={color} stopOpacity={0.3} />
-              <Stop offset="1" stopColor={color} stopOpacity={0} />
+              <Stop offset="0" stopColor={resolvedColor} stopOpacity={0.3} />
+              <Stop offset="1" stopColor={resolvedColor} stopOpacity={0} />
             </SvgGradient>
           </Defs>
 
@@ -71,7 +73,7 @@ export function MiniLineChart({
 
           <Path
             d={linePath}
-            stroke={color}
+            stroke={resolvedColor}
             strokeWidth={2}
             fill="none"
             strokeLinecap="round"
@@ -84,7 +86,7 @@ export function MiniLineChart({
               cx={toX(i)}
               cy={toY(d.value)}
               r={3}
-              fill={color}
+              fill={resolvedColor}
             />
           ))}
         </Svg>

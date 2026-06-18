@@ -7,9 +7,7 @@ export interface DateRange {
   label: string;
 }
 
-export const EXPENSE_CATEGORIES = [
-  'Rent', 'Utilities', 'Internet', 'Transport', 'Salaries', 'Other',
-] as const;
+export const EXPENSE_CATEGORIES = ['Transport', 'Food', 'Utilities'] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
 export interface SmartAlert {
@@ -31,4 +29,6 @@ export type {
   DailyRevenuePoint,
   Expense,
   RevenuePoint,
+  FinancialSummaryCards,
+  NetCashBalanceData,
 } from '@/lib/sqlite';

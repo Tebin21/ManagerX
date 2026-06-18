@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { useTranslation } from 'react-i18next';
 import { BusinessHeader } from '@/components/dashboard/BusinessHeader';
 import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
 import { SupportFooter } from '@/components/ui/SupportFooter';
@@ -12,7 +11,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
 
   return (
@@ -31,14 +29,12 @@ export default function DashboardScreen() {
           transition={{ type: 'spring', damping: 18, delay: 200 }}
           style={styles.sectionHeader}
         >
-          <Text style={[styles.sectionTitle, { color: colors.darkBlue }]}>{t('dashboard.modules')}</Text>
-
           <TouchableOpacity
             onPress={() => router.push('/(app)/settings' as never)}
-            style={[styles.settingsBtn, { backgroundColor: colors.softBlue }]}
+            style={[styles.settingsBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '1F' }]}
             hitSlop={8}
           >
-            <Ionicons name="settings-outline" size={18} color={colors.primary} />
+            <Ionicons name="settings-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
         </MotiView>
 
@@ -62,18 +58,15 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection:  'row',
     alignItems:     'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: 20,
-    paddingVertical:   16,
-  },
-  sectionTitle: {
-    fontSize:   18,
-    fontWeight: '700',
+    paddingVertical:   10,
   },
   settingsBtn: {
-    width:          38,
-    height:         38,
-    borderRadius:   12,
+    width:          44,
+    height:         44,
+    borderRadius:   14,
+    borderWidth:    1,
     alignItems:     'center',
     justifyContent: 'center',
   },

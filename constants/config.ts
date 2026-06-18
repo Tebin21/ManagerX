@@ -1,12 +1,11 @@
 export const SUPPORT_PHONE = '07708229696';
-export const SUPPORT_EMAIL = 'tebin.faruq@gmail.com';
 
 export type ModuleId =
   | 'purchases'
   | 'sales'
   | 'inventory'
   | 'reports'
-  | 'customers'
+  | 'history'
   | 'debt';
 
 export interface ModuleDefinition {
@@ -47,11 +46,11 @@ export const MODULES: ModuleDefinition[] = [
     route: '/(app)/reports',
   },
   {
-    id: 'customers',
-    labelKey: 'dashboard.customers',
+    id: 'history',
+    labelKey: 'dashboard.history',
     icon: 'people',
-    descriptionKey: 'modules.customers.description',
-    route: '/(app)/customers',
+    descriptionKey: 'modules.history.description',
+    route: '/(app)/history',
   },
   {
     id: 'debt',
@@ -62,19 +61,17 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-export type BusinessType =
-  | 'mobileShop'
-  | 'clothing'
-  | 'watches'
-  | 'cosmetics'
-  | 'onlinePage'
-  | 'personal';
+export type BusinessType = string;
 
-export const BUSINESS_TYPES: { id: BusinessType; labelKey: string; emoji: string }[] = [
-  { id: 'mobileShop', labelKey: 'setup.types.mobileShop', emoji: '📱' },
-  { id: 'clothing', labelKey: 'setup.types.clothing', emoji: '👕' },
-  { id: 'watches', labelKey: 'setup.types.watches', emoji: '⌚' },
-  { id: 'cosmetics', labelKey: 'setup.types.cosmetics', emoji: '💄' },
-  { id: 'onlinePage', labelKey: 'setup.types.onlinePage', emoji: '🌐' },
-  { id: 'personal', labelKey: 'setup.types.personal', emoji: '🏠' },
+export const BUSINESS_TYPES: { id: string; label: string; emoji: string }[] = [
+  { id: 'mobileShop',  label: 'Mobile Shop',       emoji: '📱' },
+  { id: 'electronics', label: 'Electronics',        emoji: '🖥️' },
+  { id: 'clothing',    label: 'Clothing Store',     emoji: '👕' },
+  { id: 'watches',     label: 'Watches Store',      emoji: '⌚' },
+  { id: 'cosmetics',   label: 'Cosmetics Store',    emoji: '💄' },
+  { id: 'onlinePage',  label: 'Online Page',        emoji: '🌐' },
+  { id: 'personal',    label: 'Personal Business',  emoji: '🏠' },
+  { id: 'restaurant',  label: 'Restaurant',         emoji: '🍽️' },
+  { id: 'pharmacy',    label: 'Pharmacy',           emoji: '💊' },
+  { id: 'supermarket', label: 'Supermarket',        emoji: '🛒' },
 ];

@@ -2,7 +2,8 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 interface State {
   hasError: boolean;
@@ -13,6 +14,26 @@ interface Props {
   children: React.ReactNode;
   fallbackTitle?: string;
   fallbackMessage?: string;
+}
+
+function ErrorUI({ title, message, onReset }: { title?: string; message?: string; onReset: () => void }) {
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
+  return (
+    <View style={styles.container}>
+      <View style={styles.card}>
+        <View style={styles.iconWrap}>
+          <Ionicons name="warning-outline" size={48} color={colors.primary} />
+        </View>
+        <Text style={styles.title}>{title ?? 'Something went wrong'}</Text>
+        <Text style={styles.message}>{message ?? 'An unexpected error occurred. Please try again.'}</Text>
+        <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary, flexDirection }]} onPress={onReset} activeOpacity={0.85}>
+          <Ionicons name="refresh-outline" size={18} color="#fff" />
+          <Text style={styles.buttonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -34,23 +55,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
 
     return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="warning-outline" size={48} color={Colors.primary} />
-          </View>
-          <Text style={styles.title}>
-            {this.props.fallbackTitle ?? 'Something went wrong'}
-          </Text>
-          <Text style={styles.message}>
-            {this.props.fallbackMessage ?? 'An unexpected error occurred. Please try again.'}
-          </Text>
-          <TouchableOpacity style={styles.button} onPress={this.reset} activeOpacity={0.85}>
-            <Ionicons name="refresh-outline" size={18} color="#fff" />
-            <Text style={styles.buttonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ErrorUI
+        title={this.props.fallbackTitle}
+        message={this.props.fallbackMessage}
+        onReset={this.reset}
+      />
     );
   }
 }
@@ -117,7 +126,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.primary,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,

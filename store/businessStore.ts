@@ -1,11 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BusinessType } from '@/constants/config';
 
 interface BusinessData {
   name: string;
-  type: BusinessType | null;
+  type: string;
   phone: string;
   address: string;
   logoUri: string | null;
@@ -22,7 +21,7 @@ export const useBusinessStore = create<BusinessState>()(
   persist(
     (set) => ({
       name: '',
-      type: null,
+      type: '',
       phone: '',
       address: '',
       logoUri: null,
@@ -36,7 +35,7 @@ export const useBusinessStore = create<BusinessState>()(
       clearBusiness: () =>
         set({
           name: '',
-          type: null,
+          type: '',
           phone: '',
           address: '',
           logoUri: null,

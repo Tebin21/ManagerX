@@ -25,6 +25,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function AboutScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isRTL } = useRTL();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -37,32 +38,46 @@ export default function AboutScreen() {
       >
         {/* Logo block */}
         <View style={styles.logoBlock}>
-          <View style={[styles.logoWrap, { backgroundColor: Colors.primary + '15' }]}>
-            <Ionicons name="stats-chart" size={40} color={Colors.primary} />
+          <View style={[styles.logoWrap, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="stats-chart" size={40} color={colors.primary} />
           </View>
           <Text style={[styles.appName, { color: colors.black }]}>ManagerX</Text>
           <Text style={[styles.tagline, { color: colors.gray400 }]}>
-            Smart business management
+            {t('settings.aboutScreen.tagline')}
           </Text>
         </View>
 
         <SettingSection title={t('settings.aboutScreen.appInfo')}>
-          <InfoRow label={t('settings.aboutScreen.version')}  value="1.0.0" />
-          <InfoRow label={t('settings.aboutScreen.platform')} value="Expo + React Native" />
-          <InfoRow label={t('settings.aboutScreen.database')} value="SQLite (offline-first)" />
-          <InfoRow label={t('settings.aboutScreen.build')}    value="2026.05" />
+          <InfoRow label={t('settings.aboutScreen.version')} value="1.0.0" />
+          <InfoRow label={t('settings.aboutScreen.build')}   value="2026.05" />
         </SettingSection>
 
-        <SettingSection title={t('settings.aboutScreen.developerSection')}>
-          <InfoRow
-            label={t('settings.aboutScreen.developer')}
-            value={t('settings.aboutScreen.developerName')}
-          />
+        <SettingSection title={t('settings.aboutScreen.supportSection')}>
           {/* Phone displayed as plain text — no Linking, no dialer, no WhatsApp */}
           <InfoRow
             label={t('settings.aboutScreen.supportPhone')}
             value={t('settings.aboutScreen.phoneNumber')}
           />
+        </SettingSection>
+
+        <SettingSection title={t('settings.aboutScreen.aboutBexDre')}>
+          <View style={[styles.descBlock, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+            <Text style={[styles.descHeading, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+              BexDre
+            </Text>
+            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.aboutScreen.bexDreDesc1')}
+            </Text>
+            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.aboutScreen.bexDreDesc2')}
+            </Text>
+            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.aboutScreen.bexDreDesc3')}
+            </Text>
+            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+              {t('settings.aboutScreen.bexDreDesc4')}
+            </Text>
+          </View>
         </SettingSection>
 
         <View style={{ height: 40 }} />
@@ -94,4 +109,8 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 14 },
   infoValue: { fontSize: 14, fontWeight: '600' },
+
+  descBlock:   { paddingVertical: 14, gap: 12 },
+  descHeading: { fontSize: 16, fontWeight: '700' },
+  descBody:    { fontSize: 14, lineHeight: 22 },
 });

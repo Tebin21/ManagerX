@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -10,15 +10,12 @@ import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { fmtIQD } from '@/utils/formatters';
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
 
 function getTodayStats(sales: ReturnType<typeof useSalesStore.getState>['sales']) {
   const today = new Date().toDateString();
@@ -32,7 +29,8 @@ function getTodayStats(sales: ReturnType<typeof useSalesStore.getState>['sales']
 export default function SalesScreen() {
   const router  = useRouter();
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
+  const { chevronForward, arrowForward } = useDirectionalChevron();
   const { colors } = useAppTheme();
   const { sales, loadSales } = useSalesStore();
 
@@ -68,10 +66,10 @@ export default function SalesScreen() {
           >
             <LinearGradient
               colors={[colors.primaryDark, colors.primary]}
-              style={styles.newSaleBtnGradient}
+              style={[styles.newSaleBtnGradient, { flexDirection }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
-              <View style={styles.newSaleBtnInner}>
+              <View style={[styles.newSaleBtnInner, { flexDirection }]}>
                 <View style={styles.newSaleIconBox}>
                   <Ionicons name="add" size={28} color={colors.white} />
                 </View>
@@ -80,7 +78,7 @@ export default function SalesScreen() {
                   <Text style={[styles.newSaleSub, { textAlign }]}>{t('sales.startNewSaleSub')}</Text>
                 </View>
               </View>
-              <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.7)" />
+              <Ionicons name={arrowForward as never} size={20} color="rgba(255,255,255,0.7)" />
             </LinearGradient>
           </TouchableOpacity>
         </MotiView>
@@ -102,7 +100,7 @@ export default function SalesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="trending-up" size={20} color={colors.success} />
             </View>
-            <Text style={[styles.statValue, { color: colors.success }]}>{fmt(revenue)}</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>{fmtIQD(revenue)}</Text>
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('sales.todayRevenue')}</Text>
           </PremiumCard>
         </MotiView>
@@ -114,9 +112,9 @@ export default function SalesScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(app)/sales/check-price' as never)}
             activeOpacity={0.85}
-            style={[styles.secondaryBtn, { backgroundColor: colors.white }]}
+            style={[styles.secondaryBtn, { backgroundColor: colors.white, flexDirection }]}
           >
-            <View style={styles.secondaryLeft}>
+            <View style={[styles.secondaryLeft, { flexDirection }]}>
               <View style={[styles.secondaryIcon, { backgroundColor: colors.softBlue }]}>
                 <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
               </View>
@@ -125,13 +123,12 @@ export default function SalesScreen() {
                 <Text style={[styles.secondarySub, { color: colors.gray400, textAlign }]}>{t('sales.checkPriceSub')}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
+            <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
           </TouchableOpacity>
         </MotiView>
 
       </ScrollView>
 
-      <SupportFooter />
     </View>
   );
 }

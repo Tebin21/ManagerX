@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,9 +12,9 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { useTranslation } from 'react-i18next';
-import { useSalesStore } from '@/store/salesStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
 import type { Sale } from '@/types/sales';
@@ -23,14 +23,13 @@ export default function SaleDetailScreen() {
   const { id, new: isNew } = useLocalSearchParams<{ id: string; new?: string }>();
   const router   = useRouter();
   const { t } = useTranslation();
+  const { textAlign } = useRTL();
   const { colors } = useAppTheme();
-  const { deleteSale } = useSalesStore();
   const business = useBusinessStore();
 
   const [sale, setSale]         = useState<Sale | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => { loadSale(); }, [id]);
 
@@ -60,26 +59,6 @@ export default function SaleDetailScreen() {
     } finally { setIsSharing(false); }
   }
 
-  function confirmDelete() {
-    Alert.alert(
-      t('sales.deleteTitle'),
-      t('sales.deleteMsg'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('sales.confirmDelete'), style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try { await deleteSale(Number(id)); router.back(); }
-            catch (err) { console.error(err); setIsDeleting(false); }
-          },
-        },
-      ]
-    );
-  }
-
-  const gradColors = [colors.gradientStart, colors.gradientMid] as [string, string];
-
   const numId = Number(id);
   if (!id || isNaN(numId)) {
     return (
@@ -103,7 +82,7 @@ export default function SaleDetailScreen() {
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('sales.title')} />
         <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: colors.gray500 }]}>{t('sales.saleNotFound')}</Text>
+          <Text style={[styles.emptyText, { color: colors.gray500, textAlign }]}>{t('sales.saleNotFound')}</Text>
         </View>
       </View>
     );
@@ -132,7 +111,7 @@ export default function SaleDetailScreen() {
         <View style={styles.actions}>
           <PrimaryButton label={isSharing ? t('sales.preparingPdf') : t('sales.shareInvoice')} onPress={handleShare} loading={isSharing} />
           <View style={styles.spacer} />
-          <PrimaryButton label={t('sales.deleteTitle')} onPress={confirmDelete} loading={isDeleting} variant="outline" />
+          <PrimaryButton label={t('sales.editInvoice')} onPress={() => router.push(`/(app)/sales/edit/${id}` as never)} variant="outline" />
         </View>
       </ScrollView>
     </View>

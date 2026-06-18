@@ -3,6 +3,7 @@ import {
   getAllCustomersWithStats,
   getCustomerByIdWithStats,
   updateCustomer,
+  deleteCustomer as deleteCustomerFromDB,
   getSalesByCustomerId,
   getDebtsByCustomerId,
   addPaymentToDebt,
@@ -22,6 +23,7 @@ interface CustomerState {
   getCustomerById: (id: number) => CustomerWithStats | undefined;
 
   editCustomer: (id: number, data: Partial<{ name: string; phone: string; address: string; notes: string }>) => Promise<void>;
+  deleteCustomer: (id: number) => Promise<void>;
   addDebtPayment: (debtId: number, amount: number) => Promise<void>;
   editSaleInfo: (saleId: number, data: UpdateSaleInput) => Promise<void>;
 }
@@ -64,6 +66,12 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   editCustomer: async (id, data) => {
     await updateCustomer(id, data);
+    const customers = await getAllCustomersWithStats();
+    set({ customers });
+  },
+
+  deleteCustomer: async (id: number) => {
+    await deleteCustomerFromDB(id);
     const customers = await getAllCustomersWithStats();
     set({ customers });
   },

@@ -21,7 +21,7 @@ function looksLike(value: string | undefined, minLen: number): value is string {
 export const supabaseConfigured = looksLike(supabaseUrl, 20) && looksLike(supabaseAnonKey, 100);
 
 if (!supabaseConfigured) {
-  console.error(
+  console.warn(
     '[ManagerX] Supabase credentials are missing or invalid.\n' +
       'Local dev: set real values in your .env file (URL >= 20 chars, key >= 100 chars).\n' +
       'EAS builds: run eas secret:create for EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.',

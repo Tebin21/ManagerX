@@ -61,17 +61,9 @@ export interface NewPurchaseInput {
   description: string;
   notes: string;
   paymentStatus: PurchasePaymentStatus;
+  initialAmountPaid?: number;
   imageUri?: string | null;
+  selectedSupplierId?: number;
 }
 
 export const PURCHASE_RATE = 1310; // 1 USD = 1310 IQD
-
-export const PURCHASE_CATEGORIES = [
-  'Electronics',
-  'Clothing',
-  'Food',
-  'Produce',
-  'Medicine',
-  'Tools',
-  'Other',
-] as const;

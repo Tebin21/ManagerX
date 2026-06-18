@@ -3,17 +3,21 @@ import {
   getAllPurchases,
   insertPurchase,
   deletePurchase as dbDeletePurchase,
+  updatePurchase as dbUpdatePurchase,
   generatePurchaseNumber,
   insertProduct,
+  getProductsByItemId,
 } from '@/lib/sqlite';
 import { useSettingsStore, DEFAULT_EXCHANGE_RATE } from '@/store/settingsStore';
 import type { Purchase, NewPurchaseInput } from '@/types/purchases';
+import type { UpdatePurchaseInput } from '@/lib/sqlite';
 
 interface PurchaseState {
   purchases: Purchase[];
   isLoading: boolean;
   loadPurchases: () => Promise<void>;
   createPurchase: (input: NewPurchaseInput) => Promise<Purchase>;
+  updatePurchase: (id: number, input: UpdatePurchaseInput) => Promise<void>;
   deletePurchase: (id: number) => Promise<void>;
   searchPurchases: (query: string) => Purchase[];
 }
@@ -67,6 +71,17 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       paymentStatus:   input.paymentStatus,
     };
 
+    // Validate supplier uniqueness before committing the purchase
+    if (data.supplierName) {
+      const { upsertSupplier } = await import('@/lib/sqlite');
+      await upsertSupplier({
+        name:       data.supplierName,
+        phone:      data.supplierPhone,
+        address:    data.supplierAddress,
+        selectedId: input.selectedSupplierId,
+      });
+    }
+
     const purchaseId = await insertPurchase(data);
 
     // Backfill purchase_items row (mirrors current single-product model)
@@ -96,11 +111,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
           supplierAddress: data.supplierAddress,
           purchaseNumber,
           originalAmount:  totalIQD,
+          paidAmount:      input.initialAmountPaid ?? 0,
           notes:           data.notes,
         });
         try {
           const { useDebtStore } = await import('@/store/debtStore');
-          useDebtStore.getState().reloadAfterSale();
+          await useDebtStore.getState().reloadAfterSale();
         } catch { /* debt store not yet initialized */ }
       } catch (err) {
         console.error('Failed to create purchase debt:', err);
@@ -128,6 +144,17 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       isActive:        true,
     };
 
+    // Validate itemId uniqueness before any insertions
+    const idsToCheck = (input.itemIds ?? []).filter(Boolean);
+    const duplicates: string[] = [];
+    for (const itemId of idsToCheck) {
+      const existing = await getProductsByItemId(itemId);
+      if (existing.length > 0) duplicates.push(itemId);
+    }
+    if (duplicates.length > 0) {
+      throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
+    }
+
     if (input.idType === 'custom') {
       for (const itemId of input.itemIds) {
         await insertProduct({ ...baseProduct, idMode: 'unique', quantity: 1, itemId });
@@ -144,12 +171,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     // Trigger inventory reload if the store is already mounted
     try {
       const { useInventoryStore } = await import('@/store/inventoryStore');
-      useInventoryStore.getState().loadInventory();
+      await useInventoryStore.getState().loadInventory();
     } catch { /* inventory store not yet initialized */ }
 
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
     } catch {}
 
     const newPurchase: Purchase = {
@@ -163,6 +190,31 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     return newPurchase;
   },
 
+  updatePurchase: async (id: number, input: UpdatePurchaseInput) => {
+    await dbUpdatePurchase(id, input);
+    await get().loadPurchases();
+
+    try {
+      const { useInventoryStore } = await import('@/store/inventoryStore');
+      await useInventoryStore.getState().loadInventory();
+    } catch { /* inventory store not yet initialized */ }
+
+    try {
+      const { useDebtStore } = await import('@/store/debtStore');
+      await useDebtStore.getState().reloadAfterSale();
+    } catch { /* debt store not yet initialized */ }
+
+    try {
+      const { useSupplierStore } = await import('@/store/supplierStore');
+      await useSupplierStore.getState().loadSuppliers();
+    } catch {}
+
+    try {
+      const { useReportStore } = await import('@/store/reportStore');
+      await useReportStore.getState().reloadAfterMutation();
+    } catch {}
+  },
+
   deletePurchase: async (id: number) => {
     // deletePurchase in sqlite.ts cascades to purchase_debts + products
     await dbDeletePurchase(id);
@@ -170,17 +222,17 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
     try {
       const { useInventoryStore } = await import('@/store/inventoryStore');
-      useInventoryStore.getState().loadInventory();
+      await useInventoryStore.getState().loadInventory();
     } catch { /* inventory store not yet initialized */ }
 
     try {
       const { useDebtStore } = await import('@/store/debtStore');
-      useDebtStore.getState().reloadAfterSale();
+      await useDebtStore.getState().reloadAfterSale();
     } catch { /* debt store not yet initialized */ }
 
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
     } catch {}
   },
 

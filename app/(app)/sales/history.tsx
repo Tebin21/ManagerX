@@ -4,16 +4,17 @@ import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
 
 import { AppHeader } from '@/components/common/AppHeader';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { SaleHistoryItem } from '@/components/sales/SaleHistoryItem';
 import { useTranslation } from 'react-i18next';
 import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 export default function SalesHistoryScreen() {
   const router  = useRouter();
   const { t } = useTranslation();
+  const { textAlign } = useRTL();
   const { colors } = useAppTheme();
   const { searchSales, loadSales, isLoading } = useSalesStore();
 
@@ -51,7 +52,7 @@ export default function SalesHistoryScreen() {
         windowSize={5}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: colors.gray500 }]}>
+            <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>
               {isLoading ? t('common.loading') : query ? t('sales.noProducts') : t('sales.noHistory')}
             </Text>
             {!isLoading && !query && (
@@ -59,7 +60,6 @@ export default function SalesHistoryScreen() {
             )}
           </View>
         }
-        ListFooterComponent={results.length > 0 ? <SupportFooter /> : null}
       />
     </View>
   );

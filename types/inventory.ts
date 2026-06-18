@@ -1,5 +1,13 @@
 import type { Product } from '@/types/sales';
 
+export type LowStockMode = 'global' | 'enabled' | 'disabled';
+
+export function getLowStockMode(v: 1 | 0 | null): LowStockMode {
+  if (v === 1) return 'enabled';
+  if (v === 0) return 'disabled';
+  return 'global';
+}
+
 export interface InventoryProduct extends Product {
   purchaseId: number | null;
   supplierName: string | null;
@@ -11,6 +19,8 @@ export interface InventoryProduct extends Product {
   imageUri: string | null;
   buyPriceUsd: number;
   sellPriceUsd: number;
+  lowStockThreshold: number | null;
+  lowStockEnabled: 1 | 0 | null;
 }
 
 export interface InventoryStats {
@@ -46,4 +56,21 @@ export interface NewProductData {
   paymentStatus: 'paid' | 'debt';
   warranty: string | null;
   imageUri: string | null;
+  lowStockThreshold?: number | null;
+  lowStockEnabled?: 1 | 0 | null;
+}
+
+export interface InventoryHistoryItem {
+  id: number;
+  productId: number;
+  productName: string;
+  category: string;
+  imageUri: string | null;
+  itemId: string | null;
+  purchasePrice: number;
+  sellingPrice: number;
+  quantitySold: number;
+  finalQuantity: number;
+  status: 'sold_out' | 'removed';
+  archivedAt: string;
 }

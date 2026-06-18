@@ -2,12 +2,14 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
+import { useRTL } from '@/lib/rtl';
 import i18n from '@/lib/i18n';
 
 export function LowStockBadge() {
+  const { flexDirection } = useRTL();
   return (
-    <View style={styles.badge}>
-      <Ionicons name="warning" size={11} color="#92400E" />
+    <View style={[styles.badge, { flexDirection }]}>
+      <Ionicons name="warning-outline" size={11} color="#92400E" />
       <Text style={styles.text}>{i18n.t('inventory.lowStock')}</Text>
     </View>
   );
@@ -25,7 +27,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   text: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#92400E',
   },

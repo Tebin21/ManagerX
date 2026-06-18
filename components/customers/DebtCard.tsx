@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useRTL } from '@/lib/rtl';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { Debt } from '@/types/sales';
+import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   debt: Debt;
@@ -14,6 +16,7 @@ interface Props {
 }
 
 export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
+  const { isRTL, flexDirection } = useRTL();
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [saving, setSaving] = useState(false);
@@ -30,7 +33,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
       return;
     }
     if (amount > debt.remainingAmount) {
-      Alert.alert('Too much', `Maximum payment is ${debt.remainingAmount.toLocaleString('en-US')} IQD`);
+      Alert.alert('Too much', `Maximum payment is ${fmtIQD(debt.remainingAmount)} IQD`);
       return;
     }
     setSaving(true);
@@ -46,23 +49,23 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   return (
     <View style={[styles.card, isSettled && styles.cardSettled]}>
       <TouchableOpacity
-        style={styles.header}
+        style={[styles.header, { flexDirection }]}
         onPress={() => !isSettled && setExpanded((e) => !e)}
         activeOpacity={0.8}
       >
-        <View style={styles.headerLeft}>
+        <View style={[styles.headerLeft, { flexDirection }]}>
           <View style={[styles.statusDot, isSettled ? styles.dotSettled : styles.dotActive]} />
           <View>
             {invoiceNumber && (
               <Text style={styles.invoiceNum}>{invoiceNumber}</Text>
             )}
             <Text style={styles.amounts}>
-              {debt.paidAmount.toLocaleString('en-US')} / {debt.originalAmount.toLocaleString('en-US')} IQD
+              {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
             </Text>
           </View>
         </View>
 
-        <View style={styles.headerRight}>
+        <View style={[styles.headerRight, { flexDirection }]}>
           {isSettled ? (
             <View style={styles.settledBadge}>
               <Text style={styles.settledText}>Settled</Text>
@@ -71,7 +74,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             <View>
               <Text style={styles.remainingLabel}>Remaining</Text>
               <Text style={styles.remainingValue}>
-                {debt.remainingAmount.toLocaleString('en-US')} IQD
+                {fmtIQD(debt.remainingAmount)} IQD
               </Text>
             </View>
           )}
@@ -87,7 +90,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
 
       {/* Progress bar */}
       {!isSettled && (
-        <View style={styles.progressWrap}>
+        <View style={[styles.progressWrap, { flexDirection }]}>
           <View style={styles.progressBg}>
             <MotiView
               from={{ width: '0%' }}
@@ -96,7 +99,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
               style={styles.progressFill}
             />
           </View>
-          <Text style={styles.progressText}>{percent}% paid</Text>
+          <Text style={[styles.progressText, { textAlign: isRTL ? 'left' : 'right' }]}>{percent}% paid</Text>
         </View>
       )}
 
@@ -109,10 +112,10 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           style={styles.payForm}
         >
           <TextInput
-            style={styles.payInput}
+            style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
             value={payAmount}
             onChangeText={setPayAmount}
-            placeholder={`Amount (max ${debt.remainingAmount.toLocaleString('en-US')} IQD)`}
+            placeholder={`Amount (max ${fmtIQD(debt.remainingAmount)} IQD)`}
             placeholderTextColor={Colors.gray300}
             keyboardType="decimal-pad"
             autoFocus
@@ -207,7 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
     borderRadius: 3,
   },
-  progressText: { fontSize: 11, color: Colors.gray400, width: 54, textAlign: 'right' },
+  progressText: { fontSize: 11, color: Colors.gray400, width: 54 },
 
   payForm: {
     marginTop: 12,

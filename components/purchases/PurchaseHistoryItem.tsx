@@ -4,7 +4,10 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import type { Purchase } from '@/types/purchases';
+import { fmtIQD, formatDate } from '@/utils/formatters';
 
 interface Props {
   purchase: Purchase;
@@ -12,16 +15,9 @@ interface Props {
   onDelete: () => void;
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
+  const { colors } = useAppTheme();
+  const { textAlign, flexDirection, alignEnd } = useRTL();
   const isPaid = purchase.paymentStatus === 'paid';
 
   return (
@@ -31,20 +27,20 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       activeOpacity={0.85}
     >
       {/* Header row */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.numBadge}>
-            <Text style={styles.numText}>{purchase.purchaseNumber.split('-').pop()}</Text>
+      <View style={[styles.header, { flexDirection }]}>
+        <View style={[styles.headerLeft, { flexDirection }]}>
+          <View style={[styles.numBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.numText}>{purchase.purchaseNumber}</Text>
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.productName} numberOfLines={1}>{purchase.productName}</Text>
+            <Text style={[styles.productName, { textAlign }]} numberOfLines={1}>{purchase.productName}</Text>
             {purchase.supplierName ? (
-              <Text style={styles.supplierName} numberOfLines={1}>{purchase.supplierName}</Text>
+              <Text style={[styles.supplierName, { textAlign }]} numberOfLines={1}>{purchase.supplierName}</Text>
             ) : null}
           </View>
         </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.date}>{formatDate(purchase.createdAt)}</Text>
+        <View style={[styles.headerRight, { alignItems: alignEnd }]}>
+          <Text style={[styles.date, { textAlign }]}>{formatDate(purchase.createdAt)}</Text>
           <View style={[styles.statusBadge, isPaid ? styles.statusPaid : styles.statusDebt]}>
             <Text style={[styles.statusText, isPaid ? styles.statusTextPaid : styles.statusTextDebt]}>
               {isPaid ? 'Paid' : 'Debt'}
@@ -62,20 +58,20 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
         <View style={styles.divider} />
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Price / Unit</Text>
-          <Text style={styles.detailValue}>{fmt(purchase.buyPriceIQD)} IQD</Text>
+          <Text style={styles.detailValue}>{fmtIQD(purchase.buyPriceIQD)} IQD</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Total</Text>
-          <Text style={[styles.detailValue, styles.totalValue]}>{fmt(purchase.totalIQD)} IQD</Text>
+          <Text style={[styles.detailValue, { color: colors.primary }]}>{fmtIQD(purchase.totalIQD)} IQD</Text>
         </View>
       </View>
 
       {/* Actions row */}
-      <View style={styles.actions}>
-        <View style={styles.purchaseNum}>
+      <View style={[styles.actions, { flexDirection }]}>
+        <View style={[styles.purchaseNum, { flexDirection }]}>
           <Ionicons name="receipt-outline" size={13} color={Colors.gray400} />
-          <Text style={styles.purchaseNumText}>{purchase.purchaseNumber}</Text>
+          <Text style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</Text>
         </View>
         <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} hitSlop={8}>
           <Ionicons name="trash-outline" size={16} color={Colors.error} />
@@ -104,7 +100,6 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   numBadge: {
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -120,10 +115,10 @@ const styles = StyleSheet.create({
   date: { fontSize: 11, color: Colors.gray400 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   statusPaid: { backgroundColor: '#DCFCE7' },
-  statusDebt: { backgroundColor: '#FEE2E2' },
+  statusDebt: { backgroundColor: '#FEF3C7' },
   statusText: { fontSize: 11, fontWeight: '700' },
   statusTextPaid: { color: Colors.success },
-  statusTextDebt: { color: Colors.error },
+  statusTextDebt: { color: '#92400E' },
 
   details: {
     flexDirection: 'row',
@@ -133,7 +128,6 @@ const styles = StyleSheet.create({
   detailItem: { flex: 1, alignItems: 'center' },
   detailLabel: { fontSize: 11, color: Colors.gray400, marginBottom: 2 },
   detailValue: { fontSize: 13, fontWeight: '600', color: Colors.black },
-  totalValue: { color: Colors.primary },
   divider: { width: 1, backgroundColor: Colors.gray100, marginVertical: 2 },
 
   actions: {

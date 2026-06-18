@@ -17,6 +17,12 @@ finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'tslib') {
     return { type: 'sourceFile', filePath: require.resolve('tslib') };
   }
+  // Fix: "Cannot use 'import.meta' outside a module"
+  // Metro on web picks zustand's ESM middleware (esm/middleware.mjs) which uses
+  // import.meta.env for devtools detection. Force the CJS entry instead.
+  if (moduleName === 'zustand/middleware') {
+    return { type: 'sourceFile', filePath: require.resolve('zustand/middleware') };
+  }
   if (nativeWindResolve) {
     return nativeWindResolve(context, moduleName, platform);
   }

@@ -2,19 +2,24 @@ import * as SQLite from 'expo-sqlite';
 import type {
   Product, SaleItem, Sale, Debt,
   IdMode, PaymentMethod, SaleStatus, DebtStatus,
+  UpdateSaleCompleteInput, GlobalDiscountType,
 } from '@/types/sales';
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats, NewProductData } from '@/types/inventory';
 import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary } from '@/types/debt';
+import type { SoldProductRecord } from '@/types/soldProducts';
+import type { Supplier, SupplierWithStats } from '@/types/suppliers';
 
-let db: SQLite.SQLiteDatabase | null = null;
+export const DEFAULT_CATEGORY = 'General';
+
+const dbPromise = SQLite.openDatabaseAsync('managerx.db').catch((err) => {
+  console.error('[ManagerX] SQLite open failed:', err);
+  throw err;
+});
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    db = await SQLite.openDatabaseAsync('managerx.db');
-  }
-  return db;
+  return dbPromise;
 }
 
 export async function initializeDatabase(): Promise<void> {
@@ -267,6 +272,40 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `CREATE TABLE IF NOT EXISTS exchange_rates (id INTEGER PRIMARY KEY AUTOINCREMENT, rate REAL NOT NULL, note TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
     // Seed the initial rate so the history is never empty
     `INSERT OR IGNORE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`,
+    // Add missing 'date' column to purchases (was in CREATE TABLE DDL but never migrated)
+    `ALTER TABLE purchases ADD COLUMN date TEXT`,
+    // Backfill date from created_at for rows that have no date yet
+    `UPDATE purchases SET date = date(created_at) WHERE date IS NULL`,
+    // Managed categories table
+    `CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)`,
+    // Populate from existing product/purchase categories
+    `INSERT OR IGNORE INTO categories (name) SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' UNION SELECT DISTINCT category FROM purchase_items WHERE category IS NOT NULL AND category != ''`,
+    // Guarantee the default category always exists
+    `INSERT OR IGNORE INTO categories (name) VALUES ('General')`,
+    // Per-product low stock threshold (null = use global default)
+    `ALTER TABLE products ADD COLUMN low_stock_threshold INTEGER`,
+    // Per-product alert opt-in: NULL=follow global, 1=always on, 0=always off
+    `ALTER TABLE products ADD COLUMN low_stock_enabled INTEGER`,
+    // Inventory history — snapshots of sold-out or removed products
+    `CREATE TABLE IF NOT EXISTS inventory_history (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, product_name TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'General', image_uri TEXT, item_id TEXT, purchase_price REAL NOT NULL DEFAULT 0, selling_price REAL NOT NULL DEFAULT 0, quantity_sold INTEGER NOT NULL DEFAULT 0, final_quantity INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'sold_out', archived_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id))`,
+    `UPDATE invoice_counter SET last_number = MAX(last_number, (SELECT COUNT(*) FROM sales)), last_date = ''`,
+    `UPDATE purchase_counter SET last_number = MAX(last_number, (SELECT COUNT(*) FROM purchases)), last_date = ''`,
+    // Cart-level discount fields on sales
+    `ALTER TABLE sales ADD COLUMN global_discount_type TEXT NOT NULL DEFAULT 'none'`,
+    `ALTER TABLE sales ADD COLUMN global_discount REAL NOT NULL DEFAULT 0`,
+    // Exchange rate snapshot on sales — preserves the rate active at time of sale
+    `ALTER TABLE sales ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1310`,
+    // User-editable transaction date/time for sales (separate from system created_at)
+    `ALTER TABLE sales ADD COLUMN date TEXT`,
+    `UPDATE sales SET date = datetime(created_at) WHERE date IS NULL`,
+    // Duplicate-account prevention: unique indexes on customer/supplier name and phone
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_name_unique ON customers(LOWER(TRIM(name)))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_phone_unique ON customers(phone) WHERE phone IS NOT NULL AND TRIM(phone) != ''`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_phone_unique ON suppliers(phone) WHERE phone IS NOT NULL AND TRIM(phone) != ''`,
+    // Expense reason field — separates "what it was for" from optional note
+    `ALTER TABLE expenses ADD COLUMN reason TEXT`,
+    `UPDATE expenses SET reason = note, note = NULL WHERE reason IS NULL AND note IS NOT NULL`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -340,22 +379,24 @@ export async function loadSetting(key: string): Promise<string | null> {
 
 export async function generateInvoiceNumber(): Promise<string> {
   const database = await getDatabase();
+  let invoiceNumber = '';
 
-  return database.withTransactionAsync(async () => {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const row = await database.getFirstAsync<{ last_number: number; last_date: string }>(
-      'SELECT last_number, last_date FROM invoice_counter WHERE id = 1'
+  await database.withTransactionAsync(async () => {
+    const row = await database.getFirstAsync<{ last_number: number }>(
+      'SELECT last_number FROM invoice_counter WHERE id = 1'
     );
 
-    const nextNumber = row && row.last_date === today ? row.last_number + 1 : 1;
+    const nextNumber = (row?.last_number ?? 0) + 1;
 
     await database.runAsync(
-      'UPDATE invoice_counter SET last_number = ?, last_date = ? WHERE id = 1',
-      [nextNumber, today]
+      'UPDATE invoice_counter SET last_number = ? WHERE id = 1',
+      [nextNumber]
     );
 
-    return `INV-${today}-${String(nextNumber).padStart(4, '0')}`;
+    invoiceNumber = String(nextNumber).padStart(4, '0');
   });
+
+  return invoiceNumber;
 }
 
 // ─── Products ────────────────────────────────────────────────────────────────
@@ -395,6 +436,15 @@ export async function getProductById(id: number): Promise<Product | null> {
   return row ? rowToProduct(row) : null;
 }
 
+export async function getProductsByItemId(itemId: string): Promise<number[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<{ id: number }>(
+    'SELECT id FROM products WHERE item_id = ? AND is_active = 1',
+    [itemId]
+  );
+  return rows.map((r) => r.id);
+}
+
 export async function searchProducts(query: string, category?: string): Promise<Product[]> {
   const database = await getDatabase();
   const q = `%${query}%`;
@@ -418,10 +468,55 @@ export async function searchProducts(query: string, category?: string): Promise<
 
 export async function getProductCategories(): Promise<string[]> {
   const database = await getDatabase();
+  const rows = await database.getAllAsync<{ name: string }>(
+    `SELECT name FROM categories ORDER BY name ASC`
+  );
+  return rows.map((r) => r.name);
+}
+
+export async function getAllCategories(): Promise<string[]> {
+  const database = await getDatabase();
   const rows = await database.getAllAsync<{ category: string }>(
-    'SELECT DISTINCT category FROM products ORDER BY category ASC'
+    `SELECT DISTINCT category
+     FROM (SELECT category FROM products UNION SELECT category FROM purchase_items)
+     WHERE category IS NOT NULL AND category != ''
+     ORDER BY category ASC`
   );
   return rows.map((r) => r.category);
+}
+
+export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<{ name: string; product_count: number }>(
+    `SELECT c.name,
+            COUNT(CASE WHEN p.is_active = 1 THEN 1 END) AS product_count
+     FROM categories c
+     LEFT JOIN products p ON p.category = c.name
+     GROUP BY c.name
+     ORDER BY c.name ASC`
+  );
+  return rows.map((r) => ({ name: r.name, productCount: r.product_count, isDefault: r.name === DEFAULT_CATEGORY }));
+}
+
+export async function addManagedCategory(name: string): Promise<void> {
+  const database = await getDatabase();
+  const result = await database.runAsync(
+    'INSERT OR IGNORE INTO categories (name) VALUES (?)',
+    [name.trim()]
+  );
+  if (result.changes === 0) throw new Error('CATEGORY_ALREADY_EXISTS');
+}
+
+export async function deleteManagedCategory(name: string): Promise<void> {
+  if (name === DEFAULT_CATEGORY) throw new Error('CATEGORY_IS_DEFAULT');
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ cnt: number }>(
+    'SELECT COUNT(*) AS cnt FROM products WHERE category = ? AND is_active = 1',
+    [name]
+  );
+  const count = row?.cnt ?? 0;
+  if (count > 0) throw new Error(`CATEGORY_HAS_PRODUCTS|${count}`);
+  await database.runAsync('DELETE FROM categories WHERE name = ?', [name]);
 }
 
 // ─── Inventory Products ───────────────────────────────────────────────────────
@@ -451,6 +546,8 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     imageUri: (row.image_uri as string | null) ?? null,
     buyPriceUsd: (row.buy_price_usd as number) ?? 0,
     sellPriceUsd: (row.sell_price_usd as number) ?? 0,
+    lowStockThreshold: (row.low_stock_threshold as number | null) ?? null,
+    lowStockEnabled: (row.low_stock_enabled as 1 | 0 | null) ?? null,
   };
 }
 
@@ -511,6 +608,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.supplierName !== undefined)   { fields.push('supplier_name = ?');    values.push(data.supplierName); }
   if (data.supplierPhone !== undefined)  { fields.push('supplier_phone = ?');   values.push(data.supplierPhone); }
   if (data.supplierAddress !== undefined){ fields.push('supplier_address = ?'); values.push(data.supplierAddress); }
+  if (data.lowStockThreshold !== undefined) { fields.push('low_stock_threshold = ?'); values.push(data.lowStockThreshold ?? null); }
+  if (data.lowStockEnabled !== undefined)  { fields.push('low_stock_enabled = ?');  values.push(data.lowStockEnabled ?? null); }
 
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -522,14 +621,104 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   );
 }
 
+async function archiveProductToHistory(
+  database: SQLite.SQLiteDatabase,
+  productId: number,
+  status: 'sold_out' | 'removed'
+): Promise<void> {
+  const productRow = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM products WHERE id = ?',
+    [productId]
+  );
+  if (!productRow) return;
+
+  const soldRow = await database.getFirstAsync<{ total: number }>(
+    'SELECT COALESCE(SUM(si.quantity), 0) AS total FROM sale_items si WHERE si.product_id = ?',
+    [productId]
+  );
+
+  await database.runAsync(
+    `INSERT OR REPLACE INTO inventory_history
+      (product_id, product_name, category, image_uri, item_id,
+       purchase_price, selling_price, quantity_sold, final_quantity, status, archived_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [
+      productId,
+      productRow.name as string,
+      (productRow.category as string) ?? 'General',
+      (productRow.image_uri as string | null) ?? null,
+      (productRow.item_id as string | null) ?? null,
+      (productRow.purchase_price as number) ?? 0,
+      (productRow.selling_price as number) ?? 0,
+      soldRow?.total ?? 0,
+      (productRow.quantity as number) ?? 0,
+      status,
+    ]
+  );
+}
+
 export async function deleteProduct(id: number): Promise<void> {
   const database = await getDatabase();
+  await archiveProductToHistory(database, id, 'removed');
   await database.runAsync('DELETE FROM products WHERE id = ?', [id]);
+}
+
+export async function permanentDeleteFromHistory(historyId: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
+}
+
+export async function restoreProductFromHistory(historyId: number): Promise<void> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM inventory_history WHERE id = ?', [historyId]
+  );
+  if (!row) return;
+  const qty = Math.max(Number(row.final_quantity) || 0, 1);
+  await database.runAsync(
+    `INSERT INTO products (name, category, item_id, purchase_price, selling_price, quantity, image_uri, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+    [
+      row.product_name as string,
+      row.category as string,
+      (row.item_id as string | null) ?? null,
+      row.purchase_price as number,
+      row.selling_price as number,
+      qty,
+      (row.image_uri as string | null) ?? null,
+    ]
+  );
+  await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
 }
 
 export async function deleteProductsByPurchaseId(purchaseId: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM products WHERE purchase_id = ?', [purchaseId]);
+}
+
+export async function getAllInventoryHistory(): Promise<import('@/types/inventory').InventoryHistoryItem[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT h.*
+    FROM inventory_history h
+    LEFT JOIN products p ON h.product_id = p.id
+    WHERE p.id IS NULL OR p.quantity = 0
+    ORDER BY h.archived_at DESC
+  `);
+  return rows.map((r) => ({
+    id: r.id as number,
+    productId: r.product_id as number,
+    productName: r.product_name as string,
+    category: r.category as string,
+    imageUri: (r.image_uri as string | null) ?? null,
+    itemId: (r.item_id as string | null) ?? null,
+    purchasePrice: r.purchase_price as number,
+    sellingPrice: r.selling_price as number,
+    quantitySold: r.quantity_sold as number,
+    finalQuantity: r.final_quantity as number,
+    status: r.status as 'sold_out' | 'removed',
+    archivedAt: r.archived_at as string,
+  }));
 }
 
 export async function getAllInventoryProducts(): Promise<InventoryProduct[]> {
@@ -559,12 +748,12 @@ export async function getInventoryStats(): Promise<InventoryStats> {
     debtCount: number;
   }>(`
     SELECT
-      COUNT(CASE WHEN is_active = 1 THEN 1 END)                   AS totalProducts,
-      COALESCE(SUM(CASE WHEN is_active = 1 THEN quantity END), 0)  AS totalQuantity,
-      COALESCE(SUM(CASE WHEN is_active = 1 THEN quantity * purchase_price END), 0) AS totalValueIQD,
-      COUNT(CASE WHEN is_active = 1 AND quantity <= 3 THEN 1 END)  AS lowStockCount,
-      COUNT(CASE WHEN payment_status = 'paid' THEN 1 END)          AS paidCount,
-      COUNT(CASE WHEN payment_status = 'debt' THEN 1 END)          AS debtCount
+      COUNT(CASE WHEN is_active = 1 AND quantity > 0 THEN 1 END)                          AS totalProducts,
+      COALESCE(SUM(CASE WHEN is_active = 1 AND quantity > 0 THEN quantity END), 0)        AS totalQuantity,
+      COALESCE(SUM(CASE WHEN is_active = 1 AND quantity > 0 THEN quantity * purchase_price END), 0) AS totalValueIQD,
+      COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND quantity <= 3 THEN 1 END)        AS lowStockCount,
+      COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND payment_status = 'paid' THEN 1 END)  AS paidCount,
+      COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND payment_status = 'debt' THEN 1 END)  AS debtCount
     FROM products
   `);
   return row ?? { totalProducts: 0, totalQuantity: 0, totalValueIQD: 0, lowStockCount: 0, paidCount: 0, debtCount: 0 };
@@ -594,6 +783,63 @@ export async function getSalesByProductId(productId: number): Promise<Array<Sale
     lineTotal: row.line_total as number,
     invoiceNumber: row.invoice_number as string,
     saleCreatedAt: row.sale_created_at as string,
+  }));
+}
+
+export async function getSoldProducts(): Promise<SoldProductRecord[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT
+      si.id,
+      si.sale_id,
+      si.product_id,
+      si.product_name,
+      si.item_id,
+      si.quantity      AS sold_qty,
+      si.selling_price,
+      si.purchase_price,
+      si.discount,
+      si.line_total,
+      (si.line_total - si.purchase_price * si.quantity) AS profit,
+      s.invoice_number,
+      s.customer_name,
+      s.customer_phone,
+      s.customer_id,
+      s.payment_method,
+      s.status         AS sale_status,
+      s.paid_amount,
+      s.remaining_debt,
+      s.grand_total,
+      s.created_at     AS sold_date,
+      p.image_uri
+    FROM sale_items si
+    JOIN sales s ON si.sale_id = s.id
+    LEFT JOIN products p ON si.product_id = p.id
+    WHERE s.status != 'cancelled'
+    ORDER BY s.created_at DESC
+  `);
+  return rows.map((row) => ({
+    id: row.id as number,
+    saleId: row.sale_id as number,
+    invoiceNumber: row.invoice_number as string,
+    productId: row.product_id as number,
+    productName: row.product_name as string,
+    itemId: row.item_id as string | null,
+    soldQty: row.sold_qty as number,
+    sellingPrice: row.selling_price as number,
+    purchasePrice: row.purchase_price as number,
+    discount: row.discount as number,
+    lineTotal: row.line_total as number,
+    profit: row.profit as number,
+    customerName: row.customer_name as string | null,
+    customerPhone: row.customer_phone as string | null,
+    customerId: row.customer_id as number | null,
+    paymentMethod: row.payment_method as 'cash' | 'debt' | 'fib',
+    saleStatus: row.sale_status as 'completed' | 'cancelled',
+    paidAmount: row.paid_amount as number,
+    remainingDebt: row.remaining_debt as number,
+    soldDate: row.sold_date as string,
+    imageUri: row.image_uri as string | null,
   }));
 }
 
@@ -635,19 +881,31 @@ export async function upsertCustomer(input: {
   name: string;
   phone: string;
   address?: string;
+  selectedId?: number;
 }): Promise<number> {
+  if (input.selectedId) return input.selectedId;
+
   const database = await getDatabase();
+  const trimName  = input.name.trim();
+  const trimPhone = input.phone.trim();
 
-  const existing = await database.getFirstAsync<{ id: number }>(
-    'SELECT id FROM customers WHERE name = ? AND phone = ?',
-    [input.name, input.phone]
+  if (trimPhone) {
+    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
+      'SELECT id, name FROM customers WHERE phone = ?',
+      [trimPhone]
+    );
+    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+  }
+
+  const byName = await database.getFirstAsync<{ id: number }>(
+    'SELECT id FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+    [trimName]
   );
-
-  if (existing) return existing.id;
+  if (byName) throw new Error('DUPLICATE_NAME');
 
   const result = await database.runAsync(
     'INSERT INTO customers (name, phone, address) VALUES (?, ?, ?)',
-    [input.name, input.phone, input.address ?? null]
+    [trimName, trimPhone || null, input.address?.trim() || null]
   );
   return result.lastInsertRowId;
 }
@@ -698,6 +956,29 @@ export async function getCustomerByIdWithStats(id: number): Promise<CustomerWith
   return row ? rowToCustomerWithStats(row) : null;
 }
 
+export async function searchCustomersList(query: string): Promise<Customer[]> {
+  const database = await getDatabase();
+  const q = `%${query}%`;
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT id, name, phone, address, total_purchases, notes, created_at,
+            COALESCE(updated_at, created_at) AS updated_at
+     FROM customers
+     WHERE name LIKE ? OR phone LIKE ?
+     ORDER BY name ASC LIMIT 8`,
+    [q, q]
+  );
+  return rows.map((row) => ({
+    id: row.id as number,
+    name: row.name as string,
+    phone: (row.phone as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    totalPurchases: (row.total_purchases as number) ?? 0,
+    notes: (row.notes as string | null) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  }));
+}
+
 export async function getCustomerByPhone(phone: string): Promise<Customer | null> {
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
@@ -732,6 +1013,26 @@ export async function updateCustomer(
   data: Partial<{ name: string; phone: string; address: string; notes: string }>
 ): Promise<void> {
   const database = await getDatabase();
+
+  if (data.name !== undefined) {
+    const trimName = data.name.trim();
+    const byName = await database.getFirstAsync<{ id: number }>(
+      'SELECT id FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?',
+      [trimName, id]
+    );
+    if (byName) throw new Error('DUPLICATE_NAME');
+    data = { ...data, name: trimName };
+  }
+  if (data.phone !== undefined && data.phone.trim()) {
+    const trimPhone = data.phone.trim();
+    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
+      'SELECT id, name FROM customers WHERE phone = ? AND id != ?',
+      [trimPhone, id]
+    );
+    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+    data = { ...data, phone: trimPhone };
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
 
@@ -747,6 +1048,25 @@ export async function updateCustomer(
     `UPDATE customers SET ${fields.join(', ')} WHERE id = ?`,
     values as SQLite.SQLiteBindValue[]
   );
+}
+
+export async function deleteCustomer(id: number): Promise<void> {
+  const database = await getDatabase();
+
+  const saleCheck = await database.getFirstAsync<{ cnt: number }>(
+    'SELECT COUNT(*) AS cnt FROM sales WHERE customer_id = ?', [id]
+  );
+  if ((saleCheck?.cnt ?? 0) > 0) throw new Error('CUSTOMER_HAS_SALES');
+
+  const debtCheck = await database.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM debts d
+     JOIN sales s ON d.sale_id = s.id
+     WHERE s.customer_id = ? AND d.status = 'active'`,
+    [id]
+  );
+  if ((debtCheck?.cnt ?? 0) > 0) throw new Error('CUSTOMER_HAS_ACTIVE_DEBTS');
+
+  await database.runAsync('DELETE FROM customers WHERE id = ?', [id]);
 }
 
 export async function getSalesByCustomerId(customerId: number): Promise<Sale[]> {
@@ -788,8 +1108,9 @@ export async function getDebtsByCustomerId(customerId: number): Promise<Debt[]> 
   }));
 }
 
-export async function addPaymentToDebt(debtId: number, amount: number): Promise<void> {
+export async function addPaymentToDebt(debtId: number, amount: number, paymentDate?: string): Promise<void> {
   const database = await getDatabase();
+  const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
     const debt = await database.getFirstAsync<{ sale_id: number; remaining_amount: number }>(
       'SELECT sale_id, remaining_amount FROM debts WHERE id = ?', [debtId]
@@ -804,10 +1125,10 @@ export async function addPaymentToDebt(debtId: number, amount: number): Promise<
         paid_amount = paid_amount + ?,
         remaining_amount = ?,
         status = CASE WHEN ? <= 0 THEN 'settled' ELSE 'active' END,
-        last_payment_at = CURRENT_TIMESTAMP,
+        last_payment_at = ?,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [clamped, newRemaining, newRemaining, debtId]
+      [clamped, newRemaining, newRemaining, ts, debtId]
     );
 
     await database.runAsync(
@@ -820,9 +1141,9 @@ export async function addPaymentToDebt(debtId: number, amount: number): Promise<
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after)
-       VALUES (?, 'sales', ?, ?)`,
-      [debtId, clamped, newRemaining]
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at)
+       VALUES (?, 'sales', ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts]
     );
   });
 }
@@ -912,80 +1233,43 @@ export async function updateSaleInfo(id: number, data: UpdateSaleInput): Promise
   });
 }
 
-// ─── Sales ───────────────────────────────────────────────────────────────────
-
-function rowToSale(row: Record<string, unknown>): Sale {
-  return {
-    id: row.id as number,
-    invoiceNumber: row.invoice_number as string,
-    customerId: row.customer_id as number | null,
-    customerName: row.customer_name as string | null,
-    customerPhone: row.customer_phone as string | null,
-    customerAddress: row.customer_address as string | null,
-    warranty: row.warranty as string | null,
-    notes: row.notes as string | null,
-    paymentMethod: row.payment_method as PaymentMethod,
-    subtotal: row.subtotal as number,
-    discountTotal: row.discount_total as number,
-    grandTotal: row.grand_total as number,
-    paidAmount: row.paid_amount as number,
-    remainingDebt: row.remaining_debt as number,
-    status: row.status as SaleStatus,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  };
-}
-
-function rowToSaleItem(row: Record<string, unknown>): SaleItem {
-  return {
-    id: row.id as number,
-    saleId: row.sale_id as number,
-    productId: row.product_id as number,
-    productName: row.product_name as string,
-    itemId: row.item_id as string | null,
-    idMode: row.id_mode as IdMode,
-    purchasePrice: row.purchase_price as number,
-    sellingPrice: row.selling_price as number,
-    quantity: row.quantity as number,
-    discount: row.discount as number,
-    lineTotal: row.line_total as number,
-  };
-}
-
-export async function insertSale(
-  saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'items'>,
-  items: Omit<SaleItem, 'id' | 'saleId'>[]
-): Promise<number> {
+export async function updateSaleComplete(saleId: number, input: UpdateSaleCompleteInput): Promise<void> {
   const database = await getDatabase();
 
-  return database.withTransactionAsync(async () => {
-    const saleResult = await database.runAsync(
-      `INSERT INTO sales (
-        invoice_number, customer_id, customer_name, customer_phone,
-        customer_address, warranty, notes, payment_method,
-        subtotal, discount_total, grand_total, paid_amount, remaining_debt, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        saleData.invoiceNumber,
-        saleData.customerId ?? null,
-        saleData.customerName ?? null,
-        saleData.customerPhone ?? null,
-        saleData.customerAddress ?? null,
-        saleData.warranty ?? null,
-        saleData.notes ?? null,
-        saleData.paymentMethod,
-        saleData.subtotal,
-        saleData.discountTotal,
-        saleData.grandTotal,
-        saleData.paidAmount,
-        saleData.remainingDebt,
-        saleData.status,
-      ]
+  await database.withTransactionAsync(async () => {
+    // 1. Fetch the original sale record
+    const origSale = await database.getFirstAsync<{
+      customer_id: number | null;
+      grand_total: number;
+    }>('SELECT customer_id, grand_total FROM sales WHERE id = ?', [saleId]);
+    if (!origSale) return;
+
+    // 2. Fetch original sale items to restore inventory
+    const origItems = await database.getAllAsync<Record<string, unknown>>(
+      'SELECT * FROM sale_items WHERE sale_id = ?', [saleId]
     );
 
-    const saleId = saleResult.lastInsertRowId;
+    // 3. Restore inventory for original items
+    for (const row of origItems) {
+      const item = rowToSaleItem(row);
+      if (item.idMode === 'unique') {
+        await database.runAsync(
+          'UPDATE products SET quantity = 1, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [item.productId]
+        );
+      } else {
+        await database.runAsync(
+          'UPDATE products SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [item.quantity, item.productId]
+        );
+      }
+    }
 
-    for (const item of items) {
+    // 4. Delete old sale_items
+    await database.runAsync('DELETE FROM sale_items WHERE sale_id = ?', [saleId]);
+
+    // 5. Insert new sale_items and decrement inventory
+    for (const item of input.items) {
       await database.runAsync(
         `INSERT INTO sale_items (
           sale_id, product_id, product_name, item_id, id_mode,
@@ -1018,6 +1302,255 @@ export async function insertSale(
       }
     }
 
+    // 6. Update the sales record
+    await database.runAsync(
+      `UPDATE sales SET
+        customer_id      = ?,
+        customer_name    = ?,
+        customer_phone   = ?,
+        customer_address = ?,
+        warranty         = ?,
+        notes            = ?,
+        payment_method   = ?,
+        subtotal              = ?,
+        discount_total        = ?,
+        global_discount_type  = ?,
+        global_discount       = ?,
+        grand_total           = ?,
+        paid_amount           = ?,
+        remaining_debt        = ?,
+        date                  = COALESCE(?, date),
+        updated_at            = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        input.customerId ?? null,
+        input.customerName,
+        input.customerPhone,
+        input.customerAddress ?? null,
+        input.warranty ?? null,
+        input.notes ?? null,
+        input.paymentMethod,
+        input.subtotal,
+        input.discountTotal,
+        input.globalDiscountType ?? 'none',
+        input.globalDiscount ?? 0,
+        input.grandTotal,
+        input.paidAmount,
+        input.remainingDebt,
+        input.date ?? null,
+        saleId,
+      ]
+    );
+
+    // 7. Sync debt record
+    const existingDebt = await database.getFirstAsync<{ id: number; paid_amount: number }>(
+      'SELECT id, paid_amount FROM debts WHERE sale_id = ?', [saleId]
+    );
+
+    if (input.remainingDebt > 0) {
+      if (existingDebt) {
+        await database.runAsync(
+          `UPDATE debts SET
+            customer_name    = ?,
+            customer_phone   = ?,
+            original_amount  = ?,
+            paid_amount      = ?,
+            remaining_amount = ?,
+            status           = 'active',
+            updated_at       = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [
+            input.customerName,
+            input.customerPhone,
+            input.grandTotal,
+            input.paidAmount,
+            input.remainingDebt,
+            existingDebt.id,
+          ]
+        );
+      } else {
+        await database.runAsync(
+          `INSERT INTO debts (
+            sale_id, customer_name, customer_phone,
+            original_amount, paid_amount, remaining_amount, status
+          ) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+          [
+            saleId,
+            input.customerName,
+            input.customerPhone,
+            input.grandTotal,
+            input.paidAmount,
+            input.remainingDebt,
+          ]
+        );
+      }
+    } else if (existingDebt) {
+      await database.runAsync(
+        `UPDATE debts SET
+          remaining_amount = 0,
+          paid_amount      = original_amount,
+          status           = 'settled',
+          updated_at       = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [existingDebt.id]
+      );
+    }
+
+    // 8. Recalculate customer total_purchases
+    const customerId = input.customerId ?? origSale.customer_id;
+    if (customerId) {
+      await database.runAsync(
+        `UPDATE customers SET
+          total_purchases = MAX(0, total_purchases - ? + ?),
+          updated_at      = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [origSale.grand_total, input.grandTotal, customerId]
+      );
+    }
+
+    // 9. Clear reports cache
+    await database.runAsync('DELETE FROM reports_cache');
+  });
+}
+
+// ─── Sales ───────────────────────────────────────────────────────────────────
+
+function rowToSale(row: Record<string, unknown>): Sale {
+  return {
+    id: row.id as number,
+    invoiceNumber: row.invoice_number as string,
+    customerId: row.customer_id as number | null,
+    customerName: row.customer_name as string | null,
+    customerPhone: row.customer_phone as string | null,
+    customerAddress: row.customer_address as string | null,
+    warranty: row.warranty as string | null,
+    notes: row.notes as string | null,
+    paymentMethod: row.payment_method as PaymentMethod,
+    subtotal: row.subtotal as number,
+    discountTotal: row.discount_total as number,
+    globalDiscountType: ((row.global_discount_type as string) ?? 'none') as GlobalDiscountType,
+    globalDiscount: (row.global_discount as number) ?? 0,
+    grandTotal: row.grand_total as number,
+    paidAmount: row.paid_amount as number,
+    remainingDebt: row.remaining_debt as number,
+    status: row.status as SaleStatus,
+    exchangeRateUsed: (row.exchange_rate as number) ?? 1310,
+    date: (row.date as string | null) ?? (row.created_at as string),
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToSaleItem(row: Record<string, unknown>): SaleItem {
+  return {
+    id: row.id as number,
+    saleId: row.sale_id as number,
+    productId: row.product_id as number,
+    productName: row.product_name as string,
+    itemId: row.item_id as string | null,
+    idMode: row.id_mode as IdMode,
+    purchasePrice: row.purchase_price as number,
+    sellingPrice: row.selling_price as number,
+    quantity: row.quantity as number,
+    discount: row.discount as number,
+    lineTotal: row.line_total as number,
+  };
+}
+
+export async function insertSale(
+  saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'items'>,
+  items: Omit<SaleItem, 'id' | 'saleId'>[]
+): Promise<number> {
+  const database = await getDatabase();
+  let saleId = 0;
+
+  await database.withTransactionAsync(async () => {
+    // Validate stock for repeatable items before any writes.
+    // Throwing here causes the transaction to roll back — nothing is written.
+    for (const item of items) {
+      if (item.idMode === 'unique') continue;
+      const row = await database.getFirstAsync<{ quantity: number }>(
+        'SELECT quantity FROM products WHERE id = ?',
+        [item.productId]
+      );
+      const available = row?.quantity ?? 0;
+      if (item.quantity > available) {
+        throw new Error(`STOCK_EXCEEDED|${item.productName}|${available}|${item.quantity}`);
+      }
+    }
+
+    const saleResult = await database.runAsync(
+      `INSERT INTO sales (
+        invoice_number, customer_id, customer_name, customer_phone,
+        customer_address, warranty, notes, payment_method,
+        subtotal, discount_total, global_discount_type, global_discount,
+        grand_total, paid_amount, remaining_debt, status, exchange_rate, date
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        saleData.invoiceNumber,
+        saleData.customerId ?? null,
+        saleData.customerName ?? null,
+        saleData.customerPhone ?? null,
+        saleData.customerAddress ?? null,
+        saleData.warranty ?? null,
+        saleData.notes ?? null,
+        saleData.paymentMethod,
+        saleData.subtotal,
+        saleData.discountTotal,
+        saleData.globalDiscountType ?? 'none',
+        saleData.globalDiscount ?? 0,
+        saleData.grandTotal,
+        saleData.paidAmount,
+        saleData.remainingDebt,
+        saleData.status,
+        saleData.exchangeRateUsed,
+        saleData.date ?? new Date().toISOString(),
+      ]
+    );
+
+    saleId = saleResult.lastInsertRowId;
+
+    for (const item of items) {
+      await database.runAsync(
+        `INSERT INTO sale_items (
+          sale_id, product_id, product_name, item_id, id_mode,
+          purchase_price, selling_price, quantity, discount, line_total
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          saleId,
+          item.productId,
+          item.productName,
+          item.itemId ?? null,
+          item.idMode,
+          item.purchasePrice,
+          item.sellingPrice,
+          item.quantity,
+          item.discount,
+          item.lineTotal,
+        ]
+      );
+
+      if (item.idMode === 'unique') {
+        await database.runAsync(
+          'UPDATE products SET quantity = 0, is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [item.productId]
+        );
+        await archiveProductToHistory(database, item.productId, 'sold_out');
+      } else {
+        await database.runAsync(
+          'UPDATE products SET quantity = MAX(0, quantity - ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [item.quantity, item.productId]
+        );
+        const newQtyRow = await database.getFirstAsync<{ quantity: number }>(
+          'SELECT quantity FROM products WHERE id = ?',
+          [item.productId]
+        );
+        if ((newQtyRow?.quantity ?? 1) === 0) {
+          await archiveProductToHistory(database, item.productId, 'sold_out');
+        }
+      }
+    }
+
     if (saleData.remainingDebt > 0) {
       await database.runAsync(
         `INSERT INTO debts (
@@ -1042,8 +1575,9 @@ export async function insertSale(
       );
     }
 
-    return saleId;
   });
+
+  return saleId;
 }
 
 export async function getAllSales(): Promise<Sale[]> {
@@ -1085,6 +1619,10 @@ export async function deleteSale(id: number): Promise<void> {
   const database = await getDatabase();
 
   await database.withTransactionAsync(async () => {
+    const saleRow = await database.getFirstAsync<{ customer_id: number | null; grand_total: number }>(
+      'SELECT customer_id, grand_total FROM sales WHERE id = ?', [id]
+    );
+
     const itemRows = await database.getAllAsync<Record<string, unknown>>(
       'SELECT * FROM sale_items WHERE sale_id = ?', [id]
     );
@@ -1105,29 +1643,235 @@ export async function deleteSale(id: number): Promise<void> {
     }
 
     await database.runAsync('DELETE FROM sales WHERE id = ?', [id]);
+
+    if (saleRow?.customer_id && saleRow.grand_total > 0) {
+      await database.runAsync(
+        `UPDATE customers
+         SET total_purchases = MAX(0, total_purchases - ?),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [saleRow.grand_total, saleRow.customer_id]
+      );
+    }
   });
+}
+
+// ─── Suppliers ────────────────────────────────────────────────────────────────
+
+function rowToSupplierWithStats(row: Record<string, unknown>): SupplierWithStats {
+  return {
+    id: row.id as number,
+    name: row.name as string,
+    phone: (row.phone as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
+    totalSpent: (row.total_spent as number) ?? 0,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    purchaseCount: (row.purchase_count as number) ?? 0,
+    lastPurchaseDate: (row.last_purchase_date as string | null) ?? null,
+  };
+}
+
+export async function upsertSupplier(input: {
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  selectedId?: number;
+}): Promise<number> {
+  if (input.selectedId) return input.selectedId;
+
+  const database = await getDatabase();
+  const trimName  = input.name.trim();
+  if (!trimName) throw new Error('Supplier name is required');
+  const trimPhone = input.phone?.trim() ?? null;
+
+  if (trimPhone) {
+    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
+      'SELECT id, name FROM suppliers WHERE phone = ?',
+      [trimPhone]
+    );
+    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+  }
+
+  const byName = await database.getFirstAsync<{ id: number }>(
+    'SELECT id FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+    [trimName]
+  );
+  if (byName) throw new Error('DUPLICATE_NAME');
+
+  const result = await database.runAsync(
+    'INSERT INTO suppliers (name, phone, address) VALUES (?, ?, ?)',
+    [trimName, trimPhone, input.address?.trim() ?? null]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getAllSuppliersWithStats(): Promise<SupplierWithStats[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT s.*,
+            COUNT(DISTINCT p.id) AS purchase_count,
+            COALESCE(SUM(p.total_iqd), 0) AS total_spent_calc,
+            MAX(p.created_at) AS last_purchase_date
+     FROM suppliers s
+     LEFT JOIN purchases p ON LOWER(p.supplier_name) = LOWER(s.name)
+     GROUP BY s.id
+     ORDER BY total_spent_calc DESC`
+  );
+  return rows.map((row) => ({
+    ...rowToSupplierWithStats(row),
+    totalSpent: (row.total_spent_calc as number) ?? (row.total_spent as number) ?? 0,
+  }));
+}
+
+export async function getSupplierByIdWithStats(id: number): Promise<SupplierWithStats | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    `SELECT s.*,
+            COUNT(DISTINCT p.id) AS purchase_count,
+            COALESCE(SUM(p.total_iqd), 0) AS total_spent_calc,
+            MAX(p.created_at) AS last_purchase_date
+     FROM suppliers s
+     LEFT JOIN purchases p ON LOWER(p.supplier_name) = LOWER(s.name)
+     WHERE s.id = ?
+     GROUP BY s.id`,
+    [id]
+  );
+  if (!row) return null;
+  return { ...rowToSupplierWithStats(row), totalSpent: (row.total_spent_calc as number) ?? (row.total_spent as number) ?? 0 };
+}
+
+export async function searchSuppliersList(query: string, limit = 8): Promise<Supplier[]> {
+  const database = await getDatabase();
+  const q = `%${query}%`;
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT id, name, phone, address, notes, total_spent, created_at, updated_at
+     FROM suppliers
+     WHERE name LIKE ? OR phone LIKE ?
+     ORDER BY name ASC LIMIT ?`,
+    [q, q, limit]
+  );
+  return rows.map((row) => ({
+    id: row.id as number,
+    name: row.name as string,
+    phone: (row.phone as string | null) ?? null,
+    address: (row.address as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
+    totalSpent: (row.total_spent as number) ?? 0,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  }));
+}
+
+export async function updateSupplier(id: number, data: {
+  name?: string;
+  phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
+}): Promise<void> {
+  const database = await getDatabase();
+
+  if (data.name !== undefined) {
+    const trimName = data.name.trim();
+    const byName = await database.getFirstAsync<{ id: number }>(
+      'SELECT id FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?',
+      [trimName, id]
+    );
+    if (byName) throw new Error('DUPLICATE_NAME');
+    data = { ...data, name: trimName };
+  }
+  if (data.phone !== undefined && data.phone && data.phone.trim()) {
+    const trimPhone = data.phone.trim();
+    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
+      'SELECT id, name FROM suppliers WHERE phone = ? AND id != ?',
+      [trimPhone, id]
+    );
+    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+    data = { ...data, phone: trimPhone };
+  }
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.name !== undefined)    { fields.push('name = ?');    values.push(data.name); }
+  if (data.phone !== undefined)   { fields.push('phone = ?');   values.push(data.phone); }
+  if (data.address !== undefined) { fields.push('address = ?'); values.push(data.address); }
+  if (data.notes !== undefined)   { fields.push('notes = ?');   values.push(data.notes); }
+  if (fields.length === 0) return;
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(id);
+  await database.runAsync(`UPDATE suppliers SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteSupplier(id: number): Promise<void> {
+  const database = await getDatabase();
+  const debtCheck = await database.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM purchase_debts WHERE supplier_name = (SELECT name FROM suppliers WHERE id = ?) AND status = 'active'`,
+    [id]
+  );
+  if ((debtCheck?.cnt ?? 0) > 0) throw new Error('SUPPLIER_HAS_ACTIVE_DEBTS');
+
+  const purchaseCheck = await database.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) AS cnt FROM purchases WHERE LOWER(supplier_name) = LOWER((SELECT name FROM suppliers WHERE id = ?))`,
+    [id]
+  );
+  if ((purchaseCheck?.cnt ?? 0) > 0) throw new Error('SUPPLIER_HAS_PURCHASES');
+
+  await database.runAsync('DELETE FROM suppliers WHERE id = ?', [id]);
+}
+
+export async function getTopSuppliers(limit = 5): Promise<Array<{ name: string; phone: string | null; totalSpent: number; purchaseCount: number }>> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<{ supplier_name: string; supplier_phone: string | null; total_spent: number; purchase_count: number }>(
+    `SELECT supplier_name, supplier_phone,
+            SUM(total_iqd) AS total_spent,
+            COUNT(*) AS purchase_count
+     FROM purchases
+     WHERE supplier_name IS NOT NULL AND supplier_name != ''
+     GROUP BY supplier_name
+     ORDER BY total_spent DESC
+     LIMIT ?`,
+    [limit]
+  );
+  return rows.map((r) => ({
+    name: r.supplier_name,
+    phone: r.supplier_phone ?? null,
+    totalSpent: r.total_spent ?? 0,
+    purchaseCount: r.purchase_count ?? 0,
+  }));
+}
+
+export async function getPurchasesBySupplierName(supplierName: string): Promise<Purchase[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM purchases WHERE LOWER(supplier_name) = LOWER(?) ORDER BY created_at DESC',
+    [supplierName]
+  );
+  return rows.map(rowToPurchase);
 }
 
 // ─── Purchases ────────────────────────────────────────────────────────────────
 
 export async function generatePurchaseNumber(): Promise<string> {
   const database = await getDatabase();
+  let purchaseNumber = '';
 
-  return database.withTransactionAsync(async () => {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const row = await database.getFirstAsync<{ last_number: number; last_date: string }>(
-      'SELECT last_number, last_date FROM purchase_counter WHERE id = 1'
+  await database.withTransactionAsync(async () => {
+    const row = await database.getFirstAsync<{ last_number: number }>(
+      'SELECT last_number FROM purchase_counter WHERE id = 1'
     );
 
-    const nextNumber = row && row.last_date === today ? row.last_number + 1 : 1;
+    const nextNumber = (row?.last_number ?? 0) + 1;
 
     await database.runAsync(
-      'UPDATE purchase_counter SET last_number = ?, last_date = ? WHERE id = 1',
-      [nextNumber, today]
+      'UPDATE purchase_counter SET last_number = ? WHERE id = 1',
+      [nextNumber]
     );
 
-    return `PUR-${today}-${String(nextNumber).padStart(4, '0')}`;
+    purchaseNumber = String(nextNumber).padStart(4, '0');
   });
+
+  return purchaseNumber;
 }
 
 function rowToPurchase(row: Record<string, unknown>): Purchase {
@@ -1227,6 +1971,107 @@ export async function deletePurchase(id: number): Promise<void> {
   await database.runAsync('DELETE FROM purchases WHERE id = ?', [id]);
 }
 
+export interface UpdatePurchaseInput {
+  date?: string;
+  productName?: string;
+  category?: string | null;
+  buyPriceIQD?: number;
+  buyPriceUSD?: number;
+  sellPriceIQD?: number;
+  sellPriceUSD?: number;
+  warranty?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  paymentStatus?: 'paid' | 'debt';
+}
+
+export async function updatePurchase(id: number, input: UpdatePurchaseInput): Promise<void> {
+  const database = await getDatabase();
+
+  await database.withTransactionAsync(async () => {
+    const existing = await database.getFirstAsync<Record<string, unknown>>(
+      'SELECT * FROM purchases WHERE id = ?', [id]
+    );
+    if (!existing) throw new Error('Purchase not found');
+
+    const oldStatus = existing.payment_status as string;
+    const oldQty    = existing.quantity as number;
+    const newBuy    = input.buyPriceIQD  ?? (existing.buy_price_iqd  as number);
+    const newSell   = input.sellPriceIQD ?? (existing.sell_price_iqd as number);
+    const qty       = oldQty;
+    const newTotal  = qty * newBuy;
+    const newProfit = (newSell - newBuy) * qty;
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (input.date        !== undefined) { fields.push('date = ?');          values.push(input.date); }
+    if (input.productName !== undefined) { fields.push('product_name = ?');  values.push(input.productName); }
+    if (input.category    !== undefined) { fields.push('category = ?');      values.push(input.category); }
+    if (input.buyPriceIQD !== undefined) { fields.push('buy_price_iqd = ?'); values.push(input.buyPriceIQD); }
+    if (input.buyPriceUSD !== undefined) { fields.push('buy_price_usd = ?'); values.push(input.buyPriceUSD); }
+    if (input.sellPriceIQD !== undefined){ fields.push('sell_price_iqd = ?');values.push(input.sellPriceIQD); }
+    if (input.sellPriceUSD !== undefined){ fields.push('sell_price_usd = ?');values.push(input.sellPriceUSD); }
+    if (input.warranty    !== undefined) { fields.push('warranty = ?');      values.push(input.warranty); }
+    if (input.description !== undefined) { fields.push('description = ?');   values.push(input.description); }
+    if (input.notes       !== undefined) { fields.push('notes = ?');         values.push(input.notes); }
+    if (input.paymentStatus !== undefined) { fields.push('payment_status = ?'); values.push(input.paymentStatus); }
+
+    fields.push('total_iqd = ?',  'profit_iqd = ?', 'updated_at = CURRENT_TIMESTAMP');
+    values.push(newTotal, newProfit, id);
+
+    if (fields.length > 3) {
+      await database.runAsync(`UPDATE purchases SET ${fields.join(', ')} WHERE id = ?`, values);
+    } else {
+      await database.runAsync(
+        'UPDATE purchases SET total_iqd = ?, profit_iqd = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [newTotal, newProfit, id]
+      );
+    }
+
+    if (input.productName !== undefined) {
+      await database.runAsync(
+        'UPDATE products SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE purchase_id = ?',
+        [input.productName, id]
+      );
+    }
+
+    if (input.paymentStatus !== undefined && input.paymentStatus !== oldStatus) {
+      if (input.paymentStatus === 'paid') {
+        await database.runAsync(
+          `UPDATE purchase_debts SET status = 'settled', remaining_amount = 0, updated_at = CURRENT_TIMESTAMP
+           WHERE purchase_id = ?`,
+          [id]
+        );
+      } else if (input.paymentStatus === 'debt') {
+        const existingDebt = await database.getFirstAsync<{ id: number }>(
+          'SELECT id FROM purchase_debts WHERE purchase_id = ?', [id]
+        );
+        if (!existingDebt) {
+          const suppName = (existing.supplier_name as string | null) ?? '';
+          const suppPhone = (existing.supplier_phone as string | null) ?? null;
+          await database.runAsync(
+            `INSERT INTO purchase_debts (purchase_id, supplier_name, supplier_phone, original_amount, paid_amount, remaining_amount, status)
+             VALUES (?, ?, ?, ?, 0, ?, 'active')`,
+            [id, suppName, suppPhone, newTotal, newTotal]
+          );
+        } else {
+          await database.runAsync(
+            `UPDATE purchase_debts SET status = 'active', remaining_amount = original_amount, updated_at = CURRENT_TIMESTAMP
+             WHERE purchase_id = ?`,
+            [id]
+          );
+        }
+      }
+    } else if (input.buyPriceIQD !== undefined) {
+      await database.runAsync(
+        `UPDATE purchase_debts SET original_amount = ?, remaining_amount = MAX(0, ? - paid_amount), updated_at = CURRENT_TIMESTAMP
+         WHERE purchase_id = ? AND status = 'active'`,
+        [newTotal, newTotal, id]
+      );
+    }
+  });
+}
+
 // ─── Debt Management ──────────────────────────────────────────────────────────
 
 export interface DebtWithContext extends Debt {
@@ -1315,27 +2160,30 @@ export interface RevenuePoint {
 
 export async function getReportSummary(from?: string, to?: string): Promise<ReportSummary> {
   const database = await getDatabase();
-  const where = from && to
-    ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'`
-    : '';
-  const row = await database.getFirstAsync<Record<string, number>>(
-    `SELECT
-      COALESCE(SUM(s.paid_amount), 0)                                            AS total_revenue,
-      COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0)    AS total_profit,
-      COUNT(DISTINCT s.id)                                                        AS total_sales,
-      COALESCE(SUM(CASE WHEN d.status='active' THEN d.remaining_amount END), 0) AS total_debt
-     FROM sales s
-     LEFT JOIN sale_items si ON si.sale_id = s.id
-     LEFT JOIN debts d ON d.sale_id = s.id
-     ${where}`
-  );
-  const rev   = row?.total_revenue ?? 0;
-  const cnt   = row?.total_sales ?? 0;
+  const saleWhere  = from && to ? `WHERE created_at >= '${from}' AND created_at <= '${to}'` : '';
+  const saleWhere2 = from && to ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'` : '';
+
+  const [salesRow, profitRow, debtRow] = await Promise.all([
+    database.getFirstAsync<{ total_revenue: number; total_sales: number }>(
+      `SELECT COALESCE(SUM(paid_amount),0) AS total_revenue, COUNT(*) AS total_sales
+       FROM sales ${saleWhere}`
+    ),
+    database.getFirstAsync<{ total_profit: number }>(
+      `SELECT COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0) AS total_profit
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id ${saleWhere2}`
+    ),
+    database.getFirstAsync<{ total_debt: number }>(
+      `SELECT COALESCE(SUM(remaining_amount), 0) AS total_debt FROM debts WHERE status = 'active'`
+    ),
+  ]);
+
+  const rev = salesRow?.total_revenue ?? 0;
+  const cnt = salesRow?.total_sales   ?? 0;
   return {
     totalRevenue:  rev,
-    totalProfit:   row?.total_profit ?? 0,
+    totalProfit:   profitRow?.total_profit ?? 0,
     totalSales:    cnt,
-    totalDebt:     row?.total_debt ?? 0,
+    totalDebt:     debtRow?.total_debt     ?? 0,
     avgOrderValue: cnt > 0 ? rev / cnt : 0,
   };
 }
@@ -1383,23 +2231,31 @@ export async function getTopCustomers(limit = 5): Promise<TopCustomer[]> {
 
 export async function getRevenueByMonth(months = 6): Promise<RevenuePoint[]> {
   const database = await getDatabase();
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT
-       strftime('%Y-%m', s.created_at) AS period,
-       COALESCE(SUM(s.paid_amount), 0) AS revenue,
-       COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0) AS profit,
-       COUNT(DISTINCT s.id) AS sales
-     FROM sales s
-     LEFT JOIN sale_items si ON si.sale_id = s.id
-     WHERE s.created_at >= date('now', '-${months} months')
-     GROUP BY period
-     ORDER BY period ASC`
-  );
-  return rows.map((r) => ({
-    period:  r.period  as string,
-    revenue: r.revenue as number,
-    profit:  r.profit  as number,
-    sales:   r.sales   as number,
+  const cutoff = `date('now', '-${months} months')`;
+
+  const [revenueRows, profitRows] = await Promise.all([
+    database.getAllAsync<{ period: string; revenue: number; sales: number }>(
+      `SELECT strftime('%Y-%m', created_at) AS period,
+              COALESCE(SUM(paid_amount), 0) AS revenue,
+              COUNT(*) AS sales
+       FROM sales WHERE created_at >= ${cutoff}
+       GROUP BY period ORDER BY period ASC`
+    ),
+    database.getAllAsync<{ period: string; profit: number }>(
+      `SELECT strftime('%Y-%m', s.created_at) AS period,
+              COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0) AS profit
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id
+       WHERE s.created_at >= ${cutoff}
+       GROUP BY period ORDER BY period ASC`
+    ),
+  ]);
+
+  const profitMap = new Map(profitRows.map((r) => [r.period, r.profit]));
+  return revenueRows.map((r) => ({
+    period:  r.period,
+    revenue: r.revenue,
+    profit:  profitMap.get(r.period) ?? 0,
+    sales:   r.sales,
   }));
 }
 
@@ -1413,15 +2269,20 @@ export async function createPurchaseDebt(
     supplierAddress: string | null;
     purchaseNumber: string;
     originalAmount: number;
+    paidAmount?: number;
     notes: string | null;
   }
 ): Promise<number> {
   const database = await getDatabase();
+  const actualPaid = Math.min(Math.max(0, data.paidAmount ?? 0), data.originalAmount);
+  const remaining  = data.originalAmount - actualPaid;
+  const status     = remaining <= 0 ? 'settled' : 'active';
+
   const result = await database.runAsync(
     `INSERT INTO purchase_debts
        (purchase_id, supplier_name, supplier_phone, supplier_address, purchase_number,
-        original_amount, remaining_amount, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        original_amount, paid_amount, remaining_amount, status, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseId,
       data.supplierName,
@@ -1429,10 +2290,21 @@ export async function createPurchaseDebt(
       data.supplierAddress,
       data.purchaseNumber,
       data.originalAmount,
-      data.originalAmount,
+      actualPaid,
+      remaining,
+      status,
       data.notes,
     ]
   );
+
+  if (actualPaid > 0) {
+    await database.runAsync(
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, note, created_at)
+       VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP)`,
+      [result.lastInsertRowId, actualPaid, remaining]
+    );
+  }
+
   return result.lastInsertRowId;
 }
 
@@ -1471,11 +2343,12 @@ export async function getPurchaseDebtById(id: number): Promise<PurchaseDebt | nu
   return row ? rowToPurchaseDebt(row) : null;
 }
 
-export async function addPaymentToPurchaseDebt(id: number, amount: number): Promise<void> {
+export async function addPaymentToPurchaseDebt(id: number, amount: number, paymentDate?: string): Promise<void> {
   const database = await getDatabase();
+  const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
-    const debt = await database.getFirstAsync<{ remaining_amount: number }>(
-      'SELECT remaining_amount FROM purchase_debts WHERE id = ?', [id]
+    const debt = await database.getFirstAsync<{ remaining_amount: number; purchase_id: number | null }>(
+      'SELECT remaining_amount, purchase_id FROM purchase_debts WHERE id = ?', [id]
     );
     if (!debt) return;
 
@@ -1487,17 +2360,28 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number): Prom
         paid_amount = paid_amount + ?,
         remaining_amount = ?,
         status = CASE WHEN ? <= 0 THEN 'settled' ELSE 'active' END,
-        last_payment_at = CURRENT_TIMESTAMP,
+        last_payment_at = ?,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [clamped, newRemaining, newRemaining, id]
+      [clamped, newRemaining, newRemaining, ts, id]
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after)
-       VALUES (?, 'purchase', ?, ?)`,
-      [id, clamped, newRemaining]
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at)
+       VALUES (?, 'purchase', ?, ?, ?)`,
+      [id, clamped, newRemaining, ts]
     );
+
+    if (newRemaining <= 0 && debt.purchase_id != null) {
+      await database.runAsync(
+        `UPDATE purchases SET payment_status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [debt.purchase_id]
+      );
+      await database.runAsync(
+        `UPDATE products SET payment_status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE purchase_id = ?`,
+        [debt.purchase_id]
+      );
+    }
   });
 }
 
@@ -1628,38 +2512,42 @@ export interface SalesReportData {
 
 export async function getSalesReportData(from?: string, to?: string): Promise<SalesReportData> {
   const database = await getDatabase();
-  const where = from && to
-    ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'`
-    : '';
-  const row = await database.getFirstAsync<Record<string, number>>(`
-    SELECT
-      COALESCE(SUM(s.paid_amount), 0)                                              AS totalRevenue,
-      COUNT(DISTINCT s.id)                                                          AS totalSales,
-      COALESCE(SUM(si.quantity), 0)                                                 AS totalItemsSold,
-      COALESCE(SUM(s.discount_total), 0)                                            AS totalDiscounts,
-      COALESCE(SUM(CASE WHEN s.payment_method='cash' THEN s.paid_amount END), 0)   AS cashRevenue,
-      COALESCE(SUM(CASE WHEN s.payment_method='fib'  THEN s.paid_amount END), 0)   AS fibRevenue,
-      COALESCE(SUM(CASE WHEN s.payment_method='debt' THEN s.paid_amount END), 0)   AS debtRevenue,
-      COUNT(CASE WHEN s.payment_method='cash' THEN 1 END)                          AS cashCount,
-      COUNT(CASE WHEN s.payment_method='fib'  THEN 1 END)                          AS fibCount,
-      COUNT(CASE WHEN s.payment_method='debt' THEN 1 END)                          AS debtCount
-    FROM sales s
-    LEFT JOIN sale_items si ON si.sale_id = s.id
-    ${where}
-  `);
-  const rev = row?.totalRevenue ?? 0;
-  const cnt = row?.totalSales ?? 0;
+  const saleWhere  = from && to ? `WHERE created_at >= '${from}' AND created_at <= '${to}'` : '';
+  const saleWhere2 = from && to ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'` : '';
+
+  const [salesRow, itemsRow] = await Promise.all([
+    database.getFirstAsync<Record<string, number>>(`
+      SELECT
+        COALESCE(SUM(paid_amount), 0)                                              AS totalRevenue,
+        COUNT(*)                                                                    AS totalSales,
+        COALESCE(SUM(discount_total), 0)                                           AS totalDiscounts,
+        COALESCE(SUM(CASE WHEN payment_method='cash' THEN paid_amount END), 0)    AS cashRevenue,
+        COALESCE(SUM(CASE WHEN payment_method='fib'  THEN paid_amount END), 0)    AS fibRevenue,
+        COALESCE(SUM(CASE WHEN payment_method='debt' THEN paid_amount END), 0)    AS debtRevenue,
+        COUNT(CASE WHEN payment_method='cash' THEN 1 END)                         AS cashCount,
+        COUNT(CASE WHEN payment_method='fib'  THEN 1 END)                         AS fibCount,
+        COUNT(CASE WHEN payment_method='debt' THEN 1 END)                         AS debtCount
+      FROM sales ${saleWhere}
+    `),
+    database.getFirstAsync<{ totalItemsSold: number }>(`
+      SELECT COALESCE(SUM(si.quantity), 0) AS totalItemsSold
+      FROM sale_items si JOIN sales s ON s.id = si.sale_id ${saleWhere2}
+    `),
+  ]);
+
+  const rev = salesRow?.totalRevenue ?? 0;
+  const cnt = salesRow?.totalSales   ?? 0;
   return {
     totalRevenue:   rev,
     totalSales:     cnt,
-    totalItemsSold: row?.totalItemsSold ?? 0,
-    totalDiscounts: row?.totalDiscounts ?? 0,
-    cashRevenue:    row?.cashRevenue    ?? 0,
-    fibRevenue:     row?.fibRevenue     ?? 0,
-    debtRevenue:    row?.debtRevenue    ?? 0,
-    cashCount:      row?.cashCount      ?? 0,
-    fibCount:       row?.fibCount       ?? 0,
-    debtCount:      row?.debtCount      ?? 0,
+    totalItemsSold: itemsRow?.totalItemsSold ?? 0,
+    totalDiscounts: salesRow?.totalDiscounts ?? 0,
+    cashRevenue:    salesRow?.cashRevenue    ?? 0,
+    fibRevenue:     salesRow?.fibRevenue     ?? 0,
+    debtRevenue:    salesRow?.debtRevenue    ?? 0,
+    cashCount:      salesRow?.cashCount      ?? 0,
+    fibCount:       salesRow?.fibCount       ?? 0,
+    debtCount:      salesRow?.debtCount      ?? 0,
     avgOrderValue:  cnt > 0 ? rev / cnt : 0,
   };
 }
@@ -1726,21 +2614,29 @@ export interface ProfitLossData {
 
 export async function getProfitLossData(from?: string, to?: string): Promise<ProfitLossData> {
   const database = await getDatabase();
-  const saleWhere = from && to
+  const saleLevelWhere = from && to
+    ? `WHERE created_at >= '${from}' AND created_at <= '${to}'`
+    : '';
+  const itemLevelWhere = from && to
     ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'`
     : '';
   const expWhere = from && to
     ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
     : '';
 
-  const salesRow = await database.getFirstAsync<Record<string, number>>(`
-    SELECT
-      COALESCE(SUM(s.paid_amount), 0)                          AS grossRevenue,
-      COALESCE(SUM(si.purchase_price * si.quantity), 0)        AS totalCOGS
-    FROM sales s
-    LEFT JOIN sale_items si ON si.sale_id = s.id
-    ${saleWhere}
-  `);
+  const [revenueRow, cogsRow] = await Promise.all([
+    database.getFirstAsync<{ grossRevenue: number }>(
+      `SELECT COALESCE(SUM(paid_amount), 0) AS grossRevenue FROM sales ${saleLevelWhere}`
+    ),
+    database.getFirstAsync<{ totalCOGS: number }>(
+      `SELECT COALESCE(SUM(si.purchase_price * si.quantity), 0) AS totalCOGS
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id ${itemLevelWhere}`
+    ),
+  ]);
+  const salesRow = {
+    grossRevenue: revenueRow?.grossRevenue ?? 0,
+    totalCOGS:    cogsRow?.totalCOGS       ?? 0,
+  };
   const expRow = await database.getFirstAsync<{ total: number }>(
     `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses ${expWhere}`
   );
@@ -1765,6 +2661,56 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
     netProfit,
     netMarginPct: grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0,
     expenseBreakdown: expBreakdown,
+  };
+}
+
+export interface FinancialSummaryCards {
+  totalSales: number;
+  netProfit: number;
+  totalLoss: number;
+  remainingCustomerDebt: number;
+}
+
+export async function getFinancialSummaryCards(
+  from?: string,
+  to?: string,
+): Promise<FinancialSummaryCards> {
+  const database = await getDatabase();
+  const saleLevelWhere = from && to
+    ? `WHERE status = 'completed' AND created_at >= '${from}' AND created_at <= '${to}'`
+    : `WHERE status = 'completed'`;
+  const itemLevelWhere = from && to
+    ? `WHERE s.status = 'completed' AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
+    : `WHERE s.status = 'completed'`;
+
+  const [totalsRow, profitRow, debtRow] = await Promise.all([
+    database.getFirstAsync<{ totalSales: number }>(
+      `SELECT COALESCE(SUM(grand_total), 0) AS totalSales FROM sales ${saleLevelWhere}`
+    ),
+    database.getFirstAsync<{ netProfit: number; totalLoss: number }>(`
+      SELECT
+        COALESCE(SUM(CASE
+          WHEN si.line_total - (si.purchase_price * si.quantity) > 0
+            THEN si.line_total - (si.purchase_price * si.quantity)
+          ELSE 0
+        END), 0) AS netProfit,
+        COALESCE(SUM(CASE
+          WHEN si.line_total - (si.purchase_price * si.quantity) < 0
+            THEN (si.purchase_price * si.quantity) - si.line_total
+          ELSE 0
+        END), 0) AS totalLoss
+      FROM sale_items si JOIN sales s ON s.id = si.sale_id ${itemLevelWhere}
+    `),
+    database.getFirstAsync<{ remaining: number }>(
+      `SELECT COALESCE(SUM(remaining_amount), 0) AS remaining FROM debts WHERE status = 'active'`
+    ),
+  ]);
+
+  return {
+    totalSales:            totalsRow?.totalSales   ?? 0,
+    netProfit:             profitRow?.netProfit     ?? 0,
+    totalLoss:             profitRow?.totalLoss     ?? 0,
+    remainingCustomerDebt: debtRow?.remaining       ?? 0,
   };
 }
 
@@ -1899,7 +2845,7 @@ export async function getMostProfitableProducts(
       SUM(si.quantity)                                              AS total_qty,
       SUM(si.line_total)                                            AS total_revenue,
       SUM(si.purchase_price * si.quantity)                         AS total_cost,
-      SUM((si.selling_price - si.purchase_price) * si.quantity)    AS gross_profit
+      SUM(si.line_total - si.purchase_price * si.quantity)          AS gross_profit
     FROM sale_items si
     JOIN sales s ON si.sale_id = s.id
     ${where}
@@ -1929,22 +2875,83 @@ export interface DailyRevenuePoint {
 
 export async function getDailyRevenueChart(days = 30): Promise<DailyRevenuePoint[]> {
   const database = await getDatabase();
-  const rows = await database.getAllAsync<Record<string, unknown>>(`
-    SELECT
-      date(s.created_at) AS date,
-      COALESCE(SUM(s.paid_amount), 0)                                               AS revenue,
-      COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0)       AS profit
-    FROM sales s
-    LEFT JOIN sale_items si ON si.sale_id = s.id
-    WHERE s.created_at >= date('now', '-${days} days')
-    GROUP BY date(s.created_at)
-    ORDER BY date ASC
-  `);
-  return rows.map((r) => ({
-    date:    r.date    as string,
-    revenue: r.revenue as number,
-    profit:  r.profit  as number,
+  const cutoff = `date('now', '-${days} days')`;
+
+  const [revenueRows, profitRows] = await Promise.all([
+    database.getAllAsync<{ date: string; revenue: number }>(
+      `SELECT date(created_at) AS date, COALESCE(SUM(paid_amount), 0) AS revenue
+       FROM sales WHERE created_at >= ${cutoff}
+       GROUP BY date(created_at) ORDER BY date ASC`
+    ),
+    database.getAllAsync<{ date: string; profit: number }>(
+      `SELECT date(s.created_at) AS date,
+              COALESCE(SUM((si.selling_price - si.purchase_price) * si.quantity), 0) AS profit
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id
+       WHERE s.created_at >= ${cutoff}
+       GROUP BY date(s.created_at) ORDER BY date ASC`
+    ),
+  ]);
+
+  const profitMap = new Map(profitRows.map((r) => [r.date, r.profit]));
+  return revenueRows.map((r) => ({
+    date:    r.date,
+    revenue: r.revenue,
+    profit:  profitMap.get(r.date) ?? 0,
   }));
+}
+
+// ─── Loss Analysis ────────────────────────────────────────────────────────────
+
+export interface LossAnalysis {
+  totalLossAmount: number;
+  lossSaleCount:   number;
+  lossItemCount:   number;
+  topLossProducts: { productName: string; lossAmount: number; qty: number }[];
+}
+
+export async function getLossAnalysis(from?: string, to?: string): Promise<LossAnalysis> {
+  const database = await getDatabase();
+  const dateFilter = from && to
+    ? `AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
+    : '';
+
+  const summaryRow = await database.getFirstAsync<Record<string, number>>(`
+    SELECT
+      COUNT(DISTINCT si.sale_id)                                              AS lossSaleCount,
+      COUNT(*)                                                                AS lossItemCount,
+      COALESCE(SUM((si.purchase_price - si.selling_price) * si.quantity), 0) AS totalLossAmount
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.purchase_price > si.selling_price
+      AND s.status = 'completed'
+      ${dateFilter}
+  `);
+
+  const productRows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT
+      si.product_name,
+      COALESCE(SUM((si.purchase_price - si.selling_price) * si.quantity), 0) AS lossAmount,
+      SUM(si.quantity) AS qty
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.purchase_price > si.selling_price
+      AND s.status = 'completed'
+      ${dateFilter}
+    GROUP BY si.product_name
+    ORDER BY lossAmount DESC
+    LIMIT 5
+  `);
+
+  return {
+    totalLossAmount: summaryRow?.totalLossAmount ?? 0,
+    lossSaleCount:   summaryRow?.lossSaleCount   ?? 0,
+    lossItemCount:   summaryRow?.lossItemCount   ?? 0,
+    topLossProducts: productRows.map((r) => ({
+      productName: r.product_name as string,
+      lossAmount:  r.lossAmount   as number,
+      qty:         r.qty          as number,
+    })),
+  };
 }
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
@@ -1952,8 +2959,9 @@ export async function getDailyRevenueChart(days = 30): Promise<DailyRevenuePoint
 export interface Expense {
   id: number;
   amount: number;
-  category: string;
-  note: string | null;
+  category: string;      // kept for report grouping; not shown in UI
+  reason: string | null; // primary description — what the money was spent on
+  note: string | null;   // optional secondary note
   date: string;
   createdAt: string;
   updatedAt: string;
@@ -1962,15 +2970,17 @@ export interface Expense {
 export async function createExpense(data: {
   amount: number;
   category: string;
+  reason: string;
   note?: string;
   date?: string;
 }): Promise<number> {
   const database = await getDatabase();
   const result = await database.runAsync(
-    `INSERT INTO expenses (amount, category, note, date) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO expenses (amount, category, reason, note, date) VALUES (?, ?, ?, ?, ?)`,
     [
       data.amount,
       data.category,
+      data.reason,
       data.note ?? null,
       data.date ?? new Date().toISOString().slice(0, 10),
     ]
@@ -1990,6 +3000,7 @@ export async function getAllExpenses(from?: string, to?: string): Promise<Expens
     id:        r.id        as number,
     amount:    r.amount    as number,
     category:  r.category  as string,
+    reason:    (r.reason as string | null) ?? null,
     note:      (r.note as string | null) ?? null,
     date:      r.date      as string,
     createdAt: r.created_at as string,
@@ -2000,6 +3011,17 @@ export async function getAllExpenses(from?: string, to?: string): Promise<Expens
 export async function deleteExpense(id: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM expenses WHERE id = ?', [id]);
+}
+
+export async function updateExpense(
+  id: number,
+  data: { amount: number; category: string; reason: string; note?: string; date?: string }
+): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `UPDATE expenses SET amount = ?, category = ?, reason = ?, note = ?, date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    [data.amount, data.category, data.reason, data.note ?? null, data.date ?? new Date().toISOString().slice(0, 10), id]
+  );
 }
 
 export async function getExpenseTotals(from?: string, to?: string): Promise<{
@@ -2165,4 +3187,72 @@ export async function setCachedReport<T>(
 export async function clearReportsCache(): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM reports_cache');
+}
+
+// ─── Net Cash Balance ─────────────────────────────────────────────────────────
+
+export interface NetCashBalanceData {
+  cashReceived: number;       // sum(sales.paid_amount) — actual collected cash
+  expensesTotal: number;      // sum(expenses.amount)
+  unpaidCustomerDebt: number; // sum(debts.remaining_amount where active)
+  netBalance: number;         // cashReceived - expensesTotal
+}
+
+export async function getNetCashBalance(): Promise<NetCashBalanceData> {
+  const database = await getDatabase();
+
+  const [cashRow, expRow, unpaidDebtRow] = await Promise.all([
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(paid_amount), 0) AS v FROM sales`
+    ),
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses`
+    ),
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(remaining_amount), 0) AS v FROM debts WHERE status = 'active'`
+    ),
+  ]);
+
+  const cashReceived       = cashRow?.v ?? 0;
+  const expensesTotal      = expRow?.v  ?? 0;
+  const unpaidCustomerDebt = unpaidDebtRow?.v ?? 0;
+  const netBalance         = cashReceived - expensesTotal;
+
+  return { cashReceived, expensesTotal, unpaidCustomerDebt, netBalance };
+}
+
+export async function getDashboardExpenseTotals(): Promise<{
+  today: number;
+  weekly: number;
+  monthly: number;
+  yearly: number;
+}> {
+  const database = await getDatabase();
+  const now = new Date();
+  const todayStr   = now.toISOString().slice(0, 10);
+  const weekAgo    = new Date(now); weekAgo.setDate(now.getDate() - 7);
+  const monthAgo   = new Date(now); monthAgo.setMonth(now.getMonth() - 1);
+  const yearAgo    = new Date(now); yearAgo.setFullYear(now.getFullYear() - 1);
+
+  const [todayRow, weekRow, monthRow, yearRow] = await Promise.all([
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date = '${todayStr}'`
+    ),
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${weekAgo.toISOString().slice(0, 10)}'`
+    ),
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${monthAgo.toISOString().slice(0, 10)}'`
+    ),
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${yearAgo.toISOString().slice(0, 10)}'`
+    ),
+  ]);
+
+  return {
+    today:   todayRow?.v  ?? 0,
+    weekly:  weekRow?.v   ?? 0,
+    monthly: monthRow?.v  ?? 0,
+    yearly:  yearRow?.v   ?? 0,
+  };
 }

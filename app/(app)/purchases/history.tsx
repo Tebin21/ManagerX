@@ -14,13 +14,16 @@ import { PurchaseHistoryItem } from '@/components/purchases/PurchaseHistoryItem'
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
+import { fmtIQD } from '@/utils/formatters';
 
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
+  const { flexDirection } = useRTL();
   const { purchases, isLoading, loadPurchases, deletePurchase, searchPurchases } =
     usePurchaseStore();
 
@@ -68,7 +71,7 @@ export default function PurchaseHistoryScreen() {
           <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('purchases.noHistory')}</Text>
           <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('purchases.noHistoryDetail')}</Text>
           <TouchableOpacity
-            style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => router.push('/(app)/purchases/new-purchase' as never)}
             activeOpacity={0.85}
           >
@@ -106,7 +109,7 @@ export default function PurchaseHistoryScreen() {
         }
       />
 
-      <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}>
         <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.black }]}
@@ -125,12 +128,12 @@ export default function PurchaseHistoryScreen() {
       </View>
 
       {purchases.length > 0 && (
-        <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+        <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
           <Text style={[styles.summaryText, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'purchase' : 'purchases'}
           </Text>
           <Text style={[styles.summaryTotal, { color: colors.primary }]}>
-            {visible.reduce((s, p) => s + p.totalIQD, 0).toLocaleString('en-US')} IQD total
+            {fmtIQD(visible.reduce((s, p) => s + p.totalIQD, 0))} IQD total
           </Text>
         </View>
       )}

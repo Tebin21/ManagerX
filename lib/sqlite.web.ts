@@ -48,3 +48,46 @@ export async function loadSetting(key: string): Promise<string | null> {
     return null;
   }
 }
+
+// ─── Stubs for functions imported by screens/stores ──────────────────────────
+// These prevent "X is not a function" crashes on web where SQLite is unavailable.
+
+export async function getProductCategories(): Promise<string[]> {
+  return [];
+}
+
+export async function getProductsByItemId(_itemId: string): Promise<number[]> {
+  return [];
+}
+
+export async function getAllPurchases(): Promise<any[]> {
+  return [];
+}
+
+export async function generatePurchaseNumber(): Promise<string> {
+  return 'WEB-' + Date.now();
+}
+
+export async function insertPurchase(_data: any): Promise<number> {
+  return 0;
+}
+
+export async function insertProduct(_data: any): Promise<number> {
+  return 0;
+}
+
+export async function upsertSupplier(_input: any): Promise<number> {
+  return 0;
+}
+
+export async function insertPurchaseItem(_purchaseId: number, _data: any): Promise<void> {}
+
+export async function createPurchaseDebt(_purchaseId: number, _data: any): Promise<void> {}
+
+export async function searchSuppliersList(_query: string): Promise<any[]> {
+  return [];
+}
+
+export async function addManagedCategory(_name: string): Promise<void> {}
+
+export async function saveExchangeRateHistory(_rate: number): Promise<void> {}

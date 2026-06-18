@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     fontWeight:    '700',
     letterSpacing: 0.5,
     marginBottom:  8,
-    paddingLeft:   4,
+    paddingStart:  4,
   },
   card: {
     borderRadius: 14,
@@ -50,5 +50,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     overflow: 'hidden',
   },
-  divider: { height: 1, marginLeft: 46 },
+  divider: { height: 1, marginStart: 46 },
 });

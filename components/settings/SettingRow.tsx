@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
 interface Props {
   icon:          ComponentProps<typeof Ionicons>['name'];
@@ -28,7 +28,8 @@ export function SettingRow({
   disabled = false,
 }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
+  const { chevronForward } = useDirectionalChevron();
 
   const iconBg    = destructive ? '#FEE2E2' : isDark ? colors.gray200 + '33' : colors.softBlue;
   const iconColor = destructive ? colors.error : colors.primary;
@@ -36,7 +37,7 @@ export function SettingRow({
 
   return (
     <TouchableOpacity
-      style={[styles.row, disabled && styles.disabled]}
+      style={[styles.row, disabled && styles.disabled, { flexDirection }]}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
       disabled={disabled}
@@ -54,7 +55,7 @@ export function SettingRow({
       </View>
       {rightElement ?? (
         chevron ? (
-          <Ionicons name="chevron-forward" size={16} color={colors.gray300} />
+          <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
         ) : null
       )}
     </TouchableOpacity>
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     borderRadius:      10,
     alignItems:        'center',
     justifyContent:    'center',
-    marginRight:       12,
+    marginEnd:         12,
   },
   content: { flex: 1 },
   label: { fontSize: 15, fontWeight: '600' },

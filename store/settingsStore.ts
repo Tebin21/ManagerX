@@ -4,47 +4,35 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const DEFAULT_EXCHANGE_RATE = 1310;
 
-interface NotificationSettings {
-  lowStock:        boolean;
-  debtReminder:    boolean;
-  paymentReminder: boolean;
-  dailySummary:    boolean;
-}
-
 interface SettingsState {
   isDarkMode:    boolean;
-  pinEnabled:    boolean;
   exchangeRate:  number;
   rateUpdatedAt: string | null;
-  notifications: NotificationSettings;
+  accentColor:             string | null;
+  globalLowStockEnabled:   boolean;
+  globalLowStockThreshold: number;
 
-  setDarkMode:      (val: boolean) => void;
-  setPinEnabled:    (val: boolean) => void;
-  setNotification:  (key: keyof NotificationSettings, val: boolean) => void;
-  setExchangeRate:  (rate: number) => Promise<void>;
+  setDarkMode:                (val: boolean) => void;
+  setExchangeRate:            (rate: number) => Promise<void>;
+  setAccentColor:             (color: string | null) => void;
+  setGlobalLowStockEnabled:   (val: boolean) => void;
+  setGlobalLowStockThreshold: (val: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       isDarkMode:    false,
-      pinEnabled:    false,
       exchangeRate:  DEFAULT_EXCHANGE_RATE,
       rateUpdatedAt: null,
-      notifications: {
-        lowStock:        true,
-        debtReminder:    true,
-        paymentReminder: true,
-        dailySummary:    false,
-      },
+      accentColor:             null,
+      globalLowStockEnabled:   true,
+      globalLowStockThreshold: 5,
 
-      setDarkMode:     (val) => set({ isDarkMode: val }),
-      setPinEnabled:   (val) => set({ pinEnabled: val }),
-
-      setNotification: (key, val) =>
-        set((state) => ({
-          notifications: { ...state.notifications, [key]: val },
-        })),
+      setDarkMode:               (val) => set({ isDarkMode: val }),
+      setAccentColor:            (color) => set({ accentColor: color }),
+      setGlobalLowStockEnabled:  (val) => set({ globalLowStockEnabled: val }),
+      setGlobalLowStockThreshold:(val) => set({ globalLowStockThreshold: val }),
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
@@ -66,10 +54,9 @@ export const useSettingsStore = create<SettingsState>()(
           ...p,
           exchangeRate:  p?.exchangeRate  ?? DEFAULT_EXCHANGE_RATE,
           rateUpdatedAt: p?.rateUpdatedAt ?? null,
-          notifications: {
-            ...current.notifications,
-            ...(p?.notifications ?? {}),
-          },
+          accentColor:             p?.accentColor   ?? null,
+          globalLowStockEnabled:   p?.globalLowStockEnabled   ?? true,
+          globalLowStockThreshold: p?.globalLowStockThreshold ?? 5,
         };
       },
     }

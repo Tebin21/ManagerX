@@ -17,18 +17,23 @@ import { useTranslation } from 'react-i18next';
 import { LowStockBadge } from '@/components/inventory/LowStockBadge';
 import { getInventoryProductById, getSalesByProductId } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
+import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
-
-const LOW_STOCK = 3;
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { removeProduct } = useInventoryStore();
+  const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { colors } = useAppTheme();
+  const { chevronForward } = useDirectionalChevron();
+  const { flexDirection, alignEnd } = useRTL();
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [salesHistory, setSalesHistory] = useState<Array<{
@@ -105,7 +110,7 @@ export default function InventoryDetailScreen() {
     );
   }
 
-  const isLowStock = product.isActive && product.quantity <= LOW_STOCK;
+  const isLowStock = computeProductLowStock(product, globalLowStockEnabled, globalLowStockThreshold);
   const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
   const totalValue = product.purchasePrice * product.quantity;
   const profitPerUnit = product.sellingPrice - product.purchasePrice;
@@ -115,7 +120,7 @@ export default function InventoryDetailScreen() {
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader title={product.name} showBack>
         {/* Category + status row inside gradient */}
-        <View style={styles.headerMeta}>
+        <View style={[styles.headerMeta, { flexDirection }]}>
           <View style={styles.catChip}>
             <Text style={styles.catText}>{product.category}</Text>
           </View>
@@ -154,19 +159,19 @@ export default function InventoryDetailScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.buyPrice')}</Text>
-              <Text style={[styles.statValue, { color: colors.black }]}>{product.purchasePrice.toLocaleString('en-US')} IQD</Text>
+              <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(product.purchasePrice)} IQD</Text>
             </View>
           </View>
           <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.sellPrice')}</Text>
-              <Text style={[styles.statValue, { color: colors.primary }]}>{product.sellingPrice.toLocaleString('en-US')} IQD</Text>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)} IQD</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.totalValueLabel')}</Text>
-              <Text style={[styles.statValue, { color: colors.black }]}>{totalValue.toLocaleString('en-US')} IQD</Text>
+              <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(totalValue)} IQD</Text>
             </View>
           </View>
           {profitPerUnit !== 0 && (
@@ -176,7 +181,7 @@ export default function InventoryDetailScreen() {
                 <View style={[styles.statItem, { flex: 1 }]}>
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.profitPerUnit')}</Text>
                   <Text style={[styles.statValue, { color: profitPerUnit > 0 ? colors.success : colors.error }]}>
-                    {profitPerUnit > 0 ? '+' : ''}{profitPerUnit.toLocaleString('en-US')} IQD
+                    {profitPerUnit > 0 ? '+' : ''}{fmtIQD(profitPerUnit)} IQD
                   </Text>
                 </View>
               </View>
@@ -194,28 +199,28 @@ export default function InventoryDetailScreen() {
           >
             <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('inventory.supplierAndPurchase')}</Text>
             {product.supplierName && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.supplier')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierName}</Text>
               </View>
             )}
             {product.supplierPhone && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Ionicons name="call-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.phone')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierPhone}</Text>
               </View>
             )}
             {product.supplierAddress && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Ionicons name="location-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.address')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierAddress}</Text>
               </View>
             )}
             {product.purchaseDate && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.date')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black }]}>{product.purchaseDate}</Text>
@@ -223,13 +228,13 @@ export default function InventoryDetailScreen() {
             )}
             {product.purchaseId && (
               <TouchableOpacity
-                style={[styles.linkRow, { borderTopColor: colors.gray100 }]}
+                style={[styles.linkRow, { borderTopColor: colors.gray100, flexDirection }]}
                 onPress={() => router.push(`/(app)/purchases/${product.purchaseId}` as never)}
                 activeOpacity={0.75}
               >
                 <Ionicons name="receipt-outline" size={16} color={colors.primary} />
                 <Text style={[styles.linkText, { color: colors.primary }]}>{t('inventory.viewPurchaseInvoice')}</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
               </TouchableOpacity>
             )}
           </MotiView>
@@ -267,7 +272,7 @@ export default function InventoryDetailScreen() {
           >
             <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('inventory.details')}</Text>
             {product.warranty && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.warranty')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black }]}>{product.warranty}</Text>
@@ -302,17 +307,17 @@ export default function InventoryDetailScreen() {
             salesHistory.map((s) => (
               <TouchableOpacity
                 key={s.id}
-                style={[styles.saleRow, { borderTopColor: colors.gray100 }]}
+                style={[styles.saleRow, { borderTopColor: colors.gray100, flexDirection }]}
                 onPress={() => router.push(`/(app)/sales/${s.saleId}` as never)}
                 activeOpacity={0.75}
               >
                 <View>
                   <Text style={[styles.saleInvoice, { color: colors.black }]}>{s.invoiceNumber}</Text>
-                  <Text style={[styles.saleDate, { color: colors.gray400 }]}>{new Date(s.saleCreatedAt).toLocaleDateString()}</Text>
+                  <Text style={[styles.saleDate, { color: colors.gray400 }]}>{formatDateShort(s.saleCreatedAt)}</Text>
                 </View>
-                <View style={styles.saleRight}>
+                <View style={[styles.saleRight, { alignItems: alignEnd }]}>
                   <Text style={[styles.saleQty, { color: colors.gray500 }]}>× {s.quantity}</Text>
-                  <Text style={[styles.saleTotal, { color: colors.primary }]}>{s.lineTotal.toLocaleString('en-US')} IQD</Text>
+                  <Text style={[styles.saleTotal, { color: colors.primary }]}>{fmtIQD(s.lineTotal)} IQD</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -320,9 +325,9 @@ export default function InventoryDetailScreen() {
         </MotiView>
 
         {/* Actions */}
-        <View style={styles.actions}>
+        <View style={[styles.actions, { flexDirection }]}>
           <TouchableOpacity
-            style={[styles.editBtn, { backgroundColor: colors.primary }]}
+            style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => router.push(`/(app)/inventory/edit/${product.id}` as never)}
             activeOpacity={0.85}
           >
@@ -330,7 +335,7 @@ export default function InventoryDetailScreen() {
             <Text style={styles.editBtnText}>{t('inventory.editProduct')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.deleteBtn, { borderColor: colors.error }]}
+            style={[styles.deleteBtn, { borderColor: colors.error, flexDirection }]}
             onPress={confirmDelete}
             activeOpacity={0.85}
           >

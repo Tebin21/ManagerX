@@ -5,6 +5,8 @@ import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 interface Props {
   label: string;
@@ -15,18 +17,22 @@ interface Props {
 }
 
 export function InventoryStatsCard({ label, value, icon, accent = false, delay = 0 }: Props) {
+  const { colors } = useAppTheme();
+  const { textAlign, flexDirection } = useRTL();
   return (
     <MotiView
-      from={{ opacity: 0, translateY: 8 }}
+      from={{ opacity: 0, translateY: 6 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 20, stiffness: 220, delay }}
-      style={[styles.card, accent && styles.accentCard]}
+      style={[styles.card, accent && styles.accentCard, { flexDirection }]}
     >
-      <View style={[styles.iconWrap, accent && styles.accentIcon]}>
-        <Ionicons name={icon} size={18} color={accent ? '#B45309' : Colors.primary} />
+      <View style={[styles.iconWrap, { backgroundColor: accent ? '#FEF3C7' : colors.softBlue }]}>
+        <Ionicons name={icon} size={14} color={accent ? '#B45309' : colors.primary} />
       </View>
-      <Text style={[styles.value, accent && styles.accentValue]}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.textBlock}>
+        <Text style={[styles.value, accent && styles.accentValue, { textAlign }]} numberOfLines={1}>{value}</Text>
+        <Text style={[styles.label, { textAlign }]} numberOfLines={1}>{label}</Text>
+      </View>
     </MotiView>
   );
 }
@@ -34,10 +40,12 @@ export function InventoryStatsCard({ label, value, icon, accent = false, delay =
 const styles = StyleSheet.create({
   card: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: Theme.radius.card,
-    padding: 14,
-    alignItems: 'flex-start',
+    borderRadius: Theme.radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     ...Theme.shadow.soft,
   },
   accentCard: {
@@ -46,28 +54,29 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.softBlue,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginEnd: 8,
+    flexShrink: 0,
   },
-  accentIcon: {
-    backgroundColor: '#FEF3C7',
+  textBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   value: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.black,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   accentValue: {
     color: '#B45309',
   },
   label: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.gray500,
     fontWeight: '500',
   },

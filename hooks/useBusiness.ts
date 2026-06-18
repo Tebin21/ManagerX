@@ -1,13 +1,12 @@
 import { useBusinessStore } from '@/store/businessStore';
 import { saveBusiness as saveBusinessToDB } from '@/lib/sqlite';
-import { BusinessType } from '@/constants/config';
 
 export function useBusiness() {
   const store = useBusinessStore();
 
   const saveAndSetBusiness = async (data: {
     name: string;
-    type: BusinessType;
+    type: string;
     phone: string;
     address: string;
     logoUri: string | null;

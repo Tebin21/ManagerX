@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,31 +14,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
 
 import { useTranslation } from 'react-i18next';
 import { getInventoryProductById } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 
-const CATEGORIES = ['Electronics', 'Clothing', 'Food', 'Produce', 'Medicine', 'Tools', 'General', 'Other'];
 
 type FieldKey =
   | 'name' | 'category' | 'buyPriceIQD' | 'buyPriceUSD'
-  | 'sellPriceIQD' | 'sellPriceUSD' | 'quantity'
+  | 'sellPriceIQD' | 'sellPriceUSD' | 'quantity' | 'lowStockThreshold'
   | 'warranty' | 'description' | 'notes' | 'imageUri';
 
 export default function EditProductScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { editProduct } = useInventoryStore();
+  const { editProduct, categories: availableCategories } = useInventoryStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const globalLowStockThreshold = useSettingsStore((s) => s.globalLowStockThreshold);
   const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
   const insets = useSafeAreaInsets();
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
@@ -58,6 +60,7 @@ export default function EditProductScreen() {
   const [description, setDescription] = useState('');
   const [notes, setNotes]             = useState('');
   const [imageUri, setImageUri]       = useState<string | null>(null);
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
 
   // Change-highlight state
   const [changedFields, setChangedFields] = useState<Set<FieldKey>>(new Set());
@@ -80,6 +83,7 @@ export default function EditProductScreen() {
         setDescription(p.description ?? '');
         setNotes(p.notes ?? '');
         setImageUri(p.imageUri ?? null);
+        setLowStockThreshold(p.lowStockThreshold != null ? String(p.lowStockThreshold) : '');
       }
       setLoading(false);
     })();
@@ -110,24 +114,6 @@ export default function EditProductScreen() {
     if (!isNaN(n)) setSellIQD(String(Math.round(n * exchangeRate)));
   };
 
-  const pickImage = useCallback(async () => {
-    try {
-      const { launchImageLibraryAsync, MediaType } = await import('expo-image-picker');
-      const result = await launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-        base64: false,
-      });
-      if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-      }
-    } catch {
-      Alert.alert(t('common.error'), t('common.tryAgain'));
-    }
-  }, []);
-
   const handleSave = useCallback(async () => {
     if (!product) return;
     if (!name.trim()) { Alert.alert(t('common.required'), t('inventory.errorSave')); return; }
@@ -149,21 +135,25 @@ export default function EditProductScreen() {
     if (description.trim() !== (product.description ?? '')) changed.add('description');
     if (notes.trim() !== (product.notes ?? ''))             changed.add('notes');
     if (imageUri !== product.imageUri)           changed.add('imageUri');
+    const parsedThreshold = lowStockThreshold.trim() ? parseInt(lowStockThreshold, 10) : null;
+    if (parsedThreshold !== (product.lowStockThreshold ?? null)) changed.add('lowStockThreshold');
 
     setSaving(true);
     try {
       const data: Partial<NewProductData> = {
-        name:          name.trim(),
+        name:               name.trim(),
         category,
-        purchasePrice: buyPrice,
-        buyPriceUsd:   parseFloat(buyUSD) || 0,
-        sellingPrice:  sellPrice,
-        sellPriceUsd:  parseFloat(sellUSD) || 0,
-        quantity:      qty,
-        warranty:      warranty.trim() || null,
-        description:   description.trim() || null,
-        notes:         notes.trim() || null,
+        purchasePrice:      buyPrice,
+        buyPriceUsd:        parseFloat(buyUSD) || 0,
+        sellingPrice:       sellPrice,
+        sellPriceUsd:       parseFloat(sellUSD) || 0,
+        quantity:           qty,
+        warranty:           warranty.trim() || null,
+        description:        description.trim() || null,
+        notes:              notes.trim() || null,
         imageUri,
+        lowStockThreshold:  (!isNaN(parsedThreshold as number) && parsedThreshold !== null && (parsedThreshold as number) > 0) ? parsedThreshold : null,
+        lowStockEnabled:    null,
       };
       await editProduct(product.id, data);
 
@@ -181,10 +171,10 @@ export default function EditProductScreen() {
     } finally {
       setSaving(false);
     }
-  }, [product, name, category, buyIQD, buyUSD, sellIQD, sellUSD, quantity, warranty, description, notes, imageUri, editProduct]);
+  }, [product, name, category, buyIQD, buyUSD, sellIQD, sellUSD, quantity, warranty, description, notes, imageUri, lowStockThreshold, editProduct]);
 
   const fieldBg = (key: FieldKey) =>
-    changedFields.has(key) ? Colors.softBlue : 'transparent';
+    changedFields.has(key) ? colors.softBlue : 'transparent';
 
   const numId = Number(id);
   if (!id || isNaN(numId)) {
@@ -198,7 +188,7 @@ export default function EditProductScreen() {
   if (loading) {
     return (
       <View style={[styles.loadWrap, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -226,68 +216,47 @@ export default function EditProductScreen() {
           transition={{ type: 'timing', duration: 600 }}
           style={styles.imageSection}
         >
-          <TouchableOpacity style={[styles.imageWrap, { backgroundColor: colors.gray100 }]} onPress={pickImage} activeOpacity={0.8}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="camera-outline" size={32} color={colors.gray400} />
-                <Text style={[styles.imagePlaceholderText, { color: colors.gray400 }]}>Add Photo</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {imageUri && (
-            <TouchableOpacity onPress={() => setImageUri(null)} style={styles.removeImage}>
-              <Ionicons name="trash-outline" size={16} color={colors.error} />
-              <Text style={[styles.removeImageText, { color: colors.error }]}>Remove</Text>
-            </TouchableOpacity>
-          )}
+          <ProductImagePicker
+            uri={imageUri}
+            onSelect={setImageUri}
+            onRemove={() => setImageUri(null)}
+            label={t('inventory.productImage')}
+          />
         </MotiView>
 
         {/* Name */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>Product Info</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.productInfo')}</Text>
 
           <MotiView animate={{ backgroundColor: fieldBg('name') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Product Name *</Text>
+            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.productName')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
               value={name}
               onChangeText={setName}
-              placeholder="Product name"
+              placeholder={t('inventory.productName')}
               placeholderTextColor={colors.gray300}
             />
           </MotiView>
 
           {/* Category */}
           <MotiView animate={{ backgroundColor: fieldBg('category') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Category</Text>
-            <View style={styles.categoryRow}>
-              {CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => setCategory(c)}
-                  style={[styles.catChip,
-                    category === c
-                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : { borderColor: colors.gray200, backgroundColor: colors.white }
-                  ]}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.catChipText, { color: category === c ? colors.white : colors.gray600 }]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <CategoryAutocompleteInput
+              label={t('inventory.category')}
+              value={category}
+              onChange={setCategory}
+              categories={availableCategories}
+            />
           </MotiView>
         </View>
 
         {/* Pricing */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>Pricing</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.pricing')}</Text>
 
-          <Text style={[styles.subLabel, { color: colors.gray500 }]}>Buy Price</Text>
-          <View style={styles.priceRow}>
-            <MotiView animate={{ backgroundColor: fieldBg('buyPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white }]}>
+          <Text style={[styles.subLabel, { color: colors.gray500 }]}>{t('inventory.buyPrice')}</Text>
+          <View style={[styles.priceRow, { flexDirection }]}>
+            <MotiView animate={{ backgroundColor: fieldBg('buyPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>IQD</Text>
               <TextInput
                 style={[styles.priceInput, { color: colors.black }]}
@@ -298,7 +267,7 @@ export default function EditProductScreen() {
                 placeholderTextColor={colors.gray300}
               />
             </MotiView>
-            <MotiView animate={{ backgroundColor: fieldBg('buyPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white }]}>
+            <MotiView animate={{ backgroundColor: fieldBg('buyPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>USD</Text>
               <TextInput
                 style={[styles.priceInput, { color: colors.black }]}
@@ -311,9 +280,9 @@ export default function EditProductScreen() {
             </MotiView>
           </View>
 
-          <Text style={[styles.subLabel, { marginTop: 12, color: colors.gray500 }]}>Sell Price</Text>
-          <View style={styles.priceRow}>
-            <MotiView animate={{ backgroundColor: fieldBg('sellPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white }]}>
+          <Text style={[styles.subLabel, { marginTop: 12, color: colors.gray500 }]}>{t('inventory.sellPrice')}</Text>
+          <View style={[styles.priceRow, { flexDirection }]}>
+            <MotiView animate={{ backgroundColor: fieldBg('sellPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>IQD</Text>
               <TextInput
                 style={[styles.priceInput, { color: colors.black }]}
@@ -324,7 +293,7 @@ export default function EditProductScreen() {
                 placeholderTextColor={colors.gray300}
               />
             </MotiView>
-            <MotiView animate={{ backgroundColor: fieldBg('sellPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white }]}>
+            <MotiView animate={{ backgroundColor: fieldBg('sellPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>USD</Text>
               <TextInput
                 style={[styles.priceInput, { color: colors.black }]}
@@ -340,9 +309,9 @@ export default function EditProductScreen() {
 
         {/* Quantity */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>Stock</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.stock')}</Text>
           <MotiView animate={{ backgroundColor: fieldBg('quantity') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Quantity</Text>
+            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.quantity')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
               value={quantity}
@@ -352,30 +321,63 @@ export default function EditProductScreen() {
               placeholderTextColor={colors.gray300}
             />
           </MotiView>
+
+          <MotiView
+            animate={{ backgroundColor: fieldBg('lowStockThreshold') }}
+            transition={{ type: 'timing', duration: 600 }}
+            style={styles.fieldWrap}
+          >
+            <View style={[styles.alertLabelRow, { flexDirection }]}>
+              <Ionicons name="notifications-outline" size={13} color={colors.warning} />
+              <Text style={[styles.label, { color: colors.gray500, marginBottom: 0 }]}>{t('inventory.productAlertOverride')}</Text>
+            </View>
+            <Text style={[styles.hintText, { color: colors.gray400, marginBottom: 6 }]}>
+              {t('inventory.productAlertOverrideHint', { threshold: globalLowStockThreshold })}
+            </Text>
+            <View style={[styles.alertInputRow, { flexDirection }]}>
+              <TextInput
+                style={[styles.input, { flex: 1, borderColor: lowStockThreshold ? '#FDE68A' : colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+                value={lowStockThreshold}
+                onChangeText={setLowStockThreshold}
+                keyboardType="number-pad"
+                placeholder={String(globalLowStockThreshold)}
+                placeholderTextColor={colors.gray300}
+              />
+              {lowStockThreshold.trim().length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setLowStockThreshold('')}
+                  style={[styles.clearBtn, { backgroundColor: colors.gray100 }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={14} color={colors.gray500} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </MotiView>
         </View>
 
         {/* Additional */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>Additional Info</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.additionalInfo')}</Text>
 
           <MotiView animate={{ backgroundColor: fieldBg('warranty') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Warranty</Text>
+            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.warranty')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
               value={warranty}
               onChangeText={setWarranty}
-              placeholder="e.g. 1 year"
+              placeholder={t('sales.warrantyPlaceholder')}
               placeholderTextColor={colors.gray300}
             />
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('description') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Description</Text>
+            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.description')}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Product description…"
+              placeholder={t('inventory.description')}
               placeholderTextColor={colors.gray300}
               multiline
               numberOfLines={3}
@@ -383,12 +385,12 @@ export default function EditProductScreen() {
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('notes') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>Notes</Text>
+            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.notes')}</Text>
             <TextInput
               style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Internal notes…"
+              placeholder={t('inventory.notes')}
               placeholderTextColor={colors.gray300}
               multiline
               numberOfLines={3}
@@ -398,7 +400,7 @@ export default function EditProductScreen() {
 
         {/* Save */}
         <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: colors.primary }, saving && styles.saveBtnDisabled]}
+          style={[styles.saveBtn, { backgroundColor: colors.primary, flexDirection }, saving && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={saving}
           activeOpacity={0.85}
@@ -423,24 +425,13 @@ const styles = StyleSheet.create({
   notFound:         { fontSize: 15 },
   gradHeader:       { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
   scroll:           { padding: 16, paddingBottom: 48 },
-  imageSection:     { alignItems: 'center', marginBottom: 14, borderRadius: Theme.radius.card, padding: 12 },
-  imageWrap:        { width: 110, height: 110, borderRadius: 20, overflow: 'hidden' },
-  imagePreview:     { width: '100%', height: '100%' },
-  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  imagePlaceholderText: { fontSize: 12, fontWeight: '500' },
-  removeImage:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
-  removeImageText:  { fontSize: 12, fontWeight: '600' },
+  imageSection:     { marginBottom: 14, borderRadius: Theme.radius.card, padding: 12 },
   card:             { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },
   cardTitle:        { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
   fieldWrap:        { borderRadius: Theme.radius.md, paddingVertical: 4, paddingHorizontal: 2, marginBottom: 14 },
   label:            { fontSize: 12, fontWeight: '600', marginBottom: 6 },
   input:            { height: Theme.input.height, borderWidth: 1.5, borderRadius: Theme.input.borderRadius, paddingHorizontal: 14, fontSize: 15 },
   textarea:         { height: 88, textAlignVertical: 'top', paddingTop: 12 },
-  categoryRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catChip:          { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Theme.radius.full, borderWidth: 1.5 },
-  catChipActive:    {},
-  catChipText:      { fontSize: 13, fontWeight: '600' },
-  catChipTextActive:{},
   subLabel:         { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   priceRow:         { flexDirection: 'row', gap: 10 },
   priceField:       { flex: 1, borderWidth: 1.5, borderRadius: Theme.input.borderRadius, paddingHorizontal: 12, height: Theme.input.height, flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -449,4 +440,8 @@ const styles = StyleSheet.create({
   saveBtn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 16, marginTop: 4, ...Theme.shadow.button },
   saveBtnDisabled:  { opacity: 0.65 },
   saveBtnText:      { fontSize: 16, fontWeight: '700', color: '#fff' },
+  alertLabelRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  hintText:         { fontSize: 11, lineHeight: 15 },
+  alertInputRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  clearBtn:         { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

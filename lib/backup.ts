@@ -24,24 +24,27 @@ export interface ManagerXBackup {
     platform:   string;
   };
   database: {
-    businesses:       Record<string, unknown>[];
-    settings:         Record<string, unknown>[];
-    products:         Record<string, unknown>[];
-    customers:        Record<string, unknown>[];
-    sales:            Record<string, unknown>[];
-    sale_items:       Record<string, unknown>[];
-    debts:            Record<string, unknown>[];
-    invoice_counter:  Record<string, unknown>[];
-    purchases:        Record<string, unknown>[];
-    purchase_items:   Record<string, unknown>[];
-    purchase_counter: Record<string, unknown>[];
-    purchase_debts:   Record<string, unknown>[];
-    debt_payments:    Record<string, unknown>[];
-    expenses:         Record<string, unknown>[];
-    suppliers:        Record<string, unknown>[];
-    exchange_rates:   Record<string, unknown>[];
+    businesses:        Record<string, unknown>[];
+    settings:          Record<string, unknown>[];
+    categories:        Record<string, unknown>[];
+    products:          Record<string, unknown>[];
+    inventory_history: Record<string, unknown>[];
+    customers:         Record<string, unknown>[];
+    sales:             Record<string, unknown>[];
+    sale_items:        Record<string, unknown>[];
+    debts:             Record<string, unknown>[];
+    invoice_counter:   Record<string, unknown>[];
+    purchases:         Record<string, unknown>[];
+    purchase_items:    Record<string, unknown>[];
+    purchase_counter:  Record<string, unknown>[];
+    purchase_debts:    Record<string, unknown>[];
+    debt_payments:     Record<string, unknown>[];
+    expenses:          Record<string, unknown>[];
+    suppliers:         Record<string, unknown>[];
+    exchange_rates:    Record<string, unknown>[];
   };
   stores: {
+    business: string;
     settings: string;
     modules:  string;
     language: string;
@@ -57,13 +60,16 @@ export async function exportBackup(): Promise<string> {
   const db = await getDatabase();
 
   const [
-    businesses, settings, products, customers, sales, sale_items,
+    businesses, settings, categories, products, inventory_history,
+    customers, sales, sale_items,
     debts, invoice_counter, purchases, purchase_items, purchase_counter,
     purchase_debts, debt_payments, expenses, suppliers, exchange_rates,
   ] = await Promise.all([
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM settings'),
+    db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM products'),
+    db.getAllAsync<Record<string, unknown>>('SELECT * FROM inventory_history'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM customers'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM sales'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM sale_items'),
@@ -79,7 +85,8 @@ export async function exportBackup(): Promise<string> {
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM exchange_rates'),
   ]);
 
-  const [storedSettings, storedModules, storedLanguage] = await Promise.all([
+  const [storedBusiness, storedSettings, storedModules, storedLanguage] = await Promise.all([
+    AsyncStorage.getItem('@managerx_business'),
     AsyncStorage.getItem('@managerx_settings'),
     AsyncStorage.getItem('@managerx_modules'),
     AsyncStorage.getItem('@managerx_language'),
@@ -87,20 +94,22 @@ export async function exportBackup(): Promise<string> {
 
   const backup: ManagerXBackup = {
     meta: {
-      version:    '1.0',
+      version:    '1.1',
       backupDate: new Date().toISOString(),
       appVersion: '1.0.0',
       platform:   Platform.OS,
     },
     database: {
-      businesses, settings, products, customers, sales, sale_items,
+      businesses, settings, categories, products, inventory_history,
+      customers, sales, sale_items,
       debts, invoice_counter, purchases, purchase_items, purchase_counter,
       purchase_debts, debt_payments, expenses, suppliers, exchange_rates,
     },
     stores: {
-      settings: storedSettings  ?? '{}',
-      modules:  storedModules   ?? '{}',
-      language: storedLanguage  ?? '"en"',
+      business: storedBusiness ?? '{}',
+      settings: storedSettings ?? '{}',
+      modules:  storedModules  ?? '{}',
+      language: storedLanguage ?? '"en"',
     },
   };
 
@@ -163,9 +172,11 @@ export async function performRestore(backup: ManagerXBackup): Promise<void> {
   await db.withTransactionAsync(async () => {
     // Delete in FK-safe order (children before parents).
     for (const table of [
+      'inventory_history',
       'purchase_items', 'purchase_debts', 'debt_payments',
       'sale_items', 'debts', 'sales', 'purchases',
-      'products', 'customers', 'suppliers', 'expenses',
+      'products', 'categories',
+      'customers', 'suppliers', 'expenses',
       'exchange_rates', 'reports_cache',
       'invoice_counter', 'purchase_counter',
       'settings', 'businesses',
@@ -174,26 +185,29 @@ export async function performRestore(backup: ManagerXBackup): Promise<void> {
     }
 
     // Insert in FK order (parents before children).
-    await insertRows(db, 'businesses',       database.businesses       ?? []);
-    await insertRows(db, 'settings',         database.settings         ?? []);
-    await insertRows(db, 'invoice_counter',  database.invoice_counter  ?? []);
-    await insertRows(db, 'purchase_counter', database.purchase_counter ?? []);
-    await insertRows(db, 'products',         database.products         ?? []);
-    await insertRows(db, 'customers',        database.customers        ?? []);
-    await insertRows(db, 'suppliers',        database.suppliers        ?? []);
-    await insertRows(db, 'expenses',         database.expenses         ?? []);
-    await insertRows(db, 'exchange_rates',   database.exchange_rates   ?? []);
-    await insertRows(db, 'sales',            database.sales            ?? []);
-    await insertRows(db, 'sale_items',       database.sale_items       ?? []);
-    await insertRows(db, 'debts',            database.debts            ?? []);
-    await insertRows(db, 'purchases',        database.purchases        ?? []);
-    await insertRows(db, 'purchase_items',   database.purchase_items   ?? []);
-    await insertRows(db, 'purchase_debts',   database.purchase_debts   ?? []);
-    await insertRows(db, 'debt_payments',    database.debt_payments    ?? []);
+    await insertRows(db, 'businesses',        database.businesses        ?? []);
+    await insertRows(db, 'settings',          database.settings          ?? []);
+    await insertRows(db, 'invoice_counter',   database.invoice_counter   ?? []);
+    await insertRows(db, 'purchase_counter',  database.purchase_counter  ?? []);
+    await insertRows(db, 'categories',        database.categories        ?? []);
+    await insertRows(db, 'products',          database.products          ?? []);
+    await insertRows(db, 'inventory_history', database.inventory_history ?? []);
+    await insertRows(db, 'customers',         database.customers         ?? []);
+    await insertRows(db, 'suppliers',         database.suppliers         ?? []);
+    await insertRows(db, 'expenses',          database.expenses          ?? []);
+    await insertRows(db, 'exchange_rates',    database.exchange_rates    ?? []);
+    await insertRows(db, 'sales',             database.sales             ?? []);
+    await insertRows(db, 'sale_items',        database.sale_items        ?? []);
+    await insertRows(db, 'debts',             database.debts             ?? []);
+    await insertRows(db, 'purchases',         database.purchases         ?? []);
+    await insertRows(db, 'purchase_items',    database.purchase_items    ?? []);
+    await insertRows(db, 'purchase_debts',    database.purchase_debts    ?? []);
+    await insertRows(db, 'debt_payments',     database.debt_payments     ?? []);
   });
 
   // Restore Zustand stores — must happen outside the SQLite transaction.
   await AsyncStorage.multiSet([
+    ['@managerx_business', backup.stores?.business ?? '{}'],
     ['@managerx_settings', backup.stores?.settings ?? '{}'],
     ['@managerx_modules',  backup.stores?.modules  ?? '{}'],
     ['@managerx_language', backup.stores?.language ?? '"en"'],

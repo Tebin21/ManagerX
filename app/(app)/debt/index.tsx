@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -22,19 +22,12 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
+import { fmtIQD, formatDate } from '@/utils/formatters';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
 function daysAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
 }
 
 // ─── Overdue Badge ─────────────────────────────────────────────────────────────
@@ -94,6 +87,9 @@ function SalesDebtCard({
   onPay: () => void;
 }) {
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
+  const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -114,9 +110,9 @@ function SalesDebtCard({
         activeOpacity={0.85}
         onPress={() => router.push(`/(app)/debt/sales/${debt.id}` as never)}
       >
-        <View style={styles.cardTop}>
-          <View style={styles.cardAvatar}>
-            <Text style={styles.cardAvatarText}>{initials || '?'}</Text>
+        <View style={[styles.cardTop, { flexDirection }]}>
+          <View style={[styles.cardAvatar, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={[styles.cardAvatarText, { color: colors.primary }]}>{initials || '?'}</Text>
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.customerName}</Text>
@@ -133,15 +129,15 @@ function SalesDebtCard({
           </View>
         </View>
 
-        <View style={styles.cardAmounts}>
-          <Text style={styles.amountRemaining}>{fmt(debt.remainingAmount)} IQD</Text>
-          <Text style={styles.amountSub}>of {fmt(debt.originalAmount)} IQD</Text>
+        <View style={[styles.cardAmounts, { flexDirection }]}>
+          <Text style={[styles.amountRemaining, { color: colors.primary }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
+          <Text style={styles.amountSub}>of {fmtIQD(debt.originalAmount)} IQD</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-        <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.quickPayBtn} onPress={onPay}>
+        <View style={[styles.cardActions, { flexDirection }]}>
+          <TouchableOpacity style={[styles.quickPayBtn, { backgroundColor: colors.primary, flexDirection }]} onPress={onPay}>
             <Ionicons name="flash" size={14} color="#fff" />
             <Text style={styles.quickPayText}>{i18n.t('debt.payCustomer')}</Text>
           </TouchableOpacity>
@@ -149,8 +145,8 @@ function SalesDebtCard({
             style={styles.detailBtn}
             onPress={() => router.push(`/(app)/debt/sales/${debt.id}` as never)}
           >
-            <Text style={styles.detailBtnText}>{i18n.t('debt.details')}</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+            <Text style={[styles.detailBtnText, { color: colors.primary }]}>{i18n.t('debt.details')}</Text>
+            <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -168,6 +164,9 @@ function PurchaseDebtCard({
   onPay: () => void;
 }) {
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
+  const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -188,7 +187,7 @@ function PurchaseDebtCard({
         activeOpacity={0.85}
         onPress={() => router.push(`/(app)/debt/purchase/${debt.id}` as never)}
       >
-        <View style={styles.cardTop}>
+        <View style={[styles.cardTop, { flexDirection }]}>
           <View style={[styles.cardAvatar, styles.cardAvatarPurchase]}>
             <Text style={[styles.cardAvatarText, { color: Colors.error }]}>{initials || '?'}</Text>
           </View>
@@ -207,18 +206,18 @@ function PurchaseDebtCard({
           </View>
         </View>
 
-        <View style={styles.cardAmounts}>
+        <View style={[styles.cardAmounts, { flexDirection }]}>
           <Text style={[styles.amountRemaining, { color: Colors.error }]}>
-            {fmt(debt.remainingAmount)} IQD
+            {fmtIQD(debt.remainingAmount)} IQD
           </Text>
-          <Text style={styles.amountSub}>of {fmt(debt.originalAmount)} IQD owed to supplier</Text>
+          <Text style={styles.amountSub}>of {fmtIQD(debt.originalAmount)} IQD owed to supplier</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-        <View style={styles.cardActions}>
+        <View style={[styles.cardActions, { flexDirection }]}>
           <TouchableOpacity
-            style={[styles.quickPayBtn, { backgroundColor: Colors.error }]}
+            style={[styles.quickPayBtn, { backgroundColor: Colors.error, flexDirection }]}
             onPress={onPay}
           >
             <Ionicons name="flash" size={14} color="#fff" />
@@ -228,8 +227,8 @@ function PurchaseDebtCard({
             style={styles.detailBtn}
             onPress={() => router.push(`/(app)/debt/purchase/${debt.id}` as never)}
           >
-            <Text style={styles.detailBtnText}>{i18n.t('debt.details')}</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+            <Text style={[styles.detailBtnText, { color: colors.primary }]}>{i18n.t('debt.details')}</Text>
+            <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -252,6 +251,8 @@ function QuickPayModal({
   onCancel: () => void;
   onConfirm: (amount: number) => void;
 }) {
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
   const [value, setValue] = useState('');
 
   if (!visible) return null;
@@ -266,7 +267,7 @@ function QuickPayModal({
       >
         <Text style={styles.modalTitle}>{i18n.t('debt.recordPayment')}</Text>
         <Text style={styles.modalSub}>{name}</Text>
-        <Text style={styles.modalRemaining}>{i18n.t('debt.remainingLabel')}: {fmt(remaining)} IQD</Text>
+        <Text style={[styles.modalRemaining, { color: colors.primary }]}>{i18n.t('debt.remainingLabel')}: {fmtIQD(remaining)} IQD</Text>
         <TextInput
           style={styles.modalInput}
           placeholder={i18n.t('debt.amountPlaceholder')}
@@ -276,7 +277,7 @@ function QuickPayModal({
           onChangeText={setValue}
           autoFocus
         />
-        <View style={styles.modalActions}>
+        <View style={[styles.modalActions, { flexDirection }]}>
           <TouchableOpacity
             style={styles.modalCancel}
             onPress={() => { setValue(''); onCancel(); }}
@@ -284,7 +285,7 @@ function QuickPayModal({
             <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.modalConfirm}
+            style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
             onPress={() => {
               const amt = parseFloat(value);
               if (!amt || amt <= 0) {
@@ -309,7 +310,9 @@ type Tab = 'sales' | 'purchase';
 
 export default function DebtScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
   const {
     salesDebts, purchaseDebts, summary, isLoading,
     loadAll, paySalesDebt, payPurchaseDebt,
@@ -346,7 +349,7 @@ export default function DebtScreen() {
   const overviewCards = [
     {
       label: t('debt.totalReceivable'),
-      value: fmt(summary?.totalSalesDebt ?? 0),
+      value: fmtIQD(summary?.totalSalesDebt ?? 0),
       icon: 'arrow-down-circle' as const,
     },
     {
@@ -357,7 +360,7 @@ export default function DebtScreen() {
     },
     {
       label: t('debt.totalOwed'),
-      value: fmt(summary?.totalPurchaseDebt ?? 0),
+      value: fmtIQD(summary?.totalPurchaseDebt ?? 0),
       icon: 'arrow-up-circle' as const,
     },
     {
@@ -394,7 +397,7 @@ export default function DebtScreen() {
         </View>
 
         {/* Tab bar */}
-        <View style={styles.tabBar}>
+        <View style={[styles.tabBar, { flexDirection }]}>
           {(['sales', 'purchase'] as Tab[]).map((t) => {
             const count = t === 'sales'
               ? (summary?.activeSalesCount ?? 0)
@@ -403,14 +406,14 @@ export default function DebtScreen() {
             return (
               <TouchableOpacity
                 key={t}
-                style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
+                style={[styles.tabBtn, tab === t && styles.tabBtnActive, { flexDirection }]}
                 onPress={() => { setTab(t); setQuery(''); }}
               >
-                <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
+                <Text style={[styles.tabLabel, tab === t && { color: colors.primary }]}>
                   {label}
                 </Text>
                 {count > 0 && (
-                  <View style={[styles.tabBadge, tab === t && styles.tabBadgeActive]}>
+                  <View style={[styles.tabBadge, tab === t && { backgroundColor: colors.primary }]}>
                     <Text style={styles.tabBadgeText}>{count}</Text>
                   </View>
                 )}
@@ -421,7 +424,7 @@ export default function DebtScreen() {
       </AppHeader>
 
       {/* Search bar */}
-      <View style={[styles.searchRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+      <View style={[styles.searchRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
         <Ionicons name="search" size={16} color={colors.gray400} />
         <TextInput
           style={[styles.searchInput, { color: colors.black }]}
@@ -579,14 +582,14 @@ const styles = StyleSheet.create({
   },
   tabBtnActive: { backgroundColor: '#fff' },
   tabLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
-  tabLabelActive: { color: Colors.primary },
+  tabLabelActive: {},
   tabBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
-  tabBadgeActive: { backgroundColor: Colors.primary },
+  tabBadgeActive: {},
   tabBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
   // Search
@@ -622,19 +625,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardPurchase: { borderLeftWidth: 3, borderLeftColor: Colors.error },
+  cardPurchase: { borderStartWidth: 3, borderStartColor: Colors.error },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   cardAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginEnd: 10,
   },
   cardAvatarPurchase: { backgroundColor: '#FEE2E2' },
-  cardAvatarText: { fontSize: 15, fontWeight: '700', color: Colors.primary },
+  cardAvatarText: { fontSize: 15, fontWeight: '700' },
   cardInfo: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: '700', color: Colors.black, marginBottom: 2 },
   cardSub: { fontSize: 12, color: Colors.gray400 },
@@ -642,7 +644,7 @@ const styles = StyleSheet.create({
   cardRight: { alignItems: 'flex-end', gap: 4 },
 
   cardAmounts: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 8 },
-  amountRemaining: { fontSize: 17, fontWeight: '800', color: Colors.primary },
+  amountRemaining: { fontSize: 17, fontWeight: '800' },
   amountSub: { fontSize: 12, color: Colors.gray400 },
 
   progressTrack: {
@@ -658,7 +660,6 @@ const styles = StyleSheet.create({
   quickPayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -668,10 +669,10 @@ const styles = StyleSheet.create({
   detailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto',
+    marginStart: 'auto',
     gap: 2,
   },
-  detailBtnText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+  detailBtnText: { fontSize: 13, fontWeight: '600' },
 
   statusPill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   statusPillText: { fontSize: 11, fontWeight: '700' },
@@ -705,7 +706,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.black, marginBottom: 4 },
   modalSub: { fontSize: 14, color: Colors.gray500, marginBottom: 2 },
-  modalRemaining: { fontSize: 14, fontWeight: '600', color: Colors.primary, marginBottom: 16 },
+  modalRemaining: { fontSize: 14, fontWeight: '600', marginBottom: 16 },
   modalInput: {
     borderWidth: 1,
     borderColor: Colors.gray200,
@@ -728,7 +729,6 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
   modalConfirm: {
     flex: 1,
-    backgroundColor: Colors.primary,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',

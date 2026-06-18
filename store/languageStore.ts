@@ -20,8 +20,7 @@ export const useLanguageStore = create<LanguageState>()(
       setLanguage: (lang) => {
         const isRTL = lang === 'ku';
 
-        // Sync i18next language — layout direction is handled via isRTL state,
-        // not I18nManager.forceRTL, so navigation structure stays stable.
+        // Sync i18next translations
         i18n.changeLanguage(lang).catch(() => {});
 
         set({ language: lang, isRTL });

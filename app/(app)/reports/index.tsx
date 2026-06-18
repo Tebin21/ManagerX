@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, type ComponentProps } from 'react';
+﻿import React, { useEffect, useCallback, useState, type ComponentProps } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
@@ -14,127 +14,248 @@ import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { BarChart } from '@/components/reports/BarChart';
 import { MiniLineChart } from '@/components/reports/MiniLineChart';
 import { DonutRing } from '@/components/reports/DonutRing';
 import { useReportStore } from '@/store/reportStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Theme } from '@/constants/theme';
 import type { DateRangeKey, SmartAlert } from '@/types/reports';
+import { fmtIQD } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
+import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
+import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
-function fmtShort(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
-  return String(Math.round(n));
-}
-
-function pctOf(part: number, total: number): number {
-  return total > 0 ? Math.round((part / total) * 100) : 0;
-}
-
-// Translates an expense/inventory category using locale maps
 function tCat(cat: string): string {
-  // Try expense categories first
   const expKey = `reports.expenseCategories.${cat}`;
   const expVal = i18n.t(expKey, { defaultValue: '' });
   if (expVal) return expVal;
-  // Fall back to purchase categories
-  const purKey = `purchases.categories.${cat}`;
-  const purVal = i18n.t(purKey, { defaultValue: cat });
-  return purVal;
+  return i18n.t(`purchases.categories.${cat}`, { defaultValue: cat });
 }
 
-// ─── Section Header ────────────────────────────────────────────────────────────
+// ─── Section Header ───────────────────────────────────────────────────────────
 
 function SectionHeader({
-  title,
-  action,
-  route,
+  title, icon, action, route,
 }: {
   title: string;
+  icon?: ComponentProps<typeof Ionicons>['name'];
   action?: string;
   route?: string;
 }) {
   const router = useRouter();
+  const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
   return (
-    <View style={sectionStyles.row}>
-      <Text style={sectionStyles.title}>{title}</Text>
+    <View style={[secStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[secStyles.left, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {icon && (
+          <View style={[secStyles.iconWrap, { backgroundColor: `${colors.primary}18` }]}>
+            <Ionicons name={icon} size={14} color={colors.primary} />
+          </View>
+        )}
+        <Text style={[secStyles.title, { textAlign }]}>{title}</Text>
+      </View>
       {action && route && (
-        <TouchableOpacity onPress={() => router.push(route as never)} style={sectionStyles.actionBtn}>
-          <Text style={sectionStyles.actionText}>{action}</Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.primary} />
+        <TouchableOpacity onPress={() => router.push(route as never)} style={[secStyles.actionBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={[secStyles.actionText, { color: colors.primary }]}>{action}</Text>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={13} color={colors.primary} />
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-const sectionStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 20, marginBottom: 8 },
-  title: { fontSize: 16, fontWeight: '800', color: Colors.black },
+const secStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 22, marginBottom: 8 },
+  left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  iconWrap: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 15, fontWeight: '800', color: Colors.black },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  actionText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
+  actionText: { fontSize: 13, fontWeight: '600' },
 });
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── Financial Row (P&L accounting style) ────────────────────────────────────
 
-function KPICard({
-  label, value, sub, color, bgColor, icon, small,
+function FinancialRow({
+  label, value, valueStr, color, highlighted, indent, noBorder, large,
 }: {
-  label: string; value: string; sub?: string; color?: string; bgColor?: string;
-  icon: ComponentProps<typeof Ionicons>['name']; small?: boolean;
+  label: string; value?: number; valueStr?: string; color?: string;
+  highlighted?: boolean; indent?: boolean; noBorder?: boolean; large?: boolean;
 }) {
+  const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
   return (
-    <View style={[kpiStyles.card, bgColor ? { backgroundColor: bgColor } : null]}>
-      <Ionicons name={icon} size={18} color={color ?? Colors.primary} style={{ marginBottom: 6 }} />
-      <Text style={[kpiStyles.value, color ? { color } : null, small ? { fontSize: 14 } : null]} numberOfLines={1}>
-        {value}
+    <View style={[
+      frStyles.row,
+      !noBorder && !large && frStyles.border,
+      highlighted && { backgroundColor: `${colors.primary}10`, borderRadius: 8, paddingHorizontal: 10, borderBottomWidth: 0, marginVertical: 3 },
+      indent && { paddingStart: 18 },
+      large && { borderTopWidth: 2, borderTopColor: Colors.gray200, marginTop: 8, paddingTop: 12, borderBottomWidth: 0 },
+    ]}>
+      <Text style={[frStyles.label, { textAlign }, large && frStyles.labelLarge]}>{label}</Text>
+      <Text style={[frStyles.value, { color: color ?? Colors.black, textAlign: isRTL ? 'left' : 'right' }, large && frStyles.valueLarge]}>
+        {valueStr ?? (value !== undefined ? `${fmtIQD(value)} IQD` : '')}
       </Text>
-      <Text style={kpiStyles.label} numberOfLines={2}>{label}</Text>
-      {sub ? <Text style={kpiStyles.sub}>{sub}</Text> : null}
     </View>
   );
 }
 
-const kpiStyles = StyleSheet.create({
-  card: {
-    flex: 1, minWidth: '28%', backgroundColor: '#fff', borderRadius: 14, padding: 12,
-    alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
-  },
-  value: { fontSize: 16, fontWeight: '800', color: Colors.black, marginBottom: 3, textAlign: 'center' },
-  label: { fontSize: 10, color: Colors.gray400, textAlign: 'center', lineHeight: 14 },
-  sub:   { fontSize: 9, color: Colors.gray300, textAlign: 'center', marginTop: 2 },
+const frStyles = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
+  border: { borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  label: { fontSize: 13, color: Colors.gray600, flex: 1 },
+  labelLarge: { fontSize: 16, fontWeight: '800', color: Colors.black },
+  value: { fontSize: 13, fontWeight: '700' },
+  valueLarge: { fontSize: 16, fontWeight: '800' },
+});
+
+// ─── Big Metric Row (icon + label + large value) ──────────────────────────────
+
+function BigMetricRow({
+  label, value, sub, color, icon,
+}: {
+  label: string; value: string; sub?: string;
+  color?: string; icon: ComponentProps<typeof Ionicons>['name'];
+}) {
+  const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
+  const resolvedColor = color ?? colors.primary;
+  return (
+    <View style={[bmStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[
+        bmStyles.iconBox,
+        { backgroundColor: `${resolvedColor}15` },
+        isRTL ? { marginStart: 12 } : { marginEnd: 12 },
+      ]}>
+        <Ionicons name={icon} size={20} color={resolvedColor} />
+      </View>
+      <View style={bmStyles.info}>
+        <Text style={[bmStyles.label, { textAlign }]}>{label}</Text>
+        {sub ? <Text style={[bmStyles.sub, { textAlign }]}>{sub}</Text> : null}
+      </View>
+      <Text
+        style={[bmStyles.value, { color: resolvedColor, textAlign: isRTL ? 'left' : 'right' }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const bmStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  info: { flex: 1 },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.black },
+  sub: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
+  value: { fontSize: 15, fontWeight: '800', maxWidth: '52%' },
+});
+
+// ─── Stat Chip Row ─────────────────────────────────────────────────────────────
+
+function StatChipsRow({ chips }: { chips: { value: string; label: string; color?: string }[] }) {
+  const { isRTL } = useRTL();
+  return (
+    <View style={scStyles.row}>
+      {chips.map((c, i) => (
+        <View
+          key={i}
+          style={[
+            scStyles.chip,
+            i > 0 && { borderStartWidth: 1, borderStartColor: Colors.gray100 },
+          ]}
+        >
+          <Text style={[scStyles.value, c.color ? { color: c.color } : null]}>{c.value}</Text>
+          <Text style={scStyles.label}>{c.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const scStyles = StyleSheet.create({
+  row: { flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: Colors.gray100, paddingTop: 12 },
+  chip: { flex: 1, alignItems: 'center' },
+  value: { fontSize: 16, fontWeight: '800', color: Colors.black, marginBottom: 2 },
+  label: { fontSize: 10, color: Colors.gray400, textAlign: 'center' },
+});
+
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
+
+function ProgressBar({ value, total, color }: { value: number; total: number; color?: string }) {
+  const { colors } = useAppTheme();
+  const resolvedColor = color ?? colors.primary;
+  const pct = total > 0 ? Math.min(1, value / total) : 0;
+  return (
+    <View style={pbStyles.track}>
+      <View style={[pbStyles.fill, { width: `${Math.round(pct * 100)}%` as any, backgroundColor: resolvedColor }]} />
+    </View>
+  );
+}
+
+const pbStyles = StyleSheet.create({
+  track: { height: 6, backgroundColor: Colors.gray100, borderRadius: 3, overflow: 'hidden', marginVertical: 4 },
+  fill: { height: '100%', borderRadius: 3 },
+});
+
+// ─── Rank Badge ───────────────────────────────────────────────────────────────
+
+function RankBadge({ rank }: { rank: number }) {
+  const badgeColors = ['#F59E0B', '#9CA3AF', '#D97706'];
+  const bg = badgeColors[rank - 1] ?? Colors.gray200;
+  return (
+    <View style={[rkStyles.badge, { backgroundColor: bg }]}>
+      <Text style={rkStyles.text}>#{rank}</Text>
+    </View>
+  );
+}
+
+const rkStyles = StyleSheet.create({
+  badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  text: { fontSize: 11, fontWeight: '800', color: '#fff' },
 });
 
 // ─── Alert Banner ─────────────────────────────────────────────────────────────
 
 function AlertBanner({ alert, onDismiss }: { alert: SmartAlert; onDismiss: () => void }) {
   const router = useRouter();
-  const configs = {
+  const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
+  const cfgMap = {
     error:   { bg: '#FEF2F2', border: Colors.error,   icon: Colors.error   },
     warning: { bg: '#FFFBEB', border: '#D97706',       icon: '#D97706'      },
-    info:    { bg: '#EFF6FF', border: Colors.primary,  icon: Colors.primary },
+    info:    { bg: '#EFF6FF', border: colors.primary,  icon: colors.primary },
   };
-  const cfg = configs[alert.type];
+  const cfg = cfgMap[alert.type];
   return (
     <MotiView
       from={{ opacity: 0, translateY: -8 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 200 }}
-      style={[alertStyles.banner, { backgroundColor: cfg.bg, borderLeftColor: cfg.border }]}
+      style={[
+        alertStyles.banner,
+        {
+          backgroundColor: cfg.bg,
+          borderStartWidth: 4,
+          borderStartColor: cfg.border,
+        },
+      ]}
     >
-      <Ionicons name={alert.icon as ComponentProps<typeof Ionicons>['name']} size={18} color={cfg.icon} style={{ marginRight: 10 }} />
+      <Ionicons
+        name={alert.icon as ComponentProps<typeof Ionicons>['name']}
+        size={18}
+        color={cfg.icon}
+        style={{ marginEnd: 10 }}
+      />
       <View style={{ flex: 1 }}>
-        <Text style={[alertStyles.title, { color: cfg.border }]}>{alert.title}</Text>
-        <Text style={alertStyles.body}>{alert.body}</Text>
+        <Text style={[alertStyles.title, { color: cfg.border, textAlign }]}>{alert.title}</Text>
+        <Text style={[alertStyles.body, { textAlign }]}>{alert.body}</Text>
       </View>
       {alert.action && (
         <TouchableOpacity onPress={() => router.push(alert.action!.route as never)} style={alertStyles.actionBtn}>
@@ -149,12 +270,9 @@ function AlertBanner({ alert, onDismiss }: { alert: SmartAlert; onDismiss: () =>
 }
 
 const alertStyles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12,
-    borderRadius: 12, padding: 12, borderLeftWidth: 4,
-  },
+  banner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 12 },
   title: { fontSize: 13, fontWeight: '700', marginBottom: 1 },
-  body:  { fontSize: 12, color: Colors.gray500 },
+  body: { fontSize: 12, color: Colors.gray500 },
   actionBtn: { marginHorizontal: 8 },
   actionText: { fontSize: 12, fontWeight: '700' },
 });
@@ -162,12 +280,13 @@ const alertStyles = StyleSheet.create({
 // ─── Date Range Picker ────────────────────────────────────────────────────────
 
 function DateRangePicker({
-  current,
-  onChange,
+  current, onChange,
 }: {
   current: DateRangeKey;
   onChange: (key: DateRangeKey, from?: string, to?: string) => void;
 }) {
+  const { colors } = useAppTheme();
+  const { isRTL } = useRTL();
   const [customOpen, setCustomOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
@@ -183,31 +302,23 @@ function DateRangePicker({
 
   return (
     <>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={drStyles.row}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[drStyles.row, isRTL && { flexDirection: 'row-reverse' }]}>
         {keys.map((key) => (
           <TouchableOpacity
             key={key}
             style={[drStyles.pill, current === key && drStyles.pillActive]}
             onPress={() => {
-              if (key === 'custom') {
-                setCustomOpen(true);
-              } else {
-                onChange(key);
-              }
+              if (key === 'custom') { setCustomOpen(true); }
+              else { onChange(key); }
             }}
           >
-            <Text style={[drStyles.pillText, current === key && drStyles.pillTextActive]}>
+            <Text style={[drStyles.pillText, current === key && { color: colors.primary }]}>
               {labels[key]}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Custom date range modal */}
       <Modal visible={customOpen} animationType="fade" transparent>
         <View style={drStyles.overlay}>
           <View style={drStyles.modal}>
@@ -233,9 +344,13 @@ function DateRangePicker({
                 <Text style={drStyles.cancelText}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={drStyles.applyBtn}
+                style={[drStyles.applyBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   if (customFrom && customTo) {
+                    if (customFrom > customTo) {
+                      Alert.alert(i18n.t('common.error'), i18n.t('reports.invalidDateRange'));
+                      return;
+                    }
                     onChange('custom', `${customFrom}T00:00:00.000Z`, `${customTo}T23:59:59.999Z`);
                     setCustomOpen(false);
                   } else {
@@ -255,168 +370,423 @@ function DateRangePicker({
 
 const drStyles = StyleSheet.create({
   row: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 },
-  pill: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
+  pill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
   pillActive: { backgroundColor: '#fff' },
   pillText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
-  pillTextActive: { color: Colors.primary },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modal: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '85%' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.black, marginBottom: 16 },
   dateLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray600, marginBottom: 6 },
-  dateInput: {
-    borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.black, marginBottom: 14,
-  },
+  dateInput: { borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.black, marginBottom: 14 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   cancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
-  applyBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  applyBtn: { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
 
-// ─── Stat Row ─────────────────────────────────────────────────────────────────
+// ─── Financial Summary Card ───────────────────────────────────────────────────
 
-function StatRow({ label, value, color }: { label: string; value: string; color?: string }) {
+function FinancialCard({
+  label, value, icon, color,
+}: {
+  label: string;
+  value: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}) {
+  const { isRTL, textAlign } = useRTL();
   return (
-    <View style={statRowStyles.row}>
-      <Text style={statRowStyles.label}>{label}</Text>
-      <Text style={[statRowStyles.value, color ? { color } : null]}>{value}</Text>
+    <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
+      <View style={[fcStyles.iconBox, { backgroundColor: `${color}1A`, alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
+        <Ionicons name={icon} size={18} color={color} />
+      </View>
+      <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
+      <Text style={[fcStyles.value, { color, textAlign }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}>
+        {value}
+      </Text>
+      <Text style={[fcStyles.currency, { textAlign }]}>IQD</Text>
     </View>
   );
 }
 
-const statRowStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  label: { fontSize: 13, color: Colors.gray500 },
-  value: { fontSize: 14, fontWeight: '700', color: Colors.black },
+const fcStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 14,
+  },
+  iconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.gray500,
+    marginBottom: 4,
+  },
+  value: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  currency: {
+    fontSize: 11,
+    color: Colors.gray400,
+    fontWeight: '600',
+  },
 });
 
-// ─── Progress Bar ─────────────────────────────────────────────────────────────
+function FinancialSummaryGrid({
+  totalSales, netProfit, totalLoss, remainingDebt,
+}: {
+  totalSales: number;
+  netProfit: number;
+  totalLoss: number;
+  remainingDebt: number;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
 
-function ProgressBar({ value, total, color = Colors.primary }: { value: number; total: number; color?: string }) {
-  const pct = total > 0 ? Math.min(1, value / total) : 0;
   return (
-    <View style={pbStyles.track}>
-      <View style={[pbStyles.fill, { width: `${Math.round(pct * 100)}%` as any, backgroundColor: color }]} />
-    </View>
+    <MotiView
+      from={{ opacity: 0, translateY: 12 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 360 }}
+      style={fsgStyles.grid}
+    >
+      <View style={fsgStyles.row}>
+        <FinancialCard
+          label={t('reports.totalSales')}
+          value={fmtIQD(totalSales)}
+          icon="trending-up"
+          color={colors.primary}
+        />
+        <FinancialCard
+          label={t('reports.netProfit')}
+          value={fmtIQD(netProfit)}
+          icon="cash"
+          color={Colors.success}
+        />
+      </View>
+      <View style={fsgStyles.row}>
+        <FinancialCard
+          label={t('reports.totalLoss')}
+          value={fmtIQD(totalLoss)}
+          icon="trending-down"
+          color={Colors.error}
+        />
+        <FinancialCard
+          label={t('reports.remainingDebt')}
+          value={fmtIQD(remainingDebt)}
+          icon="time"
+          color={Colors.warning}
+        />
+      </View>
+    </MotiView>
   );
 }
 
-const pbStyles = StyleSheet.create({
-  track: { height: 6, backgroundColor: Colors.gray100, borderRadius: 3, overflow: 'hidden', marginVertical: 4 },
-  fill:  { height: '100%', borderRadius: 3 },
+const fsgStyles = StyleSheet.create({
+  grid: { paddingHorizontal: 16, gap: 8 },
+  row: { flexDirection: 'row', gap: 8 },
 });
 
-// ─── Rank Badge ───────────────────────────────────────────────────────────────
+// ─── Export Report Modal ──────────────────────────────────────────────────────
 
-function RankBadge({ rank }: { rank: number }) {
-  const colors = ['#F59E0B', '#9CA3AF', '#D97706'];
-  const bg = colors[rank - 1] ?? Colors.gray200;
+function buildExportDateRange(
+  key: 'today' | 'week' | 'month' | 'year' | 'custom',
+  customFrom: string,
+  customTo: string,
+): { from: string; to: string; label: string } {
+  const now = new Date();
+  const labels: Record<string, string> = {
+    today:  i18n.t('reports.dailyReport'),
+    week:   i18n.t('reports.weeklyReport'),
+    month:  i18n.t('reports.monthlyReport'),
+    year:   i18n.t('reports.yearlyReport'),
+    custom: i18n.t('reports.customRange'),
+  };
+  if (key === 'custom') {
+    const label = customFrom && customTo ? `${customFrom} – ${customTo}` : i18n.t('reports.customRange');
+    return { from: `${customFrom}T00:00:00.000Z`, to: `${customTo}T23:59:59.999Z`, label };
+  }
+  const start = new Date(now);
+  if      (key === 'today') { start.setHours(0, 0, 0, 0); }
+  else if (key === 'week')  { start.setDate(start.getDate() - 7); }
+  else if (key === 'month') { start.setMonth(start.getMonth() - 1); }
+  else if (key === 'year')  { start.setFullYear(start.getFullYear() - 1); }
+  return { from: start.toISOString(), to: now.toISOString(), label: labels[key] };
+}
+
+function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
+  type ExportPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
+  const { flexDirection } = useRTL();
+  const [period, setPeriod]       = useState<ExportPeriod>('month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]   = useState('');
+  const [loading, setLoading]     = useState(false);
+
+  const options: { key: ExportPeriod; label: string; desc: string }[] = [
+    { key: 'today',  label: t('reports.dailyReport'),   desc: t('reports.dailyReportDesc')   },
+    { key: 'week',   label: t('reports.weeklyReport'),  desc: t('reports.weeklyReportDesc')  },
+    { key: 'month',  label: t('reports.monthlyReport'), desc: t('reports.monthlyReportDesc') },
+    { key: 'year',   label: t('reports.yearlyReport'),  desc: t('reports.yearlyReportDesc')  },
+    { key: 'custom', label: t('reports.customRange'),   desc: t('reports.customRangeDesc')   },
+  ];
+
+  async function handleGenerate() {
+    if (loading) return;
+    if (period === 'custom') {
+      if (!customFrom || !customTo) { Alert.alert(t('common.required'), t('purchases.validationDate')); return; }
+      if (customFrom > customTo)    { Alert.alert(t('common.error'),    t('reports.invalidDateRange')); return; }
+    }
+    setLoading(true);
+    try {
+      const range = buildExportDateRange(period, customFrom, customTo);
+      const {
+        getFinancialSummaryCards, getSalesReportData, getPurchaseReportData,
+        getProfitLossData, getInventoryReportSummary, getDebtReportData,
+        getLossAnalysis, getAllExpenses, loadBusiness,
+      } = await import('@/lib/sqlite');
+
+      const [
+        financialCards, salesData, purchaseData, plData,
+        inventoryData, debtData, lossAnalysis, expenses, biz,
+      ] = await Promise.all([
+        getFinancialSummaryCards(range.from, range.to),
+        getSalesReportData(range.from, range.to),
+        getPurchaseReportData(range.from, range.to),
+        getProfitLossData(range.from, range.to),
+        getInventoryReportSummary(),
+        getDebtReportData(),
+        getLossAnalysis(range.from, range.to),
+        getAllExpenses(range.from, range.to),
+        loadBusiness(),
+      ]);
+
+      const dateRange = { key: period as never, from: range.from, to: range.to, label: range.label };
+
+      const { shareFinancialReport } = await import('@/lib/generateInvoice');
+      await shareFinancialReport(
+        { financialCards, salesData, purchaseData, plData, inventoryData, debtData, lossAnalysis, expenses, dateRange },
+        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
+      );
+      onClose();
+    } catch {
+      Alert.alert(t('common.error'), t('reports.errorExport'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <View style={[rankStyles.badge, { backgroundColor: bg }]}>
-      <Text style={rankStyles.text}>#{rank}</Text>
-    </View>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={ermStyles.overlay}>
+        <View style={ermStyles.sheet}>
+          <View style={[ermStyles.header, { flexDirection }]}>
+            <Text style={ermStyles.title}>{t('reports.exportReportTitle')}</Text>
+            <TouchableOpacity onPress={onClose} style={ermStyles.closeBtn} disabled={loading}>
+              <Ionicons name="close" size={20} color={Colors.gray500} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={ermStyles.sectionLabel}>{t('reports.selectPeriod')}</Text>
+
+          {options.map((opt) => {
+            const active = period === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[ermStyles.option, active && ermStyles.optionActive, { flexDirection }]}
+                onPress={() => setPeriod(opt.key)}
+                disabled={loading}
+              >
+                <View style={[ermStyles.radio, active && ermStyles.radioActive]}>
+                  {active && <View style={ermStyles.radioDot} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[ermStyles.optionText, active && ermStyles.optionTextActive]}>{opt.label}</Text>
+                  <Text style={ermStyles.optionDesc}>{opt.desc}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {period === 'custom' && (
+            <View style={ermStyles.customDates}>
+              <Text style={ermStyles.dateLabel}>{t('reports.fromDate')} (YYYY-MM-DD)</Text>
+              <TextInput
+                style={ermStyles.dateInput}
+                placeholder="2026-01-01"
+                placeholderTextColor={Colors.gray400}
+                value={customFrom}
+                onChangeText={setCustomFrom}
+                editable={!loading}
+              />
+              <Text style={ermStyles.dateLabel}>{t('reports.toDate')} (YYYY-MM-DD)</Text>
+              <TextInput
+                style={ermStyles.dateInput}
+                placeholder="2026-12-31"
+                placeholderTextColor={Colors.gray400}
+                value={customTo}
+                onChangeText={setCustomTo}
+                editable={!loading}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[ermStyles.generateBtn, loading && ermStyles.generateBtnLoading, { flexDirection }]}
+            onPress={handleGenerate}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={ermStyles.generateText}>{t('reports.generating')}</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
+                <Text style={ermStyles.generateText}>{t('reports.generatePDF')}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Text style={ermStyles.hint}>{t('reports.pdfHint')}</Text>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
-const rankStyles = StyleSheet.create({
-  badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  text:  { fontSize: 11, fontWeight: '800', color: '#fff' },
+const ermStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  title: { fontSize: 17, fontWeight: '800', color: Colors.black },
+  closeBtn: { padding: 4 },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '700', color: Colors.gray500,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
+  },
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 12, borderWidth: 1, borderColor: Colors.gray200,
+    marginBottom: 8, backgroundColor: '#FAFAFA',
+  },
+  optionActive: { borderColor: '#111111', backgroundColor: '#F5F5F5' },
+  radio: {
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2,
+    borderColor: Colors.gray300, alignItems: 'center', justifyContent: 'center',
+  },
+  radioActive: { borderColor: '#111111' },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#111111' },
+  optionText: { fontSize: 13.5, fontWeight: '600', color: Colors.gray600 },
+  optionTextActive: { color: '#111111', fontWeight: '700' },
+  optionDesc: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
+  customDates: { marginTop: 4, marginBottom: 4 },
+  dateLabel: { fontSize: 12, fontWeight: '600', color: Colors.gray600, marginBottom: 6, marginTop: 10 },
+  dateInput: {
+    borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.black,
+  },
+  generateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: '#111111', borderRadius: 14,
+    paddingVertical: 14, marginTop: 16,
+  },
+  generateBtnLoading: { backgroundColor: Colors.gray400 },
+  generateText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  hint: { fontSize: 11, color: Colors.gray400, textAlign: 'center', marginTop: 10 },
 });
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ReportsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
   const {
-    dateRange, isLoading, salesData, purchaseData, plData, inventoryData,
-    debtData, topProfitable, monthlyRevenue, dailyChart, expenses,
+    dateRange, isLoading, financialCards,
+    salesData, purchaseData, plData, inventoryData,
+    debtData, topProfitable, dailyChart, expenses,
+    cashBalance, dashboardExpenseTotals,
     setDateRange, reload,
   } = useReportStore();
 
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+  const [isExporting, setIsExporting]         = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
-  useEffect(() => { reload(); }, [reload]);
+  useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
-  useFocusEffect(
-    useCallback(() => { reload(); }, [reload])
-  );
-
-  // ── Smart alerts — built with translated strings ─────────────────────────────
+  // ── Smart alerts ─────────────────────────────────────────────────────────────
   const allAlerts: SmartAlert[] = [];
-
   if (plData && plData.netProfit < 0 && plData.grossRevenue > 0) {
-    allAlerts.push({
-      id: 'loss',
-      type: 'error',
-      icon: 'trending-down',
-      title: t('reports.alertLossTitle'),
-      body:  t('reports.alertLossBody', { amount: fmt(Math.abs(plData.netProfit)) }),
-    });
+    allAlerts.push({ id: 'loss', type: 'error', icon: 'trending-down', title: t('reports.alertLossTitle'), body: t('reports.alertLossBody', { amount: fmtIQD(Math.abs(plData.netProfit)) }) });
   }
   if (plData && plData.grossMarginPct < 10 && plData.grossMarginPct > 0 && plData.grossRevenue > 0) {
-    allAlerts.push({
-      id: 'margin',
-      type: 'warning',
-      icon: 'alert-circle',
-      title: t('reports.alertMarginTitle'),
-      body:  t('reports.alertMarginBody', { pct: plData.grossMarginPct.toFixed(1) }),
-    });
+    allAlerts.push({ id: 'margin', type: 'warning', icon: 'alert-circle', title: t('reports.alertMarginTitle'), body: t('reports.alertMarginBody', { pct: plData.grossMarginPct.toFixed(1) }) });
   }
   if (debtData && debtData.overdueCount > 0) {
-    allAlerts.push({
-      id: 'overdue',
-      type: 'warning',
-      icon: 'time',
-      title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }),
-      body:  t('reports.alertOverdueBody'),
-      action: { label: t('reports.alertActionView'), route: '/(app)/debt' },
-    });
+    allAlerts.push({ id: 'overdue', type: 'warning', icon: 'time', title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }), body: t('reports.alertOverdueBody'), action: { label: t('reports.alertActionView'), route: '/(app)/debt' } });
   }
   if (inventoryData && inventoryData.outOfStockCount > 0) {
-    allAlerts.push({
-      id: 'stock',
-      type: 'info',
-      icon: 'cube',
-      title: t('reports.alertStockTitle', { count: inventoryData.outOfStockCount }),
-      body:  t('reports.alertStockBody'),
-      action: { label: t('reports.alertActionView'), route: '/(app)/inventory' },
-    });
+    allAlerts.push({ id: 'stock', type: 'info', icon: 'cube', title: t('reports.alertStockTitle', { count: inventoryData.outOfStockCount }), body: t('reports.alertStockBody'), action: { label: t('reports.alertActionView'), route: '/(app)/inventory' } });
   }
-
   const visibleAlerts = allAlerts.filter((a) => !dismissedAlerts.includes(a.id));
 
-  // ── Export PDF ────────────────────────────────────────────────────────────
+  // ── Export PDF ────────────────────────────────────────────────────────────────
   async function exportPDF() {
+    if (isExporting) return;
+    setIsExporting(true);
     try {
       const { shareFullReport } = await import('@/lib/generateInvoice');
-      const { loadBusiness } = await import('@/lib/sqlite');
+      const { loadBusiness }    = await import('@/lib/sqlite');
       const biz = await loadBusiness();
-      await shareFullReport({
-        salesData, purchaseData, plData, inventoryData,
-        debtData, topProfitable, monthlyRevenue, expenses, dateRange,
-      }, {
-        name:    biz?.name    ?? 'My Business',
-        phone:   biz?.phone   ?? '',
-        address: biz?.address ?? '',
-        logoUri: biz?.logoPath ?? null,
-      });
+      await shareFullReport(
+        { salesData, purchaseData, plData, inventoryData, debtData, topProfitable, monthlyRevenue, expenses, dateRange },
+        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null }
+      );
     } catch {
       Alert.alert(t('common.error'), t('reports.errorExport'));
+    } finally {
+      setIsExporting(false);
     }
   }
 
-  // ── Bar chart data from monthlyRevenue ─────────────────────────────────────
-  const barData = monthlyRevenue.map((r) => ({
-    label: r.period.slice(5), // MM portion — numbers stay English
-    value: r.revenue,
-    secondaryValue: Math.max(0, r.profit),
-  }));
+  // ── Derived values ────────────────────────────────────────────────────────────
+  // New top financial cards
+  const cardTotalSales    = financialCards?.totalSales            ?? 0;
+  const cardNetProfit     = financialCards?.netProfit             ?? 0;
+  const cardTotalLoss     = financialCards?.totalLoss             ?? 0;
+  const cardRemainingDebt = financialCards?.remainingCustomerDebt ?? 0;
+
+  // Existing P&L / section values (unchanged)
+  const revenue      = salesData?.totalRevenue  ?? 0;
+  const grossProfit  = plData?.grossProfit       ?? 0;
+  const netProfit    = plData?.netProfit         ?? 0;
+  const totalCOGS    = plData?.totalCOGS         ?? 0;
+  const totalExp     = plData?.totalExpenses     ?? 0;
+  const custDebt     = debtData?.totalSalesDebt    ?? 0;
+  const suppDebt     = debtData?.totalPurchaseDebt ?? 0;
+  const combinedDebt = custDebt + suppDebt;
+  const expectedRev  = inventoryData?.stockValueSell  ?? 0;
+  const potProfit    = inventoryData?.potentialProfit ?? 0;
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -424,10 +794,12 @@ export default function ReportsScreen() {
         title={t('reports.title')}
         showBack
         onBack={() => router.back()}
-        rightAction={<HeaderActionButton icon="share-outline" onPress={exportPDF} />}
+        rightAction={<HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} />}
       >
         <DateRangePicker current={dateRange.key} onChange={setDateRange} />
       </AppHeader>
+
+      <ExportReportModal visible={exportModalOpen} onClose={() => setExportModalOpen(false)} />
 
       {isLoading ? (
         <View style={styles.loadingCenter}>
@@ -438,388 +810,190 @@ export default function ReportsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollBody}
-          refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={reload} tintColor={colors.primary} />
-          }
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={reload} tintColor={colors.primary} />}
         >
 
           {/* Smart alerts */}
           {visibleAlerts.map((alert) => (
-            <AlertBanner
-              key={alert.id}
-              alert={alert}
-              onDismiss={() => setDismissedAlerts((prev) => [...prev, alert.id])}
-            />
+            <AlertBanner key={alert.id} alert={alert} onDismiss={() => setDismissedAlerts((prev) => [...prev, alert.id])} />
           ))}
 
-          {/* ── Overview KPIs ── */}
-          <SectionHeader title={t('reports.grossRevenue')} />
-          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-            <View style={styles.kpiGrid}>
-              <KPICard
-                label={t('reports.revenue')}
-                value={`${fmtShort(salesData?.totalRevenue ?? 0)} IQD`}
-                icon="trending-up"
-                color={Colors.primary}
-              />
-              <KPICard
-                label={t('reports.netProfit')}
-                value={`${fmtShort(plData?.netProfit ?? 0)} IQD`}
-                icon="cash"
-                color={(plData?.netProfit ?? 0) >= 0 ? Colors.success : Colors.error}
-              />
-              <KPICard
-                label={t('reports.totalPurchases')}
-                value={String(salesData?.totalSales ?? 0)}
-                icon="receipt"
-              />
-            </View>
-            <View style={[styles.kpiGrid, { marginTop: 8 }]}>
-              <KPICard
-                label={t('reports.totalCost')}
-                value={`${fmtShort(purchaseData?.totalCost ?? 0)} IQD`}
-                icon="cart"
-                color={Colors.gray600}
-              />
-              <KPICard
-                label={t('reports.overdueCount')}
-                value={`${fmtShort(debtData?.combinedDebt ?? 0)} IQD`}
-                icon="warning"
-                color={(debtData?.combinedDebt ?? 0) > 0 ? Colors.warning : Colors.success}
-              />
-              <KPICard
-                label={t('reports.expenses')}
-                value={`${fmtShort(plData?.totalExpenses ?? 0)} IQD`}
-                icon="wallet"
-                color={Colors.error}
-              />
-            </View>
-          </MotiView>
+          {/* ─── 1. Financial Summary Cards ─── */}
+          <SectionHeader title={t('reports.financialSummary')} icon="stats-chart" />
+          <FinancialSummaryGrid
+            totalSales={cardTotalSales}
+            netProfit={cardNetProfit}
+            totalLoss={cardTotalLoss}
+            remainingDebt={cardRemainingDebt}
+          />
 
-          {/* ── Revenue Trend ── */}
-          {barData.length > 0 && (
-            <>
-              <SectionHeader title={t('reports.revenue')} />
-              <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 400, delay: 80 }}>
-                <PremiumCard style={styles.card}>
-                  <Text style={styles.cardLabel}>{t('reports.last6Months')} (IQD)</Text>
-                  <BarChart
-                    data={barData}
-                    height={150}
-                    showSecondary
-                    primaryColor={Colors.primary}
-                    secondaryColor={Colors.success}
-                  />
-                </PremiumCard>
-              </MotiView>
-            </>
+          {/* ─── Net Cash Balance ─── */}
+          {cashBalance && (
+            <View style={styles.cashBalanceCard}>
+              <CashBalanceCard data={cashBalance} />
+            </View>
           )}
 
-          {/* ── Sales ── */}
-          <SectionHeader title={t('dashboard.sales')} action={t('sales.history')} route="/(app)/sales/history" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 100 }}>
+          {/* ─── 2. Purchase Spending ─── */}
+          <SectionHeader title={t('reports.purchaseSpending')} icon="bag-handle" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 30 }}>
             <PremiumCard style={styles.card}>
-              <View style={styles.threeChips}>
-                <View style={styles.chip}>
-                  <Text style={styles.chipValue}>{fmtShort(salesData?.cashRevenue ?? 0)}</Text>
-                  <Text style={styles.chipLabel}>💵 {t('sales.cash')}</Text>
-                </View>
-                <View style={[styles.chip, styles.chipCenter]}>
-                  <Text style={styles.chipValue}>{fmtShort(salesData?.fibRevenue ?? 0)}</Text>
-                  <Text style={styles.chipLabel}>📱 {t('sales.fib')}</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipValue}>{fmtShort(salesData?.debtRevenue ?? 0)}</Text>
-                  <Text style={styles.chipLabel}>📋 {t('common.debt')}</Text>
-                </View>
-              </View>
+              <BigMetricRow
+                label={t('reports.purchaseSpendingDesc')}
+                value={`${fmtIQD(purchaseData?.totalCost ?? 0)} IQD`}
+                icon="bag-handle"
+                color="#7C3AED"
+              />
+            </PremiumCard>
+          </MotiView>
 
-              {(salesData?.totalRevenue ?? 0) > 0 && (
+          {/* ─── 3. Expected Profit ─── */}
+          <SectionHeader title={t('reports.expectedProfit')} icon="bulb" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 60 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.expectedProfitDesc')}
+                value={`${fmtIQD(potProfit)} IQD`}
+                icon="bulb"
+                color={potProfit >= 0 ? Colors.warning : Colors.error}
+              />
+            </PremiumCard>
+          </MotiView>
+
+          {/* ─── 4. Sales Revenue ─── */}
+          <SectionHeader title={t('reports.salesRevenue')} icon="trending-up" action={t('sales.history')} route="/(app)/sales/history" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.grossRevenue')}
+                value={`${fmtIQD(revenue)} IQD`}
+                icon="trending-up"
+                color={colors.primary}
+              />
+              <BigMetricRow
+                label={`💵 ${t('sales.cash')}`}
+                value={`${fmtIQD(salesData?.cashRevenue ?? 0)} IQD`}
+                icon="cash"
+                color={Colors.success}
+                sub={`${salesData?.cashCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <BigMetricRow
+                label={`📱 ${t('sales.fib')}`}
+                value={`${fmtIQD(salesData?.fibRevenue ?? 0)} IQD`}
+                icon="phone-portrait"
+                color={colors.primary}
+                sub={`${salesData?.fibCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <BigMetricRow
+                label={`📋 ${t('common.debt')}`}
+                value={`${fmtIQD(salesData?.debtRevenue ?? 0)} IQD`}
+                icon="document-text"
+                color={Colors.warning}
+                sub={`${salesData?.debtCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <StatChipsRow chips={[
+                { value: fmtIQD(salesData?.totalItemsSold ?? 0), label: t('reports.totalSoldProducts') },
+                { value: String(salesData?.totalSales ?? 0),  label: t('reports.totalInvoices') },
+                { value: fmtIQD(salesData?.avgOrderValue ?? 0),  label: `${t('reports.avgOrderValue')} IQD` },
+              ]} />
+
+              {revenue > 0 && (
                 <View style={{ marginTop: 14 }}>
                   <DonutRing
                     segments={[
-                      { label: t('sales.cash'),   value: salesData?.cashRevenue ?? 0, color: Colors.success },
-                      { label: t('sales.fib'),    value: salesData?.fibRevenue  ?? 0, color: Colors.primary },
-                      { label: t('common.debt'),  value: salesData?.debtRevenue ?? 0, color: Colors.warning },
+                      { label: t('sales.cash'),  value: salesData?.cashRevenue ?? 0, color: Colors.success },
+                      { label: t('sales.fib'),   value: salesData?.fibRevenue  ?? 0, color: colors.primary },
+                      { label: t('common.debt'), value: salesData?.debtRevenue ?? 0, color: Colors.warning },
                     ]}
-                    size={110}
-                    strokeWidth={16}
-                    centerLabel={`${salesData?.totalSales ?? 0}`}
+                    size={100}
+                    strokeWidth={14}
+                    centerLabel={String(salesData?.totalSales ?? 0)}
                     centerSub={t('reports.salesCount')}
                   />
                 </View>
               )}
 
               {(salesData?.totalDiscounts ?? 0) > 0 && (
-                <View style={styles.discountChip}>
+                <View style={[styles.discountChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Ionicons name="pricetag" size={12} color="#D97706" />
-                  <Text style={styles.discountText}>
-                    {t('reports.discountsGiven')}: {fmt(salesData?.totalDiscounts ?? 0)} IQD
+                  <View style={[styles.discountInner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text style={styles.discountText}>{t('reports.discountsGiven')}:</Text>
+                    <Text style={styles.discountText}>{fmtIQD(salesData?.totalDiscounts ?? 0)} IQD</Text>
+                  </View>
+                </View>
+              )}
+            </PremiumCard>
+          </MotiView>
+
+          {/* ─── 5. Purchase Costs ─── */}
+          <SectionHeader title={t('reports.purchaseCosts')} icon="cart" action={t('purchases.history')} route="/(app)/purchases" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 100 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.totalCost')}
+                value={`${fmtIQD(purchaseData?.totalCost ?? 0)} IQD`}
+                icon="cart"
+                color={Colors.gray600}
+              />
+              <BigMetricRow
+                label={t('common.paid')}
+                value={`${fmtIQD(purchaseData?.paidCost ?? 0)} IQD`}
+                icon="checkmark-circle"
+                color={Colors.success}
+                sub={`${purchaseData?.paidCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <BigMetricRow
+                label={t('common.debt')}
+                value={`${fmtIQD(purchaseData?.debtCost ?? 0)} IQD`}
+                icon="time"
+                color={(purchaseData?.debtCost ?? 0) > 0 ? Colors.warning : Colors.success}
+                sub={`${purchaseData?.debtCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <StatChipsRow chips={[
+                { value: String(purchaseData?.totalPurchases ?? 0), label: t('reports.totalPurchasesCount') },
+                { value: String(purchaseData?.uniqueSuppliers ?? 0), label: t('reports.uniqueSuppliers') },
+                { value: fmtIQD(purchaseData?.totalUnits ?? 0), label: t('inventory.totalQty') },
+              ]} />
+              {purchaseData?.topSupplier && (
+                <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="star" size={12} color={Colors.warning} />
+                  <Text style={[styles.topText, { textAlign }]}>
+                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} ({fmtIQD(purchaseData.topSupplierCost)} IQD)
                   </Text>
                 </View>
               )}
             </PremiumCard>
           </MotiView>
 
-          {/* ── Purchases ── */}
-          <SectionHeader title={t('dashboard.purchases')} action={t('purchases.history')} route="/(app)/purchases" />
+          {/* ─── 6. Expenses ─── */}
+          {dashboardExpenseTotals && (
+            <View style={styles.card}>
+              <ExpensesCard totals={dashboardExpenseTotals} showLink={false} />
+            </View>
+          )}
+          <SectionHeader title={t('reports.expensesTitle')} icon="wallet" action={t('common.edit')} route="/(app)/reports/expenses" />
           <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 120 }}>
             <PremiumCard style={styles.card}>
-              <StatRow label={t('reports.totalCost')} value={`${fmt(purchaseData?.totalCost ?? 0)} IQD`} />
-              <StatRow
-                label={t('common.paid')}
-                value={`${fmt(purchaseData?.paidCost ?? 0)} IQD`}
-                color={Colors.success}
-              />
-              <StatRow
-                label={t('common.debt')}
-                value={`${fmt(purchaseData?.debtCost ?? 0)} IQD`}
-                color={(purchaseData?.debtCost ?? 0) > 0 ? Colors.warning : Colors.success}
-              />
-              <StatRow label={t('customers.totalInvoices')} value={String(purchaseData?.totalPurchases ?? 0)} />
-              <StatRow label={t('reports.uniqueSuppliers')} value={String(purchaseData?.uniqueSuppliers ?? 0)} />
-              {purchaseData?.topSupplier && (
-                <View style={styles.topSupplier}>
-                  <Ionicons name="star" size={12} color={Colors.warning} />
-                  <Text style={styles.topSupplierText}>
-                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} ({fmtShort(purchaseData.topSupplierCost)} IQD)
-                  </Text>
-                </View>
-              )}
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Profit & Loss ── */}
-          <SectionHeader title={t('reports.profit')} />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 140 }}>
-            <PremiumCard style={styles.card}>
-              <View style={styles.plRow}>
-                <Text style={styles.plLabel}>{t('reports.grossRevenue')}</Text>
-                <Text style={[styles.plValue, { color: Colors.primary }]}>
-                  {fmt(plData?.grossRevenue ?? 0)} IQD
-                </Text>
-              </View>
-              <View style={styles.plRow}>
-                <Text style={[styles.plLabel, { color: Colors.gray400 }]}>{t('reports.cost')} (COGS)</Text>
-                <Text style={[styles.plValue, { color: Colors.error }]}>
-                  −{fmt(plData?.totalCOGS ?? 0)} IQD
-                </Text>
-              </View>
-              <View style={[styles.plRow, styles.plSubtotal]}>
-                <Text style={styles.plSubLabel}>{t('reports.profit')}</Text>
-                <Text style={[styles.plSubValue, { color: (plData?.grossProfit ?? 0) >= 0 ? Colors.success : Colors.error }]}>
-                  {fmt(plData?.grossProfit ?? 0)} IQD
-                  <Text style={styles.plPct}> ({(plData?.grossMarginPct ?? 0).toFixed(1)}%)</Text>
-                </Text>
-              </View>
-              {(plData?.expenseBreakdown ?? []).map((e) => (
-                <View key={e.category} style={[styles.plRow, { paddingLeft: 12 }]}>
-                  <Text style={[styles.plLabel, { color: Colors.gray400 }]}>{tCat(e.category)}</Text>
-                  <Text style={[styles.plValue, { color: Colors.error }]}>
-                    −{fmt(e.total)} IQD
-                  </Text>
-                </View>
-              ))}
-              {(plData?.totalExpenses ?? 0) > 0 && (
-                <View style={styles.plRow}>
-                  <Text style={styles.plLabel}>{t('reports.totalExpenses')}</Text>
-                  <Text style={[styles.plValue, { color: Colors.error }]}>
-                    −{fmt(plData?.totalExpenses ?? 0)} IQD
-                  </Text>
-                </View>
-              )}
-              <View style={[styles.plRow, styles.plNet]}>
-                <Text style={styles.plNetLabel}>{t('reports.netProfit')}</Text>
-                <Text style={[styles.plNetValue, { color: (plData?.netProfit ?? 0) >= 0 ? Colors.success : Colors.error }]}>
-                  {fmt(plData?.netProfit ?? 0)} IQD
-                </Text>
-              </View>
-
-              {/* 30-day mini line chart */}
-              {dailyChart.length >= 3 && (
-                <View style={{ marginTop: 14 }}>
-                  <Text style={styles.miniChartLabel}>{t('reports.profit')}</Text>
-                  <MiniLineChart
-                    data={dailyChart.map((d) => ({ value: d.profit }))}
-                    height={56}
-                    color={(plData?.netProfit ?? 0) >= 0 ? Colors.success : Colors.error}
-                  />
-                </View>
-              )}
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Inventory ── */}
-          <SectionHeader title={t('dashboard.inventory')} action={t('inventory.title')} route="/(app)/inventory" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-            <PremiumCard style={styles.card}>
-              <View style={styles.kpiGrid}>
-                <KPICard
-                  label={t('inventory.totalValue')}
-                  value={`${fmtShort(inventoryData?.stockValueSell ?? 0)} IQD`}
-                  icon="cube"
-                  color={Colors.primary}
-                />
-                <KPICard
-                  label={t('reports.profit')}
-                  value={`${fmtShort(inventoryData?.potentialProfit ?? 0)} IQD`}
-                  icon="trending-up"
-                  color={Colors.success}
-                />
-                <KPICard
-                  label={t('inventory.lowStock')}
-                  value={String(inventoryData?.lowStockCount ?? 0)}
-                  icon="warning"
-                  color={(inventoryData?.lowStockCount ?? 0) > 0 ? Colors.warning : Colors.success}
-                />
-              </View>
-              <View style={[styles.kpiGrid, { marginTop: 8 }]}>
-                <KPICard
-                  label={t('inventory.soldBadge')}
-                  value={String(inventoryData?.outOfStockCount ?? 0)}
-                  icon="close-circle"
-                  color={(inventoryData?.outOfStockCount ?? 0) > 0 ? Colors.error : Colors.success}
-                />
-                <KPICard
-                  label={t('inventory.products')}
-                  value={String(inventoryData?.activeProducts ?? 0)}
-                  icon="apps"
-                />
-                <KPICard
-                  label={t('inventory.totalQty')}
-                  value={fmt(inventoryData?.totalStockUnits ?? 0)}
-                  icon="layers"
-                />
-              </View>
-
-              {/* Category breakdown — categories translated via tCat() */}
-              {(inventoryData?.categoryCounts ?? []).slice(0, 4).map((cat) => (
-                <View key={cat.category} style={{ marginTop: 10 }}>
-                  <View style={styles.catHeaderRow}>
-                    <Text style={styles.catLabel}>{tCat(cat.category)}</Text>
-                    <Text style={styles.catValue}>{fmtShort(cat.value)} IQD</Text>
-                  </View>
-                  <ProgressBar
-                    value={cat.value}
-                    total={inventoryData?.stockValueCost ?? 1}
-                    color={Colors.primary}
-                  />
-                </View>
-              ))}
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Debt Overview ── */}
-          <SectionHeader title={t('debt.title')} action={t('reports.alertActionView')} route="/(app)/debt" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 180 }}>
-            <PremiumCard style={styles.card}>
-              <View style={styles.threeChips}>
-                <View style={styles.chip}>
-                  <Text style={[styles.chipValue, { color: Colors.warning }]}>
-                    {fmtShort(debtData?.totalSalesDebt ?? 0)}
-                  </Text>
-                  <Text style={styles.chipLabel}>{t('debt.customerOwes')}</Text>
-                </View>
-                <View style={[styles.chip, styles.chipCenter]}>
-                  <Text style={[styles.chipValue, { color: Colors.error }]}>
-                    {fmtShort(debtData?.totalPurchaseDebt ?? 0)}
-                  </Text>
-                  <Text style={styles.chipLabel}>{t('debt.weOweSupplier')}</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={[styles.chipValue, { color: (debtData?.overdueCount ?? 0) > 0 ? Colors.error : Colors.success }]}>
-                    {debtData?.overdueCount ?? 0}
-                  </Text>
-                  <Text style={styles.chipLabel}>{t('debt.overdueDebts')}</Text>
-                </View>
-              </View>
-              {(debtData?.salesDebtOriginal ?? 0) > 0 && (
-                <View style={{ marginTop: 12 }}>
-                  <View style={styles.catHeaderRow}>
-                    <Text style={styles.catLabel}>{t('reports.grossMargin')}</Text>
-                    <Text style={styles.catValue}>{(debtData?.collectionRate ?? 0).toFixed(0)}%</Text>
-                  </View>
-                  <ProgressBar
-                    value={debtData?.salesDebtCollected ?? 0}
-                    total={debtData?.salesDebtOriginal ?? 1}
-                    color={Colors.success}
-                  />
-                </View>
-              )}
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Top Customers ── */}
-          <SectionHeader title={t('dashboard.customers')} action={t('reports.alertActionView')} route="/(app)/customers" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-            <PremiumCard style={styles.card}>
-              <TopCustomersSection />
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Most Profitable Products ── */}
-          <SectionHeader title={t('reports.profit')} />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 220 }}>
-            <PremiumCard style={styles.card}>
-              {topProfitable.length === 0 ? (
-                <Text style={styles.emptyCard}>{t('reports.noSalesData')}</Text>
-              ) : (
-                topProfitable.map((p, i) => (
-                  <View key={p.productName} style={styles.rankRow}>
-                    <RankBadge rank={i + 1} />
-                    <View style={styles.rankInfo}>
-                      <Text style={styles.rankName} numberOfLines={1}>{p.productName}</Text>
-                      <Text style={styles.rankSub}>
-                        {t('reports.soldMargin', { qty: p.totalQty, pct: p.marginPct.toFixed(1) })}
-                      </Text>
-                    </View>
-                    <Text style={[styles.rankValue, { color: p.grossProfit >= 0 ? Colors.success : Colors.error }]}>
-                      {fmtShort(p.grossProfit)} IQD
-                    </Text>
-                  </View>
-                ))
-              )}
-            </PremiumCard>
-          </MotiView>
-
-          {/* ── Expenses Summary ── */}
-          <SectionHeader title={t('reports.expensesTitle')} action={t('common.edit')} route="/(app)/reports/expenses" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 240 }}>
-            <PremiumCard style={styles.card}>
               {expenses.length === 0 ? (
-                <TouchableOpacity
-                  style={styles.addExpenseCta}
-                  onPress={() => router.push('/(app)/reports/expenses' as never)}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-                  <Text style={styles.addExpenseText}>{t('reports.addFirstExpense')}</Text>
+                <TouchableOpacity style={[styles.addExpenseCta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(app)/reports/expenses' as never)}>
+                  <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.addExpenseText, { color: colors.primary }]}>{t('reports.addFirstExpense')}</Text>
                 </TouchableOpacity>
               ) : (
                 <>
-                  <View style={styles.expTotalRow}>
-                    <Text style={styles.expTotalLabel}>{t('reports.totalPeriod')}</Text>
-                    <Text style={styles.expTotalValue}>
-                      {fmt(expenses.reduce((s, e) => s + e.amount, 0))} IQD
-                    </Text>
-                  </View>
+                  <BigMetricRow
+                    label={t('reports.totalExpenses')}
+                    value={`${fmtIQD(totalExp)} IQD`}
+                    icon="wallet"
+                    color={Colors.error}
+                  />
                   {(plData?.expenseBreakdown ?? []).map((e) => (
-                    <View key={e.category} style={{ marginBottom: 8 }}>
-                      <View style={styles.catHeaderRow}>
-                        <Text style={styles.catLabel}>{tCat(e.category)}</Text>
-                        <Text style={styles.catValue}>{fmtShort(e.total)} IQD</Text>
+                    <View key={e.category} style={{ marginTop: 10 }}>
+                      <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.catLabel, { textAlign }]}>{tCat(e.category)}</Text>
+                        <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(e.total)} IQD</Text>
                       </View>
-                      <ProgressBar
-                        value={e.total}
-                        total={plData?.totalExpenses ?? 1}
-                        color={Colors.error}
-                      />
-                    </View>
-                  ))}
-                  {expenses.slice(0, 3).map((exp) => (
-                    <View key={exp.id} style={styles.miniExpRow}>
-                      <Text style={styles.miniExpDate}>{exp.date}</Text>
-                      <Text style={styles.miniExpCat}>{tCat(exp.category)}</Text>
-                      <Text style={styles.miniExpAmt}>{fmtShort(exp.amount)} IQD</Text>
+                      <ProgressBar value={e.total} total={totalExp} color={Colors.error} />
                     </View>
                   ))}
                 </>
@@ -827,40 +1001,163 @@ export default function ReportsScreen() {
             </PremiumCard>
           </MotiView>
 
-          {/* ── Quick Actions ── */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickBtn} onPress={exportPDF}>
-              <Ionicons name="document-text" size={18} color="#fff" />
-              <Text style={styles.quickBtnText}>{t('reports.exportPDF')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickBtn, styles.quickBtnOutline]}
-              onPress={() => router.push('/(app)/debt' as never)}
-            >
-              <Ionicons name="wallet" size={18} color={Colors.primary} />
-              <Text style={[styles.quickBtnText, { color: Colors.primary }]}>{t('debt.title')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickBtn, styles.quickBtnOutline]}
-              onPress={() => router.push('/(app)/inventory' as never)}
-            >
-              <Ionicons name="cube" size={18} color={Colors.primary} />
-              <Text style={[styles.quickBtnText, { color: Colors.primary }]}>{t('dashboard.inventory')}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* ─── 7. Debt Overview ─── */}
+          <SectionHeader title={t('reports.debtOverview')} icon="warning" action={t('reports.alertActionView')} route="/(app)/debt" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 140 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.customerDebt')}
+                value={`${fmtIQD(custDebt)} IQD`}
+                icon="person"
+                color={custDebt > 0 ? Colors.warning : Colors.success}
+                sub={`${debtData?.activeSalesCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <BigMetricRow
+                label={t('reports.supplierDebt')}
+                value={`${fmtIQD(suppDebt)} IQD`}
+                icon="business"
+                color={suppDebt > 0 ? Colors.error : Colors.success}
+                sub={`${debtData?.activePurchaseCount ?? 0} ${t('reports.salesCount')}`}
+              />
+              <View style={styles.dividerLine} />
+              <View style={[styles.debtTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={[styles.debtTotalLabel, { textAlign }]}>{t('reports.combinedDebt')}</Text>
+                <Text style={[styles.debtTotalValue, { color: combinedDebt > 0 ? Colors.error : Colors.success, textAlign: isRTL ? 'left' : 'right' }]}>
+                  {fmtIQD(combinedDebt)} IQD
+                </Text>
+              </View>
+              {(debtData?.overdueCount ?? 0) > 0 && (
+                <View style={[styles.overdueChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="time" size={13} color={Colors.error} />
+                  <Text style={[styles.overdueText, { textAlign }]}>
+                    {t('reports.alertOverdueTitle', { count: debtData?.overdueCount })}
+                  </Text>
+                </View>
+              )}
+              {(debtData?.salesDebtOriginal ?? 0) > 0 && (
+                <View style={{ marginTop: 10 }}>
+                  <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text style={[styles.catLabel, { textAlign }]}>{t('reports.grossMargin')} (Collection Rate)</Text>
+                    <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{(debtData?.collectionRate ?? 0).toFixed(0)}%</Text>
+                  </View>
+                  <ProgressBar value={debtData?.salesDebtCollected ?? 0} total={debtData?.salesDebtOriginal ?? 1} color={Colors.success} />
+                </View>
+              )}
+            </PremiumCard>
+          </MotiView>
 
-          <View style={{ height: 40 }} />
+          {/* ─── 8. Inventory Potential ─── */}
+          <SectionHeader title={t('reports.inventoryPotential')} icon="cube" action={t('inventory.title')} route="/(app)/inventory" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.expectedRevenue')}
+                value={`${fmtIQD(expectedRev)} IQD`}
+                icon="trending-up"
+                color={colors.primary}
+                sub={t('reports.stockSellValue')}
+              />
+              <BigMetricRow
+                label={t('reports.potentialProfit')}
+                value={`${fmtIQD(potProfit)} IQD`}
+                icon="cash"
+                color={potProfit >= 0 ? Colors.success : Colors.error}
+              />
+              <BigMetricRow
+                label={t('reports.stockCostValue')}
+                value={`${fmtIQD(inventoryData?.stockValueCost ?? 0)} IQD`}
+                icon="cart"
+                color={Colors.gray600}
+              />
+              <StatChipsRow chips={[
+                { value: String(inventoryData?.activeProducts ?? 0), label: t('inventory.products') },
+                { value: fmtIQD(inventoryData?.totalStockUnits ?? 0),   label: t('inventory.totalQty') },
+                {
+                  value: String(inventoryData?.lowStockCount ?? 0),
+                  label: t('inventory.lowStock'),
+                  color: (inventoryData?.lowStockCount ?? 0) > 0 ? Colors.warning : undefined,
+                },
+              ]} />
+              {(inventoryData?.categoryCounts ?? []).slice(0, 4).map((cat) => (
+                <View key={cat.category} style={{ marginTop: 10 }}>
+                  <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text style={[styles.catLabel, { textAlign }]}>{tCat(cat.category)}</Text>
+                    <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(cat.value)} IQD</Text>
+                  </View>
+                  <ProgressBar value={cat.value} total={inventoryData?.stockValueCost ?? 1} color={colors.primary} />
+                </View>
+              ))}
+            </PremiumCard>
+          </MotiView>
+
+
+          {/* Daily profit mini line chart */}
+          {dailyChart.length >= 3 && (
+            <>
+              <SectionHeader title={t('reports.profit')} icon="analytics" />
+              <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 400, delay: 100 }}>
+                <PremiumCard style={styles.card}>
+                  <Text style={styles.chartLabel}>{t('reports.last6Months')} (IQD)</Text>
+                  <MiniLineChart
+                    data={dailyChart.map((d) => ({ value: d.profit }))}
+                    height={64}
+                    color={netProfit >= 0 ? Colors.success : Colors.error}
+                  />
+                </PremiumCard>
+              </MotiView>
+            </>
+          )}
+
+          {/* ─── 9. Most Profitable Products ─── */}
+          <SectionHeader title={t('reports.topProducts')} icon="star" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 180 }}>
+            <PremiumCard style={styles.card}>
+              {topProfitable.length === 0 ? (
+                <Text style={styles.emptyCard}>{t('reports.noSalesData')}</Text>
+              ) : (
+                topProfitable.map((p, i) => (
+                  <View key={p.productName} style={[styles.rankRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <RankBadge rank={i + 1} />
+                    <View style={styles.rankInfo}>
+                      <Text style={[styles.rankName, { textAlign }]} numberOfLines={1}>{p.productName}</Text>
+                      <Text style={[styles.rankSub, { textAlign }]}>
+                        {t('reports.soldMargin', { qty: p.totalQty, pct: p.marginPct.toFixed(1) })}
+                      </Text>
+                    </View>
+                    <Text style={[styles.rankValue, { color: p.grossProfit >= 0 ? Colors.success : Colors.error, textAlign: isRTL ? 'left' : 'right' }]}>
+                      {fmtIQD(p.grossProfit)} IQD
+                    </Text>
+                  </View>
+                ))
+              )}
+            </PremiumCard>
+          </MotiView>
+
+          {/* ─── 10. Customer & Supplier History ─── */}
+          <SectionHeader title={t('reports.customerSupplierHistory')} icon="people" action={t('reports.alertActionView')} route="/(app)/customers" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+            <PremiumCard style={styles.card}>
+              <Text style={[styles.subSectionTitle, { textAlign }]}>{t('dashboard.customers')}</Text>
+              <TopCustomersSection />
+              <View style={styles.subSectionDivider} />
+              <Text style={[styles.subSectionTitle, { textAlign }]}>{t('reports.supplierHistoryTitle')}</Text>
+              <TopSuppliersSection />
+            </PremiumCard>
+          </MotiView>
+
+          <View style={{ height: 24 }} />
         </ScrollView>
       )}
     </View>
   );
 }
 
-// ─── Top Customers Sub-Component ───────────────────────────────────────────────
+// ─── Top Customers ────────────────────────────────────────────────────────────
 
 function TopCustomersSection() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { isRTL, textAlign } = useRTL();
   const [customers, setCustomers] = useState<Array<{
     name: string; phone: string | null; totalPurchases: number; saleCount: number;
   }>>([]);
@@ -881,19 +1178,56 @@ function TopCustomersSection() {
   return (
     <>
       {customers.map((c, i) => (
-        <TouchableOpacity
-          key={c.name}
-          style={styles.rankRow}
-          onPress={() => router.push('/(app)/customers' as never)}
-        >
+        <TouchableOpacity key={c.name} style={[styles.rankRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(app)/customers' as never)}>
           <RankBadge rank={i + 1} />
           <View style={styles.rankInfo}>
-            <Text style={styles.rankName} numberOfLines={1}>{c.name}</Text>
-            <Text style={styles.rankSub}>
+            <Text style={[styles.rankName, { textAlign }]} numberOfLines={1}>{c.name}</Text>
+            <Text style={[styles.rankSub, { textAlign }]}>
               {t('reports.invoiceCount', { count: c.saleCount })}{c.phone ? ` · ${c.phone}` : ''}
             </Text>
           </View>
-          <Text style={styles.rankValue}>{fmtShort(c.totalPurchases)} IQD</Text>
+          <Text style={[styles.rankValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(c.totalPurchases)} IQD</Text>
+        </TouchableOpacity>
+      ))}
+    </>
+  );
+}
+
+// ─── Top Suppliers ────────────────────────────────────────────────────────────
+
+function TopSuppliersSection() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { isRTL, textAlign } = useRTL();
+  const [suppliers, setSuppliers] = useState<Array<{
+    name: string; phone: string | null; totalSpent: number; purchaseCount: number;
+  }>>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getTopSuppliers } = await import('@/lib/sqlite');
+        setSuppliers(await getTopSuppliers(5));
+      } catch {}
+    })();
+  }, []);
+
+  if (suppliers.length === 0) {
+    return <Text style={styles.emptyCard}>{t('reports.noSupplierData')}</Text>;
+  }
+
+  return (
+    <>
+      {suppliers.map((s, i) => (
+        <TouchableOpacity key={s.name} style={[styles.rankRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(app)/suppliers' as never)}>
+          <RankBadge rank={i + 1} />
+          <View style={styles.rankInfo}>
+            <Text style={[styles.rankName, { textAlign }]} numberOfLines={1}>{s.name}</Text>
+            <Text style={[styles.rankSub, { textAlign }]}>
+              {t('reports.purchaseCount', { count: s.purchaseCount })}{s.phone ? ` · ${s.phone}` : ''}
+            </Text>
+          </View>
+          <Text style={[styles.rankValue, { color: Colors.warning, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(s.totalSpent)} IQD</Text>
         </TouchableOpacity>
       ))}
     </>
@@ -904,84 +1238,61 @@ function TopCustomersSection() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
 
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   loadingText: { fontSize: 14, color: Colors.gray400 },
 
   scrollBody: { paddingBottom: 20 },
-
   card: { marginHorizontal: 16, marginBottom: 4 },
-  cardLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 10, fontWeight: '600' },
+  cashBalanceCard: { marginHorizontal: 16, marginBottom: 4, marginTop: 20 },
 
-  kpiGrid: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-
-  // 3-chip row
-  threeChips: { flexDirection: 'row', justifyContent: 'space-around' },
-  chip: { alignItems: 'center', flex: 1 },
-  chipCenter: {
-    borderLeftWidth: 1, borderRightWidth: 1, borderLeftColor: Colors.gray100, borderRightColor: Colors.gray100,
-  },
-  chipValue: { fontSize: 18, fontWeight: '800', color: Colors.black, marginBottom: 3 },
-  chipLabel: { fontSize: 11, color: Colors.gray400, textAlign: 'center' },
-
+  // ── Discount chip ──────────────────────────────────────────────────────────
   discountChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    marginTop: 12, backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12,
+    backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
+  discountInner: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
   discountText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
 
-  topSupplier: {
+  // ── Top supplier highlight ─────────────────────────────────────────────────
+  topRow: {
     flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10,
     paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.gray100,
   },
-  topSupplierText: { fontSize: 12, color: Colors.gray500, fontWeight: '600' },
+  topText: { fontSize: 12, color: Colors.gray500, fontWeight: '600', flex: 1 },
 
-  // P&L
-  plRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  plLabel: { fontSize: 13, color: Colors.gray600 },
-  plValue: { fontSize: 13, fontWeight: '700' },
-  plSubtotal: { backgroundColor: Colors.softBlue, borderRadius: 8, padding: 10, borderBottomWidth: 0, marginVertical: 6 },
-  plSubLabel: { fontSize: 14, fontWeight: '700', color: Colors.primary },
-  plSubValue: { fontSize: 14, fontWeight: '800' },
-  plPct: { fontSize: 11, fontWeight: '600' },
-  plNet: { borderTopWidth: 2, borderTopColor: Colors.gray200, borderBottomWidth: 0, marginTop: 6, paddingTop: 12 },
-  plNetLabel: { fontSize: 16, fontWeight: '800', color: Colors.black },
-  plNetValue: { fontSize: 16, fontWeight: '800' },
-  miniChartLabel: { fontSize: 11, color: Colors.gray400, marginBottom: 6 },
+  // ── Debt overview ──────────────────────────────────────────────────────────
+  dividerLine: { height: 1, backgroundColor: Colors.gray100, marginVertical: 10 },
+  debtTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  debtTotalLabel: { fontSize: 14, fontWeight: '700', color: Colors.black },
+  debtTotalValue: { fontSize: 15, fontWeight: '800' },
+  overdueChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
+    backgroundColor: '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+  },
+  overdueText: { fontSize: 12, color: Colors.error, fontWeight: '600' },
 
-  // Categories
+  // ── Category progress ──────────────────────────────────────────────────────
   catHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   catLabel: { fontSize: 12, color: Colors.gray500 },
   catValue: { fontSize: 12, fontWeight: '700', color: Colors.black },
 
-  // Rank rows
+  // ── Charts ─────────────────────────────────────────────────────────────────
+  chartLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 10, fontWeight: '600' },
+
+  // ── Rank rows ──────────────────────────────────────────────────────────────
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
   rankInfo: { flex: 1 },
   rankName: { fontSize: 14, fontWeight: '600', color: Colors.black },
-  rankSub:  { fontSize: 11, color: Colors.gray400, marginTop: 1 },
-  rankValue: { fontSize: 14, fontWeight: '800', color: Colors.success },
+  rankSub: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
+  rankValue: { fontSize: 14, fontWeight: '800', color: Colors.success, maxWidth: '45%' },
 
   emptyCard: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 12 },
+  subSectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.gray500, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
+  subSectionDivider: { height: 1, backgroundColor: Colors.gray100, marginVertical: 14 },
 
-  // Expenses
+  // ── Expenses add CTA ───────────────────────────────────────────────────────
   addExpenseCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  addExpenseText: { fontSize: 14, fontWeight: '600', color: Colors.primary },
-  expTotalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  expTotalLabel: { fontSize: 13, color: Colors.gray500 },
-  expTotalValue: { fontSize: 15, fontWeight: '800', color: Colors.error },
-  miniExpRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderTopWidth: 1, borderTopColor: Colors.gray100 },
-  miniExpDate: { fontSize: 11, color: Colors.gray400, width: 80 },
-  miniExpCat: { flex: 1, fontSize: 12, color: Colors.gray600 },
-  miniExpAmt: { fontSize: 13, fontWeight: '700', color: Colors.error },
+  addExpenseText: { fontSize: 14, fontWeight: '600' },
 
-  // Quick actions
-  quickActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 20 },
-  quickBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 12,
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
-  },
-  quickBtnOutline: { backgroundColor: '#fff', borderWidth: 1, borderColor: Colors.gray200, shadowColor: '#000', shadowOpacity: 0.05 },
-  quickBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });

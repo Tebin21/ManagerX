@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
+import { useRTL } from '@/lib/rtl';
 
 type Lang = 'en' | 'ku';
 
@@ -19,6 +20,7 @@ export default function LanguageScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { language, setLanguage } = useLanguageStore();
+  const { flexDirection } = useRTL();
 
   function handleSelect(code: Lang) {
     if (code === language) return;
@@ -46,19 +48,13 @@ export default function LanguageScreen() {
                 style={[
                   styles.row,
                   !isLast && { borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+                  { flexDirection },
                 ]}
               >
-                <Text style={styles.flag}>{lang.flag}</Text>
                 <View style={styles.labelWrap}>
                   <Text style={[styles.labelMain, { color: colors.black }]}>{lang.label}</Text>
                   <Text style={[styles.labelNative, { color: colors.gray400 }]}>{lang.native}</Text>
                 </View>
-
-                {lang.rtl && (
-                  <View style={[styles.rtlChip, { backgroundColor: colors.softBlue }]}>
-                    <Text style={[styles.rtlText, { color: colors.primary }]}>RTL</Text>
-                  </View>
-                )}
 
                 {isActive ? (
                   <View style={[styles.check, { backgroundColor: colors.primary }]}>
@@ -105,18 +101,9 @@ const styles = StyleSheet.create({
     gap:               12,
   },
 
-  flag: { fontSize: 28 },
-
   labelWrap:   { flex: 1 },
   labelMain:   { fontSize: 16, fontWeight: '600' },
   labelNative: { fontSize: 13, marginTop: 1 },
-
-  rtlChip: {
-    borderRadius:      6,
-    paddingHorizontal: 8,
-    paddingVertical:   3,
-  },
-  rtlText: { fontSize: 11, fontWeight: '700' },
 
   check: {
     width:          26,

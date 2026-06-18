@@ -1,0 +1,407 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { Text } from '@/components/ui/AppText';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { MotiView } from 'moti';
+import { useTranslation } from 'react-i18next';
+
+import { AppHeader } from '@/components/common/AppHeader';
+import { AppTextInput } from '@/components/ui/AppTextInput';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PremiumCard } from '@/components/ui/PremiumCard';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { usePurchaseStore } from '@/store/purchaseStore';
+import { getPurchaseById } from '@/lib/sqlite';
+import { Colors } from '@/constants/colors';
+import { Theme } from '@/constants/theme';
+import type { Purchase } from '@/types/purchases';
+import { fmtIQD } from '@/utils/formatters';
+
+
+function PaymentToggle({
+  value,
+  onChange,
+}: {
+  value: 'paid' | 'debt';
+  onChange: (v: 'paid' | 'debt') => void;
+}) {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  return (
+    <View style={[toggle.row, { backgroundColor: colors.gray100 }]}>
+      {(['paid', 'debt'] as const).map((opt) => (
+        <TouchableOpacity
+          key={opt}
+          style={[toggle.pill, value === opt && { backgroundColor: colors.white }]}
+          onPress={() => onChange(opt)}
+          activeOpacity={0.8}
+        >
+          <Text style={[toggle.pillText, { color: value === opt ? colors.primary : colors.gray400 }]}>
+            {opt === 'paid' ? t('purchases.paid') : t('purchases.debt')}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const toggle = StyleSheet.create({
+  row:      { flexDirection: 'row', borderRadius: Theme.radius.full, padding: 4, gap: 4 },
+  pill:     { flex: 1, borderRadius: Theme.radius.full, paddingVertical: 9, alignItems: 'center' },
+  pillText: { fontSize: 14, fontWeight: '700' },
+});
+
+export default function EditPurchaseScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useTranslation();
+  const { colors } = useAppTheme();
+  const { updatePurchase } = usePurchaseStore();
+
+  const [purchase, setPurchase] = useState<Purchase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [date, setDate]               = useState('');
+  const [productName, setProductName] = useState('');
+  const [category, setCategory]       = useState('');
+  const [buyPriceIQD, setBuyPriceIQD] = useState('');
+  const [buyPriceUSD, setBuyPriceUSD] = useState('');
+  const [sellPriceIQD, setSellPriceIQD] = useState('');
+  const [sellPriceUSD, setSellPriceUSD] = useState('');
+  const [warranty, setWarranty]       = useState('');
+  const [description, setDescription] = useState('');
+  const [notes, setNotes]             = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'debt'>('paid');
+
+  const exchangeRate = purchase?.exchangeRate ?? 1500;
+  const buyNum  = parseFloat(buyPriceIQD)  || 0;
+  const sellNum = parseFloat(sellPriceIQD) || 0;
+  const qty     = purchase?.quantity ?? 1;
+  const totalIQD  = qty * buyNum;
+  const profitIQD = (sellNum - buyNum) * qty;
+
+  useEffect(() => {
+    (async () => {
+      if (!id) return;
+      const p = await getPurchaseById(Number(id));
+      if (p) {
+        setPurchase(p);
+        setDate(p.date ?? '');
+        setProductName(p.productName);
+        setCategory(p.category ?? '');
+        setBuyPriceIQD(String(p.buyPriceIQD));
+        setBuyPriceUSD(String(p.buyPriceUSD));
+        setSellPriceIQD(String(p.sellPriceIQD));
+        setSellPriceUSD(String(p.sellPriceUSD));
+        setWarranty(p.warranty ?? '');
+        setDescription(p.description ?? '');
+        setNotes(p.notes ?? '');
+        setPaymentStatus(p.paymentStatus);
+      }
+      setLoading(false);
+    })();
+  }, [id]);
+
+  const syncBuyUSD = (iqd: string) => {
+    setBuyPriceIQD(iqd);
+    const n = parseFloat(iqd);
+    if (!isNaN(n) && exchangeRate > 0) setBuyPriceUSD((n / exchangeRate).toFixed(2));
+  };
+
+  const syncBuyIQD = (usd: string) => {
+    setBuyPriceUSD(usd);
+    const n = parseFloat(usd);
+    if (!isNaN(n)) setBuyPriceIQD(String(Math.round(n * exchangeRate)));
+  };
+
+  const syncSellUSD = (iqd: string) => {
+    setSellPriceIQD(iqd);
+    const n = parseFloat(iqd);
+    if (!isNaN(n) && exchangeRate > 0) setSellPriceUSD((n / exchangeRate).toFixed(2));
+  };
+
+  const syncSellIQD = (usd: string) => {
+    setSellPriceUSD(usd);
+    const n = parseFloat(usd);
+    if (!isNaN(n)) setSellPriceIQD(String(Math.round(n * exchangeRate)));
+  };
+
+  const handleSave = async () => {
+    if (!productName.trim()) {
+      Alert.alert(t('common.error'), t('purchases.validationRequired'));
+      return;
+    }
+    if (!buyPriceIQD || buyNum <= 0) {
+      Alert.alert(t('common.error'), t('purchases.validationBuyPrice'));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updatePurchase(Number(id), {
+        date: date.trim() || undefined,
+        productName: productName.trim(),
+        category: category.trim() || null,
+        buyPriceIQD: buyNum,
+        buyPriceUSD: parseFloat(buyPriceUSD) || 0,
+        sellPriceIQD: sellNum,
+        sellPriceUSD: parseFloat(sellPriceUSD) || 0,
+        warranty: warranty.trim() || null,
+        description: description.trim() || null,
+        notes: notes.trim() || null,
+        paymentStatus,
+      });
+      router.back();
+    } catch (err) {
+      console.error(err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!id || isNaN(Number(id))) {
+    return (
+      <View style={[styles.wrap, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title="" showBack />
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.wrap, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('purchases.editTitle')} showBack />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      </View>
+    );
+  }
+
+  if (!purchase) {
+    return (
+      <View style={[styles.wrap, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('purchases.editTitle')} showBack />
+        <Text style={[styles.notFound, { color: colors.gray500 }]}>{t('common.notFound')}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.gray50 }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <AppHeader title={`${t('purchases.editPurchase')} · ${purchase.purchaseNumber}`} showBack />
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <MotiView
+          from={{ opacity: 0, translateY: 10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+        >
+          {/* Supplier info (read-only) */}
+          {purchase.supplierName && (
+            <PremiumCard style={styles.card}>
+              <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.supplierSection')}</Text>
+              <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.supplierName')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.supplierName}</Text>
+              </View>
+              {purchase.supplierPhone ? (
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                  <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.supplierPhone')}</Text>
+                  <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.supplierPhone}</Text>
+                </View>
+              ) : null}
+            </PremiumCard>
+          )}
+
+          {/* Product info */}
+          <PremiumCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.productInfo')}</Text>
+            <AppTextInput
+              label={t('purchases.date')}
+              value={date}
+              onChangeText={setDate}
+              placeholder={t('purchases.datePlaceholder')}
+              keyboardType="numbers-and-punctuation"
+              returnKeyType="next"
+            />
+            <AppTextInput
+              label={`${t('purchases.productName')} *`}
+              value={productName}
+              onChangeText={setProductName}
+              placeholder={t('purchases.productNamePlaceholder')}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            <AppTextInput
+              label={t('purchases.category')}
+              value={category}
+              onChangeText={setCategory}
+              placeholder={t('common.optional')}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            <View style={[styles.infoRow, { borderBottomColor: colors.gray100, marginTop: 4 }]}>
+              <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.qty')}</Text>
+              <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.quantity}</Text>
+            </View>
+          </PremiumCard>
+
+          {/* Pricing */}
+          <PremiumCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.pricingInfo')}</Text>
+            <View style={styles.priceRow}>
+              <View style={{ flex: 1 }}>
+                <AppTextInput
+                  label={`${t('purchases.buyPrice')} (IQD)`}
+                  value={buyPriceIQD}
+                  onChangeText={syncBuyUSD}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppTextInput
+                  label={`${t('purchases.buyPrice')} (USD)`}
+                  value={buyPriceUSD}
+                  onChangeText={syncBuyIQD}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+            <View style={styles.priceRow}>
+              <View style={{ flex: 1 }}>
+                <AppTextInput
+                  label={`${t('purchases.sellPrice')} (IQD)`}
+                  value={sellPriceIQD}
+                  onChangeText={syncSellUSD}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppTextInput
+                  label={`${t('purchases.sellPrice')} (USD)`}
+                  value={sellPriceUSD}
+                  onChangeText={syncSellIQD}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            {/* Live totals */}
+            <View style={[styles.totalBox, { backgroundColor: colors.softBlue }]}>
+              <View style={styles.totalRow}>
+                <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
+                <Text style={[styles.totalValue, { color: colors.primary }]}>{fmtIQD(totalIQD)} IQD</Text>
+              </View>
+              {sellNum > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
+                  <Text style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error }]}>
+                    {profitIQD >= 0 ? '+' : ''}{fmtIQD(profitIQD)} IQD
+                  </Text>
+                </View>
+              )}
+            </View>
+          </PremiumCard>
+
+          {/* Payment status */}
+          <PremiumCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.paymentInfo')}</Text>
+            <PaymentToggle value={paymentStatus} onChange={setPaymentStatus} />
+            {paymentStatus === 'debt' && (
+              <View style={[styles.debtNote, { backgroundColor: '#FFF7ED' }]}>
+                <Text style={[styles.debtNoteText, { color: Colors.warning }]}>
+                  {fmtIQD(totalIQD)} IQD {t('common.debt')}
+                </Text>
+              </View>
+            )}
+          </PremiumCard>
+
+          {/* Additional info */}
+          <PremiumCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.additionalInfo')}</Text>
+            <AppTextInput
+              label={t('purchases.warranty')}
+              value={warranty}
+              onChangeText={setWarranty}
+              placeholder={t('common.optional')}
+              returnKeyType="next"
+            />
+            <AppTextInput
+              label={t('purchases.description')}
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t('common.optional')}
+              multiline
+              returnKeyType="next"
+            />
+            <AppTextInput
+              label={t('purchases.notes')}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder={t('purchases.notesPlaceholder')}
+              multiline
+              returnKeyType="done"
+            />
+          </PremiumCard>
+
+          <PrimaryButton
+            label={saving ? t('purchases.saving') : t('purchases.saveChanges')}
+            onPress={handleSave}
+            loading={saving}
+            disabled={saving}
+          />
+          <View style={{ height: 32 }} />
+        </MotiView>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  wrap:      { flex: 1 },
+  scroll:    { padding: 16, paddingBottom: 48 },
+  notFound:  { textAlign: 'center', marginTop: 40, fontSize: 16 },
+
+  card: { marginBottom: 14 },
+  cardTitle: {
+    fontSize: 12, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 0.8,
+    marginBottom: 14,
+  },
+
+  priceRow: { flexDirection: 'row', gap: 10 },
+
+  infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, marginBottom: 4 },
+  infoLabel: { fontSize: 13 },
+  infoValue: { fontSize: 14, fontWeight: '600' },
+
+  totalBox: { borderRadius: Theme.radius.md, padding: 14, marginTop: 10, gap: 6 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel:{ fontSize: 13 },
+  totalValue:{ fontSize: 15, fontWeight: '800' },
+
+  debtNote:     { borderRadius: Theme.radius.md, padding: 12, marginTop: 12, alignItems: 'center' },
+  debtNoteText: { fontSize: 14, fontWeight: '700' },
+});

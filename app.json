@@ -4,7 +4,7 @@
     "slug": "managerx",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/logo-icon.png",
     "scheme": "managerx",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/images/logo-icon.png",
         "backgroundColor": "#1E40AF"
       },
       "package": "com.managerx.app",
@@ -40,6 +40,13 @@
       "favicon": "./assets/images/logo.png"
     },
     "plugins": [
+      ["expo-build-properties", {
+        "android": {
+          "compileSdkVersion": 36,
+          "targetSdkVersion": 36,
+          "ndkVersion": "28.2.13676358"
+        }
+      }],
       "expo-router",
       "expo-dev-client",
       "expo-font",
@@ -60,7 +67,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e6436d21-e65c-4546-8c94-a76f2b60dc56"
+        "projectId": "2338ad90-88ee-4cd7-9ce9-29db5a56148e"
       }
     }
   }

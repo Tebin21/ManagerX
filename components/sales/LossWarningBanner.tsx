@@ -3,19 +3,22 @@ import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useRTL } from '@/lib/rtl';
 
 export function LossWarningBanner() {
+  const { textAlign, flexDirection } = useRTL();
+
   return (
     <MotiView
       from={{ opacity: 0, translateY: -8 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 300 }}
-      style={styles.banner}
+      style={[styles.banner, { flexDirection }]}
     >
       <Ionicons name="warning" size={18} color="#92400e" style={styles.icon} />
       <View style={styles.textBlock}>
-        <Text style={styles.title}>Selling below cost</Text>
-        <Text style={styles.sub}>One or more items are priced below purchase price.</Text>
+        <Text style={[styles.title, { textAlign }]}>Selling below cost</Text>
+        <Text style={[styles.sub, { textAlign }]}>One or more items are priced below purchase price.</Text>
       </View>
     </MotiView>
   );
@@ -26,8 +29,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#FEF3C7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderStartWidth: 4,
+    borderStartColor: '#F59E0B',
     borderRadius: 10,
     padding: 14,
     marginHorizontal: 16,

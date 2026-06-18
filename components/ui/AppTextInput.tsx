@@ -8,9 +8,10 @@ import { Theme } from '@/constants/theme';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
+  rightElement?: React.ReactNode;
 }
 
-export function AppTextInput({ label, error, style, ...rest }: Props) {
+export function AppTextInput({ label, error, style, rightElement, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
@@ -38,13 +39,16 @@ export function AppTextInput({ label, error, style, ...rest }: Props) {
           },
         ]}
       >
-        <TextInput
-          style={[styles.input, { color: colors.black, textAlign }, style]}
-          placeholderTextColor={colors.gray400}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          {...rest}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            style={[styles.input, { flex: 1, color: colors.black, textAlign }, style]}
+            placeholderTextColor={colors.gray400}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            {...rest}
+          />
+          {rightElement}
+        </View>
       </MotiView>
       {error && (
         <Text style={[styles.error, { color: colors.error, textAlign }]}>{error}</Text>
@@ -68,10 +72,14 @@ const styles = StyleSheet.create({
     shadowRadius:  6,
     elevation:     0,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+  },
   input: {
-    height:          Theme.input.height,
-    paddingHorizontal: 16,
-    fontSize:        15,
+    height:      Theme.input.height,
+    paddingStart: 16,
+    fontSize:    15,
   },
   error: {
     fontSize:  12,

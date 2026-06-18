@@ -14,16 +14,17 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { EmailPasswordForm } from '@/components/auth/EmailPasswordForm';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { signIn, signInWithGoogle, setDevMode, isLoading } = useAuthStore();
+  const { colors } = useAppTheme();
   const [authError, setAuthError] = useState<string | null>(null);
 
   const handleEmailLogin = async (email: string, password: string) => {
@@ -48,10 +49,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: colors.softBlue }]}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={styles.topBg} />
+      <View style={[styles.topBg, { backgroundColor: colors.darkBlue }]} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -84,7 +85,7 @@ export default function LoginScreen() {
             transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 200 }}
             style={styles.card}
           >
-            <Text style={styles.title}>{t('login.title')}</Text>
+            <Text style={[styles.title, { color: colors.darkBlue }]}>{t('login.title')}</Text>
             <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
 
             <View style={styles.section}>
@@ -117,7 +118,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </MotiView>
 
-          <SupportFooter />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -127,7 +127,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.softBlue,
   },
   flex: { flex: 1 },
   topBg: {
@@ -136,7 +135,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 220,
-    backgroundColor: Colors.darkBlue,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
@@ -180,7 +178,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: Colors.darkBlue,
     marginBottom: 4,
     textAlign: 'center',
   },

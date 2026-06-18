@@ -16,10 +16,8 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { getPurchaseDebtById, getDebtPayments, addPaymentToPurchaseDebt, getPurchaseById, loadBusiness } from '@/lib/sqlite';
-import { sharePurchaseDebtReport } from '@/lib/generateInvoice';
+import { getPurchaseDebtById, getDebtPayments, addPaymentToPurchaseDebt, getPurchaseById } from '@/lib/sqlite';
 import { useDebtStore } from '@/store/debtStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -27,23 +25,9 @@ import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { PurchaseDebt, DebtPayment } from '@/types/debt';
 import type { Purchase } from '@/types/purchases';
-
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  });
-}
+import { fmtIQD, formatDate, formatDateTime } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
@@ -90,17 +74,18 @@ function PaymentTimelineItem({
   payment: DebtPayment;
   isLast: boolean;
 }) {
+  const { flexDirection } = useRTL();
   return (
-    <View style={styles.timelineItem}>
+    <View style={[styles.timelineItem, { flexDirection }]}>
       <View style={styles.timelineDotCol}>
         <View style={styles.timelineDot} />
         {!isLast && <View style={styles.timelineLine} />}
       </View>
       <View style={styles.timelineContent}>
         <Text style={styles.timelineDate}>{formatDateTime(payment.createdAt)}</Text>
-        <Text style={styles.timelineAmount}>+{fmt(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
+        <Text style={styles.timelineAmount}>+{fmtIQD(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
         <Text style={styles.timelineRemaining}>
-          {i18n.t('debt.remainingLabel')}: {fmt(payment.remainingAfter)} IQD
+          {i18n.t('debt.remainingLabel')}: {fmtIQD(payment.remainingAfter)} IQD
         </Text>
         {payment.note ? (
           <Text style={styles.timelineNote}>{payment.note}</Text>
@@ -118,16 +103,18 @@ export default function PurchaseDebtDetailScreen() {
   const { t } = useTranslation();
   const { reloadAfterSale } = useDebtStore();
   const { colors } = useAppTheme();
+  const { isRTL, textAlign, flexDirection } = useRTL();
+  const valueAlign = (isRTL ? 'left' : 'right') as 'left' | 'right';
 
   const [debt, setDebt]         = useState<PurchaseDebt | null>(null);
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [payments, setPayments] = useState<DebtPayment[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [isExporting, setIsExporting] = useState(false);
 
-  const [payValue, setPayValue]       = useState('');
-  const [showPayForm, setShowPayForm] = useState(false);
-  const [isPaying, setIsPaying]       = useState(false);
+  const [payValue, setPayValue]         = useState('');
+  const [paymentDate, setPaymentDate]   = useState(() => new Date());
+  const [showPayForm, setShowPayForm]   = useState(false);
+  const [isPaying, setIsPaying]         = useState(false);
 
   const debtId = Number(id);
   const debtGradient: [string, string] = [Colors.errorDark, Colors.error];
@@ -154,24 +141,6 @@ export default function PurchaseDebtDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleExport() {
-    if (!debt) return;
-    setIsExporting(true);
-    try {
-      const biz = await loadBusiness();
-      await sharePurchaseDebtReport(debt, payments, {
-        name:    biz?.name    ?? 'My Business',
-        phone:   biz?.phone   ?? '',
-        address: biz?.address ?? '',
-        logoUri: biz?.logoPath ?? null,
-      });
-    } catch {
-      Alert.alert(t('common.error'), t('debt.errorExport'));
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
   async function handlePay() {
     const amt = parseFloat(payValue);
     if (!amt || amt <= 0) {
@@ -181,9 +150,18 @@ export default function PurchaseDebtDetailScreen() {
     if (!debt) return;
     setIsPaying(true);
     try {
-      await addPaymentToPurchaseDebt(debtId, amt);
+      await addPaymentToPurchaseDebt(debtId, amt, paymentDate.toISOString());
       await reloadAfterSale();
+      try {
+        const { useInventoryStore } = await import('@/store/inventoryStore');
+        await useInventoryStore.getState().loadInventory();
+      } catch {}
+      try {
+        const { usePurchaseStore } = await import('@/store/purchaseStore');
+        await usePurchaseStore.getState().loadPurchases();
+      } catch {}
       setPayValue('');
+      setPaymentDate(new Date());
       setShowPayForm(false);
       await load();
     } catch {
@@ -205,7 +183,7 @@ export default function PurchaseDebtDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }, styles.center]}>
         <AppHeader title="" gradient={debtGradient} />
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       </View>
     );
   }
@@ -216,7 +194,7 @@ export default function PurchaseDebtDetailScreen() {
         <AppHeader title={t('debt.notFound')} gradient={debtGradient} />
         <Text style={styles.notFound}>{t('debt.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.notFoundBack}>{t('common.goBack')}</Text>
+          <Text style={[styles.notFoundBack, { color: colors.primary }]}>{t('common.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -234,13 +212,6 @@ export default function PurchaseDebtDetailScreen() {
         title={debt.supplierName}
         showBack
         gradient={[Colors.errorDark, Colors.error]}
-        rightAction={
-          <HeaderActionButton
-            icon="share-outline"
-            onPress={handleExport}
-            disabled={isExporting}
-          />
-        }
       >
         <View style={styles.headerMeta}>
           {debt.supplierPhone ? (
@@ -269,11 +240,11 @@ export default function PurchaseDebtDetailScreen() {
         {/* Status card */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <PremiumCard style={styles.section}>
-            <View style={styles.statusRow}>
+            <View style={[styles.statusRow, { flexDirection }]}>
               <View>
                 <Text style={styles.remainingLabel}>{t('debt.weOweSupplier')}</Text>
                 <Text style={[styles.remainingAmount, { color: Colors.error }]}>
-                  {fmt(debt.remainingAmount)} IQD
+                  {fmtIQD(debt.remainingAmount)} IQD
                 </Text>
               </View>
               <StatusBadge status={displayStatus} />
@@ -283,16 +254,16 @@ export default function PurchaseDebtDetailScreen() {
 
             <Text style={styles.progressPct}>{t('debt.pctPaidSupplier', { pct: pctPaid })}</Text>
 
-            <View style={styles.amountRow}>
+            <View style={[styles.amountRow, { flexDirection }]}>
               <View style={styles.amountCell}>
                 <Text style={styles.amountCellLabel}>{t('debt.totalOwedLabel')}</Text>
-                <Text style={styles.amountCellValue}>{fmt(debt.originalAmount)} IQD</Text>
+                <Text style={styles.amountCellValue}>{fmtIQD(debt.originalAmount)} IQD</Text>
               </View>
               <View style={styles.amountDivider} />
               <View style={styles.amountCell}>
                 <Text style={styles.amountCellLabel}>{t('debt.paidLabel')}</Text>
                 <Text style={[styles.amountCellValue, { color: Colors.success }]}>
-                  {fmt(debt.paidAmount)} IQD
+                  {fmtIQD(debt.paidAmount)} IQD
                 </Text>
               </View>
             </View>
@@ -303,46 +274,46 @@ export default function PurchaseDebtDetailScreen() {
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
           <PremiumCard style={styles.section}>
             <Text style={styles.sectionTitle}>{t('debt.purchaseDetails')}</Text>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={styles.infoLabel}>{t('purchases.purchaseNumber')}</Text>
-              <Text style={styles.infoValue}>{debt.purchaseNumber ?? '—'}</Text>
+              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.purchaseNumber ?? '—'}</Text>
             </View>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={styles.infoLabel}>{t('inventory.date')}</Text>
-              <Text style={styles.infoValue}>{formatDate(debt.createdAt)}</Text>
+              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{formatDate(debt.createdAt)}</Text>
             </View>
             {purchase ? (
               <>
-                <View style={styles.infoRow}>
+                <View style={[styles.infoRow, { flexDirection }]}>
                   <Text style={styles.infoLabel}>{t('purchases.productSection')}</Text>
-                  <Text style={styles.infoValue}>{purchase.productName}</Text>
+                  <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{purchase.productName}</Text>
                 </View>
-                <View style={styles.infoRow}>
+                <View style={[styles.infoRow, { flexDirection }]}>
                   <Text style={styles.infoLabel}>{t('purchases.qty')}</Text>
-                  <Text style={styles.infoValue}>×{purchase.quantity}</Text>
+                  <Text style={[styles.infoValue, { textAlign: valueAlign }]}>×{purchase.quantity}</Text>
                 </View>
                 {purchase.warranty ? (
-                  <View style={styles.infoRow}>
+                  <View style={[styles.infoRow, { flexDirection }]}>
                     <Text style={styles.infoLabel}>{t('purchases.warranty')}</Text>
-                    <Text style={styles.infoValue}>{purchase.warranty}</Text>
+                    <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{purchase.warranty}</Text>
                   </View>
                 ) : null}
               </>
             ) : null}
             {debt.notes ? (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={styles.infoLabel}>{t('purchases.notes')}</Text>
-                <Text style={styles.infoValue}>{debt.notes}</Text>
+                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.notes}</Text>
               </View>
             ) : null}
 
             {purchase ? (
               <TouchableOpacity
-                style={styles.viewPurchaseBtn}
+                style={[styles.viewPurchaseBtn, { flexDirection }]}
                 onPress={() => router.push(`/(app)/purchases/${debt.purchaseId}` as never)}
               >
-                <Ionicons name="open-outline" size={14} color={Colors.primary} />
-                <Text style={styles.viewPurchaseBtnText}>{t('inventory.viewPurchaseInvoice')}</Text>
+                <Ionicons name="open-outline" size={14} color={colors.primary} />
+                <Text style={[styles.viewPurchaseBtnText, { color: colors.primary }]}>{t('inventory.viewPurchaseInvoice')}</Text>
               </TouchableOpacity>
             ) : null}
           </PremiumCard>
@@ -373,7 +344,7 @@ export default function PurchaseDebtDetailScreen() {
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 220 }}>
             {!showPayForm ? (
               <TouchableOpacity
-                style={[styles.addPayBtn, { backgroundColor: Colors.error }]}
+                style={[styles.addPayBtn, { backgroundColor: Colors.error, flexDirection }]}
                 onPress={() => setShowPayForm(true)}
               >
                 <Ionicons name="add-circle" size={20} color="#fff" />
@@ -383,7 +354,7 @@ export default function PurchaseDebtDetailScreen() {
               <PremiumCard style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('debt.recordPayment')}</Text>
                 <Text style={[styles.payRemaining, { color: Colors.error }]}>
-                  {t('debt.remainingLabel')}: {fmt(debt.remainingAmount)} IQD
+                  {t('debt.remainingLabel')}: {fmtIQD(debt.remainingAmount)} IQD
                 </Text>
                 <TextInput
                   style={styles.payInput}
@@ -394,7 +365,13 @@ export default function PurchaseDebtDetailScreen() {
                   onChangeText={setPayValue}
                   autoFocus
                 />
-                <View style={styles.payActions}>
+                <DateTimePicker
+                  value={paymentDate}
+                  onChange={setPaymentDate}
+                  label={t('debt.paymentDate')}
+                  maxDate={new Date()}
+                />
+                <View style={[styles.payActions, { flexDirection }]}>
                   <TouchableOpacity
                     style={styles.payCancel}
                     onPress={() => { setShowPayForm(false); setPayValue(''); }}
@@ -416,7 +393,7 @@ export default function PurchaseDebtDetailScreen() {
             )}
           </MotiView>
         ) : (
-          <View style={styles.settledBanner}>
+          <View style={[styles.settledBanner, { flexDirection }]}>
             <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
             <Text style={styles.settledText}>{t('debt.fullyPaidSupplier')}</Text>
           </View>
@@ -461,7 +438,7 @@ const styles = StyleSheet.create({
 
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   remainingLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 2 },
-  remainingAmount: { fontSize: 26, fontWeight: '800', color: Colors.primary },
+  remainingAmount: { fontSize: 26, fontWeight: '800' },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
@@ -482,7 +459,7 @@ const styles = StyleSheet.create({
 
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   infoLabel: { fontSize: 13, color: Colors.gray400 },
-  infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1, textAlign: 'right' },
+  infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1 },
 
   viewPurchaseBtn: {
     flexDirection: 'row',
@@ -494,11 +471,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.gray100,
   },
-  viewPurchaseBtnText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+  viewPurchaseBtnText: { fontSize: 13, fontWeight: '600' },
 
   noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
   timelineItem: { flexDirection: 'row', marginBottom: 12 },
-  timelineDotCol: { alignItems: 'center', width: 20, marginRight: 12 },
+  timelineDotCol: { alignItems: 'center', width: 20, marginEnd: 12 },
   timelineDot: {
     width: 10,
     height: 10,
@@ -570,5 +547,5 @@ const styles = StyleSheet.create({
   settledText: { fontSize: 14, fontWeight: '600', color: Colors.success },
 
   notFound: { fontSize: 16, color: Colors.gray500, marginBottom: 12 },
-  notFoundBack: { fontSize: 14, color: Colors.primary, fontWeight: '600' },
+  notFoundBack: { fontSize: 14, fontWeight: '600' },
 });

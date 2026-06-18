@@ -16,10 +16,8 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { getSalesDebtById, getDebtPayments, getSaleById, addPaymentToDebt, loadBusiness } from '@/lib/sqlite';
-import { shareSalesDebtReport } from '@/lib/generateInvoice';
+import { getSalesDebtById, getDebtPayments, getSaleById, addPaymentToDebt } from '@/lib/sqlite';
 import { useDebtStore } from '@/store/debtStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -27,23 +25,9 @@ import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, DebtPayment } from '@/types/debt';
 import type { Sale } from '@/types/sales';
-
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  });
-}
+import { fmtIQD, formatDate, formatDateTime } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
@@ -90,17 +74,19 @@ function PaymentTimelineItem({
   payment: DebtPayment;
   isLast: boolean;
 }) {
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
   return (
-    <View style={styles.timelineItem}>
+    <View style={[styles.timelineItem, { flexDirection }]}>
       <View style={styles.timelineDotCol}>
-        <View style={styles.timelineDot} />
+        <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
         {!isLast && <View style={styles.timelineLine} />}
       </View>
       <View style={styles.timelineContent}>
         <Text style={styles.timelineDate}>{formatDateTime(payment.createdAt)}</Text>
-        <Text style={styles.timelineAmount}>+{fmt(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
+        <Text style={styles.timelineAmount}>+{fmtIQD(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
         <Text style={styles.timelineRemaining}>
-          {i18n.t('debt.remainingLabel')}: {fmt(payment.remainingAfter)} IQD
+          {i18n.t('debt.remainingLabel')}: {fmtIQD(payment.remainingAfter)} IQD
         </Text>
         {payment.note ? (
           <Text style={styles.timelineNote}>{payment.note}</Text>
@@ -118,16 +104,18 @@ export default function SalesDebtDetailScreen() {
   const { t } = useTranslation();
   const { reloadAfterSale } = useDebtStore();
   const { colors } = useAppTheme();
+  const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
+  const valueAlign = (isRTL ? 'left' : 'right') as 'left' | 'right';
 
   const [debt, setDebt]         = useState<SalesDebtDetail | null>(null);
   const [sale, setSale]         = useState<Sale | null>(null);
   const [payments, setPayments] = useState<DebtPayment[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [isExporting, setIsExporting] = useState(false);
 
-  const [payValue, setPayValue]     = useState('');
+  const [payValue, setPayValue]       = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => new Date());
   const [showPayForm, setShowPayForm] = useState(false);
-  const [isPaying, setIsPaying]     = useState(false);
+  const [isPaying, setIsPaying]       = useState(false);
 
   const debtId = Number(id);
 
@@ -153,24 +141,6 @@ export default function SalesDebtDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleExport() {
-    if (!debt) return;
-    setIsExporting(true);
-    try {
-      const biz = await loadBusiness();
-      await shareSalesDebtReport(debt, payments, {
-        name:    biz?.name    ?? 'My Business',
-        phone:   biz?.phone   ?? '',
-        address: biz?.address ?? '',
-        logoUri: biz?.logoPath ?? null,
-      });
-    } catch {
-      Alert.alert(t('common.error'), t('debt.errorExport'));
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
   async function handlePay() {
     const amt = parseFloat(payValue);
     if (!amt || amt <= 0) {
@@ -180,9 +150,10 @@ export default function SalesDebtDetailScreen() {
     if (!debt) return;
     setIsPaying(true);
     try {
-      await addPaymentToDebt(debtId, amt);
+      await addPaymentToDebt(debtId, amt, paymentDate.toISOString());
       await reloadAfterSale();
       setPayValue('');
+      setPaymentDate(new Date());
       setShowPayForm(false);
       await load();
     } catch {
@@ -204,7 +175,7 @@ export default function SalesDebtDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }, styles.center]}>
         <AppHeader title="" />
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       </View>
     );
   }
@@ -215,7 +186,7 @@ export default function SalesDebtDetailScreen() {
         <AppHeader title={t('debt.notFound')} />
         <Text style={styles.notFound}>{t('debt.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.notFoundBack}>{t('common.goBack')}</Text>
+          <Text style={[styles.notFoundBack, { color: colors.primary }]}>{t('common.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -232,13 +203,6 @@ export default function SalesDebtDetailScreen() {
       <AppHeader
         title={debt.customerName}
         showBack
-        rightAction={
-          <HeaderActionButton
-            icon="share-outline"
-            onPress={handleExport}
-            disabled={isExporting}
-          />
-        }
       >
         <View style={styles.headerMeta}>
           {debt.customerPhone ? (
@@ -261,10 +225,10 @@ export default function SalesDebtDetailScreen() {
         {/* Status card */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <PremiumCard style={styles.section}>
-            <View style={styles.statusRow}>
+            <View style={[styles.statusRow, { flexDirection }]}>
               <View>
                 <Text style={styles.remainingLabel}>{t('sales.remainingDebt')}</Text>
-                <Text style={styles.remainingAmount}>{fmt(debt.remainingAmount)} IQD</Text>
+                <Text style={[styles.remainingAmount, { color: colors.primary }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
               </View>
               <StatusBadge status={displayStatus} />
             </View>
@@ -273,16 +237,16 @@ export default function SalesDebtDetailScreen() {
 
             <Text style={styles.progressPct}>{t('debt.pctPaidCustomer', { pct: pctPaid })}</Text>
 
-            <View style={styles.amountRow}>
+            <View style={[styles.amountRow, { flexDirection }]}>
               <View style={styles.amountCell}>
                 <Text style={styles.amountCellLabel}>{t('debt.totalOwedLabel')}</Text>
-                <Text style={styles.amountCellValue}>{fmt(debt.originalAmount)} IQD</Text>
+                <Text style={styles.amountCellValue}>{fmtIQD(debt.originalAmount)} IQD</Text>
               </View>
               <View style={styles.amountDivider} />
               <View style={styles.amountCell}>
                 <Text style={styles.amountCellLabel}>{t('debt.paidLabel')}</Text>
                 <Text style={[styles.amountCellValue, { color: Colors.success }]}>
-                  {fmt(debt.paidAmount)} IQD
+                  {fmtIQD(debt.paidAmount)} IQD
                 </Text>
               </View>
             </View>
@@ -293,24 +257,24 @@ export default function SalesDebtDetailScreen() {
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
           <PremiumCard style={styles.section}>
             <Text style={styles.sectionTitle}>{t('sales.invoicePreview')}</Text>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={styles.infoLabel}>{t('purchases.purchaseNumber')}</Text>
-              <Text style={styles.infoValue}>{debt.invoiceNumber}</Text>
+              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.invoiceNumber}</Text>
             </View>
-            <View style={styles.infoRow}>
+            <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={styles.infoLabel}>{t('inventory.date')}</Text>
-              <Text style={styles.infoValue}>{formatDate(debt.createdAt)}</Text>
+              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{formatDate(debt.createdAt)}</Text>
             </View>
             {debt.warranty ? (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={styles.infoLabel}>{t('sales.warranty')}</Text>
-                <Text style={styles.infoValue}>{debt.warranty}</Text>
+                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.warranty}</Text>
               </View>
             ) : null}
             {debt.saleNotes ? (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={styles.infoLabel}>{t('sales.notes')}</Text>
-                <Text style={styles.infoValue}>{debt.saleNotes}</Text>
+                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.saleNotes}</Text>
               </View>
             ) : null}
           </PremiumCard>
@@ -322,16 +286,16 @@ export default function SalesDebtDetailScreen() {
             <PremiumCard style={styles.section}>
               <Text style={styles.sectionTitle}>{t('sales.orderSummary')}</Text>
               {sale.items.map((item) => (
-                <View key={item.id} style={styles.itemRow}>
+                <View key={item.id} style={[styles.itemRow, { flexDirection }]}>
                   <View style={styles.itemLeft}>
                     <Text style={styles.itemName}>{item.productName}</Text>
                     {item.itemId ? (
                       <Text style={styles.itemId}>ID: {item.itemId}</Text>
                     ) : null}
                   </View>
-                  <View style={styles.itemRight}>
+                  <View style={[styles.itemRight, { alignItems: alignEnd }]}>
                     <Text style={styles.itemQty}>×{item.quantity}</Text>
-                    <Text style={styles.itemTotal}>{fmt(item.lineTotal)} IQD</Text>
+                    <Text style={styles.itemTotal}>{fmtIQD(item.lineTotal)} IQD</Text>
                   </View>
                 </View>
               ))}
@@ -364,7 +328,7 @@ export default function SalesDebtDetailScreen() {
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 260 }}>
             {!showPayForm ? (
               <TouchableOpacity
-                style={styles.addPayBtn}
+                style={[styles.addPayBtn, { backgroundColor: colors.primary, shadowColor: colors.primary, flexDirection }]}
                 onPress={() => setShowPayForm(true)}
               >
                 <Ionicons name="add-circle" size={20} color="#fff" />
@@ -373,8 +337,8 @@ export default function SalesDebtDetailScreen() {
             ) : (
               <PremiumCard style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('debt.recordPayment')}</Text>
-                <Text style={styles.payRemaining}>
-                  {t('debt.remainingLabel')}: {fmt(debt.remainingAmount)} IQD
+                <Text style={[styles.payRemaining, { color: colors.primary }]}>
+                  {t('debt.remainingLabel')}: {fmtIQD(debt.remainingAmount)} IQD
                 </Text>
                 <TextInput
                   style={styles.payInput}
@@ -385,7 +349,13 @@ export default function SalesDebtDetailScreen() {
                   onChangeText={setPayValue}
                   autoFocus
                 />
-                <View style={styles.payActions}>
+                <DateTimePicker
+                  value={paymentDate}
+                  onChange={setPaymentDate}
+                  label={t('debt.paymentDate')}
+                  maxDate={new Date()}
+                />
+                <View style={[styles.payActions, { flexDirection }]}>
                   <TouchableOpacity
                     style={styles.payCancel}
                     onPress={() => { setShowPayForm(false); setPayValue(''); }}
@@ -393,7 +363,7 @@ export default function SalesDebtDetailScreen() {
                     <Text style={styles.payCancelText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.payConfirm, isPaying && { opacity: 0.6 }]}
+                    style={[styles.payConfirm, { backgroundColor: colors.primary }, isPaying && { opacity: 0.6 }]}
                     onPress={handlePay}
                     disabled={isPaying}
                   >
@@ -407,7 +377,7 @@ export default function SalesDebtDetailScreen() {
             )}
           </MotiView>
         ) : (
-          <View style={styles.settledBanner}>
+          <View style={[styles.settledBanner, { flexDirection }]}>
             <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
             <Text style={styles.settledText}>{t('debt.fullyPaidCustomer')}</Text>
           </View>
@@ -453,7 +423,7 @@ const styles = StyleSheet.create({
   // Status card
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   remainingLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 2 },
-  remainingAmount: { fontSize: 26, fontWeight: '800', color: Colors.primary },
+  remainingAmount: { fontSize: 26, fontWeight: '800' },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
@@ -475,7 +445,7 @@ const styles = StyleSheet.create({
   // Info rows
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   infoLabel: { fontSize: 13, color: Colors.gray400 },
-  infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1, textAlign: 'right' },
+  infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1 },
 
   // Items
   itemRow: {
@@ -496,12 +466,11 @@ const styles = StyleSheet.create({
   // Payment timeline
   noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
   timelineItem: { flexDirection: 'row', marginBottom: 12 },
-  timelineDotCol: { alignItems: 'center', width: 20, marginRight: 12 },
+  timelineDotCol: { alignItems: 'center', width: 20, marginEnd: 12 },
   timelineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.primary,
     marginTop: 3,
   },
   timelineLine: { width: 2, flex: 1, backgroundColor: Colors.gray100, marginTop: 4 },
@@ -516,19 +485,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
     borderRadius: Theme.radius.md,
     paddingVertical: 14,
     gap: 8,
     marginBottom: 14,
-    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   addPayBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  payRemaining: { fontSize: 13, color: Colors.primary, fontWeight: '600', marginBottom: 12 },
+  payRemaining: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
   payInput: {
     borderWidth: 1,
     borderColor: Colors.gray200,
@@ -551,7 +518,6 @@ const styles = StyleSheet.create({
   payCancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
   payConfirm: {
     flex: 2,
-    backgroundColor: Colors.primary,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -571,5 +537,5 @@ const styles = StyleSheet.create({
   settledText: { fontSize: 14, fontWeight: '600', color: Colors.success },
 
   notFound: { fontSize: 16, color: Colors.gray500, marginBottom: 12 },
-  notFoundBack: { fontSize: 14, color: Colors.primary, fontWeight: '600' },
+  notFoundBack: { fontSize: 14, fontWeight: '600' },
 });

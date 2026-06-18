@@ -3,10 +3,11 @@ import { View, StyleSheet, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SplashAnimation } from '@/components/splash/SplashAnimation';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -19,7 +20,7 @@ export default function SplashScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <LinearGradient
-        colors={[Colors.gradientStart, Colors.gradientMid, Colors.gradientEnd]}
+        colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFillObject}

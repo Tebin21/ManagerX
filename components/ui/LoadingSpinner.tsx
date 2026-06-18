@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface Props {
   size?: number;
   color?: string;
 }
 
-export function LoadingSpinner({ size = 40, color = Colors.primary }: Props) {
+export function LoadingSpinner({ size = 40, color }: Props) {
+  const { colors } = useAppTheme();
+  const spinnerColor = color ?? colors.primary;
+
   return (
     <View style={styles.container}>
       <MotiView
@@ -18,10 +21,10 @@ export function LoadingSpinner({ size = 40, color = Colors.primary }: Props) {
         style={[
           styles.spinner,
           {
-            width: size,
-            height: size,
+            width:        size,
+            height:       size,
             borderRadius: size / 2,
-            borderColor: color,
+            borderColor:  spinnerColor,
           },
         ]}
       />
@@ -31,11 +34,11 @@ export function LoadingSpinner({ size = 40, color = Colors.primary }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems:     'center',
     justifyContent: 'center',
   },
   spinner: {
-    borderWidth: 3,
+    borderWidth:     3,
     borderTopColor: 'transparent',
   },
 });

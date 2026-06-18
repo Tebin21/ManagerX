@@ -23,32 +23,23 @@ import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
-
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function formatDate(dateStr: string) {
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  } catch { return dateStr; }
-}
+import { fmtIQD, fmtExchangeRate, formatDate } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   const { colors } = useAppTheme();
+  const { isRTL, flexDirection } = useRTL();
   return (
-    <View style={[infoRow.row, { borderBottomColor: colors.gray100 }]}>
+    <View style={[infoRow.row, { borderBottomColor: colors.gray100, flexDirection }]}>
       <Text style={[infoRow.label, { color: colors.gray500 }]}>{label}</Text>
-      <Text style={[infoRow.value, { color: colors.black }]}>{value}</Text>
+      <Text style={[infoRow.value, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]}>{value}</Text>
     </View>
   );
 }
 const infoRow = StyleSheet.create({
   row:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, gap: 16 },
   label: { fontSize: 13, flex: 1 },
-  value: { fontSize: 13, fontWeight: '600', flex: 2, textAlign: 'right' },
+  value: { fontSize: 13, fontWeight: '600', flex: 2 },
 });
 
 export default function PurchaseDetailScreen() {
@@ -56,6 +47,7 @@ export default function PurchaseDetailScreen() {
   const router   = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { flexDirection, alignEnd } = useRTL();
   const { deletePurchase } = usePurchaseStore();
   const business = useBusinessStore();
 
@@ -91,7 +83,7 @@ export default function PurchaseDetailScreen() {
     if (!purchase) return;
     setIsSharing(true);
     try {
-      await sharePurchaseInvoice(purchase, {
+      await sharePurchaseInvoice(purchase, purchaseItems, {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
       });
@@ -156,11 +148,17 @@ export default function PurchaseDetailScreen() {
       <AppHeader
         title={purchase.purchaseNumber}
         rightAction={
-          <HeaderActionButton
-            icon="share-outline"
-            onPress={handleShare}
-            disabled={isSharing}
-          />
+          <View style={{ flexDirection, gap: 4 }}>
+            <HeaderActionButton
+              icon="create-outline"
+              onPress={() => router.push(`/(app)/purchases/edit/${id}` as never)}
+            />
+            <HeaderActionButton
+              icon="share-outline"
+              onPress={handleShare}
+              disabled={isSharing}
+            />
+          </View>
         }
       />
 
@@ -173,7 +171,7 @@ export default function PurchaseDetailScreen() {
             style={styles.invoiceHeaderCard}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           >
-            <View style={styles.invoiceHeaderTop}>
+            <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
               <View>
                 <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
                 <Text style={styles.invoiceNumber}>{purchase.purchaseNumber}</Text>
@@ -185,9 +183,9 @@ export default function PurchaseDetailScreen() {
               </View>
             </View>
             <Text style={styles.invoiceDate}>{formatDate(purchase.date)}</Text>
-            <View style={styles.invoiceTotalRow}>
+            <View style={[styles.invoiceTotalRow, { flexDirection }]}>
               <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
-              <Text style={styles.invoiceTotalValue}>{fmt(purchase.totalIQD)} IQD</Text>
+              <Text style={styles.invoiceTotalValue}>{fmtIQD(purchase.totalIQD)} IQD</Text>
             </View>
           </LinearGradient>
         </MotiView>
@@ -199,13 +197,13 @@ export default function PurchaseDetailScreen() {
             <InfoRow label={t('purchases.productName')} value={purchase.productName} />
             {purchase.category ? <InfoRow label={t('purchases.category')} value={purchase.category} /> : null}
             <InfoRow label={t('purchases.qty')} value={String(purchase.quantity)} />
-            <InfoRow label={`${t('purchases.buyPrice')} (IQD)`} value={`${fmt(purchase.buyPriceIQD)} IQD`} />
+            <InfoRow label={`${t('purchases.buyPrice')} (IQD)`} value={`${fmtIQD(purchase.buyPriceIQD)} IQD`} />
             <InfoRow label={`${t('purchases.buyPrice')} (USD)`} value={`$${purchase.buyPriceUSD.toFixed(2)}`} />
-            <InfoRow label={t('purchases.exchangeRate')} value={`1 USD = ${fmt(purchase.exchangeRate)} IQD`} />
+            <InfoRow label={t('purchases.exchangeRate')} value={`100 USD = ${fmtExchangeRate(purchase.exchangeRate)} IQD`} />
             {purchase.sellPriceIQD > 0 && (
               <>
-                <InfoRow label={`${t('purchases.sellPrice')} (IQD)`} value={`${fmt(purchase.sellPriceIQD)} IQD`} />
-                <InfoRow label={t('purchases.profitLabel')} value={`${purchase.profitIQD >= 0 ? '+' : ''}${fmt(purchase.profitIQD)} IQD`} />
+                <InfoRow label={`${t('purchases.sellPrice')} (IQD)`} value={`${fmtIQD(purchase.sellPriceIQD)} IQD`} />
+                <InfoRow label={t('purchases.profitLabel')} value={`${purchase.profitIQD >= 0 ? '+' : ''}${fmtIQD(purchase.profitIQD)} IQD`} />
               </>
             )}
             {purchase.warranty ? <InfoRow label={t('purchases.warranty')} value={purchase.warranty} /> : null}
@@ -218,14 +216,14 @@ export default function PurchaseDetailScreen() {
             <PremiumCard style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
               {purchaseItems.map((item) => (
-                <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100 }]}>
+                <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                   <View style={styles.itemLeft}>
                     <Text style={[styles.itemName, { color: colors.black }]}>{item.productName}</Text>
                     {item.category ? <Text style={[styles.itemCat, { color: colors.gray400 }]}>{item.category}</Text> : null}
                   </View>
-                  <View style={styles.itemRight}>
+                  <View style={[styles.itemRight, { alignItems: alignEnd }]}>
                     <Text style={[styles.itemQty, { color: colors.gray400 }]}>×{item.quantity}</Text>
-                    <Text style={[styles.itemPrice, { color: colors.primary }]}>{fmt(item.lineTotalIQD)} IQD</Text>
+                    <Text style={[styles.itemPrice, { color: colors.primary }]}>{fmtIQD(item.lineTotalIQD)} IQD</Text>
                   </View>
                 </View>
               ))}
@@ -259,7 +257,7 @@ export default function PurchaseDetailScreen() {
               ) : (
                 <View style={styles.chipsWrap}>
                   {purchase.itemIds.map((v, i) => (
-                    <View key={i} style={[styles.idChip, { backgroundColor: colors.softBlue }]}>
+                    <View key={i} style={[styles.idChip, { backgroundColor: colors.softBlue, flexDirection }]}>
                       <Text style={[styles.idChipBadge, { backgroundColor: colors.primary }]}>{i + 1}</Text>
                       <Text style={[styles.idChipText, { color: colors.primary }]}>{v || '—'}</Text>
                     </View>

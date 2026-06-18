@@ -3,6 +3,8 @@ import { ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import i18n from '@/lib/i18n';
 
 interface Props {
@@ -12,11 +14,12 @@ interface Props {
 }
 
 export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
   const all = ['all', ...categories];
 
   function categoryLabel(cat: string): string {
     if (cat === 'all') return i18n.t('inventory.filterAll');
-    // Translate using purchases.categories map; fall back to raw value
     return i18n.t(`purchases.categories.${cat}`, { defaultValue: cat });
   }
 
@@ -24,7 +27,7 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
+      contentContainerStyle={[styles.row, { flexDirection }]}
     >
       {all.map((cat) => {
         const active = selected === cat;
@@ -32,10 +35,15 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
           <TouchableOpacity
             key={cat}
             onPress={() => onSelect(cat)}
-            style={[styles.chip, active && styles.chipActive]}
+            style={[
+              styles.chip,
+              active
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { backgroundColor: Colors.white, borderColor: Colors.gray200 },
+            ]}
             activeOpacity={0.75}
           >
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>
+            <Text style={[styles.chipText, { color: active ? '#FFFFFF' : Colors.gray600 }]}>
               {categoryLabel(cat)}
             </Text>
           </TouchableOpacity>
@@ -48,27 +56,17 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
 const styles = StyleSheet.create({
   row: {
     paddingHorizontal: 16,
-    gap: 8,
-    paddingVertical: 2,
+    gap:               8,
+    paddingVertical:   2,
   },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: Theme.radius.full,
-    borderWidth: 1.5,
-    borderColor: Colors.gray200,
-    backgroundColor: Colors.white,
-  },
-  chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    paddingVertical:   7,
+    borderRadius:      Theme.radius.full,
+    borderWidth:       1.5,
   },
   chipText: {
-    fontSize: 13,
+    fontSize:   13,
     fontWeight: '600',
-    color: Colors.gray600,
-  },
-  chipTextActive: {
-    color: Colors.white,
   },
 });

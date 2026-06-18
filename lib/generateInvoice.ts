@@ -10,21 +10,36 @@
  *                   synchronous throw from requireNativeModule is caught by a
  *                   normal try/catch before any Promise is involved.
  *   - expo-sharing → same pattern via getSharingModule().
+ *   - Sharing availability is checked BEFORE PDF generation so we fail fast.
  *   - Every public share* function has its own top-level try/catch so a
  *     failure in any step (HTML build, PDF write, share dialog) never causes
  *     an uncaught rejection or a white/red screen.
+ *   - A per-function isGenerating guard prevents double-tap from spawning
+ *     two concurrent PDF builds.
  */
 
 import { Alert, Platform } from 'react-native';
-import { buildInvoiceHTML, buildPurchaseInvoiceHTML } from './invoiceTemplate';
+import Constants from 'expo-constants';
+import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow } from './invoiceTemplate';
+import { useSettingsStore } from '@/store/settingsStore';
+import { PURCHASE_RATE } from '@/types/purchases';
 import { buildInventoryReportHTML } from './inventoryReportTemplate';
+import {
+  buildFullInventoryReportHTML,
+  buildLowStockReportHTML,
+  buildCategoryReportHTML,
+} from './inventoryPDFReports';
+import { computeProductLowStock } from '@/lib/lowStock';
 import { buildCustomerReportHTML } from './customerReportTemplate';
+import { buildSupplierReportHTML } from './supplierReportTemplate';
 import { buildSalesDebtReportHTML, buildPurchaseDebtReportHTML } from './debtReportTemplate';
 import type { FullReportData } from './reportTemplate';
+import type { FinancialExportData } from './financialReportTemplate';
 import type { Sale, Debt } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import type { CustomerWithStats } from '@/types/customers';
+import type { SupplierWithStats } from '@/types/suppliers';
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment } from '@/types/debt';
 import i18n from '@/lib/i18n';
 
@@ -37,23 +52,42 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
+// ─── Double-tap guard ─────────────────────────────────────────────────────────
+
+let _generating = false;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getDir(): 'ltr' | 'rtl' {
-  return i18n.language === 'ku' ? 'rtl' : 'ltr';
+  return 'ltr';
 }
 
 /**
- * Lazily loads expo-print using a synchronous require() inside try/catch so
- * that the native-module-not-found error is caught before any Promise
- * machinery is involved.  Returns null if the module or native layer is
- * unavailable.
+ * Returns true when running inside Expo Go (the hosted sandbox) where custom
+ * native modules like expo-print and expo-sharing are not compiled in.
+ *
+ * Covers all SDK 50-54 Expo Go detection paths.
+ */
+function isExpoGo(): boolean {
+  const env = Constants.executionEnvironment as string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ownership = (Constants as any).appOwnership as string | undefined;
+  return (
+    env === 'storeClient' ||
+    env === 'expo' ||
+    ownership === 'expo'
+  );
+}
+
+/**
+ * Lazily loads expo-print using a synchronous require() inside try/catch.
+ * Returns null if the module or native layer is unavailable.
  */
 async function getPrintModule(): Promise<typeof import('expo-print') | null> {
+  if (isExpoGo()) return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Print = require('expo-print') as typeof import('expo-print');
-    // Sanity-check: the module object must expose printToFileAsync
     if (typeof Print?.printToFileAsync !== 'function') return null;
     return Print;
   } catch {
@@ -63,16 +97,16 @@ async function getPrintModule(): Promise<typeof import('expo-print') | null> {
 
 /**
  * Lazily loads expo-sharing using a synchronous require() inside try/catch.
- * Also verifies that sharing is actually available on this device/platform
- * before returning the module.  Returns null in any failure case.
+ * Also verifies that sharing is actually available on this device/platform.
+ * Returns null in any failure case.
  */
 async function getSharingModule(): Promise<typeof import('expo-sharing') | null> {
+  if (isExpoGo()) return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Sharing = require('expo-sharing') as typeof import('expo-sharing');
     if (!Sharing || typeof Sharing.shareAsync !== 'function') return null;
 
-    // isAvailableAsync can itself throw on some platforms — guard it.
     let available = false;
     try {
       available = await Sharing.isAvailableAsync();
@@ -88,7 +122,10 @@ async function getSharingModule(): Promise<typeof import('expo-sharing') | null>
 
 /**
  * Core PDF generation + share flow reused by every export function.
- * Returns true on success, false on any failure (already handled inside).
+ *
+ * Checks sharing availability FIRST (fail fast), then generates the PDF,
+ * then opens the share sheet.  Returns true on success, false on any failure
+ * (already handled inside with a user-friendly Alert).
  */
 async function generateAndShare(
   html: string,
@@ -100,12 +137,28 @@ async function generateAndShare(
     return false;
   }
 
+  // ── Check sharing availability before wasting time on PDF generation ──
+  const Sharing = await getSharingModule();
+  if (!Sharing) {
+    if (isExpoGo()) {
+      Alert.alert(
+        'Sharing unavailable',
+        'PDF sharing is not available in Expo Go. Please use the full app build.'
+      );
+    } else {
+      Alert.alert(
+        'Sharing unavailable',
+        'PDF sharing is not available on this device.'
+      );
+    }
+    return false;
+  }
+
   const Print = await getPrintModule();
   if (!Print) {
     Alert.alert(
-      'Print unavailable',
-      'PDF generation requires a development build with expo-print compiled in. ' +
-        'Please run: npx expo run:ios  or  npx expo run:android'
+      'PDF unavailable',
+      'PDF export is not available on this device. Please update the app.'
     );
     return false;
   }
@@ -117,16 +170,6 @@ async function generateAndShare(
   } catch (printErr) {
     console.error('[PDF] printToFileAsync failed:', printErr);
     Alert.alert('Error', errorMessage);
-    return false;
-  }
-
-  const Sharing = await getSharingModule();
-  if (!Sharing) {
-    Alert.alert(
-      'Sharing unavailable',
-      'PDF sharing requires a development build with expo-sharing compiled in. ' +
-        'Please run: npx expo run:ios  or  npx expo run:android'
-    );
     return false;
   }
 
@@ -148,8 +191,11 @@ async function generateAndShare(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
-    const html = buildInvoiceHTML(sale, business, getDir());
+    const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+    const html = buildInvoiceHTML(sale, business, getDir(), rate);
     await generateAndShare(
       html,
       `Invoice ${sale.invoiceNumber}`,
@@ -158,15 +204,20 @@ export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<
   } catch (err) {
     console.error('[PDF] shareInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate invoice PDF. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
 export async function sharePurchaseInvoice(
   purchase: Purchase,
+  purchaseItems: PurchaseItemRow[],
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
-    const html = buildPurchaseInvoiceHTML(purchase, business, getDir());
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, business, getDir());
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,
@@ -175,6 +226,8 @@ export async function sharePurchaseInvoice(
   } catch (err) {
     console.error('[PDF] sharePurchaseInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate purchase invoice PDF. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
@@ -183,6 +236,8 @@ export async function shareInventoryReport(
   stats: InventoryStats,
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
     const html = buildInventoryReportHTML(products, stats, business, getDir());
     await generateAndShare(
@@ -193,6 +248,8 @@ export async function shareInventoryReport(
   } catch (err) {
     console.error('[PDF] shareInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the inventory report. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
@@ -201,6 +258,8 @@ export async function shareSalesDebtReport(
   payments: DebtPayment[],
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
     const html = buildSalesDebtReportHTML(debt, payments, business, getDir());
     await generateAndShare(
@@ -211,6 +270,8 @@ export async function shareSalesDebtReport(
   } catch (err) {
     console.error('[PDF] shareSalesDebtReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the debt report. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
@@ -219,6 +280,8 @@ export async function sharePurchaseDebtReport(
   payments: DebtPayment[],
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
     const html = buildPurchaseDebtReportHTML(debt, payments, business, getDir());
     await generateAndShare(
@@ -229,6 +292,8 @@ export async function sharePurchaseDebtReport(
   } catch (err) {
     console.error('[PDF] sharePurchaseDebtReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the supplier debt report. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
@@ -238,6 +303,8 @@ export async function shareCustomerReport(
   debts: Debt[],
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
     const html = buildCustomerReportHTML(customer, sales, debts, business, getDir());
     await generateAndShare(
@@ -248,6 +315,103 @@ export async function shareCustomerReport(
   } catch (err) {
     console.error('[PDF] shareCustomerReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the customer report. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareSupplierReport(
+  supplier: SupplierWithStats,
+  purchases: Purchase[],
+  debts: PurchaseDebt[],
+  business: BusinessInfo
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const html = buildSupplierReportHTML(supplier, purchases, debts, business, getDir());
+    await generateAndShare(
+      html,
+      `Supplier Report — ${supplier.name}`,
+      'Could not generate the supplier report. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareSupplierReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the supplier report. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareFullInventoryReport(
+  products: InventoryProduct[],
+  stats: InventoryStats,
+  business: BusinessInfo,
+  globalLowStockEnabled: boolean,
+  globalLowStockThreshold: number,
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const lowStockIds = new Set<number>(
+      products
+        .filter((p) => computeProductLowStock(p, globalLowStockEnabled, globalLowStockThreshold))
+        .map((p) => p.id),
+    );
+    const html = buildFullInventoryReportHTML(products, stats, business, lowStockIds, getDir());
+    await generateAndShare(
+      html,
+      'Full Inventory Report',
+      'Could not generate the inventory report. Please try again.',
+    );
+  } catch (err) {
+    console.error('[PDF] shareFullInventoryReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the inventory report. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareLowStockInventoryReport(
+  lowStockProducts: InventoryProduct[],
+  business: BusinessInfo,
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const html = buildLowStockReportHTML(lowStockProducts, business, getDir());
+    await generateAndShare(
+      html,
+      'Low Stock Report',
+      'Could not generate the low stock report. Please try again.',
+    );
+  } catch (err) {
+    console.error('[PDF] shareLowStockInventoryReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the low stock report. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareCategoryInventoryReport(
+  products: InventoryProduct[],
+  categoryName: string,
+  business: BusinessInfo,
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const html = buildCategoryReportHTML(products, categoryName, business, getDir());
+    await generateAndShare(
+      html,
+      `Category Report — ${categoryName}`,
+      'Could not generate the category report. Please try again.',
+    );
+  } catch (err) {
+    console.error('[PDF] shareCategoryInventoryReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the category report. Please try again.');
+  } finally {
+    _generating = false;
   }
 }
 
@@ -255,6 +419,8 @@ export async function shareFullReport(
   data: FullReportData,
   business: BusinessInfo
 ): Promise<void> {
+  if (_generating) return;
+  _generating = true;
   try {
     const { buildFullReportHTML } = await import('./reportTemplate');
     const html = buildFullReportHTML(data, business, getDir());
@@ -266,5 +432,29 @@ export async function shareFullReport(
   } catch (err) {
     console.error('[PDF] shareFullReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the report PDF. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareFinancialReport(
+  data: FinancialExportData,
+  business: BusinessInfo
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const { buildFinancialReportHTML } = await import('./financialReportTemplate');
+    const html = buildFinancialReportHTML(data, business, getDir());
+    await generateAndShare(
+      html,
+      'Financial Report',
+      'Could not generate the financial report. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareFinancialReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the financial report. Please try again.');
+  } finally {
+    _generating = false;
   }
 }

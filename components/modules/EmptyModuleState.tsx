@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { MotiView } from 'moti';
 import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface Props {
   title: string;
@@ -13,6 +14,8 @@ interface Props {
 }
 
 export function EmptyModuleState({ title, description, icon }: Props) {
+  const { colors } = useAppTheme();
+
   return (
     <MotiView
       from={{ opacity: 0, translateY: 20 }}
@@ -20,15 +23,15 @@ export function EmptyModuleState({ title, description, icon }: Props) {
       transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 100 }}
       style={styles.container}
     >
-      <View style={styles.iconWrapper}>
-        <Ionicons name={icon} size={64} color={Colors.primary} />
+      <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
+        <Ionicons name={icon} size={64} color={colors.primary} />
       </View>
 
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, { color: colors.darkBlue }]}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
 
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>Coming Soon</Text>
+      <View style={[styles.badge, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
+        <Text style={[styles.badgeText, { color: colors.primary }]}>Coming Soon</Text>
       </View>
     </MotiView>
   );
@@ -46,17 +49,14 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 32,
-    backgroundColor: Colors.softBlue,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: Colors.lightBlue,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.darkBlue,
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -68,17 +68,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   badge: {
-    backgroundColor: Colors.softBlue,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: Colors.lightBlue,
   },
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.primary,
     letterSpacing: 0.5,
   },
 });

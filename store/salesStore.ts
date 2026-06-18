@@ -3,11 +3,13 @@ import {
   getAllSales,
   insertSale,
   deleteSale as dbDeleteSale,
+  updateSaleComplete,
   generateInvoiceNumber,
   upsertCustomer,
 } from '@/lib/sqlite';
 import { useInventoryStore } from './inventoryStore';
-import type { Sale, SaleItem, CartItem, CustomerInput, PaymentMethod } from '@/types/sales';
+import { useSettingsStore } from './settingsStore';
+import type { Sale, SaleItem, CartItem, CustomerInput, PaymentMethod, UpdateSaleCompleteInput, GlobalDiscountType } from '@/types/sales';
 
 interface CartStateArg {
   items: CartItem[];
@@ -15,8 +17,11 @@ interface CartStateArg {
   paymentMethod: PaymentMethod;
   paidAmount: string;
   saleNotes: string;
+  saleDate?: Date;
   subtotal: () => number;
   discountTotal: () => number;
+  globalDiscountType: GlobalDiscountType;
+  globalDiscountAmount: () => number;
   grandTotal: () => number;
   remainingDebt: () => number;
 }
@@ -26,6 +31,7 @@ interface SalesState {
   isLoading: boolean;
   loadSales: () => Promise<void>;
   createSale: (cart: CartStateArg) => Promise<Sale>;
+  updateSale: (saleId: number, input: UpdateSaleCompleteInput) => Promise<void>;
   deleteSale: (id: number) => Promise<void>;
   refreshSales: () => Promise<void>;
   searchSales: (query: string) => Sale[];
@@ -51,6 +57,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
     const subtotal = cart.subtotal();
     const discountTotal = cart.discountTotal();
+    const globalDiscountAmount = cart.globalDiscountAmount();
     const grandTotal = cart.grandTotal();
     const paid = parseFloat(cart.paidAmount) || 0;
     const remaining = cart.remainingDebt();
@@ -59,9 +66,10 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     let customerId: number | null = null;
     if (customer.name.trim()) {
       customerId = await upsertCustomer({
-        name: customer.name.trim(),
-        phone: customer.phone.trim(),
-        address: customer.address.trim() || undefined,
+        name:       customer.name.trim(),
+        phone:      customer.phone.trim(),
+        address:    customer.address.trim() || undefined,
+        selectedId: customer.selectedCustomerId,
       });
     }
 
@@ -77,6 +85,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       lineTotal: ci.lineTotal,
     }));
 
+    const exchangeRateUsed = useSettingsStore.getState().exchangeRate;
+
     const saleData = {
       invoiceNumber,
       customerId,
@@ -88,10 +98,14 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       paymentMethod: cart.paymentMethod,
       subtotal,
       discountTotal,
+      globalDiscountType: cart.globalDiscountType,
+      globalDiscount: globalDiscountAmount,
       grandTotal,
       paidAmount: cart.paymentMethod === 'debt' ? paid : grandTotal,
       remainingDebt: remaining,
       status: 'completed' as const,
+      exchangeRateUsed,
+      date: (cart.saleDate ?? new Date()).toISOString(),
     };
 
     const saleId = await insertSale(saleData, saleItems);
@@ -101,29 +115,49 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     // Keep customer list in sync without a circular import
     try {
       const { useCustomerStore } = await import('@/store/customerStore');
-      useCustomerStore.getState().reloadAfterSale();
+      await useCustomerStore.getState().reloadAfterSale();
     } catch {}
 
     try {
       const { useDebtStore } = await import('@/store/debtStore');
-      useDebtStore.getState().reloadAfterSale();
+      await useDebtStore.getState().reloadAfterSale();
     } catch {}
 
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
     } catch {}
 
+    const ts = (cart.saleDate ?? new Date()).toISOString();
     const newSale: Sale = {
       ...saleData,
       id: saleId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: ts,
+      updatedAt: ts,
       items: saleItems.map((item, i) => ({ ...item, id: i, saleId })),
     };
 
     set((state) => ({ sales: [newSale, ...state.sales] }));
     return newSale;
+  },
+
+  updateSale: async (saleId: number, input: UpdateSaleCompleteInput) => {
+    await updateSaleComplete(saleId, input);
+    const sales = await getAllSales();
+    set({ sales });
+    await useInventoryStore.getState().reloadAfterSale();
+    try {
+      const { useCustomerStore } = await import('@/store/customerStore');
+      await useCustomerStore.getState().reloadAfterSale();
+    } catch {}
+    try {
+      const { useDebtStore } = await import('@/store/debtStore');
+      await useDebtStore.getState().reloadAfterSale();
+    } catch {}
+    try {
+      const { useReportStore } = await import('@/store/reportStore');
+      await useReportStore.getState().reloadAfterMutation();
+    } catch {}
   },
 
   deleteSale: async (id: number) => {
@@ -132,15 +166,15 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     set((state) => ({ sales: state.sales.filter((s) => s.id !== id) }));
     try {
       const { useCustomerStore } = await import('@/store/customerStore');
-      useCustomerStore.getState().reloadAfterSale();
+      await useCustomerStore.getState().reloadAfterSale();
     } catch {}
     try {
       const { useDebtStore } = await import('@/store/debtStore');
-      useDebtStore.getState().reloadAfterSale();
+      await useDebtStore.getState().reloadAfterSale();
     } catch {}
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
     } catch {}
   },
 

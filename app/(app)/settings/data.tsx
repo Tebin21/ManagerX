@@ -16,6 +16,7 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -28,14 +29,19 @@ import { AppHeader } from '@/components/common/AppHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { clearReportsCache, getDatabase } from '@/lib/sqlite';
+import { useRTL } from '@/lib/rtl';
+import { getDatabase } from '@/lib/sqlite';
 import {
   exportBackup,
   validateAndParseBackup,
   performRestore,
   type ManagerXBackup,
 } from '@/lib/backup';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore }     from '@/store/authStore';
+import { useBusinessStore }  from '@/store/businessStore';
+import { useSettingsStore }  from '@/store/settingsStore';
+import { useLanguageStore }  from '@/store/languageStore';
+import { useModuleStore }    from '@/store/moduleStore';
 
 // Expo Go bundles a fixed set of native modules. Custom modules added to
 // package.json (like expo-document-picker) are NOT available there.
@@ -46,14 +52,16 @@ const IS_EXPO_GO = Constants.appOwnership === 'expo';
 export default function DataScreen() {
   const { t }              = useTranslation();
   const { colors, isDark } = useAppTheme();
+  const { flexDirection }  = useRTL();
   const router             = useRouter();
   const signOut            = useAuthStore((s) => s.signOut);
 
   const [backing,          setBacking]          = useState(false);
   const [restoring,        setRestoring]        = useState(false);
-  const [clearing,         setClearing]         = useState(false);
   const [resetting,        setResetting]        = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showResetModal,   setShowResetModal]   = useState(false);
+  const [resetInput,       setResetInput]       = useState('');
   const [pendingBackup,    setPendingBackup]    = useState<ManagerXBackup | null>(null);
   const [dbRecords,        setDbRecords]        = useState<number | null>(null);
 
@@ -180,13 +188,21 @@ export default function DataScreen() {
     setRestoring(true);
     try {
       await performRestore(pendingBackup);
+
+      // Sync all persisted Zustand stores with the newly restored AsyncStorage values.
+      await Promise.all([
+        useBusinessStore.persist.rehydrate(),
+        useSettingsStore.persist.rehydrate(),
+        useLanguageStore.persist.rehydrate(),
+        useModuleStore.persist.rehydrate(),
+      ]);
+
       setShowRestoreModal(false);
       setPendingBackup(null);
-      void loadDbStats();
-      Alert.alert(
-        t('settings.dataScreen.restoreSuccess'),
-        t('settings.dataScreen.restoreSuccessMsg'),
-      );
+
+      // Replace the entire navigation stack so every screen remounts and reloads
+      // its data from the freshly restored SQLite database.
+      router.replace('/');
     } catch {
       Alert.alert(
         t('settings.dataScreen.restoreError'),
@@ -203,73 +219,53 @@ export default function DataScreen() {
     setPendingBackup(null);
   }
 
-  // ── Clear cache ───────────────────────────────────────────────────────────
-
-  function handleClearCache() {
-    Alert.alert(
-      t('settings.dataScreen.confirmClearTitle'),
-      t('settings.dataScreen.confirmClearMsg'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text:  t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setClearing(true);
-            try {
-              await clearReportsCache();
-              Alert.alert(t('settings.dataScreen.done'), t('settings.dataScreen.clearSuccess'));
-            } catch {
-              Alert.alert(t('common.error'), t('settings.dataScreen.clearError'));
-            } finally {
-              setClearing(false);
-            }
-          },
-        },
-      ]
-    );
-  }
-
   // ── Reset app ─────────────────────────────────────────────────────────────
 
   function handleResetApp() {
-    Alert.alert(
-      t('settings.dataScreen.resetConfirmTitle'),
-      t('settings.dataScreen.resetConfirmMsg'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text:  t('settings.dataScreen.resetConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            setResetting(true);
-            try {
-              const db = await getDatabase();
-              for (const table of [
-                'purchase_items', 'purchase_debts', 'debt_payments',
-                'sale_items', 'debts', 'sales', 'purchases',
-                'products', 'customers', 'suppliers', 'expenses',
-                'exchange_rates', 'reports_cache',
-                'invoice_counter', 'purchase_counter',
-                'settings', 'businesses',
-              ]) {
-                await db.runAsync(`DELETE FROM ${table}`);
-              }
-              await AsyncStorage.multiRemove([
-                '@managerx_settings',
-                '@managerx_modules',
-                '@managerx_language',
-              ]);
-              await signOut();
-              router.replace('/(onboarding)/language' as never);
-            } catch {
-              Alert.alert(t('common.error'), t('common.tryAgain'));
-              setResetting(false);
-            }
-          },
-        },
-      ]
-    );
+    setResetInput('');
+    setShowResetModal(true);
+  }
+
+  function handleDismissReset() {
+    if (resetting) return;
+    setShowResetModal(false);
+    setResetInput('');
+  }
+
+  async function executeReset() {
+    setResetting(true);
+    try {
+      const db = await getDatabase();
+      for (const table of [
+        'purchase_items', 'purchase_debts', 'debt_payments',
+        'sale_items', 'debts', 'sales', 'purchases',
+        'products', 'customers', 'suppliers', 'expenses',
+        'exchange_rates', 'reports_cache',
+        'invoice_counter', 'purchase_counter',
+        'inventory_history', 'categories',
+        'settings', 'businesses',
+      ]) {
+        await db.runAsync(`DELETE FROM ${table}`);
+      }
+      // Re-seed rows that must exist for the app to function
+      await db.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+      await db.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+      await db.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
+      await AsyncStorage.multiRemove([
+        '@managerx_business',
+        '@managerx_settings',
+        '@managerx_modules',
+        '@managerx_language',
+      ]);
+      // Clear in-memory business state so isSetupComplete is false immediately.
+      useBusinessStore.getState().clearBusiness();
+      await signOut();
+      router.replace('/(onboarding)/language' as never);
+    } catch {
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+      setResetting(false);
+      setShowResetModal(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -311,17 +307,6 @@ export default function DataScreen() {
           />
         </SettingSection>
 
-        {/* ── Cache ────────────────────────────────────────────────────── */}
-        <SettingSection title={t('settings.dataScreen.cache')}>
-          <SettingRow
-            icon="refresh"
-            label={t('settings.dataScreen.clearCache')}
-            sub={t('settings.dataScreen.clearCacheSub')}
-            onPress={handleClearCache}
-            disabled={clearing}
-          />
-        </SettingSection>
-
         {/* ── Database ─────────────────────────────────────────────────── */}
         <SettingSection title={t('settings.dataScreen.database')}>
           <SettingRow
@@ -360,6 +345,90 @@ export default function DataScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* ── Reset confirmation modal ───────────────────────────────────── */}
+      <Modal
+        transparent
+        visible={showResetModal}
+        animationType="fade"
+        onRequestClose={handleDismissReset}
+        statusBarTranslucent
+      >
+        <View style={styles.overlay}>
+          <View style={[
+            styles.dialog,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderColor:     isDark ? colors.gray200  : 'transparent',
+              borderWidth:     isDark ? 1 : 0,
+            },
+          ]}>
+            <View style={[styles.dialogIconWrap, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="warning" size={28} color="#EF4444" />
+            </View>
+
+            <Text style={[styles.dialogTitle, { color: colors.black }]}>
+              {t('settings.dataScreen.resetModalTitle')}
+            </Text>
+
+            <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
+              {t('settings.dataScreen.resetModalMsg')}
+            </Text>
+
+            <TextInput
+              style={[
+                styles.resetInput,
+                {
+                  borderColor: resetInput.trim().toUpperCase() === 'RESET'
+                    ? colors.error
+                    : colors.gray200,
+                  color: colors.black,
+                  backgroundColor: isDark ? colors.gray50 : colors.gray50,
+                },
+              ]}
+              placeholder={t('settings.dataScreen.resetInputPlaceholder')}
+              placeholderTextColor={colors.gray400}
+              value={resetInput}
+              onChangeText={setResetInput}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!resetting}
+            />
+
+            <View style={[styles.dialogBtns, { flexDirection }]}>
+              <TouchableOpacity
+                style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
+                onPress={handleDismissReset}
+                disabled={resetting}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.btnRestore,
+                  {
+                    backgroundColor: resetInput.trim().toUpperCase() === 'RESET'
+                      ? '#EF4444'
+                      : colors.gray300,
+                  },
+                ]}
+                onPress={executeReset}
+                disabled={resetting || resetInput.trim().toUpperCase() !== 'RESET'}
+                activeOpacity={0.8}
+              >
+                {resetting
+                  ? <ActivityIndicator color="#FFFFFF" size="small" />
+                  : <Text style={styles.btnRestoreText}>{t('settings.dataScreen.resetBtn')}</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Restore confirmation modal ──────────────────────────────────── */}
       <Modal
         transparent
@@ -389,7 +458,7 @@ export default function DataScreen() {
               {t('settings.dataScreen.restoreMsg')}
             </Text>
 
-            <View style={styles.dialogBtns}>
+            <View style={[styles.dialogBtns, { flexDirection }]}>
               <TouchableOpacity
                 style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
                 onPress={handleDismissRestore}
@@ -483,4 +552,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnRestoreText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  resetInput: {
+    width:         '100%',
+    height:        48,
+    borderWidth:   1.5,
+    borderRadius:  12,
+    paddingHorizontal: 14,
+    fontSize:      15,
+    fontWeight:    '600',
+    marginBottom:  20,
+    textAlign:     'center',
+    letterSpacing: 2,
+  },
 });

@@ -28,8 +28,8 @@ if (Platform.OS !== 'web') {
 
 // ─── AppStack ─────────────────────────────────────────────────────────────────
 // Keyed on `language` so the entire navigation tree remounts when the user
-// switches languages.  This forces I18nManager.forceRTL and all t() calls to
-// apply immediately — no app restart required.
+// switches languages, ensuring all t() translation calls re-render immediately
+// — no app restart required.
 
 function AppStack() {
   const { isDark, colors } = useAppTheme();

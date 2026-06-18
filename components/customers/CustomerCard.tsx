@@ -4,7 +4,11 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import type { CustomerWithStats } from '@/types/customers';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   customer: CustomerWithStats;
@@ -12,147 +16,93 @@ interface Props {
 }
 
 export function CustomerCard({ customer, onPress }: Props) {
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const { textAlign, flexDirection } = useRTL();
+  const { chevronForward } = useDirectionalChevron();
   const hasDebt = customer.remainingDebt > 0;
-  const lastDate = customer.lastPurchaseDate
-    ? new Date(customer.lastPurchaseDate).toLocaleDateString()
-    : null;
+  const lastDate = customer.lastPurchaseDate ? formatDateShort(customer.lastPurchaseDate) : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.82}>
-      {/* Avatar + name row */}
-      <View style={styles.topRow}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {customer.name.charAt(0).toUpperCase()}
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.white, flexDirection }]}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      {/* Avatar */}
+      <View style={[styles.avatar, { backgroundColor: colors.softBlue }]}>
+        <Text style={[styles.avatarText, { color: colors.primary }]}>
+          {customer.name.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+
+      {/* Body */}
+      <View style={styles.body}>
+        <View style={[styles.nameRow, { flexDirection }]}>
+          <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>
+            {customer.name}
           </Text>
-        </View>
-        <View style={styles.nameWrap}>
-          <Text style={styles.name} numberOfLines={1}>{customer.name}</Text>
-          {customer.phone ? (
-            <View style={styles.phoneRow}>
-              <Ionicons name="call-outline" size={12} color={Colors.gray400} />
-              <Text style={styles.phone}>{customer.phone}</Text>
+          {hasDebt && (
+            <View style={styles.debtBadge}>
+              <Text style={styles.debtBadgeText}>{t('common.debt')}</Text>
             </View>
-          ) : null}
+          )}
         </View>
-        {hasDebt && (
-          <View style={styles.debtBadge}>
-            <Text style={styles.debtBadgeText}>Debt</Text>
+        {customer.phone ? (
+          <View style={[styles.phoneRow, { flexDirection }]}>
+            <Ionicons name="call-outline" size={12} color={colors.gray400} />
+            <Text style={[styles.phone, { color: colors.gray400, textAlign }]}>{customer.phone}</Text>
           </View>
-        )}
+        ) : null}
+        <Text style={[styles.sub, { color: colors.gray400, textAlign }]}>
+          {customer.saleCount} {t('suppliers.purchases')} · {fmtIQD(customer.totalPurchases)} IQD
+          {hasDebt ? `  ·  ${fmtIQD(customer.remainingDebt)} IQD ${t('customers.remainingDebt').split(' ')[0]}` : ''}
+        </Text>
+        {lastDate ? (
+          <View style={[styles.dateRow, { flexDirection }]}>
+            <Ionicons name="time-outline" size={11} color={colors.gray300} />
+            <Text style={[styles.dateText, { color: colors.gray400, textAlign }]}>
+              {t('suppliers.lastPurchase')}: {lastDate}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Purchases</Text>
-          <Text style={styles.statValue}>{customer.saleCount}</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Total Spent</Text>
-          <Text style={styles.statValue}>{customer.totalPurchases.toLocaleString('en-US')} IQD</Text>
-        </View>
-        {hasDebt && (
-          <>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Remaining</Text>
-              <Text style={[styles.statValue, styles.debtValue]}>
-                {customer.remainingDebt.toLocaleString('en-US')} IQD
-              </Text>
-            </View>
-          </>
-        )}
-      </View>
-
-      {/* Footer */}
-      {lastDate && (
-        <View style={styles.footer}>
-          <Ionicons name="time-outline" size={12} color={Colors.gray400} />
-          <Text style={styles.footerText}>Last purchase: {lastDate}</Text>
-        </View>
-      )}
+      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.card,
-    padding: 16,
-    marginBottom: 10,
-    ...Theme.shadow.card,
-  },
-  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.softBlue,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    marginEnd: 12,
   },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  nameWrap: { flex: 1 },
-  name: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.black,
-    marginBottom: 3,
-  },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  phone: {
-    fontSize: 12,
-    color: Colors.gray500,
-  },
-  debtBadge: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  debtBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: Colors.gray50,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  statItem: { flex: 1, alignItems: 'center' },
-  statLabel: { fontSize: 10, color: Colors.gray400, fontWeight: '600', marginBottom: 2 },
-  statValue: { fontSize: 13, fontWeight: '700', color: Colors.black },
-  debtValue: { color: Colors.warning },
-  statDivider: { width: 1, backgroundColor: Colors.gray200, marginVertical: 4 },
-
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  footerText: {
-    fontSize: 11,
-    color: Colors.gray400,
-  },
+  avatarText: { fontSize: 18, fontWeight: '800' },
+  body:       { flex: 1 },
+  nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  name:       { fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  debtBadge:  { backgroundColor: '#FEF3C7', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  debtBadgeText: { fontSize: 10, fontWeight: '700', color: '#92400E' },
+  phoneRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  phone:      { fontSize: 12 },
+  sub:        { fontSize: 12, marginBottom: 2 },
+  dateRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  dateText:   { fontSize: 11 },
 });

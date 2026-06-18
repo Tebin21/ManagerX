@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Image,
@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -21,14 +24,74 @@ interface Props {
   label?: string;
 }
 
+/**
+ * Copies a picker temp URI to permanent app storage so it survives app restarts.
+ * Falls back gracefully — if it can't copy, throws so the caller can use the temp URI.
+ */
+async function saveImagePermanently(tempUri: string): Promise<string> {
+  const baseDir = FileSystem.documentDirectory;
+  // If documentDirectory is unavailable (e.g. Expo Go on some platforms), use temp URI as-is
+  if (!baseDir) return tempUri;
+
+  const dir = baseDir + 'product_images/';
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+
+  // Strip query params before extracting extension
+  const rawPath = tempUri.split('?')[0];
+  const lastDot = rawPath.lastIndexOf('.');
+  const ext = lastDot !== -1 && lastDot > rawPath.lastIndexOf('/') ? rawPath.slice(lastDot + 1) : 'jpg';
+
+  const dest = `${dir}img_${Date.now()}.${ext}`;
+  await FileSystem.copyAsync({ from: tempUri, to: dest });
+  return dest;
+}
+
 export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
+  const [showModal, setShowModal] = useState(false);
 
-  const pickImage = useCallback(async () => {
+  const pickFromCamera = useCallback(async () => {
+    setShowModal(false);
     try {
+      const ImagePicker = await import('expo-image-picker');
+
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('inventory.cameraPermDenied'));
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const tempUri = result.assets[0].uri;
+      try {
+        const permanentUri = await saveImagePermanently(tempUri);
+        onSelect(permanentUri);
+      } catch (saveErr) {
+        console.warn('[ProductImagePicker] permanent save skipped, using temp URI:', saveErr);
+        onSelect(tempUri);
+      }
+    } catch (err) {
+      console.error('[ProductImagePicker] camera error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    }
+  }, [onSelect, t]);
+
+  const pickFromGallery = useCallback(async () => {
+    setShowModal(false);
+    try {
+      // Use the picker directly — expo-image-picker handles permissions internally
       const { launchImageLibraryAsync } = await import('expo-image-picker');
+
       const result = await launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -36,10 +99,19 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
         quality: 0.7,
         base64: false,
       });
-      if (!result.canceled && result.assets[0]) {
-        onSelect(result.assets[0].uri);
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const tempUri = result.assets[0].uri;
+      try {
+        const permanentUri = await saveImagePermanently(tempUri);
+        onSelect(permanentUri);
+      } catch (saveErr) {
+        console.warn('[ProductImagePicker] permanent save skipped, using temp URI:', saveErr);
+        onSelect(tempUri);
       }
-    } catch {
+    } catch (err) {
+      console.error('[ProductImagePicker] gallery error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
     }
   }, [onSelect, t]);
@@ -62,7 +134,7 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
             {/* Change button overlay */}
             <TouchableOpacity
               style={[styles.changeBtn, { backgroundColor: colors.primary }]}
-              onPress={pickImage}
+              onPress={() => setShowModal(true)}
               activeOpacity={0.85}
             >
               <Ionicons name="camera" size={14} color="#fff" />
@@ -75,7 +147,7 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
               styles.placeholder,
               { backgroundColor: colors.gray100, borderColor: colors.gray200 },
             ]}
-            onPress={pickImage}
+            onPress={() => setShowModal(true)}
             activeOpacity={0.8}
           >
             <Ionicons name="image-outline" size={26} color={colors.gray400} />
@@ -103,6 +175,60 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
           </Text>
         )}
       </View>
+
+      {/* ── Source selection bottom sheet ── */}
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setShowModal(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: colors.white }]}>
+            <Text style={[styles.sheetTitle, { color: colors.gray500 }]}>
+              {t('inventory.imageSource')}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.sheetOption, { borderTopColor: colors.gray100 }]}
+              onPress={pickFromCamera}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.sheetIconWrap, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.sheetOptionText, { color: colors.black }]}>
+                {t('inventory.takePhoto')}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.sheetOption, { borderTopColor: colors.gray100 }]}
+              onPress={pickFromGallery}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.sheetIconWrap, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name="images-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.sheetOptionText, { color: colors.black }]}>
+                {t('inventory.chooseFromGallery')}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderTopColor: colors.gray100 }]}
+              onPress={() => setShowModal(false)}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.cancelText, { color: colors.gray500 }]}>
+                {t('common.cancel')}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -172,4 +298,55 @@ const styles = StyleSheet.create({
   removeBtnText: { fontSize: 13, fontWeight: '600' },
 
   hint: { fontSize: 12, flex: 1, flexWrap: 'wrap' },
+
+  /* Bottom sheet modal */
+  backdrop: {
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent:  'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius:  20,
+    borderTopRightRadius: 20,
+    paddingBottom:        32,
+    overflow:             'hidden',
+  },
+  sheetTitle: {
+    fontSize:     12,
+    fontWeight:   '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    textAlign:    'center',
+    paddingVertical: 14,
+  },
+  sheetOption: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            14,
+    paddingHorizontal: 20,
+    paddingVertical:   16,
+    borderTopWidth: 1,
+  },
+  sheetIconWrap: {
+    width:        40,
+    height:       40,
+    borderRadius: 10,
+    alignItems:   'center',
+    justifyContent: 'center',
+  },
+  sheetOptionText: {
+    flex:       1,
+    fontSize:   16,
+    fontWeight: '500',
+  },
+  cancelBtn: {
+    alignItems:     'center',
+    paddingVertical: 16,
+    borderTopWidth:  1,
+    marginTop:       4,
+  },
+  cancelText: {
+    fontSize:   16,
+    fontWeight: '500',
+  },
 });

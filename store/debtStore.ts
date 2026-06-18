@@ -15,8 +15,8 @@ interface DebtState {
   isLoading: boolean;
   loadAll: () => Promise<void>;
   reloadAfterSale: () => Promise<void>;
-  paySalesDebt: (id: number, amount: number) => Promise<void>;
-  payPurchaseDebt: (id: number, amount: number) => Promise<void>;
+  paySalesDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
+  payPurchaseDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
   searchSalesDebts: (q: string) => SalesDebtDetail[];
   searchPurchaseDebts: (q: string) => PurchaseDebt[];
 }
@@ -55,21 +55,29 @@ export const useDebtStore = create<DebtState>((set, get) => ({
     }
   },
 
-  paySalesDebt: async (id: number, amount: number) => {
-    await addPaymentToDebt(id, amount);
+  paySalesDebt: async (id: number, amount: number, paymentDate?: string) => {
+    await addPaymentToDebt(id, amount, paymentDate);
     await get().reloadAfterSale();
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
     } catch {}
   },
 
-  payPurchaseDebt: async (id: number, amount: number) => {
-    await addPaymentToPurchaseDebt(id, amount);
+  payPurchaseDebt: async (id: number, amount: number, paymentDate?: string) => {
+    await addPaymentToPurchaseDebt(id, amount, paymentDate);
     await get().reloadAfterSale();
     try {
       const { useReportStore } = await import('@/store/reportStore');
-      useReportStore.getState().reload();
+      await useReportStore.getState().reloadAfterMutation();
+    } catch {}
+    try {
+      const { useInventoryStore } = await import('@/store/inventoryStore');
+      await useInventoryStore.getState().loadInventory();
+    } catch {}
+    try {
+      const { usePurchaseStore } = await import('@/store/purchaseStore');
+      await usePurchaseStore.getState().loadPurchases();
     } catch {}
   },
 

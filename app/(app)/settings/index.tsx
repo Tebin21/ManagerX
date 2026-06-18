@@ -1,8 +1,7 @@
-import React, { useState, type ComponentProps } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
-  Switch,
   StyleSheet,
   Modal,
   TouchableOpacity,
@@ -19,32 +18,35 @@ import { SettingRow } from '@/components/settings/SettingRow';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
-import { useModuleStore } from '@/store/moduleStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
-import { useRTL } from '@/lib/rtl';
-import { MODULES } from '@/constants/config';
 import { Colors } from '@/constants/colors';
+import { fmtExchangeRate } from '@/utils/formatters';
+import { useRTL } from '@/lib/rtl';
 
 export default function SettingsScreen() {
   const router  = useRouter();
   const { t } = useTranslation();
-  const { isRTL } = useRTL();
   const { colors, isDark } = useAppTheme();
   const business   = useBusinessStore();
-  const { modules, toggleModule } = useModuleStore();
   const isDarkMode   = useSettingsStore((s) => s.isDarkMode);
-  const pinEnabled   = useSettingsStore((s) => s.pinEnabled);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const setDarkMode  = useSettingsStore((s) => s.setDarkMode);
+  const setAccentColor = useSettingsStore((s) => s.setAccentColor);
   const language     = useLanguageStore((s) => s.language);
+  const setLanguage  = useLanguageStore((s) => s.setLanguage);
   const signOut      = useAuthStore((s) => s.signOut);
 
+  const { flexDirection } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut,    setIsLoggingOut]    = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await signOut();
+    setLanguage('en');
+    setDarkMode(false);
+    setAccentColor(null);
     // Replace the entire stack — user cannot navigate back into the app
     router.replace('/(onboarding)/login' as never);
   };
@@ -70,7 +72,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="swap-horizontal"
             label={t('settings.exchangeRate')}
-            sub={`1 USD = ${exchangeRate.toLocaleString('en-US')} IQD`}
+            sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
             onPress={() => router.push('/(app)/settings/currency' as never)}
           />
           <SettingRow
@@ -86,41 +88,21 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(app)/settings/appearance' as never)}
           />
           <SettingRow
-            icon="notifications"
-            label={t('settings.notifications')}
-            sub={t('settings.notificationsSub')}
-            onPress={() => router.push('/(app)/settings/notifications' as never)}
-          />
-        </SettingSection>
-
-        {/* Security */}
-        <SettingSection title={t('settings.security')}>
-          <SettingRow
-            icon="lock-closed"
-            label={t('settings.pinLock')}
-            sub={t(pinEnabled ? 'settings.pinEnabled' : 'settings.pinDisabled')}
-            onPress={() => router.push('/(app)/settings/security' as never)}
+            icon="color-palette"
+            label={t('settings.themeColors')}
+            sub={t('settings.themeColorsSub')}
+            onPress={() => router.push('/(app)/settings/theme' as never)}
           />
         </SettingSection>
 
         {/* Modules */}
         <SettingSection title={t('settings.modules')}>
-          {MODULES.map((mod) => (
-            <View key={mod.id} style={[styles.moduleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.moduleIcon, { backgroundColor: colors.softBlue }]}>
-                <Ionicons name={mod.icon as ComponentProps<typeof Ionicons>['name']} size={16} color={colors.primary} />
-              </View>
-              <Text style={[styles.moduleLabel, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
-                {t(`modules.${mod.id}.title`)}
-              </Text>
-              <Switch
-                value={modules[mod.id]?.enabled ?? true}
-                onValueChange={() => toggleModule(mod.id)}
-                trackColor={{ false: colors.gray200, true: colors.primary + '55' }}
-                thumbColor={modules[mod.id]?.enabled ? colors.primary : colors.gray300}
-              />
-            </View>
-          ))}
+          <SettingRow
+            icon="grid"
+            label={t('settings.modules')}
+            sub={t('settings.modulesSub')}
+            onPress={() => router.push('/(app)/settings/modules' as never)}
+          />
         </SettingSection>
 
         {/* Data */}
@@ -191,7 +173,7 @@ export default function SettingsScreen() {
             </Text>
 
             {/* Buttons */}
-            <View style={styles.dialogBtns}>
+            <View style={[styles.dialogBtns, { flexDirection }]}>
               <TouchableOpacity
                 style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
                 onPress={() => setShowLogoutModal(false)}
@@ -227,11 +209,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  gradHeader:   { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:         { padding: 16, paddingTop: 8 },
-  moduleRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  moduleIcon:   { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  moduleLabel:  { flex: 1, fontSize: 14, fontWeight: '600' },
   logoutSpacer: { height: 8 },
 
   // Modal overlay

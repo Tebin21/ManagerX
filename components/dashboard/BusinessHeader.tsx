@@ -3,22 +3,29 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useBusinessStore } from '@/store/businessStore';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { BUSINESS_TYPES, BusinessType } from '@/constants/config';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { BUSINESS_TYPES } from '@/constants/config';
+
+function resolveType(type: string): { emoji: string; label: string } | null {
+  if (!type?.trim()) return null;
+  // Only predefined chip IDs get an emoji. Free-form typed text gets none.
+  const match = BUSINESS_TYPES.find((t) => t.id === type);
+  if (match) return { emoji: match.emoji, label: match.label };
+  return { emoji: '', label: type.trim() };
+}
 
 export function BusinessHeader() {
   const { name, type, phone, address, logoUri } = useBusinessStore();
+  const { colors: themeColors } = useAppTheme();
 
-  const businessType = BUSINESS_TYPES.find((t) => t.id === type);
-  const typeEmoji = businessType?.emoji ?? '🏢';
-  const typeName = businessType
-    ? businessType.labelKey.split('.').pop()?.replace(/([A-Z])/g, ' $1').trim()
-    : '';
+  const resolved = resolveType(type);
+  // Logo placeholder shows the predefined emoji when available, otherwise a generic building.
+  const typeEmoji = resolved?.emoji || '🏢';
 
   return (
     <LinearGradient
-      colors={[Colors.gradientStart, Colors.gradientMid]}
+      colors={[themeColors.gradientStart, themeColors.gradientMid]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.gradient}
@@ -39,9 +46,11 @@ export function BusinessHeader() {
             <Text style={styles.businessName} numberOfLines={1}>
               {name || 'My Business'}
             </Text>
-            {typeName ? (
+            {resolved ? (
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>{typeEmoji} {typeName}</Text>
+                <Text style={styles.typeText}>
+                  {resolved.emoji ? `${resolved.emoji} ${resolved.label}` : resolved.label}
+                </Text>
               </View>
             ) : null}
             {phone ? (
@@ -84,12 +93,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   logoContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 94,
+    height: 94,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   logo: {
     width: '100%',
@@ -103,7 +112,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoEmoji: {
-    fontSize: 30,
+    fontSize: 40,
   },
   info: {
     flex: 1,

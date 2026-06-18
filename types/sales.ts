@@ -20,11 +20,16 @@ export interface Product {
   updatedAt: string;
 }
 
+export type DiscountType = 'percentage' | 'amount';
+export type GlobalDiscountType = 'none' | 'percentage' | 'amount';
+
 export interface CartItem {
   product: Product;
   quantity: number;
   sellingPrice: number;
   discount: number;
+  discountType: DiscountType;
+  discountPct: number;
   lineTotal: number;
   hasLossWarning: boolean;
 }
@@ -35,6 +40,7 @@ export interface CustomerInput {
   address: string;
   warranty: string;
   notes: string;
+  selectedCustomerId?: number;
 }
 
 export interface SaleItem {
@@ -63,13 +69,36 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   subtotal: number;
   discountTotal: number;
+  globalDiscountType: GlobalDiscountType;
+  globalDiscount: number;
   grandTotal: number;
   paidAmount: number;
   remainingDebt: number;
   status: SaleStatus;
+  exchangeRateUsed: number;
+  date: string;
   createdAt: string;
   updatedAt: string;
   items?: SaleItem[];
+}
+
+export interface UpdateSaleCompleteInput {
+  customerId?: number | null;
+  customerName: string;
+  customerPhone: string;
+  customerAddress?: string | null;
+  warranty?: string | null;
+  notes?: string | null;
+  paymentMethod: PaymentMethod;
+  subtotal: number;
+  discountTotal: number;
+  globalDiscountType: GlobalDiscountType;
+  globalDiscount: number;
+  grandTotal: number;
+  paidAmount: number;
+  remainingDebt: number;
+  date?: string;
+  items: Array<Omit<SaleItem, 'id' | 'saleId'>>;
 }
 
 export interface Debt {

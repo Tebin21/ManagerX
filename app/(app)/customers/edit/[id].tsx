@@ -18,7 +18,7 @@ export default function EditCustomerScreen() {
   const router  = useRouter();
   const { id }  = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
   const { colors } = useAppTheme();
   const { customers, editCustomer } = useCustomerStore();
 
@@ -48,8 +48,15 @@ export default function EditCustomerScreen() {
         address: address.trim() || undefined, notes: notes.trim() || undefined,
       });
       router.back();
-    } catch {
-      Alert.alert(t('common.error'), t('customers.errorSave'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'DUPLICATE_NAME') {
+        Alert.alert(t('common.error'), t('customers.duplicateName'));
+      } else if (msg.startsWith('DUPLICATE_PHONE:')) {
+        Alert.alert(t('common.error'), t('customers.duplicatePhone'));
+      } else {
+        Alert.alert(t('common.error'), t('customers.errorSave'));
+      }
     } finally { setSaving(false); }
   };
 
@@ -114,7 +121,7 @@ export default function EditCustomerScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: colors.primary }, saving && styles.saveBtnDisabled]}
+          style={[styles.saveBtn, { backgroundColor: colors.primary, flexDirection }, saving && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={saving}
           activeOpacity={0.85}

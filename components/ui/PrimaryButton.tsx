@@ -6,7 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 
 interface Props {
@@ -26,6 +26,7 @@ export function PrimaryButton({
   variant = 'primary',
   fullWidth = true,
 }: Props) {
+  const { colors } = useAppTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -41,7 +42,7 @@ export function PrimaryButton({
   };
 
   const isOutline = variant === 'outline';
-  const isGhost = variant === 'ghost';
+  const isGhost   = variant === 'ghost';
 
   return (
     <Animated.View style={[animatedStyle, fullWidth && { width: '100%' }]}>
@@ -53,21 +54,21 @@ export function PrimaryButton({
         activeOpacity={0.9}
         style={[
           styles.button,
-          isOutline && styles.outline,
-          isGhost && styles.ghost,
+          { backgroundColor: colors.primary },
+          isOutline && [styles.outline, { borderColor: colors.primary, backgroundColor: 'transparent' }],
+          isGhost   && styles.ghost,
           (disabled || loading) && styles.disabled,
-          !Theme.shadow.button && {},
           variant === 'primary' && Theme.shadow.button,
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={isOutline || isGhost ? Colors.primary : '#fff'} size="small" />
+          <ActivityIndicator color={isOutline || isGhost ? colors.primary : '#fff'} size="small" />
         ) : (
           <Text
             style={[
               styles.label,
-              isOutline && styles.outlineLabel,
-              isGhost && styles.ghostLabel,
+              isOutline && [styles.outlineLabel, { color: colors.primary }],
+              isGhost   && styles.ghostLabel,
             ]}
           >
             {label}
@@ -80,17 +81,14 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    height: Theme.button.height,
-    borderRadius: Theme.button.borderRadius,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height:            Theme.button.height,
+    borderRadius:      Theme.button.borderRadius,
+    alignItems:        'center',
+    justifyContent:    'center',
     paddingHorizontal: 24,
   },
   outline: {
-    backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: Colors.primary,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -99,16 +97,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   label: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color:         '#FFFFFF',
+    fontSize:      16,
+    fontWeight:    '600',
     letterSpacing: 0.3,
   },
-  outlineLabel: {
-    color: Colors.primary,
-  },
+  outlineLabel: {},
   ghostLabel: {
-    color: Colors.gray500,
+    color:    '#64748B',
     fontSize: 14,
   },
 });

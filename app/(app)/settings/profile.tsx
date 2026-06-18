@@ -12,6 +12,7 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { LogoUploader } from '@/components/setup/LogoUploader';
+import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
 import { useBusinessStore } from '@/store/businessStore';
 import { saveBusiness } from '@/lib/sqlite';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -25,10 +26,11 @@ export default function BusinessProfileScreen() {
   const { colors } = useAppTheme();
   const business = useBusinessStore();
 
-  const [name, setName]       = useState(business.name ?? '');
-  const [phone, setPhone]     = useState(business.phone ?? '');
-  const [address, setAddress] = useState(business.address ?? '');
-  const [logoUri, setLogoUri] = useState<string | null>(business.logoUri);
+  const [name, setName]             = useState(business.name ?? '');
+  const [businessType, setBusinessType] = useState(business.type ?? '');
+  const [phone, setPhone]           = useState(business.phone ?? '');
+  const [address, setAddress]       = useState(business.address ?? '');
+  const [logoUri, setLogoUri]       = useState<string | null>(business.logoUri);
   const [saving, setSaving]   = useState(false);
 
   async function handleSave() {
@@ -40,14 +42,14 @@ export default function BusinessProfileScreen() {
     try {
       await saveBusiness({
         name: name.trim(),
-        type: business.type ?? '',
+        type: businessType.trim(),
         phone: phone.trim(),
         address: address.trim(),
         logoPath: logoUri ?? undefined,
       });
       business.setBusiness({
         name: name.trim(),
-        type: business.type,
+        type: businessType.trim(),
         phone: phone.trim(),
         address: address.trim(),
         logoUri,
@@ -83,6 +85,10 @@ export default function BusinessProfileScreen() {
               placeholder={t('settings.profileScreen.namePlaceholder')}
               value={name}
               onChangeText={setName}
+            />
+            <BusinessTypeSelector
+              value={businessType}
+              onChangeText={setBusinessType}
             />
             <AppTextInput
               label={t('settings.profileScreen.phone')}

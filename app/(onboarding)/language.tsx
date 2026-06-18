@@ -11,12 +11,13 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useLanguageStore } from '@/store/languageStore';
 import i18n from '@/lib/i18n';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 type Lang = 'en' | 'ku';
 
@@ -28,7 +29,9 @@ const LANGUAGES: { id: Lang; native: string; english: string; flag: string; rtl:
 export default function LanguageScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useAppTheme();
   const { setLanguage } = useLanguageStore();
+  const { flexDirection } = useRTL();
   const [selected, setSelected] = useState<Lang | null>(null);
 
   const handleConfirm = async () => {
@@ -43,7 +46,7 @@ export default function LanguageScreen() {
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
-        colors={[Colors.gradientStart, Colors.gradientMid]}
+        colors={[colors.gradientStart, colors.gradientMid]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -77,27 +80,21 @@ export default function LanguageScreen() {
               >
                 <MotiView
                   animate={{
-                    borderColor: isSelected ? Colors.primary : Colors.gray200,
-                    backgroundColor: isSelected ? Colors.softBlue : '#FFFFFF',
+                    borderColor: isSelected ? colors.primary : Colors.gray200,
+                    backgroundColor: isSelected ? colors.softBlue : '#FFFFFF',
                     scale: isSelected ? 1.01 : 1,
                   }}
                   transition={{ type: 'spring', damping: 18, stiffness: 200 }}
-                  style={styles.card}
+                  style={[styles.card, { flexDirection }]}
                 >
-                  <Text style={styles.flag}>{lang.flag}</Text>
                   <View style={styles.cardText}>
-                    <Text style={[styles.nativeName, isSelected && styles.selectedText]}>
+                    <Text style={[styles.nativeName, { color: isSelected ? colors.primary : colors.darkBlue }]}>
                       {lang.native}
                     </Text>
                     <Text style={styles.englishName}>{lang.english}</Text>
-                    {lang.rtl && (
-                      <View style={styles.rtlTag}>
-                        <Text style={styles.rtlTagText}>{t('settings.languageScreen.rtlNote')}</Text>
-                      </View>
-                    )}
                   </View>
                   {isSelected && (
-                    <View style={styles.checkBadge}>
+                    <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
                       <Text style={styles.checkText}>✓</Text>
                     </View>
                   )}
@@ -115,7 +112,6 @@ export default function LanguageScreen() {
           />
         </View>
 
-        <SupportFooter />
       </ScrollView>
     </View>
   );
@@ -156,9 +152,6 @@ const styles = StyleSheet.create({
     ...Theme.shadow.card,
     gap: 16,
   },
-  flag: {
-    fontSize: 40,
-  },
   cardText: {
     flex: 1,
     gap: 3,
@@ -166,33 +159,16 @@ const styles = StyleSheet.create({
   nativeName: {
     fontSize: 20,
     fontWeight: '700',
-    color: Colors.darkBlue,
   },
-  selectedText: {
-    color: Colors.primary,
-  },
+  selectedText: {},
   englishName: {
     fontSize: 13,
     color: Colors.gray500,
-  },
-  rtlTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.lightBlue,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
-  rtlTagText: {
-    fontSize: 10,
-    color: Colors.primary,
-    fontWeight: '600',
   },
   checkBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

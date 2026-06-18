@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,14 +12,16 @@ interface Props {
   icon: ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
 }
 
-export function HeaderActionButton({ icon, onPress, disabled = false }: Props) {
+export function HeaderActionButton({ icon, onPress, disabled = false, loading = false }: Props) {
   const scale = useSharedValue(1);
+  const isDisabled = disabled || loading;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity:   disabled ? 0.45 : 1,
+    opacity:   isDisabled ? 0.55 : 1,
   }));
 
   return (
@@ -27,7 +29,7 @@ export function HeaderActionButton({ icon, onPress, disabled = false }: Props) {
       <TouchableOpacity
         onPress={onPress}
         onPressIn={() => {
-          scale.value = withSpring(0.87, { damping: 18, stiffness: 380 });
+          if (!isDisabled) scale.value = withSpring(0.87, { damping: 18, stiffness: 380 });
         }}
         onPressOut={() => {
           scale.value = withSpring(1, { damping: 18, stiffness: 380 });
@@ -35,9 +37,12 @@ export function HeaderActionButton({ icon, onPress, disabled = false }: Props) {
         style={styles.btn}
         hitSlop={10}
         activeOpacity={0.85}
-        disabled={disabled}
+        disabled={isDisabled}
       >
-        <Ionicons name={icon} size={20} color="#FFFFFF" />
+        {loading
+          ? <ActivityIndicator size="small" color="#FFFFFF" />
+          : <Ionicons name={icon} size={20} color="#FFFFFF" />
+        }
       </TouchableOpacity>
     </Animated.View>
   );

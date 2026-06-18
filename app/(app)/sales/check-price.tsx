@@ -3,16 +3,17 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 
 import { AppHeader } from '@/components/common/AppHeader';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { CheckPriceRow } from '@/components/sales/CheckPriceRow';
 import { ProductSearchBar } from '@/components/sales/ProductSearchBar';
 import { useTranslation } from 'react-i18next';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
 
 export default function CheckPriceScreen() {
   const { t } = useTranslation();
+  const { textAlign } = useRTL();
   const { colors } = useAppTheme();
   const { searchProducts, categories, loadInventory, isLoading } = useInventoryStore();
 
@@ -45,7 +46,7 @@ export default function CheckPriceScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: colors.gray500 }]}>
+            <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>
               {isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('sales.checkPrice')}
             </Text>
             {!isLoading && !query && (
@@ -53,7 +54,6 @@ export default function CheckPriceScreen() {
             )}
           </View>
         }
-        ListFooterComponent={results.length > 0 ? <SupportFooter /> : null}
       />
     </View>
   );

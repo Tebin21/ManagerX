@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, I18nManager } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { BackButton } from './BackButton';
-import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 interface Props {
   title: string;
@@ -13,7 +13,7 @@ interface Props {
   onBack?: () => void;
   /** Optional content rendered inside the gradient below the title row (e.g. step indicators) */
   children?: React.ReactNode;
-  /** Override gradient colours — defaults to the standard blue */
+  /** Override gradient colours — defaults to the theme gradient */
   gradient?: [string, string];
 }
 
@@ -35,20 +35,15 @@ export function AppHeader({
   gradient,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const gradColors = gradient ?? [Colors.gradientStart, Colors.gradientMid];
-
-  // Keep the [back | title | action] layout physically left-to-right regardless
-  // of whether I18nManager has RTL forced (Kurdish mode).  Using 'row-reverse'
-  // when RTL is active cancels the automatic mirroring that React Native applies
-  // to 'row' flex containers, so the back button always appears on the left.
-  const rowDirection = I18nManager.isRTL ? 'row-reverse' : 'row';
+  const { colors } = useAppTheme();
+  const gradColors = gradient ?? [colors.gradientStart, colors.gradientMid];
 
   return (
     <LinearGradient
       colors={gradColors}
       style={[styles.gradient, { paddingTop: insets.top }]}
     >
-      <View style={[styles.row, { flexDirection: rowDirection }]}>
+      <View style={styles.row}>
         {/* Always physically LEFT — back button or empty spacer */}
         <View style={styles.side}>
           {showBack ? <BackButton onPress={onBack} /> : null}
@@ -77,6 +72,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   row: {
+    flexDirection:     'row',
     alignItems:        'center',
     paddingHorizontal: 12,
     paddingVertical:   14,

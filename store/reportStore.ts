@@ -3,7 +3,8 @@ import type {
   DateRange, DateRangeKey,
   SalesReportData, PurchaseReportData, ProfitLossData,
   InventoryReportSummary, DebtReportData, ProfitableProduct,
-  DailyRevenuePoint, Expense, RevenuePoint,
+  DailyRevenuePoint, Expense, RevenuePoint, FinancialSummaryCards,
+  NetCashBalanceData,
 } from '@/types/reports';
 
 function buildRange(
@@ -34,6 +35,7 @@ function buildRange(
 interface ReportState {
   dateRange: DateRange;
   isLoading: boolean;
+  financialCards: FinancialSummaryCards | null;
   salesData:     SalesReportData     | null;
   purchaseData:  PurchaseReportData  | null;
   plData:        ProfitLossData      | null;
@@ -43,15 +45,19 @@ interface ReportState {
   monthlyRevenue: RevenuePoint[];
   dailyChart:    DailyRevenuePoint[];
   expenses:      Expense[];
+  cashBalance:   NetCashBalanceData  | null;
+  dashboardExpenseTotals: { today: number; weekly: number; monthly: number; yearly: number } | null;
 
-  setDateRange: (key: DateRangeKey, from?: string, to?: string) => void;
-  reload:       () => Promise<void>;
-  loadExpenses: () => Promise<void>;
+  setDateRange:          (key: DateRangeKey, from?: string, to?: string) => void;
+  reload:                () => Promise<void>;
+  reloadAfterMutation:   () => Promise<void>;
+  loadExpenses:          () => Promise<void>;
 }
 
 export const useReportStore = create<ReportState>((set, get) => ({
-  dateRange:     buildRange('month'),
-  isLoading:     false,
+  dateRange:      buildRange('today'),
+  isLoading:      false,
+  financialCards: null,
   salesData:     null,
   purchaseData:  null,
   plData:        null,
@@ -61,6 +67,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
   monthlyRevenue: [],
   dailyChart:    [],
   expenses:      [],
+  cashBalance:   null,
+  dashboardExpenseTotals: null,
 
   setDateRange: (key, from, to) => {
     set({ dateRange: buildRange(key, from, to) });
@@ -73,6 +81,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     const cacheKey = `report_${get().dateRange.key}_${from.slice(0,10)}_${to.slice(0,10)}`;
     try {
       const {
+        getFinancialSummaryCards,
         getSalesReportData,
         getPurchaseReportData,
         getProfitLossData,
@@ -82,6 +91,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
         getRevenueByMonth,
         getDailyRevenueChart,
         getAllExpenses,
+        getNetCashBalance,
+        getDashboardExpenseTotals,
         getCachedReport,
         setCachedReport,
       } = await import('@/lib/sqlite');
@@ -94,6 +105,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
       }
 
       const [
+        financialCards,
         salesData,
         purchaseData,
         plData,
@@ -103,7 +115,10 @@ export const useReportStore = create<ReportState>((set, get) => ({
         monthlyRevenue,
         dailyChart,
         expenses,
+        cashBalance,
+        dashboardExpenseTotals,
       ] = await Promise.all([
+        getFinancialSummaryCards(from, to),
         getSalesReportData(from, to),
         getPurchaseReportData(from, to),
         getProfitLossData(from, to),
@@ -113,9 +128,12 @@ export const useReportStore = create<ReportState>((set, get) => ({
         getRevenueByMonth(6),
         getDailyRevenueChart(30),
         getAllExpenses(from, to),
+        getNetCashBalance(),
+        getDashboardExpenseTotals(),
       ]);
 
       const newState = {
+        financialCards,
         salesData,
         purchaseData,
         plData,
@@ -125,6 +143,8 @@ export const useReportStore = create<ReportState>((set, get) => ({
         monthlyRevenue,
         dailyChart,
         expenses,
+        cashBalance,
+        dashboardExpenseTotals,
       };
 
       set({ ...newState, isLoading: false });
@@ -137,6 +157,14 @@ export const useReportStore = create<ReportState>((set, get) => ({
       console.error('Failed to reload reports:', err);
       set({ isLoading: false });
     }
+  },
+
+  reloadAfterMutation: async () => {
+    try {
+      const { clearReportsCache } = await import('@/lib/sqlite');
+      await clearReportsCache();
+    } catch { /* non-critical */ }
+    await get().reload();
   },
 
   loadExpenses: async () => {

@@ -55,9 +55,9 @@ const styles = StyleSheet.create({
     borderRadius:   10,
     alignItems:     'center',
     justifyContent: 'center',
-    marginRight:    12,
+    marginEnd:      12,
   },
-  content: { flex: 1, marginRight: 8 },
+  content: { flex: 1, marginEnd: 8 },
   label:   { fontSize: 15, fontWeight: '600' },
   sub:     { fontSize: 12, marginTop: 1 },
 });

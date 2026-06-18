@@ -4,6 +4,7 @@ import type {
   RevenuePoint, Expense,
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
+import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
 
 interface BusinessInfo {
   name: string;
@@ -32,25 +33,9 @@ function escHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function fmtDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
-
-function fmtDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  });
-}
 
 function colorVal(n: number): string {
-  return n >= 0 ? '#16A34A' : '#DC2626';
+  return n >= 0 ? '#059669' : '#DC2626';
 }
 
 export function buildFullReportHTML(
@@ -58,130 +43,210 @@ export function buildFullReportHTML(
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'ltr'
 ): string {
-  const lang = dir === 'rtl' ? 'ku' : 'en';
+  const lang = 'en';
   const { salesData, purchaseData, plData, inventoryData, debtData,
     topProfitable, monthlyRevenue, expenses, dateRange } = data;
 
   const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" style="height:56px;object-fit:contain;margin-bottom:8px;" />`
+    ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
     : '';
 
   const periodLabel = dateRange.key === 'custom'
     ? `${fmtDate(dateRange.from)} – ${fmtDate(dateRange.to)}`
     : escHtml(dateRange.label);
 
-  // ── Monthly revenue table ──────────────────────────────────────────────────
+  // ── Monthly revenue rows ───────────────────────────────────────────────────
   const monthlyRows = monthlyRevenue.length === 0
-    ? `<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:12px;">No data</td></tr>`
+    ? `<tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px;font-style:italic;">No data</td></tr>`
     : monthlyRevenue.map((r) => `
         <tr>
           <td>${escHtml(r.period)}</td>
-          <td style="font-weight:600;">${fmt(r.revenue)} IQD</td>
-          <td style="color:${colorVal(r.profit)};font-weight:600;">${fmt(r.profit)} IQD</td>
-          <td>${r.sales}</td>
+          <td style="font-weight:600;">${fmtIQD(r.revenue)} IQD</td>
+          <td style="color:${colorVal(r.profit)};font-weight:600;">${fmtIQD(r.profit)} IQD</td>
+          <td style="color:#64748B;">${r.sales}</td>
         </tr>
       `).join('');
 
-  // ── Top profitable products table ──────────────────────────────────────────
+  // ── Top profitable products rows ───────────────────────────────────────────
   const profRows = topProfitable.length === 0
-    ? `<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:12px;">No data</td></tr>`
+    ? `<tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px;font-style:italic;">No data</td></tr>`
     : topProfitable.map((p, i) => `
         <tr>
-          <td><strong>#${i + 1}</strong></td>
-          <td>${escHtml(p.productName)}</td>
-          <td style="color:${colorVal(p.grossProfit)};font-weight:600;">${fmt(p.grossProfit)} IQD</td>
-          <td>${p.marginPct.toFixed(1)}%</td>
+          <td style="font-weight:800;color:#64748B;">#${i + 1}</td>
+          <td style="font-weight:600;">${escHtml(p.productName)}</td>
+          <td style="color:${colorVal(p.grossProfit)};font-weight:700;">${fmtIQD(p.grossProfit)} IQD</td>
+          <td style="color:#64748B;">${p.marginPct.toFixed(1)}%</td>
         </tr>
       `).join('');
 
   // ── Expense rows ───────────────────────────────────────────────────────────
   const expRows = expenses.length === 0
-    ? `<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:12px;">No expenses recorded</td></tr>`
+    ? `<tr><td colspan="4" style="text-align:center;color:#94A3B8;padding:16px;font-style:italic;">No expenses recorded</td></tr>`
     : expenses.map((e) => `
         <tr>
-          <td>${fmtDate(e.date)}</td>
-          <td><span style="background:#F3F4F6;padding:2px 8px;border-radius:12px;font-size:11px;">${escHtml(e.category)}</span></td>
-          <td>${e.note ? escHtml(e.note) : '&mdash;'}</td>
-          <td style="font-weight:600;color:#DC2626;">${fmt(e.amount)} IQD</td>
+          <td style="color:#64748B;">${fmtDate(e.date)}</td>
+          <td><span style="background:#F1F5F9;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;color:#475569;">${escHtml(e.category)}</span></td>
+          <td style="color:#64748B;">${e.note ? escHtml(e.note) : '&mdash;'}</td>
+          <td style="font-weight:700;color:#DC2626;text-align:right;">${fmtIQD(e.amount)} IQD</td>
         </tr>
       `).join('');
+
+  const expTotal = expenses.reduce((s, e) => s + e.amount, 0);
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Business Report &mdash; ${escHtml(business.name)}</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; background:#F9FAFB; color:#111827; }
-    .page { max-width:720px; margin:0 auto; background:#fff; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      direction: ltr;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: #F0F4F8;
+      color: #1E293B;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    .page { max-width: 720px; margin: 0 auto; background: #fff; }
 
-    /* Header */
-    .header { background:linear-gradient(135deg,#1E40AF 0%,#3B82F6 100%); color:#fff; padding:32px 28px 28px; }
-    .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
-    .biz-name { font-size:22px; font-weight:800; margin-bottom:4px; }
-    .biz-sub  { font-size:13px; opacity:0.8; }
-    .report-badge { background:rgba(255,255,255,0.15); padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; }
-    .period-banner { background:rgba(255,255,255,0.12); border-radius:12px; padding:12px 16px; margin-top:12px; }
-    .period-label { font-size:11px; opacity:0.75; margin-bottom:3px; }
-    .period-value { font-size:15px; font-weight:700; }
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 60%, #3B82F6 100%);
+      color: #fff;
+      padding: 36px 28px 24px;
+    }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+    .biz-name { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 4px; }
+    .biz-sub  { font-size: 12.5px; opacity: 0.82; line-height: 1.5; }
+    .report-badge {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .gen-date { font-size: 11px; opacity: 0.7; margin-top: 5px; text-align: ${dir === 'rtl' ? 'left' : 'right'}; }
+    .header-divider { border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 16px 0 16px; }
+    .period-banner {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+    .period-lbl { font-size: 10.5px; opacity: 0.75; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+    .period-val { font-size: 15px; font-weight: 700; }
 
-    /* Sections */
-    .section { padding:20px 28px; border-bottom:1px solid #F3F4F6; }
-    .section-title { font-size:14px; font-weight:700; color:#1E40AF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px; }
+    /* ── Sections ── */
+    .section { padding: 22px 28px; border-bottom: 1px solid #F1F5F9; }
+    .section:last-child { border-bottom: none; }
+    .section-title {
+      font-size: 10.5px; font-weight: 700;
+      color: #94A3B8; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #F1F5F9;
+    }
 
-    /* KPI grid */
-    .kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-    .kpi-cell { background:#F9FAFB; border-radius:10px; padding:12px; text-align:center; }
-    .kpi-label { font-size:11px; color:#9CA3AF; margin-bottom:4px; }
-    .kpi-value { font-size:17px; font-weight:800; color:#111827; }
-    .kpi-value.green { color:#16A34A; }
-    .kpi-value.red   { color:#DC2626; }
-    .kpi-value.blue  { color:#1E40AF; }
-    .kpi-value.amber { color:#D97706; }
+    /* ── KPI grid ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .kpi-cell {
+      background: #F8FAFC;
+      border: 1px solid #E8EEF4;
+      border-radius: 10px;
+      padding: 13px 10px;
+      text-align: center;
+    }
+    .kpi-label { font-size: 10.5px; color: #94A3B8; margin-bottom: 5px; font-weight: 600; }
+    .kpi-value { font-size: 15px; font-weight: 800; color: #1E293B; line-height: 1.2; word-break: break-word; }
+    .kpi-value.green { color: #059669; }
+    .kpi-value.red   { color: #DC2626; }
+    .kpi-value.blue  { color: #1E40AF; }
+    .kpi-value.amber { color: #D97706; }
 
-    /* Tables */
-    table { width:100%; border-collapse:collapse; }
-    th { background:#F9FAFB; padding:9px 12px; text-align:left; font-size:11px; font-weight:700; color:#6B7280; border-bottom:2px solid #E5E7EB; }
-    td { padding:9px 12px; font-size:13px; border-bottom:1px solid #F3F4F6; vertical-align:middle; }
-    tr:last-child td { border-bottom:none; }
-    tr:nth-child(even) td { background:#FAFAFA; }
+    /* ── Tables ── */
+    .table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid #E2E8F0; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: #F1F5F9; padding: 10px 12px;
+      text-align: left; font-size: 10.5px;
+      font-weight: 700; color: #64748B;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; color: #334155; }
+    tr:last-child td { border-bottom: none; }
+    .total-row td { background: #EFF6FF; font-weight: 700; color: #1E3A8A; border-top: 2px solid #BFDBFE; }
 
-    /* P&L flow */
-    .pl-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #F3F4F6; }
-    .pl-row:last-child { border-bottom:none; font-weight:700; font-size:16px; margin-top:4px; padding-top:12px; }
-    .pl-label { font-size:14px; color:#374151; }
-    .pl-value { font-size:14px; font-weight:600; }
-    .pl-indent { padding-left:16px; }
-    .pl-subtotal { background:#EFF6FF; border-radius:8px; padding:10px 12px; margin:8px 0; display:flex; justify-content:space-between; }
+    /* ── P&L ── */
+    .pl-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .pl-row:last-child { border-bottom: none; }
+    .pl-label { font-size: 13.5px; color: #475569; }
+    .pl-value { font-size: 13.5px; font-weight: 600; min-width: 140px; text-align: right; }
+    .pl-indent { padding-left: 20px; }
+    .pl-subtotal {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .pl-net {
+      border-top: 2px solid #1E40AF;
+      margin-top: 10px;
+      padding-top: 14px;
+    }
 
-    /* Split bars */
-    .split-bar { height:8px; border-radius:4px; background:#E5E7EB; overflow:hidden; margin:6px 0 2px; }
-    .split-fill { height:100%; border-radius:4px; }
+    /* ── Footer ── */
+    .footer {
+      padding: 18px 28px 22px;
+      text-align: center;
+      background: #F8FAFC;
+      border-top: 1px solid #E2E8F0;
+    }
+    .footer p { font-size: 11.5px; color: #94A3B8; }
 
-    .footer { padding:20px 28px; text-align:center; background:#F9FAFB; }
-    .footer p { font-size:11px; color:#9CA3AF; }
+    @media print {
+      body { background: white; }
+      .kpi-cell { border: 1px solid #ddd; }
+      .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- Header -->
   <div class="header">
     <div class="header-top">
       <div>
         ${logoHTML}
-        <div class="biz-name">${escHtml(business.name)}</div>
-        <div class="biz-sub">${escHtml(business.phone)}${business.address ? ' &middot; ' + escHtml(business.address) : ''}</div>
+        <div class="biz-name">${escHtml(business.name || 'Business')}</div>
+        <div class="biz-sub">
+          ${business.phone ? escHtml(business.phone) : ''}
+          ${business.phone && business.address ? ' &middot; ' : ''}
+          ${business.address ? escHtml(business.address) : ''}
+        </div>
       </div>
       <div style="text-align:${dir === 'rtl' ? 'left' : 'right'};">
         <div class="report-badge">BUSINESS REPORT</div>
-        <div style="font-size:11px;opacity:0.7;margin-top:6px;">Generated ${fmtDateTime(new Date().toISOString())}</div>
+        <div class="gen-date">Generated ${fmtDateTime(new Date().toISOString())}</div>
       </div>
     </div>
+    <hr class="header-divider" />
     <div class="period-banner">
-      <div class="period-label">REPORTING PERIOD</div>
-      <div class="period-value">${periodLabel}</div>
+      <div class="period-lbl">Reporting Period</div>
+      <div class="period-val">${periodLabel}</div>
     </div>
   </div>
 
@@ -191,11 +256,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Total Revenue</div>
-        <div class="kpi-value blue">${fmt(salesData?.totalRevenue ?? 0)} IQD</div>
+        <div class="kpi-value blue">${fmtIQD(salesData?.totalRevenue ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Net Profit</div>
-        <div class="kpi-value ${(plData?.netProfit ?? 0) >= 0 ? 'green' : 'red'}">${fmt(plData?.netProfit ?? 0)} IQD</div>
+        <div class="kpi-value ${(plData?.netProfit ?? 0) >= 0 ? 'green' : 'red'}">${fmtIQD(plData?.netProfit ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Total Sales</div>
@@ -203,15 +268,15 @@ export function buildFullReportHTML(
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Purchase Cost</div>
-        <div class="kpi-value">${fmt(purchaseData?.totalCost ?? 0)} IQD</div>
+        <div class="kpi-value">${fmtIQD(purchaseData?.totalCost ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Outstanding Debt</div>
-        <div class="kpi-value amber">${fmt(debtData?.combinedDebt ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtIQD(debtData?.combinedDebt ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Total Expenses</div>
-        <div class="kpi-value red">${fmt(plData?.totalExpenses ?? 0)} IQD</div>
+        <div class="kpi-value red">${fmtIQD(plData?.totalExpenses ?? 0)} IQD</div>
       </div>
     </div>
   </div>
@@ -219,33 +284,49 @@ export function buildFullReportHTML(
   <!-- Sales Breakdown -->
   <div class="section">
     <div class="section-title">Sales Breakdown</div>
-    <table>
-      <thead>
-        <tr><th>Payment Method</th><th>Count</th><th>Revenue</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Cash</td><td>${salesData?.cashCount ?? 0}</td><td style="font-weight:600;">${fmt(salesData?.cashRevenue ?? 0)} IQD</td></tr>
-        <tr><td>FIB</td><td>${salesData?.fibCount ?? 0}</td><td style="font-weight:600;">${fmt(salesData?.fibRevenue ?? 0)} IQD</td></tr>
-        <tr><td>Credit / Debt</td><td>${salesData?.debtCount ?? 0}</td><td style="font-weight:600;">${fmt(salesData?.debtRevenue ?? 0)} IQD</td></tr>
-        <tr style="background:#EFF6FF;">
-          <td style="font-weight:700;">Total</td>
-          <td style="font-weight:700;">${salesData?.totalSales ?? 0}</td>
-          <td style="font-weight:700;color:#1E40AF;">${fmt(salesData?.totalRevenue ?? 0)} IQD</td>
-        </tr>
-      </tbody>
-    </table>
-    ${salesData?.totalDiscounts ? `<p style="margin-top:8px;font-size:12px;color:#6B7280;">Total Discounts Given: <strong>${fmt(salesData.totalDiscounts)} IQD</strong></p>` : ''}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Payment Method</th><th>Count</th><th style="text-align:right;">Revenue</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cash</td>
+            <td>${salesData?.cashCount ?? 0}</td>
+            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.cashRevenue ?? 0)} IQD</td>
+          </tr>
+          <tr>
+            <td>FIB</td>
+            <td>${salesData?.fibCount ?? 0}</td>
+            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.fibRevenue ?? 0)} IQD</td>
+          </tr>
+          <tr>
+            <td>Credit / Debt</td>
+            <td>${salesData?.debtCount ?? 0}</td>
+            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.debtRevenue ?? 0)} IQD</td>
+          </tr>
+          <tr class="total-row">
+            <td>Total</td>
+            <td>${salesData?.totalSales ?? 0}</td>
+            <td style="text-align:right;">${fmtIQD(salesData?.totalRevenue ?? 0)} IQD</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    ${salesData?.totalDiscounts ? `<p style="margin-top:10px;font-size:12px;color:#64748B;">Total Discounts Given: <strong style="color:#D97706;">${fmtIQD(salesData.totalDiscounts)} IQD</strong></p>` : ''}
   </div>
 
   <!-- Monthly Revenue -->
   <div class="section">
     <div class="section-title">Monthly Revenue (Last 6 Months)</div>
-    <table>
-      <thead>
-        <tr><th>Month</th><th>Revenue</th><th>Profit</th><th>Sales</th></tr>
-      </thead>
-      <tbody>${monthlyRows}</tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Month</th><th style="text-align:right;">Revenue</th><th style="text-align:right;">Profit</th><th style="text-align:right;">Sales</th></tr>
+        </thead>
+        <tbody>${monthlyRows}</tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Profit & Loss -->
@@ -253,29 +334,29 @@ export function buildFullReportHTML(
     <div class="section-title">Profit &amp; Loss</div>
     <div class="pl-row">
       <span class="pl-label">Gross Revenue</span>
-      <span class="pl-value" style="color:#1E40AF;">${fmt(plData?.grossRevenue ?? 0)} IQD</span>
+      <span class="pl-value" style="color:#1E40AF;">${fmtIQD(plData?.grossRevenue ?? 0)} IQD</span>
     </div>
     <div class="pl-row pl-indent">
-      <span class="pl-label" style="color:#6B7280;">Cost of Goods Sold (COGS)</span>
-      <span class="pl-value" style="color:#DC2626;">&minus;${fmt(plData?.totalCOGS ?? 0)} IQD</span>
+      <span class="pl-label" style="color:#64748B;">Cost of Goods Sold (COGS)</span>
+      <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(plData?.totalCOGS ?? 0)} IQD</span>
     </div>
     <div class="pl-subtotal">
-      <span style="font-weight:700;">Gross Profit</span>
-      <span style="font-weight:700;color:${colorVal(plData?.grossProfit ?? 0)};">${fmt(plData?.grossProfit ?? 0)} IQD (${(plData?.grossMarginPct ?? 0).toFixed(1)}%)</span>
+      <span style="font-weight:700;color:#1E293B;">Gross Profit</span>
+      <span style="font-weight:700;color:${colorVal(plData?.grossProfit ?? 0)};">${fmtIQD(plData?.grossProfit ?? 0)} IQD (${(plData?.grossMarginPct ?? 0).toFixed(1)}%)</span>
     </div>
     ${(plData?.expenseBreakdown ?? []).map((e) => `
       <div class="pl-row pl-indent">
-        <span class="pl-label" style="color:#6B7280;">${escHtml(e.category)}</span>
-        <span class="pl-value" style="color:#DC2626;">&minus;${fmt(e.total)} IQD</span>
+        <span class="pl-label" style="color:#64748B;">${escHtml(e.category)}</span>
+        <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(e.total)} IQD</span>
       </div>
     `).join('')}
     <div class="pl-row">
-      <span class="pl-label">Total Expenses</span>
-      <span class="pl-value" style="color:#DC2626;">&minus;${fmt(plData?.totalExpenses ?? 0)} IQD</span>
+      <span class="pl-label" style="font-weight:600;">Total Expenses</span>
+      <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(plData?.totalExpenses ?? 0)} IQD</span>
     </div>
-    <div class="pl-row" style="border-top:2px solid #E5E7EB;margin-top:8px;">
-      <span style="font-size:16px;font-weight:800;">Net Profit</span>
-      <span style="font-size:16px;font-weight:800;color:${colorVal(plData?.netProfit ?? 0)};">${fmt(plData?.netProfit ?? 0)} IQD</span>
+    <div class="pl-row pl-net">
+      <span style="font-size:17px;font-weight:800;color:#1E293B;">Net Profit</span>
+      <span style="font-size:17px;font-weight:800;color:${colorVal(plData?.netProfit ?? 0)};">${fmtIQD(plData?.netProfit ?? 0)} IQD</span>
     </div>
   </div>
 
@@ -285,18 +366,18 @@ export function buildFullReportHTML(
     <div class="kpi-grid" style="margin-bottom:12px;">
       <div class="kpi-cell">
         <div class="kpi-label">Total Cost</div>
-        <div class="kpi-value">${fmt(purchaseData?.totalCost ?? 0)} IQD</div>
+        <div class="kpi-value">${fmtIQD(purchaseData?.totalCost ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Paid</div>
-        <div class="kpi-value green">${fmt(purchaseData?.paidCost ?? 0)} IQD</div>
+        <div class="kpi-value green">${fmtIQD(purchaseData?.paidCost ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">On Credit</div>
-        <div class="kpi-value amber">${fmt(purchaseData?.debtCost ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtIQD(purchaseData?.debtCost ?? 0)} IQD</div>
       </div>
     </div>
-    ${purchaseData?.topSupplier ? `<p style="font-size:12px;color:#6B7280;">Top Supplier: <strong>${escHtml(purchaseData.topSupplier)}</strong> (${fmt(purchaseData.topSupplierCost)} IQD)</p>` : ''}
+    ${purchaseData?.topSupplier ? `<p style="font-size:12.5px;color:#64748B;">Top Supplier: <strong style="color:#1E293B;">${escHtml(purchaseData.topSupplier)}</strong> (${fmtIQD(purchaseData.topSupplierCost)} IQD)</p>` : ''}
   </div>
 
   <!-- Debt Overview -->
@@ -305,11 +386,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Customers Owe</div>
-        <div class="kpi-value amber">${fmt(debtData?.totalSalesDebt ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtIQD(debtData?.totalSalesDebt ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">We Owe Suppliers</div>
-        <div class="kpi-value red">${fmt(debtData?.totalPurchaseDebt ?? 0)} IQD</div>
+        <div class="kpi-value red">${fmtIQD(debtData?.totalPurchaseDebt ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Overdue Debts</div>
@@ -324,11 +405,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Stock Value</div>
-        <div class="kpi-value blue">${fmt(inventoryData?.stockValueSell ?? 0)} IQD</div>
+        <div class="kpi-value blue">${fmtIQD(inventoryData?.stockValueSell ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Potential Profit</div>
-        <div class="kpi-value green">${fmt(inventoryData?.potentialProfit ?? 0)} IQD</div>
+        <div class="kpi-value green">${fmtIQD(inventoryData?.potentialProfit ?? 0)} IQD</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Active Products</div>
@@ -344,7 +425,7 @@ export function buildFullReportHTML(
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Total Units</div>
-        <div class="kpi-value">${fmt(inventoryData?.totalStockUnits ?? 0)}</div>
+        <div class="kpi-value">${fmtIQD(inventoryData?.totalStockUnits ?? 0)}</div>
       </div>
     </div>
   </div>
@@ -352,27 +433,30 @@ export function buildFullReportHTML(
   <!-- Top Profitable Products -->
   <div class="section">
     <div class="section-title">Most Profitable Products</div>
-    <table>
-      <thead>
-        <tr><th>#</th><th>Product</th><th>Gross Profit</th><th>Margin</th></tr>
-      </thead>
-      <tbody>${profRows}</tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width:36px;">#</th><th>Product</th><th style="text-align:right;">Gross Profit</th><th style="text-align:right;">Margin</th></tr>
+        </thead>
+        <tbody>${profRows}</tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Expenses -->
   <div class="section">
-    <div class="section-title">Expenses (${periodLabel})</div>
-    <table>
-      <thead>
-        <tr><th>Date</th><th>Category</th><th>Note</th><th>Amount</th></tr>
-      </thead>
-      <tbody>${expRows}</tbody>
-    </table>
-    ${expenses.length > 0 ? `<p style="margin-top:8px;font-size:13px;font-weight:700;text-align:right;color:#DC2626;">Total: ${fmt(expenses.reduce((s, e) => s + e.amount, 0))} IQD</p>` : ''}
+    <div class="section-title">Expenses &mdash; ${periodLabel}</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Category</th><th>Note</th><th style="text-align:right;">Amount</th></tr>
+        </thead>
+        <tbody>${expRows}</tbody>
+      </table>
+    </div>
+    ${expenses.length > 0 ? `<p style="margin-top:10px;font-size:13.5px;font-weight:700;text-align:right;color:#DC2626;">Total: ${fmtIQD(expTotal)} IQD</p>` : ''}
   </div>
 
-  <!-- Footer -->
   <div class="footer">
     <p>Generated by <strong>${escHtml(business.name)}</strong> &middot; ManagerX &middot; ${fmtDateTime(new Date().toISOString())}</p>
   </div>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -9,16 +9,13 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { fmtIQD } from '@/utils/formatters';
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
 function getTodayStats(purchases: ReturnType<typeof usePurchaseStore.getState>['purchases']) {
   const today = new Date().toDateString();
@@ -34,7 +31,8 @@ function getTodayStats(purchases: ReturnType<typeof usePurchaseStore.getState>['
 export default function PurchasesScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
+  const { chevronForward, arrowForward } = useDirectionalChevron();
   const { colors, isDark } = useAppTheme();
   const { purchases, loadPurchases } = usePurchaseStore();
 
@@ -72,11 +70,11 @@ export default function PurchasesScreen() {
           >
             <LinearGradient
               colors={[colors.primaryDark, colors.primary]}
-              style={styles.newBtnGradient}
+              style={[styles.newBtnGradient, { flexDirection }]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <View style={styles.newBtnInner}>
+              <View style={[styles.newBtnInner, { flexDirection }]}>
                 <View style={styles.newBtnIconBox}>
                   <Ionicons name="add" size={28} color={colors.white} />
                 </View>
@@ -85,7 +83,7 @@ export default function PurchasesScreen() {
                   <Text style={[styles.newBtnSub, { textAlign }]}>{t('purchases.startNewPurchaseSub')}</Text>
                 </View>
               </View>
-              <Ionicons name="arrow-forward" size={20} color="rgba(255,255,255,0.7)" />
+              <Ionicons name={arrowForward as never} size={20} color="rgba(255,255,255,0.7)" />
             </LinearGradient>
           </TouchableOpacity>
         </MotiView>
@@ -109,7 +107,7 @@ export default function PurchasesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#FEF3C7' }]}>
               <Ionicons name="cash-outline" size={20} color={colors.warning} />
             </View>
-            <Text style={[styles.statValue, { color: colors.warning }]}>{fmt(total)}</Text>
+            <Text style={[styles.statValue, { color: colors.warning }]}>{fmtIQD(total)}</Text>
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('purchases.totalSpent')}</Text>
           </PremiumCard>
         </MotiView>
@@ -123,9 +121,9 @@ export default function PurchasesScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(app)/purchases/history' as never)}
             activeOpacity={0.85}
-            style={[styles.secondaryBtn, { backgroundColor: colors.white }]}
+            style={[styles.secondaryBtn, { backgroundColor: colors.white, flexDirection }]}
           >
-            <View style={styles.secondaryLeft}>
+            <View style={[styles.secondaryLeft, { flexDirection }]}>
               <View style={[styles.secondaryIcon, { backgroundColor: '#F0FDF4' }]}>
                 <Ionicons name="list-outline" size={20} color={colors.success} />
               </View>
@@ -134,13 +132,12 @@ export default function PurchasesScreen() {
                 <Text style={[styles.secondarySub, { color: colors.gray400, textAlign }]}>{t('purchases.viewHistorySub')}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
+            <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
           </TouchableOpacity>
         </MotiView>
 
       </ScrollView>
 
-      <SupportFooter />
     </View>
   );
 }

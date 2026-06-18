@@ -15,23 +15,23 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SupportFooter } from '@/components/ui/SupportFooter';
 import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
 import { LogoUploader } from '@/components/setup/LogoUploader';
 import { useBusiness } from '@/hooks/useBusiness';
-import { BusinessType } from '@/constants/config';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useRTL } from '@/lib/rtl';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 export default function SetupScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, textAlign } = useRTL();
+  const { colors } = useAppTheme();
   const { saveAndSetBusiness } = useBusiness();
 
   const [name, setName] = useState('');
-  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const [businessType, setBusinessType] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [logoUri, setLogoUri] = useState<string | null>(null);
@@ -41,7 +41,6 @@ export default function SetupScreen() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = t('setup.validation.nameRequired');
-    if (!businessType) e.type = t('setup.validation.typeRequired');
     if (!phone.trim()) e.phone = t('setup.validation.phoneRequired');
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -53,7 +52,7 @@ export default function SetupScreen() {
     try {
       await saveAndSetBusiness({
         name: name.trim(),
-        type: businessType!,
+        type: businessType.trim(),
         phone: phone.trim(),
         address: address.trim(),
         logoUri,
@@ -79,7 +78,7 @@ export default function SetupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <LinearGradient
-            colors={[Colors.gradientStart, Colors.gradientMid]}
+            colors={[colors.gradientStart, colors.gradientMid]}
             style={styles.header}
           >
             <MotiView
@@ -111,11 +110,10 @@ export default function SetupScreen() {
               error={errors.name}
             />
 
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { textAlign }]}>{t('setup.businessType')}</Text>
-              <BusinessTypeSelector selected={businessType} onSelect={setBusinessType} />
-              {errors.type && <Text style={[styles.fieldError, { textAlign }]}>{errors.type}</Text>}
-            </View>
+            <BusinessTypeSelector
+              value={businessType}
+              onChangeText={setBusinessType}
+            />
 
             <AppTextInput
               label={t('setup.phone')}
@@ -145,7 +143,6 @@ export default function SetupScreen() {
             </View>
           </MotiView>
 
-          <SupportFooter />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

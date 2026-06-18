@@ -19,7 +19,7 @@ const defaultModules: Record<ModuleId, ModuleConfig> = {
   sales:     { enabled: true, order: 1 },
   inventory: { enabled: true, order: 2 },
   reports:   { enabled: true, order: 3 },
-  customers: { enabled: true, order: 4 },
+  history:   { enabled: true, order: 4 },
   debt:      { enabled: true, order: 5 },
 };
 

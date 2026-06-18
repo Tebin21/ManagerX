@@ -3,28 +3,29 @@ import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
+import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   product: Product;
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
 export function CheckPriceRow({ product }: Props) {
+  const { colors } = useAppTheme();
+  const { textAlign, flexDirection, alignEnd } = useRTL();
   const isLowStock = product.quantity > 0 && product.quantity <= 5;
   const isOutOfStock = product.quantity === 0 || !product.isActive;
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { flexDirection }]}>
       <View style={styles.left}>
-        <Text style={styles.name} numberOfLines={1}>{product.name}</Text>
-        <View style={styles.badges}>
+        <Text style={[styles.name, { textAlign }]} numberOfLines={1}>{product.name}</Text>
+        <View style={[styles.badges, { flexDirection }]}>
           {product.itemId ? (
-            <View style={styles.idBadge}>
-              <Text style={styles.idText}>#{product.itemId}</Text>
+            <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
+              <Text style={[styles.idText, { color: colors.primary }]}>#{product.itemId}</Text>
             </View>
           ) : null}
           {product.unit !== 'pcs' ? (
@@ -33,9 +34,9 @@ export function CheckPriceRow({ product }: Props) {
         </View>
       </View>
 
-      <View style={styles.prices}>
-        <Text style={styles.buyPrice}>{fmt(product.purchasePrice)}</Text>
-        <Text style={styles.sellPrice}>{fmt(product.sellingPrice)}</Text>
+      <View style={[styles.prices, { alignItems: alignEnd }]}>
+        <Text style={styles.buyPrice}>{fmtIQD(product.purchasePrice)}</Text>
+        <Text style={[styles.sellPrice, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)}</Text>
       </View>
 
       <View style={styles.stockBadge}>
@@ -69,16 +70,15 @@ const styles = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '600', color: Colors.black, marginBottom: 4 },
   badges: { flexDirection: 'row', gap: 6 },
   idBadge: {
-    backgroundColor: Colors.softBlue,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
-  idText: { fontSize: 11, color: Colors.primary, fontWeight: '500' },
+  idText: { fontSize: 11, fontWeight: '500' },
   unit: { fontSize: 11, color: Colors.gray500 },
   prices: { alignItems: 'flex-end', marginHorizontal: 12 },
   buyPrice: { fontSize: 11, color: Colors.gray400, marginBottom: 2 },
-  sellPrice: { fontSize: 15, fontWeight: '700', color: Colors.primary },
+  sellPrice: { fontSize: 15, fontWeight: '700' },
   stockBadge: {
     minWidth: 36,
     alignItems: 'center',

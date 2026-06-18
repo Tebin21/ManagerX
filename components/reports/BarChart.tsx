@@ -4,6 +4,9 @@ import { Text } from '@/components/ui/AppText';
 import Svg, { Rect, Text as SvgText, G } from 'react-native-svg';
 import { MotiView } from 'moti';
 import { Colors } from '@/constants/colors';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
+import { fmtIQD } from '@/utils/formatters';
 
 interface BarData {
   label: string;
@@ -17,23 +20,26 @@ interface Props {
   primaryColor?: string;
   secondaryColor?: string;
   showSecondary?: boolean;
+  showValueLabels?: boolean;
   formatValue?: (v: number) => string;
-}
-
-function shortFmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
-  return String(Math.round(n));
+  primaryLabel?: string;
+  secondaryLabel?: string;
 }
 
 export function BarChart({
   data,
   height = 140,
-  primaryColor = Colors.primary,
+  primaryColor,
   secondaryColor = Colors.success,
   showSecondary = false,
-  formatValue = shortFmt,
+  showValueLabels = false,
+  formatValue = fmtIQD,
+  primaryLabel = 'Revenue',
+  secondaryLabel = 'Profit',
 }: Props) {
+  const { colors } = useAppTheme();
+  const { flexDirection } = useRTL();
+  const resolvedPrimaryColor = primaryColor ?? colors.primary;
   const [containerWidth, setContainerWidth] = useState(0);
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -80,16 +86,16 @@ export function BarChart({
                     y={y}
                     width={barW}
                     height={barH}
-                    fill={primaryColor}
+                    fill={resolvedPrimaryColor}
                     rx={3}
                     ry={3}
                   />
                   {/* Value label above primary bar */}
-                  {barH > 8 && (
+                  {showValueLabels && barH > 8 && (
                     <SvgText
                       x={x + barW / 2}
                       y={y - 4}
-                      fontSize={8}
+                      fontSize={7}
                       fill={Colors.gray400}
                       textAnchor="middle"
                     >
@@ -130,13 +136,13 @@ export function BarChart({
           {/* Legend */}
           {showSecondary && (
             <View style={styles.legend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: primaryColor }]} />
-                <Text style={styles.legendText}>Revenue</Text>
+              <View style={[styles.legendItem, { flexDirection }]}>
+                <View style={[styles.legendDot, { backgroundColor: resolvedPrimaryColor }]} />
+                <Text style={styles.legendText}>{primaryLabel}</Text>
               </View>
-              <View style={styles.legendItem}>
+              <View style={[styles.legendItem, { flexDirection }]}>
                 <View style={[styles.legendDot, { backgroundColor: secondaryColor }]} />
-                <Text style={styles.legendText}>Profit</Text>
+                <Text style={styles.legendText}>{secondaryLabel}</Text>
               </View>
             </View>
           )}
