@@ -2,15 +2,21 @@ import { create } from 'zustand';
 import {
   getAllPurchases,
   insertPurchase,
-  deletePurchase as dbDeletePurchase,
+  archivePurchase as dbArchivePurchase,
   updatePurchase as dbUpdatePurchase,
   generatePurchaseNumber,
   insertProduct,
   getProductsByItemId,
 } from '@/lib/sqlite';
 import { useSettingsStore, DEFAULT_EXCHANGE_RATE } from '@/store/settingsStore';
+import { useAuthStore } from '@/store/authStore';
 import type { Purchase, NewPurchaseInput } from '@/types/purchases';
-import type { UpdatePurchaseInput } from '@/lib/sqlite';
+import type { UpdatePurchaseInput, PurchaseActor } from '@/lib/sqlite';
+
+function currentActor(): PurchaseActor {
+  const user = useAuthStore.getState().user;
+  return { id: user?.id ?? null, name: user?.displayName ?? user?.email ?? null };
+}
 
 interface PurchaseState {
   purchases: Purchase[];
@@ -191,7 +197,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   },
 
   updatePurchase: async (id: number, input: UpdatePurchaseInput) => {
-    await dbUpdatePurchase(id, input);
+    await dbUpdatePurchase(id, input, currentActor());
     await get().loadPurchases();
 
     try {
@@ -216,8 +222,9 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   },
 
   deletePurchase: async (id: number) => {
-    // deletePurchase in sqlite.ts cascades to purchase_debts + products
-    await dbDeletePurchase(id);
+    // archivePurchase soft-deletes (archived_at) and blocks if the purchase has
+    // recorded sales or an active debt — throws PURCHASE_HAS_SALES / PURCHASE_HAS_ACTIVE_DEBT.
+    await dbArchivePurchase(id, currentActor());
     set((state) => ({ purchases: state.purchases.filter((p) => p.id !== id) }));
 
     try {

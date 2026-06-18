@@ -26,6 +26,7 @@ import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, DebtPayment } from '@/types/debt';
 import type { Sale } from '@/types/sales';
 import { fmtIQD, formatDate, formatDateTime } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 
@@ -142,7 +143,7 @@ export default function SalesDebtDetailScreen() {
   useEffect(() => { load(); }, [load]);
 
   async function handlePay() {
-    const amt = parseFloat(payValue);
+    const amt = roundToNearest250(parseFloat(payValue) || 0);
     if (!amt || amt <= 0) {
       Alert.alert(t('common.error'), t('debt.invalidAmount'));
       return;
@@ -347,6 +348,10 @@ export default function SalesDebtDetailScreen() {
                   keyboardType="decimal-pad"
                   value={payValue}
                   onChangeText={setPayValue}
+                  onEndEditing={() => {
+                    const r = roundToNearest250(parseFloat(payValue) || 0);
+                    setPayValue(r > 0 ? String(r) : '');
+                  }}
                   autoFocus
                 />
                 <DateTimePicker

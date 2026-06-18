@@ -32,6 +32,7 @@ import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompl
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -102,7 +103,7 @@ export default function NewPurchaseScreen() {
   function onBuyUSDChange(val: string) {
     setBuyUSD(val);
     const n = parseFloat(val) || 0;
-    setBuyIQD(n > 0 ? String(round(n * exchangeRate, 0)) : '');
+    setBuyIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
   }
 
   function onSellIQDChange(val: string) {
@@ -114,7 +115,7 @@ export default function NewPurchaseScreen() {
   function onSellUSDChange(val: string) {
     setSellUSD(val);
     const n = parseFloat(val) || 0;
-    setSellIQD(n > 0 ? String(round(n * exchangeRate, 0)) : '');
+    setSellIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
   }
 
   // ─── Qty change → rebuild custom ID slots ─────────────────────────────────
@@ -228,9 +229,9 @@ export default function NewPurchaseScreen() {
         productName,
         category,
         quantity: qtyNum,
-        buyPriceIQD: buyIQDNum,
+        buyPriceIQD: roundToNearest250(buyIQDNum),
         buyPriceUSD: parseFloat(buyUSD) || round(buyIQDNum / exchangeRate, 2),
-        sellPriceIQD: sellIQDNum,
+        sellPriceIQD: roundToNearest250(sellIQDNum),
         sellPriceUSD: parseFloat(sellUSD) || round(sellIQDNum / exchangeRate, 2),
         exchangeRate,
         idType,
@@ -402,6 +403,11 @@ export default function NewPurchaseScreen() {
                   style={[styles.priceInput, { color: colors.black }]}
                   value={buyIQD}
                   onChangeText={onBuyIQDChange}
+                  onEndEditing={() => {
+                    const r = roundToNearest250(parseFloat(buyIQD) || 0);
+                    setBuyIQD(r > 0 ? String(r) : '');
+                    setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
+                  }}
                   keyboardType="decimal-pad"
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
@@ -458,6 +464,11 @@ export default function NewPurchaseScreen() {
                   style={[styles.priceInput, { color: colors.black }]}
                   value={sellIQD}
                   onChangeText={onSellIQDChange}
+                  onEndEditing={() => {
+                    const r = roundToNearest250(parseFloat(sellIQD) || 0);
+                    setSellIQD(r > 0 ? String(r) : '');
+                    setSellUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
+                  }}
                   keyboardType="decimal-pad"
                   placeholder="0"
                   placeholderTextColor={colors.gray400}

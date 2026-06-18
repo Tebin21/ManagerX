@@ -38,7 +38,7 @@ export default function LanguageScreen() {
     if (!selected) return;
     setLanguage(selected);
     await i18n.changeLanguage(selected);
-    router.replace('/(onboarding)/setup');
+    router.replace('/(onboarding)/about');
   };
 
   return (
@@ -106,7 +106,7 @@ export default function LanguageScreen() {
 
         <View style={styles.buttonRow}>
           <PrimaryButton
-            label={t('language.confirmBtn')}
+            label={t('common.continue')}
             onPress={handleConfirm}
             disabled={!selected}
           />

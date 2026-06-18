@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { BackButton } from './BackButton';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 interface Props {
   title: string;
@@ -20,11 +21,15 @@ interface Props {
 /**
  * Unified header for ALL internal screens (everything except dashboard).
  *
- * Layout is ALWAYS physically left-to-right:
+ * Layout in English (LTR):
  *   [back button | centered title | right action]
  *
- * This never changes for RTL (Kurdish) mode — only text content is translated.
- * Equal-width side panels guarantee the title is always perfectly centered.
+ * Layout automatically mirrors in Kurdish (RTL):
+ *   [right action | centered title | back button]
+ *
+ * Only the physical position of the back/action sides swaps — icons,
+ * colours, spacing and styling stay exactly as designed. The title stays
+ * centered in both directions since it's the flexible middle child.
  */
 export function AppHeader({
   title,
@@ -36,6 +41,7 @@ export function AppHeader({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
+  const { isRTL } = useRTL();
   const gradColors = gradient ?? [colors.gradientStart, colors.gradientMid];
 
   return (
@@ -43,8 +49,8 @@ export function AppHeader({
       colors={gradColors}
       style={[styles.gradient, { paddingTop: insets.top }]}
     >
-      <View style={styles.row}>
-        {/* Always physically LEFT — back button or empty spacer */}
+      <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
         <View style={styles.side}>
           {showBack ? <BackButton onPress={onBack} /> : null}
         </View>
@@ -54,7 +60,7 @@ export function AppHeader({
           {title}
         </Text>
 
-        {/* Always physically RIGHT — action button or empty spacer */}
+        {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
         <View style={styles.side}>
           {rightAction ?? null}
         </View>
@@ -79,7 +85,7 @@ const styles = StyleSheet.create({
     minHeight:         56,
   },
   side: {
-    width:          44,
+    minWidth:       44,
     alignItems:     'center',
     justifyContent: 'center',
   },

@@ -55,6 +55,14 @@ export function CartItemRow({
     onUpdatePrice(n);
   }
 
+  function onIqdBlur() {
+    setIqdFocused(false);
+    const r = roundToNearest250(parseFloat(iqdPriceText) || 0);
+    setIqdPriceText(String(r));
+    setUsdPrice(r > 0 ? String(roundUSD(r / exchangeRate)) : '');
+    onUpdatePrice(r);
+  }
+
   function onUsdChange(val: string) {
     setUsdPrice(val);
     const n = parseFloat(val) || 0;
@@ -70,6 +78,14 @@ export function CartItemRow({
       onUpdateDiscountPct(n);
     } else {
       onUpdateDiscount(n);
+    }
+  }
+
+  function onDiscountBlur() {
+    if (item.discountType === 'amount') {
+      const r = roundToNearest250(parseFloat(discountText) || 0);
+      setDiscountText(String(r));
+      onUpdateDiscount(r);
     }
   }
 
@@ -148,7 +164,7 @@ export function CartItemRow({
               value={iqdDisplay}
               onChangeText={onIqdChange}
               onFocus={() => setIqdFocused(true)}
-              onBlur={() => setIqdFocused(false)}
+              onBlur={onIqdBlur}
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={colors.gray400}
@@ -207,6 +223,7 @@ export function CartItemRow({
           style={[styles.discountInput, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
           value={discountText}
           onChangeText={onDiscountChange}
+          onBlur={onDiscountBlur}
           keyboardType="decimal-pad"
           placeholder={item.discountType === 'percentage' ? '0%' : '0'}
           placeholderTextColor={colors.gray400}

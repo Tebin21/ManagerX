@@ -39,6 +39,7 @@ import {
 } from '@/lib/backup';
 import { useAuthStore }     from '@/store/authStore';
 import { useBusinessStore }  from '@/store/businessStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import { useSettingsStore }  from '@/store/settingsStore';
 import { useLanguageStore }  from '@/store/languageStore';
 import { useModuleStore }    from '@/store/moduleStore';
@@ -237,7 +238,7 @@ export default function DataScreen() {
     try {
       const db = await getDatabase();
       for (const table of [
-        'purchase_items', 'purchase_debts', 'debt_payments',
+        'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
         'sale_items', 'debts', 'sales', 'purchases',
         'products', 'customers', 'suppliers', 'expenses',
         'exchange_rates', 'reports_cache',
@@ -256,11 +257,13 @@ export default function DataScreen() {
         '@managerx_settings',
         '@managerx_modules',
         '@managerx_language',
+        '@managerx_onboarding',
       ]);
       // Clear in-memory business state so isSetupComplete is false immediately.
       useBusinessStore.getState().clearBusiness();
+      useOnboardingStore.getState().resetOnboarding();
       await signOut();
-      router.replace('/(onboarding)/language' as never);
+      router.replace('/(onboarding)/welcome' as never);
     } catch {
       Alert.alert(t('common.error'), t('common.tryAgain'));
       setResetting(false);

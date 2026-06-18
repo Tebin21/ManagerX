@@ -2,7 +2,7 @@ import '../global.css';
 import '../lib/i18n';
 
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, I18nManager, Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -25,6 +25,13 @@ import { generateThemeColors } from '@/lib/colorUtils';
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
 }
+
+// RTL (Kurdish) is handled entirely in JS (see lib/rtl.ts / store/languageStore.ts) —
+// native RTL must stay off, otherwise the OS auto-mirrors layouts and icons on top of
+// our own mirroring. A stale native flag from older builds can persist across reloads,
+// so this is reasserted on every launch.
+I18nManager.allowRTL(false);
+I18nManager.forceRTL(false);
 
 // ─── AppStack ─────────────────────────────────────────────────────────────────
 // Keyed on `language` so the entire navigation tree remounts when the user

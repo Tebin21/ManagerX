@@ -44,7 +44,22 @@ export default function PurchaseHistoryScreen() {
       t('purchases.deleteConfirmMsg'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('purchases.confirmDelete'), style: 'destructive', onPress: () => deletePurchase(purchase.id) },
+        {
+          text: t('purchases.confirmDelete'), style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePurchase(purchase.id);
+            } catch (err: any) {
+              if (err?.message === 'PURCHASE_HAS_SALES') {
+                Alert.alert(t('purchases.cannotDeleteTitle'), t('purchases.cannotDeleteHasSales'));
+              } else if (err?.message === 'PURCHASE_HAS_ACTIVE_DEBT') {
+                Alert.alert(t('purchases.cannotDeleteTitle'), t('purchases.cannotDeleteHasDebt'));
+              } else {
+                Alert.alert(t('common.error'), t('common.tryAgain'));
+              }
+            }
+          },
+        },
       ]
     );
   }

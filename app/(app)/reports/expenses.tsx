@@ -21,6 +21,7 @@ import { Theme } from '@/constants/theme';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
 import { fmtIQD, toDateOnly, formatDate, formatTime } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -49,10 +50,6 @@ const EXPENSE_EXAMPLES: { text: string; category: string }[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function roundTo250(n: number): number {
-  const rounded = Math.round(n / 250) * 250;
-  return Math.max(rounded, 250);
-}
 
 // ─── Expense Date Filter ──────────────────────────────────────────────────────
 
@@ -280,7 +277,7 @@ function ExpenseFormModal({
   function onAmountBlur() {
     const n = parseFloat(amount);
     if (!isNaN(n) && n > 0) {
-      const r = roundTo250(n);
+      const r = roundToNearest250(n);
       setRounded(r);
       setAmount(String(r));
     } else {
@@ -299,7 +296,7 @@ function ExpenseFormModal({
 
   async function handleSave() {
     if (!validate()) return;
-    const amt = roundTo250(parseFloat(amount));
+    const amt = roundToNearest250(parseFloat(amount));
     const derivedCategory = selectedExample !== null
       ? EXPENSE_EXAMPLES[selectedExample].category
       : 'Other';

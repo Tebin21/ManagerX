@@ -38,6 +38,7 @@ export interface ManagerXBackup {
     purchase_items:    Record<string, unknown>[];
     purchase_counter:  Record<string, unknown>[];
     purchase_debts:    Record<string, unknown>[];
+    purchase_audit_log: Record<string, unknown>[];
     debt_payments:     Record<string, unknown>[];
     expenses:          Record<string, unknown>[];
     suppliers:         Record<string, unknown>[];
@@ -63,7 +64,7 @@ export async function exportBackup(): Promise<string> {
     businesses, settings, categories, products, inventory_history,
     customers, sales, sale_items,
     debts, invoice_counter, purchases, purchase_items, purchase_counter,
-    purchase_debts, debt_payments, expenses, suppliers, exchange_rates,
+    purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
   ] = await Promise.all([
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM settings'),
@@ -79,6 +80,7 @@ export async function exportBackup(): Promise<string> {
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_items'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_counter'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_debts'),
+    db.getAllAsync<Record<string, unknown>>('SELECT * FROM purchase_audit_log'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM debt_payments'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
@@ -103,7 +105,7 @@ export async function exportBackup(): Promise<string> {
       businesses, settings, categories, products, inventory_history,
       customers, sales, sale_items,
       debts, invoice_counter, purchases, purchase_items, purchase_counter,
-      purchase_debts, debt_payments, expenses, suppliers, exchange_rates,
+      purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
     },
     stores: {
       business: storedBusiness ?? '{}',
@@ -173,7 +175,7 @@ export async function performRestore(backup: ManagerXBackup): Promise<void> {
     // Delete in FK-safe order (children before parents).
     for (const table of [
       'inventory_history',
-      'purchase_items', 'purchase_debts', 'debt_payments',
+      'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
       'sale_items', 'debts', 'sales', 'purchases',
       'products', 'categories',
       'customers', 'suppliers', 'expenses',
@@ -202,6 +204,7 @@ export async function performRestore(backup: ManagerXBackup): Promise<void> {
     await insertRows(db, 'purchases',         database.purchases         ?? []);
     await insertRows(db, 'purchase_items',    database.purchase_items    ?? []);
     await insertRows(db, 'purchase_debts',    database.purchase_debts    ?? []);
+    await insertRows(db, 'purchase_audit_log', database.purchase_audit_log ?? []);
     await insertRows(db, 'debt_payments',     database.debt_payments     ?? []);
   });
 

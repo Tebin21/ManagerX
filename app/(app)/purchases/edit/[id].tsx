@@ -20,11 +20,12 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { usePurchaseStore } from '@/store/purchaseStore';
-import { getPurchaseById } from '@/lib/sqlite';
+import { getPurchaseById, getSoldQuantityForPurchase } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import { fmtIQD } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 
 
 function PaymentToggle({
@@ -74,6 +75,7 @@ export default function EditPurchaseScreen() {
   const [date, setDate]               = useState('');
   const [productName, setProductName] = useState('');
   const [category, setCategory]       = useState('');
+  const [quantity, setQuantity]       = useState('');
   const [buyPriceIQD, setBuyPriceIQD] = useState('');
   const [buyPriceUSD, setBuyPriceUSD] = useState('');
   const [sellPriceIQD, setSellPriceIQD] = useState('');
@@ -82,13 +84,15 @@ export default function EditPurchaseScreen() {
   const [description, setDescription] = useState('');
   const [notes, setNotes]             = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'debt'>('paid');
+  const [soldQty, setSoldQty]         = useState(0);
 
   const exchangeRate = purchase?.exchangeRate ?? 1500;
   const buyNum  = parseFloat(buyPriceIQD)  || 0;
   const sellNum = parseFloat(sellPriceIQD) || 0;
-  const qty     = purchase?.quantity ?? 1;
+  const qty     = parseInt(quantity, 10) || 0;
   const totalIQD  = qty * buyNum;
   const profitIQD = (sellNum - buyNum) * qty;
+  const isCustomId = purchase?.idType === 'custom';
 
   useEffect(() => {
     (async () => {
@@ -99,6 +103,7 @@ export default function EditPurchaseScreen() {
         setDate(p.date ?? '');
         setProductName(p.productName);
         setCategory(p.category ?? '');
+        setQuantity(String(p.quantity));
         setBuyPriceIQD(String(p.buyPriceIQD));
         setBuyPriceUSD(String(p.buyPriceUSD));
         setSellPriceIQD(String(p.sellPriceIQD));
@@ -107,6 +112,8 @@ export default function EditPurchaseScreen() {
         setDescription(p.description ?? '');
         setNotes(p.notes ?? '');
         setPaymentStatus(p.paymentStatus);
+        const sold = await getSoldQuantityForPurchase(p.id);
+        setSoldQty(sold);
       }
       setLoading(false);
     })();
@@ -121,7 +128,7 @@ export default function EditPurchaseScreen() {
   const syncBuyIQD = (usd: string) => {
     setBuyPriceUSD(usd);
     const n = parseFloat(usd);
-    if (!isNaN(n)) setBuyPriceIQD(String(Math.round(n * exchangeRate)));
+    if (!isNaN(n)) setBuyPriceIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
   const syncSellUSD = (iqd: string) => {
@@ -133,7 +140,7 @@ export default function EditPurchaseScreen() {
   const syncSellIQD = (usd: string) => {
     setSellPriceUSD(usd);
     const n = parseFloat(usd);
-    if (!isNaN(n)) setSellPriceIQD(String(Math.round(n * exchangeRate)));
+    if (!isNaN(n)) setSellPriceIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
   const handleSave = async () => {
@@ -152,9 +159,10 @@ export default function EditPurchaseScreen() {
         date: date.trim() || undefined,
         productName: productName.trim(),
         category: category.trim() || null,
-        buyPriceIQD: buyNum,
+        quantity: qty,
+        buyPriceIQD: roundToNearest250(buyNum),
         buyPriceUSD: parseFloat(buyPriceUSD) || 0,
-        sellPriceIQD: sellNum,
+        sellPriceIQD: roundToNearest250(sellNum),
         sellPriceUSD: parseFloat(sellPriceUSD) || 0,
         warranty: warranty.trim() || null,
         description: description.trim() || null,
@@ -162,9 +170,20 @@ export default function EditPurchaseScreen() {
         paymentStatus,
       });
       router.back();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert(t('common.error'), t('common.tryAgain'));
+      const msg: string = err?.message ?? '';
+      if (msg.startsWith('QUANTITY_BELOW_SOLD')) {
+        Alert.alert(t('common.error'), t('purchases.cannotReduceBelowSold'));
+      } else if (msg === 'CUSTOM_QTY_INCREASE_UNSUPPORTED') {
+        Alert.alert(t('common.error'), t('purchases.customQtyIncreaseBlocked'));
+      } else if (msg === 'QUANTITY_INVALID') {
+        Alert.alert(t('common.error'), t('purchases.validationQty'));
+      } else if (msg === 'INSUFFICIENT_UNSOLD_ITEMS') {
+        Alert.alert(t('common.error'), t('purchases.insufficientUnsoldItems'));
+      } else {
+        Alert.alert(t('common.error'), t('common.tryAgain'));
+      }
     } finally {
       setSaving(false);
     }
@@ -257,10 +276,21 @@ export default function EditPurchaseScreen() {
               autoCapitalize="words"
               returnKeyType="next"
             />
-            <View style={[styles.infoRow, { borderBottomColor: colors.gray100, marginTop: 4 }]}>
-              <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.qty')}</Text>
-              <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.quantity}</Text>
-            </View>
+            <AppTextInput
+              label={t('purchases.qty')}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="number-pad"
+              returnKeyType="next"
+            />
+            <Text style={[styles.hintText, { color: colors.gray400 }]}>
+              {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
+            </Text>
+            {isCustomId && (
+              <Text style={[styles.hintText, { color: colors.gray400 }]}>
+                {t('purchases.customQtyDecreaseOnly')}
+              </Text>
+            )}
           </PremiumCard>
 
           {/* Pricing */}
@@ -272,6 +302,11 @@ export default function EditPurchaseScreen() {
                   label={`${t('purchases.buyPrice')} (IQD)`}
                   value={buyPriceIQD}
                   onChangeText={syncBuyUSD}
+                  onEndEditing={() => {
+                    const r = roundToNearest250(parseFloat(buyPriceIQD) || 0);
+                    setBuyPriceIQD(String(r));
+                    if (exchangeRate > 0) setBuyPriceUSD((r / exchangeRate).toFixed(2));
+                  }}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
                 />
@@ -292,6 +327,11 @@ export default function EditPurchaseScreen() {
                   label={`${t('purchases.sellPrice')} (IQD)`}
                   value={sellPriceIQD}
                   onChangeText={syncSellUSD}
+                  onEndEditing={() => {
+                    const r = roundToNearest250(parseFloat(sellPriceIQD) || 0);
+                    setSellPriceIQD(String(r));
+                    if (exchangeRate > 0) setSellPriceUSD((r / exchangeRate).toFixed(2));
+                  }}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
                 />
@@ -396,6 +436,7 @@ const styles = StyleSheet.create({
   infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, marginBottom: 4 },
   infoLabel: { fontSize: 13 },
   infoValue: { fontSize: 14, fontWeight: '600' },
+  hintText:  { fontSize: 12, marginTop: -8, marginBottom: 8 },
 
   totalBox: { borderRadius: Theme.radius.md, padding: 14, marginTop: 10, gap: 6 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

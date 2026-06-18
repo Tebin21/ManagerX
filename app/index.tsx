@@ -1,7 +1,7 @@
 import { ActivityIndicator, View } from 'react-native';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useLanguageStore } from '@/store/languageStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -9,8 +9,8 @@ import { generateThemeColors } from '@/lib/colorUtils';
 
 export default function Index() {
   const router = useRouter();
-  const { language } = useLanguageStore();
-  const { user, isDevMode, isLoading } = useAuthStore();
+  const { hasCompletedOnboarding } = useOnboardingStore();
+  const { user, isLoading } = useAuthStore();
   const { isSetupComplete } = useBusinessStore();
   const accentColor = useSettingsStore((s) => s.accentColor);
   const bgColor = accentColor
@@ -20,13 +20,12 @@ export default function Index() {
   useEffect(() => {
     if (isLoading) return;
 
-    if (!language) {
-      router.replace('/(onboarding)/splash');
+    if (!hasCompletedOnboarding) {
+      router.replace('/(onboarding)/welcome');
       return;
     }
 
-    // Skip auth check for users who have already completed setup (offline-first app)
-    if (!user && !isDevMode && !isSetupComplete) {
+    if (!user) {
       router.replace('/(onboarding)/login');
       return;
     }
@@ -37,7 +36,7 @@ export default function Index() {
     }
 
     router.replace('/(app)/dashboard');
-  }, [isLoading, language, user, isDevMode, isSetupComplete]);
+  }, [isLoading, hasCompletedOnboarding, user, isSetupComplete]);
 
   // Always render visible content.  Returning null leaves a white screen
   // during the one-render gap between the effect firing and the target

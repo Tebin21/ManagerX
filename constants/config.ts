@@ -1,4 +1,6 @@
-export const SUPPORT_PHONE = '07708229696';
+export const SUPPORT_PHONE   = '07708229696';
+export const SUPPORT_WEBSITE = 'https://www.BexDre.com';
+export const SUPPORT_WEBSITE_DISPLAY = 'www.BexDre.com';
 
 export type ModuleId =
   | 'purchases'

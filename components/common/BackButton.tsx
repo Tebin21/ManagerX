@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useDirectionalChevron } from '@/lib/rtl';
 
 interface Props {
   onPress?: () => void;
@@ -17,6 +18,7 @@ interface Props {
 
 export function BackButton({ onPress, style }: Props) {
   const router = useRouter();
+  const { chevronBack } = useDirectionalChevron();
   const scale   = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -45,9 +47,9 @@ export function BackButton({ onPress, style }: Props) {
         hitSlop={12}
         activeOpacity={1}
       >
-        {/* Icon always points left — never flipped by RTL */}
+        {/* Points left in English, mirrors to point right in Kurdish */}
         <Ionicons
-          name="chevron-back"
+          name={chevronBack as never}
           size={22}
           color="#FFFFFF"
           style={styles.icon}

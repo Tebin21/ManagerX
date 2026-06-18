@@ -143,18 +143,19 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateSellingPrice: (productId: number, price: number) => {
+    const snapped = roundToNearest250(price);
     set((state) => ({
       items: state.items.map((i) => {
         if (i.product.id !== productId) return i;
         const newDiscount = i.discountType === 'percentage'
-          ? calcDiscountFromPct(price, i.discountPct)
-          : Math.min(i.discount, price);
+          ? calcDiscountFromPct(snapped, i.discountPct)
+          : Math.min(i.discount, snapped);
         return {
           ...i,
-          sellingPrice: price,
+          sellingPrice: snapped,
           discount: newDiscount,
-          lineTotal: calcLineTotal(price, newDiscount, i.quantity),
-          hasLossWarning: price < i.product.purchasePrice,
+          lineTotal: calcLineTotal(snapped, newDiscount, i.quantity),
+          hasLossWarning: snapped < i.product.purchasePrice,
         };
       }),
     }));

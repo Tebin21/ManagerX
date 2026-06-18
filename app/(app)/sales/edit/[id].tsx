@@ -31,6 +31,7 @@ import { Theme } from '@/constants/theme';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 import { fmtIQD } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 
 interface EditItem {
   productId: number;
@@ -45,7 +46,7 @@ interface EditItem {
 }
 
 function calcLineTotal(price: number, qty: number, disc: number): number {
-  return Math.max(0, (price - disc) * qty);
+  return Math.max(0, roundToNearest250((price - disc) * qty));
 }
 
 
@@ -91,7 +92,7 @@ export default function EditInvoiceScreen() {
   const subtotal      = items.reduce((s, i) => s + i.lineTotal, 0);
   const discountTotal = items.reduce((s, i) => s + i.discount * i.quantity, 0);
   const grandTotal    = subtotal;
-  const paidAmount    = paymentMethod === 'debt' ? (parseFloat(paidAmountStr) || 0) : grandTotal;
+  const paidAmount    = paymentMethod === 'debt' ? roundToNearest250(parseFloat(paidAmountStr) || 0) : grandTotal;
   const remainingDebt = paymentMethod === 'debt' ? Math.max(0, grandTotal - paidAmount) : 0;
 
   const visibleProducts = inventory.searchProducts(productQuery, 'all').filter(
@@ -409,6 +410,7 @@ export default function EditInvoiceScreen() {
                       style={[styles.itemInput, { borderColor: colors.gray200, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
                       value={String(item.sellingPrice)}
                       onChangeText={(v) => updateItemField(idx, { sellingPrice: parseFloat(v) || 0 })}
+                      onEndEditing={() => updateItemField(idx, { sellingPrice: roundToNearest250(item.sellingPrice) })}
                       keyboardType="decimal-pad"
                     />
                   </View>
@@ -420,6 +422,7 @@ export default function EditInvoiceScreen() {
                       style={[styles.itemInput, { borderColor: colors.gray200, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
                       value={String(item.discount)}
                       onChangeText={(v) => updateItemField(idx, { discount: parseFloat(v) || 0 })}
+                      onEndEditing={() => updateItemField(idx, { discount: roundToNearest250(item.discount) })}
                       keyboardType="decimal-pad"
                     />
                   </View>
@@ -529,6 +532,10 @@ export default function EditInvoiceScreen() {
                 placeholder="0"
                 value={paidAmountStr}
                 onChangeText={setPaidAmountStr}
+                onEndEditing={() => {
+                  const r = roundToNearest250(parseFloat(paidAmountStr) || 0);
+                  setPaidAmountStr(String(r));
+                }}
                 keyboardType="decimal-pad"
               />
               {remainingDebt > 0 && (

@@ -277,74 +277,81 @@ const alertStyles = StyleSheet.create({
   actionText: { fontSize: 12, fontWeight: '700' },
 });
 
-// ─── Date Range Picker ────────────────────────────────────────────────────────
+// ─── Filter Period Bottom Sheet ───────────────────────────────────────────────
 
-function DateRangePicker({
-  current, onChange,
+function FilterPeriodSheet({
+  visible, onClose, current, onChange,
 }: {
+  visible: boolean;
+  onClose: () => void;
   current: DateRangeKey;
   onChange: (key: DateRangeKey, from?: string, to?: string) => void;
 }) {
   const { colors } = useAppTheme();
-  const { isRTL } = useRTL();
-  const [customOpen, setCustomOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
 
-  const keys: DateRangeKey[] = ['today', 'week', 'month', 'year', 'custom'];
-  const labels: Record<DateRangeKey, string> = {
-    today:  i18n.t('common.today'),
-    week:   i18n.t('common.thisWeek'),
-    month:  i18n.t('common.thisMonth'),
-    year:   i18n.t('reports.year'),
-    custom: i18n.t('reports.custom'),
-  };
+  type Option = { key: DateRangeKey; label: string; icon: ComponentProps<typeof Ionicons>['name'] };
+  const options: Option[] = [
+    { key: 'today',  label: i18n.t('common.today'),     icon: 'today-outline' },
+    { key: 'week',   label: i18n.t('common.thisWeek'),  icon: 'calendar-outline' },
+    { key: 'month',  label: i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
+    { key: 'year',   label: i18n.t('reports.year'),     icon: 'stats-chart-outline' },
+    { key: 'custom', label: i18n.t('reports.custom'),   icon: 'options-outline' },
+  ];
 
   return (
-    <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[drStyles.row, isRTL && { flexDirection: 'row-reverse' }]}>
-        {keys.map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[drStyles.pill, current === key && drStyles.pillActive]}
-            onPress={() => {
-              if (key === 'custom') { setCustomOpen(true); }
-              else { onChange(key); }
-            }}
-          >
-            <Text style={[drStyles.pillText, current === key && { color: colors.primary }]}>
-              {labels[key]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={fpStyles.root}>
+        <TouchableOpacity style={fpStyles.overlay} activeOpacity={1} onPress={onClose} />
+        <View style={[fpStyles.sheet, { backgroundColor: colors.white }]}>
+          <View style={fpStyles.handle} />
+          <Text style={[fpStyles.sheetTitle, { color: Colors.black }]}>
+            {i18n.t('reports.filterByPeriod')}
+          </Text>
 
-      <Modal visible={customOpen} animationType="fade" transparent>
-        <View style={drStyles.overlay}>
-          <View style={drStyles.modal}>
-            <Text style={drStyles.modalTitle}>{i18n.t('reports.customRange')}</Text>
-            <Text style={drStyles.dateLabel}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
-            <TextInput
-              style={drStyles.dateInput}
-              placeholder="2026-01-01"
-              placeholderTextColor={Colors.gray400}
-              value={customFrom}
-              onChangeText={setCustomFrom}
-            />
-            <Text style={drStyles.dateLabel}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
-            <TextInput
-              style={drStyles.dateInput}
-              placeholder="2026-12-31"
-              placeholderTextColor={Colors.gray400}
-              value={customTo}
-              onChangeText={setCustomTo}
-            />
-            <View style={drStyles.modalActions}>
-              <TouchableOpacity style={drStyles.cancelBtn} onPress={() => setCustomOpen(false)}>
-                <Text style={drStyles.cancelText}>{i18n.t('common.cancel')}</Text>
-              </TouchableOpacity>
+          {options.map(({ key, icon, label }) => {
+            const active = current === key;
+            return (
               <TouchableOpacity
-                style={[drStyles.applyBtn, { backgroundColor: colors.primary }]}
+                key={key}
+                style={[fpStyles.option, active && { backgroundColor: `${colors.primary}12` }]}
+                onPress={() => {
+                  if (key !== 'custom') { onChange(key); onClose(); }
+                  else { onChange('custom'); }
+                }}
+              >
+                <View style={[fpStyles.iconCircle, { backgroundColor: active ? `${colors.primary}20` : Colors.gray100 }]}>
+                  <Ionicons name={icon} size={16} color={active ? colors.primary : Colors.gray500} />
+                </View>
+                <Text style={[fpStyles.optionLabel, { color: active ? colors.primary : Colors.black }, active && { fontWeight: '700' }]}>
+                  {label}
+                </Text>
+                {active && <Ionicons name="checkmark" size={16} color={colors.primary} style={fpStyles.checkmark} />}
+              </TouchableOpacity>
+            );
+          })}
+
+          {current === 'custom' && (
+            <View style={fpStyles.customBox}>
+              <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+                placeholder="2026-01-01"
+                placeholderTextColor={Colors.gray400}
+                value={customFrom}
+                onChangeText={setCustomFrom}
+              />
+              <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+                placeholder="2026-12-31"
+                placeholderTextColor={Colors.gray400}
+                value={customTo}
+                onChangeText={setCustomTo}
+              />
+              <TouchableOpacity
+                style={[fpStyles.applyBtn, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   if (customFrom && customTo) {
                     if (customFrom > customTo) {
@@ -352,37 +359,37 @@ function DateRangePicker({
                       return;
                     }
                     onChange('custom', `${customFrom}T00:00:00.000Z`, `${customTo}T23:59:59.999Z`);
-                    setCustomOpen(false);
+                    onClose();
                   } else {
                     Alert.alert(i18n.t('common.required'), i18n.t('purchases.validationDate'));
                   }
                 }}
               >
-                <Text style={drStyles.applyText}>{i18n.t('reports.apply')}</Text>
+                <Text style={fpStyles.applyText}>{i18n.t('reports.apply')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          )}
         </View>
-      </Modal>
-    </>
+      </View>
+    </Modal>
   );
 }
 
-const drStyles = StyleSheet.create({
-  row: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 },
-  pill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
-  pillActive: { backgroundColor: '#fff' },
-  pillText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modal: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '85%' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.black, marginBottom: 16 },
-  dateLabel: { fontSize: 13, fontWeight: '600', color: Colors.gray600, marginBottom: 6 },
-  dateInput: { borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.black, marginBottom: 14 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  cancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
-  applyBtn: { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+const fpStyles = StyleSheet.create({
+  root:        { flex: 1, justifyContent: 'flex-end' },
+  overlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet:       { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, paddingTop: 12 },
+  handle:      { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.gray200, alignSelf: 'center', marginBottom: 16 },
+  sheetTitle:  { fontSize: 16, fontWeight: '800', paddingHorizontal: 20, marginBottom: 8 },
+  option:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 13, gap: 12, borderRadius: 12, marginHorizontal: 8, marginBottom: 2 },
+  iconCircle:  { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  optionLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  checkmark:   { marginStart: 'auto' as any },
+  customBox:   { marginHorizontal: 20, marginTop: 8 },
+  dateLabel:   { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 8 },
+  dateInput:   { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 4 },
+  applyBtn:    { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
+  applyText:   { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
 
 // ─── Financial Summary Card ───────────────────────────────────────────────────
@@ -730,8 +737,9 @@ export default function ReportsScreen() {
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [isExporting, setIsExporting]         = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  useFocusEffect(useCallback(() => { reload(); }, [reload]));
+  useFocusEffect(useCallback(() => { setDateRange('today'); }, [setDateRange]));
 
   // ── Smart alerts ─────────────────────────────────────────────────────────────
   const allAlerts: SmartAlert[] = [];
@@ -794,12 +802,21 @@ export default function ReportsScreen() {
         title={t('reports.title')}
         showBack
         onBack={() => router.back()}
-        rightAction={<HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} />}
-      >
-        <DateRangePicker current={dateRange.key} onChange={setDateRange} />
-      </AppHeader>
+        rightAction={
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <HeaderActionButton icon="options-outline" onPress={() => setFilterSheetOpen(true)} />
+            <HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} />
+          </View>
+        }
+      />
 
       <ExportReportModal visible={exportModalOpen} onClose={() => setExportModalOpen(false)} />
+      <FilterPeriodSheet
+        visible={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        current={dateRange.key}
+        onChange={setDateRange}
+      />
 
       {isLoading ? (
         <View style={styles.loadingCenter}>

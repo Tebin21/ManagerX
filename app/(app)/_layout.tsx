@@ -1,9 +1,24 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useRTL } from '@/lib/rtl';
+import { useAuthStore } from '@/store/authStore';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
+
+  // Guards every screen under (app) — dashboard, inventory, sales, purchases,
+  // reports, settings, and all other business modules. If the Google session
+  // is missing or expires while inside the app, bounce back to Login.
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/(onboarding)/login');
+    }
+  }, [isLoading, user]);
+
   return (
     <ErrorBoundary>
       <Stack

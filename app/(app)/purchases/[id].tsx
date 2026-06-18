@@ -100,8 +100,20 @@ export default function PurchaseDetailScreen() {
           text: t('purchases.confirmDelete'), style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
-            try { await deletePurchase(Number(id)); router.back(); }
-            catch (err) { console.error(err); setIsDeleting(false); }
+            try {
+              await deletePurchase(Number(id));
+              router.back();
+            } catch (err: any) {
+              console.error(err);
+              setIsDeleting(false);
+              if (err?.message === 'PURCHASE_HAS_SALES') {
+                Alert.alert(t('purchases.cannotDeleteTitle'), t('purchases.cannotDeleteHasSales'));
+              } else if (err?.message === 'PURCHASE_HAS_ACTIVE_DEBT') {
+                Alert.alert(t('purchases.cannotDeleteTitle'), t('purchases.cannotDeleteHasDebt'));
+              } else {
+                Alert.alert(t('common.error'), t('common.tryAgain'));
+              }
+            }
           },
         },
       ]

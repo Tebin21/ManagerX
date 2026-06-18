@@ -23,6 +23,7 @@ import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
 import { fmtIQD, formatDate } from '@/utils/formatters';
+import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
 
@@ -275,6 +276,10 @@ function QuickPayModal({
           keyboardType="decimal-pad"
           value={value}
           onChangeText={setValue}
+          onEndEditing={() => {
+            const r = roundToNearest250(parseFloat(value) || 0);
+            setValue(r > 0 ? String(r) : '');
+          }}
           autoFocus
         />
         <View style={[styles.modalActions, { flexDirection }]}>
@@ -287,7 +292,7 @@ function QuickPayModal({
           <TouchableOpacity
             style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
             onPress={() => {
-              const amt = parseFloat(value);
+              const amt = roundToNearest250(parseFloat(value) || 0);
               if (!amt || amt <= 0) {
                 Alert.alert(i18n.t('common.error'), i18n.t('debt.invalidAmount'));
                 return;

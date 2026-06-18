@@ -26,6 +26,8 @@ import { useRTL } from '@/lib/rtl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
+import { roundToNearest250 } from '@/utils/rounding';
+import { roundUSD } from '@/utils/rounding';
 
 
 type FieldKey =
@@ -93,32 +95,32 @@ export default function EditProductScreen() {
   const syncBuyIQD = (val: string) => {
     setBuyIQD(val);
     const n = parseFloat(val);
-    if (!isNaN(n)) setBuyUSD(String(Math.round((n / exchangeRate) * 100) / 100));
+    if (!isNaN(n)) setBuyUSD(String(roundUSD(n / exchangeRate)));
   };
 
   const syncBuyUSD = (val: string) => {
     setBuyUSD(val);
     const n = parseFloat(val);
-    if (!isNaN(n)) setBuyIQD(String(Math.round(n * exchangeRate)));
+    if (!isNaN(n)) setBuyIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
   const syncSellIQD = (val: string) => {
     setSellIQD(val);
     const n = parseFloat(val);
-    if (!isNaN(n)) setSellUSD(String(Math.round((n / exchangeRate) * 100) / 100));
+    if (!isNaN(n)) setSellUSD(String(roundUSD(n / exchangeRate)));
   };
 
   const syncSellUSD = (val: string) => {
     setSellUSD(val);
     const n = parseFloat(val);
-    if (!isNaN(n)) setSellIQD(String(Math.round(n * exchangeRate)));
+    if (!isNaN(n)) setSellIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
   const handleSave = useCallback(async () => {
     if (!product) return;
     if (!name.trim()) { Alert.alert(t('common.required'), t('inventory.errorSave')); return; }
-    const buyPrice  = parseFloat(buyIQD);
-    const sellPrice = parseFloat(sellIQD);
+    const buyPrice  = roundToNearest250(parseFloat(buyIQD) || 0);
+    const sellPrice = roundToNearest250(parseFloat(sellIQD) || 0);
     const qty       = parseInt(quantity, 10);
     if (isNaN(buyPrice) || buyPrice < 0)  { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
     if (isNaN(sellPrice) || sellPrice < 0) { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
@@ -262,6 +264,11 @@ export default function EditProductScreen() {
                 style={[styles.priceInput, { color: colors.black }]}
                 value={buyIQD}
                 onChangeText={syncBuyIQD}
+                onEndEditing={() => {
+                  const r = roundToNearest250(parseFloat(buyIQD) || 0);
+                  setBuyIQD(String(r));
+                  setBuyUSD(String(roundUSD(r / exchangeRate)));
+                }}
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={colors.gray300}
@@ -288,6 +295,11 @@ export default function EditProductScreen() {
                 style={[styles.priceInput, { color: colors.black }]}
                 value={sellIQD}
                 onChangeText={syncSellIQD}
+                onEndEditing={() => {
+                  const r = roundToNearest250(parseFloat(sellIQD) || 0);
+                  setSellIQD(String(r));
+                  setSellUSD(String(roundUSD(r / exchangeRate)));
+                }}
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={colors.gray300}

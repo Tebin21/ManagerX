@@ -1,67 +1,97 @@
 import { create } from 'zustand';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase, supabaseConfigured } from '@/lib/supabase';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import auth from '@react-native-firebase/auth';
+
+const WEB_CLIENT_ID =
+  '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
+
+GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+
+export interface AppUser {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
 
 interface AuthState {
-  user: User | null;
-  session: Session | null;
+  user: AppUser | null;
   isLoading: boolean;
-  isDevMode: boolean;
 
-  setSession: (session: Session | null) => void;
-  setDevMode: () => void;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
 
+function firebaseUserToAppUser(u: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}): AppUser {
+  return {
+    id: u.uid,
+    email: u.email ?? null,
+    displayName: u.displayName ?? null,
+    photoURL: u.photoURL ?? null,
+  };
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  session: null,
   isLoading: true,
-  isDevMode: false,
-
-  setSession: (session) =>
-    set({ session, user: session?.user ?? null, isLoading: false }),
-
-  setDevMode: () => set({ isDevMode: true, isLoading: false }),
-
-  signIn: async (email, password) => {
-    set({ isLoading: true });
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    set({ isLoading: false });
-    return { error: error?.message ?? null };
-  },
 
   signInWithGoogle: async () => {
     set({ isLoading: true });
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: 'managerx://auth/callback' },
-    });
-    set({ isLoading: false });
-    return { error: error?.message ?? null };
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      const signInResult = await GoogleSignin.signIn();
+
+      // Support both v13+ ({ type, data }) and v10 (direct object) APIs
+      if ((signInResult as any)?.type && (signInResult as any).type !== 'success') {
+        set({ isLoading: false });
+        return { error: 'Sign-in was cancelled.' };
+      }
+      const idToken =
+        (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+      if (!idToken) {
+        set({ isLoading: false });
+        return { error: 'Google Sign-In failed: no ID token received.' };
+      }
+
+      const credential = auth.GoogleAuthProvider.credential(idToken);
+      const { user } = await auth().signInWithCredential(credential);
+
+      set({ user: firebaseUserToAppUser(user), isLoading: false });
+      return { error: null };
+    } catch (e: any) {
+      set({ isLoading: false });
+      return { error: e?.message ?? 'Google Sign-In failed.' };
+    }
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, session: null, isDevMode: false });
+    try { await auth().signOut(); } catch {}
+    try { await GoogleSignin.signOut(); } catch {}
+    set({ user: null });
   },
 
-  initialize: async () => {
-    if (!supabaseConfigured) {
-      set({ isLoading: false });
-      return;
-    }
-    try {
-      const { data } = await supabase.auth.getSession();
-      set({ session: data.session, user: data.session?.user ?? null, isLoading: false });
-      supabase.auth.onAuthStateChange((_event, session) => {
-        set({ session, user: session?.user ?? null });
+  // Stays subscribed for the lifetime of the app so an expired/revoked
+  // session (user becomes null) is reflected immediately and the
+  // (app) layout guard can redirect back to the Login screen.
+  initialize: () =>
+    new Promise<void>((resolve) => {
+      let resolved = false;
+      auth().onAuthStateChanged((firebaseUser) => {
+        set({
+          user: firebaseUser ? firebaseUserToAppUser(firebaseUser) : null,
+          isLoading: false,
+        });
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
       });
-    } catch {
-      set({ isLoading: false });
-    }
-  },
+    }),
 }));

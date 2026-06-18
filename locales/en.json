@@ -30,21 +30,28 @@
     "today":      "Today",
     "thisWeek":   "This Week",
     "thisMonth":  "This Month",
-    "allTime":    "All Time"
+    "allTime":    "All Time",
+    "next":       "Next"
   },
   "splash": {
     "tagline": "Your Business, Simplified"
   },
+  "welcome": {
+    "headline": "Welcome to ManagerX",
+    "tagline":  "Manage your business smarter, faster, and easier."
+  },
+  "about": {
+    "title":          "ManagerX",
+    "subtitle":        "A complete system for managing your business",
+    "intro":           "ManagerX is built to help business owners easily manage inventory, sales, purchases, debt, and financial reports — all in one place.",
+    "features":        "• Inventory management\n• Sales tracking\n• Purchase tracking\n• Debt management\n• Reports & financial analytics\n• Transaction history",
+    "growthBenefit":   "It helps you run your business more efficiently, save time and effort, and make more informed business decisions."
+  },
   "login": {
     "title":             "Welcome to ManagerX",
-    "subtitle":          "Sign in to manage your business",
+    "subtitle":          "Manage your business smarter and easier.",
     "googleBtn":         "Continue with Google",
-    "emailPlaceholder":  "Email address",
-    "passwordPlaceholder":"Password",
-    "signInBtn":         "Sign In",
-    "skipBtn":           "Skip For Now",
-    "noAccount":         "Don't have an account?",
-    "signUp":            "Sign Up"
+    "appleBtn":          "Continue with Apple"
   },
   "language": {
     "title":        "Choose Your Language",
@@ -123,8 +130,9 @@
     "soldProducts": { "title": "Sold Products",  "description": "Browse the complete history of every sold item" }
   },
   "support": {
-    "label":   "Need help?",
+    "label":   "For business inquiries or system support:",
     "phone":   "07708229696",
+    "website": "www.BexDre.com",
     "contact": "Contact Support"
   },
   "purchases": {
@@ -168,9 +176,17 @@
     "shareInvoice":        "Share Invoice",
     "deletePurchase":      "Delete Purchase",
     "deleteConfirmTitle":  "Delete Purchase",
-    "deleteConfirmMsg":    "This will permanently delete this purchase record. This cannot be undone.",
+    "deleteConfirmMsg":    "This will remove the purchase from your records. It can only be done if none of its stock has been sold and no debt is owed on it.",
     "confirmDelete":       "Delete",
     "cancelDelete":        "Cancel",
+    "cannotDeleteTitle":   "Cannot Delete",
+    "cannotDeleteHasSales":"This purchase has recorded sales and cannot be deleted. The stock is still linked to completed sales records.",
+    "cannotDeleteHasDebt": "This purchase still has an unpaid supplier debt and cannot be deleted. Settle the debt first.",
+    "cannotReduceBelowSold":     "Cannot reduce quantity below sold quantity.",
+    "customQtyIncreaseBlocked":  "Quantity for serialized (custom ID) purchases can only be decreased. Create a new purchase to add more units.",
+    "customQtyDecreaseOnly":     "Custom-ID items: quantity can only be decreased here.",
+    "insufficientUnsoldItems":   "Not enough unsold items available to remove.",
+    "soldAvailableHint":         "{{sold}} sold · {{available}} available to reduce",
     "noHistory":           "No purchases yet",
     "noHistoryDetail":     "Record your first purchase to see history here",
     "addFirstPurchase":    "Add First Purchase",
@@ -618,6 +634,7 @@
     "toDate":             "To",
     "apply":              "Apply",
     "invalidDateRange":   "Start date must be before end date.",
+    "filterByPeriod":     "Filter by Period",
     "alertLossTitle":     "Operating at a loss",
     "alertLossBody":      "Net loss of {{amount}} IQD this period",
     "alertMarginTitle":   "Low profit margin",
