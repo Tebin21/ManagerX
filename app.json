@@ -55,6 +55,7 @@
       }],
       "@react-native-firebase/app",
       "@react-native-google-signin/google-signin",
+      "./plugins/withFirebaseAppDelegate",
       "expo-router",
       "expo-dev-client",
       "expo-font",
