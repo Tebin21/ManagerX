@@ -1,11 +1,23 @@
 import { create } from 'zustand';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import auth from '@react-native-firebase/auth';
+import {
+  isFirebaseAvailable,
+  getFirebaseAuth,
+  onAuthStateChanged,
+  signInWithCredential,
+  signOut as firebaseSignOut,
+  GoogleAuthProvider,
+} from '@/lib/firebase';
 
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
 
-GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+let googleSigninConfigured = false;
+function ensureGoogleSigninConfigured() {
+  if (googleSigninConfigured) return;
+  GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+  googleSigninConfigured = true;
+}
 
 export interface AppUser {
   id: string;
@@ -42,8 +54,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   signInWithGoogle: async () => {
+    if (!isFirebaseAvailable) {
+      return { error: 'Google Sign-In requires the iOS/Android app — not available on web.' };
+    }
     set({ isLoading: true });
     try {
+      ensureGoogleSigninConfigured();
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
       const signInResult = await GoogleSignin.signIn();
@@ -60,8 +76,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         return { error: 'Google Sign-In failed: no ID token received.' };
       }
 
-      const credential = auth.GoogleAuthProvider.credential(idToken);
-      const { user } = await auth().signInWithCredential(credential);
+      const credential = GoogleAuthProvider.credential(idToken);
+      const { user } = await signInWithCredential(getFirebaseAuth(), credential);
 
       set({ user: firebaseUserToAppUser(user), isLoading: false });
       return { error: null };
@@ -72,8 +88,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
-    try { await auth().signOut(); } catch {}
-    try { await GoogleSignin.signOut(); } catch {}
+    if (isFirebaseAvailable) {
+      try { await firebaseSignOut(getFirebaseAuth()); } catch {}
+      try { await GoogleSignin.signOut(); } catch {}
+    }
     set({ user: null });
   },
 
@@ -82,16 +100,28 @@ export const useAuthStore = create<AuthState>((set) => ({
   // (app) layout guard can redirect back to the Login screen.
   initialize: () =>
     new Promise<void>((resolve) => {
-      let resolved = false;
-      auth().onAuthStateChanged((firebaseUser) => {
-        set({
-          user: firebaseUser ? firebaseUserToAppUser(firebaseUser) : null,
-          isLoading: false,
+      if (!isFirebaseAvailable) {
+        set({ user: null, isLoading: false });
+        resolve();
+        return;
+      }
+      try {
+        const authInstance = getFirebaseAuth();
+        let resolved = false;
+        onAuthStateChanged(authInstance, (firebaseUser) => {
+          set({
+            user: firebaseUser ? firebaseUserToAppUser(firebaseUser) : null,
+            isLoading: false,
+          });
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
         });
-        if (!resolved) {
-          resolved = true;
-          resolve();
-        }
-      });
+      } catch (e) {
+        console.error('[ManagerX] Firebase Auth unavailable:', e);
+        set({ user: null, isLoading: false });
+        resolve();
+      }
     }),
 }));
