@@ -6,7 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
 import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
@@ -19,7 +19,7 @@ interface Props {
 export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Props) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
 
   const isSoldOut = item.status === 'sold_out';
   const statusBg   = isSoldOut ? '#FEE2E2' : colors.gray100;
@@ -33,7 +33,7 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
   return (
     <View style={[styles.card, { backgroundColor: colors.white }]}>
       {/* Top row: thumbnail + name + status badge */}
-      <View style={[styles.topRow, { flexDirection }]}>
+      <View style={[styles.topRow, { flexDirection, padding: isRTL ? RTL_SPACING.gap : 12, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <View style={[styles.thumb, { backgroundColor: colors.gray100 }]}>
           {item.imageUri ? (
             <Image source={{ uri: item.imageUri }} style={styles.thumbImage} resizeMode="cover" />
@@ -42,11 +42,11 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
           )}
         </View>
 
-        <View style={styles.nameBlock}>
+        <View style={[styles.nameBlock, { gap: isRTL ? RTL_SPACING.gapSm : 5 }]}>
           <Text style={[styles.productName, { color: colors.black, textAlign }]} numberOfLines={1}>
             {item.productName}
           </Text>
-          <View style={[styles.metaRow, { flexDirection }]}>
+          <View style={[styles.metaRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
             <View style={[styles.chip, { backgroundColor: colors.softBlue }]}>
               <Text style={[styles.chipText, { color: colors.primary }]}>{item.category}</Text>
             </View>
@@ -66,7 +66,7 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       </View>
 
       {/* Stats row */}
-      <View style={[styles.statsRow, { backgroundColor: colors.gray50, flexDirection }]}>
+      <View style={[styles.statsRow, { backgroundColor: colors.gray50, flexDirection, paddingVertical: isRTL ? RTL_SPACING.gapSm : 8 }]}>
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: colors.black }]}>{item.quantitySold}</Text>
           <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventoryHistory.quantitySold')}</Text>
@@ -88,17 +88,17 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       </View>
 
       {/* Date footer */}
-      <View style={[styles.footer, { flexDirection }]}>
+      <View style={[styles.footer, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}>
         <Ionicons name="calendar-outline" size={12} color={colors.gray400} />
         <Text style={[styles.footerText, { color: colors.gray400, textAlign }]}>{dateStr}</Text>
       </View>
 
       {/* Action buttons */}
       {(onRestore || onPermanentDelete) && (
-        <View style={[styles.actionsRow, { borderTopColor: colors.gray100, flexDirection }]}>
+        <View style={[styles.actionsRow, { borderTopColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           {onRestore && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.restoreBtn, { borderColor: colors.success, flexDirection }]}
+              style={[styles.actionBtn, styles.restoreBtn, { borderColor: colors.success, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}
               onPress={onRestore}
               activeOpacity={0.8}
             >
@@ -110,7 +110,7 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
           )}
           {onPermanentDelete && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.deleteBtn, { borderColor: colors.error, flexDirection }]}
+              style={[styles.actionBtn, styles.deleteBtn, { borderColor: colors.error, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}
               onPress={onPermanentDelete}
               activeOpacity={0.8}
             >

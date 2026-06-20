@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 
 interface Props {
   label: string;
@@ -18,19 +18,23 @@ interface Props {
 
 export function InventoryStatsCard({ label, value, icon, accent = false, delay = 0 }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   return (
     <MotiView
       from={{ opacity: 0, translateY: 6 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 20, stiffness: 220, delay }}
-      style={[styles.card, accent && styles.accentCard, { flexDirection }]}
+      style={[
+        styles.card,
+        accent && styles.accentCard,
+        { flexDirection, paddingVertical: isRTL ? 12 : 10, paddingHorizontal: isRTL ? RTL_SPACING.gap : 12 },
+      ]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: accent ? '#FEF3C7' : colors.softBlue }]}>
+      <View style={[styles.iconWrap, { backgroundColor: accent ? '#FEF3C7' : colors.softBlue, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? RTL_SPACING.gap : 0 }]}>
         <Ionicons name={icon} size={14} color={accent ? '#B45309' : colors.primary} />
       </View>
       <View style={styles.textBlock}>
-        <Text style={[styles.value, accent && styles.accentValue, { textAlign }]} numberOfLines={1}>{value}</Text>
+        <Text style={[styles.value, accent && styles.accentValue, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 1 }]} numberOfLines={1}>{value}</Text>
         <Text style={[styles.label, { textAlign }]} numberOfLines={1}>{label}</Text>
       </View>
     </MotiView>
@@ -59,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginEnd: 8,
+    marginRight: 8,
     flexShrink: 0,
   },
   textBlock: {

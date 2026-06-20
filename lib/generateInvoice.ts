@@ -20,6 +20,7 @@
 
 import { Alert, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow } from './invoiceTemplate';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PURCHASE_RATE } from '@/types/purchases';
@@ -60,6 +61,35 @@ let _generating = false;
 
 function getDir(): 'ltr' | 'rtl' {
   return 'ltr';
+}
+
+const LOGO_MIME_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+};
+
+/**
+ * Resolves a stored logo URI into a base64 data: URI so it's embedded
+ * directly in the PDF's HTML — avoids relying on the print engine being
+ * able to reach a file:// path. Returns null (omit the logo) on any
+ * failure: missing file, corrupted file, or unreadable path.
+ */
+async function resolveLogoDataUri(logoUri: string | null): Promise<string | null> {
+  if (!logoUri) return null;
+  if (logoUri.startsWith('data:')) return logoUri;
+  try {
+    const info = await FileSystem.getInfoAsync(logoUri);
+    if (!info.exists) return null;
+    const base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: FileSystem.EncodingType.Base64 });
+    const ext = logoUri.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpg';
+    return `data:${LOGO_MIME_BY_EXT[ext] ?? 'image/jpeg'};base64,${base64}`;
+  } catch (err) {
+    console.warn('[PDF] failed to resolve logo image, omitting from receipt:', err);
+    return null;
+  }
+}
+
+async function withResolvedLogo(business: BusinessInfo): Promise<BusinessInfo> {
+  return { ...business, logoUri: await resolveLogoDataUri(business.logoUri) };
 }
 
 /**
@@ -194,8 +224,9 @@ export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<
   if (_generating) return;
   _generating = true;
   try {
+    const biz = await withResolvedLogo(business);
     const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
-    const html = buildInvoiceHTML(sale, business, getDir(), rate);
+    const html = buildInvoiceHTML(sale, biz, getDir(), rate);
     await generateAndShare(
       html,
       `Invoice ${sale.invoiceNumber}`,
@@ -217,7 +248,8 @@ export async function sharePurchaseInvoice(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir());
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,
@@ -239,7 +271,8 @@ export async function shareInventoryReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildInventoryReportHTML(products, stats, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildInventoryReportHTML(products, stats, biz, getDir());
     await generateAndShare(
       html,
       'Inventory Report',
@@ -261,7 +294,8 @@ export async function shareSalesDebtReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildSalesDebtReportHTML(debt, payments, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildSalesDebtReportHTML(debt, payments, biz, getDir());
     await generateAndShare(
       html,
       `Debt Report — ${debt.customerName}`,
@@ -283,7 +317,8 @@ export async function sharePurchaseDebtReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildPurchaseDebtReportHTML(debt, payments, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir());
     await generateAndShare(
       html,
       `Supplier Debt Report — ${debt.supplierName}`,
@@ -306,7 +341,8 @@ export async function shareCustomerReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildCustomerReportHTML(customer, sales, debts, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildCustomerReportHTML(customer, sales, debts, biz, getDir());
     await generateAndShare(
       html,
       `Customer Report — ${customer.name}`,
@@ -329,7 +365,8 @@ export async function shareSupplierReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildSupplierReportHTML(supplier, purchases, debts, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildSupplierReportHTML(supplier, purchases, debts, biz, getDir());
     await generateAndShare(
       html,
       `Supplier Report — ${supplier.name}`,
@@ -353,12 +390,13 @@ export async function shareFullInventoryReport(
   if (_generating) return;
   _generating = true;
   try {
+    const biz = await withResolvedLogo(business);
     const lowStockIds = new Set<number>(
       products
         .filter((p) => computeProductLowStock(p, globalLowStockEnabled, globalLowStockThreshold))
         .map((p) => p.id),
     );
-    const html = buildFullInventoryReportHTML(products, stats, business, lowStockIds, getDir());
+    const html = buildFullInventoryReportHTML(products, stats, biz, lowStockIds, getDir());
     await generateAndShare(
       html,
       'Full Inventory Report',
@@ -379,7 +417,8 @@ export async function shareLowStockInventoryReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildLowStockReportHTML(lowStockProducts, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildLowStockReportHTML(lowStockProducts, biz, getDir());
     await generateAndShare(
       html,
       'Low Stock Report',
@@ -401,7 +440,8 @@ export async function shareCategoryInventoryReport(
   if (_generating) return;
   _generating = true;
   try {
-    const html = buildCategoryReportHTML(products, categoryName, business, getDir());
+    const biz = await withResolvedLogo(business);
+    const html = buildCategoryReportHTML(products, categoryName, biz, getDir());
     await generateAndShare(
       html,
       `Category Report — ${categoryName}`,
@@ -422,8 +462,9 @@ export async function shareFullReport(
   if (_generating) return;
   _generating = true;
   try {
+    const biz = await withResolvedLogo(business);
     const { buildFullReportHTML } = await import('./reportTemplate');
-    const html = buildFullReportHTML(data, business, getDir());
+    const html = buildFullReportHTML(data, biz, getDir());
     await generateAndShare(
       html,
       'Business Report',
@@ -444,8 +485,9 @@ export async function shareFinancialReport(
   if (_generating) return;
   _generating = true;
   try {
+    const biz = await withResolvedLogo(business);
     const { buildFinancialReportHTML } = await import('./financialReportTemplate');
-    const html = buildFinancialReportHTML(data, business, getDir());
+    const html = buildFinancialReportHTML(data, biz, getDir());
     await generateAndShare(
       html,
       'Financial Report',

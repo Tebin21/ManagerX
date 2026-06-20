@@ -15,11 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/common/AppHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
+import { TutorialsCard } from '@/components/settings/TutorialsCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
+import { useLicenseStore } from '@/store/licenseStore';
 import { Colors } from '@/constants/colors';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
@@ -36,6 +38,7 @@ export default function SettingsScreen() {
   const language     = useLanguageStore((s) => s.language);
   const setLanguage  = useLanguageStore((s) => s.setLanguage);
   const signOut      = useAuthStore((s) => s.signOut);
+  const itemLimit    = useLicenseStore((s) => s.limit);
 
   const { flexDirection } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -57,6 +60,9 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
 
+        {/* Tutorials — premium featured entry */}
+        <TutorialsCard />
+
         {/* Business */}
         <SettingSection title={t('settings.businessProfile')}>
           <SettingRow
@@ -64,6 +70,16 @@ export default function SettingsScreen() {
             label={t('settings.businessProfile')}
             sub={business.name || t('settings.businessProfileSub')}
             onPress={() => router.push('/(app)/settings/profile' as never)}
+          />
+        </SettingSection>
+
+        {/* Plan */}
+        <SettingSection title={t('settings.plan')}>
+          <SettingRow
+            icon="rocket"
+            label={t('settings.upgradeItemLimit')}
+            sub={t('settings.upgradeItemLimitSub', { limit: itemLimit })}
+            onPress={() => router.push('/(app)/settings/plan-limits' as never)}
           />
         </SettingSection>
 

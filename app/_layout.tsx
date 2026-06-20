@@ -18,6 +18,7 @@ import { initializeDatabase } from '@/lib/sqlite';
 import { useAuthStore } from '@/store/authStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useLicenseStore } from '@/store/licenseStore';
 import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { generateThemeColors } from '@/lib/colorUtils';
@@ -70,7 +71,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     initialize().catch((e) => console.error('Auth init failed:', e));
-    initializeDatabase().catch((e) => console.error('DB init failed:', e));
+    initializeDatabase()
+      .then(() => useLicenseStore.getState().loadLicense())
+      .catch((e) => console.error('DB init failed:', e));
   }, []);
 
   useEffect(() => {

@@ -52,10 +52,32 @@ export default function InventoryHistoryScreen() {
       t('inventoryHistory.restoreMsg', { name: item.productName }),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('inventoryHistory.restoreConfirm'), onPress: () => restoreFromHistory(item.id) },
+        {
+          text: t('inventoryHistory.restoreConfirm'),
+          onPress: async () => {
+            try {
+              await restoreFromHistory(item.id);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : '';
+              if (msg.startsWith('ITEM_LIMIT_REACHED|')) {
+                const [used, limit] = msg.split('|')[1].split(',');
+                Alert.alert(
+                  t('inventory.itemLimitReachedTitle'),
+                  t('inventory.itemLimitReachedBody', { used, limit }),
+                  [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('settings.upgradeScreen.title'), onPress: () => router.push('/(app)/settings/plan-limits' as never) },
+                  ]
+                );
+              } else {
+                Alert.alert(t('common.error'), t('common.tryAgain'));
+              }
+            }
+          },
+        },
       ]
     );
-  }, [restoreFromHistory, t]);
+  }, [restoreFromHistory, t, router]);
 
   const handlePermanentDelete = useCallback((item: HistoryItem) => {
     Alert.alert(

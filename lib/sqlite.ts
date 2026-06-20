@@ -561,6 +561,9 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
 }
 
 export async function insertProduct(data: NewProductData): Promise<number> {
+  const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
+  await assertItemLimitNotExceeded(1);
+
   const database = await getDatabase();
   const result = await database.runAsync(
     `INSERT INTO products (
@@ -679,6 +682,9 @@ export async function permanentDeleteFromHistory(historyId: number): Promise<voi
 }
 
 export async function restoreProductFromHistory(historyId: number): Promise<void> {
+  const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
+  await assertItemLimitNotExceeded(1);
+
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
     'SELECT * FROM inventory_history WHERE id = ?', [historyId]

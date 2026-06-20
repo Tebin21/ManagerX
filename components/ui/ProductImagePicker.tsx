@@ -9,41 +9,19 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { copyToPermanentStorage } from '@/lib/imageStorage';
 
 interface Props {
   uri: string | null;
   onSelect: (uri: string) => void;
   onRemove: () => void;
   label?: string;
-}
-
-/**
- * Copies a picker temp URI to permanent app storage so it survives app restarts.
- * Falls back gracefully — if it can't copy, throws so the caller can use the temp URI.
- */
-async function saveImagePermanently(tempUri: string): Promise<string> {
-  const baseDir = FileSystem.documentDirectory;
-  // If documentDirectory is unavailable (e.g. Expo Go on some platforms), use temp URI as-is
-  if (!baseDir) return tempUri;
-
-  const dir = baseDir + 'product_images/';
-  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-
-  // Strip query params before extracting extension
-  const rawPath = tempUri.split('?')[0];
-  const lastDot = rawPath.lastIndexOf('.');
-  const ext = lastDot !== -1 && lastDot > rawPath.lastIndexOf('/') ? rawPath.slice(lastDot + 1) : 'jpg';
-
-  const dest = `${dir}img_${Date.now()}.${ext}`;
-  await FileSystem.copyAsync({ from: tempUri, to: dest });
-  return dest;
 }
 
 export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
@@ -74,7 +52,7 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
 
       const tempUri = result.assets[0].uri;
       try {
-        const permanentUri = await saveImagePermanently(tempUri);
+        const permanentUri = await copyToPermanentStorage(tempUri, 'product_images');
         onSelect(permanentUri);
       } catch (saveErr) {
         console.warn('[ProductImagePicker] permanent save skipped, using temp URI:', saveErr);
@@ -104,7 +82,7 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
 
       const tempUri = result.assets[0].uri;
       try {
-        const permanentUri = await saveImagePermanently(tempUri);
+        const permanentUri = await copyToPermanentStorage(tempUri, 'product_images');
         onSelect(permanentUri);
       } catch (saveErr) {
         console.warn('[ProductImagePicker] permanent save skipped, using temp URI:', saveErr);

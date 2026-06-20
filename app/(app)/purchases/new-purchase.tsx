@@ -266,6 +266,16 @@ export default function NewPurchaseScreen() {
         );
       } else if (msg === 'DUPLICATE_NAME') {
         Alert.alert(t('common.error'), t('suppliers.duplicateName') + '\n\n' + t('suppliers.useExisting'));
+      } else if (msg.startsWith('ITEM_LIMIT_REACHED|')) {
+        const [used, limit] = msg.split('|')[1].split(',');
+        Alert.alert(
+          t('inventory.itemLimitReachedTitle'),
+          t('inventory.itemLimitReachedBody', { used, limit }),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('settings.upgradeScreen.title'), onPress: () => router.push('/(app)/settings/plan-limits' as never) },
+          ]
+        );
       } else {
         console.error('Failed to save purchase:', err);
         Alert.alert(t('common.error'), t('common.tryAgain'));

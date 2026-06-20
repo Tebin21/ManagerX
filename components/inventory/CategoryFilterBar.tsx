@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import i18n from '@/lib/i18n';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
 
 export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { isRTL, flexDirection } = useRTL();
   const all = ['all', ...categories];
 
   function categoryLabel(cat: string): string {
@@ -27,7 +27,7 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.row, { flexDirection }]}
+      contentContainerStyle={[styles.row, { flexDirection, gap: isRTL ? RTL_SPACING.gapLg : 8 }]}
     >
       {all.map((cat) => {
         const active = selected === cat;
@@ -40,6 +40,7 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
               active
                 ? { backgroundColor: colors.primary, borderColor: colors.primary }
                 : { backgroundColor: Colors.white, borderColor: Colors.gray200 },
+              { paddingHorizontal: isRTL ? RTL_SPACING.gap : 14, paddingVertical: isRTL ? 9 : 7 },
             ]}
             activeOpacity={0.75}
           >

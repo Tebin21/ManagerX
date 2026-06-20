@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { useBusinessStore } from '@/store/businessStore';
 import type { Sale } from '@/types/sales';
 import { fmtIQD, formatDateTime } from '@/utils/formatters';
 
@@ -22,7 +23,9 @@ const PAYMENT_BG: Record<string, string> = {
 
 export function InvoiceView({ sale, compact = false }: Props) {
   const { colors } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection, alignStart } = useRTL();
+  const { logoUri } = useBusinessStore();
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const paymentTextColor: Record<string, string> = {
     cash: '#065F46', fib: colors.darkBlue, debt: '#991B1B',
@@ -31,6 +34,18 @@ export function InvoiceView({ sale, compact = false }: Props) {
 
   return (
     <View>
+      {/* Logo */}
+      {logoUri && !logoFailed ? (
+        <View style={[styles.logoRow, { alignItems: alignStart }]}>
+          <Image
+            source={{ uri: logoUri }}
+            style={styles.logo}
+            resizeMode="contain"
+            onError={() => setLogoFailed(true)}
+          />
+        </View>
+      ) : null}
+
       {/* Header row */}
       <View style={[styles.headerRow, { flexDirection }]}>
         <View>
@@ -131,6 +146,12 @@ export function InvoiceView({ sale, compact = false }: Props) {
 }
 
 const styles = StyleSheet.create({
+  logoRow: { marginBottom: 12 },
+  logo: {
+    width: 64,
+    height: 64,
+    borderRadius: Theme.radius.md,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

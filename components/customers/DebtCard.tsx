@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -17,6 +17,7 @@ interface Props {
 
 export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const { isRTL, flexDirection } = useRTL();
+  const cardPad = isRTL ? RTL_SPACING.cardPad : 14;
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [saving, setSaving] = useState(false);
@@ -47,25 +48,25 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   };
 
   return (
-    <View style={[styles.card, isSettled && styles.cardSettled]}>
+    <View style={[styles.card, isSettled && styles.cardSettled, { padding: cardPad }]}>
       <TouchableOpacity
         style={[styles.header, { flexDirection }]}
         onPress={() => !isSettled && setExpanded((e) => !e)}
         activeOpacity={0.8}
       >
-        <View style={[styles.headerLeft, { flexDirection }]}>
+        <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.statusDot, isSettled ? styles.dotSettled : styles.dotActive]} />
           <View>
             {invoiceNumber && (
               <Text style={styles.invoiceNum}>{invoiceNumber}</Text>
             )}
-            <Text style={styles.amounts}>
+            <Text style={[styles.amounts, { marginTop: isRTL ? RTL_SPACING.title : 1 }]}>
               {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
             </Text>
           </View>
         </View>
 
-        <View style={[styles.headerRight, { flexDirection }]}>
+        <View style={[styles.headerRight, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           {isSettled ? (
             <View style={styles.settledBadge}>
               <Text style={styles.settledText}>Settled</Text>
@@ -73,7 +74,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           ) : (
             <View>
               <Text style={styles.remainingLabel}>Remaining</Text>
-              <Text style={styles.remainingValue}>
+              <Text style={[styles.remainingValue, { marginTop: isRTL ? RTL_SPACING.title : 0 }]}>
                 {fmtIQD(debt.remainingAmount)} IQD
               </Text>
             </View>
@@ -90,7 +91,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
 
       {/* Progress bar */}
       {!isSettled && (
-        <View style={[styles.progressWrap, { flexDirection }]}>
+        <View style={[styles.progressWrap, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           <View style={styles.progressBg}>
             <MotiView
               from={{ width: '0%' }}

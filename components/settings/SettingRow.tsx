@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 interface Props {
   icon:          ComponentProps<typeof Ionicons>['name'];
@@ -28,7 +28,7 @@ export function SettingRow({
   disabled = false,
 }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
 
   const iconBg    = destructive ? '#FEE2E2' : isDark ? colors.gray200 + '33' : colors.softBlue;
@@ -37,18 +37,18 @@ export function SettingRow({
 
   return (
     <TouchableOpacity
-      style={[styles.row, disabled && styles.disabled, { flexDirection }]}
+      style={[styles.row, disabled && styles.disabled, { flexDirection, paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 12 }]}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
       disabled={disabled}
     >
-      <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
+      <View style={[styles.iconWrap, { backgroundColor: iconBg, marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapXl : 0 }]}>
         <Ionicons name={icon} size={18} color={iconColor} />
       </View>
       <View style={styles.content}>
         <Text style={[styles.label, { color: labelClr, textAlign }]}>{label}</Text>
         {sub ? (
-          <Text style={[styles.sub, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginTop: isRTL ? RTL_SPACING.title + 1 : 1 }]} numberOfLines={1}>
             {sub}
           </Text>
         ) : null}
@@ -66,7 +66,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:  'row',
     alignItems:     'center',
-    paddingVertical: 12,
   },
   disabled: { opacity: 0.4 },
   iconWrap: {
@@ -75,9 +74,8 @@ const styles = StyleSheet.create({
     borderRadius:      10,
     alignItems:        'center',
     justifyContent:    'center',
-    marginEnd:         12,
   },
   content: { flex: 1 },
   label: { fontSize: 15, fontWeight: '600' },
-  sub:   { fontSize: 12, marginTop: 1 },
+  sub:   { fontSize: 12 },
 });

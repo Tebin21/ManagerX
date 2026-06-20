@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Purchase } from '@/types/purchases';
 import { fmtIQD, formatDate } from '@/utils/formatters';
 
@@ -17,7 +17,7 @@ interface Props {
 
 export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign, flexDirection, alignEnd } = useRTL();
+  const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const isPaid = purchase.paymentStatus === 'paid';
 
   return (
@@ -27,19 +27,19 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       activeOpacity={0.85}
     >
       {/* Header row */}
-      <View style={[styles.header, { flexDirection }]}>
-        <View style={[styles.headerLeft, { flexDirection }]}>
+      <View style={[styles.header, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+        <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.numBadge, { backgroundColor: colors.primary }]}>
             <Text style={styles.numText}>{purchase.purchaseNumber}</Text>
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.productName, { textAlign }]} numberOfLines={1}>{purchase.productName}</Text>
             {purchase.supplierName ? (
-              <Text style={[styles.supplierName, { textAlign }]} numberOfLines={1}>{purchase.supplierName}</Text>
+              <Text style={[styles.supplierName, { textAlign, marginTop: isRTL ? RTL_SPACING.title : 1 }]} numberOfLines={1}>{purchase.supplierName}</Text>
             ) : null}
           </View>
         </View>
-        <View style={[styles.headerRight, { alignItems: alignEnd }]}>
+        <View style={[styles.headerRight, { alignItems: alignEnd, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
           <Text style={[styles.date, { textAlign }]}>{formatDate(purchase.createdAt)}</Text>
           <View style={[styles.statusBadge, isPaid ? styles.statusPaid : styles.statusDebt]}>
             <Text style={[styles.statusText, isPaid ? styles.statusTextPaid : styles.statusTextDebt]}>
@@ -50,26 +50,26 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       </View>
 
       {/* Detail row */}
-      <View style={styles.details}>
+      <View style={[styles.details, { paddingVertical: isRTL ? RTL_SPACING.gap : 12 }]}>
         <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Qty</Text>
+          <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>Qty</Text>
           <Text style={styles.detailValue}>{purchase.quantity}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Price / Unit</Text>
+          <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>Price / Unit</Text>
           <Text style={styles.detailValue}>{fmtIQD(purchase.buyPriceIQD)} IQD</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Total</Text>
+          <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>Total</Text>
           <Text style={[styles.detailValue, { color: colors.primary }]}>{fmtIQD(purchase.totalIQD)} IQD</Text>
         </View>
       </View>
 
       {/* Actions row */}
-      <View style={[styles.actions, { flexDirection }]}>
-        <View style={[styles.purchaseNum, { flexDirection }]}>
+      <View style={[styles.actions, { flexDirection, paddingHorizontal: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+        <View style={[styles.purchaseNum, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
           <Ionicons name="receipt-outline" size={13} color={Colors.gray400} />
           <Text style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</Text>
         </View>

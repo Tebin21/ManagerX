@@ -13,6 +13,24 @@ export function useRTL() {
   };
 }
 
+// Extra breathing room for Kurdish (RTL) screens only — Kurdish script/labels
+// read cramped at the same gaps that work fine for English. These are target
+// values for the RTL side ONLY: always apply as
+//   isRTL ? RTL_SPACING.gapLg : <the original LTR literal>
+// Never use a value here as a flat replacement for both directions — that
+// would change the LTR layout, which must stay pixel-for-pixel unchanged.
+export const RTL_SPACING = {
+  gapSm:   8,   // small inline icon + label gap (phone/date/footer rows)
+  gap:     14,  // icon/content gap inside list rows, cards, top rows
+  gapLg:   16,  // icon-wrap -> content block gap (settings rows, avatars)
+  gapXl:   20,  // icon-wrap -> content block gap for Settings list rows only
+                // (SettingRow/SettingSwitch/SettingSection) — extra room so the
+                // icon never reads as "attached" to Kurdish script labels.
+  title:   5,   // vertical gap between a title and its subtitle line
+  rowPadV: 14,  // vertical padding for list/option rows
+  cardPad: 18,  // padding inside cards
+};
+
 // Use for navigation icons that should mirror in RTL (chevrons, arrows).
 // Do NOT use for home/settings/product/brand icons.
 export function useDirectionalChevron() {

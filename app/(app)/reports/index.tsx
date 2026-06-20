@@ -752,9 +752,6 @@ export default function ReportsScreen() {
   if (debtData && debtData.overdueCount > 0) {
     allAlerts.push({ id: 'overdue', type: 'warning', icon: 'time', title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }), body: t('reports.alertOverdueBody'), action: { label: t('reports.alertActionView'), route: '/(app)/debt' } });
   }
-  if (inventoryData && inventoryData.outOfStockCount > 0) {
-    allAlerts.push({ id: 'stock', type: 'info', icon: 'cube', title: t('reports.alertStockTitle', { count: inventoryData.outOfStockCount }), body: t('reports.alertStockBody'), action: { label: t('reports.alertActionView'), route: '/(app)/inventory' } });
-  }
   const visibleAlerts = allAlerts.filter((a) => !dismissedAlerts.includes(a.id));
 
   // ── Export PDF ────────────────────────────────────────────────────────────────

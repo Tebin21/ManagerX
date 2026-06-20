@@ -6,7 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { CustomerWithStats } from '@/types/customers';
 import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
@@ -18,19 +18,19 @@ interface Props {
 export function CustomerCard({ customer, onPress }: Props) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const hasDebt = customer.remainingDebt > 0;
   const lastDate = customer.lastPurchaseDate ? formatDateShort(customer.lastPurchaseDate) : null;
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.white, flexDirection }]}
+      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
       onPress={onPress}
       activeOpacity={0.82}
     >
       {/* Avatar */}
-      <View style={[styles.avatar, { backgroundColor: colors.softBlue }]}>
+      <View style={[styles.avatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapLg : 12 }]}>
         <Text style={[styles.avatarText, { color: colors.primary }]}>
           {customer.name.charAt(0).toUpperCase()}
         </Text>
@@ -38,7 +38,7 @@ export function CustomerCard({ customer, onPress }: Props) {
 
       {/* Body */}
       <View style={styles.body}>
-        <View style={[styles.nameRow, { flexDirection }]}>
+        <View style={[styles.nameRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>
             {customer.name}
           </Text>
@@ -49,7 +49,7 @@ export function CustomerCard({ customer, onPress }: Props) {
           )}
         </View>
         {customer.phone ? (
-          <View style={[styles.phoneRow, { flexDirection }]}>
+          <View style={[styles.phoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="call-outline" size={12} color={colors.gray400} />
             <Text style={[styles.phone, { color: colors.gray400, textAlign }]}>{customer.phone}</Text>
           </View>
@@ -59,7 +59,7 @@ export function CustomerCard({ customer, onPress }: Props) {
           {hasDebt ? `  ·  ${fmtIQD(customer.remainingDebt)} IQD ${t('customers.remainingDebt').split(' ')[0]}` : ''}
         </Text>
         {lastDate ? (
-          <View style={[styles.dateRow, { flexDirection }]}>
+          <View style={[styles.dateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
             <Text style={[styles.dateText, { color: colors.gray400, textAlign }]}>
               {t('suppliers.lastPurchase')}: {lastDate}

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 
 type Lang = 'en' | 'ku';
 
@@ -20,7 +20,7 @@ export default function LanguageScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { language, setLanguage } = useLanguageStore();
-  const { flexDirection } = useRTL();
+  const { isRTL, flexDirection } = useRTL();
 
   function handleSelect(code: Lang) {
     if (code === language) return;
@@ -48,12 +48,12 @@ export default function LanguageScreen() {
                 style={[
                   styles.row,
                   !isLast && { borderBottomWidth: 1, borderBottomColor: colors.gray100 },
-                  { flexDirection },
+                  { flexDirection, paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 14, gap: isRTL ? RTL_SPACING.gapLg : 12 },
                 ]}
               >
                 <View style={styles.labelWrap}>
                   <Text style={[styles.labelMain, { color: colors.black }]}>{lang.label}</Text>
-                  <Text style={[styles.labelNative, { color: colors.gray400 }]}>{lang.native}</Text>
+                  <Text style={[styles.labelNative, { color: colors.gray400, marginTop: isRTL ? RTL_SPACING.title : 1 }]}>{lang.native}</Text>
                 </View>
 
                 {isActive ? (
@@ -96,14 +96,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingVertical:   14,
     paddingHorizontal: 16,
     gap:               12,
   },
 
   labelWrap:   { flex: 1 },
   labelMain:   { fontSize: 16, fontWeight: '600' },
-  labelNative: { fontSize: 13, marginTop: 1 },
+  labelNative: { fontSize: 13 },
 
   check: {
     width:          26,

@@ -6,19 +6,23 @@ import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { generateThemeColors } from '@/lib/colorUtils';
+import { useHasHydrated } from '@/lib/useHasHydrated';
 
 export default function Index() {
   const router = useRouter();
   const { hasCompletedOnboarding } = useOnboardingStore();
-  const { user, isLoading } = useAuthStore();
+  const { user } = useAuthStore();
   const { isSetupComplete } = useBusinessStore();
+  const authHydrated = useHasHydrated(useAuthStore);
+  const onboardingHydrated = useHasHydrated(useOnboardingStore);
+  const businessHydrated = useHasHydrated(useBusinessStore);
   const accentColor = useSettingsStore((s) => s.accentColor);
   const bgColor = accentColor
     ? (generateThemeColors(accentColor, false).gradientStart ?? '#1E40AF') as string
     : '#1E40AF';
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!authHydrated || !onboardingHydrated || !businessHydrated) return;
 
     if (!hasCompletedOnboarding) {
       router.replace('/(onboarding)/welcome');
@@ -36,7 +40,7 @@ export default function Index() {
     }
 
     router.replace('/(app)/dashboard');
-  }, [isLoading, hasCompletedOnboarding, user, isSetupComplete]);
+  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete]);
 
   // Always render visible content.  Returning null leaves a white screen
   // during the one-render gap between the effect firing and the target

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
 import { fmtIQD } from '@/utils/formatters';
 
@@ -17,7 +17,7 @@ interface Props {
 
 export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const isUniqueAndSold = product.idMode === 'unique' && (!product.isActive || product.quantity === 0);
   const atMaxStock = product.idMode === 'repeatable' && inCartQty >= product.quantity;
   const isDisabled = isUniqueAndSold || atMaxStock;
@@ -25,9 +25,13 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   return (
     <View style={[styles.row, isDisabled && styles.rowDisabled, { flexDirection }]}>
       {product.imageUri ? (
-        <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="contain" />
+        <Image
+          source={{ uri: product.imageUri }}
+          style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
+          resizeMode="contain"
+        />
       ) : (
-        <View style={styles.thumbPlaceholder}>
+        <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
           <Ionicons name="cube-outline" size={28} color={Colors.gray300} />
         </View>
       )}
@@ -67,7 +71,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
         onPress={onAdd}
         disabled={isDisabled}
         activeOpacity={0.75}
-        style={[styles.addBtn, { backgroundColor: isDisabled ? Colors.gray100 : colors.softBlue }]}
+        style={[styles.addBtn, { backgroundColor: isDisabled ? Colors.gray100 : colors.softBlue, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? RTL_SPACING.gap : 0 }]}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         {inCartQty > 0 ? (
@@ -99,7 +103,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    marginEnd: 12,
+    marginRight: 12,
     flexShrink: 0,
     backgroundColor: Colors.gray100,
   },
@@ -107,7 +111,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    marginEnd: 12,
+    marginRight: 12,
     flexShrink: 0,
     backgroundColor: Colors.gray100,
     alignItems: 'center',
@@ -142,7 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginStart: 8,
+    marginLeft: 8,
     alignSelf: 'center',
   },
   inCartBadge: { flexDirection: 'row', alignItems: 'center' },

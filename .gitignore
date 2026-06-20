@@ -23,3 +23,7 @@ expo-env.d.ts
 # Native project folders — managed by expo prebuild, not committed to git
 android/
 ios/
+
+# License admin secrets — never commit the private signing key or the customer ledger
+scripts/license-admin/keys/
+scripts/license-admin/licenses.json

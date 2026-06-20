@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 
 interface Props {
   icon:    ComponentProps<typeof Ionicons>['name'];
@@ -17,17 +17,17 @@ interface Props {
 
 export function SettingSwitch({ icon, label, sub, value, onToggle, disabled }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign } = useRTL();
+  const { isRTL, textAlign } = useRTL();
 
   return (
-    <View style={styles.row}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.softBlue }]}>
+    <View style={[styles.row, { paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 12 }]}>
+      <View style={[styles.iconWrap, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapXl : 12 }]}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
-      <View style={styles.content}>
+      <View style={[styles.content, { marginEnd: isRTL ? RTL_SPACING.gap : 8 }]}>
         <Text style={[styles.label, { color: colors.black, textAlign }]}>{label}</Text>
         {sub ? (
-          <Text style={[styles.sub, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginTop: isRTL ? RTL_SPACING.title + 1 : 1 }]} numberOfLines={1}>
             {sub}
           </Text>
         ) : null}
@@ -47,7 +47,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:  'row',
     alignItems:     'center',
-    paddingVertical: 12,
   },
   iconWrap: {
     width:          34,
@@ -55,9 +54,8 @@ const styles = StyleSheet.create({
     borderRadius:   10,
     alignItems:     'center',
     justifyContent: 'center',
-    marginEnd:      12,
   },
-  content: { flex: 1, marginEnd: 8 },
+  content: { flex: 1 },
   label:   { fontSize: 15, fontWeight: '600' },
-  sub:     { fontSize: 12, marginTop: 1 },
+  sub:     { fontSize: 12 },
 });

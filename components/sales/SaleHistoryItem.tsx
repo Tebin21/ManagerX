@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { Sale } from '@/types/sales';
 import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
@@ -28,26 +28,26 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection }]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
       <View style={styles.left}>
-        <Text style={[styles.invoice, { textAlign }]}>{sale.invoiceNumber}</Text>
+        <Text style={[styles.invoice, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{sale.invoiceNumber}</Text>
         {sale.customerName ? (
-          <Text style={[styles.customer, { textAlign }]} numberOfLines={1}>{sale.customerName}</Text>
+          <Text style={[styles.customer, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]} numberOfLines={1}>{sale.customerName}</Text>
         ) : null}
         <Text style={[styles.date, { textAlign }]}>{formatDateShort(sale.date ?? sale.createdAt)}</Text>
       </View>
 
-      <View style={[styles.right, { alignItems: alignEnd }]}>
-        <Text style={[styles.total, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(sale.grandTotal)}</Text>
+      <View style={[styles.right, { alignItems: alignEnd, marginEnd: isRTL ? RTL_SPACING.gap : 8 }]}>
+        <Text style={[styles.total, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{fmtIQD(sale.grandTotal)}</Text>
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
         </View>
         {sale.remainingDebt > 0 ? (
-          <Text style={[styles.debt, { textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(sale.remainingDebt)} debt</Text>
+          <Text style={[styles.debt, { textAlign: isRTL ? 'left' : 'right', marginTop: isRTL ? RTL_SPACING.title : 2 }]}>−{fmtIQD(sale.remainingDebt)} debt</Text>
         ) : null}
       </View>
 
-      <Ionicons name={chevronForward as never} size={16} color={Colors.gray300} style={styles.arrow} />
+      <Ionicons name={chevronForward as never} size={16} color={Colors.gray300} style={[styles.arrow, { marginStart: isRTL ? RTL_SPACING.gapSm : 4 }]} />
     </TouchableOpacity>
   );
 }

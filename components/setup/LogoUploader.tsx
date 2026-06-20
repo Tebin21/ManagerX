@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { copyToPermanentStorage } from '@/lib/imageStorage';
 
 interface Props {
   uri: string | null;
@@ -21,7 +22,14 @@ export function LogoUploader({ uri, onSelect }: Props) {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      onSelect(result.assets[0].uri);
+      const tempUri = result.assets[0].uri;
+      try {
+        const permanentUri = await copyToPermanentStorage(tempUri, 'logo_images');
+        onSelect(permanentUri);
+      } catch (saveErr) {
+        console.warn('[LogoUploader] permanent save skipped, using temp URI:', saveErr);
+        onSelect(tempUri);
+      }
     }
   };
 

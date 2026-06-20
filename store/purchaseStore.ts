@@ -161,6 +161,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
     }
 
+    // Pre-flight item-limit check — fails atomically before any product rows are
+    // inserted, instead of failing partway through the custom-id loop below.
+    const additionalRows = input.idType === 'custom' ? idsToCheck.length : 1;
+    const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
+    await assertItemLimitNotExceeded(additionalRows);
+
     if (input.idType === 'custom') {
       for (const itemId of input.itemIds) {
         await insertProduct({ ...baseProduct, idMode: 'unique', quantity: 1, itemId });

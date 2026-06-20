@@ -30,7 +30,7 @@ import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryFilter } from '@/types/inventory';
 import { fmtIQD } from '@/utils/formatters';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 type ActiveTab = 'all' | 'categories';
 
@@ -63,7 +63,7 @@ export default function InventoryScreen() {
   const [catPickerVisible, setCatPickerVisible]     = useState(false);
   const [reportGenerating, setReportGenerating]     = useState(false);
   const { chevronForward } = useDirectionalChevron();
-  const { textAlign, writingDirection, flexDirection } = useRTL();
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   useEffect(() => {
     loadInventory();
@@ -312,7 +312,7 @@ export default function InventoryScreen() {
         )}
 
         {/* Search */}
-        <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}>
+        <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
@@ -355,7 +355,7 @@ export default function InventoryScreen() {
                 activeOpacity={0.75}
               >
                 {key === 'history' && (
-                  <Ionicons name="time-outline" size={12} color={isActive ? '#fff' : colors.gray500} style={{ marginEnd: 3 }} />
+                  <Ionicons name="time-outline" size={12} color={isActive ? '#fff' : colors.gray500} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }} />
                 )}
                 <Text style={[styles.tabText, { color: isActive ? '#fff' : colors.gray600 }]}>
                   {label}
@@ -411,7 +411,7 @@ export default function InventoryScreen() {
       )}
 
       {/* ── Filter button + Summary strip ── */}
-      <View style={[styles.controlRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
+      <View style={[styles.controlRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <TouchableOpacity
           onPress={() => setFilterSheetVisible(true)}
           style={[
@@ -419,7 +419,7 @@ export default function InventoryScreen() {
             filter !== 'all'
               ? { backgroundColor: colors.primary, borderColor: colors.primary }
               : { backgroundColor: 'transparent', borderColor: colors.gray200 },
-            { flexDirection },
+            { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 },
           ]}
           activeOpacity={0.75}
         >
@@ -438,7 +438,7 @@ export default function InventoryScreen() {
           />
         </TouchableOpacity>
 
-        <View style={styles.summaryBlock}>
+        <View style={[styles.summaryBlock, { gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
           <Text style={[styles.summaryCount, { color: colors.gray500, textAlign }]}>
             {visible.length} {t('inventory.products')}
           </Text>
@@ -494,7 +494,7 @@ export default function InventoryScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection }]}
+            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
             onPress={handleFullReport}
             activeOpacity={0.7}
           >
@@ -502,7 +502,7 @@ export default function InventoryScreen() {
               <Ionicons name="reader-outline" size={20} color={colors.gray600} />
             </View>
             <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign }]}>
+              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
                 {t('inventory.reportFull')}
               </Text>
               <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
@@ -513,7 +513,7 @@ export default function InventoryScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection }]}
+            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
             onPress={handleLowStockReport}
             activeOpacity={0.7}
           >
@@ -521,7 +521,7 @@ export default function InventoryScreen() {
               <Ionicons name="alert-circle-outline" size={20} color={colors.gray600} />
             </View>
             <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign }]}>
+              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
                 {t('inventory.reportLowStock')}
               </Text>
               <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
@@ -532,7 +532,7 @@ export default function InventoryScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection }]}
+            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
             onPress={() => { setReportModalVisible(false); setCatPickerVisible(true); }}
             activeOpacity={0.7}
           >
@@ -540,7 +540,7 @@ export default function InventoryScreen() {
               <Ionicons name="folder-open-outline" size={20} color={colors.gray600} />
             </View>
             <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign }]}>
+              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
                 {t('inventory.reportCategory')}
               </Text>
               <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
@@ -581,7 +581,7 @@ export default function InventoryScreen() {
               <TouchableOpacity
                 key={cat}
                 onPress={() => handleCategoryReport(cat)}
-                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection }]}
+                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection, paddingVertical: isRTL ? 18 : 16 }]}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.sheetOptionText, { color: colors.black, textAlign }]}>{cat}</Text>
@@ -613,7 +613,7 @@ export default function InventoryScreen() {
               <TouchableOpacity
                 key={key}
                 onPress={() => handleFilterSelect(key)}
-                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection }]}
+                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection, paddingVertical: isRTL ? 18 : 16 }]}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.sheetOptionText, { color: active ? colors.primary : colors.black, fontWeight: active ? '700' : '500', textAlign }]}>
@@ -640,7 +640,7 @@ export default function InventoryScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.addCatRow, { borderColor: colors.gray200, flexDirection }]}>
+            <View style={[styles.addCatRow, { borderColor: colors.gray200, flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
               <TextInput
                 style={[styles.addCatInput, { color: colors.black, borderColor: colors.gray200, textAlign, writingDirection }]}
                 placeholder={t('inventory.addCategory')}
@@ -663,9 +663,9 @@ export default function InventoryScreen() {
               {managedCategories.map((cat) => {
                 const canDelete = !cat.isDefault && cat.productCount === 0;
                 return (
-                  <View key={cat.name} style={[styles.catCard, { backgroundColor: colors.gray50, flexDirection }]}>
-                    <View style={styles.catInfo}>
-                      <View style={[styles.catNameRow, { flexDirection }]}>
+                  <View key={cat.name} style={[styles.catCard, { backgroundColor: colors.gray50, flexDirection, padding: isRTL ? RTL_SPACING.gap : 12 }]}>
+                    <View style={[styles.catInfo, { gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
+                      <View style={[styles.catNameRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                         <Text style={[styles.catName, { color: colors.black, textAlign }]}>{cat.name}</Text>
                         {cat.isDefault && (
                           <View style={[styles.defaultBadge, { backgroundColor: colors.primary + '18' }]}>

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { LowStockBadge } from './LowStockBadge';
 import i18n from '@/lib/i18n';
 import type { InventoryProduct } from '@/types/inventory';
@@ -19,7 +19,7 @@ interface Props {
 
 export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const threshold = product.lowStockThreshold ?? 3;
   const isLowStockLocal = product.isActive && product.quantity > 0 && product.quantity <= threshold;
   const isLowStock = isLowStockProp ?? isLowStockLocal;
@@ -32,12 +32,12 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
 
   return (
     <TouchableOpacity
-      style={[styles.card, isSold && styles.cardSold]}
+      style={[styles.card, isSold && styles.cardSold, { padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
       onPress={onPress}
       activeOpacity={0.82}
     >
       {/* Top row */}
-      <View style={[styles.topRow, { flexDirection }]}>
+      <View style={[styles.topRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         {/* Product thumbnail */}
         <View style={styles.thumbWrap}>
           {product.imageUri ? (
@@ -50,8 +50,8 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
         </View>
 
         <View style={styles.nameWrap}>
-          <Text style={[styles.name, { textAlign }]} numberOfLines={1}>{product.name}</Text>
-          <View style={[styles.meta, { flexDirection }]}>
+          <Text style={[styles.name, { textAlign, marginBottom: isRTL ? 8 : 5 }]} numberOfLines={1}>{product.name}</Text>
+          <View style={[styles.meta, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
             <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
               <Text style={[styles.catText, { color: colors.primaryDark }]}>{categoryName}</Text>
             </View>
@@ -100,7 +100,7 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
       <View style={[styles.bottomRow, { flexDirection }]}>
         <View style={styles.bottomLeft}>
           {product.supplierName ? (
-            <View style={[styles.supplierRow, { flexDirection }]}>
+            <View style={[styles.supplierRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
               <Ionicons name="business-outline" size={12} color={Colors.gray400} />
               <Text style={[styles.supplierText, { textAlign }]} numberOfLines={1}>{product.supplierName}</Text>
             </View>
@@ -110,7 +110,7 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
           ) : null}
         </View>
 
-        <View style={[styles.bottomRight, { flexDirection }]}>
+        <View style={[styles.bottomRight, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}>
           {isLowStock && !isSold && <LowStockBadge />}
           <View style={[styles.payDot, product.paymentStatus === 'paid' ? styles.payDotPaid : styles.payDotDebt]} />
           <Text style={[styles.payText, product.paymentStatus === 'debt' && styles.payTextDebt, { textAlign }]}>
