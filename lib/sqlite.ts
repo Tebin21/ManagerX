@@ -2689,7 +2689,7 @@ export async function getSalesReportData(from?: string, to?: string): Promise<Sa
       SELECT
         COALESCE(SUM(paid_amount), 0)                                              AS totalRevenue,
         COUNT(*)                                                                    AS totalSales,
-        COALESCE(SUM(discount_total), 0)                                           AS totalDiscounts,
+        COALESCE(SUM(discount_total + COALESCE(global_discount, 0)), 0)            AS totalDiscounts,
         COALESCE(SUM(CASE WHEN payment_method='cash' THEN paid_amount END), 0)    AS cashRevenue,
         COALESCE(SUM(CASE WHEN payment_method='fib'  THEN paid_amount END), 0)    AS fibRevenue,
         COALESCE(SUM(CASE WHEN payment_method='debt' THEN paid_amount END), 0)    AS debtRevenue,

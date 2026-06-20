@@ -49,6 +49,7 @@ export function HeaderActionButton({ icon, onPress, disabled = false, loading = 
 }
 
 const styles = StyleSheet.create({
+  // TEMP DEBUG step 1/3: background restored, border/shadow/elevation still stripped
   btn: {
     width:           36,
     height:          36,
@@ -56,12 +57,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems:      'center',
     justifyContent:  'center',
-    borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.28)',
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.14,
-    shadowRadius:    5,
-    elevation:       3,
   },
 });

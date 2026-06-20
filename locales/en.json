@@ -130,10 +130,9 @@
     "soldProducts": { "title": "Sold Products",  "description": "Browse the complete history of every sold item" }
   },
   "support": {
-    "label":   "For business inquiries or system support:",
+    "description": "For custom websites, business systems, mobile applications, e-commerce platforms, and software solutions, contact us:",
     "phone":   "07708229696",
-    "website": "www.BexDre.com",
-    "contact": "Contact Support"
+    "website": "www.BexDre.com"
   },
   "purchases": {
     "title":               "Purchases",

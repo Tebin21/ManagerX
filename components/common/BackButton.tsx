@@ -60,6 +60,7 @@ export function BackButton({ onPress, style }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // TEMP DEBUG step 1/3: background restored, border/shadow/elevation still stripped
   btn: {
     width:           38,
     height:          38,
@@ -67,15 +68,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.20)',
     alignItems:      'center',
     justifyContent:  'center',
-    // Top highlight for glass effect
-    borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.35)',
-    // Subtle shadow to lift it off the gradient
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.18,
-    shadowRadius:    6,
-    elevation:       4,
   },
   icon: {
     // Explicit left-to-right margin offset so the chevron looks optically centered
