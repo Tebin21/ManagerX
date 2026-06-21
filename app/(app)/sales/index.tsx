@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+﻿import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -36,7 +36,7 @@ export default function SalesScreen() {
 
   useEffect(() => { loadSales(); }, []);
 
-  const { count, revenue } = getTodayStats(sales);
+  const { count, revenue } = useMemo(() => getTodayStats(sales), [sales]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>

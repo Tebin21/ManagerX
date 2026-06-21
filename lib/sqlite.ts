@@ -322,6 +322,16 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Online Store — cloud-hosted copy of the product image, set after a successful
     // upload. NULL means "needs (re-)upload before the next sync can reference it".
     `ALTER TABLE products ADD COLUMN image_remote_url TEXT`,
+    // Performance audit — missing indexes on hot join/filter columns used by
+    // customer stats, reports, debt screens, and purchase deletion.
+    `CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_products_purchase_id ON products(purchase_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_debts_purchase_id ON purchase_debts(purchase_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_purchase_debts_status ON purchase_debts(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_debt_payments_debt_id ON debt_payments(debt_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_products_active_quantity ON products(is_active, quantity)`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -594,9 +604,11 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
 }
 
 export async function insertProduct(data: NewProductData): Promise<number> {
-  const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
-  await assertItemLimitNotExceeded(data.quantity);
-
+  // No item-limit check here — the sole caller (store/purchaseStore.ts) already
+  // does one atomic assertItemLimitNotExceeded() pre-flight check for the whole
+  // purchase before looping over insertProduct() per custom item id. Re-checking
+  // per row here was pure redundant overhead (a device-id lookup + Ed25519 verify
+  // + full inventory-stats scan) for a value already validated atomically.
   const database = await getDatabase();
   const result = await database.runAsync(
     `INSERT INTO products (
@@ -767,26 +779,38 @@ export async function getPendingSyncProducts(): Promise<PendingSyncItem[]> {
   const rows = await database.getAllAsync<Record<string, unknown>>(
     "SELECT * FROM sync_queue WHERE entity_type = 'product' ORDER BY id ASC"
   );
+  if (rows.length === 0) return [];
 
-  const items: PendingSyncItem[] = [];
-  for (const row of rows) {
+  const upsertIds = rows
+    .filter((r) => r.operation === 'upsert')
+    .map((r) => r.entity_id as number);
+
+  // Batch the product lookup instead of one SELECT per sync_queue row — chunked
+  // to stay under SQLite's bound-parameter limit (~999) for very large queues.
+  const productById = new Map<number, InventoryProduct>();
+  const CHUNK = 500;
+  for (let i = 0; i < upsertIds.length; i += CHUNK) {
+    const chunk = upsertIds.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => '?').join(', ');
+    const productRows = await database.getAllAsync<Record<string, unknown>>(
+      `SELECT * FROM products WHERE id IN (${placeholders})`,
+      chunk
+    );
+    for (const productRow of productRows) {
+      productById.set(productRow.id as number, rowToInventoryProduct(productRow));
+    }
+  }
+
+  return rows.map((row) => {
     const productId = row.entity_id as number;
     const operation = row.operation as 'upsert' | 'delete';
-    const productRow =
-      operation === 'upsert'
-        ? await database.getFirstAsync<Record<string, unknown>>(
-            'SELECT * FROM products WHERE id = ?',
-            [productId]
-          )
-        : null;
-    items.push({
+    return {
       queueId: row.id as number,
       productId,
       operation,
-      product: productRow ? rowToInventoryProduct(productRow) : null,
-    });
-  }
-  return items;
+      product: operation === 'upsert' ? (productById.get(productId) ?? null) : null,
+    };
+  });
 }
 
 export async function clearSyncQueue(queueIds: number[]): Promise<void> {
@@ -810,12 +834,12 @@ export async function permanentDeleteFromHistory(historyId: number): Promise<voi
   await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
 }
 
-export async function restoreProductFromHistory(historyId: number): Promise<void> {
+export async function restoreProductFromHistory(historyId: number): Promise<number | null> {
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
     'SELECT * FROM inventory_history WHERE id = ?', [historyId]
   );
-  if (!row) return;
+  if (!row) return null;
   const qty = Math.max(Number(row.final_quantity) || 0, 1);
 
   const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
@@ -836,6 +860,7 @@ export async function restoreProductFromHistory(historyId: number): Promise<void
   );
   await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
   await enqueueSyncChange(result.lastInsertRowId, 'upsert');
+  return result.lastInsertRowId;
 }
 
 export async function deleteProductsByPurchaseId(purchaseId: number): Promise<void> {
@@ -2839,8 +2864,10 @@ export interface SalesReportData {
 
 export async function getSalesReportData(from?: string, to?: string): Promise<SalesReportData> {
   const database = await getDatabase();
-  const saleWhere  = from && to ? `WHERE created_at >= '${from}' AND created_at <= '${to}'` : '';
-  const saleWhere2 = from && to ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'` : '';
+  const hasRange   = Boolean(from && to);
+  const saleWhere  = hasRange ? `WHERE created_at >= ? AND created_at <= ?` : '';
+  const saleWhere2 = hasRange ? `WHERE s.created_at >= ? AND s.created_at <= ?` : '';
+  const rangeParams: string[] = hasRange ? [from as string, to as string] : [];
 
   const [salesRow, itemsRow] = await Promise.all([
     database.getFirstAsync<Record<string, number>>(`
@@ -2855,11 +2882,11 @@ export async function getSalesReportData(from?: string, to?: string): Promise<Sa
         COUNT(CASE WHEN payment_method='fib'  THEN 1 END)                         AS fibCount,
         COUNT(CASE WHEN payment_method='debt' THEN 1 END)                         AS debtCount
       FROM sales ${saleWhere}
-    `),
+    `, rangeParams),
     database.getFirstAsync<{ totalItemsSold: number }>(`
       SELECT COALESCE(SUM(si.quantity), 0) AS totalItemsSold
       FROM sale_items si JOIN sales s ON s.id = si.sale_id ${saleWhere2}
-    `),
+    `, rangeParams),
   ]);
 
   const rev = salesRow?.totalRevenue ?? 0;
@@ -3564,16 +3591,20 @@ export async function getDashboardExpenseTotals(): Promise<{
 
   const [todayRow, weekRow, monthRow, yearRow] = await Promise.all([
     database.getFirstAsync<{ v: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date = '${todayStr}'`
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date = ?`,
+      [todayStr]
     ),
     database.getFirstAsync<{ v: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${weekAgo.toISOString().slice(0, 10)}'`
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= ?`,
+      [weekAgo.toISOString().slice(0, 10)]
     ),
     database.getFirstAsync<{ v: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${monthAgo.toISOString().slice(0, 10)}'`
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= ?`,
+      [monthAgo.toISOString().slice(0, 10)]
     ),
     database.getFirstAsync<{ v: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= '${yearAgo.toISOString().slice(0, 10)}'`
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE date >= ?`,
+      [yearAgo.toISOString().slice(0, 10)]
     ),
   ]);
 

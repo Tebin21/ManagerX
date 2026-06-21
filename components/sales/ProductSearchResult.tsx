@@ -29,6 +29,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
           source={{ uri: product.imageUri }}
           style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
           resizeMode="contain"
+          fadeDuration={0}
         />
       ) : (
         <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>

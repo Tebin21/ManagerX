@@ -5,6 +5,8 @@ import {
   addPaymentToDebt,
   addPaymentToPurchaseDebt,
   getDebtOverviewSummary,
+  getSalesDebtById,
+  getPurchaseDebtById,
 } from '@/lib/sqlite';
 import type { SalesDebtDetail, PurchaseDebt, DebtOverviewSummary } from '@/types/debt';
 
@@ -15,6 +17,12 @@ interface DebtState {
   isLoading: boolean;
   loadAll: () => Promise<void>;
   reloadAfterSale: () => Promise<void>;
+  /** Splices one sales/purchase debt row in place (or drops it once fully
+   *  settled, since getAllSalesDebtsDetailed/getAllPurchaseDebts only ever
+   *  return remaining_amount > 0 rows) instead of re-running all three full
+   *  debt queries for a single payment. */
+  refreshSalesDebt: (id: number) => Promise<void>;
+  refreshPurchaseDebt: (id: number) => Promise<void>;
   paySalesDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
   payPurchaseDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
   searchSalesDebts: (q: string) => SalesDebtDetail[];
@@ -55,9 +63,45 @@ export const useDebtStore = create<DebtState>((set, get) => ({
     }
   },
 
+  refreshSalesDebt: async (id: number) => {
+    try {
+      const [updated, summary] = await Promise.all([
+        getSalesDebtById(id),
+        getDebtOverviewSummary(),
+      ]);
+      set((state) => ({
+        salesDebts: updated && updated.remainingAmount > 0
+          ? state.salesDebts.map((d) => (d.id === id ? updated : d))
+          : state.salesDebts.filter((d) => d.id !== id),
+        summary,
+      }));
+    } catch (err) {
+      console.error('Failed to refresh sales debt, falling back to full reload:', err);
+      await get().reloadAfterSale();
+    }
+  },
+
+  refreshPurchaseDebt: async (id: number) => {
+    try {
+      const [updated, summary] = await Promise.all([
+        getPurchaseDebtById(id),
+        getDebtOverviewSummary(),
+      ]);
+      set((state) => ({
+        purchaseDebts: updated && updated.remainingAmount > 0
+          ? state.purchaseDebts.map((d) => (d.id === id ? updated : d))
+          : state.purchaseDebts.filter((d) => d.id !== id),
+        summary,
+      }));
+    } catch (err) {
+      console.error('Failed to refresh purchase debt, falling back to full reload:', err);
+      await get().reloadAfterSale();
+    }
+  },
+
   paySalesDebt: async (id: number, amount: number, paymentDate?: string) => {
     await addPaymentToDebt(id, amount, paymentDate);
-    await get().reloadAfterSale();
+    await get().refreshSalesDebt(id);
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
@@ -66,19 +110,27 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 
   payPurchaseDebt: async (id: number, amount: number, paymentDate?: string) => {
     await addPaymentToPurchaseDebt(id, amount, paymentDate);
-    await get().reloadAfterSale();
+    await get().refreshPurchaseDebt(id);
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
     } catch {}
-    try {
-      const { useInventoryStore } = await import('@/store/inventoryStore');
-      await useInventoryStore.getState().loadInventory();
-    } catch {}
-    try {
-      const { usePurchaseStore } = await import('@/store/purchaseStore');
-      await usePurchaseStore.getState().loadPurchases();
-    } catch {}
+    // addPaymentToPurchaseDebt only flips purchases.payment_status / the
+    // matching products' payment_status to 'paid' when the debt is fully
+    // settled (see lib/sqlite.ts) — only those two screens' data actually
+    // changes in that case, so only cascade-reload them then, not on every
+    // partial payment.
+    const stillOwes = get().purchaseDebts.some((d) => d.id === id);
+    if (!stillOwes) {
+      try {
+        const { useInventoryStore } = await import('@/store/inventoryStore');
+        await useInventoryStore.getState().loadInventory();
+      } catch {}
+      try {
+        const { usePurchaseStore } = await import('@/store/purchaseStore');
+        await usePurchaseStore.getState().loadPurchases();
+      } catch {}
+    }
   },
 
   searchSalesDebts: (q: string) => {

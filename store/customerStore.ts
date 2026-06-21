@@ -8,6 +8,7 @@ import {
   getDebtsByCustomerId,
   addPaymentToDebt,
   updateSaleInfo,
+  getSaleById,
 } from '@/lib/sqlite';
 import type { CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { Sale } from '@/types/sales';
@@ -24,8 +25,11 @@ interface CustomerState {
 
   editCustomer: (id: number, data: Partial<{ name: string; phone: string; address: string; notes: string }>) => Promise<void>;
   deleteCustomer: (id: number) => Promise<void>;
-  addDebtPayment: (debtId: number, amount: number) => Promise<void>;
+  addDebtPayment: (debtId: number, amount: number, customerId: number) => Promise<void>;
   editSaleInfo: (saleId: number, data: UpdateSaleInput) => Promise<void>;
+  /** Replaces one customer's row in place; falls back to a full reload if the
+   *  row is missing (e.g. it was deleted from another device mid-session). */
+  refreshCustomer: (id: number) => Promise<void>;
 }
 
 export const useCustomerStore = create<CustomerState>((set, get) => ({
@@ -64,28 +68,43 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   getCustomerById: (id: number) => get().customers.find((c) => c.id === id),
 
+  refreshCustomer: async (id: number) => {
+    try {
+      const updated = await getCustomerByIdWithStats(id);
+      set({
+        customers: updated
+          ? get().customers.map((c) => (c.id === id ? updated : c))
+          : get().customers.filter((c) => c.id !== id),
+      });
+    } catch (err) {
+      console.error('Failed to refresh customer, falling back to full reload:', err);
+      await get().loadCustomers();
+    }
+  },
+
   editCustomer: async (id, data) => {
     await updateCustomer(id, data);
-    const customers = await getAllCustomersWithStats();
-    set({ customers });
+    await get().refreshCustomer(id);
   },
 
   deleteCustomer: async (id: number) => {
     await deleteCustomerFromDB(id);
-    const customers = await getAllCustomersWithStats();
-    set({ customers });
+    set({ customers: get().customers.filter((c) => c.id !== id) });
   },
 
-  addDebtPayment: async (debtId: number, amount: number) => {
+  addDebtPayment: async (debtId: number, amount: number, customerId: number) => {
     await addPaymentToDebt(debtId, amount);
-    const customers = await getAllCustomersWithStats();
-    set({ customers });
+    await get().refreshCustomer(customerId);
   },
 
   editSaleInfo: async (saleId: number, data: UpdateSaleInput) => {
     await updateSaleInfo(saleId, data);
-    const customers = await getAllCustomersWithStats();
-    set({ customers });
+    const sale = await getSaleById(saleId);
+    if (sale?.customerId) {
+      await get().refreshCustomer(sale.customerId);
+    } else {
+      await get().loadCustomers();
+    }
   },
 }));
 

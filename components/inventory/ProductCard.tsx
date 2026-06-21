@@ -13,11 +13,15 @@ import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   product: InventoryProduct;
-  onPress: () => void;
+  /** Called with the product's id — keeping this id-based (rather than a
+   *  no-arg callback the parent recreates per row) lets the parent pass one
+   *  stable function reference for every row, which React.memo below needs
+   *  to actually skip re-rendering unrelated rows. */
+  onPress: (productId: number) => void;
   isLowStock?: boolean;
 }
 
-export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Props) {
+function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const threshold = product.lowStockThreshold ?? 3;
@@ -33,7 +37,7 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
   return (
     <TouchableOpacity
       style={[styles.card, isSold && styles.cardSold, { padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
-      onPress={onPress}
+      onPress={() => onPress(product.id)}
       activeOpacity={0.82}
     >
       {/* Top row */}
@@ -41,7 +45,7 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
         {/* Product thumbnail */}
         <View style={styles.thumbWrap}>
           {product.imageUri ? (
-            <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" />
+            <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" fadeDuration={0} />
           ) : (
             <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
               <Ionicons name="cube-outline" size={20} color={colors.primary} />
@@ -121,6 +125,8 @@ export function ProductCard({ product, onPress, isLowStock: isLowStockProp }: Pr
     </TouchableOpacity>
   );
 }
+
+export const ProductCard = React.memo(ProductCardImpl);
 
 const styles = StyleSheet.create({
   card: {

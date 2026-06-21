@@ -58,36 +58,62 @@ function defaultLicenseInfo(deviceId: string, overrides: Partial<LicenseInfo> = 
   };
 }
 
-// Re-verifies the stored license against the CURRENT device ID on every single call —
-// never trusts a cached "plan" field. There isn't one: the only thing persisted is the
-// raw signed license code, so editing local storage to claim a higher plan has nothing
-// to edit — any tampering with the stored code or device_id breaks signature
-// verification and silently falls back to the default plan.
+// Re-verifies the stored license against the CURRENT device ID — never trusts a
+// cached "plan" field. There isn't one: the only thing persisted is the raw
+// signed license code, so editing local storage to claim a higher plan has
+// nothing to edit — any tampering with the stored code or device_id breaks
+// signature verification and silently falls back to the default plan. A short
+// in-memory TTL cache (mirroring lib/onlineStoreSubscription/subscription.ts's
+// loadSubscriptionFromDb) collapses repeated calls — e.g. one per inserted
+// product row in a multi-item purchase — into a single DB+crypto round-trip
+// without weakening that guarantee for more than a few seconds at a time.
+let cachedInfo: LicenseInfo | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 30_000;
+
+export function invalidateLicenseCache(): void {
+  cachedInfo = null;
+  cachedAt = 0;
+}
+
 export async function loadLicenseFromDb(): Promise<LicenseInfo> {
+  if (cachedInfo && Date.now() - cachedAt < CACHE_TTL_MS) {
+    return cachedInfo;
+  }
+
   const deviceId = await getOrCreateDeviceId();
   const licenseCode = await loadSetting(KEY_LICENSE_CODE);
-  if (!licenseCode) return defaultLicenseInfo(deviceId);
 
-  const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
-  const result = verifyLicenseCode(licenseCode, deviceId);
+  let info: LicenseInfo;
+  if (!licenseCode) {
+    info = defaultLicenseInfo(deviceId);
+  } else {
+    const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
+    const result = verifyLicenseCode(licenseCode, deviceId);
 
-  if (result.status === 'expired') {
-    // Cryptographically valid and bound to this device, but the embedded expiry
-    // date has passed — fall back to the default plan, but flag *why*.
-    return defaultLicenseInfo(deviceId, { licenseCode, expired: true });
+    if (result.status === 'expired') {
+      // Cryptographically valid and bound to this device, but the embedded expiry
+      // date has passed — fall back to the default plan, but flag *why*.
+      info = defaultLicenseInfo(deviceId, { licenseCode, expired: true });
+    } else if (result.status !== 'valid') {
+      info = defaultLicenseInfo(deviceId);
+    } else {
+      const limit = TOKEN_TO_LIMIT[result.limitToken] ?? ITEM_LIMIT_PLANS[DEFAULT_ITEM_LIMIT_PLAN];
+      info = {
+        plan: limitToPlanLabel(limit),
+        limit,
+        activatedAt,
+        deviceId,
+        licenseCode,
+        expiresAt: expiryTokenToIso(result.expiryToken),
+        expired: false,
+      };
+    }
   }
-  if (result.status !== 'valid') return defaultLicenseInfo(deviceId);
 
-  const limit = TOKEN_TO_LIMIT[result.limitToken] ?? ITEM_LIMIT_PLANS[DEFAULT_ITEM_LIMIT_PLAN];
-  return {
-    plan: limitToPlanLabel(limit),
-    limit,
-    activatedAt,
-    deviceId,
-    licenseCode,
-    expiresAt: expiryTokenToIso(result.expiryToken),
-    expired: false,
-  };
+  cachedInfo = info;
+  cachedAt = Date.now();
+  return info;
 }
 
 export async function activateLicense(rawCode: string): Promise<ActivationResult> {
@@ -117,6 +143,7 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
 
   await saveSetting(KEY_LICENSE_CODE, code);
   await saveSetting(KEY_ACTIVATED_AT, new Date().toISOString());
+  invalidateLicenseCache();
   return {
     status: 'activated',
     plan: limitToPlanLabel(newLimit),

@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+﻿import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -38,7 +38,7 @@ export default function PurchasesScreen() {
 
   useEffect(() => { loadPurchases(); }, []);
 
-  const { count, total } = getTodayStats(purchases);
+  const { count, total } = useMemo(() => getTodayStats(purchases), [purchases]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>

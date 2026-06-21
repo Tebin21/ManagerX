@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   getAllInventoryProducts,
+  getInventoryProductById,
   getInventoryStats,
   getProductCategories,
   updateProduct,
@@ -52,6 +53,9 @@ interface InventoryState {
   setCategory: (c: string) => void;
   editProduct: (id: number, data: Partial<NewProductData>) => Promise<void>;
   removeProduct: (id: number) => Promise<void>;
+  /** Re-fetches just one product row + the aggregate stats and splices it into
+   *  the in-memory list, instead of re-fetching the entire products table. */
+  refreshProduct: (id: number) => Promise<void>;
   getProductById: (id: number) => InventoryProduct | undefined;
   getFilteredProducts: (query: string) => InventoryProduct[];
   loadManagedCategories: () => Promise<void>;
@@ -130,16 +134,37 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   setSortOrder: (sortOrder) => set({ sortOrder }),
   setCategory: (selectedCategory) => set({ selectedCategory }),
 
+  // categories (the managed-categories list) deliberately isn't re-fetched by
+  // any of the handlers below — it comes from the separate `categories` table
+  // and only changes via addCategory/deleteCategory/renameCategory, which
+  // already refresh it themselves. Re-querying it on every product edit was
+  // pure redundant I/O for data that never changed.
+
+  refreshProduct: async (id) => {
+    try {
+      const [updated, rawStats] = await Promise.all([
+        getInventoryProductById(id),
+        getInventoryStats(),
+      ]);
+      const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+      set((state) => {
+        const products = updated
+          ? state.products.map((p) => (p.id === id ? updated : p))
+          : state.products.filter((p) => p.id !== id);
+        return {
+          products,
+          stats: { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) },
+        };
+      });
+    } catch (err) {
+      console.error('Failed to refresh product, falling back to full reload:', err);
+      await get().loadInventory();
+    }
+  },
+
   editProduct: async (id, data) => {
     await updateProduct(id, data);
-    const [products, rawStats, inventoryHistory] = await Promise.all([
-      getAllInventoryProducts(),
-      getInventoryStats(),
-      getAllInventoryHistory(),
-    ]);
-    const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
-    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-    set({ products, stats, inventoryHistory });
+    await get().refreshProduct(id);
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
@@ -150,15 +175,19 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   removeProduct: async (id) => {
     await deleteProduct(id);
-    const [products, rawStats, categories, inventoryHistory] = await Promise.all([
-      getAllInventoryProducts(),
+    const [rawStats, inventoryHistory] = await Promise.all([
       getInventoryStats(),
-      getProductCategories(),
       getAllInventoryHistory(),
     ]);
     const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
-    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-    set({ products, stats, categories, inventoryHistory });
+    set((state) => {
+      const products = state.products.filter((p) => p.id !== id);
+      return {
+        products,
+        stats: { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) },
+        inventoryHistory,
+      };
+    });
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
@@ -265,16 +294,21 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   restoreFromHistory: async (historyId) => {
-    await restoreProductFromHistory(historyId);
-    const [products, rawStats, categories, inventoryHistory] = await Promise.all([
-      getAllInventoryProducts(),
+    const newProductId = await restoreProductFromHistory(historyId);
+    const [restored, rawStats, inventoryHistory] = await Promise.all([
+      newProductId ? getInventoryProductById(newProductId) : Promise.resolve(null),
       getInventoryStats(),
-      getProductCategories(),
       getAllInventoryHistory(),
     ]);
     const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
-    const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-    set({ products, stats, categories, inventoryHistory });
+    set((state) => {
+      const products = restored ? [restored, ...state.products] : state.products;
+      return {
+        products,
+        stats: { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) },
+        inventoryHistory,
+      };
+    });
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();

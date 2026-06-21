@@ -49,36 +49,62 @@ function defaultSubscriptionInfo(deviceId: string, overrides: Partial<Subscripti
   };
 }
 
-// Re-verifies the stored code against the CURRENT device ID on every call — never
-// trusts a cached "isActive" flag, mirroring lib/itemLimit.ts's loadLicenseFromDb().
+// Re-verifies the stored code against the CURRENT device ID — never trusts a
+// persisted "isActive" flag, mirroring lib/itemLimit.ts's loadLicenseFromDb().
+// A short in-memory TTL cache collapses bursts of calls (component
+// re-renders, the sync engine's periodic tick) into one DB+crypto round-trip
+// without weakening that guarantee for more than a few seconds at a time —
+// invalidateSubscriptionCache() forces an immediate re-verify after activation.
+let cachedInfo: SubscriptionInfo | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 30_000;
+
+export function invalidateSubscriptionCache(): void {
+  cachedInfo = null;
+  cachedAt = 0;
+}
+
 export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
+  if (cachedInfo && Date.now() - cachedAt < CACHE_TTL_MS) {
+    return cachedInfo;
+  }
+
   const deviceId = await getOrCreateDeviceId();
   const subscriptionCode = await loadSetting(KEY_SUBSCRIPTION_CODE);
-  if (!subscriptionCode) return defaultSubscriptionInfo(deviceId);
 
-  const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
-  const result = verifySubscriptionCode(subscriptionCode, deviceId);
+  let info: SubscriptionInfo;
+  if (!subscriptionCode) {
+    info = defaultSubscriptionInfo(deviceId);
+  } else {
+    const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
+    const verified = verifySubscriptionCode(subscriptionCode, deviceId);
 
-  if (result.status === 'expired') {
-    return defaultSubscriptionInfo(deviceId, {
-      subscriptionCode,
-      activatedAt,
-      plan: (TOKEN_TO_PLAN[result.planToken] as SubscriptionPlan) ?? null,
-      expiresAt: expiryTokenToIso(result.expiryToken),
-      expired: true,
-    });
+    if (verified.status === 'expired') {
+      info = defaultSubscriptionInfo(deviceId, {
+        subscriptionCode,
+        activatedAt,
+        plan: (TOKEN_TO_PLAN[verified.planToken] as SubscriptionPlan) ?? null,
+        expiresAt: expiryTokenToIso(verified.expiryToken),
+        expired: true,
+      });
+    } else if (verified.status !== 'valid') {
+      info = defaultSubscriptionInfo(deviceId);
+    } else {
+      info = {
+        plan: (TOKEN_TO_PLAN[verified.planToken] as SubscriptionPlan) ?? null,
+        deviceId,
+        subscriptionCode,
+        activatedAt,
+        expiresAt: expiryTokenToIso(verified.expiryToken),
+        isActive: true,
+        expired: false,
+      };
+    }
   }
-  if (result.status !== 'valid') return defaultSubscriptionInfo(deviceId);
 
-  return {
-    plan: (TOKEN_TO_PLAN[result.planToken] as SubscriptionPlan) ?? null,
-    deviceId,
-    subscriptionCode,
-    activatedAt,
-    expiresAt: expiryTokenToIso(result.expiryToken),
-    isActive: true,
-    expired: false,
-  };
+  cachedInfo = info;
+  cachedAt = Date.now();
+  return info;
 }
 
 export async function activateSubscription(rawCode: string): Promise<SubscriptionActivationResult> {
@@ -122,6 +148,7 @@ export async function activateSubscription(rawCode: string): Promise<Subscriptio
 
   await saveSetting(KEY_SUBSCRIPTION_CODE, code);
   await saveSetting(KEY_ACTIVATED_AT, new Date().toISOString());
+  invalidateSubscriptionCache();
   return { status: 'activated', plan: newPlan, expiresAt: newExpiresAt };
 }
 

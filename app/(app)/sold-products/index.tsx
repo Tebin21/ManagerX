@@ -38,7 +38,7 @@ interface CardProps {
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
-function SoldProductCard({ item, colors, t }: CardProps) {
+function SoldProductCardImpl({ item, colors, t }: CardProps) {
   const badge = PAYMENT_COLORS[item.paymentMethod] ?? PAYMENT_COLORS.cash;
   const profitPct = item.purchasePrice > 0
     ? Math.round(((item.sellingPrice - item.purchasePrice) / item.purchasePrice) * 100)
@@ -50,7 +50,7 @@ function SoldProductCard({ item, colors, t }: CardProps) {
       {/* Left: image */}
       <View style={[styles.cardImage, { backgroundColor: colors.gray100 }]}>
         {item.imageUri ? (
-          <Image source={{ uri: item.imageUri }} style={styles.cardImg} resizeMode="cover" />
+          <Image source={{ uri: item.imageUri }} style={styles.cardImg} resizeMode="cover" fadeDuration={0} />
         ) : (
           <Ionicons name="bag-outline" size={24} color={colors.gray400} />
         )}
@@ -122,6 +122,8 @@ function SoldProductCard({ item, colors, t }: CardProps) {
   );
 }
 
+const SoldProductCard = React.memo(SoldProductCardImpl);
+
 export default function SoldProductsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -179,15 +181,15 @@ export default function SoldProductsScreen() {
     </MotiView>
   );
 
-  const renderItem = ({ item, index }: { item: SoldProductRecord; index: number }) => (
+  const renderItem = useCallback(({ item, index }: { item: SoldProductRecord; index: number }) => (
     <MotiView
       from={{ opacity: 0, translateY: 10 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 30, 300) }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 30 : 0 }}
     >
       <SoldProductCard item={item} colors={colors} t={t} />
     </MotiView>
-  );
+  ), [colors, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -337,7 +339,7 @@ export default function SoldProductsScreen() {
         removeClippedSubviews
         initialNumToRender={15}
         maxToRenderPerBatch={10}
-        windowSize={5}
+        windowSize={11}
         refreshControl={
           <RefreshControl
             refreshing={refreshing || isLoading}

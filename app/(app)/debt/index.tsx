@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -80,12 +80,13 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
 
 // ─── Sales Debt Card ───────────────────────────────────────────────────────────
 
-function SalesDebtCard({
+function SalesDebtCardImpl({
   debt,
   onPay,
 }: {
   debt: SalesDebtDetail;
-  onPay: () => void;
+  /** Id-based so the parent passes one stable callback for every row. */
+  onPay: (debtId: number) => void;
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
@@ -138,7 +139,10 @@ function SalesDebtCard({
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
         <View style={[styles.cardActions, { flexDirection }]}>
-          <TouchableOpacity style={[styles.quickPayBtn, { backgroundColor: colors.primary, flexDirection }]} onPress={onPay}>
+          <TouchableOpacity
+            style={[styles.quickPayBtn, { backgroundColor: colors.primary, flexDirection }]}
+            onPress={() => onPay(debt.id)}
+          >
             <Ionicons name="flash" size={14} color="#fff" />
             <Text style={styles.quickPayText}>{i18n.t('debt.payCustomer')}</Text>
           </TouchableOpacity>
@@ -155,14 +159,16 @@ function SalesDebtCard({
   );
 }
 
+const SalesDebtCard = React.memo(SalesDebtCardImpl);
+
 // ─── Purchase Debt Card ────────────────────────────────────────────────────────
 
-function PurchaseDebtCard({
+function PurchaseDebtCardImpl({
   debt,
   onPay,
 }: {
   debt: PurchaseDebt;
-  onPay: () => void;
+  onPay: (debtId: number) => void;
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
@@ -219,7 +225,7 @@ function PurchaseDebtCard({
         <View style={[styles.cardActions, { flexDirection }]}>
           <TouchableOpacity
             style={[styles.quickPayBtn, { backgroundColor: Colors.error, flexDirection }]}
-            onPress={onPay}
+            onPress={() => onPay(debt.id)}
           >
             <Ionicons name="flash" size={14} color="#fff" />
             <Text style={styles.quickPayText}>{i18n.t('debt.paySupplier')}</Text>
@@ -236,6 +242,8 @@ function PurchaseDebtCard({
     </MotiView>
   );
 }
+
+const PurchaseDebtCard = React.memo(PurchaseDebtCardImpl);
 
 // ─── Quick Pay Modal ───────────────────────────────────────────────────────────
 
@@ -334,10 +342,10 @@ export default function DebtScreen() {
 
   const onRefresh = useCallback(() => { loadAll(); }, [loadAll]);
 
-  const visibleSales    = searchSalesDebts(query);
-  const visiblePurchase = searchPurchaseDebts(query);
+  const visibleSales    = useMemo(() => searchSalesDebts(query), [query, searchSalesDebts]);
+  const visiblePurchase = useMemo(() => searchPurchaseDebts(query), [query, searchPurchaseDebts]);
 
-  async function handlePay(amount: number) {
+  const handlePay = useCallback(async (amount: number) => {
     if (!payTarget) return;
     try {
       if (payTarget.type === 'sales') {
@@ -349,9 +357,27 @@ export default function DebtScreen() {
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     }
-  }
+  }, [payTarget, paySalesDebt, payPurchaseDebt, t]);
 
-  const overviewCards = [
+  const handlePaySalesPress = useCallback((debtId: number) => {
+    const debt = visibleSales.find((d) => d.id === debtId);
+    if (debt) setPayTarget({ id: debt.id, name: debt.customerName, remaining: debt.remainingAmount, type: 'sales' });
+  }, [visibleSales]);
+
+  const handlePayPurchasePress = useCallback((debtId: number) => {
+    const debt = visiblePurchase.find((d) => d.id === debtId);
+    if (debt) setPayTarget({ id: debt.id, name: debt.supplierName, remaining: debt.remainingAmount, type: 'purchase' });
+  }, [visiblePurchase]);
+
+  const renderSalesItem = useCallback(({ item }: { item: SalesDebtDetail }) => (
+    <SalesDebtCard debt={item} onPay={handlePaySalesPress} />
+  ), [handlePaySalesPress]);
+
+  const renderPurchaseItem = useCallback(({ item }: { item: PurchaseDebt }) => (
+    <PurchaseDebtCard debt={item} onPay={handlePayPurchasePress} />
+  ), [handlePayPurchasePress]);
+
+  const overviewCards = useMemo(() => [
     {
       label: t('debt.totalReceivable'),
       value: fmtIQD(summary?.totalSalesDebt ?? 0),
@@ -373,7 +399,7 @@ export default function DebtScreen() {
       value: String((summary?.activeSalesCount ?? 0) + (summary?.activePurchaseCount ?? 0)),
       icon: 'layers' as const,
     },
-  ];
+  ], [summary, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -454,19 +480,7 @@ export default function DebtScreen() {
         <FlatList
           data={visibleSales}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <SalesDebtCard
-              debt={item}
-              onPay={() =>
-                setPayTarget({
-                  id: item.id,
-                  name: item.customerName,
-                  remaining: item.remainingAmount,
-                  type: 'sales',
-                })
-              }
-            />
-          )}
+          renderItem={renderSalesItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
@@ -491,19 +505,7 @@ export default function DebtScreen() {
         <FlatList
           data={visiblePurchase}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => (
-            <PurchaseDebtCard
-              debt={item}
-              onPay={() =>
-                setPayTarget({
-                  id: item.id,
-                  name: item.supplierName,
-                  remaining: item.remainingAmount,
-                  type: 'purchase',
-                })
-              }
-            />
-          )}
+          renderItem={renderPurchaseItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl

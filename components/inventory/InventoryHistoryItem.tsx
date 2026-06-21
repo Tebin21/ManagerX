@@ -36,7 +36,7 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       <View style={[styles.topRow, { flexDirection, padding: isRTL ? RTL_SPACING.gap : 12, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <View style={[styles.thumb, { backgroundColor: colors.gray100 }]}>
           {item.imageUri ? (
-            <Image source={{ uri: item.imageUri }} style={styles.thumbImage} resizeMode="cover" />
+            <Image source={{ uri: item.imageUri }} style={styles.thumbImage} resizeMode="cover" fadeDuration={0} />
           ) : (
             <Ionicons name="cube-outline" size={22} color={colors.gray400} />
           )}

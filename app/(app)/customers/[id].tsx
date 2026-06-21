@@ -78,9 +78,9 @@ export default function CustomerProfileScreen() {
   }, []);
 
   const handlePayment = useCallback(async (debtId: number, amount: number) => {
-    await addDebtPayment(debtId, amount);
+    await addDebtPayment(debtId, amount, Number(id));
     await loadAll();
-  }, [addDebtPayment, loadAll]);
+  }, [addDebtPayment, loadAll, id]);
 
   const handleDeleteSale = useCallback((sale: Sale) => {
     Alert.alert(

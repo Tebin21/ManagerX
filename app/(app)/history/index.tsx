@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -27,7 +27,7 @@ import { useDirectionalChevron } from '@/lib/rtl';
 
 type Tab = 'customers' | 'suppliers';
 
-function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
+function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; onPress: (supplierId: number) => void }) {
   const { colors } = useAppTheme();
   const { chevronForward } = useDirectionalChevron();
   const { t } = useTranslation();
@@ -35,7 +35,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
   return (
     <TouchableOpacity
       style={[styles.supplierCard, { backgroundColor: colors.white }]}
-      onPress={onPress}
+      onPress={() => onPress(supplier.id)}
       activeOpacity={0.85}
     >
       <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue }]}>
@@ -65,6 +65,8 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
     </TouchableOpacity>
   );
 }
+
+const SupplierCard = React.memo(SupplierCardImpl);
 
 export default function HistoryScreen() {
   const router = useRouter();
@@ -99,17 +101,32 @@ export default function HistoryScreen() {
     setSupRefreshing(false);
   }, [loadSuppliers]);
 
-  const visibleCustomers = custQuery.trim() ? searchCustomers(custQuery) : customers;
-  const visibleSuppliers = supQuery.trim() ? searchSuppliers(supQuery) : suppliers;
+  const visibleCustomers = useMemo(
+    () => (custQuery.trim() ? searchCustomers(custQuery) : customers),
+    [custQuery, customers, searchCustomers]
+  );
+  const visibleSuppliers = useMemo(
+    () => (supQuery.trim() ? searchSuppliers(supQuery) : suppliers),
+    [supQuery, suppliers, searchSuppliers]
+  );
 
-  const totalDebtors = customers.filter((c) => c.remainingDebt > 0).length;
-  const totalCustValue = customers.reduce((s, c) => s + c.totalPurchases, 0);
-  const totalSupSpent = suppliers.reduce((s, sup) => s + sup.totalSpent, 0);
-  const activeSupplierDebts = new Set(
+  const totalDebtors = useMemo(
+    () => customers.filter((c) => c.remainingDebt > 0).length,
+    [customers]
+  );
+  const totalCustValue = useMemo(
+    () => customers.reduce((s, c) => s + c.totalPurchases, 0),
+    [customers]
+  );
+  const totalSupSpent = useMemo(
+    () => suppliers.reduce((s, sup) => s + sup.totalSpent, 0),
+    [suppliers]
+  );
+  const activeSupplierDebts = useMemo(() => new Set(
     purchaseDebts
       .filter((d) => d.status === 'active' && d.remainingAmount > 0)
       .map((d) => d.supplierName.toLowerCase())
-  ).size;
+  ).size, [purchaseDebts]);
 
   const renderCustomerEmpty = () => (
     <MotiView
@@ -169,31 +186,33 @@ export default function HistoryScreen() {
     </MotiView>
   );
 
-  const renderCustomer = ({ item, index }: { item: CustomerWithStats; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
-    >
-      <CustomerCard
-        customer={item}
-        onPress={() => router.push(`/(app)/customers/${item.id}` as never)}
-      />
-    </MotiView>
-  );
+  const handleCustomerPress = useCallback((customerId: number) => {
+    router.push(`/(app)/customers/${customerId}` as never);
+  }, [router]);
 
-  const renderSupplier = ({ item, index }: { item: SupplierWithStats; index: number }) => (
+  const handleSupplierPress = useCallback((supplierId: number) => {
+    router.push(`/(app)/suppliers/${supplierId}` as never);
+  }, [router]);
+
+  const renderCustomer = useCallback(({ item, index }: { item: CustomerWithStats; index: number }) => (
     <MotiView
       from={{ opacity: 0, translateY: 10 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
     >
-      <SupplierCard
-        supplier={item}
-        onPress={() => router.push(`/(app)/suppliers/${item.id}` as never)}
-      />
+      <CustomerCard customer={item} onPress={handleCustomerPress} />
     </MotiView>
-  );
+  ), [handleCustomerPress]);
+
+  const renderSupplier = useCallback(({ item, index }: { item: SupplierWithStats; index: number }) => (
+    <MotiView
+      from={{ opacity: 0, translateY: 10 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+    >
+      <SupplierCard supplier={item} onPress={handleSupplierPress} />
+    </MotiView>
+  ), [handleSupplierPress]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -322,7 +341,7 @@ export default function HistoryScreen() {
           removeClippedSubviews
           initialNumToRender={15}
           maxToRenderPerBatch={10}
-          windowSize={5}
+          windowSize={11}
           refreshControl={
             <RefreshControl
               refreshing={custRefreshing || custLoading}
@@ -346,7 +365,7 @@ export default function HistoryScreen() {
           removeClippedSubviews
           initialNumToRender={15}
           maxToRenderPerBatch={10}
-          windowSize={5}
+          windowSize={11}
           refreshControl={
             <RefreshControl
               refreshing={supRefreshing || supLoading}

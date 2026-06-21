@@ -12,10 +12,12 @@ import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   customer: CustomerWithStats;
-  onPress: () => void;
+  /** Id-based so the parent can pass one stable callback for every row —
+   *  required for React.memo below to actually skip unrelated rows. */
+  onPress: (customerId: number) => void;
 }
 
-export function CustomerCard({ customer, onPress }: Props) {
+function CustomerCardImpl({ customer, onPress }: Props) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -26,7 +28,7 @@ export function CustomerCard({ customer, onPress }: Props) {
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
-      onPress={onPress}
+      onPress={() => onPress(customer.id)}
       activeOpacity={0.82}
     >
       {/* Avatar */}
@@ -72,6 +74,8 @@ export function CustomerCard({ customer, onPress }: Props) {
     </TouchableOpacity>
   );
 }
+
+export const CustomerCard = React.memo(CustomerCardImpl);
 
 const styles = StyleSheet.create({
   card: {

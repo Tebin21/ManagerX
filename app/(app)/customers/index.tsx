@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -37,10 +37,15 @@ export default function CustomersScreen() {
     setRefreshing(false);
   }, [loadCustomers]);
 
-  const visible = query.trim() ? searchCustomers(query) : customers;
+  const visible = useMemo(
+    () => (query.trim() ? searchCustomers(query) : customers),
+    [query, customers, searchCustomers]
+  );
 
-  const totalDebtors = customers.filter((c) => c.remainingDebt > 0).length;
-  const totalValue   = customers.reduce((s, c) => s + c.totalPurchases, 0);
+  const { totalDebtors, totalValue } = useMemo(() => ({
+    totalDebtors: customers.filter((c) => c.remainingDebt > 0).length,
+    totalValue: customers.reduce((s, c) => s + c.totalPurchases, 0),
+  }), [customers]);
 
   const renderEmpty = () => (
     <MotiView
@@ -74,18 +79,19 @@ export default function CustomersScreen() {
     </MotiView>
   );
 
-  const renderItem = ({ item, index }: { item: CustomerWithStats; index: number }) => (
+  const handleCustomerPress = useCallback((customerId: number) => {
+    router.push(`/(app)/customers/${customerId}` as never);
+  }, [router]);
+
+  const renderItem = useCallback(({ item, index }: { item: CustomerWithStats; index: number }) => (
     <MotiView
       from={{ opacity: 0, translateY: 10 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
     >
-      <CustomerCard
-        customer={item}
-        onPress={() => router.push(`/(app)/customers/${item.id}` as never)}
-      />
+      <CustomerCard customer={item} onPress={handleCustomerPress} />
     </MotiView>
-  );
+  ), [handleCustomerPress]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -160,7 +166,7 @@ export default function CustomersScreen() {
         removeClippedSubviews
         initialNumToRender={15}
         maxToRenderPerBatch={10}
-        windowSize={5}
+        windowSize={11}
         refreshControl={
           <RefreshControl
             refreshing={refreshing || isLoading}

@@ -28,7 +28,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
-import type { InventoryFilter } from '@/types/inventory';
+import type { InventoryFilter, InventoryProduct } from '@/types/inventory';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
@@ -50,6 +50,11 @@ export default function InventoryScreen() {
     loadInventory, setFilter, setCategory,
     getFilteredProducts, loadManagedCategories, addCategory, deleteCategory, renameCategory,
   } = useInventoryStore();
+  // Read directly (rather than relying on the whole-store destructure above)
+  // purely so the useMemo below has explicit, correct dependencies — getFilteredProducts
+  // reads these from the store internally via get().
+  const products  = useInventoryStore((s) => s.products);
+  const sortOrder = useInventoryStore((s) => s.sortOrder);
 
   const { colors } = useAppTheme();
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
@@ -249,7 +254,10 @@ export default function InventoryScreen() {
     }
   }, [editingCategory, editCatName, renameCategory, handleCancelRename, t]);
 
-  const visible = getFilteredProducts(query);
+  const visible = useMemo(
+    () => getFilteredProducts(query),
+    [query, products, filter, selectedCategory, sortOrder, getFilteredProducts]
+  );
 
   const filterLabel = useMemo(() => {
     const found = FILTER_OPTIONS.find((o) => o.key === filter);
@@ -299,22 +307,28 @@ export default function InventoryScreen() {
     </MotiView>
   );
 
-  const renderItem = ({ item, index }: { item: ReturnType<typeof getFilteredProducts>[0]; index: number }) => {
+  const handleProductPress = useCallback((productId: number) => {
+    router.push(`/(app)/inventory/${productId}` as never);
+  }, [router]);
+
+  const renderItem = useCallback(({ item, index }: { item: InventoryProduct; index: number }) => {
     const isLowStock = computeProductLowStock(item, globalLowStockEnabled, globalLowStockThreshold);
     return (
       <MotiView
         from={{ opacity: 0, translateY: 10 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
+        // Stagger only the first screenful — rows that scroll into view later
+        // (or reappear after an unrelated re-render) shouldn't replay a fade-in.
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
       >
         <ProductCard
           product={item}
-          onPress={() => router.push(`/(app)/inventory/${item.id}` as never)}
+          onPress={handleProductPress}
           isLowStock={isLowStock}
         />
       </MotiView>
     );
-  };
+  }, [globalLowStockEnabled, globalLowStockThreshold, handleProductPress]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -491,7 +505,7 @@ export default function InventoryScreen() {
         removeClippedSubviews
         initialNumToRender={15}
         maxToRenderPerBatch={10}
-        windowSize={5}
+        windowSize={11}
         refreshControl={
           <RefreshControl
             refreshing={refreshing || isLoading}

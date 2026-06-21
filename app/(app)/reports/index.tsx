@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useCallback, useState, type ComponentProps } from 'react';
+﻿import React, { useEffect, useCallback, useState, useMemo, useRef, type ComponentProps } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
@@ -729,7 +729,7 @@ export default function ReportsScreen() {
   const {
     dateRange, isLoading, financialCards,
     salesData, purchaseData, plData, inventoryData,
-    debtData, topProfitable, dailyChart, expenses,
+    debtData, topProfitable, monthlyRevenue, dailyChart, expenses,
     cashBalance, dashboardExpenseTotals,
     setDateRange, reload,
   } = useReportStore();
@@ -739,20 +739,38 @@ export default function ReportsScreen() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  useFocusEffect(useCallback(() => { setDateRange('today'); }, [setDateRange]));
+  // Only auto-reset to "today" the first time this screen is focused in a
+  // session — once the user explicitly picks a range via the filter sheet,
+  // returning to this tab/screen shouldn't silently discard their choice
+  // (and re-trigger a reload) on every focus.
+  const hasUserSetRangeRef = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (!hasUserSetRangeRef.current) setDateRange('today');
+  }, [setDateRange]));
+
+  const handleDateRangeChange = useCallback((key: DateRangeKey, from?: string, to?: string) => {
+    hasUserSetRangeRef.current = true;
+    setDateRange(key, from, to);
+  }, [setDateRange]);
 
   // ── Smart alerts ─────────────────────────────────────────────────────────────
-  const allAlerts: SmartAlert[] = [];
-  if (plData && plData.netProfit < 0 && plData.grossRevenue > 0) {
-    allAlerts.push({ id: 'loss', type: 'error', icon: 'trending-down', title: t('reports.alertLossTitle'), body: t('reports.alertLossBody', { amount: fmtIQD(Math.abs(plData.netProfit)) }) });
-  }
-  if (plData && plData.grossMarginPct < 10 && plData.grossMarginPct > 0 && plData.grossRevenue > 0) {
-    allAlerts.push({ id: 'margin', type: 'warning', icon: 'alert-circle', title: t('reports.alertMarginTitle'), body: t('reports.alertMarginBody', { pct: plData.grossMarginPct.toFixed(1) }) });
-  }
-  if (debtData && debtData.overdueCount > 0) {
-    allAlerts.push({ id: 'overdue', type: 'warning', icon: 'time', title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }), body: t('reports.alertOverdueBody'), action: { label: t('reports.alertActionView'), route: '/(app)/debt' } });
-  }
-  const visibleAlerts = allAlerts.filter((a) => !dismissedAlerts.includes(a.id));
+  const allAlerts: SmartAlert[] = useMemo(() => {
+    const alerts: SmartAlert[] = [];
+    if (plData && plData.netProfit < 0 && plData.grossRevenue > 0) {
+      alerts.push({ id: 'loss', type: 'error', icon: 'trending-down', title: t('reports.alertLossTitle'), body: t('reports.alertLossBody', { amount: fmtIQD(Math.abs(plData.netProfit)) }) });
+    }
+    if (plData && plData.grossMarginPct < 10 && plData.grossMarginPct > 0 && plData.grossRevenue > 0) {
+      alerts.push({ id: 'margin', type: 'warning', icon: 'alert-circle', title: t('reports.alertMarginTitle'), body: t('reports.alertMarginBody', { pct: plData.grossMarginPct.toFixed(1) }) });
+    }
+    if (debtData && debtData.overdueCount > 0) {
+      alerts.push({ id: 'overdue', type: 'warning', icon: 'time', title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }), body: t('reports.alertOverdueBody'), action: { label: t('reports.alertActionView'), route: '/(app)/debt' } });
+    }
+    return alerts;
+  }, [plData, debtData, t]);
+  const visibleAlerts = useMemo(
+    () => allAlerts.filter((a) => !dismissedAlerts.includes(a.id)),
+    [allAlerts, dismissedAlerts]
+  );
 
   // ── Export PDF ────────────────────────────────────────────────────────────────
   async function exportPDF() {
@@ -812,7 +830,7 @@ export default function ReportsScreen() {
         visible={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
         current={dateRange.key}
-        onChange={setDateRange}
+        onChange={handleDateRangeChange}
       />
 
       {isLoading ? (
