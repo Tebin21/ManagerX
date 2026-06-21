@@ -114,7 +114,7 @@ export function LicensesPage() {
                     <PlanBadge plan={l.plan} />
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={l.status} />
+                    <StatusBadge status={l.isExpired ? 'expired' : l.status} />
                   </td>
                   <td className="px-4 py-3 text-slate-400">{new Date(l.createdAt).toLocaleDateString()}</td>
                   <td className="no-print px-4 py-3">

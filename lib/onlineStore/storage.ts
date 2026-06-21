@@ -1,0 +1,40 @@
+// Local persistence for Online Store settings. Non-secret display fields (enabled, slug,
+// last sync time) live in the generic SQLite settings table (see lib/sqlite.ts). The API
+// key is a credential, so it goes in expo-secure-store instead — same pattern lib/supabase.ts
+// already uses for auth secrets.
+import * as SecureStore from 'expo-secure-store';
+import { saveSetting, loadSetting } from '@/lib/sqlite';
+
+const API_KEY_STORE_KEY = 'online_store_api_key';
+
+export async function getStoreEnabled(): Promise<boolean> {
+  return (await loadSetting('online_store_enabled')) === '1';
+}
+
+export async function setStoreEnabled(enabled: boolean): Promise<void> {
+  await saveSetting('online_store_enabled', enabled ? '1' : '0');
+}
+
+export async function getStoreSlug(): Promise<string | null> {
+  return loadSetting('online_store_slug');
+}
+
+export async function setStoreSlug(slug: string): Promise<void> {
+  await saveSetting('online_store_slug', slug);
+}
+
+export async function getLastSyncAt(): Promise<string | null> {
+  return loadSetting('online_store_last_sync_at');
+}
+
+export async function setLastSyncAt(iso: string): Promise<void> {
+  await saveSetting('online_store_last_sync_at', iso);
+}
+
+export async function getStoreApiKey(): Promise<string | null> {
+  return SecureStore.getItemAsync(API_KEY_STORE_KEY);
+}
+
+export async function setStoreApiKey(key: string): Promise<void> {
+  await SecureStore.setItemAsync(API_KEY_STORE_KEY, key);
+}

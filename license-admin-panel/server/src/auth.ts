@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+import { config } from './config';
 
 const SESSION_COOKIE = 'license_admin_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -17,12 +18,10 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+// The admin password comes from config.local.json's "adminPassword" field — that's
+// the one and only place to change it. See src/config.ts for the loader.
 export function checkPassword(password: string): boolean {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) {
-    throw new Error('ADMIN_PASSWORD is not set in license-admin-panel/server/.env');
-  }
-  return timingSafeEqual(password ?? '', expected);
+  return timingSafeEqual(password ?? '', config.adminPassword);
 }
 
 export function createSession(): string {
@@ -48,17 +47,14 @@ function isValidSession(token: string | undefined): boolean {
 
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;
 
-// In production the frontend (Vercel) and backend (Railway) are different origins,
-// so the session cookie must be SameSite=None + Secure to be sent on cross-site
-// fetch requests at all. Locally, Vite's dev proxy makes everything same-origin
-// over plain HTTP, where Secure cookies are silently dropped by browsers — so the
-// two environments need different settings, not just stricter-is-always-better.
+// This is a local-only app — the client and server are always on the same machine,
+// served from http://localhost, so a plain Lax/non-Secure cookie is correct and
+// sufficient. (Secure cookies require HTTPS, which plain localhost doesn't have.)
 export function getSessionCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    secure: false,
+    sameSite: 'lax' as const,
     maxAge: SESSION_TTL_MS,
   };
 }

@@ -19,6 +19,7 @@ import { useLicenseStore } from '@/store/licenseStore';
 import { getInventoryStats } from '@/lib/sqlite';
 import { SUPPORT_PHONE } from '@/constants/config';
 import { useRTL } from '@/lib/rtl';
+import { formatDate } from '@/utils/formatters';
 
 const PLAN_LABEL_KEYS: Record<string, string> = {
   basic: 'settings.upgradeScreen.planBasic',
@@ -38,6 +39,8 @@ export default function PlanLimitsScreen() {
   const plan        = useLicenseStore((s) => s.plan);
   const limit       = useLicenseStore((s) => s.limit);
   const deviceId    = useLicenseStore((s) => s.deviceId);
+  const expiresAt   = useLicenseStore((s) => s.expiresAt);
+  const expired     = useLicenseStore((s) => s.expired);
   const activate    = useLicenseStore((s) => s.activate);
 
   const [used, setUsed]           = useState(0);
@@ -48,7 +51,10 @@ export default function PlanLimitsScreen() {
   const loadUsed = useCallback(async () => {
     try {
       const stats = await getInventoryStats();
-      setUsed(stats.totalProducts);
+      // The plan limit is on total stock quantity, not the number of distinct
+      // products — one product with quantity 100 uses the same 100 "items" as
+      // 100 separate single-quantity products.
+      setUsed(stats.totalQuantity);
     } catch { /* non-critical */ }
   }, []);
 
@@ -78,6 +84,13 @@ export default function PlanLimitsScreen() {
         setResult({ type: 'error', message: t('settings.upgradeScreen.alreadyActivated') });
       } else if (res.status === 'wrong_device') {
         setResult({ type: 'error', message: t('settings.upgradeScreen.wrongDevice') });
+      } else if (res.status === 'expired') {
+        setResult({
+          type: 'error',
+          message: res.expiresAt
+            ? t('settings.upgradeScreen.codeExpiredOn', { date: formatDate(res.expiresAt) })
+            : t('settings.upgradeScreen.codeExpired'),
+        });
       } else if (res.status === 'no_upgrade') {
         setResult({ type: 'error', message: t('settings.upgradeScreen.noUpgrade') });
       } else {
@@ -112,7 +125,22 @@ export default function PlanLimitsScreen() {
               <View style={[styles.progressFill, { width: `${usedPct}%` }]} />
             </View>
             <Text style={styles.heroUsed}>{usedLabel}</Text>
+            {expiresAt && (
+              <Text style={styles.heroExpiry}>
+                {t('settings.upgradeScreen.validUntil', { date: formatDate(expiresAt) })}
+              </Text>
+            )}
           </LinearGradient>
+
+          {/* ── Expired notice — shown once, after a time-limited license lapses ── */}
+          {expired && (
+            <View style={[styles.expiredBox, { flexDirection, backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+              <Ionicons name="time-outline" size={18} color={colors.error} />
+              <Text style={[styles.expiredText, { color: colors.error, textAlign }]}>
+                {t('settings.upgradeScreen.planExpiredNotice')}
+              </Text>
+            </View>
+          )}
 
           {/* ── Device ID ── */}
           <PremiumCard style={styles.card}>
@@ -229,6 +257,15 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#fff' },
   heroUsed: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  heroExpiry: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+
+  expiredBox: {
+    alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  expiredText: { flex: 1, fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
 
   card:      { marginBottom: 12 },
   cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },

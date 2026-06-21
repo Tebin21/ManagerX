@@ -162,10 +162,13 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     }
 
     // Pre-flight item-limit check — fails atomically before any product rows are
-    // inserted, instead of failing partway through the custom-id loop below.
-    const additionalRows = input.idType === 'custom' ? idsToCheck.length : 1;
+    // inserted, instead of failing partway through the custom-id loop below. The
+    // limit is on total stock QUANTITY: each custom id below is inserted as its own
+    // row with quantity 1 (so quantity added = number of ids), while the shared/
+    // repeatable branch inserts ONE row carrying the full purchased quantity.
+    const additionalQuantity = input.idType === 'custom' ? idsToCheck.length : input.quantity;
     const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
-    await assertItemLimitNotExceeded(additionalRows);
+    await assertItemLimitNotExceeded(additionalQuantity);
 
     if (input.idType === 'custom') {
       for (const itemId of input.itemIds) {

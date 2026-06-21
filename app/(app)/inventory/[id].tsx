@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,7 +16,7 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { useTranslation } from 'react-i18next';
 import { LowStockBadge } from '@/components/inventory/LowStockBadge';
-import { getInventoryProductById, getSalesByProductId } from '@/lib/sqlite';
+import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -79,6 +80,12 @@ export default function InventoryDetailScreen() {
       ]
     );
   }, [product, removeProduct, router]);
+
+  const handleToggleStoreVisible = useCallback(async (value: boolean) => {
+    if (!product) return;
+    await setProductStoreVisibility(product.id, value);
+    await load();
+  }, [product, load]);
 
   const numId = Number(id);
   if (!id || isNaN(numId)) {
@@ -325,6 +332,19 @@ export default function InventoryDetailScreen() {
         </MotiView>
 
         {/* Actions */}
+        <View style={[styles.storeVisRow, { backgroundColor: colors.white, flexDirection }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.storeVisLabel, { color: colors.black }]}>{t('inventory.onlineStoreVisible')}</Text>
+            <Text style={[styles.storeVisSub, { color: colors.gray400 }]}>{t('inventory.onlineStoreVisibleSub')}</Text>
+          </View>
+          <Switch
+            value={product.storeVisible}
+            onValueChange={handleToggleStoreVisible}
+            trackColor={{ false: colors.gray200, true: colors.primary }}
+            thumbColor={colors.white}
+          />
+        </View>
+
         <View style={[styles.actions, { flexDirection }]}>
           <TouchableOpacity
             style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection }]}
@@ -422,6 +442,10 @@ const styles = StyleSheet.create({
   saleRight:      { alignItems: 'flex-end' },
   saleQty:        { fontSize: 12 },
   saleTotal:      { fontSize: 13, fontWeight: '700' },
+  storeVisRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.card },
+  storeVisLabel:  { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  storeVisSub:    { fontSize: 12, lineHeight: 16 },
+
   actions:        { flexDirection: 'row', gap: 12, marginTop: 4 },
   editBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 14, ...Theme.shadow.button },
   editBtnText:    { fontSize: 15, fontWeight: '700', color: '#fff' },

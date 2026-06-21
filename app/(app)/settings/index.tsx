@@ -121,6 +121,16 @@ export default function SettingsScreen() {
           />
         </SettingSection>
 
+        {/* Online Store */}
+        <SettingSection title={t('settings.onlineStore')}>
+          <SettingRow
+            icon="storefront"
+            label={t('settings.onlineStore')}
+            sub={t('settings.onlineStoreSub')}
+            onPress={() => router.push('/(app)/settings/online-store' as never)}
+          />
+        </SettingSection>
+
         {/* Data */}
         <SettingSection title={t('settings.data')}>
           <SettingRow

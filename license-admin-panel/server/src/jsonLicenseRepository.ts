@@ -37,6 +37,7 @@ function readLedger(): LicenseRecord[] {
     plan: (r.plan as LicenseRecord['plan']) ?? 'basic',
     createdAt: r.createdAt ?? new Date().toISOString(),
     activatedAt: r.activatedAt ?? null,
+    expiresAt: r.expiresAt ?? null, // legacy records predate this field — permanent
     status: normalizeStatus(r.status),
     notes: r.notes ?? '',
     revokedAt: r.revokedAt ?? null,
@@ -58,7 +59,9 @@ export class JsonLicenseRepository implements LicenseRepository {
     return readLedger().find((r) => r.id === id) ?? null;
   }
 
-  async create(data: NewLicenseInput & { licenseCode: string }): Promise<LicenseRecord> {
+  async create(
+    data: Omit<NewLicenseInput, 'expiresInMonths'> & { licenseCode: string; expiresAt: string | null }
+  ): Promise<LicenseRecord> {
     const records = readLedger();
     const record: LicenseRecord = {
       id: crypto.randomUUID(),
@@ -69,6 +72,7 @@ export class JsonLicenseRepository implements LicenseRepository {
       plan: data.plan,
       createdAt: new Date().toISOString(),
       activatedAt: null,
+      expiresAt: data.expiresAt,
       status: 'active',
       notes: data.notes?.trim() ?? '',
       revokedAt: null,

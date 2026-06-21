@@ -1,0 +1,98 @@
+import { Router } from 'express';
+import { JsonStoreRepository } from '../jsonStoreRepository';
+import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
+import type { SyncChangeInput } from '../storeRepository';
+
+const repo = new JsonStoreRepository();
+
+export const storesRouter = Router();
+
+function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return base || 'store';
+}
+
+async function resolveUniqueSlug(base: string): Promise<string> {
+  let candidate = base;
+  let n = 2;
+  while (await repo.isSlugTaken(candidate)) {
+    candidate = `${base}-${n}`;
+    n += 1;
+  }
+  return candidate;
+}
+
+// POST /api/stores — register a new store. Called once by ManagerX the first time
+// the business owner presses "Enable Store".
+storesRouter.post('/', async (req, res) => {
+  const { businessName } = req.body ?? {};
+  if (!businessName?.trim()) {
+    res.status(400).json({ error: 'businessName is required' });
+    return;
+  }
+
+  const slug = await resolveUniqueSlug(slugify(businessName));
+  const apiKey = generateApiKey();
+  await repo.create({ slug, businessName: businessName.trim(), apiKeyHash: hashApiKey(apiKey) });
+
+  res.status(201).json({ slug, apiKey });
+});
+
+// GET /api/stores/:slug — public storefront data, no auth. Used by the storefront
+// client to render the product grid.
+storesRouter.get('/:slug', async (req, res) => {
+  const store = await repo.getBySlug(req.params.slug);
+  if (!store) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+
+  const products = store.products
+    .filter((p) => p.isPublished)
+    .map((p) => ({
+      productId: p.productId,
+      name: p.name,
+      price: p.price,
+      imageUrl: p.imageUrl,
+      availability: p.quantity > 0 ? 'in_stock' as const : 'out_of_stock' as const,
+    }));
+
+  res.json({ businessName: store.businessName, enabled: store.enabled, products });
+});
+
+// PATCH /api/stores/:slug/status — Enable/Disable, requires the store's API key.
+storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
+  const { enabled } = req.body ?? {};
+  if (typeof enabled !== 'boolean') {
+    res.status(400).json({ error: 'enabled must be a boolean' });
+    return;
+  }
+
+  const updated = await repo.setEnabled(req.params.slug, enabled);
+  if (!updated) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+  res.json({ slug: updated.slug, enabled: updated.enabled });
+});
+
+// POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from ManagerX's
+// offline-first sync queue. Requires the store's API key.
+storesRouter.post('/:slug/sync', requireStoreAuth, async (req, res) => {
+  const { changes } = req.body ?? {};
+  if (!Array.isArray(changes)) {
+    res.status(400).json({ error: 'changes must be an array' });
+    return;
+  }
+
+  try {
+    const result = await repo.applySync(req.params.slug, changes as SyncChangeInput[]);
+    res.json(result);
+  } catch (e) {
+    res.status(404).json({ error: e instanceof Error ? e.message : 'Sync failed' });
+  }
+});

@@ -80,7 +80,7 @@ export function CustomersPage() {
                         >
                           <span className="font-medium text-slate-700">{PLAN_LABELS[l.plan]}</span>
                           <span className="text-xs text-slate-400">{new Date(l.createdAt).toLocaleDateString()}</span>
-                          <StatusBadge status={l.status} />
+                          <StatusBadge status={l.isExpired ? 'expired' : l.status} />
                         </Link>
                       ))}
                     </div>

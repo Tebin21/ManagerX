@@ -13,6 +13,8 @@ interface LicenseState {
   activatedAt: string | null;
   deviceId: string | null;
   licenseCode: string | null;
+  expiresAt: string | null;
+  expired: boolean;
   isLoaded: boolean;
   loadLicense: () => Promise<void>;
   activate: (code: string) => Promise<ActivationResult>;
@@ -24,6 +26,8 @@ export const useLicenseStore = create<LicenseState>((set) => ({
   activatedAt: null,
   deviceId: null,
   licenseCode: null,
+  expiresAt: null,
+  expired: false,
   isLoaded: false,
 
   loadLicense: async () => {

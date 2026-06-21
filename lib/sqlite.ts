@@ -315,6 +315,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // accounting survives a product being manually deleted after it was sold from.
     `ALTER TABLE inventory_history ADD COLUMN purchase_id INTEGER`,
     `CREATE INDEX IF NOT EXISTS idx_inventory_history_purchase ON inventory_history(purchase_id)`,
+    // Online Store — per-product publish/hide flag for the public storefront
+    `ALTER TABLE products ADD COLUMN store_visible INTEGER NOT NULL DEFAULT 0`,
+    // Online Store — offline-first outbox of product changes waiting to sync to the website
+    `CREATE TABLE IF NOT EXISTS sync_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL DEFAULT 'product', entity_id INTEGER NOT NULL, operation TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(entity_type, entity_id))`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -557,12 +561,13 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     sellPriceUsd: (row.sell_price_usd as number) ?? 0,
     lowStockThreshold: (row.low_stock_threshold as number | null) ?? null,
     lowStockEnabled: (row.low_stock_enabled as 1 | 0 | null) ?? null,
+    storeVisible: (row.store_visible as number) === 1,
   };
 }
 
 export async function insertProduct(data: NewProductData): Promise<number> {
   const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
-  await assertItemLimitNotExceeded(1);
+  await assertItemLimitNotExceeded(data.quantity);
 
   const database = await getDatabase();
   const result = await database.runAsync(
@@ -595,6 +600,7 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.sellPriceUsd,
     ]
   );
+  await enqueueSyncChange(result.lastInsertRowId, 'upsert');
   return result.lastInsertRowId;
 }
 
@@ -631,6 +637,7 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
     `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
     values as SQLite.SQLiteBindValue[]
   );
+  await enqueueSyncChange(id, 'upsert');
 }
 
 async function archiveProductToHistory(
@@ -674,6 +681,85 @@ export async function deleteProduct(id: number): Promise<void> {
   const database = await getDatabase();
   await archiveProductToHistory(database, id, 'removed');
   await database.runAsync('DELETE FROM products WHERE id = ?', [id]);
+  await enqueueSyncChange(id, 'delete');
+}
+
+export async function setProductStoreVisibility(id: number, visible: boolean): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE products SET store_visible = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [visible ? 1 : 0, id]
+  );
+  await enqueueSyncChange(id, 'upsert');
+}
+
+// ─── Online Store Sync Queue ──────────────────────────────────────────────────
+// Offline-first outbox: every product create/update/delete/stock-change enqueues
+// a row here (deduped by entity, see UNIQUE(entity_type, entity_id) in the schema).
+// lib/onlineStore/syncEngine.ts drains this queue whenever connectivity returns.
+
+export async function enqueueSyncChange(
+  productId: number,
+  operation: 'upsert' | 'delete'
+): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
+     VALUES ('product', ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+       operation = excluded.operation,
+       updated_at = excluded.updated_at`,
+    [productId, operation]
+  );
+}
+
+export async function getPendingSyncCount(): Promise<number> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ cnt: number }>(
+    "SELECT COUNT(*) AS cnt FROM sync_queue WHERE entity_type = 'product'"
+  );
+  return row?.cnt ?? 0;
+}
+
+export interface PendingSyncItem {
+  queueId: number;
+  productId: number;
+  operation: 'upsert' | 'delete';
+  product: InventoryProduct | null;
+}
+
+export async function getPendingSyncProducts(): Promise<PendingSyncItem[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    "SELECT * FROM sync_queue WHERE entity_type = 'product' ORDER BY id ASC"
+  );
+
+  const items: PendingSyncItem[] = [];
+  for (const row of rows) {
+    const productId = row.entity_id as number;
+    const operation = row.operation as 'upsert' | 'delete';
+    const productRow =
+      operation === 'upsert'
+        ? await database.getFirstAsync<Record<string, unknown>>(
+            'SELECT * FROM products WHERE id = ?',
+            [productId]
+          )
+        : null;
+    items.push({
+      queueId: row.id as number,
+      productId,
+      operation,
+      product: productRow ? rowToInventoryProduct(productRow) : null,
+    });
+  }
+  return items;
+}
+
+export async function clearSyncQueue(queueIds: number[]): Promise<void> {
+  if (queueIds.length === 0) return;
+  const database = await getDatabase();
+  const placeholders = queueIds.map(() => '?').join(', ');
+  await database.runAsync(`DELETE FROM sync_queue WHERE id IN (${placeholders})`, queueIds);
 }
 
 export async function permanentDeleteFromHistory(historyId: number): Promise<void> {
@@ -682,16 +768,17 @@ export async function permanentDeleteFromHistory(historyId: number): Promise<voi
 }
 
 export async function restoreProductFromHistory(historyId: number): Promise<void> {
-  const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
-  await assertItemLimitNotExceeded(1);
-
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
     'SELECT * FROM inventory_history WHERE id = ?', [historyId]
   );
   if (!row) return;
   const qty = Math.max(Number(row.final_quantity) || 0, 1);
-  await database.runAsync(
+
+  const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
+  await assertItemLimitNotExceeded(qty);
+
+  const result = await database.runAsync(
     `INSERT INTO products (name, category, item_id, purchase_price, selling_price, quantity, image_uri, is_active)
      VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
     [
@@ -705,11 +792,16 @@ export async function restoreProductFromHistory(historyId: number): Promise<void
     ]
   );
   await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
+  await enqueueSyncChange(result.lastInsertRowId, 'upsert');
 }
 
 export async function deleteProductsByPurchaseId(purchaseId: number): Promise<void> {
   const database = await getDatabase();
+  const rows = await database.getAllAsync<{ id: number }>(
+    'SELECT id FROM products WHERE purchase_id = ?', [purchaseId]
+  );
   await database.runAsync('DELETE FROM products WHERE purchase_id = ?', [purchaseId]);
+  for (const row of rows) await enqueueSyncChange(row.id, 'delete');
 }
 
 export async function getAllInventoryHistory(): Promise<import('@/types/inventory').InventoryHistoryItem[]> {
@@ -865,6 +957,7 @@ export async function reduceProductQuantity(id: number, delta: number): Promise<
     'UPDATE products SET quantity = MAX(0, quantity - ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [delta, id]
   );
+  await enqueueSyncChange(id, 'upsert');
 }
 
 export async function restoreProductQuantity(id: number, delta: number): Promise<void> {
@@ -873,6 +966,7 @@ export async function restoreProductQuantity(id: number, delta: number): Promise
     'UPDATE products SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [delta, id]
   );
+  await enqueueSyncChange(id, 'upsert');
 }
 
 export async function markUniqueItemSold(id: number): Promise<void> {
@@ -1279,6 +1373,7 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
           [item.quantity, item.productId]
         );
       }
+      await enqueueSyncChange(item.productId, 'upsert');
     }
 
     // 4. Delete old sale_items
@@ -1316,6 +1411,7 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
           [item.quantity, item.productId]
         );
       }
+      await enqueueSyncChange(item.productId, 'upsert');
     }
 
     // 6. Update the sales record
@@ -1565,6 +1661,7 @@ export async function insertSale(
           await archiveProductToHistory(database, item.productId, 'sold_out');
         }
       }
+      await enqueueSyncChange(item.productId, 'upsert');
     }
 
     if (saleData.remainingDebt > 0) {
@@ -1656,6 +1753,7 @@ export async function deleteSale(id: number): Promise<void> {
           [item.quantity, item.productId]
         );
       }
+      await enqueueSyncChange(item.productId, 'upsert');
     }
 
     await database.runAsync('DELETE FROM sales WHERE id = ?', [id]);
@@ -2034,6 +2132,7 @@ export async function archivePurchase(id: number, actor: PurchaseActor): Promise
     for (const row of productRows) {
       await archiveProductToHistory(database, row.id, 'removed');
       await database.runAsync('DELETE FROM products WHERE id = ?', [row.id]);
+      await enqueueSyncChange(row.id, 'delete');
     }
 
     await database.runAsync(
@@ -2131,6 +2230,7 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
         for (const row of unsold) {
           await archiveProductToHistory(database, row.id, 'removed');
           await database.runAsync('DELETE FROM products WHERE id = ?', [row.id]);
+          await enqueueSyncChange(row.id, 'delete');
         }
       } else {
         await database.runAsync(
@@ -2154,6 +2254,14 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
         [newBuy, id]
       );
     }
+
+    // Online Store sync — any product still tied to this purchase may have just had
+    // its name, quantity, or price touched above; re-queue all of them in one pass
+    // rather than tracking every individual branch that can mutate products here.
+    const syncRows = await database.getAllAsync<{ id: number }>(
+      'SELECT id FROM products WHERE purchase_id = ?', [id]
+    );
+    for (const row of syncRows) await enqueueSyncChange(row.id, 'upsert');
 
     // Keep the purchase_items mirror row in sync (read by the purchase detail screen).
     {

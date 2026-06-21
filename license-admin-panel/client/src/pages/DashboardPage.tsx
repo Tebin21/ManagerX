@@ -17,7 +17,8 @@ export function DashboardPage() {
     const counts = { total: licenses.length, active: 0, revoked: 0, expired: 0 } as Record<string, number>;
     const planCounts: Record<Plan, number> = { basic: 0, plus: 0, pro: 0, business: 0, unlimited: 0 };
     for (const l of licenses) {
-      counts[l.status] = (counts[l.status] ?? 0) + 1;
+      const effectiveStatus = l.isExpired ? 'expired' : l.status;
+      counts[effectiveStatus] = (counts[effectiveStatus] ?? 0) + 1;
       planCounts[l.plan] = (planCounts[l.plan] ?? 0) + 1;
     }
     return { counts, planCounts };
@@ -78,7 +79,7 @@ export function DashboardPage() {
                       <PlanBadge plan={l.plan} />
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={l.status} />
+                      <StatusBadge status={l.isExpired ? 'expired' : l.status} />
                     </td>
                     <td className="px-4 py-3 text-right text-slate-400">
                       {new Date(l.createdAt).toLocaleDateString()}

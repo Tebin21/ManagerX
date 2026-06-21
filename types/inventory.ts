@@ -21,6 +21,7 @@ export interface InventoryProduct extends Product {
   sellPriceUsd: number;
   lowStockThreshold: number | null;
   lowStockEnabled: 1 | 0 | null;
+  storeVisible: boolean;
 }
 
 export interface InventoryStats {

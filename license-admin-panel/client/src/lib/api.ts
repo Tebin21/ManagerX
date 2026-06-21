@@ -1,9 +1,9 @@
 import type { CustomerGroup, LicenseRecord, Plan } from './types';
 
-// Locally (no env var set) this resolves to '/api', which Vite's dev proxy forwards
-// to the local server. In production, Vercel injects VITE_API_URL pointing straight
-// at the Railway API, since the two are no longer on the same origin.
-export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+// Local-only app: this is always served from http://localhost:5173, talking to the
+// API on http://localhost:4000 via Vite's dev proxy (see vite.config.ts) — so a
+// plain relative '/api' path is all that's ever needed here.
+export const API_BASE = '/api';
 
 export class ApiError extends Error {
   status: number;
@@ -40,8 +40,14 @@ export const api = {
 
   listLicenses: () => request<LicenseRecord[]>('/licenses'),
   getLicense: (id: string) => request<LicenseRecord>(`/licenses/${id}`),
-  createLicense: (data: { customerName: string; phone: string; deviceId: string; plan: Plan; notes?: string }) =>
-    request<LicenseRecord>('/licenses', { method: 'POST', body: JSON.stringify(data) }),
+  createLicense: (data: {
+    customerName: string;
+    phone: string;
+    deviceId: string;
+    plan: Plan;
+    notes?: string;
+    expiresInMonths?: number | null;
+  }) => request<LicenseRecord>('/licenses', { method: 'POST', body: JSON.stringify(data) }),
   updateLicense: (id: string, data: Partial<Pick<LicenseRecord, 'customerName' | 'phone' | 'notes'>>) =>
     request<LicenseRecord>(`/licenses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   revokeLicense: (id: string, reason?: string) =>

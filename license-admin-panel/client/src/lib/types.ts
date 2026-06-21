@@ -10,10 +10,14 @@ export interface LicenseRecord {
   plan: Plan;
   createdAt: string;
   activatedAt: string | null;
+  /** Absolute ISO expiry date, or null = permanent. */
+  expiresAt: string | null;
   status: LicenseStatus;
   notes: string;
   revokedAt: string | null;
   revokedReason: string | null;
+  /** Server-computed: true when status is still "active" but expiresAt has passed. */
+  isExpired: boolean;
 }
 
 export interface CustomerGroup {

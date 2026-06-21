@@ -59,7 +59,7 @@ export function LicenseDetailPage() {
         <h1 className="text-xl font-bold text-slate-900">{record.customerName || 'Unnamed Customer'}</h1>
         <div className="flex gap-2">
           <PlanBadge plan={record.plan} />
-          <StatusBadge status={record.status} />
+          <StatusBadge status={record.isExpired ? 'expired' : record.status} />
         </div>
       </div>
 
@@ -86,6 +86,13 @@ export function LicenseDetailPage() {
             <dt className="text-slate-400">Activated</dt>
             <dd className="font-medium text-slate-900">
               {record.activatedAt ? new Date(record.activatedAt).toLocaleString() : 'Not confirmed yet'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-400">Expires</dt>
+            <dd className={`font-medium ${record.isExpired ? 'text-red-600' : 'text-slate-900'}`}>
+              {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString() : 'Permanent'}
+              {record.isExpired ? ' (expired)' : ''}
             </dd>
           </div>
           {record.status === 'revoked' && (

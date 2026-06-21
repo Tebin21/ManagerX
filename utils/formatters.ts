@@ -66,3 +66,18 @@ export function formatDateTime(v: string | Date): string {
 export function formatDateShort(v: string | Date): string {
   return formatDate(v);
 }
+
+export function formatRelativeTime(v: string | Date): string {
+  const date = parseDateSafe(v);
+  const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (diffSec < 10) return 'Just now';
+  if (diffSec < 60) return `${diffSec} seconds ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
+  return formatDate(date);
+}

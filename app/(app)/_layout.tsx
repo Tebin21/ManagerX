@@ -4,6 +4,8 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useRTL } from '@/lib/rtl';
 import { useAuthStore } from '@/store/authStore';
 import { useHasHydrated } from '@/lib/useHasHydrated';
+import { useOnlineStoreStore } from '@/store/onlineStoreStore';
+import { startAutoSync } from '@/lib/onlineStore/syncEngine';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
@@ -19,6 +21,14 @@ export default function AppLayout() {
       router.replace('/(onboarding)/login');
     }
   }, [authHydrated, user]);
+
+  // Online Store auto-sync — starts the NetInfo/AppState listeners once and loads
+  // the current store status so the dashboard card has data immediately.
+  useEffect(() => {
+    if (!user) return;
+    startAutoSync();
+    useOnlineStoreStore.getState().load();
+  }, [user]);
 
   return (
     <ErrorBoundary>

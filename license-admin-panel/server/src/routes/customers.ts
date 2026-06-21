@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getLicenseRepository } from '../repositoryFactory';
+import { JsonLicenseRepository } from '../jsonLicenseRepository';
 import { groupByCustomer } from './licenses';
 
-const repo = getLicenseRepository();
+const repo = new JsonLicenseRepository();
 
 export const customersRouter = Router();
 

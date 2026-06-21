@@ -1,0 +1,5 @@
+{
+  "adminPassword": "change-me",
+  "port": 4000,
+  "allowedOrigin": "http://localhost:5173"
+}

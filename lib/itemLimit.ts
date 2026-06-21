@@ -1,6 +1,6 @@
 import { getInventoryStats, loadSetting, saveSetting } from '@/lib/sqlite';
 import { getOrCreateDeviceId } from '@/lib/deviceId';
-import { TOKEN_TO_LIMIT, verifyLicenseCode } from '@/lib/license/licenseCore';
+import { TOKEN_TO_LIMIT, verifyLicenseCode, expiryTokenToIso } from '@/lib/license/licenseCore';
 
 export const DEFAULT_ITEM_LIMIT_PLAN = 'basic';
 
@@ -25,12 +25,18 @@ export interface LicenseInfo {
   activatedAt: string | null;
   deviceId: string;
   licenseCode: string | null;
+  /** ISO date the *currently active* plan expires, or null if permanent / no license. */
+  expiresAt: string | null;
+  /** True when a stored license was valid but its expiry date has since passed —
+   *  lets the UI say "your plan expired" instead of silently reverting with no explanation. */
+  expired: boolean;
 }
 
 export type ActivationResult =
-  | { status: 'activated'; plan: string; limit: number }
+  | { status: 'activated'; plan: string; limit: number; expiresAt: string | null }
   | { status: 'invalid' }
   | { status: 'wrong_device' }
+  | { status: 'expired'; expiresAt: string | null }
   | { status: 'already_activated'; plan: string; limit: number }
   | { status: 'no_upgrade'; plan: string; limit: number };
 
@@ -39,13 +45,16 @@ function limitToPlanLabel(limit: number): string {
   return found ? found[0] : DEFAULT_ITEM_LIMIT_PLAN;
 }
 
-function defaultLicenseInfo(deviceId: string): LicenseInfo {
+function defaultLicenseInfo(deviceId: string, overrides: Partial<LicenseInfo> = {}): LicenseInfo {
   return {
     plan: DEFAULT_ITEM_LIMIT_PLAN,
     limit: ITEM_LIMIT_PLANS[DEFAULT_ITEM_LIMIT_PLAN],
     activatedAt: null,
     deviceId,
     licenseCode: null,
+    expiresAt: null,
+    expired: false,
+    ...overrides,
   };
 }
 
@@ -61,6 +70,12 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
 
   const activatedAt = await loadSetting(KEY_ACTIVATED_AT);
   const result = verifyLicenseCode(licenseCode, deviceId);
+
+  if (result.status === 'expired') {
+    // Cryptographically valid and bound to this device, but the embedded expiry
+    // date has passed — fall back to the default plan, but flag *why*.
+    return defaultLicenseInfo(deviceId, { licenseCode, expired: true });
+  }
   if (result.status !== 'valid') return defaultLicenseInfo(deviceId);
 
   const limit = TOKEN_TO_LIMIT[result.limitToken] ?? ITEM_LIMIT_PLANS[DEFAULT_ITEM_LIMIT_PLAN];
@@ -70,6 +85,8 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
     activatedAt,
     deviceId,
     licenseCode,
+    expiresAt: expiryTokenToIso(result.expiryToken),
+    expired: false,
   };
 }
 
@@ -80,6 +97,9 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
   const result = verifyLicenseCode(code, deviceId);
   if (result.status === 'wrong_device') return { status: 'wrong_device' };
   if (result.status === 'invalid') return { status: 'invalid' };
+  if (result.status === 'expired') {
+    return { status: 'expired', expiresAt: expiryTokenToIso(result.expiryToken) };
+  }
 
   const current = await loadLicenseFromDb();
 
@@ -97,13 +117,22 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
 
   await saveSetting(KEY_LICENSE_CODE, code);
   await saveSetting(KEY_ACTIVATED_AT, new Date().toISOString());
-  return { status: 'activated', plan: limitToPlanLabel(newLimit), limit: newLimit };
+  return {
+    status: 'activated',
+    plan: limitToPlanLabel(newLimit),
+    limit: newLimit,
+    expiresAt: expiryTokenToIso(result.expiryToken),
+  };
 }
 
-export async function assertItemLimitNotExceeded(additionalCount: number): Promise<void> {
+// The limit is on total stock QUANTITY (units), not on how many distinct product
+// rows exist — one product with quantity 100 uses the same 100 "items" of the plan
+// as 100 separate products with quantity 1 each. totalQuantity (not totalProducts)
+// is the correct metric here.
+export async function assertItemLimitNotExceeded(additionalQuantity: number): Promise<void> {
   const { limit } = await loadLicenseFromDb();
   const stats = await getInventoryStats();
-  if (stats.totalProducts + additionalCount > limit) {
-    throw new Error(`ITEM_LIMIT_REACHED|${stats.totalProducts},${limit}`);
+  if (stats.totalQuantity + additionalQuantity > limit) {
+    throw new Error(`ITEM_LIMIT_REACHED|${stats.totalQuantity},${limit}`);
   }
 }

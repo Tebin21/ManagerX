@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Usage:
 //   node scripts/license-admin/generate-license.js --device MX-DV-84K2-91LM --plan pro
+//   node scripts/license-admin/generate-license.js --device MX-DV-84K2-91LM --plan pro --expires-months 6
 //   node scripts/license-admin/generate-license.js --mark-used <license-code>
 //   node scripts/license-admin/generate-license.js --list
 //
 // Plans: basic, plus, pro, business, unlimited
+// --expires-months <N>: optional, omit for a permanent license (default, unchanged behavior).
 
 const fs = require('fs');
 const path = require('path');
@@ -58,7 +60,7 @@ function main() {
     }
     for (const e of ledger) {
       console.log(`[${e.status}] ${e.plan.padEnd(10)} ${e.deviceId}  ${e.licenseCode}`);
-      console.log(`         created: ${e.createdAt}  activated: ${e.activatedAt ?? '-'}`);
+      console.log(`         created: ${e.createdAt}  activated: ${e.activatedAt ?? '-'}  expires: ${e.expiresAt ?? 'never'}`);
     }
     return;
   }
@@ -93,6 +95,18 @@ function main() {
     process.exit(1);
   }
 
+  let expiryToken = licenseCore.NO_EXPIRY;
+  if (args['expires-months']) {
+    const months = Number(args['expires-months']);
+    if (!Number.isFinite(months) || months <= 0) {
+      console.error('--expires-months must be a positive number.');
+      process.exit(1);
+    }
+    const expiryDate = new Date();
+    expiryDate.setUTCMonth(expiryDate.getUTCMonth() + months);
+    expiryToken = licenseCore.formatExpiryToken(expiryDate);
+  }
+
   const deviceIdNormalized = deviceId.toUpperCase();
   const ledger = loadLedger();
   const dupe = ledger.find(
@@ -112,9 +126,10 @@ function main() {
   const { secretKeyBase64 } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
   const secretKey = licenseCore.base64ToBytes(secretKeyBase64);
 
-  const message = licenseCore.buildMessage(deviceIdNormalized, limitToken);
+  const message = licenseCore.buildMessage(deviceIdNormalized, limitToken, expiryToken);
   const signature = nacl.sign.detached(licenseCore.asciiToBytes(message), secretKey);
-  const licenseCode = licenseCore.formatLicenseCode(deviceIdNormalized, limitToken, signature);
+  const licenseCode = licenseCore.formatLicenseCode(deviceIdNormalized, limitToken, expiryToken, signature);
+  const expiresAt = licenseCore.expiryTokenToIso(expiryToken);
 
   ledger.push({
     deviceId: deviceIdNormalized,
@@ -122,6 +137,7 @@ function main() {
     plan,
     createdAt: new Date().toISOString(),
     activatedAt: null,
+    expiresAt,
     status: 'issued',
   });
   saveLedger(ledger);
@@ -129,6 +145,8 @@ function main() {
   console.log('License code (give this to the customer to paste into Settings -> Plan & Limits):');
   console.log('');
   console.log(licenseCode);
+  console.log('');
+  console.log(expiresAt ? `Expires: ${expiresAt}` : 'Expires: never (permanent)');
 }
 
 main();

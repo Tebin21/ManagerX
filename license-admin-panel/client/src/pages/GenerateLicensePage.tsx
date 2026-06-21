@@ -6,12 +6,16 @@ import { PlanBadge } from '../components/Badges';
 
 const PLAN_OPTIONS = Object.keys(PLAN_LABELS) as Plan[];
 
+const EXPIRY_PRESETS = [1, 3, 6, 12];
+
 export function GenerateLicensePage() {
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [deviceId, setDeviceId] = useState('');
   const [plan, setPlan] = useState<Plan>('basic');
   const [notes, setNotes] = useState('');
+  const [hasExpiry, setHasExpiry] = useState(false);
+  const [expiresInMonths, setExpiresInMonths] = useState('1');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,15 +25,30 @@ export function GenerateLicensePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    let months: number | null = null;
+    if (hasExpiry) {
+      months = Number(expiresInMonths);
+      if (!Number.isFinite(months) || months <= 0) {
+        setError('Enter a valid number of months (greater than 0).');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      const record = await api.createLicense({ customerName, phone, deviceId, plan, notes });
+      const record = await api.createLicense({
+        customerName, phone, deviceId, plan, notes,
+        expiresInMonths: months,
+      });
       setResult(record);
       setCustomerName('');
       setPhone('');
       setDeviceId('');
       setNotes('');
       setPlan('basic');
+      setHasExpiry(false);
+      setExpiresInMonths('1');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not generate the license.');
     } finally {
@@ -111,6 +130,57 @@ export function GenerateLicensePage() {
         </div>
 
         <div>
+          <label className="block text-xs font-medium text-slate-600">Expiration</label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setHasExpiry(false)}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                !hasExpiry ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Permanent
+            </button>
+            <button
+              type="button"
+              onClick={() => setHasExpiry(true)}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                hasExpiry ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Expires after…
+            </button>
+          </div>
+
+          {hasExpiry && (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={expiresInMonths}
+                  onChange={(e) => setExpiresInMonths(e.target.value)}
+                  className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <span className="text-sm text-slate-600">month(s)</span>
+              </div>
+              <div className="mt-2 flex gap-2">
+                {EXPIRY_PRESETS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setExpiresInMonths(String(m))}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                  >
+                    {m === 12 ? '1 year' : `${m}mo`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
           <label className="block text-xs font-medium text-slate-600">Notes (optional)</label>
           <textarea
             value={notes}
@@ -146,6 +216,8 @@ export function GenerateLicensePage() {
             <span>Created {new Date(result.createdAt).toLocaleString()}</span>
             <span>·</span>
             <span>{result.deviceId}</span>
+            <span>·</span>
+            <span>{result.expiresAt ? `Expires ${new Date(result.expiresAt).toLocaleDateString()}` : 'Permanent'}</span>
           </div>
 
           <div className="mt-4 flex gap-2">
