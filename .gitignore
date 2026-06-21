@@ -30,7 +30,7 @@ scripts/license-admin/keys/
 scripts/license-admin/licenses.json
 license-admin-panel/server/config.local.json
 
-# Online Store backend — never commit the store ledger (has API key hashes) or
-# the local server config
+# Online Store backend — never commit the store ledger (has API key hashes), the
+# local server config, or uploaded product/logo images
 online-store/server/config.local.json
-online-store/server/data/stores.json
+online-store/server/data/

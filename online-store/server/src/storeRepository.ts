@@ -8,6 +8,17 @@ export interface StoreProduct {
   updatedAt: string;
 }
 
+export interface StoreInfo {
+  description?: string;
+  whatsappNumber?: string;
+  address?: string;
+  phone?: string;
+  logoUrl?: string;
+  openingHours?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+}
+
 export interface StoreRecord {
   slug: string;
   businessName: string;
@@ -16,6 +27,7 @@ export interface StoreRecord {
   createdAt: string;
   lastSyncAt: string | null;
   products: StoreProduct[];
+  info?: StoreInfo;
 }
 
 export interface SyncChangeInput {
@@ -38,5 +50,6 @@ export interface StoreRepository {
   isSlugTaken(slug: string): Promise<boolean>;
   create(data: { slug: string; businessName: string; apiKeyHash: string }): Promise<StoreRecord>;
   setEnabled(slug: string, enabled: boolean): Promise<StoreRecord | null>;
+  updateInfo(slug: string, partialInfo: Partial<StoreInfo>): Promise<StoreRecord | null>;
   applySync(slug: string, changes: SyncChangeInput[]): Promise<{ syncedAt: string; accepted: number }>;
 }

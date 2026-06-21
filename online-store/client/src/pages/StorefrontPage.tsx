@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchStore, type StoreResponse } from '../lib/api';
 import { ProductCard } from '../components/ProductCard';
+import { StoreHeader } from '../components/StoreHeader';
+import { useCart } from '../cart/CartContext';
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error';
 
@@ -17,12 +19,15 @@ export function StorefrontPage() {
   const { slug } = useParams<{ slug: string }>();
   const [store, setStore] = useState<StoreResponse | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const { count } = useCart();
 
-  useEffect(() => {
-    if (!slug) return;
+  // Background refreshes (poll/focus) must never flip the UI back to a full-page
+  // spinner — only the very first load does that. This just updates `store` in
+  // place once new data arrives, so an already-open tab can pick up a synced
+  // change without the visitor doing a manual reload.
+  const refresh = useCallback(() => {
+    if (!slug) return () => {};
     let cancelled = false;
-    setState('loading');
-
     fetchStore(slug)
       .then((data) => {
         if (cancelled) return;
@@ -36,9 +41,29 @@ export function StorefrontPage() {
       .catch(() => {
         if (!cancelled) setState('error');
       });
-
     return () => { cancelled = true; };
   }, [slug]);
+
+  useEffect(() => {
+    setState('loading');
+    return refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 30_000);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
+  }, [refresh]);
 
   if (state === 'loading') return <CenteredMessage>Loading store…</CenteredMessage>;
   if (state === 'not_found') return <CenteredMessage>This store doesn't exist.</CenteredMessage>;
@@ -48,10 +73,7 @@ export function StorefrontPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-gradient-to-r from-brand-700 to-brand-500 px-6 py-10 text-center text-white shadow-card">
-        <h1 className="text-2xl font-extrabold">{store.businessName}</h1>
-        <p className="mt-1 text-sm text-white/80">Powered by ManagerX</p>
-      </header>
+      <StoreHeader businessName={store.businessName} info={store.info} cartCount={count} cartHref={`/${slug}/cart`} />
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         {!store.enabled ? (
@@ -66,6 +88,8 @@ export function StorefrontPage() {
           </div>
         )}
       </main>
+
+      <footer className="px-6 py-8 text-center text-xs text-slate-400">Powered by ManagerX</footer>
     </div>
   );
 }

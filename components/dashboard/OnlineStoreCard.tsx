@@ -21,8 +21,8 @@ export function OnlineStoreCard() {
   const { flexDirection } = useRTL();
 
   const {
-    enabled, storeUrl, lastSyncAt, pendingCount, isRegistering, isLoading,
-    load, enable, disable, refreshPendingCount, copyLink, openWebsite,
+    enabled, storeUrl, lastSyncAt, pendingCount, isRegistering, isLoading, isSyncingNow,
+    load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 
   useFocusEffect(
@@ -94,6 +94,21 @@ export function OnlineStoreCard() {
         >
           <Ionicons name="open-outline" size={18} color={storeUrl ? colors.primary : colors.gray300} />
         </TouchableOpacity>
+        {enabled && (
+          <TouchableOpacity
+            onPress={syncNow}
+            disabled={isSyncingNow}
+            hitSlop={8}
+            style={styles.urlIconBtn}
+            activeOpacity={0.7}
+          >
+            {isSyncingNow ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Ionicons name="sync-outline" size={18} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Stats */}

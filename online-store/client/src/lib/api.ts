@@ -13,14 +13,28 @@ export interface StoreProduct {
   availability: 'in_stock' | 'out_of_stock';
 }
 
+export interface StoreInfo {
+  description?: string;
+  whatsappNumber?: string;
+  address?: string;
+  phone?: string;
+  logoUrl?: string;
+  openingHours?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+}
+
 export interface StoreResponse {
   businessName: string;
   enabled: boolean;
   products: StoreProduct[];
+  info: StoreInfo;
 }
 
 export async function fetchStore(slug: string): Promise<StoreResponse | null> {
-  const res = await fetch(`${API_BASE_URL}/api/stores/${encodeURIComponent(slug)}`);
+  const res = await fetch(`${API_BASE_URL}/api/stores/${encodeURIComponent(slug)}`, {
+    cache: 'no-store',
+  });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to load store (${res.status})`);
   return res.json();

@@ -1,4 +1,5 @@
 {
   "port": 4100,
-  "allowedOrigin": "http://localhost:5174"
+  "allowedOrigin": "http://localhost:5174",
+  "publicApiUrl": "http://localhost:4100"
 }

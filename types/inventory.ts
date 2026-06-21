@@ -17,6 +17,7 @@ export interface InventoryProduct extends Product {
   paymentStatus: 'paid' | 'debt';
   warranty: string | null;
   imageUri: string | null;
+  imageRemoteUrl: string | null;
   buyPriceUsd: number;
   sellPriceUsd: number;
   lowStockThreshold: number | null;

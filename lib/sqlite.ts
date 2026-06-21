@@ -319,6 +319,9 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE products ADD COLUMN store_visible INTEGER NOT NULL DEFAULT 0`,
     // Online Store — offline-first outbox of product changes waiting to sync to the website
     `CREATE TABLE IF NOT EXISTS sync_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL DEFAULT 'product', entity_id INTEGER NOT NULL, operation TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(entity_type, entity_id))`,
+    // Online Store — cloud-hosted copy of the product image, set after a successful
+    // upload. NULL means "needs (re-)upload before the next sync can reference it".
+    `ALTER TABLE products ADD COLUMN image_remote_url TEXT`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -557,6 +560,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     paymentStatus: ((row.payment_status as string) ?? 'paid') as 'paid' | 'debt',
     warranty: (row.warranty as string | null) ?? null,
     imageUri: (row.image_uri as string | null) ?? null,
+    imageRemoteUrl: (row.image_remote_url as string | null) ?? null,
     buyPriceUsd: (row.buy_price_usd as number) ?? 0,
     sellPriceUsd: (row.sell_price_usd as number) ?? 0,
     lowStockThreshold: (row.low_stock_threshold as number | null) ?? null,
@@ -621,7 +625,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.unit !== undefined)           { fields.push('unit = ?');             values.push(data.unit); }
   if (data.description !== undefined)    { fields.push('description = ?');      values.push(data.description); }
   if (data.warranty !== undefined)       { fields.push('warranty = ?');         values.push(data.warranty); }
-  if (data.imageUri !== undefined)       { fields.push('image_uri = ?');        values.push(data.imageUri); }
+  if (data.imageUri !== undefined)       { fields.push('image_uri = ?');        values.push(data.imageUri);
+                                            fields.push('image_remote_url = NULL'); }
   if (data.paymentStatus !== undefined)  { fields.push('payment_status = ?');   values.push(data.paymentStatus); }
   if (data.supplierName !== undefined)   { fields.push('supplier_name = ?');    values.push(data.supplierName); }
   if (data.supplierPhone !== undefined)  { fields.push('supplier_phone = ?');   values.push(data.supplierPhone); }
@@ -711,6 +716,11 @@ export async function enqueueSyncChange(
        updated_at = excluded.updated_at`,
     [productId, operation]
   );
+  // Dynamic import avoids a circular import (syncEngine.ts already imports FROM
+  // this file). Fire-and-forget — enqueueSyncChange is called inline inside bulk
+  // loops (e.g. deleteProductsByPurchaseId) and must never block on a debounce
+  // timer or a network call.
+  import('./onlineStore/syncEngine').then((m) => m.scheduleSync()).catch(() => {});
 }
 
 export async function getPendingSyncCount(): Promise<number> {
@@ -760,6 +770,15 @@ export async function clearSyncQueue(queueIds: number[]): Promise<void> {
   const database = await getDatabase();
   const placeholders = queueIds.map(() => '?').join(', ');
   await database.runAsync(`DELETE FROM sync_queue WHERE id IN (${placeholders})`, queueIds);
+}
+
+// Records the public URL returned after uploading a product's local image to the
+// Online Store backend. Deliberately does NOT call enqueueSyncChange — this is
+// completing an in-flight sync, not creating a new change to sync (that would
+// retrigger scheduleSync() in a loop with itself).
+export async function setProductImageRemoteUrl(id: number, url: string): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('UPDATE products SET image_remote_url = ? WHERE id = ?', [url, id]);
 }
 
 export async function permanentDeleteFromHistory(historyId: number): Promise<void> {

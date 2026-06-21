@@ -52,6 +52,15 @@ This needs a host with a **persistent volume/disk** (the ledger is a local file)
   to 4100. `config.local.json` (gitignored, copy from `config.local.json.example`) lets
   you override the CORS `allowedOrigin` for a staging environment — production already
   defaults to `https://managerx.store` and `https://www.managerx.store`, no setup needed.
+- `PUBLIC_API_URL` env var (defaults to `https://api.managerx.store`) — used to build the
+  absolute URL returned by the image upload endpoint (`POST /:slug/images`), since the
+  server can't reliably infer its own public hostname from behind a host's proxy. Already
+  set in `render.yaml`; override it (or set it in `config.local.json`) if deploying
+  elsewhere or testing against a LAN IP from a physical mobile device.
+- Uploaded product/logo images are stored on the same persistent disk as the ledger
+  (`data/uploads/{slug}/...`, served statically at `/uploads/...`) — no third-party image
+  host needed, but this means the disk mount is now required for images too, not just
+  the ledger.
 - Once deployed, point the `api` subdomain's DNS at whatever hostname your host gives you
   (see DNS section below) — that host-provided hostname is something only your chosen
   platform can give you after you deploy, so it can't be filled in ahead of time here.
@@ -111,9 +120,18 @@ dashboards yourself.
 
 - `POST /api/stores` `{ businessName }` → `{ slug, apiKey }` — registers a new store,
   called once by ManagerX the first time "Enable Store" is pressed.
-- `GET /api/stores/:slug` (public) → `{ businessName, enabled, products }` — `products`
-  is already filtered to published items, with `availability` derived from stock.
+- `GET /api/stores/:slug` (public) → `{ businessName, enabled, products, info }` —
+  `products` is already filtered to published items, with `availability` derived from
+  stock; `info` holds the store-info fields (description, WhatsApp, address, phone, logo,
+  hours, social links) added on top of the original MVP shape.
 - `PATCH /api/stores/:slug/status` `{ enabled }` (Bearer API key) — Enable/Disable Store.
+- `PATCH /api/stores/:slug/info` `{ ...partial info fields }` (Bearer API key) — partial
+  merge update of the store-info fields shown on the storefront header.
 - `POST /api/stores/:slug/sync` `{ changes: [...] }` (Bearer API key) — idempotent
   upsert/delete batch, called by ManagerX's offline-first sync queue
-  (`lib/onlineStore/syncEngine.ts`) whenever connectivity returns.
+  (`lib/onlineStore/syncEngine.ts`) whenever connectivity returns, the app foregrounds,
+  ~1.5s after a local change (debounced), every 60s as a safety net, or via the manual
+  "Sync Now" button.
+- `POST /api/stores/:slug/images` (multipart, field name `image`, Bearer API key) →
+  `{ url }` — uploads a product/logo image (jpeg/png/webp, max 5MB) to the server's own
+  persistent disk and returns its public URL.

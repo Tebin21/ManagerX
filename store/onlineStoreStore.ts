@@ -12,6 +12,11 @@ import {
   getStoreApiKey,
   getLastSyncAt,
 } from '@/lib/onlineStore/storage';
+import {
+  loadStoreInfoFields,
+  saveStoreInfoFields,
+  type StoreInfoFields,
+} from '@/lib/onlineStore/storeInfo';
 import { useBusinessStore } from '@/store/businessStore';
 
 function buildStoreUrl(slug: string | null): string | null {
@@ -42,11 +47,22 @@ interface OnlineStoreState {
   pendingCount: number;
   isRegistering: boolean;
   isLoading: boolean;
+  isSyncingNow: boolean;
+  storeInfoFields: StoreInfoFields;
 
   load: () => Promise<void>;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
   refreshPendingCount: () => Promise<void>;
+  /** Saves the store-info fields (description/WhatsApp/hours/social) locally and
+   *  kicks off an immediate push attempt. There's no offline outbox for these
+   *  fields — if the push fails now, syncEngine's existing triggers (debounce/
+   *  periodic/manual) retry it opportunistically until it succeeds. */
+  saveStoreInfo: (fields: Partial<StoreInfoFields>) => Promise<void>;
+  /** Manual "Sync Now" action. Safe to call even if a debounced/periodic sync is
+   *  already in flight — processQueue() has its own re-entrancy guard, so this
+   *  just becomes a no-op network-wise but still refreshes the displayed stats. */
+  syncNow: () => Promise<void>;
   /** Returns true if the link was actually copied — false if the clipboard is
    *  unavailable (e.g. native module not linked) or the copy itself failed, so the
    *  caller can fall back to showing the link instead of silently doing nothing. */
@@ -62,6 +78,8 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   pendingCount: 0,
   isRegistering: false,
   isLoading: false,
+  isSyncingNow: false,
+  storeInfoFields: { description: '', whatsappNumber: '', openingHours: '', facebookUrl: '', instagramUrl: '' },
 
   load: async () => {
     // The store's URL is shown immediately from the business name — entirely local, no
@@ -86,13 +104,14 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     set({ slug, storeUrl: buildStoreUrl(slug) });
 
     try {
-      const [enabled, lastSyncAt, pendingCount, apiKey] = await Promise.all([
+      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields] = await Promise.all([
         getStoreEnabled(),
         getLastSyncAt(),
         getPendingSyncCount(),
         getStoreApiKey(),
+        loadStoreInfoFields(),
       ]);
-      set({ enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey });
+      set({ enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey, storeInfoFields });
     } catch (err) {
       if (__DEV__) console.warn('[onlineStore] load (stats) failed:', err);
     }
@@ -144,6 +163,22 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     } catch (err) {
       if (__DEV__) console.warn('[onlineStore] refreshPendingCount failed:', err);
     }
+  },
+
+  syncNow: async () => {
+    set({ isSyncingNow: true });
+    try {
+      await processQueue();
+      await get().load();
+    } finally {
+      set({ isSyncingNow: false });
+    }
+  },
+
+  saveStoreInfo: async (fields) => {
+    await saveStoreInfoFields(fields);
+    set({ storeInfoFields: { ...get().storeInfoFields, ...fields } });
+    processQueue(); // fire-and-forget — opportunistic push, retried automatically on failure
   },
 
   copyLink: async () => {

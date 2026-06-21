@@ -12,6 +12,9 @@ services:
     dockerfilePath: ./online-store/server/Dockerfile
     plan: starter
     healthCheckPath: /api/health
+    envVars:
+      - key: PUBLIC_API_URL
+        value: https://api.managerx.store
     disk:
       name: online-store-data
       mountPath: /app/data

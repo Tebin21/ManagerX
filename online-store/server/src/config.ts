@@ -12,11 +12,16 @@ const CONFIG_PATH = path.join(__dirname, '../config.local.json');
 export interface LocalConfig {
   port: number;
   allowedOrigin: string | string[];
+  // The server's own public base URL, used to build absolute URLs for uploaded
+  // images (the server can't reliably infer this from a request behind Render's
+  // proxy). Override via PUBLIC_API_URL or config.local.json for local/LAN testing.
+  publicApiUrl: string;
 }
 
 const DEFAULTS: LocalConfig = {
   port: 4100,
   allowedOrigin: ['https://managerx.store', 'https://www.managerx.store'],
+  publicApiUrl: 'https://api.managerx.store',
 };
 
 function loadConfig(): LocalConfig {
@@ -35,6 +40,7 @@ function loadConfig(): LocalConfig {
     ...DEFAULTS,
     ...fileConfig,
     port: envPort ?? fileConfig.port ?? DEFAULTS.port,
+    publicApiUrl: process.env.PUBLIC_API_URL ?? fileConfig.publicApiUrl ?? DEFAULTS.publicApiUrl,
   };
 }
 

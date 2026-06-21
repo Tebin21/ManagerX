@@ -1,6 +1,10 @@
 import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import { MulterError } from 'multer';
 import { JsonStoreRepository } from '../jsonStoreRepository';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
+import { upload, saveUploadedImage } from '../uploads';
+import { config } from '../config';
 import type { SyncChangeInput } from '../storeRepository';
 
 const repo = new JsonStoreRepository();
@@ -61,7 +65,12 @@ storesRouter.get('/:slug', async (req, res) => {
       availability: p.quantity > 0 ? 'in_stock' as const : 'out_of_stock' as const,
     }));
 
-  res.json({ businessName: store.businessName, enabled: store.enabled, products });
+  res.json({
+    businessName: store.businessName,
+    enabled: store.enabled,
+    products,
+    info: store.info ?? {},
+  });
 });
 
 // PATCH /api/stores/:slug/status — Enable/Disable, requires the store's API key.
@@ -80,6 +89,18 @@ storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
   res.json({ slug: updated.slug, enabled: updated.enabled });
 });
 
+// PATCH /api/stores/:slug/info — business name/logo/contact/social info shown on
+// the public storefront header. Freeform, partial-merge, no field validation (kept
+// loose for v1, consistent with /sync). Requires the store's API key.
+storesRouter.patch('/:slug/info', requireStoreAuth, async (req, res) => {
+  const updated = await repo.updateInfo(req.params.slug, req.body ?? {});
+  if (!updated) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+  res.json({ slug: updated.slug, info: updated.info ?? {} });
+});
+
 // POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from ManagerX's
 // offline-first sync queue. Requires the store's API key.
 storesRouter.post('/:slug/sync', requireStoreAuth, async (req, res) => {
@@ -95,4 +116,27 @@ storesRouter.post('/:slug/sync', requireStoreAuth, async (req, res) => {
   } catch (e) {
     res.status(404).json({ error: e instanceof Error ? e.message : 'Sync failed' });
   }
+});
+
+// POST /api/stores/:slug/images — uploads a product/logo image to the server's
+// own persistent disk (no third-party storage account needed) and returns a
+// public URL the storefront can load directly. Requires the store's API key.
+storesRouter.post('/:slug/images', requireStoreAuth, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: 'image file is required (field name "image", jpeg/png/webp, max 5MB)' });
+    return;
+  }
+  const filename = saveUploadedImage(req.params.slug, req.file);
+  const url = `${config.publicApiUrl}/uploads/${req.params.slug}/${filename}`;
+  res.status(201).json({ url });
+});
+
+// Multer throws synchronously on oversize/malformed multipart bodies — without this,
+// that becomes a bare 500 with no JSON body.
+storesRouter.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof MulterError) {
+    res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Image too large (max 5MB)' : err.message });
+    return;
+  }
+  res.status(500).json({ error: 'Request failed' });
 });

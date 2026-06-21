@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { PremiumCard } from '@/components/ui/PremiumCard';
@@ -22,10 +23,11 @@ export default function OnlineStoreScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
+  const router = useRouter();
 
   const {
-    enabled, storeUrl, lastSyncAt, pendingCount, isLoading,
-    load, enable, disable, refreshPendingCount, copyLink, openWebsite,
+    enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
+    load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 
   useEffect(() => {
@@ -110,6 +112,20 @@ export default function OnlineStoreScreen() {
             </TouchableOpacity>
           </View>
 
+          {enabled && (
+            <TouchableOpacity
+              onPress={syncNow}
+              disabled={isSyncingNow}
+              style={[styles.linkBtn, { borderColor: colors.lightBlue, flexDirection, marginBottom: 16 }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="sync-outline" size={16} color={colors.primary} />
+              <Text style={[styles.linkBtnText, { color: colors.primary }]}>
+                {isSyncingNow ? t('settings.onlineStoreScreen.syncing') : t('settings.onlineStoreScreen.syncNow')}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.toggleBtnWrap}>
             <PrimaryButton
               label={enabled ? t('settings.onlineStoreScreen.disableStore') : t('settings.onlineStoreScreen.enableStore')}
@@ -119,6 +135,27 @@ export default function OnlineStoreScreen() {
             />
           </View>
         </PremiumCard>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/settings/online-store-info' as never)}
+          activeOpacity={0.8}
+        >
+          <PremiumCard style={{ marginBottom: 12, flexDirection, alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 2 }]}>
+                {t('settings.onlineStoreScreen.editStoreInfo')}
+              </Text>
+              <Text style={[styles.editInfoSub, { color: colors.gray400, textAlign }]}>
+                {t('settings.onlineStoreScreen.editStoreInfoSub')}
+              </Text>
+            </View>
+            <Ionicons
+              name={flexDirection === 'row-reverse' ? 'chevron-back' : 'chevron-forward'}
+              size={18}
+              color={colors.gray300}
+            />
+          </PremiumCard>
+        </TouchableOpacity>
 
         <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
           <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
@@ -152,6 +189,7 @@ const styles = StyleSheet.create({
 
   card:      { marginBottom: 12 },
   cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  editInfoSub: { fontSize: 12, lineHeight: 16 },
 
   statsRow:    { gap: 12, marginBottom: 16 },
   statItem:    { flex: 1, alignItems: 'center' },

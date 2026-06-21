@@ -1,7 +1,9 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import { config } from './config';
 import { storesRouter } from './routes/stores';
+import { UPLOADS_ROOT } from './uploads';
 
 // Pure API process — the storefront (online-store/client) is deployed separately to
 // Vercel at managerx.store and talks to this server at api.managerx.store. This server
@@ -11,6 +13,10 @@ const app = express();
 
 app.use(cors({ origin: config.allowedOrigin }));
 app.use(express.json());
+
+// Uploaded product/logo images live on the same persistent disk as data/stores.json
+// (see render.yaml's mounted volume at /app/data) — served directly, no CDN needed.
+app.use('/uploads', express.static(UPLOADS_ROOT));
 
 app.use('/api/stores', storesRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));

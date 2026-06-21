@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import type { StoreRecord, StoreRepository, SyncChangeInput } from './storeRepository';
+import type { StoreInfo, StoreRecord, StoreRepository, SyncChangeInput } from './storeRepository';
+import { withStoreLock } from './storeLock';
 
 // Plain local JSON ledger — no database account required to run this server. Fine
 // for a single-process deployment; swap in a real DB-backed StoreRepository if you
@@ -27,61 +28,78 @@ export class JsonStoreRepository implements StoreRepository {
   }
 
   async create(data: { slug: string; businessName: string; apiKeyHash: string }): Promise<StoreRecord> {
-    const records = readLedger();
-    const record: StoreRecord = {
-      slug: data.slug,
-      businessName: data.businessName,
-      enabled: true,
-      apiKeyHash: data.apiKeyHash,
-      createdAt: new Date().toISOString(),
-      lastSyncAt: null,
-      products: [],
-    };
-    records.push(record);
-    writeLedger(records);
-    return record;
+    return withStoreLock(data.slug, async () => {
+      const records = readLedger();
+      const record: StoreRecord = {
+        slug: data.slug,
+        businessName: data.businessName,
+        enabled: true,
+        apiKeyHash: data.apiKeyHash,
+        createdAt: new Date().toISOString(),
+        lastSyncAt: null,
+        products: [],
+      };
+      records.push(record);
+      writeLedger(records);
+      return record;
+    });
   }
 
   async setEnabled(slug: string, enabled: boolean): Promise<StoreRecord | null> {
-    const records = readLedger();
-    const idx = records.findIndex((s) => s.slug === slug);
-    if (idx === -1) return null;
-    records[idx] = { ...records[idx], enabled };
-    writeLedger(records);
-    return records[idx];
+    return withStoreLock(slug, async () => {
+      const records = readLedger();
+      const idx = records.findIndex((s) => s.slug === slug);
+      if (idx === -1) return null;
+      records[idx] = { ...records[idx], enabled };
+      writeLedger(records);
+      return records[idx];
+    });
+  }
+
+  async updateInfo(slug: string, partialInfo: Partial<StoreInfo>): Promise<StoreRecord | null> {
+    return withStoreLock(slug, async () => {
+      const records = readLedger();
+      const idx = records.findIndex((s) => s.slug === slug);
+      if (idx === -1) return null;
+      records[idx] = { ...records[idx], info: { ...records[idx].info, ...partialInfo } };
+      writeLedger(records);
+      return records[idx];
+    });
   }
 
   async applySync(slug: string, changes: SyncChangeInput[]): Promise<{ syncedAt: string; accepted: number }> {
-    const records = readLedger();
-    const idx = records.findIndex((s) => s.slug === slug);
-    if (idx === -1) throw new Error('STORE_NOT_FOUND');
+    return withStoreLock(slug, async () => {
+      const records = readLedger();
+      const idx = records.findIndex((s) => s.slug === slug);
+      if (idx === -1) throw new Error('STORE_NOT_FOUND');
 
-    const store = records[idx];
-    const productsById = new Map(store.products.map((p) => [p.productId, p]));
+      const store = records[idx];
+      const productsById = new Map(store.products.map((p) => [p.productId, p]));
 
-    for (const change of changes) {
-      if (change.operation === 'delete') {
-        productsById.delete(change.productId);
-        continue;
+      for (const change of changes) {
+        if (change.operation === 'delete') {
+          productsById.delete(change.productId);
+          continue;
+        }
+        const existing = productsById.get(change.productId);
+        // Last-write-wins on updatedAt — an older upsert arriving after a newer one
+        // (e.g. retried after a dropped connection) must not clobber newer data.
+        if (existing && change.updatedAt && existing.updatedAt > change.updatedAt) continue;
+        productsById.set(change.productId, {
+          productId: change.productId,
+          name: change.name ?? existing?.name ?? '',
+          price: change.price ?? existing?.price ?? 0,
+          quantity: change.quantity ?? existing?.quantity ?? 0,
+          imageUrl: change.imageUrl ?? existing?.imageUrl ?? null,
+          isPublished: change.isPublished ?? existing?.isPublished ?? false,
+          updatedAt: change.updatedAt ?? new Date().toISOString(),
+        });
       }
-      const existing = productsById.get(change.productId);
-      // Last-write-wins on updatedAt — an older upsert arriving after a newer one
-      // (e.g. retried after a dropped connection) must not clobber newer data.
-      if (existing && change.updatedAt && existing.updatedAt > change.updatedAt) continue;
-      productsById.set(change.productId, {
-        productId: change.productId,
-        name: change.name ?? existing?.name ?? '',
-        price: change.price ?? existing?.price ?? 0,
-        quantity: change.quantity ?? existing?.quantity ?? 0,
-        imageUrl: change.imageUrl ?? existing?.imageUrl ?? null,
-        isPublished: change.isPublished ?? existing?.isPublished ?? false,
-        updatedAt: change.updatedAt ?? new Date().toISOString(),
-      });
-    }
 
-    const syncedAt = new Date().toISOString();
-    records[idx] = { ...store, products: Array.from(productsById.values()), lastSyncAt: syncedAt };
-    writeLedger(records);
-    return { syncedAt, accepted: changes.length };
+      const syncedAt = new Date().toISOString();
+      records[idx] = { ...store, products: Array.from(productsById.values()), lastSyncAt: syncedAt };
+      writeLedger(records);
+      return { syncedAt, accepted: changes.length };
+    });
   }
 }

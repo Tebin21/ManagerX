@@ -73,6 +73,25 @@ export async function setStoreStatus(slug: string, apiKey: string, enabled: bool
   });
 }
 
+export interface StoreInfoPayload {
+  description?: string;
+  whatsappNumber?: string;
+  address?: string;
+  phone?: string;
+  logoUrl?: string;
+  openingHours?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+}
+
+export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {
+  await request(`/api/stores/${slug}/info`, {
+    method: 'PATCH',
+    headers: authHeaders(apiKey),
+    body: JSON.stringify(info),
+  });
+}
+
 export async function pushSync(
   slug: string,
   apiKey: string,
@@ -83,4 +102,30 @@ export async function pushSync(
     headers: authHeaders(apiKey),
     body: JSON.stringify({ changes }),
   });
+}
+
+// Uploads a local product/logo image to the Online Store backend's own persistent
+// disk and returns its public URL. Deliberately NOT routed through request() —
+// that helper force-sets Content-Type: application/json, but React Native's
+// fetch+FormData needs to set its own multipart boundary automatically.
+export async function uploadStoreImage(
+  slug: string,
+  apiKey: string,
+  localUri: string
+): Promise<{ url: string }> {
+  const ext = (localUri.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+  const form = new FormData();
+  form.append('image', { uri: localUri, name: `upload.${ext}`, type: mime } as unknown as Blob);
+
+  const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
+    method: 'POST',
+    headers: authHeaders(apiKey),
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Image upload failed (${res.status}): ${body || res.statusText}`);
+  }
+  return res.json();
 }
