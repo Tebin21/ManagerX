@@ -1,4 +1,4 @@
 {
   "port": 4100,
-  "allowedOrigin": "*"
+  "allowedOrigin": "http://localhost:5174"
 }

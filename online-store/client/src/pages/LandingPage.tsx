@@ -5,7 +5,7 @@ export function LandingPage() {
       <p className="mt-2 max-w-sm text-sm text-slate-500">
         This is the storefront platform that powers public stores created from the
         ManagerX app. Visit a specific store at its own address, e.g.
-        store.managerx.app/your-store-name.
+        managerx.store/your-store-name.
       </p>
     </div>
   );

@@ -1,7 +1,16 @@
-// Thin REST client for the Online Store backend (see online-store/server). The base URL
-// points at the real production domain by default; override STORE_API_BASE_URL to test
-// against a backend running locally on your LAN while developing.
-export const STORE_API_BASE_URL = 'https://store.managerx.app';
+// Thin REST client for the Online Store backend (see online-store/server). Frontend
+// (the public storefront, deployed to Vercel) and backend (the API, deployed separately
+// — see online-store/README.md) live on different subdomains in production, so they're
+// two distinct constants rather than one shared base URL.
+//
+// STORE_API_BASE_URL is where fetch() calls in this file actually go.
+// Override both while developing against a backend/client running on your LAN.
+export const STORE_API_BASE_URL = 'https://api.managerx.store';
+
+// STORE_FRONTEND_BASE_URL is what the business owner sees, copies, and opens — the
+// public storefront itself, not the API. Used by store/onlineStoreStore.ts to build the
+// displayed/copied/opened URL (e.g. managerx.store/karwan-mobile).
+export const STORE_FRONTEND_BASE_URL = 'https://managerx.store';
 
 // Generates a placeholder slug from the business name so the store URL can be shown
 // immediately — offline, before the backend has ever been reached. Mirrors

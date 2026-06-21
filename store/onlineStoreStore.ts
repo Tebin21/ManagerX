@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Linking } from 'react-native';
 import { copyToClipboard } from '@/lib/clipboard';
 import { getPendingSyncCount } from '@/lib/sqlite';
-import { STORE_API_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
+import { STORE_FRONTEND_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
 import { completeStoreRegistration, processQueue } from '@/lib/onlineStore/syncEngine';
 import {
   getStoreEnabled,
@@ -15,7 +15,9 @@ import {
 import { useBusinessStore } from '@/store/businessStore';
 
 function buildStoreUrl(slug: string | null): string | null {
-  return slug ? `${STORE_API_BASE_URL}/${slug}` : null;
+  // The displayed/copied/opened URL is always the public storefront domain — never the
+  // API domain (which the device only ever talks to via fetch(), never opens a browser to).
+  return slug ? `${STORE_FRONTEND_BASE_URL}/${slug}` : null;
 }
 
 // businessStore is persisted (AsyncStorage) and rehydrates asynchronously. load() runs

@@ -1,0 +1,19 @@
+# One concrete, ready-to-go deployment target (Render: simple, has a persistent-disk
+# option, cheap free/starter tier). The Dockerfile in this same folder works on any
+# Docker host — Fly.io, Railway, DigitalOcean, a plain VPS — this file is just Render's
+# specific Infrastructure-as-Code format, not a requirement to use Render.
+#
+# Usage: Render dashboard -> New -> Blueprint -> point at this repo -> it reads this file.
+services:
+  - type: web
+    name: online-store-api
+    runtime: docker
+    dockerContext: ./online-store/server
+    dockerfilePath: ./online-store/server/Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: online-store-data
+      mountPath: /app/data
+      sizeGB: 1
+    autoDeploy: true

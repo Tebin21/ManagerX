@@ -1,21 +1,26 @@
 # ManagerX Online Store
 
 The public storefront platform behind the "Online Store" feature in the ManagerX app.
-Mirrors `license-admin-panel/`'s split: a small Express+TypeScript API (`server/`) and a
-Vite+React+TypeScript storefront (`client/`).
+Production domain: **managerx.store** (frontend) / **api.managerx.store** (backend) — two
+separate deployments on two subdomains of the same domain.
 
 ## Architecture
 
-- `server/` — Express + TypeScript. Stores everything in a local JSON ledger
-  (`server/data/stores.json`, gitignored) via `JsonStoreRepository` — no database
-  account required to run it. `storeRepository.ts` defines the storage interface, so a
-  Postgres/Supabase-backed implementation can be dropped in later without touching any
-  routes. Each store gets a random API key (hashed before storing) generated at
-  registration; ManagerX uses it to authenticate sync/status calls.
-- `client/` — Vite + React + TypeScript + Tailwind. A single page
-  (`src/pages/StorefrontPage.tsx`) reads the slug straight from the URL
-  (`store.managerx.app/<slug>`) and fetches `GET /api/stores/:slug`. No build step is
-  store-specific — one deployed client serves every store.
+```
+managerx.store           ──▶  online-store/client   (Vite + React + Tailwind, static)
+                               deployed to Vercel
+
+api.managerx.store       ──▶  online-store/server   (Express + TypeScript API)
+                               deployed to any Docker host with persistent disk
+```
+
+These are **two independent deployments**, not one process serving both (that was the
+local-dev-only shape before a real domain existed). The client is a static SPA — Vercel
+serves it directly and it calls the API cross-origin via `VITE_API_BASE_URL`. The server
+stores everything in a local JSON ledger (`server/data/stores.json`) via a swappable
+`StoreRepository` interface (`server/src/storeRepository.ts` + `jsonStoreRepository.ts`)
+— no database account required, but it does need a host with a **persistent disk**, which
+rules out Vercel (or any pure serverless platform) for the backend specifically.
 
 ## Local development
 
@@ -24,30 +29,83 @@ cd online-store/server && npm install && npm run dev   # http://localhost:4100
 cd online-store/client && npm install && npm run dev   # http://localhost:5174, proxies /api to :4100
 ```
 
-Point ManagerX's `STORE_API_BASE_URL` (lib/onlineStore/api.ts) at `http://<your-LAN-IP>:4100`
-to test the mobile app against this local server from a physical device or emulator.
+No `.env` needed for local dev — the client falls back to a relative `/api/...` path that
+Vite's dev proxy forwards to the local server. Point ManagerX's `STORE_API_BASE_URL`
+(`lib/onlineStore/api.ts`) at `http://<your-LAN-IP>:4100` to test the mobile app against
+this local server from a physical device or emulator.
 
 ## Production deployment
 
-`npm run build` in both `server/` and `client/`, then `npm start` in `server/` — it serves
-the built client itself (static files + a catch-all to `index.html`) alongside the API, so
-the whole thing is **one deployable Node process** on one port.
+### 1. Backend → api.managerx.store
 
-Two things this repo cannot do for you, since they're account-level actions outside code:
+This needs a host with a **persistent volume/disk** (the ledger is a local file) — it will
+**not** work on pure serverless (Vercel functions, AWS Lambda, etc.) without first swapping
+`JsonStoreRepository` for a real DB-backed `StoreRepository`.
 
-1. **Hosting.** This needs a host with a persistent disk — the default storage is a local
-   JSON file, not a hosted database. A small VPS, Render/Fly.io with a persistent volume,
-   or a home server all work. It will **not** work as-is on pure serverless platforms
-   (e.g. Vercel functions) because the filesystem isn't persisted between requests there.
-   If you need serverless, swap `JsonStoreRepository` for a DB-backed implementation of
-   `StoreRepository` first.
-2. **DNS.** Pointing `store.managerx.app` at wherever you deploy this is a manual step in
-   your domain registrar / DNS provider, done once the server is actually running
-   somewhere with a stable address.
+- `online-store/server/Dockerfile` — builds and runs the API on any Docker host (Render,
+  Fly.io, Railway, DigitalOcean App Platform, a plain VPS via `docker run`). Mount your
+  host's persistent volume at `/app/data` or every redeploy wipes all registered stores.
+- `online-store/server/render.yaml` — one concrete, ready-to-go example (Render: simple,
+  free/cheap tier, has a built-in persistent disk option). Not required if you'd rather
+  use a different Docker host — the Dockerfile alone is enough anywhere.
+- The server reads `process.env.PORT` if your host sets it (most do), otherwise defaults
+  to 4100. `config.local.json` (gitignored, copy from `config.local.json.example`) lets
+  you override the CORS `allowedOrigin` for a staging environment — production already
+  defaults to `https://managerx.store` and `https://www.managerx.store`, no setup needed.
+- Once deployed, point the `api` subdomain's DNS at whatever hostname your host gives you
+  (see DNS section below) — that host-provided hostname is something only your chosen
+  platform can give you after you deploy, so it can't be filled in ahead of time here.
 
-Optional: copy `server/config.local.json.example` to `server/config.local.json` to change
-the port or CORS `allowedOrigin` — neither is required to start, since defaults are
-already wired up (port `4100`, origin `*`).
+### 2. Frontend → managerx.store
+
+Deploy `online-store/client` to Vercel:
+
+1. **New Project** in the Vercel dashboard → import this repo.
+2. **Root Directory**: set to `online-store/client` (this is a monorepo — Vercel needs to
+   know the Vite project isn't at the repo root). Vercel auto-detects the Vite framework,
+   build command (`vite build`), and output directory (`dist`) once Root Directory is set.
+3. **Environment Variables**: add `VITE_API_BASE_URL` = `https://api.managerx.store`
+   (must be set before the first deploy that needs it — Vite inlines env vars at build
+   time, so changing it later requires a redeploy, not just a config reload).
+4. Deploy. `online-store/client/vercel.json` already adds the SPA rewrite so visiting
+   `managerx.store/karwan-mobile` directly (not just via in-app navigation) doesn't 404.
+5. **Domains** tab → add `managerx.store` and `www.managerx.store` → Vercel shows you the
+   exact DNS records to add (see below; use what Vercel shows you if it ever differs from
+   these standard published values).
+
+CLI alternative to steps 1–3: `cd online-store/client && vercel --prod`, then set the env
+var with `vercel env add VITE_API_BASE_URL production`.
+
+## DNS records
+
+Add these at whichever registrar/DNS provider manages `managerx.store`:
+
+| Type  | Name (host) | Value                       | Purpose |
+|-------|-------------|------------------------------|---------|
+| A     | `@` (apex)  | `76.76.21.21`                | Vercel — frontend root domain |
+| CNAME | `www`       | `cname.vercel-dns.com`       | Vercel — `www` redirect/alias |
+| CNAME | `api`       | *(your backend host's hostname, e.g. `your-service.onrender.com`)* | Backend API |
+
+The Vercel values are Vercel's standard published anycast targets — **Vercel's own
+dashboard is authoritative**: after you add the domain there (production deployment step
+5 above), it will show you the exact records for your account, use those if they ever
+differ from the table above. The `api` CNAME target depends entirely on which host you
+deploy the backend to (Render, Fly.io, etc. each give you a different hostname after
+deploy) — there's no way to know it in advance of actually deploying.
+
+If your registrar doesn't support an A record on the apex domain alongside other records,
+use Vercel's ALIAS/ANAME option instead (same dashboard flow — Vercel tells you which to
+use based on what it detects about your DNS provider).
+
+DNS propagation can take anywhere from a few minutes to ~48 hours depending on your
+registrar and previous TTL settings.
+
+## What I can't do from code
+
+Registering/configuring the actual DNS records, creating a Vercel account or project, and
+creating a backend hosting account are all account-level actions outside this codebase —
+the config above is everything needed to make those steps mechanical once you're in those
+dashboards yourself.
 
 ## API contract
 
