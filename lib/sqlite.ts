@@ -2557,22 +2557,22 @@ export async function getTopCustomers(limit = 5): Promise<TopCustomer[]> {
 
 export async function getRevenueByMonth(months = 6): Promise<RevenuePoint[]> {
   const database = await getDatabase();
-  const cutoff = `date('now', '-${months} months')`;
+  const cutoff = `date('now', 'localtime', '-${months} months')`;
 
   const [revenueRows, profitRows] = await Promise.all([
     database.getAllAsync<{ period: string; revenue: number; sales: number }>(
-      `SELECT strftime('%Y-%m', created_at) AS period,
+      `SELECT strftime('%Y-%m', created_at, 'localtime') AS period,
               COALESCE(SUM(paid_amount), 0) AS revenue,
               COUNT(*) AS sales
-       FROM sales WHERE created_at >= ${cutoff}
+       FROM sales WHERE date(created_at, 'localtime') >= ${cutoff}
        GROUP BY period ORDER BY period ASC`
     ),
     database.getAllAsync<{ period: string; profit: number }>(
-      `SELECT strftime('%Y-%m', s.created_at) AS period,
+      `SELECT strftime('%Y-%m', s.created_at, 'localtime') AS period,
               COALESCE(SUM(s.grand_total - cogs.total_cost), 0) AS profit
        FROM (SELECT sale_id, SUM(purchase_price * quantity) AS total_cost FROM sale_items GROUP BY sale_id) cogs
        JOIN sales s ON s.id = cogs.sale_id
-       WHERE s.created_at >= ${cutoff}
+       WHERE date(s.created_at, 'localtime') >= ${cutoff}
        GROUP BY period ORDER BY period ASC`
     ),
   ]);
@@ -3202,21 +3202,21 @@ export interface DailyRevenuePoint {
 
 export async function getDailyRevenueChart(days = 30): Promise<DailyRevenuePoint[]> {
   const database = await getDatabase();
-  const cutoff = `date('now', '-${days} days')`;
+  const cutoff = `date('now', 'localtime', '-${days} days')`;
 
   const [revenueRows, profitRows] = await Promise.all([
     database.getAllAsync<{ date: string; revenue: number }>(
-      `SELECT date(created_at) AS date, COALESCE(SUM(paid_amount), 0) AS revenue
-       FROM sales WHERE created_at >= ${cutoff}
-       GROUP BY date(created_at) ORDER BY date ASC`
+      `SELECT date(created_at, 'localtime') AS date, COALESCE(SUM(paid_amount), 0) AS revenue
+       FROM sales WHERE date(created_at, 'localtime') >= ${cutoff}
+       GROUP BY date(created_at, 'localtime') ORDER BY date ASC`
     ),
     database.getAllAsync<{ date: string; profit: number }>(
-      `SELECT date(s.created_at) AS date,
+      `SELECT date(s.created_at, 'localtime') AS date,
               COALESCE(SUM(s.grand_total - cogs.total_cost), 0) AS profit
        FROM (SELECT sale_id, SUM(purchase_price * quantity) AS total_cost FROM sale_items GROUP BY sale_id) cogs
        JOIN sales s ON s.id = cogs.sale_id
-       WHERE s.created_at >= ${cutoff}
-       GROUP BY date(s.created_at) ORDER BY date ASC`
+       WHERE date(s.created_at, 'localtime') >= ${cutoff}
+       GROUP BY date(s.created_at, 'localtime') ORDER BY date ASC`
     ),
   ]);
 

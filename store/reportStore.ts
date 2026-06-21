@@ -32,6 +32,13 @@ function buildRange(
   return { key, from: from.toISOString(), to: toISO, label: labels[key] };
 }
 
+// `dateRange` stores a snapshot of "now" — for any non-custom key it must be
+// rebuilt right before every query, otherwise its `to` boundary stays frozen
+// at whenever it was last set and silently excludes everything created since.
+function freshRange(range: DateRange): DateRange {
+  return range.key === 'custom' ? range : buildRange(range.key);
+}
+
 interface ReportState {
   dateRange: DateRange;
   isLoading: boolean;
@@ -77,8 +84,10 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   reload: async () => {
     set({ isLoading: true });
-    const { from, to } = get().dateRange;
-    const cacheKey = `report_${get().dateRange.key}_${from.slice(0,10)}_${to.slice(0,10)}`;
+    const range = freshRange(get().dateRange);
+    set({ dateRange: range });
+    const { from, to } = range;
+    const cacheKey = `report_${range.key}_${from}_${to}`;
     try {
       const {
         getFinancialSummaryCards,
@@ -168,7 +177,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
   },
 
   loadExpenses: async () => {
-    const { from, to } = get().dateRange;
+    const { from, to } = freshRange(get().dateRange);
     try {
       const { getAllExpenses } = await import('@/lib/sqlite');
       const expenses = await getAllExpenses(from, to);

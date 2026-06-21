@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm view *)",
       "Bash(npx eas *)",
-      "WebFetch(domain:storage.googleapis.com)"
+      "WebFetch(domain:storage.googleapis.com)",
+      "Bash(node c:/tmp/verify_reports_fix.js)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(command -v adb)",
+      "Bash(adb devices *)"
     ]
   }
 }
