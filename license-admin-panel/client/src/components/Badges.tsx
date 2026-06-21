@@ -1,9 +1,17 @@
-import { LicenseStatus, Plan, PLAN_LABELS } from '../lib/types';
+import { LicenseStatus, Plan, PLAN_LABELS, SubscriptionPlan, SUBSCRIPTION_PLAN_LABELS } from '../lib/types';
 
 export function PlanBadge({ plan }: { plan: Plan }) {
   return (
     <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-semibold text-brand-700">
       {PLAN_LABELS[plan]}
+    </span>
+  );
+}
+
+export function SubscriptionPlanBadge({ plan }: { plan: SubscriptionPlan }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+      {SUBSCRIPTION_PLAN_LABELS[plan]}
     </span>
   );
 }

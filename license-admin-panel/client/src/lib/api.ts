@@ -1,4 +1,4 @@
-import type { CustomerGroup, LicenseRecord, Plan } from './types';
+import type { CustomerGroup, LicenseRecord, OnlineStoreSubscriptionRecord, Plan, SubscriptionPlan } from './types';
 
 // Local-only app: this is always served from http://localhost:5173, talking to the
 // API on http://localhost:4000 via Vite's dev proxy (see vite.config.ts) — so a
@@ -57,4 +57,23 @@ export const api = {
   deleteLicense: (id: string) => request<void>(`/licenses/${id}`, { method: 'DELETE' }),
 
   listCustomers: () => request<CustomerGroup[]>('/customers'),
+
+  listOnlineStoreSubscriptions: () => request<OnlineStoreSubscriptionRecord[]>('/online-store-subscriptions'),
+  getOnlineStoreSubscription: (id: string) => request<OnlineStoreSubscriptionRecord>(`/online-store-subscriptions/${id}`),
+  createOnlineStoreSubscription: (data: {
+    customerName: string;
+    phone: string;
+    deviceId: string;
+    plan: SubscriptionPlan;
+    notes?: string;
+  }) => request<OnlineStoreSubscriptionRecord>('/online-store-subscriptions', { method: 'POST', body: JSON.stringify(data) }),
+  updateOnlineStoreSubscription: (
+    id: string,
+    data: Partial<Pick<OnlineStoreSubscriptionRecord, 'customerName' | 'phone' | 'notes'>>
+  ) => request<OnlineStoreSubscriptionRecord>(`/online-store-subscriptions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  revokeOnlineStoreSubscription: (id: string, reason?: string) =>
+    request<OnlineStoreSubscriptionRecord>(`/online-store-subscriptions/${id}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  reactivateOnlineStoreSubscription: (id: string) =>
+    request<OnlineStoreSubscriptionRecord>(`/online-store-subscriptions/${id}/reactivate`, { method: 'POST' }),
+  deleteOnlineStoreSubscription: (id: string) => request<void>(`/online-store-subscriptions/${id}`, { method: 'DELETE' }),
 };

@@ -5,15 +5,15 @@
 // to a relative path, which Vite's dev proxy (vite.config.ts) forwards to :4100.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+// Read-only catalog shape — the server already filters out unpublished and
+// out-of-stock products, so every product returned here is available to view.
 export interface StoreProduct {
   productId: number;
   name: string;
   category: string;
+  description: string | null;
   price: number;
-  /** Real stock count — used client-side to cap cart quantity, never rendered directly. */
-  quantity: number;
   imageUrl: string | null;
-  availability: 'in_stock' | 'out_of_stock';
 }
 
 export interface StoreInfo {

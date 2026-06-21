@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
@@ -9,7 +9,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
-import { formatRelativeTime } from '@/utils/formatters';
+import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
+import { InfoModal } from '@/components/ui/InfoModal';
+import { formatDate, formatRelativeTime } from '@/utils/formatters';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -19,22 +22,46 @@ export function OnlineStoreCard() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
+  const [infoVisible, setInfoVisible] = useState(false);
 
   const {
     enabled, storeUrl, lastSyncAt, pendingCount, isRegistering, isLoading, isSyncingNow,
     load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 
+  const {
+    isActive: subscriptionActive, expired: subscriptionExpired, isLegacyActiveStore,
+    expiresAt: subscriptionExpiresAt, remainingDays, loadSubscription,
+  } = useOnlineStoreSubscriptionStore();
+
   useFocusEffect(
     useCallback(() => {
       load();
       refreshPendingCount();
+      loadSubscription();
     }, [])
   );
 
-  const handleToggle = () => {
-    if (enabled) disable();
-    else enable();
+  if (!subscriptionActive) {
+    return <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />;
+  }
+
+  const handleToggle = async () => {
+    if (enabled) {
+      disable();
+      return;
+    }
+    const result = await enable();
+    if (result.status === 'locked') {
+      Alert.alert(t('dashboard.onlineStore.title'), t('dashboard.onlineStore.subscriptionRequired'));
+    }
+  };
+
+  const handleSyncNow = async () => {
+    const result = await syncNow();
+    if (result.status === 'locked') {
+      Alert.alert(t('dashboard.onlineStore.title'), t('dashboard.onlineStore.subscriptionRequired'));
+    }
   };
 
   const handleCopyLink = async () => {
@@ -57,17 +84,36 @@ export function OnlineStoreCard() {
           <Text style={[styles.title, { color: colors.darkBlue }]}>{t('dashboard.onlineStore.title')}</Text>
         </View>
 
-        <View
-          style={[
-            styles.statusPill,
-            { backgroundColor: enabled ? '#DCFCE7' : colors.gray100 },
-          ]}
-        >
-          <View style={[styles.statusDot, { backgroundColor: enabled ? colors.success : colors.gray400 }]} />
-          <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500 }]}>
-            {enabled ? t('dashboard.onlineStore.active') : t('dashboard.onlineStore.disabled')}
-          </Text>
+        <View style={[styles.headerRight, { flexDirection }]}>
+          <View
+            style={[
+              styles.statusPill,
+              { backgroundColor: enabled ? '#DCFCE7' : colors.gray100 },
+            ]}
+          >
+            <View style={[styles.statusDot, { backgroundColor: enabled ? colors.success : colors.gray400 }]} />
+            <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500 }]}>
+              {enabled ? t('dashboard.onlineStore.active') : t('dashboard.onlineStore.disabled')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setInfoVisible(true)}
+            hitSlop={8}
+            accessibilityLabel={t('dashboard.onlineStore.infoButtonA11y')}
+          >
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Subscription status */}
+      <View style={[styles.subRow, { backgroundColor: colors.gray50, flexDirection }]}>
+        <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+        <Text style={[styles.subText, { color: colors.gray600 }]} numberOfLines={1}>
+          {t('dashboard.onlineStore.activeSubscriptionLabel')}
+          {subscriptionExpiresAt ? ` · ${formatDate(subscriptionExpiresAt)}` : ''}
+          {remainingDays !== null ? ` · ${remainingDays}d` : ''}
+        </Text>
       </View>
 
       {/* Store URL */}
@@ -96,7 +142,7 @@ export function OnlineStoreCard() {
         </TouchableOpacity>
         {enabled && (
           <TouchableOpacity
-            onPress={syncNow}
+            onPress={handleSyncNow}
             disabled={isSyncingNow}
             hitSlop={8}
             style={styles.urlIconBtn}
@@ -148,6 +194,23 @@ export function OnlineStoreCard() {
           </Text>
         )}
       </TouchableOpacity>
+
+      <InfoModal
+        visible={infoVisible}
+        onClose={() => setInfoVisible(false)}
+        title={t('dashboard.onlineStoreInfoModal.title')}
+        description={t('dashboard.onlineStoreInfoModal.description')}
+        bullets={[
+          t('dashboard.onlineStoreInfoModal.bullet1'),
+          t('dashboard.onlineStoreInfoModal.bullet2'),
+          t('dashboard.onlineStoreInfoModal.bullet3'),
+          t('dashboard.onlineStoreInfoModal.bullet4'),
+          t('dashboard.onlineStoreInfoModal.bullet5'),
+          t('dashboard.onlineStoreInfoModal.bullet6'),
+          t('dashboard.onlineStoreInfoModal.bullet7'),
+        ]}
+        footerNote={t('dashboard.onlineStoreInfoModal.footerNote')}
+      />
     </View>
   );
 }
@@ -168,6 +231,23 @@ const styles = StyleSheet.create({
   headerLeft: {
     alignItems: 'center',
     gap:        10,
+  },
+  headerRight: {
+    alignItems: 'center',
+    gap:        10,
+  },
+  subRow: {
+    alignItems:        'center',
+    gap:               6,
+    borderRadius:      Theme.radius.md,
+    paddingHorizontal: 10,
+    paddingVertical:   7,
+    marginBottom:      12,
+  },
+  subText: {
+    flex:       1,
+    fontSize:   11.5,
+    fontWeight: '600',
   },
   iconWrapper: {
     width:          40,

@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useHasHydrated } from '@/lib/useHasHydrated';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { startAutoSync } from '@/lib/onlineStore/syncEngine';
+import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { runLegacyMigrationCheckOnce } from '@/lib/onlineStoreSubscription/subscription';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
@@ -28,6 +30,9 @@ export default function AppLayout() {
     if (!user) return;
     startAutoSync();
     useOnlineStoreStore.getState().load();
+    runLegacyMigrationCheckOnce().finally(() => {
+      useOnlineStoreSubscriptionStore.getState().loadSubscription();
+    });
   }, [user]);
 
   return (

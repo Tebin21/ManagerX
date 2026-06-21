@@ -4,6 +4,7 @@ import { copyToClipboard } from '@/lib/clipboard';
 import { getPendingSyncCount } from '@/lib/sqlite';
 import { OnlineStoreApiError, STORE_FRONTEND_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
 import { completeStoreRegistration, processQueue } from '@/lib/onlineStore/syncEngine';
+import { hasActiveOnlineStoreSubscription } from '@/lib/onlineStoreSubscription/subscription';
 import {
   getStoreEnabled,
   setStoreEnabled,
@@ -58,18 +59,27 @@ interface OnlineStoreState {
   lastSyncError: string | null;
 
   load: () => Promise<void>;
-  enable: () => Promise<void>;
+  /** Returns {status:'locked'} without making any local write or network call when
+   *  there's no active Online Store Subscription — the caller (UI) shows a message
+   *  instead of silently no-op'ing. */
+  enable: () => Promise<{ status: 'ok' | 'locked' }>;
+  /** Never gated — disabling must always succeed, even with an expired/missing
+   *  subscription. The system auto-disabling on expiry is a different concern from
+   *  blocking the user from disabling manually. */
   disable: () => Promise<void>;
   refreshPendingCount: () => Promise<void>;
   /** Saves the store-info fields (description/social links) locally and
    *  kicks off an immediate push attempt. There's no offline outbox for these
    *  fields — if the push fails now, syncEngine's existing triggers (debounce/
-   *  periodic/manual) retry it opportunistically until it succeeds. */
+   *  periodic/manual) retry it opportunistically until it succeeds. Not gated here
+   *  directly — processQueue() (which this calls) already gates itself. */
   saveStoreInfo: (fields: Partial<StoreInfoFields>) => Promise<void>;
-  /** Manual "Sync Now" action. Safe to call even if a debounced/periodic sync is
-   *  already in flight — processQueue() has its own re-entrancy guard, so this
-   *  just becomes a no-op network-wise but still refreshes the displayed stats. */
-  syncNow: () => Promise<void>;
+  /** Manual "Sync Now" action. Returns {status:'locked'} immediately, with no
+   *  network call, when there's no active Online Store Subscription. Safe to call
+   *  even if a debounced/periodic sync is already in flight — processQueue() has its
+   *  own re-entrancy guard, so this just becomes a no-op network-wise but still
+   *  refreshes the displayed stats. */
+  syncNow: () => Promise<{ status: 'ok' | 'locked' }>;
   /** Returns true if the link was actually copied — false if the clipboard is
    *  unavailable (e.g. native module not linked) or the copy itself failed, so the
    *  caller can fall back to showing the link instead of silently doing nothing. */
@@ -130,6 +140,11 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   },
 
   enable: async () => {
+    // Gate FIRST, before any local write — a locked user's `enabled` flag must never
+    // flip to true, or the next background sync trigger (60s timer, app-foreground)
+    // would try (and fail) against the backend anyway, leaving a confusing half-state.
+    if (!(await hasActiveOnlineStoreSubscription())) return { status: 'locked' };
+
     set({ isLoading: true });
     try {
       await setStoreEnabled(true);
@@ -157,6 +172,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       }
       await get().load();
       processQueue();
+      return { status: 'ok' };
     } finally {
       set({ isLoading: false });
     }
@@ -186,10 +202,16 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   },
 
   syncNow: async () => {
+    // Manual user action deserves an immediate typed rejection, not a silent
+    // background no-op — same gate processQueue() applies internally, checked here
+    // too so the UI can show a message right away without a network round-trip.
+    if (!(await hasActiveOnlineStoreSubscription())) return { status: 'locked' };
+
     set({ isSyncingNow: true });
     try {
       await processQueue();
       await get().load();
+      return { status: 'ok' };
     } finally {
       set({ isSyncingNow: false });
     }

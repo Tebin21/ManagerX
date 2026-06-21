@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { MulterError } from 'multer';
 import { JsonStoreRepository } from '../jsonStoreRepository';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
+import { requireActiveSubscription, checkSubscriptionHeaders } from '../subscriptionAuth';
 import { upload, saveUploadedImage } from '../uploads';
 import { config } from '../config';
 import type { SyncChangeInput } from '../storeRepository';
@@ -31,8 +32,10 @@ async function resolveUniqueSlug(base: string): Promise<string> {
 }
 
 // POST /api/stores — register a new store. Called once by ManagerX the first time
-// the business owner presses "Enable Store".
-storesRouter.post('/', async (req, res) => {
+// the business owner presses "Enable Store". Requires an active Online Store
+// Subscription — there's no store/API-key yet at this point, so the subscription
+// header is the only available proof of entitlement.
+storesRouter.post('/', requireActiveSubscription, async (req, res) => {
   const { businessName } = req.body ?? {};
   if (!businessName?.trim()) {
     res.status(400).json({ error: 'businessName is required' });
@@ -55,8 +58,11 @@ storesRouter.get('/:slug', async (req, res) => {
     return;
   }
 
+  // This is a read-only catalog, not a shop: unpublished (owner-hidden) and
+  // out-of-stock products are excluded entirely, not just flagged, and stock counts
+  // are never exposed publicly.
   const products = store.products
-    .filter((p) => p.isPublished)
+    .filter((p) => p.isPublished && p.quantity > 0)
     .map((p) => ({
       productId: p.productId,
       name: p.name,
@@ -65,10 +71,9 @@ storesRouter.get('/:slug', async (req, res) => {
       // would otherwise surface as a missing key (JSON.stringify drops `undefined`)
       // that the client's non-optional `category: string` type doesn't expect.
       category: p.category ?? 'General',
+      description: p.description ?? null,
       price: p.price,
-      quantity: p.quantity,
       imageUrl: p.imageUrl,
-      availability: p.quantity > 0 ? 'in_stock' as const : 'out_of_stock' as const,
     }));
 
   res.json({
@@ -80,11 +85,22 @@ storesRouter.get('/:slug', async (req, res) => {
 });
 
 // PATCH /api/stores/:slug/status — Enable/Disable, requires the store's API key.
+// Subscription is checked inline, only when enabled:true is requested — disabling
+// must always succeed regardless of subscription state (the system can auto-disable
+// on expiry, but a user manually disabling their own store is never blocked).
 storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
   const { enabled } = req.body ?? {};
   if (typeof enabled !== 'boolean') {
     res.status(400).json({ error: 'enabled must be a boolean' });
     return;
+  }
+
+  if (enabled) {
+    const subResult = checkSubscriptionHeaders(req);
+    if (subResult.status !== 'valid') {
+      res.status(402).json({ error: 'Online Store subscription required', status: subResult.status });
+      return;
+    }
   }
 
   const updated = await repo.setEnabled(req.params.slug, enabled);
@@ -97,8 +113,9 @@ storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
 
 // PATCH /api/stores/:slug/info — business name/logo/contact/social info shown on
 // the public storefront header. Freeform, partial-merge, no field validation (kept
-// loose for v1, consistent with /sync). Requires the store's API key.
-storesRouter.patch('/:slug/info', requireStoreAuth, async (req, res) => {
+// loose for v1, consistent with /sync). Requires the store's API key AND an active
+// Online Store Subscription.
+storesRouter.patch('/:slug/info', requireStoreAuth, requireActiveSubscription, async (req, res) => {
   const updated = await repo.updateInfo(req.params.slug, req.body ?? {});
   if (!updated) {
     res.status(404).json({ error: 'Store not found' });
@@ -108,8 +125,9 @@ storesRouter.patch('/:slug/info', requireStoreAuth, async (req, res) => {
 });
 
 // POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from ManagerX's
-// offline-first sync queue. Requires the store's API key.
-storesRouter.post('/:slug/sync', requireStoreAuth, async (req, res) => {
+// offline-first sync queue. Requires the store's API key AND an active Online Store
+// Subscription.
+storesRouter.post('/:slug/sync', requireStoreAuth, requireActiveSubscription, async (req, res) => {
   const { changes } = req.body ?? {};
   if (!Array.isArray(changes)) {
     res.status(400).json({ error: 'changes must be an array' });
@@ -126,8 +144,9 @@ storesRouter.post('/:slug/sync', requireStoreAuth, async (req, res) => {
 
 // POST /api/stores/:slug/images — uploads a product/logo image to the server's
 // own persistent disk (no third-party storage account needed) and returns a
-// public URL the storefront can load directly. Requires the store's API key.
-storesRouter.post('/:slug/images', requireStoreAuth, upload.single('image'), async (req, res) => {
+// public URL the storefront can load directly. Requires the store's API key AND an
+// active Online Store Subscription.
+storesRouter.post('/:slug/images', requireStoreAuth, requireActiveSubscription, upload.single('image'), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'image file is required (field name "image", jpeg/png/webp, max 5MB)' });
     return;

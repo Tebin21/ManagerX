@@ -2,6 +2,7 @@ export interface StoreProduct {
   productId: number;
   name: string;
   category: string;
+  description: string | null;
   price: number;
   quantity: number;
   imageUrl: string | null;
@@ -34,6 +35,7 @@ export interface SyncChangeInput {
   operation: 'upsert' | 'delete';
   name?: string;
   category?: string;
+  description?: string | null;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;

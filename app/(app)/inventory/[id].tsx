@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { LowStockBadge } from '@/components/inventory/LowStockBadge';
 import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
@@ -31,6 +32,7 @@ export default function InventoryDetailScreen() {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { removeProduct } = useInventoryStore();
+  const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { colors } = useAppTheme();
   const { chevronForward } = useDirectionalChevron();
@@ -335,11 +337,16 @@ export default function InventoryDetailScreen() {
         <View style={[styles.storeVisRow, { backgroundColor: colors.white, flexDirection }]}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.storeVisLabel, { color: colors.black }]}>{t('inventory.onlineStoreVisible')}</Text>
-            <Text style={[styles.storeVisSub, { color: colors.gray400 }]}>{t('inventory.onlineStoreVisibleSub')}</Text>
+            <Text style={[styles.storeVisSub, { color: colors.gray400 }]}>
+              {hasActiveSubscription
+                ? t('inventory.onlineStoreVisibleSub')
+                : t('dashboard.onlineStore.subscriptionRequired')}
+            </Text>
           </View>
           <Switch
             value={product.storeVisible}
             onValueChange={handleToggleStoreVisible}
+            disabled={!hasActiveSubscription}
             trackColor={{ false: colors.gray200, true: colors.primary }}
             thumbColor={colors.white}
           />

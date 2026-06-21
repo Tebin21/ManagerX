@@ -120,11 +120,12 @@ dashboards yourself.
 
 - `POST /api/stores` `{ businessName }` → `{ slug, apiKey }` — registers a new store,
   called once by ManagerX the first time "Enable Store" is pressed.
-- `GET /api/stores/:slug` (public) → `{ businessName, enabled, products, info }` —
-  `products` is already filtered to published items, and each one includes `category`,
-  `quantity` (real stock count, used by the storefront cart to cap order quantity), and
-  `availability` derived from stock; `info` holds the store-info fields (description,
-  address, phone, logo, social links).
+- `GET /api/stores/:slug` (public) → `{ businessName, enabled, products, info }` — this
+  is a read-only catalog, not a shop: `products` excludes anything unpublished (owner-
+  hidden) or out of stock entirely, and each remaining one includes `category` and
+  `description` alongside `name`/`price`/`imageUrl` — raw stock counts are never exposed
+  publicly; `info` holds the store-info fields (description, address, phone, logo, social
+  links).
 - `PATCH /api/stores/:slug/status` `{ enabled }` (Bearer API key) — Enable/Disable Store.
 - `PATCH /api/stores/:slug/info` `{ ...partial info fields }` (Bearer API key) — partial
   merge update of the store-info fields shown on the storefront header.

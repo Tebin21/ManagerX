@@ -24,7 +24,7 @@ export function Footer() {
               href="tel:07708229696"
               className="flex items-center gap-2 text-sm font-semibold text-gold-light transition hover:text-gold"
             >
-              <Phone size={15} /> 0770 822 9696
+              <Phone size={15} /> Phone: 0770 822 9696
             </a>
             <a
               href="https://www.bexdre.com"
@@ -32,7 +32,7 @@ export function Footer() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm font-semibold text-gold-light transition hover:text-gold"
             >
-              <Globe size={15} /> www.BexDre.com
+              <Globe size={15} /> Website: www.BexDre.com
             </a>
           </div>
         </div>

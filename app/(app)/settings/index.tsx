@@ -73,13 +73,20 @@ export default function SettingsScreen() {
           />
         </SettingSection>
 
-        {/* Plan */}
-        <SettingSection title={t('settings.plan')}>
+        {/* Subscriptions — ManagerX License (existing Plan & Limits, relabeled/regrouped
+            only, zero functional change) + Online Store Subscription (new, independent) */}
+        <SettingSection title={t('settings.subscriptions')}>
           <SettingRow
             icon="rocket"
-            label={t('settings.upgradeItemLimit')}
-            sub={t('settings.upgradeItemLimitSub', { limit: itemLimit })}
+            label={t('settings.managerXLicense')}
+            sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
             onPress={() => router.push('/(app)/settings/plan-limits' as never)}
+          />
+          <SettingRow
+            icon="globe"
+            label={t('settings.onlineStoreSubscription')}
+            sub={t('settings.onlineStoreSubscriptionSub')}
+            onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
           />
         </SettingSection>
 

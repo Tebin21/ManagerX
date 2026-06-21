@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { authRouter } from './routes/auth';
 import { licensesRouter } from './routes/licenses';
+import { onlineStoreSubscriptionsRouter } from './routes/onlineStoreSubscriptions';
 import { customersRouter } from './routes/customers';
 import { requireAuth } from './auth';
 
@@ -18,6 +19,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRouter);
 app.use('/api/licenses', requireAuth, licensesRouter);
+app.use('/api/online-store-subscriptions', requireAuth, onlineStoreSubscriptionsRouter);
 app.use('/api/customers', requireAuth, customersRouter);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));

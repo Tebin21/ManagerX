@@ -35,6 +35,7 @@ import {
   isStoreInfoDirty,
   clearStoreInfoDirty,
 } from './storeInfo';
+import { hasActiveOnlineStoreSubscription } from '@/lib/onlineStoreSubscription/subscription';
 
 const LOCAL_URI_PATTERN = /^(file|content):/;
 
@@ -77,6 +78,7 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
     operation: 'upsert',
     name: p.name,
     category: p.category,
+    description: p.description,
     price: p.sellingPrice,
     quantity: p.quantity,
     imageUrl: p.imageRemoteUrl ?? (isLocalUri ? null : p.imageUri),
@@ -159,6 +161,16 @@ export async function processQueue(): Promise<void> {
     const enabled = await getStoreEnabled();
     if (!enabled) return;
 
+    // Online Store Subscription gate — positioned here deliberately, before slug/
+    // apiKey resolution, so it also covers the re-registration branch just below
+    // (an unsubscribed-but-enabled store must never reach POST /api/stores either).
+    if (!(await hasActiveOnlineStoreSubscription())) {
+      await setLastSyncError(
+        'Online Store subscription required or expired — activate or renew to resume syncing.'
+      );
+      return;
+    }
+
     let slug = await getStoreSlug();
     let apiKey = await getStoreApiKey();
 
@@ -214,7 +226,17 @@ export async function processQueue(): Promise<void> {
     await clearSyncQueue(ready.map((p) => p.queueId));
     await clearLastSyncError();
   } catch (err) {
-    if (err instanceof OnlineStoreApiError && err.status === 404) {
+    if (err instanceof OnlineStoreApiError && err.status === 402) {
+      // The backend independently rejected this request for lacking a valid Online
+      // Store Subscription — most likely the local subscription cache was stale (it
+      // looked valid when checked above, but expired/was revoked by the time this
+      // request actually landed). Unlike 404, there's no auto-recovery action here
+      // (no "re-register" equivalent) — the user must actually activate/renew.
+      if (__DEV__) console.warn('[onlineStore] subscription required/expired (402):', err);
+      await setLastSyncError(
+        'Online Store subscription required or expired — activate or renew to resume syncing.'
+      );
+    } else if (err instanceof OnlineStoreApiError && err.status === 404) {
       // The backend no longer recognizes this store — most commonly because its
       // ledger was lost (e.g. a host restart without persistent storage actually
       // attached) after this device had already registered successfully. Retrying

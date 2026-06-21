@@ -14,6 +14,8 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
+import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { useBusinessStore } from '@/store/businessStore';
 
 export default function OnlineStoreInfoScreen() {
@@ -23,6 +25,10 @@ export default function OnlineStoreInfoScreen() {
   const router = useRouter();
 
   const { storeInfoFields, load, saveStoreInfo } = useOnlineStoreStore();
+  const {
+    isActive: hasActiveSubscription, expired: subscriptionExpired, isLegacyActiveStore,
+    loadSubscription,
+  } = useOnlineStoreSubscriptionStore();
   const business = useBusinessStore();
 
   const [description, setDescription] = useState(storeInfoFields.description);
@@ -32,6 +38,7 @@ export default function OnlineStoreInfoScreen() {
 
   useEffect(() => {
     load();
+    loadSubscription();
   }, []);
 
   // Reflect freshly-loaded values once load() resolves (covers landing on this
@@ -57,6 +64,21 @@ export default function OnlineStoreInfoScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Defense-in-depth — this screen is normally unreachable when locked (the entry
+  // point in online-store.tsx already hides itself), but render the read-only locked
+  // view too in case the subscription lapses while this screen is already open.
+  if (!hasActiveSubscription) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
+        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+          <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </View>
+    );
   }
 
   return (

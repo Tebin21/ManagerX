@@ -13,6 +13,8 @@ import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
+import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { formatRelativeTime } from '@/utils/formatters';
 import { Colors } from '@/constants/colors';
 
@@ -31,9 +33,15 @@ export default function OnlineStoreScreen() {
     load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 
+  const {
+    isActive: hasActiveSubscription, expired: subscriptionExpired, isLegacyActiveStore,
+    loadSubscription,
+  } = useOnlineStoreSubscriptionStore();
+
   useEffect(() => {
     load();
     refreshPendingCount();
+    loadSubscription();
   }, []);
 
   const handleCopyLink = async () => {
@@ -44,6 +52,38 @@ export default function OnlineStoreScreen() {
       Alert.alert(t('settings.onlineStoreScreen.title'), storeUrl);
     }
   };
+
+  const handleToggle = async () => {
+    if (enabled) {
+      disable();
+      return;
+    }
+    const result = await enable();
+    if (result.status === 'locked') {
+      Alert.alert(t('settings.onlineStoreScreen.title'), t('dashboard.onlineStore.subscriptionRequired'));
+    }
+  };
+
+  const handleSyncNow = async () => {
+    const result = await syncNow();
+    if (result.status === 'locked') {
+      Alert.alert(t('settings.onlineStoreScreen.title'), t('dashboard.onlineStore.subscriptionRequired'));
+    }
+  };
+
+  // Read-only/locked entirely when there's no active subscription — no enable/sync/
+  // edit controls rendered at all, satisfying "store settings must be read-only".
+  if (!hasActiveSubscription) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
+        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+          <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -115,7 +155,7 @@ export default function OnlineStoreScreen() {
 
           {enabled && (
             <TouchableOpacity
-              onPress={syncNow}
+              onPress={handleSyncNow}
               disabled={isSyncingNow}
               style={[styles.linkBtn, { borderColor: colors.lightBlue, flexDirection, marginBottom: 16 }]}
               activeOpacity={0.7}
@@ -130,7 +170,7 @@ export default function OnlineStoreScreen() {
           <View style={styles.toggleBtnWrap}>
             <PrimaryButton
               label={enabled ? t('settings.onlineStoreScreen.disableStore') : t('settings.onlineStoreScreen.enableStore')}
-              onPress={enabled ? disable : enable}
+              onPress={handleToggle}
               loading={isLoading}
               variant={enabled ? 'outline' : 'primary'}
             />

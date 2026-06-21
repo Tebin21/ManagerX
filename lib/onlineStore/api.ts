@@ -1,3 +1,5 @@
+import { getOnlineStoreSubscriptionHeaders } from '@/lib/onlineStoreSubscription/subscription';
+
 // Thin REST client for the Online Store backend (see online-store/server). Frontend
 // (the public storefront, deployed to Vercel) and backend (the API, deployed separately
 // — see online-store/README.md) live on different subdomains in production, so they're
@@ -31,6 +33,7 @@ export interface SyncChange {
   operation: 'upsert' | 'delete';
   name?: string;
   category?: string;
+  description?: string | null;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;
@@ -82,17 +85,32 @@ function authHeaders(apiKey: string) {
   return { Authorization: `Bearer ${apiKey}` };
 }
 
+// Online Store Subscription proof — read fresh on every call rather than cached, so
+// an in-app activation takes effect on the very next request with no extra plumbing.
+// Returns {} (not empty-string headers) when nothing is stored, so the backend's
+// "missing" status is reported accurately rather than "invalid".
+async function subscriptionHeaders(): Promise<Record<string, string>> {
+  const sub = await getOnlineStoreSubscriptionHeaders();
+  if (!sub) return {};
+  return { 'X-OSS-Subscription': sub.code, 'X-Device-Id': sub.deviceId };
+}
+
 export async function registerStore(businessName: string): Promise<{ slug: string; apiKey: string }> {
   return request('/api/stores', {
     method: 'POST',
+    headers: await subscriptionHeaders(),
     body: JSON.stringify({ businessName }),
   });
 }
 
+// Sent unconditionally, even when disabling — the backend only actually checks these
+// headers when `enabled:true` is requested; disabling must always succeed regardless
+// of subscription state, and it's simpler for the client to always attach them than
+// to mirror the server's conditional logic here.
 export async function setStoreStatus(slug: string, apiKey: string, enabled: boolean): Promise<void> {
   await request(`/api/stores/${slug}/status`, {
     method: 'PATCH',
-    headers: authHeaders(apiKey),
+    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
     body: JSON.stringify({ enabled }),
   });
 }
@@ -109,7 +127,7 @@ export interface StoreInfoPayload {
 export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {
   await request(`/api/stores/${slug}/info`, {
     method: 'PATCH',
-    headers: authHeaders(apiKey),
+    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
     body: JSON.stringify(info),
   });
 }
@@ -121,7 +139,7 @@ export async function pushSync(
 ): Promise<{ syncedAt: string; accepted: number }> {
   return request(`/api/stores/${slug}/sync`, {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
     body: JSON.stringify({ changes }),
   });
 }
@@ -143,7 +161,7 @@ export async function uploadStoreImage(
   if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${localUri})`);
   const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
     method: 'POST',
-    headers: authHeaders(apiKey),
+    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
     body: form,
   });
   if (!res.ok) {

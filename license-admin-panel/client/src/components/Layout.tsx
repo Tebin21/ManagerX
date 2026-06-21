@@ -6,6 +6,8 @@ const NAV_ITEMS = [
   { to: '/generate', label: 'Generate License' },
   { to: '/licenses', label: 'Licenses' },
   { to: '/customers', label: 'Customers' },
+  { to: '/online-store-subscriptions/generate', label: 'Generate Store Subscription' },
+  { to: '/online-store-subscriptions', label: 'Store Subscriptions' },
 ];
 
 export function Layout() {

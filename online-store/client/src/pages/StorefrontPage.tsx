@@ -5,7 +5,6 @@ import { ProductCard } from '../components/ProductCard';
 import { StoreHeader } from '../components/StoreHeader';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilterBar } from '../components/CategoryFilterBar';
-import { useCart } from '../cart/CartContext';
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error';
 
@@ -23,7 +22,6 @@ export function StorefrontPage() {
   const [state, setState] = useState<LoadState>('loading');
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const { count } = useCart();
 
   // Background refreshes (poll/focus) must never flip the UI back to a full-page
   // spinner — only the very first load does that. This just updates `store` in
@@ -116,7 +114,7 @@ export function StorefrontPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <StoreHeader businessName={store.businessName} info={store.info} cartCount={count} cartHref={`/${slug}/cart`} />
+      <StoreHeader businessName={store.businessName} info={store.info} />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {!store.enabled ? (

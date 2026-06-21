@@ -43,3 +43,35 @@ export const PLAN_LIMITS: Record<Plan, string> = {
   business: '1,000 items',
   unlimited: 'Unlimited items',
 };
+
+// Online Store Subscription — a completely independent product from the ManagerX
+// item-limit license above (separate keypair/storage/validation server-side). Plans
+// here are purely time-based, not item-limit-based.
+export type SubscriptionPlan = '1m' | '3m' | '6m' | '12m' | 'lifetime';
+export type SubscriptionStatus = 'active' | 'revoked' | 'expired';
+
+export interface OnlineStoreSubscriptionRecord {
+  id: string;
+  customerName: string;
+  phone: string;
+  deviceId: string;
+  subscriptionCode: string;
+  plan: SubscriptionPlan;
+  createdAt: string;
+  activatedAt: string | null;
+  /** Absolute ISO expiry date, or null = Lifetime. */
+  expiresAt: string | null;
+  status: SubscriptionStatus;
+  notes: string;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  isExpired: boolean;
+}
+
+export const SUBSCRIPTION_PLAN_LABELS: Record<SubscriptionPlan, string> = {
+  '1m': '1 Month',
+  '3m': '3 Months',
+  '6m': '6 Months',
+  '12m': '12 Months',
+  lifetime: 'Lifetime',
+};

@@ -89,6 +89,7 @@ export class JsonStoreRepository implements StoreRepository {
           productId: change.productId,
           name: change.name ?? existing?.name ?? '',
           category: change.category ?? existing?.category ?? 'General',
+          description: change.description !== undefined ? change.description : existing?.description ?? null,
           price: change.price ?? existing?.price ?? 0,
           quantity: change.quantity ?? existing?.quantity ?? 0,
           imageUrl: change.imageUrl ?? existing?.imageUrl ?? null,
