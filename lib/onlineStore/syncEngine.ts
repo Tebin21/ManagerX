@@ -9,14 +9,24 @@ import {
   setProductImageRemoteUrl,
   type PendingSyncItem,
 } from '@/lib/sqlite';
-import { pushSync, pushStoreInfo, registerStore, uploadStoreImage, type SyncChange } from './api';
+import {
+  OnlineStoreApiError,
+  pushSync,
+  pushStoreInfo,
+  registerStore,
+  uploadStoreImage,
+  type SyncChange,
+} from './api';
 import {
   getStoreEnabled,
   getStoreSlug,
   getStoreApiKey,
   setStoreSlug,
   setStoreApiKey,
+  clearStoreApiKey,
   setLastSyncAt,
+  setLastSyncError,
+  clearLastSyncError,
 } from './storage';
 import {
   loadStoreInfoFields,
@@ -44,6 +54,10 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
     p.imageRemoteUrl = url; // mutate in place so this sync round already reflects it
     return true;
   } catch (err) {
+    // A 404 means the store is gone — propagate so processQueue()'s outer catch can
+    // clear the stale registration and re-register, instead of every pending item
+    // with a local image retrying this exact doomed upload forever.
+    if (err instanceof OnlineStoreApiError && err.status === 404) throw err;
     if (__DEV__) console.warn('[onlineStore] image upload failed, will retry next cycle:', err);
     return false;
   }
@@ -115,12 +129,21 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
     });
     await clearStoreInfoDirty();
   } catch (err) {
+    // A 404 here means the store is gone — let it propagate to processQueue()'s
+    // outer catch so the stale API key gets cleared and the store re-registers.
+    // Swallowing it here (as ordinary transient failures still are) would silently
+    // mask the exact same bug for stores with no pending PRODUCT changes, since
+    // `pending.length === 0` short-circuits processQueue() before ever reaching
+    // pushSync(), which is otherwise what surfaces this for the product-sync path.
+    if (err instanceof OnlineStoreApiError && err.status === 404) throw err;
     if (__DEV__) console.warn('[onlineStore] info push failed, will retry next cycle:', err);
   }
 }
 
 export async function completeStoreRegistration(businessName: string): Promise<{ slug: string }> {
+  if (__DEV__) console.log('[onlineStore] registering store, businessName =', businessName);
   const { slug, apiKey } = await registerStore(businessName);
+  if (__DEV__) console.log('[onlineStore] registration succeeded, slug =', slug);
   await setStoreSlug(slug);
   await setStoreApiKey(apiKey);
   return { slug };
@@ -147,18 +170,28 @@ export async function processQueue(): Promise<void> {
         const result = await completeStoreRegistration(businessName);
         slug = result.slug;
         apiKey = await getStoreApiKey();
-      } catch {
+      } catch (err) {
+        if (__DEV__) console.warn('[onlineStore] registration failed, will retry next trigger:', err);
+        await setLastSyncError(
+          `Registration failed: ${err instanceof Error ? err.message : String(err)}`
+        );
         return; // still unreachable — next NetInfo/AppState trigger will retry
       }
     }
     if (!slug || !apiKey) return;
+
+    if (__DEV__) console.log(`[onlineStore] processQueue: slug=${slug}`);
 
     // Runs regardless of whether there are pending product changes — info edits
     // have no queue of their own, so this is their only retry path.
     await pushStoreInfoOpportunistically(slug, apiKey);
 
     const pending = await getPendingSyncProducts();
-    if (pending.length === 0) return;
+    if (pending.length === 0) {
+      await clearLastSyncError();
+      return;
+    }
+    if (__DEV__) console.log(`[onlineStore] processQueue: ${pending.length} pending change(s)`);
 
     // Upload any local images first (sequentially — avoid bursting concurrent
     // multipart uploads at a single-core backend instance). An item whose upload
@@ -172,12 +205,31 @@ export async function processQueue(): Promise<void> {
 
     const changes = ready.map(toSyncChange).filter((c): c is SyncChange => c !== null);
     if (changes.length > 0) {
+      if (__DEV__) console.log('[onlineStore] pushing sync changes:', changes);
       const result = await pushSync(slug, apiKey, changes);
+      if (__DEV__) console.log('[onlineStore] sync succeeded:', result);
       await setLastSyncAt(result.syncedAt);
     }
     await clearSyncQueue(ready.map((p) => p.queueId));
+    await clearLastSyncError();
   } catch (err) {
-    if (__DEV__) console.warn('[onlineStore] sync failed, will retry on next trigger:', err);
+    if (err instanceof OnlineStoreApiError && err.status === 404) {
+      // The backend no longer recognizes this store — most commonly because its
+      // ledger was lost (e.g. a host restart without persistent storage actually
+      // attached) after this device had already registered successfully. Retrying
+      // the exact same request would fail identically forever, so clear the stale
+      // API key now: the next processQueue() run sees `!apiKey` above and
+      // re-registers automatically (the dashboard "Enable Store" flow is also
+      // available to the user, but this makes it self-heal without that).
+      if (__DEV__) console.warn('[onlineStore] store not found on backend (404) — clearing stale registration:', err);
+      await clearStoreApiKey();
+      await setLastSyncError(
+        'Store registration was lost on the server — re-registering automatically on next sync.'
+      );
+    } else {
+      if (__DEV__) console.warn('[onlineStore] sync failed, will retry on next trigger:', err);
+      await setLastSyncError(err instanceof Error ? err.message : String(err));
+    }
   } finally {
     isSyncing = false;
   }

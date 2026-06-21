@@ -37,7 +37,21 @@ export interface SyncChange {
   updatedAt?: string;
 }
 
+// Carries the HTTP status so callers (syncEngine.ts) can tell "this store no longer
+// exists on the backend" (404 — re-register automatically) apart from "transient
+// network/server failure" (anything else — just retry later). A plain Error lost
+// this distinction, which is why a stale registration used to retry the exact same
+// doomed request forever instead of recovering.
+export class OnlineStoreApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'OnlineStoreApiError';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? 'GET';
+  if (__DEV__) console.log(`[onlineStore] → ${method} ${path}`, init?.body ?? '');
   const res = await fetch(`${STORE_API_BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -48,10 +62,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Online Store request failed (${res.status}): ${body || res.statusText}`);
+    if (__DEV__) console.warn(`[onlineStore] ← ${method} ${path} FAILED (${res.status}):`, body);
+    throw new OnlineStoreApiError(
+      `${method} ${path} failed (${res.status}): ${body || res.statusText}`,
+      res.status
+    );
   }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  if (res.status === 204) {
+    if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK (204)`);
+    return undefined as T;
+  }
+  const json = await res.json();
+  if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK:`, json);
+  return json as T;
 }
 
 function authHeaders(apiKey: string) {
@@ -118,6 +141,7 @@ export async function uploadStoreImage(
   const form = new FormData();
   form.append('image', { uri: localUri, name: `upload.${ext}`, type: mime } as unknown as Blob);
 
+  if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${localUri})`);
   const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
     method: 'POST',
     headers: authHeaders(apiKey),
@@ -125,7 +149,10 @@ export async function uploadStoreImage(
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Image upload failed (${res.status}): ${body || res.statusText}`);
+    if (__DEV__) console.warn(`[onlineStore] ← image upload FAILED (${res.status}):`, body);
+    throw new OnlineStoreApiError(`Image upload failed (${res.status}): ${body || res.statusText}`, res.status);
   }
-  return res.json();
+  const json = await res.json();
+  if (__DEV__) console.log('[onlineStore] ← image upload OK:', json);
+  return json;
 }

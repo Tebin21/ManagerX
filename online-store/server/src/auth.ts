@@ -37,7 +37,16 @@ export async function requireStoreAuth(req: Request, res: Response, next: NextFu
   }
 
   const store = await repo.getBySlug(slug);
-  if (!store || !timingSafeEqual(hashApiKey(token), store.apiKeyHash)) {
+  // Distinguish "this store doesn't exist (anymore)" from "wrong key for a store that
+  // does exist" — the client needs this distinction to tell a permanently-stale local
+  // registration (re-register automatically) apart from a transient/network failure
+  // (just retry later). Returning 401 for both, as before, made the two indistinguishable
+  // and caused the client to retry a permanently-doomed request forever.
+  if (!store) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+  if (!timingSafeEqual(hashApiKey(token), store.apiKeyHash)) {
     res.status(401).json({ error: 'Invalid API key' });
     return;
   }

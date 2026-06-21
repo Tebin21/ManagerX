@@ -14,6 +14,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { formatRelativeTime } from '@/utils/formatters';
+import { Colors } from '@/constants/colors';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -26,7 +27,7 @@ export default function OnlineStoreScreen() {
   const router = useRouter();
 
   const {
-    enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
+    enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow, lastSyncError,
     load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 
@@ -136,6 +137,15 @@ export default function OnlineStoreScreen() {
           </View>
         </PremiumCard>
 
+        {!!lastSyncError && (
+          <View style={[styles.errorBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+            <Ionicons name="warning-outline" size={18} color={Colors.error} />
+            <Text style={[styles.errorText, { color: Colors.error, textAlign }]}>
+              {lastSyncError}
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
           onPress={() => router.push('/(app)/settings/online-store-info' as never)}
           activeOpacity={0.8}
@@ -211,4 +221,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: 12, padding: 14,
   },
   infoText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+
+  errorBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 12,
+  },
+  errorText: { flex: 1, fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
 });

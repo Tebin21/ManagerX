@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Linking } from 'react-native';
 import { copyToClipboard } from '@/lib/clipboard';
 import { getPendingSyncCount } from '@/lib/sqlite';
-import { STORE_FRONTEND_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
+import { OnlineStoreApiError, STORE_FRONTEND_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
 import { completeStoreRegistration, processQueue } from '@/lib/onlineStore/syncEngine';
 import {
   getStoreEnabled,
@@ -10,7 +10,9 @@ import {
   getStoreSlug,
   setStoreSlug,
   getStoreApiKey,
+  clearStoreApiKey,
   getLastSyncAt,
+  getLastSyncError,
 } from '@/lib/onlineStore/storage';
 import {
   loadStoreInfoFields,
@@ -49,6 +51,11 @@ interface OnlineStoreState {
   isLoading: boolean;
   isSyncingNow: boolean;
   storeInfoFields: StoreInfoFields;
+  /** Set when the last sync attempt failed — e.g. "Store registration was lost on
+   *  the server". Shown directly in the settings screen since there's no way to
+   *  inspect a production device's console logs after the fact. Cleared on the
+   *  next successful sync. */
+  lastSyncError: string | null;
 
   load: () => Promise<void>;
   enable: () => Promise<void>;
@@ -80,6 +87,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   isLoading: false,
   isSyncingNow: false,
   storeInfoFields: { description: '', whatsappNumber: '', openingHours: '', facebookUrl: '', instagramUrl: '' },
+  lastSyncError: null,
 
   load: async () => {
     // The store's URL is shown immediately from the business name — entirely local, no
@@ -104,14 +112,18 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     set({ slug, storeUrl: buildStoreUrl(slug) });
 
     try {
-      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields] = await Promise.all([
+      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError] = await Promise.all([
         getStoreEnabled(),
         getLastSyncAt(),
         getPendingSyncCount(),
         getStoreApiKey(),
         loadStoreInfoFields(),
+        getLastSyncError(),
       ]);
-      set({ enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey, storeInfoFields });
+      set({
+        enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey, storeInfoFields,
+        lastSyncError: lastSyncError || null,
+      });
     } catch (err) {
       if (__DEV__) console.warn('[onlineStore] load (stats) failed:', err);
     }
@@ -133,7 +145,15 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
           if (__DEV__) console.warn('[onlineStore] registration deferred (offline?):', err);
         }
       } else if (slug && apiKey) {
-        try { await setStoreStatus(slug, apiKey, true); } catch { /* retried by processQueue */ }
+        try {
+          await setStoreStatus(slug, apiKey, true);
+        } catch (err) {
+          // Same stale-registration case as syncEngine.ts: the backend no longer
+          // has this store (e.g. lost after a restart without persistent storage).
+          // Clear the dead key now so the processQueue() call below re-registers
+          // immediately instead of the toggle just silently doing nothing.
+          if (err instanceof OnlineStoreApiError && err.status === 404) await clearStoreApiKey();
+        }
       }
       await get().load();
       processQueue();
