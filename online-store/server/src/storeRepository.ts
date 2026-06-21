@@ -1,6 +1,7 @@
 export interface StoreProduct {
   productId: number;
   name: string;
+  category: string;
   price: number;
   quantity: number;
   imageUrl: string | null;
@@ -10,11 +11,9 @@ export interface StoreProduct {
 
 export interface StoreInfo {
   description?: string;
-  whatsappNumber?: string;
   address?: string;
   phone?: string;
   logoUrl?: string;
-  openingHours?: string;
   facebookUrl?: string;
   instagramUrl?: string;
 }
@@ -34,6 +33,7 @@ export interface SyncChangeInput {
   productId: number;
   operation: 'upsert' | 'delete';
   name?: string;
+  category?: string;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;

@@ -30,6 +30,7 @@ export interface SyncChange {
   productId: number;
   operation: 'upsert' | 'delete';
   name?: string;
+  category?: string;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;
@@ -98,11 +99,9 @@ export async function setStoreStatus(slug: string, apiKey: string, enabled: bool
 
 export interface StoreInfoPayload {
   description?: string;
-  whatsappNumber?: string;
   address?: string;
   phone?: string;
   logoUrl?: string;
-  openingHours?: string;
   facebookUrl?: string;
   instagramUrl?: string;
 }

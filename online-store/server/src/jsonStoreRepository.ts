@@ -88,6 +88,7 @@ export class JsonStoreRepository implements StoreRepository {
         productsById.set(change.productId, {
           productId: change.productId,
           name: change.name ?? existing?.name ?? '',
+          category: change.category ?? existing?.category ?? 'General',
           price: change.price ?? existing?.price ?? 0,
           quantity: change.quantity ?? existing?.quantity ?? 0,
           imageUrl: change.imageUrl ?? existing?.imageUrl ?? null,

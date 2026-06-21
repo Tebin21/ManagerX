@@ -1,5 +1,6 @@
 import { Outlet, useParams } from 'react-router-dom';
 import { CartProvider } from '../cart/CartContext';
+import { Footer } from './Footer';
 
 // Cart state is scoped per store slug (see CartContext's per-slug localStorage key),
 // so the provider needs the slug from the route — it can't simply wrap <App/> above
@@ -13,6 +14,7 @@ export function StorefrontLayout() {
   return (
     <CartProvider key={slug} slug={slug}>
       <Outlet />
+      <Footer />
     </CartProvider>
   );
 }

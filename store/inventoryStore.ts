@@ -8,6 +8,7 @@ import {
   getAllManagedCategories,
   addManagedCategory,
   deleteManagedCategory,
+  renameManagedCategory,
   getAllInventoryHistory,
   permanentDeleteFromHistory,
   restoreProductFromHistory,
@@ -56,6 +57,7 @@ interface InventoryState {
   loadManagedCategories: () => Promise<void>;
   addCategory: (name: string) => Promise<void>;
   deleteCategory: (name: string) => Promise<void>;
+  renameCategory: (oldName: string, newName: string) => Promise<void>;
   loadInventoryHistory: () => Promise<void>;
   permanentDeleteHistoryItem: (historyId: number) => Promise<void>;
   restoreFromHistory: (historyId: number) => Promise<void>;
@@ -236,6 +238,15 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       managedCategories,
       ...(selectedCategory === name ? { selectedCategory: 'all' } : {}),
     });
+  },
+
+  renameCategory: async (oldName: string, newName: string) => {
+    await renameManagedCategory(oldName, newName);
+    // Rename touches every product row that used the old name, not just the
+    // categories list — a full reload keeps `products` consistent too.
+    await get().loadInventory();
+    const { selectedCategory } = get();
+    if (selectedCategory === oldName) set({ selectedCategory: newName.trim() });
   },
 
   loadInventoryHistory: async () => {

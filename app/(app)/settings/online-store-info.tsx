@@ -26,8 +26,6 @@ export default function OnlineStoreInfoScreen() {
   const business = useBusinessStore();
 
   const [description, setDescription] = useState(storeInfoFields.description);
-  const [whatsappNumber, setWhatsappNumber] = useState(storeInfoFields.whatsappNumber);
-  const [openingHours, setOpeningHours] = useState(storeInfoFields.openingHours);
   const [facebookUrl, setFacebookUrl] = useState(storeInfoFields.facebookUrl);
   const [instagramUrl, setInstagramUrl] = useState(storeInfoFields.instagramUrl);
   const [saving, setSaving] = useState(false);
@@ -40,8 +38,6 @@ export default function OnlineStoreInfoScreen() {
   // screen directly, before the parent screen's own load() has populated this).
   useEffect(() => {
     setDescription(storeInfoFields.description);
-    setWhatsappNumber(storeInfoFields.whatsappNumber);
-    setOpeningHours(storeInfoFields.openingHours);
     setFacebookUrl(storeInfoFields.facebookUrl);
     setInstagramUrl(storeInfoFields.instagramUrl);
   }, [storeInfoFields]);
@@ -51,8 +47,6 @@ export default function OnlineStoreInfoScreen() {
     try {
       await saveStoreInfo({
         description: description.trim(),
-        whatsappNumber: whatsappNumber.trim(),
-        openingHours: openingHours.trim(),
         facebookUrl: facebookUrl.trim(),
         instagramUrl: instagramUrl.trim(),
       });
@@ -83,22 +77,6 @@ export default function OnlineStoreInfoScreen() {
               onChangeText={setDescription}
               multiline
               numberOfLines={3}
-              style={styles.multiline}
-            />
-            <AppTextInput
-              label={t('settings.onlineStoreInfoScreen.whatsappNumber')}
-              placeholder={t('settings.onlineStoreInfoScreen.whatsappPlaceholder')}
-              value={whatsappNumber}
-              onChangeText={setWhatsappNumber}
-              keyboardType="phone-pad"
-            />
-            <AppTextInput
-              label={t('settings.onlineStoreInfoScreen.openingHours')}
-              placeholder={t('settings.onlineStoreInfoScreen.openingHoursPlaceholder')}
-              value={openingHours}
-              onChangeText={setOpeningHours}
-              multiline
-              numberOfLines={2}
               style={styles.multiline}
             />
             <AppTextInput

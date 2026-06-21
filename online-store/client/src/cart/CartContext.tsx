@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
+import type { StoreProduct } from '../lib/api';
 
 export interface CartItem {
   productId: number;
@@ -7,12 +8,16 @@ export interface CartItem {
   price: number;
   imageUrl: string | null;
   quantity: number;
+  /** Stock count as of the last time this item was added/reconciled — never shown to
+   *  the shopper, only used to silently cap how high `quantity` can go. */
+  stock: number;
 }
 
 type CartAction =
   | { type: 'ADD'; item: Omit<CartItem, 'quantity'> }
   | { type: 'REMOVE'; productId: number }
   | { type: 'SET_QTY'; productId: number; quantity: number }
+  | { type: 'RECONCILE_STOCK'; products: StoreProduct[] }
   | { type: 'CLEAR' };
 
 function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
@@ -20,17 +25,32 @@ function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
     case 'ADD': {
       const existing = state.find((i) => i.productId === action.item.productId);
       if (existing) {
+        const nextQty = Math.min(existing.quantity + 1, action.item.stock);
         return state.map((i) =>
-          i.productId === action.item.productId ? { ...i, quantity: i.quantity + 1 } : i
+          i.productId === action.item.productId ? { ...i, stock: action.item.stock, quantity: nextQty } : i
         );
       }
+      if (action.item.stock <= 0) return state;
       return [...state, { ...action.item, quantity: 1 }];
     }
     case 'REMOVE':
       return state.filter((i) => i.productId !== action.productId);
-    case 'SET_QTY':
+    case 'SET_QTY': {
       if (action.quantity <= 0) return state.filter((i) => i.productId !== action.productId);
-      return state.map((i) => (i.productId === action.productId ? { ...i, quantity: action.quantity } : i));
+      return state.map((i) =>
+        i.productId === action.productId ? { ...i, quantity: Math.min(action.quantity, i.stock) } : i
+      );
+    }
+    case 'RECONCILE_STOCK': {
+      const byId = new Map(action.products.map((p) => [p.productId, p]));
+      return state
+        .map((i) => {
+          const live = byId.get(i.productId);
+          if (!live) return { ...i, stock: 0 }; // unpublished/removed since being added
+          return { ...i, stock: live.quantity, quantity: Math.min(i.quantity, live.quantity) };
+        })
+        .filter((i) => i.quantity > 0);
+    }
     case 'CLEAR':
       return [];
     default:
@@ -45,6 +65,10 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, 'quantity'>) => void;
   removeItem: (productId: number) => void;
   setQuantity: (productId: number, quantity: number) => void;
+  /** Clamps/drops any cart item whose cached stock is now stale against fresh data
+   *  fetched from the server. Returns true if anything was actually adjusted, so the
+   *  caller (CartPage) can show a one-time "quantities were adjusted" notice. */
+  reconcileStock: (products: StoreProduct[]) => boolean;
   clear: () => void;
 }
 
@@ -88,6 +112,12 @@ export function CartProvider({ slug, children }: { slug: string; children: React
       addItem: (item) => dispatch({ type: 'ADD', item }),
       removeItem: (productId) => dispatch({ type: 'REMOVE', productId }),
       setQuantity: (productId, quantity) => dispatch({ type: 'SET_QTY', productId, quantity }),
+      reconcileStock: (products) => {
+        const byId = new Map(products.map((p) => [p.productId, p]));
+        const changed = items.some((i) => i.quantity > (byId.get(i.productId)?.quantity ?? 0));
+        dispatch({ type: 'RECONCILE_STOCK', products });
+        return changed;
+      },
       clear: () => dispatch({ type: 'CLEAR' }),
     };
   }, [items]);

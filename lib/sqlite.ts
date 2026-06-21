@@ -535,6 +535,30 @@ export async function deleteManagedCategory(name: string): Promise<void> {
   await database.runAsync('DELETE FROM categories WHERE name = ?', [name]);
 }
 
+export async function renameManagedCategory(oldName: string, newName: string): Promise<void> {
+  if (oldName === DEFAULT_CATEGORY) throw new Error('CATEGORY_IS_DEFAULT');
+  const trimmed = newName.trim();
+  if (!trimmed) throw new Error('CATEGORY_NAME_REQUIRED');
+  if (trimmed === oldName) return;
+
+  const database = await getDatabase();
+  const existing = await database.getFirstAsync<{ cnt: number }>(
+    'SELECT COUNT(*) AS cnt FROM categories WHERE name = ?',
+    [trimmed]
+  );
+  if ((existing?.cnt ?? 0) > 0) throw new Error('CATEGORY_ALREADY_EXISTS');
+
+  await database.runAsync('UPDATE categories SET name = ? WHERE name = ?', [trimmed, oldName]);
+  await database.runAsync(
+    'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ?',
+    [trimmed, oldName]
+  );
+  // The rename changed every affected product's data, so each one needs to reach the
+  // storefront on the next sync — same fan-out pattern used elsewhere for bulk updates.
+  const rows = await database.getAllAsync<{ id: number }>('SELECT id FROM products WHERE category = ?', [trimmed]);
+  for (const row of rows) await enqueueSyncChange(row.id, 'upsert');
+}
+
 // ─── Inventory Products ───────────────────────────────────────────────────────
 
 function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
@@ -1615,8 +1639,8 @@ export async function insertSale(
         invoice_number, customer_id, customer_name, customer_phone,
         customer_address, warranty, notes, payment_method,
         subtotal, discount_total, global_discount_type, global_discount,
-        grand_total, paid_amount, remaining_debt, status, exchange_rate, date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -1635,6 +1659,7 @@ export async function insertSale(
         saleData.remainingDebt,
         saleData.status,
         saleData.exchangeRateUsed,
+        saleData.date ?? new Date().toISOString(),
         saleData.date ?? new Date().toISOString(),
       ]
     );

@@ -76,6 +76,7 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
     productId: item.productId,
     operation: 'upsert',
     name: p.name,
+    category: p.category,
     price: p.sellingPrice,
     quantity: p.quantity,
     imageUrl: p.imageRemoteUrl ?? (isLocalUri ? null : p.imageUri),
@@ -108,7 +109,7 @@ async function ensureRemoteLogo(slug: string, apiKey: string): Promise<[string |
   }
 }
 
-// Store-info fields (description/WhatsApp/hours/social + logo) have no offline
+// Store-info fields (description/social links + logo) have no offline
 // outbox of their own, unlike products' sync_queue — instead a saved-but-unsynced
 // edit is marked "dirty" (lib/onlineStore/storeInfo.ts) and retried here on the
 // same triggers that already drive product sync, until it succeeds.

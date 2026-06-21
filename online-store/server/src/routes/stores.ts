@@ -60,7 +60,13 @@ storesRouter.get('/:slug', async (req, res) => {
     .map((p) => ({
       productId: p.productId,
       name: p.name,
+      // Coalesce, don't trust the stored value blindly — products synced before this
+      // field existed have no `category` key at all in the JSON ledger, and `??`
+      // would otherwise surface as a missing key (JSON.stringify drops `undefined`)
+      // that the client's non-optional `category: string` type doesn't expect.
+      category: p.category ?? 'General',
       price: p.price,
+      quantity: p.quantity,
       imageUrl: p.imageUrl,
       availability: p.quantity > 0 ? 'in_stock' as const : 'out_of_stock' as const,
     }));

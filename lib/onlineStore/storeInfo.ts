@@ -9,16 +9,12 @@ import { saveSetting, loadSetting } from '@/lib/sqlite';
 
 export interface StoreInfoFields {
   description: string;
-  whatsappNumber: string;
-  openingHours: string;
   facebookUrl: string;
   instagramUrl: string;
 }
 
 const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
   description: 'online_store_description',
-  whatsappNumber: 'online_store_whatsapp',
-  openingHours: 'online_store_hours',
   facebookUrl: 'online_store_facebook',
   instagramUrl: 'online_store_instagram',
 };

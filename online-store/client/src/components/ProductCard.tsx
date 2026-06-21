@@ -2,21 +2,39 @@ import { ImageOff, Plus, Check } from 'lucide-react';
 import { useState } from 'react';
 import type { StoreProduct } from '../lib/api';
 import { useCart } from '../cart/CartContext';
+import { formatIQD } from '../lib/format';
 
 export function ProductCard({ product }: { product: StoreProduct }) {
   const outOfStock = product.availability === 'out_of_stock';
-  const { addItem } = useCart();
+  const { items, addItem } = useCart();
   const [justAdded, setJustAdded] = useState(false);
 
+  const inCartQty = items.find((i) => i.productId === product.productId)?.quantity ?? 0;
+  const atStockLimit = !outOfStock && inCartQty >= product.quantity;
+
   function handleAddToCart() {
-    addItem({ productId: product.productId, name: product.name, price: product.price, imageUrl: product.imageUrl });
+    if (outOfStock || atStockLimit) return;
+    addItem({
+      productId: product.productId,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      stock: product.quantity,
+    });
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1200);
   }
 
+  const addDisabled = outOfStock || atStockLimit;
+
   return (
-    <div className="group overflow-hidden rounded-2xl bg-white shadow-card transition hover:shadow-lg">
+    <div className="group overflow-hidden rounded-2xl bg-white shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-square bg-slate-100">
+        {product.category && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 shadow-sm backdrop-blur-sm">
+            {product.category}
+          </span>
+        )}
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -37,20 +55,21 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           </div>
         )}
       </div>
-      <div className="p-3">
+      <div className="p-3.5">
         <p className="truncate text-sm font-semibold text-slate-800">{product.name}</p>
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <p className="text-sm font-bold text-brand-600">{product.price.toLocaleString()} IQD</p>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
           <button
             type="button"
             onClick={handleAddToCart}
-            disabled={outOfStock}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
-              outOfStock
+            disabled={addDisabled}
+            title={atStockLimit ? 'Maximum available quantity already in cart' : undefined}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
+              addDisabled
                 ? 'cursor-not-allowed bg-slate-100 text-slate-300'
                 : justAdded
                 ? 'bg-emerald-500 text-white'
-                : 'bg-brand-600 text-white hover:bg-brand-700'
+                : 'bg-brand-600 text-white hover:bg-brand-700 active:scale-95'
             }`}
             aria-label="Add to cart"
           >

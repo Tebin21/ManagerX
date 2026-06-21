@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchStore, type StoreResponse } from '../lib/api';
+import { fetchStore, type StoreProduct, type StoreResponse } from '../lib/api';
 import { ProductCard } from '../components/ProductCard';
 import { StoreHeader } from '../components/StoreHeader';
+import { SearchBar } from '../components/SearchBar';
+import { CategoryFilterBar } from '../components/CategoryFilterBar';
 import { useCart } from '../cart/CartContext';
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error';
@@ -19,6 +21,8 @@ export function StorefrontPage() {
   const { slug } = useParams<{ slug: string }>();
   const [store, setStore] = useState<StoreResponse | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const { count } = useCart();
 
   // Background refreshes (poll/focus) must never flip the UI back to a full-page
@@ -65,6 +69,45 @@ export function StorefrontPage() {
     };
   }, [refresh]);
 
+  // Distinct categories in first-seen order — derived from products, no separate
+  // category endpoint needed (matches the existing "no pagination, fetch everything"
+  // architecture). Hooks run unconditionally, before the early-return states below.
+  const categories = useMemo(() => {
+    if (!store) return [];
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const p of store.products) {
+      if (!seen.has(p.category)) {
+        seen.add(p.category);
+        ordered.push(p.category);
+      }
+    }
+    return ordered;
+  }, [store]);
+
+  const filteredProducts = useMemo(() => {
+    if (!store) return [];
+    const q = query.trim().toLowerCase();
+    return store.products.filter((p) => {
+      const matchesQuery = !q || p.name.toLowerCase().includes(q);
+      const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+      return matchesQuery && matchesCategory;
+    });
+  }, [store, query, selectedCategory]);
+
+  // Grouped sections only make sense for the unfiltered "All" browse view — a search
+  // or a single selected category reads better as one flat grid.
+  const groupedByCategory = useMemo(() => {
+    if (selectedCategory !== 'all' || query.trim()) return null;
+    const groups = new Map<string, StoreProduct[]>();
+    for (const p of filteredProducts) {
+      const list = groups.get(p.category) ?? [];
+      list.push(p);
+      groups.set(p.category, list);
+    }
+    return categories.map((c) => [c, groups.get(c) ?? []] as const).filter(([, list]) => list.length > 0);
+  }, [filteredProducts, categories, selectedCategory, query]);
+
   if (state === 'loading') return <CenteredMessage>Loading store…</CenteredMessage>;
   if (state === 'not_found') return <CenteredMessage>This store doesn't exist.</CenteredMessage>;
   if (state === 'error' || !store) {
@@ -75,21 +118,47 @@ export function StorefrontPage() {
     <div className="min-h-screen bg-slate-50">
       <StoreHeader businessName={store.businessName} info={store.info} cartCount={count} cartHref={`/${slug}/cart`} />
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         {!store.enabled ? (
           <CenteredMessage>This store is currently unavailable. Please check back later.</CenteredMessage>
         ) : store.products.length === 0 ? (
           <CenteredMessage>No products published yet. Check back soon!</CenteredMessage>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {store.products.map((p) => (
-              <ProductCard key={p.productId} product={p} />
-            ))}
-          </div>
+          <>
+            <div className="sticky top-0 z-20 -mx-4 mb-6 bg-slate-50/95 px-4 py-3 backdrop-blur-sm">
+              <SearchBar value={query} onChange={setQuery} />
+              {categories.length > 1 && (
+                <div className="mt-3">
+                  <CategoryFilterBar categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
+                </div>
+              )}
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <CenteredMessage>No products match your search.</CenteredMessage>
+            ) : groupedByCategory ? (
+              <div className="space-y-10">
+                {groupedByCategory.map(([category, products]) => (
+                  <section key={category}>
+                    <h2 className="mb-4 text-lg font-bold text-slate-800">{category}</h2>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                      {products.map((p) => (
+                        <ProductCard key={p.productId} product={p} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {filteredProducts.map((p) => (
+                  <ProductCard key={p.productId} product={p} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
-
-      <footer className="px-6 py-8 text-center text-xs text-slate-400">Powered by ManagerX</footer>
     </div>
   );
 }

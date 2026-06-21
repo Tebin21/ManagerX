@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, MapPin, Clock, Facebook, Instagram, MessageCircle, ShoppingCart, Store as StoreIcon } from 'lucide-react';
+import { Phone, MapPin, Facebook, Instagram, MessageCircle, ShoppingCart, Store as StoreIcon } from 'lucide-react';
 import type { StoreInfo } from '../lib/api';
 
 function digitsOnly(value: string): string {
@@ -19,7 +19,9 @@ interface Props {
 }
 
 export function StoreHeader({ businessName, info, cartCount, cartHref }: Props) {
-  const whatsappDigits = info.whatsappNumber ? digitsOnly(info.whatsappNumber) : '';
+  // No separate WhatsApp number field — the business phone doubles as the WhatsApp
+  // ordering number.
+  const whatsappDigits = info.phone ? digitsOnly(info.phone) : '';
 
   return (
     <header className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-6 py-10 text-white shadow-card">
@@ -78,11 +80,6 @@ export function StoreHeader({ businessName, info, cartCount, cartHref }: Props) 
           {info.address && (
             <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm">
               <MapPin size={14} /> {info.address}
-            </span>
-          )}
-          {info.openingHours && (
-            <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-sm">
-              <Clock size={14} /> {info.openingHours}
             </span>
           )}
         </div>

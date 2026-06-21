@@ -48,7 +48,7 @@ export default function InventoryScreen() {
     stats, categories, managedCategories, isLoading,
     filter, selectedCategory,
     loadInventory, setFilter, setCategory,
-    getFilteredProducts, loadManagedCategories, addCategory, deleteCategory,
+    getFilteredProducts, loadManagedCategories, addCategory, deleteCategory, renameCategory,
   } = useInventoryStore();
 
   const { colors } = useAppTheme();
@@ -59,6 +59,8 @@ export default function InventoryScreen() {
   const [catModalVisible, setCatModalVisible]       = useState(false);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [newCatName, setNewCatName]                 = useState('');
+  const [editingCategory, setEditingCategory]       = useState<string | null>(null);
+  const [editCatName, setEditCatName]               = useState('');
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [catPickerVisible, setCatPickerVisible]     = useState(false);
   const [reportGenerating, setReportGenerating]     = useState(false);
@@ -215,6 +217,37 @@ export default function InventoryScreen() {
       ]
     );
   }, [deleteCategory, t]);
+
+  const handleStartRename = useCallback((cat: { name: string; isDefault: boolean }) => {
+    if (cat.isDefault) return;
+    setEditingCategory(cat.name);
+    setEditCatName(cat.name);
+  }, []);
+
+  const handleCancelRename = useCallback(() => {
+    setEditingCategory(null);
+    setEditCatName('');
+  }, []);
+
+  const handleConfirmRename = useCallback(async () => {
+    if (!editingCategory) return;
+    const name = editCatName.trim();
+    if (!name || name === editingCategory) {
+      handleCancelRename();
+      return;
+    }
+    try {
+      await renameCategory(editingCategory, name);
+      handleCancelRename();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'CATEGORY_ALREADY_EXISTS') {
+        Alert.alert(t('inventory.manageCategoriesTitle'), t('inventory.duplicateCategory'));
+      } else {
+        Alert.alert(t('common.error'), t('common.tryAgain'));
+      }
+    }
+  }, [editingCategory, editCatName, renameCategory, handleCancelRename, t]);
 
   const visible = getFilteredProducts(query);
 
@@ -662,6 +695,26 @@ export default function InventoryScreen() {
             <ScrollView showsVerticalScrollIndicator={false} style={styles.catList} contentContainerStyle={{ paddingBottom: 16 }}>
               {managedCategories.map((cat) => {
                 const canDelete = !cat.isDefault && cat.productCount === 0;
+                if (editingCategory === cat.name) {
+                  return (
+                    <View key={cat.name} style={[styles.catCard, { backgroundColor: colors.gray50, flexDirection, padding: isRTL ? RTL_SPACING.gap : 12 }]}>
+                      <TextInput
+                        style={[styles.editCatInput, { color: colors.black, borderColor: colors.primary, textAlign, writingDirection }]}
+                        value={editCatName}
+                        onChangeText={setEditCatName}
+                        onSubmitEditing={handleConfirmRename}
+                        autoFocus
+                        returnKeyType="done"
+                      />
+                      <TouchableOpacity onPress={handleConfirmRename} style={styles.deleteCatBtn} hitSlop={8}>
+                        <Ionicons name="checkmark" size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleCancelRename} style={styles.deleteCatBtn} hitSlop={8}>
+                        <Ionicons name="close" size={18} color={colors.gray400} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
                 return (
                   <View key={cat.name} style={[styles.catCard, { backgroundColor: colors.gray50, flexDirection, padding: isRTL ? RTL_SPACING.gap : 12 }]}>
                     <View style={[styles.catInfo, { gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
@@ -681,6 +734,11 @@ export default function InventoryScreen() {
                         </Text>
                       </View>
                     </View>
+                    {!cat.isDefault && (
+                      <TouchableOpacity onPress={() => handleStartRename(cat)} style={styles.deleteCatBtn} hitSlop={8}>
+                        <Ionicons name="create-outline" size={18} color={colors.gray500} />
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                       onPress={() => handleDeleteCategory(cat)}
                       disabled={!canDelete && cat.isDefault}
@@ -773,6 +831,7 @@ const styles = StyleSheet.create({
   modalTitle:    { fontSize: 17, fontWeight: '800' },
   addCatRow:     { flexDirection: 'row', gap: 10, marginBottom: 16 },
   addCatInput:   { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
+  editCatInput:  { flex: 1, borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 },
   addCatBtn:     { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   catList:          { maxHeight: 360 },
   catCard:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12, padding: 12, marginBottom: 8 },

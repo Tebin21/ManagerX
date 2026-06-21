@@ -61,7 +61,7 @@ interface OnlineStoreState {
   enable: () => Promise<void>;
   disable: () => Promise<void>;
   refreshPendingCount: () => Promise<void>;
-  /** Saves the store-info fields (description/WhatsApp/hours/social) locally and
+  /** Saves the store-info fields (description/social links) locally and
    *  kicks off an immediate push attempt. There's no offline outbox for these
    *  fields — if the push fails now, syncEngine's existing triggers (debounce/
    *  periodic/manual) retry it opportunistically until it succeeds. */
@@ -86,7 +86,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   isRegistering: false,
   isLoading: false,
   isSyncingNow: false,
-  storeInfoFields: { description: '', whatsappNumber: '', openingHours: '', facebookUrl: '', instagramUrl: '' },
+  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '' },
   lastSyncError: null,
 
   load: async () => {

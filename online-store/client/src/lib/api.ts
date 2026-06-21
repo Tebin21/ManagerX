@@ -8,18 +8,19 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 export interface StoreProduct {
   productId: number;
   name: string;
+  category: string;
   price: number;
+  /** Real stock count — used client-side to cap cart quantity, never rendered directly. */
+  quantity: number;
   imageUrl: string | null;
   availability: 'in_stock' | 'out_of_stock';
 }
 
 export interface StoreInfo {
   description?: string;
-  whatsappNumber?: string;
   address?: string;
   phone?: string;
   logoUrl?: string;
-  openingHours?: string;
   facebookUrl?: string;
   instagramUrl?: string;
 }

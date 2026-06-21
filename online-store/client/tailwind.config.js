@@ -19,6 +19,13 @@ export default {
           700: '#1E40AF',
           900: '#1E3A8A',
         },
+        // Used only by the BexDre footer's dark/premium treatment — the rest of the
+        // storefront keeps the blue brand palette above.
+        gold: {
+          light: '#E9CD7B',
+          DEFAULT: '#D4AF37',
+          dark: '#9C7A1E',
+        },
       },
       boxShadow: {
         card: '0 1px 2px 0 rgba(16, 24, 40, 0.06), 0 1px 3px 0 rgba(16, 24, 40, 0.10)',
