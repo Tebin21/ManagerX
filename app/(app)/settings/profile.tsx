@@ -13,8 +13,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { LogoUploader } from '@/components/setup/LogoUploader';
 import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
-import { useBusinessStore } from '@/store/businessStore';
-import { saveBusiness } from '@/lib/sqlite';
+import { useBusiness } from '@/hooks/useBusiness';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
@@ -24,7 +23,7 @@ export default function BusinessProfileScreen() {
   const { t } = useTranslation();
   const { textAlign } = useRTL();
   const { colors } = useAppTheme();
-  const business = useBusinessStore();
+  const business = useBusiness();
 
   const [name, setName]             = useState(business.name ?? '');
   const [businessType, setBusinessType] = useState(business.type ?? '');
@@ -40,14 +39,7 @@ export default function BusinessProfileScreen() {
     }
     setSaving(true);
     try {
-      await saveBusiness({
-        name: name.trim(),
-        type: businessType.trim(),
-        phone: phone.trim(),
-        address: address.trim(),
-        logoPath: logoUri ?? undefined,
-      });
-      business.setBusiness({
+      await business.saveAndSetBusiness({
         name: name.trim(),
         type: businessType.trim(),
         phone: phone.trim(),

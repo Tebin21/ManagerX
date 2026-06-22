@@ -52,6 +52,6 @@ export interface StoreRepository {
   isSlugTaken(slug: string): Promise<boolean>;
   create(data: { slug: string; businessName: string; apiKeyHash: string }): Promise<StoreRecord>;
   setEnabled(slug: string, enabled: boolean): Promise<StoreRecord | null>;
-  updateInfo(slug: string, partialInfo: Partial<StoreInfo>): Promise<StoreRecord | null>;
+  updateInfo(slug: string, update: Partial<StoreInfo> & { businessName?: string }): Promise<StoreRecord | null>;
   applySync(slug: string, changes: SyncChangeInput[]): Promise<{ syncedAt: string; accepted: number }>;
 }

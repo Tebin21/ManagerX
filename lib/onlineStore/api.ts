@@ -116,6 +116,7 @@ export async function setStoreStatus(slug: string, apiKey: string, enabled: bool
 }
 
 export interface StoreInfoPayload {
+  businessName?: string;
   description?: string;
   address?: string;
   phone?: string;

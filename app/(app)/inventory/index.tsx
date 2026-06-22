@@ -19,6 +19,7 @@ import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { BulkSyncModal } from '@/components/inventory/BulkSyncModal';
 import { useTranslation } from 'react-i18next';
 import { InventoryStatsCard } from '@/components/inventory/InventoryStatsCard';
 import { CategoryFilterBar } from '@/components/inventory/CategoryFilterBar';
@@ -67,6 +68,7 @@ export default function InventoryScreen() {
   const [editingCategory, setEditingCategory]       = useState<string | null>(null);
   const [editCatName, setEditCatName]               = useState('');
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [bulkSyncModalVisible, setBulkSyncModalVisible] = useState(false);
   const [catPickerVisible, setCatPickerVisible]     = useState(false);
   const [reportGenerating, setReportGenerating]     = useState(false);
   const { chevronForward } = useDirectionalChevron();
@@ -338,11 +340,17 @@ export default function InventoryScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <HeaderActionButton
-            icon="document-text-outline"
-            onPress={() => setReportModalVisible(true)}
-            loading={reportGenerating}
-          />
+          <View style={{ flexDirection, gap: 8 }}>
+            <HeaderActionButton
+              icon="storefront-outline"
+              onPress={() => setBulkSyncModalVisible(true)}
+            />
+            <HeaderActionButton
+              icon="document-text-outline"
+              onPress={() => setReportModalVisible(true)}
+              loading={reportGenerating}
+            />
+          </View>
         }
       >
         {stats && (
@@ -777,6 +785,8 @@ export default function InventoryScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <BulkSyncModal visible={bulkSyncModalVisible} onClose={() => setBulkSyncModalVisible(false)} />
     </View>
   );
 }

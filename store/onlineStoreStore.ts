@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Linking } from 'react-native';
 import { copyToClipboard } from '@/lib/clipboard';
-import { getPendingSyncCount } from '@/lib/sqlite';
+import { getPendingSyncCount, bulkSetStoreVisibility } from '@/lib/sqlite';
 import { OnlineStoreApiError, STORE_FRONTEND_BASE_URL, setStoreStatus, slugify } from '@/lib/onlineStore/api';
 import { completeStoreRegistration, processQueue } from '@/lib/onlineStore/syncEngine';
 import { hasActiveOnlineStoreSubscription } from '@/lib/onlineStoreSubscription/subscription';
@@ -14,6 +14,8 @@ import {
   clearStoreApiKey,
   getLastSyncAt,
   getLastSyncError,
+  getBulkPublishEnabled,
+  setBulkPublishEnabled as persistBulkPublishEnabled,
 } from '@/lib/onlineStore/storage';
 import {
   loadStoreInfoFields,
@@ -57,6 +59,12 @@ interface OnlineStoreState {
    *  inspect a production device's console logs after the fact. Cleared on the
    *  next successful sync. */
   lastSyncError: string | null;
+  /** "Enable Online Store For All Products" master toggle (Inventory header bulk-sync
+   *  modal) — mirrors lib/onlineStore/storage.ts's persisted flag. When true, every
+   *  existing + future product is auto-published (see bulkSetStoreVisibility() /
+   *  insertProduct() in lib/sqlite.ts). */
+  bulkPublishEnabled: boolean;
+  isBulkPublishing: boolean;
 
   load: () => Promise<void>;
   /** Returns {status:'locked'} without making any local write or network call when
@@ -80,6 +88,16 @@ interface OnlineStoreState {
    *  own re-entrancy guard, so this just becomes a no-op network-wise but still
    *  refreshes the displayed stats. */
   syncNow: () => Promise<{ status: 'ok' | 'locked' }>;
+  /** Bulk-publishes/unpublishes ALL products in one action. Gated on subscription
+   *  ONLY when turning ON (enabled===true) — mirrors enable()/disable()'s asymmetry:
+   *  removing everything from the store must always succeed even with an
+   *  expired/missing subscription. Bypasses the debounce (like syncNow()) and
+   *  forwards onProgress through processQueue() so a caller (the Inventory bulk-sync
+   *  modal) can render a determinate progress bar across 10,000+ products. */
+  setBulkPublishEnabled: (
+    enabled: boolean,
+    onProgress?: (done: number, total: number) => void
+  ) => Promise<{ status: 'ok' | 'locked' }>;
   /** Returns true if the link was actually copied — false if the clipboard is
    *  unavailable (e.g. native module not linked) or the copy itself failed, so the
    *  caller can fall back to showing the link instead of silently doing nothing. */
@@ -98,6 +116,8 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   isSyncingNow: false,
   storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '' },
   lastSyncError: null,
+  bulkPublishEnabled: false,
+  isBulkPublishing: false,
 
   load: async () => {
     // The store's URL is shown immediately from the business name — entirely local, no
@@ -122,17 +142,19 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     set({ slug, storeUrl: buildStoreUrl(slug) });
 
     try {
-      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError] = await Promise.all([
+      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError, bulkPublishEnabled] = await Promise.all([
         getStoreEnabled(),
         getLastSyncAt(),
         getPendingSyncCount(),
         getStoreApiKey(),
         loadStoreInfoFields(),
         getLastSyncError(),
+        getBulkPublishEnabled(),
       ]);
       set({
         enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey, storeInfoFields,
         lastSyncError: lastSyncError || null,
+        bulkPublishEnabled,
       });
     } catch (err) {
       if (__DEV__) console.warn('[onlineStore] load (stats) failed:', err);
@@ -214,6 +236,24 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       return { status: 'ok' };
     } finally {
       set({ isSyncingNow: false });
+    }
+  },
+
+  setBulkPublishEnabled: async (enabled, onProgress) => {
+    // Same gating asymmetry as enable()/disable(): turning everything OFF must
+    // always succeed, even with an expired/missing subscription.
+    if (enabled && !(await hasActiveOnlineStoreSubscription())) return { status: 'locked' };
+
+    set({ isBulkPublishing: true });
+    try {
+      await persistBulkPublishEnabled(enabled);
+      await bulkSetStoreVisibility(enabled);
+      await processQueue(onProgress); // bypasses the debounce, like syncNow()
+      set({ bulkPublishEnabled: enabled });
+      await get().refreshPendingCount();
+      return { status: 'ok' };
+    } finally {
+      set({ isBulkPublishing: false });
     }
   },
 

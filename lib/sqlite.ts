@@ -640,6 +640,19 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.sellPriceUsd,
     ]
   );
+
+  // Online Store "bulk publish" policy — when on, every newly created product is
+  // auto-published, regardless of where it was created (insertProduct is the sole
+  // call site for product creation app-wide). Reads the setting key directly instead
+  // of importing lib/onlineStore/storage.ts's getter, since that file already imports
+  // loadSetting/saveSetting FROM this file — importing back would be circular.
+  if ((await loadSetting('online_store_bulk_publish_enabled')) === '1') {
+    await database.runAsync(
+      'UPDATE products SET store_visible = 1 WHERE id = ?',
+      [result.lastInsertRowId]
+    );
+  }
+
   await enqueueSyncChange(result.lastInsertRowId, 'upsert');
   return result.lastInsertRowId;
 }
@@ -732,6 +745,35 @@ export async function setProductStoreVisibility(id: number, visible: boolean): P
     [visible ? 1 : 0, id]
   );
   await enqueueSyncChange(id, 'upsert');
+}
+
+// Bulk publish/unpublish ALL products in two single-statement operations (no per-row
+// JS loop), so this stays instant regardless of catalog size (10 or 100,000+ rows).
+// OFF uses 'upsert' (not 'delete') — same semantics as setProductStoreVisibility above:
+// a hard 'delete' means "row no longer exists locally" (see deleteProduct), whereas this
+// only flips store_visible, leaving local inventory untouched and keeping the per-product
+// Switch in app/(app)/inventory/[id].tsx fully interoperable with this bulk action.
+export async function bulkSetStoreVisibility(visible: boolean): Promise<number> {
+  const database = await getDatabase();
+  let affected = 0;
+  await database.withTransactionAsync(async () => {
+    const result = await database.runAsync(
+      'UPDATE products SET store_visible = ?, updated_at = CURRENT_TIMESTAMP',
+      [visible ? 1 : 0]
+    );
+    affected = result.changes;
+    await database.runAsync(
+      `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
+       SELECT 'product', id, 'upsert', CURRENT_TIMESTAMP FROM products
+       ON CONFLICT(entity_type, entity_id) DO UPDATE SET
+         operation = excluded.operation,
+         updated_at = excluded.updated_at`
+    );
+  });
+  // Same dynamic-import fire-and-forget pattern as enqueueSyncChange below — avoids a
+  // circular import (syncEngine.ts already imports FROM this file).
+  import('./onlineStore/syncEngine').then((m) => m.scheduleSync()).catch(() => {});
+  return affected;
 }
 
 // ─── Online Store Sync Queue ──────────────────────────────────────────────────

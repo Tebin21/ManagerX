@@ -15,6 +15,17 @@ export async function setStoreEnabled(enabled: boolean): Promise<void> {
   await saveSetting('online_store_enabled', enabled ? '1' : '0');
 }
 
+// "Enable Online Store For All Products" master toggle (Inventory header bulk-sync
+// modal) — when on, every product (existing + newly created) is auto-published; see
+// bulkSetStoreVisibility() and insertProduct() in lib/sqlite.ts.
+export async function getBulkPublishEnabled(): Promise<boolean> {
+  return (await loadSetting('online_store_bulk_publish_enabled')) === '1';
+}
+
+export async function setBulkPublishEnabled(enabled: boolean): Promise<void> {
+  await saveSetting('online_store_bulk_publish_enabled', enabled ? '1' : '0');
+}
+
 export async function getStoreSlug(): Promise<string | null> {
   return loadSetting('online_store_slug');
 }

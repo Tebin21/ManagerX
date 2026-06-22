@@ -56,12 +56,17 @@ export class JsonStoreRepository implements StoreRepository {
     });
   }
 
-  async updateInfo(slug: string, partialInfo: Partial<StoreInfo>): Promise<StoreRecord | null> {
+  async updateInfo(slug: string, update: Partial<StoreInfo> & { businessName?: string }): Promise<StoreRecord | null> {
     return withStoreLock(slug, async () => {
       const records = readLedger();
       const idx = records.findIndex((s) => s.slug === slug);
       if (idx === -1) return null;
-      records[idx] = { ...records[idx], info: { ...records[idx].info, ...partialInfo } };
+      const { businessName, ...info } = update;
+      records[idx] = {
+        ...records[idx],
+        ...(businessName ? { businessName } : {}),
+        info: { ...records[idx].info, ...info },
+      };
       writeLedger(records);
       return records[idx];
     });

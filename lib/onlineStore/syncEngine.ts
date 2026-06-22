@@ -126,6 +126,7 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
     const business = useBusinessStore.getState();
     await pushStoreInfo(slug, apiKey, {
       ...fields,
+      businessName: business.name || undefined,
       phone: business.phone || undefined,
       address: business.address || undefined,
       logoUrl: logoUrl ?? undefined,
@@ -154,7 +155,9 @@ export async function completeStoreRegistration(businessName: string): Promise<{
 
 let isSyncing = false;
 
-export async function processQueue(): Promise<void> {
+export async function processQueue(
+  onProgress?: (done: number, total: number) => void
+): Promise<void> {
   if (isSyncing) return;
   isSyncing = true;
   try {
@@ -202,28 +205,46 @@ export async function processQueue(): Promise<void> {
     const pending = await getPendingSyncProducts();
     if (pending.length === 0) {
       await clearLastSyncError();
+      onProgress?.(0, 0);
       return;
     }
     if (__DEV__) console.log(`[onlineStore] processQueue: ${pending.length} pending change(s)`);
 
-    // Upload any local images first (sequentially — avoid bursting concurrent
-    // multipart uploads at a single-core backend instance). An item whose upload
-    // fails is left out of this round entirely; its queue row stays put and it's
-    // retried on the next sync cycle without blocking everything else.
-    const ready: PendingSyncItem[] = [];
-    for (const item of pending) {
-      if (await ensureRemoteImage(item, slug, apiKey)) ready.push(item);
-    }
-    if (ready.length === 0) return;
+    // Chunk the network push instead of one request for every pending product —
+    // bounds request body size and gives callers (e.g. the Inventory bulk-sync modal)
+    // real incremental progress on catalogs in the thousands. BATCH_SIZE=250 keeps
+    // round-trip count reasonable (~40 requests for 10,000 products) while keeping a
+    // single slow/failed batch's blast radius small.
+    const BATCH_SIZE = 250;
+    const total = pending.length;
+    let done = 0;
 
-    const changes = ready.map(toSyncChange).filter((c): c is SyncChange => c !== null);
-    if (changes.length > 0) {
-      if (__DEV__) console.log('[onlineStore] pushing sync changes:', changes);
-      const result = await pushSync(slug, apiKey, changes);
-      if (__DEV__) console.log('[onlineStore] sync succeeded:', result);
-      await setLastSyncAt(result.syncedAt);
+    for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+      const batch = pending.slice(i, i + BATCH_SIZE);
+
+      // Upload any local images first (sequentially — avoid bursting concurrent
+      // multipart uploads at a single-core backend instance). An item whose upload
+      // fails is left out of this round entirely; its queue row stays put and it's
+      // retried on the next sync cycle without blocking everything else.
+      const ready: PendingSyncItem[] = [];
+      for (const item of batch) {
+        if (await ensureRemoteImage(item, slug, apiKey)) ready.push(item);
+      }
+
+      if (ready.length > 0) {
+        const changes = ready.map(toSyncChange).filter((c): c is SyncChange => c !== null);
+        if (changes.length > 0) {
+          if (__DEV__) console.log('[onlineStore] pushing sync batch:', changes.length);
+          const result = await pushSync(slug, apiKey, changes);
+          await setLastSyncAt(result.syncedAt);
+        }
+        await clearSyncQueue(ready.map((p) => p.queueId));
+      }
+
+      done += batch.length;
+      onProgress?.(done, total);
     }
-    await clearSyncQueue(ready.map((p) => p.queueId));
+
     await clearLastSyncError();
   } catch (err) {
     if (err instanceof OnlineStoreApiError && err.status === 402) {
