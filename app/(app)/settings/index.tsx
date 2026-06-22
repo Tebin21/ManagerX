@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';

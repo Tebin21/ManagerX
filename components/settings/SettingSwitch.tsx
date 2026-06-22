@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Switch, StyleSheet } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';

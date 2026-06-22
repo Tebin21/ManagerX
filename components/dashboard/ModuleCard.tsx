@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { MotiView } from 'moti';

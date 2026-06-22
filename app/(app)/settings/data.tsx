@@ -18,18 +18,19 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { applyKurdishFont } from '@/lib/settingsFont';
 import { getDatabase } from '@/lib/sqlite';
 import {
   exportBackup,
@@ -56,6 +57,7 @@ export default function DataScreen() {
   const { flexDirection }  = useRTL();
   const router             = useRouter();
   const signOut            = useAuthStore((s) => s.signOut);
+  const isKurdish          = useLanguageStore((s) => s.language === 'ku');
 
   const [backing,          setBacking]          = useState(false);
   const [restoring,        setRestoring]        = useState(false);
@@ -378,7 +380,7 @@ export default function DataScreen() {
             </Text>
 
             <TextInput
-              style={[
+              style={applyKurdishFont(isKurdish, [
                 styles.resetInput,
                 {
                   borderColor: resetInput.trim().toUpperCase() === 'RESET'
@@ -387,7 +389,7 @@ export default function DataScreen() {
                   color: colors.black,
                   backgroundColor: isDark ? colors.gray50 : colors.gray50,
                 },
-              ]}
+              ])}
               placeholder={t('settings.dataScreen.resetInputPlaceholder')}
               placeholderTextColor={colors.gray400}
               value={resetInput}

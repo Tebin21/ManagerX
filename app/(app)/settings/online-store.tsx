@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';

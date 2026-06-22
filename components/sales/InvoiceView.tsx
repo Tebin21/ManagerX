@@ -7,7 +7,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useBusinessStore } from '@/store/businessStore';
 import type { Sale } from '@/types/sales';
-import { fmtIQD, formatDateTime } from '@/utils/formatters';
+import {
+  fmtIQD, fmtUSD, formatDate, formatTime,
+  getPaymentStatus, PAYMENT_STATUS_LABEL, type PaymentStatus,
+} from '@/utils/formatters';
 
 interface Props {
   sale: Sale;
@@ -17,115 +20,172 @@ interface Props {
 const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Cash', fib: 'FIB', debt: 'Debt',
 };
-const PAYMENT_BG: Record<string, string> = {
-  cash: '#D1FAE5', fib: '#DBEAFE', debt: '#FEE2E2',
+
+const STATUS_BG: Record<PaymentStatus, string> = {
+  paid: '#D1FAE5', partial: '#FEF3C7', unpaid: '#FEE2E2',
 };
+const STATUS_TEXT: Record<PaymentStatus, string> = {
+  paid: '#065F46', partial: '#92400E', unpaid: '#991B1B',
+};
+
+function getInitials(name: string | null | undefined): string {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'B';
+  if (words.length === 1) return words[0].charAt(0).toUpperCase();
+  return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+}
 
 export function InvoiceView({ sale, compact = false }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection, alignStart } = useRTL();
-  const { logoUri } = useBusinessStore();
+  const { logoUri, name: businessName } = useBusinessStore();
   const [logoFailed, setLogoFailed] = useState(false);
 
-  const paymentTextColor: Record<string, string> = {
-    cash: '#065F46', fib: colors.darkBlue, debt: '#991B1B',
-  };
   const items = sale.items ?? [];
+  const status = getPaymentStatus(sale);
+  const exchangeRate = sale.exchangeRateUsed || 1310;
+  const valueAlign = isRTL ? 'left' : 'right';
+
+  const hasCustomer = !!(sale.customerName || sale.customerPhone || sale.customerAddress);
 
   return (
     <View>
-      {/* Logo */}
-      {logoUri && !logoFailed ? (
-        <View style={[styles.logoRow, { alignItems: alignStart }]}>
-          <Image
-            source={{ uri: logoUri }}
-            style={styles.logo}
-            resizeMode="contain"
-            onError={() => setLogoFailed(true)}
-          />
-        </View>
-      ) : null}
-
-      {/* Header row */}
+      {/* Header */}
       <View style={[styles.headerRow, { flexDirection }]}>
-        <View>
-          <Text style={[styles.invoiceNumber, { textAlign }]}>{sale.invoiceNumber}</Text>
-          <Text style={[styles.date, { textAlign }]}>{formatDateTime(sale.date ?? sale.createdAt)}</Text>
+        <View style={[styles.logoWrap, { alignItems: alignStart }]}>
+          {logoUri && !logoFailed ? (
+            <Image
+              source={{ uri: logoUri }}
+              style={styles.logo}
+              resizeMode="contain"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <View style={[styles.logoMono, { backgroundColor: colors.gray100 }]}>
+              <Text style={[styles.logoMonoText, { color: colors.gray600 }]}>{getInitials(businessName)}</Text>
+            </View>
+          )}
         </View>
-        <View style={[styles.payBadge, { backgroundColor: PAYMENT_BG[sale.paymentMethod] }]}>
-          <Text style={[styles.payBadgeText, { color: paymentTextColor[sale.paymentMethod] }]}>
-            {PAYMENT_LABEL[sale.paymentMethod]}
-          </Text>
+        <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+          <Text style={[styles.invoiceNumber, { color: colors.black, textAlign }]}>{sale.invoiceNumber}</Text>
+          <View style={[styles.statusPill, { backgroundColor: STATUS_BG[status] }]}>
+            <Text style={[styles.statusPillText, { color: STATUS_TEXT[status] }]}>
+              {PAYMENT_STATUS_LABEL[status]}
+            </Text>
+          </View>
+          <Text style={[styles.methodLabel, { color: colors.gray400 }]}>{PAYMENT_LABEL[sale.paymentMethod]}</Text>
         </View>
       </View>
 
-      {/* Customer info */}
-      {(sale.customerName || sale.customerPhone) && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { textAlign }]}>Customer</Text>
-          {sale.customerName ? <Text style={[styles.infoText, { textAlign }]}>{sale.customerName}</Text> : null}
-          {sale.customerPhone ? <Text style={[styles.infoSub, { textAlign }]}>{sale.customerPhone}</Text> : null}
-          {sale.customerAddress ? <Text style={[styles.infoSub, { textAlign }]}>{sale.customerAddress}</Text> : null}
+      {/* Invoice info: two-column grid (Date/Time | Customer) */}
+      <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Invoice Info</Text>
+        <View style={[styles.infoGrid, { flexDirection }]}>
+          <View style={styles.infoCol}>
+            <View style={[styles.infoRow, { flexDirection }]}>
+              <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Date</Text>
+              <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{formatDate(sale.date ?? sale.createdAt)}</Text>
+            </View>
+            <View style={[styles.infoRow, { flexDirection }]}>
+              <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Time</Text>
+              <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{formatTime(sale.date ?? sale.createdAt)}</Text>
+            </View>
+          </View>
+          {hasCustomer && (
+            <View style={styles.infoCol}>
+              {sale.customerName ? (
+                <View style={[styles.infoRow, { flexDirection }]}>
+                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Name</Text>
+                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerName}</Text>
+                </View>
+              ) : null}
+              {sale.customerPhone ? (
+                <View style={[styles.infoRow, { flexDirection }]}>
+                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Phone</Text>
+                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerPhone}</Text>
+                </View>
+              ) : null}
+              {sale.customerAddress ? (
+                <View style={[styles.infoRow, { flexDirection }]}>
+                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Address</Text>
+                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerAddress}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
       {/* Warranty */}
       {sale.warranty ? (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { textAlign }]}>Warranty</Text>
-          <Text style={[styles.infoText, { textAlign }]}>{sale.warranty}</Text>
+        <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Warranty</Text>
+          <Text style={[styles.blockText, { color: colors.gray600, textAlign }]}>{sale.warranty}</Text>
         </View>
       ) : null}
 
       {/* Items */}
       {!compact && items.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { textAlign }]}>Items</Text>
+        <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Items</Text>
           {items.map((item, i) => (
-            <View key={item.id ?? i} style={[styles.itemRow, { flexDirection }]}>
+            <View
+              key={item.id ?? i}
+              style={[
+                styles.itemRow,
+                { flexDirection },
+                i % 2 === 1 ? { backgroundColor: colors.gray50 } : null,
+              ]}
+            >
               <View style={styles.itemLeft}>
-                <Text style={[styles.itemName, { textAlign }]}>{item.productName}</Text>
+                <Text style={[styles.itemName, { color: colors.black, textAlign }]}>{item.productName}</Text>
                 {item.itemId ? <Text style={[styles.itemId, { color: colors.primary, textAlign }]}>#{item.itemId}</Text> : null}
+                {item.discount > 0 ? (
+                  <Text style={[styles.itemDiscount, { color: Colors.success, textAlign }]}>−{fmtIQD(item.discount)} IQD</Text>
+                ) : null}
               </View>
-              <Text style={[styles.itemQty, { textAlign: isRTL ? 'left' : 'right' }]}>×{item.quantity}</Text>
-              <Text style={[styles.itemTotal, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(item.lineTotal)}</Text>
+              <Text style={[styles.itemQty, { color: colors.gray500, textAlign: valueAlign }]}>×{item.quantity}</Text>
+              <Text style={[styles.itemTotal, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(item.lineTotal)}</Text>
             </View>
           ))}
         </View>
       )}
 
-      {/* Totals */}
-      <View style={[styles.section, styles.totalsSection]}>
-        <View style={styles.totalRow}>
-          <Text style={[styles.totalLabel, { textAlign }]}>Subtotal</Text>
-          <Text style={[styles.totalValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(sale.subtotal)}</Text>
+      {/* Payment Summary */}
+      <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Payment Summary</Text>
+        <View style={[styles.totalRow, { flexDirection }]}>
+          <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Subtotal</Text>
+          <Text style={[styles.totalValue, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(sale.subtotal)}</Text>
         </View>
         {sale.discountTotal > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
-            <Text style={[styles.totalLabel, { textAlign }]}>Item Discounts</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(sale.discountTotal)}</Text>
+            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Item Discount</Text>
+            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>−{fmtIQD(sale.discountTotal)}</Text>
           </View>
         )}
         {(sale.globalDiscount ?? 0) > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
-            <Text style={[styles.totalLabel, { textAlign }]}>Global Discount</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(sale.globalDiscount!)}</Text>
+            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Invoice Discount</Text>
+            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
           </View>
         )}
-        <View style={[styles.totalRow, styles.grandRow]}>
-          <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>Grand Total</Text>
-          <Text style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(sale.grandTotal)}</Text>
+        <View style={[styles.grandRow, { flexDirection, borderTopColor: colors.gray200 }]}>
+          <Text style={[styles.grandLabel, { color: colors.black, textAlign }]}>Grand Total</Text>
+          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(sale.grandTotal)}</Text>
         </View>
         {sale.paymentMethod === 'debt' && (
           <>
-            <View style={[styles.totalRow, { flexDirection }]}>
-              <Text style={[styles.totalLabel, { textAlign }]}>Paid</Text>
-              <Text style={[styles.totalValue, { color: Colors.success, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(sale.paidAmount)}</Text>
-            </View>
+            {sale.paidAmount > 0 && (
+              <View style={[styles.totalRow, { flexDirection }]}>
+                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Paid</Text>
+                <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>{fmtIQD(sale.paidAmount)}</Text>
+              </View>
+            )}
             {sale.remainingDebt > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: Colors.error, textAlign }]}>Remaining Debt</Text>
-                <Text style={[styles.totalValue, { color: Colors.error, fontWeight: '700', textAlign: isRTL ? 'left' : 'right' }]}>
+                <Text style={[styles.totalValue, { color: Colors.error, fontWeight: '700', textAlign: valueAlign }]}>
                   {fmtIQD(sale.remainingDebt)}
                 </Text>
               </View>
@@ -134,11 +194,22 @@ export function InvoiceView({ sale, compact = false }: Props) {
         )}
       </View>
 
+      {/* USD conversion */}
+      <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
+        <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <Text style={[styles.usdLabel, { color: colors.gray400, textAlign }]}>Total (USD)</Text>
+          <Text style={[styles.usdAmount, { color: colors.black, textAlign }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+        </View>
+        <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign }]}>
+          Rate: {fmtIQD(exchangeRate)} IQD/USD
+        </Text>
+      </View>
+
       {/* Notes */}
       {sale.notes ? (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { textAlign }]}>Notes</Text>
-          <Text style={[styles.infoSub, { textAlign }]}>{sale.notes}</Text>
+        <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Notes</Text>
+          <Text style={[styles.blockText, { color: colors.gray600, textAlign }]}>{sale.notes}</Text>
         </View>
       ) : null}
     </View>
@@ -146,59 +217,84 @@ export function InvoiceView({ sale, compact = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  logoRow: { marginBottom: 12 },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: Theme.radius.md,
-  },
   headerRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  invoiceNumber: { fontSize: 17, fontWeight: '700', color: Colors.black, marginBottom: 2 },
-  date: { fontSize: 13, color: Colors.gray500 },
-  payBadge: {
+  logoWrap: { justifyContent: 'flex-start' },
+  logo: {
+    width: 56,
+    height: 56,
+    borderRadius: Theme.radius.md,
+  },
+  logoMono: {
+    width: 56,
+    height: 56,
+    borderRadius: Theme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoMonoText: { fontSize: 18, fontWeight: '800' },
+  invoiceNumber: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
+  statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: Theme.radius.full,
+    marginBottom: 4,
   },
-  payBadgeText: { fontSize: 13, fontWeight: '700' },
-  section: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
-    paddingTop: 12,
+  statusPillText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  methodLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+
+  card: {
+    borderWidth: 1,
+    borderRadius: Theme.radius.lg,
+    padding: 14,
     marginBottom: 12,
   },
-  sectionTitle: {
+  cardLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.gray400,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  infoText: { fontSize: 14, fontWeight: '600', color: Colors.black, marginBottom: 2 },
-  infoSub: { fontSize: 13, color: Colors.gray600, lineHeight: 18 },
+
+  infoGrid: { flexWrap: 'wrap', gap: 12 },
+  infoCol: { flex: 1, minWidth: 140 },
+  infoRow: { justifyContent: 'space-between', paddingVertical: 4 },
+  rowLabel: { fontSize: 12.5, flexShrink: 0 },
+  rowValue: { fontSize: 13, fontWeight: '600', flex: 1, marginLeft: 8 },
+
+  blockText: { fontSize: 13, lineHeight: 19 },
+
   itemRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: Theme.radius.sm,
   },
   itemLeft: { flex: 1 },
-  itemName: { fontSize: 13, fontWeight: '600', color: Colors.black },
+  itemName: { fontSize: 13, fontWeight: '600' },
   itemId: { fontSize: 11, marginTop: 1 },
-  itemQty: { fontSize: 13, color: Colors.gray500, marginHorizontal: 12 },
-  itemTotal: { fontSize: 14, fontWeight: '700', color: Colors.black },
-  totalsSection: { backgroundColor: Colors.gray50, borderRadius: Theme.radius.card, padding: 12, borderTopWidth: 0, marginBottom: 12 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  totalLabel: { fontSize: 13, color: Colors.gray500 },
-  totalValue: { fontSize: 13, fontWeight: '600', color: Colors.black },
-  grandRow: { marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.gray200, marginBottom: 0 },
+  itemDiscount: { fontSize: 11, fontWeight: '600', marginTop: 1 },
+  itemQty: { fontSize: 13, marginHorizontal: 12 },
+  itemTotal: { fontSize: 14, fontWeight: '700', minWidth: 70 },
+
+  totalRow: { justifyContent: 'space-between', marginBottom: 6 },
+  totalLabel: { fontSize: 13 },
+  totalValue: { fontSize: 13, fontWeight: '600' },
+  grandRow: {
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
   grandLabel: { fontSize: 15, fontWeight: '700' },
-  grandValue: { fontSize: 18, fontWeight: '700' },
+  grandValue: { fontSize: 22, fontWeight: '800' },
+
+  usdCard: { justifyContent: 'space-between', alignItems: 'center' },
+  usdLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  usdAmount: { fontSize: 18, fontWeight: '800' },
+  usdRate: { fontSize: 11.5 },
 });

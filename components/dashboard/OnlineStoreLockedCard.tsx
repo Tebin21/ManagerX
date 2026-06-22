@@ -24,7 +24,7 @@ interface Props {
 export function OnlineStoreLockedCard({ expired, legacy }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection } = useRTL();
   const router = useRouter();
   const [infoVisible, setInfoVisible] = useState(false);
 
@@ -52,7 +52,7 @@ export function OnlineStoreLockedCard({ expired, legacy }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.pitch, { color: colors.gray500 }]}>
+      <Text style={[styles.pitch, { color: colors.gray500, textAlign, writingDirection }]}>
         {expired ? t('dashboard.onlineStore.subscriptionRequired') : t('dashboard.onlineStore.lockedPitch')}
       </Text>
 

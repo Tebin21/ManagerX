@@ -1,3 +1,5 @@
+import type { Sale } from '@/types/sales';
+
 const IQD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 0, maximumFractionDigits: 0 };
 const USD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 const PCT_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
@@ -21,6 +23,25 @@ export function fmtRate(n: number): string {
 export function fmtExchangeRate(rate: number): string {
   return (rate * 100).toLocaleString('en-US', IQD_OPTS);
 }
+
+// ─── Payment Status ───────────────────────────────────────────────────────────
+
+export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
+
+export function getPaymentStatus(
+  sale: Pick<Sale, 'paymentMethod' | 'paidAmount' | 'remainingDebt'>
+): PaymentStatus {
+  if (sale.paymentMethod !== 'debt') return 'paid';
+  if (sale.remainingDebt <= 0) return 'paid';
+  if (sale.paidAmount > 0) return 'partial';
+  return 'unpaid';
+}
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  paid: 'Paid',
+  partial: 'Partial',
+  unpaid: 'Unpaid',
+};
 
 // ─── Date / Time Utilities ────────────────────────────────────────────────────
 

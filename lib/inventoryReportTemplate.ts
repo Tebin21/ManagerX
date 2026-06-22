@@ -1,5 +1,6 @@
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import { fmtIQD, fmtUSD, fmtPct } from '@/utils/formatters';
+import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -75,10 +76,11 @@ export function buildInventoryReportHTML(
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Inventory Report</title>
 <style>
+  ${KURDISH_FONT_FACE}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
     background: #F0F4F8;
     color: #0F172A;
     font-size: 14px;

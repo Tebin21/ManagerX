@@ -5,6 +5,7 @@ import type {
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
 import { fmtIQD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
+import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -140,10 +141,11 @@ export function buildFinancialReportHTML(
   const expTotal = expenses.reduce((s, e) => s + e.amount, 0);
 
   const CSS = `
+    ${KURDISH_FONT_FACE}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       direction: ltr;
-      font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+      font-family: 'Arial', 'Helvetica Neue', Helvetica, 'Rudaw', sans-serif;
       background: #FFFFFF;
       color: #111111;
       font-size: 13px;

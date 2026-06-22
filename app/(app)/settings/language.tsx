@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';

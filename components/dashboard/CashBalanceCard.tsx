@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/AppText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';

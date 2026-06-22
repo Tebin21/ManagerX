@@ -1,6 +1,10 @@
 import type { Sale } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD, fmtUSD, fmtPct, formatDateTime } from '@/utils/formatters';
+import {
+  fmtIQD, fmtUSD, fmtPct, formatDate, formatTime,
+  getPaymentStatus, PAYMENT_STATUS_LABEL,
+} from '@/utils/formatters';
+import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -18,199 +22,187 @@ function escHtml(str: string): string {
 }
 
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
+// Mirrors PURCHASE_CSS's design system (monochrome, 3-column header, card
+// layout) exactly — kept as a separate constant so the two templates can
+// still diverge in the few places sales genuinely needs more (discount
+// column, 3-state payment status), without risking the purchase template.
 
-const BASE_CSS = `
+const SALES_CSS = `
+  ${KURDISH_FONT_FACE}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
     background: #ffffff;
-    color: #111111;
+    color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
 
-  /* ── Header ── */
+  /* ── Header: 3-column (Business | Customer | Invoice Info) ── */
   .header {
-    background: #ffffff;
-    padding: 32px 32px 24px;
-    border-bottom: 2px solid #111111;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .header-inner {
+  .header-cols {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    gap: 20px;
+    page-break-inside: avoid;
   }
-  .logo {
-    height: 56px;
-    max-width: 140px;
-    object-fit: contain;
-    margin-bottom: 10px;
-    display: block;
-    border: 1px solid #e5e5e5;
-    border-radius: 6px;
-    padding: 4px;
+  .col-business, .col-customer, .col-invoice {
+    flex: 1 1 33%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
-  .biz-name { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; color: #111; margin-bottom: 3px; }
-  .biz-meta { font-size: 12px; color: #666; line-height: 1.6; }
-  .inv-col { text-align: right; }
-  .inv-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #999; margin-bottom: 6px; }
-  .inv-number { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; color: #111; margin-bottom: 3px; }
-  .inv-date { font-size: 12px; color: #666; margin-bottom: 10px; }
+  .col-business { padding-right: 18px; }
+  .col-customer { padding: 0 18px; border-left: 1px solid #e2e8f0; }
+  .col-invoice  { padding-left: 18px; border-left: 1px solid #e2e8f0; }
 
-  /* ── Payment Badges ── */
-  .badge-cash {
+  .logo-frame {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    margin-bottom: 8px;
+  }
+  .logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .logo-mono {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: #000000;
+    background: linear-gradient(135deg, #eef2f7, #e2e8f0);
+  }
+  .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; margin-bottom: 4px; }
+  .biz-meta { font-size: 12px; color: #000000; line-height: 1.6; }
+
+  .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
+  .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
+  .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
+  .inv-status-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+
+  .pill {
     display: inline-block;
-    border: 1.5px solid #111;
-    padding: 3px 12px;
-    font-size: 10px;
+    padding: 4px 14px;
+    font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    color: #111;
+    border-radius: 999px;
   }
-  .badge-fib {
-    display: inline-block;
-    border: 1.5px solid #111;
-    padding: 3px 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: #111;
-  }
-  .badge-debt {
-    display: inline-block;
-    border: 1.5px dashed #888;
-    padding: 3px 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: #666;
-  }
+  .pill-paid    { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .pill-partial { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
+  .pill-debt    { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
   /* ── Body ── */
-  .body { padding: 0 32px 24px; }
+  .body { padding: 18px 32px 24px; }
 
-  /* ── Sections ── */
-  .section { border-bottom: 1px solid #e5e5e5; padding: 20px 0; }
-  .section-label {
-    font-size: 9.5px;
+  /* ── Cards ── */
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+  }
+  .card-tint { background: #f8fafc; }
+  .card-label {
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #999;
+    letter-spacing: 1.1px;
+    color: #000000;
     margin-bottom: 12px;
   }
 
-  /* ── Info rows ── */
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 16px;
-    padding: 5px 0;
-    font-size: 13px;
-    border-bottom: 1px solid #f5f5f5;
-  }
-  .info-row:last-child { border-bottom: none; }
-  .row-label { color: #888; font-size: 12.5px; min-width: 100px; flex-shrink: 0; }
-  .row-value { color: #111; font-weight: 500; text-align: right; }
+  /* ── Customer info rows: compact, label hugs value ── */
+  .info-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
+  .row-label { color: #000000; font-weight: 700; }
+  .row-value { color: #000000; font-weight: 500; }
 
   /* ── Table ── */
-  .table-wrap { border: 1px solid #e5e5e5; overflow: hidden; }
-  table { width: 100%; border-collapse: collapse; }
+  .table-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tbody tr { page-break-inside: avoid; }
   th {
-    background: #f7f7f7;
-    color: #999;
-    font-size: 9.5px;
+    background: #f8fafc;
+    color: #000000;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.7px;
-    padding: 9px 10px;
-    border-bottom: 1px solid #e5e5e5;
+    letter-spacing: 0.8px;
+    padding: 12px 14px;
+    border-bottom: 1.5px solid #e2e8f0;
   }
   td {
-    padding: 10px 10px;
+    padding: 11px 14px;
     font-size: 13px;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
-    color: #222;
+    color: #000000;
   }
-  tr:last-child td { border-bottom: none; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
   .right  { text-align: right; }
-  .item-name { font-weight: 600; color: #111; font-size: 13px; display: block; }
-  .item-id {
+  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; }
+  .id-chip {
     display: inline-block;
-    margin-top: 3px;
-    font-size: 10px;
-    color: #555;
-    border: 1px solid #ddd;
+    font-size: 9.5px;
+    color: #000000;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     padding: 1px 6px;
     font-weight: 600;
   }
-  .num-col { color: #bbb; font-size: 12px; font-weight: 600; text-align: center; }
+  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; }
+  .empty-row { text-align: center; color: #000000; padding: 26px 14px; font-size: 13px; }
+  .muted-cell { color: #94a3b8; }
 
-  /* ── Financial rows ── */
+  /* ── Financial ── */
   .fin-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
+    padding: 7px 0;
     font-size: 13.5px;
-    color: #555;
-    border-bottom: 1px solid #f5f5f5;
+    color: #000000;
   }
-  .fin-row:last-child { border-bottom: none; }
-  .fin-row.grand {
-    border-top: 2px solid #111;
-    border-bottom: none;
-    margin-top: 8px;
-    padding-top: 13px;
-    font-size: 17px;
-    font-weight: 800;
-    color: #111;
-  }
-  .fin-row.usd-conv {
-    font-size: 11.5px;
-    color: #999;
-    padding-top: 3px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #ebebeb;
-  }
-  .fin-amount { font-weight: 600; min-width: 130px; text-align: right; }
-  .fin-amount.grand-amt { font-weight: 800; }
+  .fin-amount { font-weight: 600; color: #000000; }
 
-  /* ── Block text ── */
-  .block-text { font-size: 13px; color: #444; line-height: 1.7; }
-
-  /* ── Signature ── */
-  .sig-section {
-    padding: 32px 0 8px;
+  .total-block {
     display: flex;
     justify-content: space-between;
-    gap: 40px;
+    align-items: baseline;
+    padding-top: 12px;
+    margin-top: 6px;
+    border-top: 1px solid #e2e8f0;
   }
-  .sig-box { flex: 1; text-align: center; }
-  .sig-space { height: 48px; }
-  .sig-line { border-top: 1px solid #aaa; margin-bottom: 8px; }
-  .sig-label {
-    font-size: 9.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.9px;
-    color: #999;
-  }
+  .total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000000; }
+  .total-amount { font-size: 26px; font-weight: 800; color: #000000; letter-spacing: -0.4px; }
+
+  /* ── USD conversion ── */
+  .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .usd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #000000; margin-bottom: 6px; }
+  .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
+
+  /* ── Block text ── */
+  .block-text { font-size: 13px; color: #000000; line-height: 1.7; }
 
   /* ── Footer ── */
   .footer {
-    border-top: 1px solid #ebebeb;
+    border-top: 1px solid #f1f5f9;
     text-align: center;
-    padding: 16px 32px 20px;
-    color: #bbb;
+    padding: 16px 36px 22px;
+    color: #cbd5e1;
     font-size: 11px;
   }
 
@@ -228,57 +220,48 @@ export function buildInvoiceHTML(
   const items = sale.items ?? [];
   const lang = 'en';
 
+  const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
-    : '';
+    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+    : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
-  const bizContact = [business.phone, business.address]
-    .map((v) => escHtml(v ?? ''))
-    .filter(Boolean)
-    .join(' &nbsp;·&nbsp; ');
+  const paymentStatus = getPaymentStatus(sale);
+  const pillClass = paymentStatus === 'paid' ? 'pill-paid' : paymentStatus === 'partial' ? 'pill-partial' : 'pill-debt';
+  const statusBadge = `<span class="pill ${pillClass}">${PAYMENT_STATUS_LABEL[paymentStatus]}</span>`;
 
-  const paymentBadge = sale.paymentMethod === 'cash'
-    ? '<span class="badge-cash">Cash</span>'
-    : sale.paymentMethod === 'fib'
-      ? '<span class="badge-fib">FIB</span>'
-      : '<span class="badge-debt">Debt</span>';
+  // ── Customer (rendered inside the header's middle column) ──
+  const customerColumn = (sale.customerName || sale.customerPhone || sale.customerAddress) ? `
+      <div class="card-label">Customer</div>
+      ${sale.customerName    ? `<div class="info-row"><span class="row-label">Name:</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
+      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">Phone:</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
+      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">Address:</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
 
-  const itemRows = items.map((item, i) => `
+  // ── Items table — Product ID is always its own column, never hidden ──
+  const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col">${i + 1}</td>
-      <td>
-        <span class="item-name">${escHtml(item.productName)}</span>
-        ${item.itemId ? `<span class="item-id">#${escHtml(item.itemId)}</span>` : ''}
-      </td>
+      <td><span class="item-name">${escHtml(item.productName)}</span></td>
+      <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${fmtIQD(item.sellingPrice)} IQD</td>
-      <td class="right">${item.discount > 0 ? fmtIQD(item.discount) + ' IQD' : '<span style="color:#ccc;">—</span>'}</td>
-      <td class="right" style="font-weight:700;color:#111;">${fmtIQD(item.lineTotal)} IQD</td>
+      <td class="right">${item.discount > 0 ? fmtIQD(item.discount) + ' IQD' : '<span class="muted-cell">—</span>'}</td>
+      <td class="right" style="font-weight:700;">${fmtIQD(item.lineTotal)} IQD</td>
     </tr>
-  `).join('');
+  `).join('') : `<tr><td colspan="7" class="empty-row">No items</td></tr>`;
 
-  const customerBlock = (sale.customerName || sale.customerPhone || sale.customerAddress) ? `
-    <div class="section">
-      <div class="section-label">Customer</div>
-      ${sale.customerName    ? `<div class="info-row"><span class="row-label">Name</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
-      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">Phone</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
-      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">Address</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}
-    </div>
-  ` : '';
+  const dateTimeValue = sale.date ?? sale.createdAt;
 
   const warrantyBlock = sale.warranty ? `
-    <div class="section">
-      <div class="section-label">Warranty</div>
+    <div class="card">
+      <div class="card-label">Warranty</div>
       <p class="block-text">${escHtml(sale.warranty)}</p>
-    </div>
-  ` : '';
+    </div>` : '';
 
   const notesBlock = sale.notes ? `
-    <div class="section">
-      <div class="section-label">Notes</div>
+    <div class="card">
+      <div class="card-label">Notes</div>
       <p class="block-text">${escHtml(sale.notes)}</p>
-    </div>
-  ` : '';
+    </div>` : '';
 
   const totalUSD = fmtUSD(sale.grandTotal / exchangeRate);
 
@@ -291,8 +274,43 @@ export function buildInvoiceHTML(
   const debtRow = sale.remainingDebt > 0 ? `
     <div class="fin-row">
       <span>Remaining Debt</span>
-      <span class="fin-amount" style="color:#333;font-weight:700;">${fmtIQD(sale.remainingDebt)} IQD</span>
+      <span class="fin-amount" style="font-weight:700;">${fmtIQD(sale.remainingDebt)} IQD</span>
     </div>` : '';
+
+  const financialCard = `
+    <div class="card">
+      <div class="card-label">Payment Summary</div>
+      <div class="fin-row">
+        <span>Subtotal</span>
+        <span class="fin-amount">${fmtIQD(sale.subtotal)} IQD</span>
+      </div>
+      ${sale.discountTotal > 0 ? `
+      <div class="fin-row">
+        <span>Item Discount Total</span>
+        <span class="fin-amount">− ${fmtIQD(sale.discountTotal)} IQD</span>
+      </div>` : ''}
+      ${sale.globalDiscount > 0 ? `
+      <div class="fin-row">
+        <span>Cart Discount Total</span>
+        <span class="fin-amount">− ${fmtIQD(sale.globalDiscount)} IQD</span>
+      </div>` : ''}
+      <div class="total-block">
+        <span class="total-label">Total (IQD)</span>
+        <span class="total-amount">${fmtIQD(sale.grandTotal)} IQD</span>
+      </div>
+      ${paidRow}
+      ${debtRow}
+    </div>`;
+
+  const usdCard = `
+    <div class="card card-tint">
+      <div class="usd-row">
+        <div>
+          <div class="usd-label">Total (USD)</div>
+          <div class="usd-amount">$${totalUSD}</div>
+        </div>
+      </div>
+    </div>`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="ltr">
@@ -300,98 +318,68 @@ export function buildInvoiceHTML(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${escHtml(sale.invoiceNumber)}</title>
-<style>${BASE_CSS}</style>
+<style>${SALES_CSS}</style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-inner">
-    <div class="biz-info">
-      ${logoHTML}
+  <div class="header-cols">
+    <div class="col-business">
+      <div class="logo-frame">
+        ${logoHTML}
+      </div>
       <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${bizContact ? `<div class="biz-meta">${bizContact}</div>` : ''}
+      ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
-    <div class="inv-col">
-      <div class="inv-label">Invoice</div>
-      <div class="inv-number">${escHtml(sale.invoiceNumber)}</div>
-      <div class="inv-date">${formatDateTime(sale.date ?? sale.createdAt)}</div>
-      ${paymentBadge}
+    <div class="col-customer">
+      ${customerColumn}
+    </div>
+    <div class="col-invoice">
+      <div class="inv-label">Sales Invoice</div>
+      <div class="inv-meta-title">Invoice #${escHtml(sale.invoiceNumber)}</div>
+      <div class="inv-meta-line">Date: ${escHtml(formatDate(dateTimeValue))}</div>
+      <div class="inv-meta-line">Time: ${escHtml(formatTime(dateTimeValue))}</div>
+      <div class="inv-status-row">
+        <span class="inv-meta-line">Status:</span>
+        ${statusBadge}
+      </div>
     </div>
   </div>
 </div>
 
 <div class="body">
 
-  ${customerBlock}
   ${warrantyBlock}
 
-  <div class="section">
-    <div class="section-label">Items</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th class="center" style="width:32px;">#</th>
-            <th style="text-align:left;">Item</th>
-            <th class="center" style="width:44px;">Qty</th>
-            <th class="right" style="width:100px;">Price</th>
-            <th class="right" style="width:90px;">Disc</th>
-            <th class="right" style="width:110px;">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemRows}
-        </tbody>
-      </table>
-    </div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th class="center" style="width:30px;">#</th>
+          <th style="text-align:left;">Product</th>
+          <th class="center" style="width:100px;">Product ID</th>
+          <th class="center" style="width:50px;">Qty</th>
+          <th class="right" style="width:100px;">Unit Price</th>
+          <th class="right" style="width:90px;">Discount</th>
+          <th class="right" style="width:110px;">Line Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
   </div>
 
-  <div class="section">
-    <div class="section-label">Payment Summary</div>
-    <div class="fin-row">
-      <span>Subtotal</span>
-      <span class="fin-amount">${fmtIQD(sale.subtotal)} IQD</span>
-    </div>
-    ${sale.discountTotal > 0 ? `
-    <div class="fin-row">
-      <span>Discount</span>
-      <span class="fin-amount" style="color:#555;">− ${fmtIQD(sale.discountTotal)} IQD</span>
-    </div>` : ''}
-    <div class="fin-row grand">
-      <span>Total</span>
-      <span class="fin-amount grand-amt">${fmtIQD(sale.grandTotal)} IQD</span>
-    </div>
-    <div class="fin-row usd-conv">
-      <span></span>
-      <span>= ${totalUSD} USD &nbsp;·&nbsp; 100 USD = ${fmtIQD(exchangeRate * 100)} IQD</span>
-    </div>
-    ${paidRow}
-    ${debtRow}
-    <div class="fin-row" style="padding-top:8px;">
-      <span>Payment Status</span>
-      <span class="fin-amount">${paymentBadge}</span>
-    </div>
-  </div>
+  ${financialCard}
+  ${usdCard}
 
   ${notesBlock}
-
-  <div class="sig-section">
-    <div class="sig-box">
-      <div class="sig-space"></div>
-      <div class="sig-line"></div>
-      <div class="sig-label">Business Signature</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-space"></div>
-      <div class="sig-line"></div>
-      <div class="sig-label">Customer Signature</div>
-    </div>
-  </div>
 
 </div>
 
 <div class="footer">
-  Invoice &nbsp;·&nbsp; Powered by ManagerX &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
+  Sales Invoice &nbsp;·&nbsp; Powered by ManagerX &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
 </div>
 
 </body>
@@ -412,190 +400,211 @@ export interface PurchaseItemRow {
 
 
 const PURCHASE_CSS = `
+  ${KURDISH_FONT_FACE}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
     background: #ffffff;
-    color: #111111;
+    color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
 
-  /* ── Header ── */
+  /* ── Header: 3-column (Business | Supplier | Invoice Info) ── */
   .header {
-    background: #ffffff;
-    padding: 32px 32px 24px;
-    border-bottom: 2px solid #111111;
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .header-inner {
+  .header-cols {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    gap: 20px;
+    page-break-inside: avoid;
   }
-  .logo {
-    height: 56px;
-    max-width: 140px;
-    object-fit: contain;
-    margin-bottom: 10px;
-    display: block;
-    border: 1px solid #e5e5e5;
-    border-radius: 6px;
-    padding: 4px;
+  .col-business, .col-supplier, .col-invoice {
+    flex: 1 1 33%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
-  .biz-name { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; color: #111; margin-bottom: 3px; }
-  .biz-meta { font-size: 12px; color: #666; line-height: 1.6; }
-  .inv-col { text-align: right; }
-  .inv-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #999; margin-bottom: 6px; }
-  .inv-number { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; color: #111; margin-bottom: 3px; }
-  .inv-date { font-size: 12px; color: #666; margin-bottom: 10px; }
-  .status-paid {
+  .col-business { padding-right: 18px; }
+  .col-supplier { padding: 0 18px; border-left: 1px solid #e2e8f0; }
+  .col-invoice  { padding-left: 18px; border-left: 1px solid #e2e8f0; }
+
+  .logo-frame {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    margin-bottom: 8px;
+  }
+  .logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .logo-mono {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: #000000;
+    background: linear-gradient(135deg, #eef2f7, #e2e8f0);
+  }
+  .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; margin-bottom: 4px; }
+  .biz-meta { font-size: 12px; color: #000000; line-height: 1.6; }
+
+  .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
+  .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
+  .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
+  .inv-status-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+
+  .pill {
     display: inline-block;
-    border: 1.5px solid #111;
-    padding: 3px 12px;
-    font-size: 10px;
+    padding: 4px 14px;
+    font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    color: #111;
+    border-radius: 999px;
   }
-  .status-debt {
-    display: inline-block;
-    border: 1.5px dashed #888;
-    padding: 3px 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-    color: #666;
-  }
+  .pill-paid { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .pill-debt { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
   /* ── Body ── */
-  .body { padding: 0 32px 24px; }
+  .body { padding: 18px 32px 24px; }
 
-  /* ── Sections ── */
-  .section { border-bottom: 1px solid #e5e5e5; padding: 20px 0; }
-  .section-label {
-    font-size: 9.5px;
+  /* ── Cards ── */
+  .card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+  }
+  .card-tint { background: #f8fafc; }
+  .card-label {
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #999;
+    letter-spacing: 1.1px;
+    color: #000000;
     margin-bottom: 12px;
   }
 
-  /* ── Info rows ── */
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 16px;
-    padding: 5px 0;
-    font-size: 13px;
-    border-bottom: 1px solid #f5f5f5;
-  }
-  .info-row:last-child { border-bottom: none; }
-  .row-label { color: #888; font-size: 12.5px; min-width: 100px; flex-shrink: 0; }
-  .row-value { color: #111; font-weight: 500; text-align: right; }
+  /* ── Supplier info rows: compact, label hugs value ── */
+  .info-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
+  .row-label { color: #000000; font-weight: 700; }
+  .row-value { color: #000000; font-weight: 500; }
 
   /* ── Table ── */
-  .table-wrap { border: 1px solid #e5e5e5; overflow: hidden; }
-  table { width: 100%; border-collapse: collapse; }
+  .table-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tbody tr { page-break-inside: avoid; }
   th {
-    background: #f7f7f7;
-    color: #999;
-    font-size: 9.5px;
+    background: #f8fafc;
+    color: #000000;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.7px;
-    padding: 9px 10px;
-    border-bottom: 1px solid #e5e5e5;
+    letter-spacing: 0.8px;
+    padding: 12px 14px;
+    border-bottom: 1.5px solid #e2e8f0;
   }
   td {
-    padding: 10px 10px;
+    padding: 11px 14px;
     font-size: 13px;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
-    color: #222;
+    color: #000000;
   }
-  tr:last-child td { border-bottom: none; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
   .right  { text-align: right; }
-  .item-name { font-weight: 600; color: #111; font-size: 13px; display: block; }
+  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; }
   .item-id {
     display: inline-block;
     margin-top: 3px;
-    font-size: 10px;
-    color: #555;
-    border: 1px solid #ddd;
+    font-size: 9.5px;
+    color: #000000;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     padding: 1px 6px;
     font-weight: 600;
   }
-  .num-col { color: #bbb; font-size: 12px; font-weight: 600; text-align: center; }
+  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; }
 
   /* ── Financial ── */
   .fin-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
+    padding: 7px 0;
     font-size: 13.5px;
-    color: #555;
-    border-bottom: 1px solid #f5f5f5;
+    color: #000000;
   }
-  .fin-row:last-child { border-bottom: none; }
-  .fin-row.grand {
-    border-top: 2px solid #111;
-    border-bottom: none;
-    margin-top: 8px;
-    padding-top: 13px;
-    font-size: 17px;
-    font-weight: 800;
-    color: #111;
-  }
-  .fin-row.usd-conv {
-    font-size: 11.5px;
-    color: #999;
-    padding-top: 3px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #ebebeb;
-  }
-  .fin-amount { font-weight: 600; min-width: 130px; text-align: right; }
-  .fin-amount.grand-amt { font-weight: 800; }
+  .fin-amount { font-weight: 600; color: #000000; }
+  .fin-amount.muted { color: #000000; font-weight: 600; }
 
-  /* ── Block text ── */
-  .block-text { font-size: 13px; color: #444; line-height: 1.7; }
-
-  /* ── Signature ── */
-  .sig-section {
-    padding: 32px 0 8px;
+  .total-block {
     display: flex;
     justify-content: space-between;
-    gap: 40px;
+    align-items: baseline;
+    padding-bottom: 14px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .sig-box { flex: 1; text-align: center; }
-  .sig-space { height: 48px; }
-  .sig-line { border-top: 1px solid #aaa; margin-bottom: 8px; }
-  .sig-label {
-    font-size: 9.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.9px;
-    color: #999;
-  }
+  .total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000000; }
+  .total-amount { font-size: 26px; font-weight: 800; color: #000000; letter-spacing: -0.4px; }
+
+  /* ── USD conversion ── */
+  .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .usd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #000000; margin-bottom: 6px; }
+  .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
+
+  /* ── Block text ── */
+  .block-text { font-size: 13px; color: #000000; line-height: 1.7; }
 
   /* ── Footer ── */
   .footer {
-    border-top: 1px solid #ebebeb;
+    border-top: 1px solid #f1f5f9;
     text-align: center;
-    padding: 16px 32px 20px;
-    color: #bbb;
+    padding: 16px 36px 22px;
+    color: #cbd5e1;
     font-size: 11px;
   }
 
   @media print { body { background: white; } }
 `;
+
+// Stored purchase lines can represent several physically distinct units
+// (idType 'custom' -> one itemId per unit). Those must render as separate
+// rows; a single shared/blank id collapses back into one row for the full
+// quantity, matching what was actually entered for the purchase.
+interface PurchaseDisplayRow {
+  name: string;
+  qty: number;
+  unitPriceIQD: number;
+  totalIQD: number;
+  idChip: string | null;
+}
+
+function expandPurchaseRow(
+  name: string,
+  qty: number,
+  unitPriceIQD: number,
+  lineTotalIQD: number,
+  itemIds: string[],
+): PurchaseDisplayRow[] {
+  const ids = itemIds.map((v) => v.trim()).filter(Boolean);
+  if (ids.length > 1) {
+    return ids.map((id) => ({ name, qty: 1, unitPriceIQD, totalIQD: unitPriceIQD, idChip: id }));
+  }
+  return [{ name, qty, unitPriceIQD, totalIQD: lineTotalIQD, idChip: ids[0] ?? null }];
+}
 
 export function buildPurchaseInvoiceHTML(
   purchase: Purchase,
@@ -605,89 +614,54 @@ export function buildPurchaseInvoiceHTML(
 ): string {
   const lang = 'en';
 
+  const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
-    : '';
+    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+    : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const statusBadge = purchase.paymentStatus === 'paid'
-    ? '<span class="status-paid">Paid</span>'
-    : '<span class="status-debt">Debt</span>';
+    ? '<span class="pill pill-paid">Paid</span>'
+    : '<span class="pill pill-debt">Debt</span>';
 
-  const bizContact = [business.phone, business.address]
-    .map((v) => escHtml(v ?? ''))
-    .filter(Boolean)
-    .join(' &nbsp;·&nbsp; ');
-
-  // ── Supplier ──
-  const supplierBlock = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
-    <div class="section">
-      <div class="section-label">Supplier</div>
-      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">Name</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
-      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">Phone</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
-      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">Address</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}
-    </div>` : '';
+  // ── Supplier (rendered inside the header's middle column) ──
+  const supplierColumn = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
+      <div class="card-label">Supplier</div>
+      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">Name:</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
+      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">Phone:</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
+      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">Address:</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
-  let itemsContent: string;
-  if (purchaseItems.length > 0) {
-    const rows = purchaseItems.map((item, i) => {
-      const firstId = item.itemIds.find((v) => v.trim());
-      return `
+  const displayRows: PurchaseDisplayRow[] = purchaseItems.length > 0
+    ? purchaseItems.flatMap((item) => expandPurchaseRow(item.productName, item.quantity, item.buyPriceIQD, item.lineTotalIQD, item.itemIds))
+    : expandPurchaseRow(purchase.productName, purchase.quantity, purchase.buyPriceIQD, purchase.totalIQD, purchase.itemIds);
+
+  const rows = displayRows.map((row, i) => `
         <tr>
           <td class="num-col">${i + 1}</td>
           <td>
-            <span class="item-name">${escHtml(item.productName)}</span>
-            ${firstId ? `<span class="item-id">#${escHtml(firstId)}</span>` : ''}
+            <span class="item-name">${escHtml(row.name)}</span>
+            ${row.idChip ? `<span class="item-id">ID: ${escHtml(row.idChip)}</span>` : ''}
           </td>
-          <td class="center">${item.quantity}</td>
-          <td class="right">${fmtIQD(item.buyPriceIQD)} IQD</td>
-          <td class="right" style="font-weight:700;color:#111;">${fmtIQD(item.lineTotalIQD)} IQD</td>
-        </tr>`;
-    }).join('');
-    itemsContent = `
-      <div class="table-wrap">
+          <td class="center">${row.qty}</td>
+          <td class="right">${fmtIQD(row.unitPriceIQD)} IQD</td>
+          <td class="right" style="font-weight:700;">${fmtIQD(row.totalIQD)} IQD</td>
+        </tr>`).join('');
+
+  const itemsContent = `
+      <div class="table-card">
         <table>
           <thead>
             <tr>
-              <th class="center" style="width:32px;">#</th>
+              <th class="center" style="width:36px;">#</th>
               <th style="text-align:left;">Product</th>
-              <th class="center" style="width:44px;">Qty</th>
-              <th class="right" style="width:120px;">Unit Price</th>
-              <th class="right" style="width:120px;">Total</th>
+              <th class="center" style="width:60px;">Qty</th>
+              <th class="right" style="width:130px;">Unit Price (IQD)</th>
+              <th class="right" style="width:130px;">Total (IQD)</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
-  } else {
-    const firstId = purchase.itemIds.find((v) => v.trim());
-    itemsContent = `
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width:32px;">#</th>
-              <th style="text-align:left;">Product</th>
-              <th class="center" style="width:44px;">Qty</th>
-              <th class="right" style="width:120px;">Unit Price</th>
-              <th class="right" style="width:120px;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="num-col">1</td>
-              <td>
-                <span class="item-name">${escHtml(purchase.productName)}</span>
-                ${firstId ? `<span class="item-id">#${escHtml(firstId)}</span>` : ''}
-              </td>
-              <td class="center">${purchase.quantity}</td>
-              <td class="right">${fmtIQD(purchase.buyPriceIQD)} IQD</td>
-              <td class="right" style="font-weight:700;color:#111;">${fmtIQD(purchase.totalIQD)} IQD</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>`;
-  }
 
   // ── Financial ──
   const exchangeRate = purchase.exchangeRate > 0 ? purchase.exchangeRate : 1310;
@@ -696,42 +670,53 @@ export function buildPurchaseInvoiceHTML(
   const paidRows = purchase.paymentStatus === 'paid'
     ? `<div class="fin-row"><span>Amount Paid</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
        <div class="fin-row"><span>Remaining Debt</span><span class="fin-amount">0 IQD</span></div>`
-    : `<div class="fin-row"><span>Amount Paid</span><span class="fin-amount" style="color:#aaa;">—</span></div>
-       <div class="fin-row"><span>Remaining Debt</span><span class="fin-amount" style="color:#aaa;">—</span></div>`;
+    : `<div class="fin-row"><span>Amount Paid</span><span class="fin-amount muted">—</span></div>
+       <div class="fin-row"><span>Remaining Debt</span><span class="fin-amount muted">—</span></div>`;
 
-  const financialSection = `
-    <div class="fin-row"><span>Subtotal</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
-    <div class="fin-row grand"><span>Total</span><span class="fin-amount grand-amt">${fmtIQD(purchase.totalIQD)} IQD</span></div>
-    <div class="fin-row usd-conv">
-      <span></span>
-      <span>= ${totalUSD} USD &nbsp;·&nbsp; 100 USD = ${fmtIQD(exchangeRate * 100)} IQD</span>
-    </div>
-    ${paidRows}
-    <div class="fin-row" style="padding-top:8px;">
-      <span>Payment Status</span>
-      <span class="fin-amount">${statusBadge}</span>
+  const financialCard = `
+    <div class="card">
+      <div class="card-label">Payment Summary</div>
+      <div class="total-block">
+        <span class="total-label">Total (IQD)</span>
+        <span class="total-amount">${fmtIQD(purchase.totalIQD)} IQD</span>
+      </div>
+      ${paidRows}
+      <div class="fin-row">
+        <span>Payment Status</span>
+        <span>${statusBadge}</span>
+      </div>
+    </div>`;
+
+  const usdCard = `
+    <div class="card card-tint">
+      <div class="usd-row">
+        <div>
+          <div class="usd-label">Total (USD)</div>
+          <div class="usd-amount">$${totalUSD}</div>
+        </div>
+      </div>
     </div>`;
 
   // ── Optional blocks ──
   const warrantyBlock = purchase.warranty ? `
-    <div class="section">
-      <div class="section-label">Warranty</div>
+    <div class="card">
+      <div class="card-label">Warranty</div>
       <p class="block-text">${escHtml(purchase.warranty)}</p>
     </div>` : '';
 
   const descriptionBlock = purchase.description ? `
-    <div class="section">
-      <div class="section-label">Description</div>
+    <div class="card">
+      <div class="card-label">Description</div>
       <p class="block-text">${escHtml(purchase.description)}</p>
     </div>` : '';
 
   const notesBlock = purchase.notes ? `
-    <div class="section">
-      <div class="section-label">Notes</div>
+    <div class="card">
+      <div class="card-label">Notes</div>
       <p class="block-text">${escHtml(purchase.notes)}</p>
     </div>` : '';
 
-  const dateTimeStr = formatDateTime(purchase.date ?? purchase.createdAt);
+  const purchaseDateTime = purchase.date ?? purchase.createdAt;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="ltr">
@@ -744,51 +729,41 @@ export function buildPurchaseInvoiceHTML(
 <body>
 
 <div class="header">
-  <div class="header-inner">
-    <div class="biz-info">
-      ${logoHTML}
+  <div class="header-cols">
+    <div class="col-business">
+      <div class="logo-frame">
+        ${logoHTML}
+      </div>
       <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${bizContact ? `<div class="biz-meta">${bizContact}</div>` : ''}
+      ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
-    <div class="inv-col">
+    <div class="col-supplier">
+      ${supplierColumn}
+    </div>
+    <div class="col-invoice">
       <div class="inv-label">Purchase Invoice</div>
-      <div class="inv-number">${escHtml(purchase.purchaseNumber)}</div>
-      <div class="inv-date">${dateTimeStr}</div>
-      ${statusBadge}
+      <div class="inv-meta-title">Invoice #${escHtml(purchase.purchaseNumber)}</div>
+      <div class="inv-meta-line">Date: ${escHtml(formatDate(purchaseDateTime))}</div>
+      <div class="inv-meta-line">Time: ${escHtml(formatTime(purchaseDateTime))}</div>
+      <div class="inv-status-row">
+        <span class="inv-meta-line">Status:</span>
+        ${statusBadge}
+      </div>
     </div>
   </div>
 </div>
 
 <div class="body">
 
-  ${supplierBlock}
+  ${itemsContent}
 
-  <div class="section">
-    <div class="section-label">Items</div>
-    ${itemsContent}
-  </div>
-
-  <div class="section">
-    <div class="section-label">Payment Summary</div>
-    ${financialSection}
-  </div>
+  ${financialCard}
+  ${usdCard}
 
   ${warrantyBlock}
   ${descriptionBlock}
   ${notesBlock}
-
-  <div class="sig-section">
-    <div class="sig-box">
-      <div class="sig-space"></div>
-      <div class="sig-line"></div>
-      <div class="sig-label">Business Signature</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-space"></div>
-      <div class="sig-line"></div>
-      <div class="sig-label">Supplier Signature</div>
-    </div>
-  </div>
 
 </div>
 

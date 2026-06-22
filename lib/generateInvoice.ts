@@ -28,6 +28,7 @@ import { buildInventoryReportHTML } from './inventoryReportTemplate';
 import {
   buildFullInventoryReportHTML,
   buildLowStockReportHTML,
+  buildOutOfStockReportHTML,
   buildCategoryReportHTML,
 } from './inventoryPDFReports';
 import { computeProductLowStock } from '@/lib/lowStock';
@@ -382,10 +383,10 @@ export async function shareSupplierReport(
 
 export async function shareFullInventoryReport(
   products: InventoryProduct[],
-  stats: InventoryStats,
   business: BusinessInfo,
   globalLowStockEnabled: boolean,
   globalLowStockThreshold: number,
+  periodLabel: string,
 ): Promise<void> {
   if (_generating) return;
   _generating = true;
@@ -396,7 +397,7 @@ export async function shareFullInventoryReport(
         .filter((p) => computeProductLowStock(p, globalLowStockEnabled, globalLowStockThreshold))
         .map((p) => p.id),
     );
-    const html = buildFullInventoryReportHTML(products, stats, biz, lowStockIds, getDir());
+    const html = buildFullInventoryReportHTML(products, biz, lowStockIds, periodLabel, getDir());
     await generateAndShare(
       html,
       'Full Inventory Report',
@@ -413,12 +414,13 @@ export async function shareFullInventoryReport(
 export async function shareLowStockInventoryReport(
   lowStockProducts: InventoryProduct[],
   business: BusinessInfo,
+  periodLabel: string,
 ): Promise<void> {
   if (_generating) return;
   _generating = true;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildLowStockReportHTML(lowStockProducts, biz, getDir());
+    const html = buildLowStockReportHTML(lowStockProducts, biz, periodLabel, getDir());
     await generateAndShare(
       html,
       'Low Stock Report',
@@ -432,16 +434,40 @@ export async function shareLowStockInventoryReport(
   }
 }
 
-export async function shareCategoryInventoryReport(
-  products: InventoryProduct[],
-  categoryName: string,
+export async function shareOutOfStockInventoryReport(
+  outOfStockProducts: InventoryProduct[],
   business: BusinessInfo,
+  periodLabel: string,
 ): Promise<void> {
   if (_generating) return;
   _generating = true;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildCategoryReportHTML(products, categoryName, biz, getDir());
+    const html = buildOutOfStockReportHTML(outOfStockProducts, biz, periodLabel, getDir());
+    await generateAndShare(
+      html,
+      'Out of Stock Report',
+      'Could not generate the out of stock report. Please try again.',
+    );
+  } catch (err) {
+    console.error('[PDF] shareOutOfStockInventoryReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the out of stock report. Please try again.');
+  } finally {
+    _generating = false;
+  }
+}
+
+export async function shareCategoryInventoryReport(
+  products: InventoryProduct[],
+  categoryName: string,
+  business: BusinessInfo,
+  periodLabel: string,
+): Promise<void> {
+  if (_generating) return;
+  _generating = true;
+  try {
+    const biz = await withResolvedLogo(business);
+    const html = buildCategoryReportHTML(products, categoryName, biz, periodLabel, getDir());
     await generateAndShare(
       html,
       `Category Report — ${categoryName}`,

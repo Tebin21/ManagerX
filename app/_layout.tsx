@@ -65,6 +65,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Kurdish-only, Settings-screen-only typeface — see lib/settingsFont.ts
+    RudawRegular: require('@/assets/fonts/rudawregular2.ttf'),
   });
 
   const initialize = useAuthStore((s) => s.initialize);

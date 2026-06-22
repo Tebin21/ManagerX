@@ -2,13 +2,13 @@ import React, { useCallback, useState } from 'react';
 import {
   View,
   Image,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
   Modal,
   Pressable,
 } from 'react-native';
+import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';

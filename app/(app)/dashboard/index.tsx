@@ -4,6 +4,7 @@ import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { BexDreLogoButton } from '@/components/dashboard/BexDreLogoButton';
 import { BusinessHeader } from '@/components/dashboard/BusinessHeader';
 import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
 import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
@@ -30,6 +31,8 @@ export default function DashboardScreen() {
           transition={{ type: 'spring', damping: 18, delay: 200 }}
           style={styles.sectionHeader}
         >
+          <BexDreLogoButton />
+
           <TouchableOpacity
             onPress={() => router.push('/(app)/settings' as never)}
             style={[styles.settingsBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '1F' }]}
@@ -67,7 +70,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection:  'row',
     alignItems:     'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical:   10,
   },

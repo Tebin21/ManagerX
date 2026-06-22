@@ -3,12 +3,12 @@ import {
   View, ScrollView, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';

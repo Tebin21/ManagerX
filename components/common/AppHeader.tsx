@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
@@ -16,6 +16,8 @@ interface Props {
   children?: React.ReactNode;
   /** Override gradient colours — defaults to the theme gradient */
   gradient?: [string, string];
+  /** Merged onto the title's default style — undefined leaves it unchanged */
+  titleStyle?: TextStyle;
 }
 
 /**
@@ -38,6 +40,7 @@ export function AppHeader({
   onBack,
   children,
   gradient,
+  titleStyle,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
@@ -56,7 +59,7 @@ export function AppHeader({
         </View>
 
         {/* Center — title always centered between the two equal-width sides */}
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={[styles.title, titleStyle]} numberOfLines={1}>
           {title}
         </Text>
 

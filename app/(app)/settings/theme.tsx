@@ -10,8 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { Text } from '@/components/ui/AppText';
-import { AppHeader } from '@/components/common/AppHeader';
+import { Text } from '@/components/settings/SettingsText';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { THEME_PRESETS } from '@/constants/themes';

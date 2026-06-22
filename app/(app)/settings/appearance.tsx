@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingSwitch } from '@/components/settings/SettingSwitch';
 import { useAppTheme } from '@/contexts/ThemeContext';

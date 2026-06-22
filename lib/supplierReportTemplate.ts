@@ -2,6 +2,7 @@ import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt } from '@/types/debt';
 import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
+import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -78,10 +79,11 @@ export function buildSupplierReportHTML(
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Supplier Report &mdash; ${escHtml(supplier.name)}</title>
 <style>
+  ${KURDISH_FONT_FACE}
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
     background: #F0F4F8;
     color: #1E293B;
     font-size: 13.5px;

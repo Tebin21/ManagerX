@@ -3,16 +3,16 @@ import {
   View, ScrollView, TouchableOpacity, Linking,
   KeyboardAvoidingView, Platform, StyleSheet,
 } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
-import { AppHeader } from '@/components/common/AppHeader';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { AppTextInput } from '@/components/ui/AppTextInput';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
+import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';

@@ -3,13 +3,13 @@ import {
   View, ScrollView, StyleSheet,
   KeyboardAvoidingView, Platform, TouchableOpacity, ToastAndroid,
 } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { AppHeader } from '@/components/common/AppHeader';
-import { AppTextInput } from '@/components/ui/AppTextInput';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
+import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';

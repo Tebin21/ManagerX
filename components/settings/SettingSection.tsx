@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text } from '@/components/ui/AppText';
+import { Text } from '@/components/settings/SettingsText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 

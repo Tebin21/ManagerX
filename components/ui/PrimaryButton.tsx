@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, StyleSheet, TextStyle } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import Animated, {
   useSharedValue,
@@ -16,6 +16,8 @@ interface Props {
   disabled?: boolean;
   variant?: 'primary' | 'outline' | 'ghost';
   fullWidth?: boolean;
+  /** Merged onto the label's default style — undefined leaves it unchanged */
+  labelStyle?: TextStyle;
 }
 
 export function PrimaryButton({
@@ -25,6 +27,7 @@ export function PrimaryButton({
   disabled = false,
   variant = 'primary',
   fullWidth = true,
+  labelStyle,
 }: Props) {
   const { colors } = useAppTheme();
   const scale = useSharedValue(1);
@@ -69,6 +72,7 @@ export function PrimaryButton({
               styles.label,
               isOutline && [styles.outlineLabel, { color: colors.primary }],
               isGhost   && styles.ghostLabel,
+              labelStyle,
             ]}
           >
             {label}

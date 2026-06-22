@@ -1,5 +1,6 @@
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment } from '@/types/debt';
 import { fmtIQD, fmtUSD, fmtPct, formatDate, formatDateTime } from '@/utils/formatters';
+import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -26,10 +27,11 @@ function pctPaid(paid: number, original: number): number {
 
 function sharedCSS(dir: 'ltr' | 'rtl'): string {
   return `
+    ${KURDISH_FONT_FACE}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       direction: ltr;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
       background: #F0F4F8;
       color: #111827;
       font-size: 14px;
