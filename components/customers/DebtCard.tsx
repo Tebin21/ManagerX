@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import type { Debt } from '@/types/sales';
 import { fmtIQD } from '@/utils/formatters';
 
@@ -21,6 +22,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const isSettled = debt.status === 'settled' || debt.remainingAmount <= 0;
   const percent = debt.originalAmount > 0
@@ -120,6 +122,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             placeholderTextColor={Colors.gray300}
             keyboardType="decimal-pad"
             autoFocus
+            onFocus={scrollIntoView}
           />
           <TouchableOpacity
             style={[styles.payBtn, saving && styles.payBtnDisabled]}

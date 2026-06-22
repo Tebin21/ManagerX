@@ -4,7 +4,7 @@ import type {
   FinancialSummaryCards,
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
-import { fmtIQD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
+import { fmtIQD, fmtPct, formatDate as fmtDate, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
@@ -69,6 +69,15 @@ export function buildFinancialReportHTML(
   const id = reportId();
   const now = new Date().toISOString();
 
+  // ── Header presentation ────────────────────────────────────────────────────
+  const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
+  const logoHTML = business.logoUri
+    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+    : `<div class="logo-mono">${escHtml(monogram)}</div>`;
+  const reportTypeLabel = dateRange.key === 'custom' ? 'Custom Range' : escHtml(dateRange.label);
+  const generatedDate = fmtDate(now);
+  const generatedTime = formatTime(now);
+
   // ── Primary metrics ────────────────────────────────────────────────────────
   const totalSales        = financialCards?.totalSales            ?? 0;
   const netProfit         = financialCards?.netProfit             ?? 0;
@@ -115,26 +124,23 @@ export function buildFinancialReportHTML(
   const totalPurchaseDebt     = debtData?.totalPurchaseDebt    ?? 0;
   const overdueCount          = debtData?.overdueCount         ?? 0;
   const collectionRate        = debtData?.collectionRate       ?? 0;
+  const debtAllZero = combinedDebt === 0 && salesDebtOriginal === 0 && purchaseDebtOriginal === 0;
 
-  // ── Loss products rows ─────────────────────────────────────────────────────
-  const lossProductRows = topLossProds.length === 0
-    ? `<tr><td colspan="3" style="text-align:center;color:#888;padding:14px;font-style:italic;">No products sold below cost</td></tr>`
-    : topLossProds.map((p, i) => `
+  // ── Loss products rows (only ever interpolated when non-empty) ────────────
+  const lossProductRows = topLossProds.map((p, i) => `
         <tr>
-          <td style="font-weight:700;color:#555;">#${i + 1} &nbsp;${escHtml(p.productName)}</td>
-          <td style="text-align:right;">${fmtIQD(p.qty)}</td>
-          <td style="text-align:right;font-weight:700;">${lossVal(p.lossAmount)} IQD</td>
+          <td style="font-weight:700;">#${i + 1} &nbsp;${escHtml(p.productName)}</td>
+          <td class="right">${fmtIQD(p.qty)}</td>
+          <td class="right" style="font-weight:700;">${lossVal(p.lossAmount)} IQD</td>
         </tr>
       `).join('');
 
-  // ── Expense rows ───────────────────────────────────────────────────────────
-  const expRows = expenses.length === 0
-    ? `<tr><td colspan="3" style="text-align:center;color:#888;padding:14px;font-style:italic;">No expenses recorded</td></tr>`
-    : expenses.map((e) => `
+  // ── Expense rows (only ever interpolated when non-empty) ───────────────────
+  const expRows = expenses.map((e) => `
         <tr>
-          <td style="color:#555;">${fmtDate(e.date)}</td>
+          <td>${fmtDate(e.date)}</td>
           <td>${escHtml(e.category)}</td>
-          <td style="text-align:right;font-weight:700;">${lossVal(e.amount)} IQD</td>
+          <td class="right" style="font-weight:700;">${lossVal(e.amount)} IQD</td>
         </tr>
       `).join('');
 
@@ -145,187 +151,161 @@ export function buildFinancialReportHTML(
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       direction: ltr;
-      font-family: 'Arial', 'Helvetica Neue', Helvetica, 'Rudaw', sans-serif;
-      background: #FFFFFF;
-      color: #111111;
-      font-size: 13px;
-      line-height: 1.6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+      background: #ffffff;
+      color: #000000;
+      font-size: 14px;
+      line-height: 1.5;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .page { max-width: 794px; margin: 0 auto; }
 
-    /* ── Header ── */
+    /* ── Header: 3-column (Business | Report Type | Report Info) ── */
     .header {
-      background: #111111;
-      color: #FFFFFF;
-      padding: 32px 32px 24px;
+      padding: 24px 32px 20px;
+      border-bottom: 1px solid #e2e8f0;
     }
-    .header-top {
+    .header-cols {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 20px;
+      page-break-inside: avoid;
     }
-    .biz-name { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 4px; }
-    .biz-contact { font-size: 11px; color: #AAAAAA; }
-    .report-badge-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #777777; margin-bottom: 4px; }
-    .report-id { font-size: 11px; font-weight: 600; color: #CCCCCC; font-family: monospace; }
-    .period-bar {
-      border-top: 1px solid #333333;
-      padding-top: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+    .col-business, .col-report, .col-meta {
+      flex: 1 1 33%;
+      min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
-    .period-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #777777; margin-bottom: 4px; }
-    .period-value { font-size: 17px; font-weight: 700; color: #FFFFFF; }
-    .gen-info { font-size: 10px; color: #777777; text-align: ${dir === 'rtl' ? 'left' : 'right'}; line-height: 1.7; }
+    .col-business { padding-right: 18px; }
+    .col-report   { padding: 0 18px; border-left: 1px solid #e2e8f0; }
+    .col-meta     { padding-left: 18px; border-left: 1px solid #e2e8f0; }
 
-    /* ── Primary Metrics ── */
-    .primary-section {
-      padding: 28px 32px 24px;
-      border-bottom: 3px solid #111111;
+    .logo-frame {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      margin-bottom: 8px;
     }
-    .primary-section-label {
-      font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 2.5px; color: #777777;
-      margin-bottom: 18px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #E0E0E0;
+    .logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .logo-mono {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: #000000;
+      background: linear-gradient(135deg, #eef2f7, #e2e8f0);
     }
-    .primary-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-    .primary-cell {
-      border: 2px solid #111111;
-      padding: 18px 16px 14px;
-    }
-    .primary-cell.inverted {
-      background: #111111;
-    }
-    .primary-cell-label {
-      font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1.8px; color: #777777; margin-bottom: 10px;
-    }
-    .primary-cell.inverted .primary-cell-label { color: #888888; }
-    .primary-cell-value {
-      font-size: 26px; font-weight: 800; color: #111111;
-      letter-spacing: -0.5px; line-height: 1.15;
-      word-break: break-all;
-    }
-    .primary-cell.inverted .primary-cell-value { color: #FFFFFF; }
-    .primary-cell-currency {
-      font-size: 10px; font-weight: 600; color: #999999; margin-top: 5px;
-    }
-    .primary-cell.inverted .primary-cell-currency { color: #666666; }
-    .primary-cell-note {
-      font-size: 10px; color: #888888; margin-top: 3px; font-style: italic;
-    }
+    .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; margin-bottom: 4px; }
+    .biz-meta { font-size: 12px; color: #000000; line-height: 1.6; }
+    .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
+    .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
+    .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
 
-    /* ── Sections ── */
-    .section { padding: 24px 32px; border-bottom: 1px solid #E0E0E0; }
-    .section:last-of-type { border-bottom: none; }
-    .section-title {
-      font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 2.5px; color: #444444;
-      border-left: 3px solid #111111;
-      padding-left: 10px;
-      margin-bottom: 18px;
-      line-height: 1.4;
+    /* ── Body / Cards ── */
+    .body { padding: 18px 32px 24px; }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      page-break-inside: avoid;
     }
-
-    /* ── Detail Table (label/value rows) ── */
-    .detail-table { width: 100%; border-collapse: collapse; }
-    .detail-table tr { border-bottom: 1px solid #EEEEEE; }
-    .detail-table tr:last-child { border-bottom: none; }
-    .detail-table td {
-      padding: 10px 6px;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-    .detail-table td.lbl { color: #555555; font-weight: 400; width: 58%; }
-    .detail-table td.val { font-weight: 700; text-align: right; color: #111111; }
-    .detail-table tr.subtotal td {
-      background: #F0F0F0;
-      font-weight: 800;
-      color: #111111;
-      border-top: 1px solid #CCCCCC;
-      border-bottom: 1px solid #CCCCCC;
-    }
-    .detail-table tr.grand td {
-      background: #111111;
-      color: #FFFFFF;
-      font-weight: 800;
-      font-size: 14px;
-    }
-    .detail-table tr.spacer td { padding: 4px 0; border: none; }
-
-    /* ── Clean Table (with header) ── */
-    .table-wrap { border: 1px solid #DDDDDD; overflow: hidden; margin-top: 14px; }
-    .clean-table { width: 100%; border-collapse: collapse; }
-    .clean-table th {
-      background: #222222;
-      color: #FFFFFF;
-      padding: 10px 12px;
-      font-size: 9px;
+    .card-label {
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      text-align: left;
-    }
-    .clean-table td {
-      padding: 10px 12px;
-      font-size: 12.5px;
-      border-bottom: 1px solid #EEEEEE;
-      color: #333333;
-      vertical-align: middle;
-    }
-    .clean-table tr:last-child td { border-bottom: none; }
-    .clean-table tr:nth-child(even) td { background: #F7F7F7; }
-    .clean-table .total-row td {
-      background: #EEEEEE;
-      font-weight: 800;
-      color: #111111;
-      border-top: 2px solid #BBBBBB;
+      letter-spacing: 1.1px;
+      color: #000000;
+      margin-bottom: 12px;
     }
 
-    /* ── Divider ── */
-    .sub-label {
-      font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1.5px; color: #777777; margin: 16px 0 8px;
+    /* ── Dense label/value rows (sections with many rows) ── */
+    .kv-table { width: 100%; border-collapse: collapse; }
+    .kv-table tr.kv-row td { padding: 6px 4px; font-size: 13px; vertical-align: baseline; }
+    .kv-table tr.kv-row td.kv-lbl { color: #000000; font-weight: 500; width: 62%; }
+    .kv-table tr.kv-row td.kv-val { color: #000000; font-weight: 700; text-align: right; }
+    .kv-table tr.kv-divider td { border-top: 1px solid #e2e8f0; padding-top: 10px; }
+
+    /* ── Stand-out section totals (no fill, ever) ── */
+    .total-block {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 12px;
+      margin-top: 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000000; }
+    .total-amount { font-size: 26px; font-weight: 800; color: #000000; letter-spacing: -0.4px; }
+
+    /* ── Executive Summary ── */
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { font-size: 12.5px; font-weight: 600; color: #000000; }
+    .metric-note { display: block; font-size: 10.5px; font-weight: 400; color: #94a3b8; margin-top: 1px; }
+    .metric-value { font-size: 16px; font-weight: 800; color: #000000; letter-spacing: -0.2px; white-space: nowrap; }
+
+    .empty-line { font-size: 13px; color: #000000; padding: 4px 0; }
+
+    /* ── Itemized tables ── */
+    .table-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+    thead { display: table-header-group; }
+    tbody tr { page-break-inside: avoid; }
+    th {
+      background: #f8fafc;
+      color: #000000;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 12px 14px;
+      border-bottom: 1.5px solid #e2e8f0;
+    }
+    td {
+      padding: 11px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #000000;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    .right { text-align: right; }
+    tfoot .total-row td {
+      font-weight: 800;
+      color: #000000;
+      border-top: 1.5px solid #e2e8f0;
+      border-bottom: none;
+      background: #ffffff;
     }
 
     /* ── Footer ── */
     .footer {
-      background: #111111;
-      padding: 20px 32px;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+      padding: 16px 36px 22px;
+      color: #cbd5e1;
+      font-size: 11px;
     }
-    .footer-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-    .footer-lbl {
-      font-size: 8px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1.8px; color: #666666; margin-bottom: 4px;
-    }
-    .footer-val { font-size: 11px; font-weight: 600; color: #CCCCCC; }
 
-    @media print {
-      body { background: white; font-size: 11px; }
-      .page { max-width: none; }
-      .section { page-break-inside: avoid; }
-      .primary-section { page-break-inside: avoid; }
-      .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
+    @media print { body { background: white; } }
   `;
 
   return `<!DOCTYPE html>
-<html lang="${lang}" dir="${dir}">
+<html lang="${lang}" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -333,199 +313,195 @@ export function buildFinancialReportHTML(
   <style>${CSS}</style>
 </head>
 <body>
-<div class="page">
 
   <!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
   <div class="header">
-    <div class="header-top">
-      <div>
+    <div class="header-cols">
+      <div class="col-business">
+        <div class="logo-frame">
+          ${logoHTML}
+        </div>
         <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-        <div class="biz-contact">${[business.phone, business.address].filter(Boolean).map(escHtml).join(' &middot; ')}</div>
+        ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+        ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
       </div>
-      <div style="text-align:${dir === 'rtl' ? 'left' : 'right'};">
-        <div class="report-badge-label">Financial Report</div>
-        <div class="report-id">${id}</div>
+      <div class="col-report">
+        <div class="inv-label">Financial Report</div>
+        <div class="inv-meta-title">${reportTypeLabel}</div>
       </div>
-    </div>
-    <div class="period-bar">
-      <div>
-        <div class="period-label">Report Period</div>
-        <div class="period-value">${periodLabel}</div>
+      <div class="col-meta">
+        <div class="inv-label">Report Info</div>
+        <div class="inv-meta-line">Report ID: ${id}</div>
+        <div class="inv-meta-line">Date: ${generatedDate}</div>
+        <div class="inv-meta-line">Time: ${generatedTime}</div>
+        ${dateRange.key === 'custom' ? `<div class="inv-meta-line">From: ${fmtDate(dateRange.from)}</div>` : ''}
+        ${dateRange.key === 'custom' ? `<div class="inv-meta-line">To: ${fmtDate(dateRange.to)}</div>` : ''}
       </div>
-      <div class="gen-info">
-        Generated<br>${fmtDateTime(now)}
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════ PRIMARY METRICS ══════════════════════════ -->
-  <div class="primary-section">
-    <div class="primary-section-label">Key Financial Indicators</div>
-    <div class="primary-grid">
-
-      <div class="primary-cell inverted">
-        <div class="primary-cell-label">Total Sales</div>
-        <div class="primary-cell-value">${fmtIQD(totalSales)}</div>
-        <div class="primary-cell-currency">Iraqi Dinar (IQD)</div>
-        <div class="primary-cell-note">${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}</div>
-      </div>
-
-      <div class="primary-cell">
-        <div class="primary-cell-label">Net Profit</div>
-        <div class="primary-cell-value">${netProfit >= 0 ? fmtIQD(netProfit) : lossVal(Math.abs(netProfit))}</div>
-        <div class="primary-cell-currency">Iraqi Dinar (IQD)</div>
-        <div class="primary-cell-note">${grossRevenue > 0 ? fmtPct(netProfitPL / grossRevenue * 100) + '% net margin' : 'No revenue'}</div>
-      </div>
-
-      <div class="primary-cell">
-        <div class="primary-cell-label">Total Loss</div>
-        <div class="primary-cell-value">${lossVal(totalLoss)}</div>
-        <div class="primary-cell-currency">Iraqi Dinar (IQD)</div>
-        <div class="primary-cell-note">${lossItemCount > 0 ? lossItemCount + ' item' + (lossItemCount !== 1 ? 's' : '') + ' sold below cost' : 'No loss items'}</div>
-      </div>
-
-      <div class="primary-cell">
-        <div class="primary-cell-label">Remaining Debt</div>
-        <div class="primary-cell-value">${fmtIQD(remainingDebt)}</div>
-        <div class="primary-cell-currency">Iraqi Dinar (IQD)</div>
-        <div class="primary-cell-note">${customerCount} active debt${customerCount !== 1 ? 's' : ''}</div>
-      </div>
-
     </div>
   </div>
 
-  <!-- ═══════════════════════════ FINANCIAL DETAILS ════════════════════════ -->
-  <div class="section">
-    <div class="section-title">Financial Details</div>
-    <table class="detail-table">
-      <tr><td class="lbl">Gross Sales Revenue</td><td class="val">${fmtIQD(grossRevenue)} IQD</td></tr>
-      <tr><td class="lbl">Cost of Goods Sold (COGS)</td><td class="val">${lossVal(totalCOGS)} IQD</td></tr>
-      <tr class="subtotal"><td class="lbl">Gross Profit</td><td class="val">${fmtIQD(grossProfit)} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Cash Payments Received</td><td class="val">${fmtIQD(cashRevenue)} IQD</td></tr>
-      <tr><td class="lbl">FIB Payments Received</td><td class="val">${fmtIQD(fibRevenue)} IQD</td></tr>
-      <tr><td class="lbl">Total Debt Collected</td><td class="val">${fmtIQD(debtCollected)} IQD</td></tr>
-      <tr><td class="lbl">Remaining Customer Debt</td><td class="val">${fmtIQD(customerDebtLeft)} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Total Purchases Cost</td><td class="val">${lossVal(purchaseCost)} IQD</td></tr>
-      <tr><td class="lbl">Business Expenses</td><td class="val">${lossVal(totalExpenses)} IQD</td></tr>
-      <tr class="subtotal"><td class="lbl">Net Profit (after all costs)</td><td class="val">${netProfitPL >= 0 ? fmtIQD(netProfitPL) : lossVal(Math.abs(netProfitPL))} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Inventory Value (sell price)</td><td class="val">${fmtIQD(stockValue)} IQD</td></tr>
-      <tr><td class="lbl">Expected Profit (remaining stock)</td><td class="val">${fmtIQD(potentialProfit)} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Number of Sales Invoices</td><td class="val">${fmtIQD(invoiceCount)}</td></tr>
-      <tr><td class="lbl">Active Customer Debts</td><td class="val">${fmtIQD(customerCount)}</td></tr>
-      <tr><td class="lbl">Number of Suppliers</td><td class="val">${fmtIQD(supplierCount)}</td></tr>
-    </table>
-  </div>
+  <div class="body">
 
-  <!-- ════════════════════════════ LOSS ANALYSIS ═══════════════════════════ -->
-  <div class="section">
-    <div class="section-title">Loss Analysis</div>
-    <table class="detail-table">
-      <tr class="grand">
-        <td class="lbl" style="color:#FFFFFF;">Total Business Loss</td>
-        <td class="val" style="color:#FFFFFF;">${lossVal(lossTotal)} IQD</td>
-      </tr>
-      <tr><td class="lbl">Loss Invoices (contain below-cost items)</td><td class="val">${fmtIQD(lossSaleCount)}</td></tr>
-      <tr><td class="lbl">Loss Line Items (items sold below cost)</td><td class="val">${fmtIQD(lossItemCount)}</td></tr>
-    </table>
+    <!-- ═══════════════════════════ EXECUTIVE SUMMARY ═════════════════════════ -->
+    <div class="card">
+      <div class="card-label">Executive Summary</div>
+
+      <div class="metric-row">
+        <span class="metric-label">Total Sales<span class="metric-note">${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}</span></span>
+        <span class="metric-value">${fmtIQD(totalSales)} IQD</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Net Profit<span class="metric-note">${grossRevenue > 0 ? fmtPct(netProfitPL / grossRevenue * 100) + '% net margin' : 'No revenue'}</span></span>
+        <span class="metric-value">${netProfit >= 0 ? fmtIQD(netProfit) : lossVal(Math.abs(netProfit))} IQD</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Total Loss<span class="metric-note">${lossItemCount > 0 ? lossItemCount + ' item' + (lossItemCount !== 1 ? 's' : '') + ' sold below cost' : 'No loss items'}</span></span>
+        <span class="metric-value">${lossVal(totalLoss)} IQD</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Remaining Debt<span class="metric-note">${customerCount} active debt${customerCount !== 1 ? 's' : ''}</span></span>
+        <span class="metric-value">${fmtIQD(remainingDebt)} IQD</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ FINANCIAL DETAILS ════════════════════════ -->
+    <div class="card">
+      <div class="card-label">Financial Details</div>
+      <table class="kv-table">
+        <tr class="kv-row"><td class="kv-lbl">Gross Sales Revenue</td><td class="kv-val">${fmtIQD(grossRevenue)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Cost of Goods Sold (COGS)</td><td class="kv-val">${lossVal(totalCOGS)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">Gross Profit</td><td class="kv-val">${fmtIQD(grossProfit)} IQD</td></tr>
+
+        <tr class="kv-divider"><td colspan="2"></td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Cash Payments Received</td><td class="kv-val">${fmtIQD(cashRevenue)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">FIB Payments Received</td><td class="kv-val">${fmtIQD(fibRevenue)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Total Debt Collected</td><td class="kv-val">${fmtIQD(debtCollected)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Remaining Customer Debt</td><td class="kv-val">${fmtIQD(customerDebtLeft)} IQD</td></tr>
+
+        <tr class="kv-divider"><td colspan="2"></td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Total Purchases Cost</td><td class="kv-val">${lossVal(purchaseCost)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Business Expenses</td><td class="kv-val">${lossVal(totalExpenses)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Inventory Value (sell price)</td><td class="kv-val">${fmtIQD(stockValue)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Expected Profit (remaining stock)</td><td class="kv-val">${fmtIQD(potentialProfit)} IQD</td></tr>
+
+        <tr class="kv-divider"><td colspan="2"></td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Number of Sales Invoices</td><td class="kv-val">${fmtIQD(invoiceCount)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Active Customer Debts</td><td class="kv-val">${fmtIQD(customerCount)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Number of Suppliers</td><td class="kv-val">${fmtIQD(supplierCount)}</td></tr>
+      </table>
+
+      <div class="total-block">
+        <span class="total-label">Net Profit (after all costs)</span>
+        <span class="total-amount">${netProfitPL >= 0 ? fmtIQD(netProfitPL) : lossVal(Math.abs(netProfitPL))} IQD</span>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════ LOSS ANALYSIS ═══════════════════════════ -->
+    <div class="card">
+      <div class="card-label">Loss Analysis</div>
+      <table class="kv-table">
+        <tr class="kv-row"><td class="kv-lbl">Loss Invoices (contain below-cost items)</td><td class="kv-val">${fmtIQD(lossSaleCount)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Loss Line Items (items sold below cost)</td><td class="kv-val">${fmtIQD(lossItemCount)}</td></tr>
+      </table>
+
+      <div class="total-block">
+        <span class="total-label">Total Business Loss</span>
+        <span class="total-amount">${lossVal(lossTotal)} IQD</span>
+      </div>
+    </div>
 
     ${topLossProds.length > 0 ? `
-    <div class="sub-label">Products Sold Below Cost</div>
-    <div class="table-wrap">
-      <table class="clean-table">
+    <div class="table-card">
+      <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th style="text-align:right;">Qty Sold</th>
-            <th style="text-align:right;">Loss Amount</th>
+            <th style="text-align:left;">Product</th>
+            <th class="right">Qty Sold</th>
+            <th class="right">Loss Amount</th>
           </tr>
         </thead>
         <tbody>${lossProductRows}</tbody>
       </table>
     </div>` : ''}
-  </div>
 
-  <!-- ═══════════════════════════ PURCHASE ANALYSIS ════════════════════════ -->
-  <div class="section">
-    <div class="section-title">Purchase Analysis</div>
-    <table class="detail-table">
-      <tr class="subtotal"><td class="lbl">Total Inventory Purchases</td><td class="val">${fmtIQD(purchaseCost)} IQD</td></tr>
-      <tr><td class="lbl">Paid to Suppliers</td><td class="val">${fmtIQD(paidCost)} IQD</td></tr>
-      <tr><td class="lbl">On Credit (Supplier Debt)</td><td class="val">${fmtIQD(debtCost)} IQD</td></tr>
-      <tr><td class="lbl">Number of Purchase Transactions</td><td class="val">${fmtIQD(totalPurchases)}</td></tr>
-      <tr><td class="lbl">Unique Suppliers</td><td class="val">${fmtIQD(supplierCount)}</td></tr>
-      ${topSupplier ? `<tr><td class="lbl">Top Supplier</td><td class="val">${escHtml(topSupplier)} &mdash; ${fmtIQD(topSupplierCost)} IQD</td></tr>` : ''}
-    </table>
-  </div>
+    <!-- ═══════════════════════════ PURCHASE ANALYSIS ════════════════════════ -->
+    <div class="card">
+      <div class="card-label">Purchase Analysis</div>
+      <table class="kv-table">
+        <tr class="kv-row"><td class="kv-lbl">Paid to Suppliers</td><td class="kv-val">${fmtIQD(paidCost)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">On Credit (Supplier Debt)</td><td class="kv-val">${fmtIQD(debtCost)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Number of Purchase Transactions</td><td class="kv-val">${fmtIQD(totalPurchases)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Unique Suppliers</td><td class="kv-val">${fmtIQD(supplierCount)}</td></tr>
+        ${topSupplier ? `<tr class="kv-row"><td class="kv-lbl">Top Supplier</td><td class="kv-val">${escHtml(topSupplier)} &mdash; ${fmtIQD(topSupplierCost)} IQD</td></tr>` : ''}
+      </table>
 
-  <!-- ════════════════════════════ DEBT ANALYSIS ═══════════════════════════ -->
-  <div class="section">
-    <div class="section-title">Debt Analysis</div>
-    <table class="detail-table">
-      <tr class="grand">
-        <td class="lbl" style="color:#FFFFFF;">Combined Outstanding Debt</td>
-        <td class="val" style="color:#FFFFFF;">${fmtIQD(combinedDebt)} IQD</td>
-      </tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Customer Debt &mdash; Original Amount</td><td class="val">${fmtIQD(salesDebtOriginal)} IQD</td></tr>
-      <tr><td class="lbl">Customer Debt &mdash; Collected</td><td class="val">${fmtIQD(salesDebtCollected)} IQD</td></tr>
-      <tr class="subtotal"><td class="lbl">Customer Debt &mdash; Remaining</td><td class="val">${fmtIQD(totalSalesDebt)} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Supplier Debt &mdash; Original Amount</td><td class="val">${fmtIQD(purchaseDebtOriginal)} IQD</td></tr>
-      <tr><td class="lbl">Supplier Debt &mdash; Paid</td><td class="val">${fmtIQD(purchaseDebtPaid)} IQD</td></tr>
-      <tr class="subtotal"><td class="lbl">Supplier Debt &mdash; Remaining</td><td class="val">${fmtIQD(totalPurchaseDebt)} IQD</td></tr>
-      <tr class="spacer"><td colspan="2"></td></tr>
-      <tr><td class="lbl">Overdue Debts (&gt;30 days inactive)</td><td class="val">${fmtIQD(overdueCount)}</td></tr>
-      <tr><td class="lbl">Debt Collection Rate</td><td class="val">${collectionRate.toFixed(1)}%</td></tr>
-    </table>
-  </div>
+      <div class="total-block">
+        <span class="total-label">Total Inventory Purchases</span>
+        <span class="total-amount">${fmtIQD(purchaseCost)} IQD</span>
+      </div>
+    </div>
 
-  <!-- ════════════════════════════ BUSINESS EXPENSES ═══════════════════════ -->
-  <div class="section">
-    <div class="section-title">Business Expenses</div>
-    <div class="table-wrap">
-      <table class="clean-table">
+    <!-- ════════════════════════════ DEBT ANALYSIS ═══════════════════════════ -->
+    ${debtAllZero ? `
+    <div class="card">
+      <div class="card-label">Debt Analysis</div>
+      <p class="empty-line">No outstanding customer or supplier debt for this period.</p>
+    </div>` : `
+    <div class="card">
+      <div class="card-label">Debt Analysis</div>
+      <table class="kv-table">
+        <tr class="kv-row"><td class="kv-lbl">Customer Debt &mdash; Original Amount</td><td class="kv-val">${fmtIQD(salesDebtOriginal)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Customer Debt &mdash; Collected</td><td class="kv-val">${fmtIQD(salesDebtCollected)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">Customer Debt &mdash; Remaining</td><td class="kv-val">${fmtIQD(totalSalesDebt)} IQD</td></tr>
+
+        <tr class="kv-divider"><td colspan="2"></td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Supplier Debt &mdash; Original Amount</td><td class="kv-val">${fmtIQD(purchaseDebtOriginal)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Supplier Debt &mdash; Paid</td><td class="kv-val">${fmtIQD(purchaseDebtPaid)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">Supplier Debt &mdash; Remaining</td><td class="kv-val">${fmtIQD(totalPurchaseDebt)} IQD</td></tr>
+
+        <tr class="kv-divider"><td colspan="2"></td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Overdue Debts (&gt;30 days inactive)</td><td class="kv-val">${fmtIQD(overdueCount)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">Debt Collection Rate</td><td class="kv-val">${collectionRate.toFixed(1)}%</td></tr>
+      </table>
+
+      <div class="total-block">
+        <span class="total-label">Combined Outstanding Debt</span>
+        <span class="total-amount">${fmtIQD(combinedDebt)} IQD</span>
+      </div>
+    </div>`}
+
+    <!-- ════════════════════════════ BUSINESS EXPENSES ═══════════════════════ -->
+    ${expenses.length === 0 ? `
+    <div class="card">
+      <div class="card-label">Business Expenses</div>
+      <p class="empty-line">No expenses recorded for this period.</p>
+    </div>` : `
+    <div class="table-card">
+      <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Category</th>
-            <th style="text-align:right;">Amount</th>
+            <th style="text-align:left;">Date</th>
+            <th style="text-align:left;">Category</th>
+            <th class="right">Amount</th>
           </tr>
         </thead>
         <tbody>${expRows}</tbody>
-        ${expenses.length > 0 ? `
         <tfoot>
           <tr class="total-row">
-            <td colspan="2" style="font-weight:800;">Total Expenses</td>
-            <td style="text-align:right;font-weight:800;">${lossVal(expTotal)} IQD</td>
+            <td colspan="2">Total Expenses</td>
+            <td class="right">${lossVal(expTotal)} IQD</td>
           </tr>
-        </tfoot>` : ''}
+        </tfoot>
       </table>
-    </div>
+    </div>`}
+
   </div>
 
   <!-- ════════════════════════════════ FOOTER ══════════════════════════════ -->
   <div class="footer">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-lbl">Generated By</div>
-        <div class="footer-val">${escHtml(business.name)} &middot; ManagerX</div>
-      </div>
-      <div>
-        <div class="footer-lbl">Generation Date</div>
-        <div class="footer-val">${fmtDateTime(now)}</div>
-      </div>
-      <div>
-        <div class="footer-lbl">Report Period</div>
-        <div class="footer-val">${periodLabel}</div>
-      </div>
-    </div>
+    Generated by ManagerX &nbsp;&middot;&nbsp; ${generatedDate} ${generatedTime} &nbsp;&middot;&nbsp; ${periodLabel}
   </div>
 
-</div>
 </body>
 </html>`;
 }

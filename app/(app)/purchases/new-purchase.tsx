@@ -15,7 +15,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
@@ -48,6 +50,7 @@ export default function NewPurchaseScreen() {
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { colors } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
+  const scrollIntoView = useKeyboardAwareFocus();
 
   // ─── Required fields ────────────────────────────────────────────────────────
   const [supplierName, setSupplierName]     = useState('');
@@ -294,10 +297,9 @@ export default function NewPurchaseScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
-        <ScrollView
+        <KeyboardAwareScrollView
           ref={scrollRef}
           contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
 
@@ -323,13 +325,13 @@ export default function NewPurchaseScreen() {
               onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
             />
 
-            <AppTextInput
+            <QuantityStepper
               label={t('purchases.qty')}
               value={qty}
               onChangeText={onQtyChange}
-              keyboardType="number-pad"
+              min={1}
+              max={100}
               placeholder="1"
-              returnKeyType="next"
             />
 
             {/* ID Type */}
@@ -394,6 +396,7 @@ export default function NewPurchaseScreen() {
                       placeholderTextColor={colors.gray400}
                       returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
                       maxLength={9}
+                      onFocus={scrollIntoView}
                     />
                     <GenerateIdButton
                       loading={generatingCustomIdxs.has(i)}
@@ -422,6 +425,7 @@ export default function NewPurchaseScreen() {
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
+                  onFocus={scrollIntoView}
                 />
               </View>
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
@@ -434,6 +438,7 @@ export default function NewPurchaseScreen() {
                   placeholder="0.00"
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
+                  onFocus={scrollIntoView}
                 />
               </View>
             </View>
@@ -483,6 +488,7 @@ export default function NewPurchaseScreen() {
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
+                  onFocus={scrollIntoView}
                 />
               </View>
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
@@ -495,6 +501,7 @@ export default function NewPurchaseScreen() {
                   placeholder="0.00"
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
+                  onFocus={scrollIntoView}
                 />
               </View>
             </View>
@@ -596,7 +603,7 @@ export default function NewPurchaseScreen() {
             />
           </View>
 
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </View>
   );

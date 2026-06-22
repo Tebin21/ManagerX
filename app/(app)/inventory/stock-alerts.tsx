@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
@@ -14,6 +16,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -41,6 +44,7 @@ function StockAlertRow({
 }: RowProps) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const isProductActive = product.lowStockEnabled !== 0;
   const isCurrentlyLow  = computeProductLowStock(product, globalEnabled, globalThreshold);
@@ -120,6 +124,7 @@ function StockAlertRow({
                 value={localValue}
                 onChangeText={setLocalValue}
                 onEndEditing={handleEndEditing}
+                onFocus={scrollIntoView}
                 keyboardType="number-pad"
                 placeholder={String(globalThreshold)}
                 placeholderTextColor={colors.gray300}
@@ -192,6 +197,7 @@ export default function StockAlertsScreen() {
   const router   = useRouter();
   const { t }    = useTranslation();
   const { colors } = useAppTheme();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const { products, editProduct } = useInventoryStore();
   const {
@@ -232,17 +238,18 @@ export default function StockAlertsScreen() {
   }, [router]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
         title={t('inventory.stockAlertsTitle')}
         showBack
         onBack={() => router.back()}
       />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={[2]}
         contentContainerStyle={{ paddingBottom: 40 }}
+        wrapForTapDismiss={false}
       >
         {/* ── Global ON/OFF card ── */}
         <MotiView
@@ -344,6 +351,7 @@ export default function StockAlertsScreen() {
                 style={[styles.searchInput, { color: colors.black }]}
                 value={search}
                 onChangeText={setSearch}
+                onFocus={scrollIntoView}
                 placeholder={t('inventory.search')}
                 placeholderTextColor={colors.gray400}
                 returnKeyType="search"
@@ -384,8 +392,8 @@ export default function StockAlertsScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

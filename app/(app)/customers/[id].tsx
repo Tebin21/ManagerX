@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
-  ScrollView,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -14,6 +15,7 @@ import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DebtCard } from '@/components/customers/DebtCard';
 import { SaleTimelineItem } from '@/components/customers/SaleTimelineItem';
@@ -180,7 +182,7 @@ export default function CustomerProfileScreen() {
   const canDeleteAccount = sales.length === 0 && activeDebts.length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
         title={customer?.name ?? '…'}
         showBack
@@ -217,7 +219,7 @@ export default function CustomerProfileScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* Stats grid */}
           {customer && (
             <MotiView
@@ -406,9 +408,9 @@ export default function CustomerProfileScreen() {
               )}
             </MotiView>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

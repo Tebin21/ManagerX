@@ -31,7 +31,9 @@
     "thisWeek":   "This Week",
     "thisMonth":  "This Month",
     "allTime":    "All Time",
-    "next":       "Next"
+    "next":       "Next",
+    "decreaseQty":"Decrease quantity",
+    "increaseQty":"Increase quantity"
   },
   "splash": {
     "tagline": "Your Business, Simplified"
@@ -470,9 +472,15 @@
     "reportLowStockSub":              "Products below minimum stock level",
     "reportCategory":                 "Category Report",
     "reportCategorySub":              "Products from a selected category",
+    "reportOutOfStock":               "Out of Stock Report",
+    "reportOutOfStockSub":            "Active products with zero quantity",
     "selectCategoryTitle":            "Select Category",
     "noLowStockProducts":             "No Low Stock Products",
     "noLowStockProductsDetail":       "All products have sufficient stock levels",
+    "noOutOfStockProducts":           "No Out of Stock Products",
+    "noOutOfStockProductsDetail":     "All products currently have stock available",
+    "noRecordsInPeriod":              "No Records in This Period",
+    "noRecordsInPeriodDetail":        "No products match the selected date range",
     "generatingReport":               "Generating report…"
   },
   "inventoryHistory": {

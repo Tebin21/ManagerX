@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -15,7 +14,9 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -222,9 +223,8 @@ export default function EditPurchaseScreen() {
     >
       <AppHeader title={`${t('purchases.editPurchase')} · ${purchase.purchaseNumber}`} showBack />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <MotiView
@@ -276,12 +276,11 @@ export default function EditPurchaseScreen() {
               autoCapitalize="words"
               returnKeyType="next"
             />
-            <AppTextInput
+            <QuantityStepper
               label={t('purchases.qty')}
               value={quantity}
               onChangeText={setQuantity}
-              keyboardType="number-pad"
-              returnKeyType="next"
+              min={0}
             />
             <Text style={[styles.hintText, { color: colors.gray400 }]}>
               {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
@@ -413,7 +412,7 @@ export default function EditPurchaseScreen() {
           />
           <View style={{ height: 32 }} />
         </MotiView>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   );
 }

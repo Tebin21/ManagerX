@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
-  ScrollView,
   TextInput,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -14,7 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 
 import { useTranslation } from 'react-i18next';
 import { getInventoryProductById } from '@/lib/sqlite';
@@ -45,6 +48,7 @@ export default function EditProductScreen() {
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
   const insets = useSafeAreaInsets();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,13 +208,15 @@ export default function EditProductScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.gray50 }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <AppHeader title={t('inventory.editProduct')} showBack />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         {/* Image */}
         <MotiView
@@ -238,6 +244,7 @@ export default function EditProductScreen() {
               onChangeText={setName}
               placeholder={t('inventory.productName')}
               placeholderTextColor={colors.gray300}
+              onFocus={scrollIntoView}
             />
           </MotiView>
 
@@ -272,6 +279,7 @@ export default function EditProductScreen() {
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={colors.gray300}
+                onFocus={scrollIntoView}
               />
             </MotiView>
             <MotiView animate={{ backgroundColor: fieldBg('buyPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
@@ -283,6 +291,7 @@ export default function EditProductScreen() {
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor={colors.gray300}
+                onFocus={scrollIntoView}
               />
             </MotiView>
           </View>
@@ -303,6 +312,7 @@ export default function EditProductScreen() {
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={colors.gray300}
+                onFocus={scrollIntoView}
               />
             </MotiView>
             <MotiView animate={{ backgroundColor: fieldBg('sellPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
@@ -314,6 +324,7 @@ export default function EditProductScreen() {
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor={colors.gray300}
+                onFocus={scrollIntoView}
               />
             </MotiView>
           </View>
@@ -323,14 +334,11 @@ export default function EditProductScreen() {
         <View style={[styles.card, { backgroundColor: colors.white }]}>
           <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.stock')}</Text>
           <MotiView animate={{ backgroundColor: fieldBg('quantity') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.quantity')}</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+            <QuantityStepper
+              label={t('inventory.quantity')}
               value={quantity}
               onChangeText={setQuantity}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor={colors.gray300}
+              min={0}
             />
           </MotiView>
 
@@ -354,6 +362,7 @@ export default function EditProductScreen() {
                 keyboardType="number-pad"
                 placeholder={String(globalLowStockThreshold)}
                 placeholderTextColor={colors.gray300}
+                onFocus={scrollIntoView}
               />
               {lowStockThreshold.trim().length > 0 && (
                 <TouchableOpacity
@@ -380,6 +389,7 @@ export default function EditProductScreen() {
               onChangeText={setWarranty}
               placeholder={t('sales.warrantyPlaceholder')}
               placeholderTextColor={colors.gray300}
+              onFocus={scrollIntoView}
             />
           </MotiView>
 
@@ -393,6 +403,7 @@ export default function EditProductScreen() {
               placeholderTextColor={colors.gray300}
               multiline
               numberOfLines={3}
+              onFocus={scrollIntoView}
             />
           </MotiView>
 
@@ -406,6 +417,7 @@ export default function EditProductScreen() {
               placeholderTextColor={colors.gray300}
               multiline
               numberOfLines={3}
+              onFocus={scrollIntoView}
             />
           </MotiView>
         </View>
@@ -426,8 +438,8 @@ export default function EditProductScreen() {
             </>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useCallback, useState, useMemo, useRef, type ComponentProps } from 'react';
+﻿import React, { useEffect, useCallback, useState, useRef, type ComponentProps } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
@@ -19,7 +19,7 @@ import { DonutRing } from '@/components/reports/DonutRing';
 import { useReportStore } from '@/store/reportStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import type { DateRangeKey, SmartAlert } from '@/types/reports';
+import type { DateRangeKey } from '@/types/reports';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
@@ -219,62 +219,6 @@ function RankBadge({ rank }: { rank: number }) {
 const rkStyles = StyleSheet.create({
   badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   text: { fontSize: 11, fontWeight: '800', color: '#fff' },
-});
-
-// ─── Alert Banner ─────────────────────────────────────────────────────────────
-
-function AlertBanner({ alert, onDismiss }: { alert: SmartAlert; onDismiss: () => void }) {
-  const router = useRouter();
-  const { colors } = useAppTheme();
-  const { isRTL, textAlign } = useRTL();
-  const cfgMap = {
-    error:   { bg: '#FEF2F2', border: Colors.error,   icon: Colors.error   },
-    warning: { bg: '#FFFBEB', border: '#D97706',       icon: '#D97706'      },
-    info:    { bg: '#EFF6FF', border: colors.primary,  icon: colors.primary },
-  };
-  const cfg = cfgMap[alert.type];
-  return (
-    <MotiView
-      from={{ opacity: 0, translateY: -8 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'timing', duration: 200 }}
-      style={[
-        alertStyles.banner,
-        {
-          backgroundColor: cfg.bg,
-          borderStartWidth: 4,
-          borderStartColor: cfg.border,
-        },
-      ]}
-    >
-      <Ionicons
-        name={alert.icon as ComponentProps<typeof Ionicons>['name']}
-        size={18}
-        color={cfg.icon}
-        style={{ marginEnd: 10 }}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={[alertStyles.title, { color: cfg.border, textAlign }]}>{alert.title}</Text>
-        <Text style={[alertStyles.body, { textAlign }]}>{alert.body}</Text>
-      </View>
-      {alert.action && (
-        <TouchableOpacity onPress={() => router.push(alert.action!.route as never)} style={alertStyles.actionBtn}>
-          <Text style={[alertStyles.actionText, { color: cfg.border }]}>{alert.action.label}</Text>
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity onPress={onDismiss} style={{ padding: 4 }}>
-        <Ionicons name="close" size={16} color={Colors.gray400} />
-      </TouchableOpacity>
-    </MotiView>
-  );
-}
-
-const alertStyles = StyleSheet.create({
-  banner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 12 },
-  title: { fontSize: 13, fontWeight: '700', marginBottom: 1 },
-  body: { fontSize: 12, color: Colors.gray500 },
-  actionBtn: { marginHorizontal: 8 },
-  actionText: { fontSize: 12, fontWeight: '700' },
 });
 
 // ─── Filter Period Bottom Sheet ───────────────────────────────────────────────
@@ -734,7 +678,6 @@ export default function ReportsScreen() {
     setDateRange, reload,
   } = useReportStore();
 
-  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [isExporting, setIsExporting]         = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -752,25 +695,6 @@ export default function ReportsScreen() {
     hasUserSetRangeRef.current = true;
     setDateRange(key, from, to);
   }, [setDateRange]);
-
-  // ── Smart alerts ─────────────────────────────────────────────────────────────
-  const allAlerts: SmartAlert[] = useMemo(() => {
-    const alerts: SmartAlert[] = [];
-    if (plData && plData.netProfit < 0 && plData.grossRevenue > 0) {
-      alerts.push({ id: 'loss', type: 'error', icon: 'trending-down', title: t('reports.alertLossTitle'), body: t('reports.alertLossBody', { amount: fmtIQD(Math.abs(plData.netProfit)) }) });
-    }
-    if (plData && plData.grossMarginPct < 10 && plData.grossMarginPct > 0 && plData.grossRevenue > 0) {
-      alerts.push({ id: 'margin', type: 'warning', icon: 'alert-circle', title: t('reports.alertMarginTitle'), body: t('reports.alertMarginBody', { pct: plData.grossMarginPct.toFixed(1) }) });
-    }
-    if (debtData && debtData.overdueCount > 0) {
-      alerts.push({ id: 'overdue', type: 'warning', icon: 'time', title: t('reports.alertOverdueTitle', { count: debtData.overdueCount }), body: t('reports.alertOverdueBody'), action: { label: t('reports.alertActionView'), route: '/(app)/debt' } });
-    }
-    return alerts;
-  }, [plData, debtData, t]);
-  const visibleAlerts = useMemo(
-    () => allAlerts.filter((a) => !dismissedAlerts.includes(a.id)),
-    [allAlerts, dismissedAlerts]
-  );
 
   // ── Export PDF ────────────────────────────────────────────────────────────────
   async function exportPDF() {
@@ -844,11 +768,6 @@ export default function ReportsScreen() {
           contentContainerStyle={styles.scrollBody}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={reload} tintColor={colors.primary} />}
         >
-
-          {/* Smart alerts */}
-          {visibleAlerts.map((alert) => (
-            <AlertBanner key={alert.id} alert={alert} onDismiss={() => setDismissedAlerts((prev) => [...prev, alert.id])} />
-          ))}
 
           {/* ─── 1. Financial Summary Cards ─── */}
           <SectionHeader title={t('reports.financialSummary')} icon="stats-chart" />

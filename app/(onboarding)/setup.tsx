@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
@@ -72,9 +72,8 @@ export default function SetupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <LinearGradient
@@ -143,7 +142,7 @@ export default function SetupScreen() {
             </View>
           </MotiView>
 
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </View>
   );

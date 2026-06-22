@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
@@ -44,63 +43,6 @@ export default function SettingsScreen() {
   const { flexDirection } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut,    setIsLoggingOut]    = useState(false);
-  const [isSeeding,       setIsSeeding]       = useState(false);
-
-  // Dev-only — generates/removes the large synthetic dataset (10k products,
-  // 100k sales) used to manually verify scroll/query performance at scale.
-  // Never rendered in production builds (gated by __DEV__ below).
-  const handleSeedPerfData = () => {
-    if (isSeeding) return;
-    Alert.alert(
-      'Seed Performance Test Data',
-      'Insert 10,000 products, 500 customers, 150 suppliers, and 100,000 sales (tagged "PERFSEED") for manual performance testing? This can take a minute.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Seed',
-          onPress: async () => {
-            setIsSeeding(true);
-            try {
-              const { seedPerfData } = await import('@/lib/devTools/seedPerfData');
-              const result = await seedPerfData();
-              Alert.alert('Done', `Seeded ${result.products} products, ${result.sales} sales, ${result.saleItems} sale items in ${(result.elapsedMs / 1000).toFixed(1)}s.`);
-            } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Seeding failed.');
-            } finally {
-              setIsSeeding(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleClearPerfData = () => {
-    if (isSeeding) return;
-    Alert.alert(
-      'Clear Performance Test Data',
-      'Remove all rows tagged "PERFSEED"? Real data is never touched.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            setIsSeeding(true);
-            try {
-              const { clearPerfData } = await import('@/lib/devTools/seedPerfData');
-              const result = await clearPerfData();
-              Alert.alert('Done', `Removed ${result.products} products and ${result.sales} sales.`);
-            } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Clear failed.');
-            } finally {
-              setIsSeeding(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -214,26 +156,6 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(app)/settings/about' as never)}
           />
         </SettingSection>
-
-        {/* Developer Tools — perf test data seeding, __DEV__ only, never shown in production */}
-        {__DEV__ && (
-          <SettingSection title="Developer Tools">
-            <SettingRow
-              icon="flask"
-              label="Seed Performance Test Data"
-              sub={isSeeding ? 'Working…' : '10k products / 100k sales for manual perf testing'}
-              onPress={handleSeedPerfData}
-              disabled={isSeeding}
-            />
-            <SettingRow
-              icon="trash-bin"
-              label="Clear Performance Test Data"
-              sub="Removes only PERFSEED-tagged rows"
-              onPress={handleClearPerfData}
-              disabled={isSeeding}
-            />
-          </SettingSection>
-        )}
 
         {/* Account / Logout — visually separated */}
         <View style={styles.logoutSpacer} />

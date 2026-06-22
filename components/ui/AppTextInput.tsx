@@ -7,6 +7,7 @@ import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont } from '@/lib/settingsFont';
 import { Theme } from '@/constants/theme';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
@@ -29,6 +30,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku') && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType);
+  const scrollIntoView = useKeyboardAwareFocus();
   return (
     <View style={styles.container}>
       {label && (
@@ -55,11 +57,18 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
       >
         <View style={styles.inputRow}>
           <TextInput
+            {...rest}
             style={applyKurdishFont(isKurdish, [styles.input, { flex: 1, color: colors.black, textAlign }, style] as never)}
             placeholderTextColor={colors.gray400}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            {...rest}
+            onFocus={(e) => {
+              setFocused(true);
+              scrollIntoView(e);
+              rest.onFocus?.(e);
+            }}
+            onBlur={(e) => {
+              setFocused(false);
+              rest.onBlur?.(e);
+            }}
           />
           {rightElement}
         </View>

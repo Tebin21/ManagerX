@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
-  ScrollView,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -15,6 +16,7 @@ import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
@@ -39,6 +41,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   const { t } = useTranslation();
   const [amount, setAmount] = useState('');
   const [paying, setPaying] = useState(false);
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const progress = debt.originalAmount > 0
     ? Math.min(debt.paidAmount / debt.originalAmount, 1)
@@ -99,6 +102,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
           placeholderTextColor={colors.gray400}
           keyboardType="numeric"
           returnKeyType="done"
+          onFocus={scrollIntoView}
         />
         <TouchableOpacity
           style={[debtStyles.payBtn, { backgroundColor: paying ? colors.gray200 : colors.primary }]}
@@ -290,7 +294,7 @@ export default function SupplierDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
         title={supplier.name}
         showBack
@@ -318,7 +322,7 @@ export default function SupplierDetailScreen() {
         </View>
       </AppHeader>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Stats 2×2 grid */}
         <MotiView
@@ -555,8 +559,8 @@ export default function SupplierDetailScreen() {
           )}
         </MotiView>
 
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

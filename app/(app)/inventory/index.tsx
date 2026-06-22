@@ -19,6 +19,7 @@ import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { BulkSyncModal } from '@/components/inventory/BulkSyncModal';
 import { useTranslation } from 'react-i18next';
 import { InventoryStatsCard } from '@/components/inventory/InventoryStatsCard';
@@ -32,8 +33,16 @@ import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryFilter, InventoryProduct } from '@/types/inventory';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
+import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
 
 type ActiveTab = 'all' | 'categories';
+
+type PendingReport =
+  | { type: 'full'; products: InventoryProduct[] }
+  | { type: 'lowStock'; products: InventoryProduct[] }
+  | { type: 'outOfStock'; products: InventoryProduct[] }
+  | { type: 'category'; products: InventoryProduct[]; categoryName: string };
 
 const FILTER_OPTIONS: { key: InventoryFilter; labelKey: string }[] = [
   { key: 'all',      labelKey: 'inventory.filterAll' },
@@ -71,6 +80,8 @@ export default function InventoryScreen() {
   const [bulkSyncModalVisible, setBulkSyncModalVisible] = useState(false);
   const [catPickerVisible, setCatPickerVisible]     = useState(false);
   const [reportGenerating, setReportGenerating]     = useState(false);
+  const [periodModalVisible, setPeriodModalVisible] = useState(false);
+  const [pendingReport, setPendingReport]           = useState<PendingReport | null>(null);
   const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
@@ -99,36 +110,18 @@ export default function InventoryScreen() {
     setFilterSheetVisible(false);
   }, [setFilter]);
 
-  const handleFullReport = useCallback(async () => {
+  const handleFullReport = useCallback(() => {
     setReportModalVisible(false);
     const products = useInventoryStore.getState().getFilteredProducts('');
     if (products.length === 0) {
       Alert.alert(t('common.error'), t('inventory.noInventoryDetail'));
       return;
     }
-    const currentStats = useInventoryStore.getState().stats;
-    if (!currentStats) { Alert.alert(t('common.error'), t('common.tryAgain')); return; }
-    setReportGenerating(true);
-    try {
-      const { shareFullInventoryReport } = await import('@/lib/generateInvoice');
-      const { loadBusiness } = await import('@/lib/sqlite');
-      const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
-      const biz = await loadBusiness();
-      await shareFullInventoryReport(
-        products,
-        currentStats,
-        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
-        globalLowStockEnabled,
-        globalLowStockThreshold,
-      );
-    } catch {
-      Alert.alert(t('common.error'), t('common.tryAgain'));
-    } finally {
-      setReportGenerating(false);
-    }
+    setPendingReport({ type: 'full', products });
+    setPeriodModalVisible(true);
   }, [t]);
 
-  const handleLowStockReport = useCallback(async () => {
+  const handleLowStockReport = useCallback(() => {
     setReportModalVisible(false);
     const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
     const allProducts = useInventoryStore.getState().products ?? [];
@@ -139,23 +132,23 @@ export default function InventoryScreen() {
       Alert.alert(t('inventory.noLowStockProducts'), t('inventory.noLowStockProductsDetail'));
       return;
     }
-    setReportGenerating(true);
-    try {
-      const { shareLowStockInventoryReport } = await import('@/lib/generateInvoice');
-      const { loadBusiness } = await import('@/lib/sqlite');
-      const biz = await loadBusiness();
-      await shareLowStockInventoryReport(
-        lowStockProducts,
-        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
-      );
-    } catch {
-      Alert.alert(t('common.error'), t('common.tryAgain'));
-    } finally {
-      setReportGenerating(false);
-    }
+    setPendingReport({ type: 'lowStock', products: lowStockProducts });
+    setPeriodModalVisible(true);
   }, [t]);
 
-  const handleCategoryReport = useCallback(async (catName: string) => {
+  const handleOutOfStockReport = useCallback(() => {
+    setReportModalVisible(false);
+    const allProducts = useInventoryStore.getState().products ?? [];
+    const outOfStockProducts = allProducts.filter((p) => p.isActive && p.quantity === 0);
+    if (outOfStockProducts.length === 0) {
+      Alert.alert(t('inventory.noOutOfStockProducts'), t('inventory.noOutOfStockProductsDetail'));
+      return;
+    }
+    setPendingReport({ type: 'outOfStock', products: outOfStockProducts });
+    setPeriodModalVisible(true);
+  }, [t]);
+
+  const handleCategoryReport = useCallback((catName: string) => {
     setCatPickerVisible(false);
     const allProducts = useInventoryStore.getState().getFilteredProducts('');
     const catProducts = allProducts.filter((p) => p.category === catName);
@@ -163,22 +156,55 @@ export default function InventoryScreen() {
       Alert.alert(t('common.error'), t('inventory.noInventoryDetail'));
       return;
     }
+    setPendingReport({ type: 'category', products: catProducts, categoryName: catName });
+    setPeriodModalVisible(true);
+  }, [t]);
+
+  const handlePeriodSelect = useCallback(async (key: PeriodKey, customFrom?: string, customTo?: string) => {
+    setPeriodModalVisible(false);
+    const report = pendingReport;
+    setPendingReport(null);
+    if (!report) return;
+
+    const { from, to } = getPeriodBounds(key, customFrom, customTo);
+    const periodLabel = formatPeriodLabel(key, from, to);
+    const filtered = report.products.filter((p) => isWithinRange(p, from, to));
+    if (filtered.length === 0) {
+      Alert.alert(t('inventory.noRecordsInPeriod'), t('inventory.noRecordsInPeriodDetail'));
+      return;
+    }
+
     setReportGenerating(true);
     try {
-      const { shareCategoryInventoryReport } = await import('@/lib/generateInvoice');
       const { loadBusiness } = await import('@/lib/sqlite');
       const biz = await loadBusiness();
-      await shareCategoryInventoryReport(
-        catProducts,
-        catName,
-        { name: biz?.name ?? 'My Business', phone: biz?.phone ?? '', address: biz?.address ?? '', logoUri: biz?.logoPath ?? null },
-      );
+      const business = {
+        name: biz?.name ?? 'My Business',
+        phone: biz?.phone ?? '',
+        address: biz?.address ?? '',
+        logoUri: biz?.logoPath ?? null,
+      };
+
+      if (report.type === 'full') {
+        const { shareFullInventoryReport } = await import('@/lib/generateInvoice');
+        const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
+        await shareFullInventoryReport(filtered, business, globalLowStockEnabled, globalLowStockThreshold, periodLabel);
+      } else if (report.type === 'lowStock') {
+        const { shareLowStockInventoryReport } = await import('@/lib/generateInvoice');
+        await shareLowStockInventoryReport(filtered, business, periodLabel);
+      } else if (report.type === 'outOfStock') {
+        const { shareOutOfStockInventoryReport } = await import('@/lib/generateInvoice');
+        await shareOutOfStockInventoryReport(filtered, business, periodLabel);
+      } else {
+        const { shareCategoryInventoryReport } = await import('@/lib/generateInvoice');
+        await shareCategoryInventoryReport(filtered, report.categoryName, business, periodLabel);
+      }
     } catch {
       Alert.alert(t('common.error'), t('common.tryAgain'));
     } finally {
       setReportGenerating(false);
     }
-  }, [t]);
+  }, [pendingReport, t]);
 
   const handleAddCategory = useCallback(async () => {
     const name = newCatName.trim();
@@ -588,6 +614,25 @@ export default function InventoryScreen() {
 
           <TouchableOpacity
             style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
+            onPress={handleOutOfStockReport}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.reportIconWrap, { backgroundColor: colors.gray100 }]}>
+              <Ionicons name="close-circle-outline" size={20} color={colors.gray600} />
+            </View>
+            <View style={styles.reportOptionText}>
+              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
+                {t('inventory.reportOutOfStock')}
+              </Text>
+              <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
+                {t('inventory.reportOutOfStockSub')}
+              </Text>
+            </View>
+            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
             onPress={() => { setReportModalVisible(false); setCatPickerVisible(true); }}
             activeOpacity={0.7}
           >
@@ -608,6 +653,13 @@ export default function InventoryScreen() {
           <View style={styles.sheetBottomPad} />
         </View>
       </Modal>
+
+      {/* ── Period Filter Modal (gates every report export) ── */}
+      <PeriodFilterModal
+        visible={periodModalVisible}
+        onClose={() => { setPeriodModalVisible(false); setPendingReport(null); }}
+        onSelect={handlePeriodSelect}
+      />
 
       {/* ── Category Picker Modal (for Category Report) ── */}
       <Modal

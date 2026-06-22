@@ -16,6 +16,7 @@ import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -319,7 +320,7 @@ export default function NewSaleScreen() {
         <SaleStepIndicator step={3} />
       </AppHeader>
 
-      <ScrollView contentContainerStyle={styles.step3Body} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={styles.step3Body}>
 
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <PremiumCard style={styles.sectionCard}>
@@ -428,7 +429,7 @@ export default function NewSaleScreen() {
         />
 
         <View style={styles.bottomSpacer} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   );
 

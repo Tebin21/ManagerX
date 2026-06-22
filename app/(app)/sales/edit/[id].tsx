@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -18,8 +18,10 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
@@ -58,6 +60,7 @@ export default function EditInvoiceScreen() {
   const { colors } = useAppTheme();
   const { updateSale } = useSalesStore();
   const inventory = useInventoryStore();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const [sale, setSale]     = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,9 +290,8 @@ export default function EditInvoiceScreen() {
     >
       <AppHeader title={`${t('sales.editInvoice')} · ${sale.invoiceNumber}`} showBack />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
 
@@ -386,21 +388,15 @@ export default function EditInvoiceScreen() {
                   {/* Qty */}
                   <View style={styles.itemFieldGroup}>
                     <Text style={[styles.itemFieldLabel, { color: colors.gray400, textAlign }]}>{t('sales.qty')}</Text>
-                    <View style={[styles.qtyStepper, { flexDirection }]}>
-                      <TouchableOpacity
-                        style={[styles.stepBtn, { backgroundColor: colors.gray100 }]}
-                        onPress={() => item.quantity > 1 && updateItemField(idx, { quantity: item.quantity - 1 })}
-                      >
-                        <Ionicons name="remove" size={14} color={colors.black} />
-                      </TouchableOpacity>
-                      <Text style={[styles.qtyText, { color: colors.black }]}>{item.quantity}</Text>
-                      <TouchableOpacity
-                        style={[styles.stepBtn, { backgroundColor: colors.gray100 }]}
-                        onPress={() => updateItemField(idx, { quantity: item.quantity + 1 })}
-                      >
-                        <Ionicons name="add" size={14} color={colors.black} />
-                      </TouchableOpacity>
-                    </View>
+                    <QuantityStepper
+                      compact
+                      min={1}
+                      value={String(item.quantity)}
+                      onChangeText={(text) => {
+                        const n = parseInt(text, 10);
+                        if (!isNaN(n) && n >= 1) updateItemField(idx, { quantity: n });
+                      }}
+                    />
                   </View>
 
                   {/* Price */}
@@ -412,6 +408,7 @@ export default function EditInvoiceScreen() {
                       onChangeText={(v) => updateItemField(idx, { sellingPrice: parseFloat(v) || 0 })}
                       onEndEditing={() => updateItemField(idx, { sellingPrice: roundToNearest250(item.sellingPrice) })}
                       keyboardType="decimal-pad"
+                      onFocus={scrollIntoView}
                     />
                   </View>
 
@@ -424,6 +421,7 @@ export default function EditInvoiceScreen() {
                       onChangeText={(v) => updateItemField(idx, { discount: parseFloat(v) || 0 })}
                       onEndEditing={() => updateItemField(idx, { discount: roundToNearest250(item.discount) })}
                       keyboardType="decimal-pad"
+                      onFocus={scrollIntoView}
                     />
                   </View>
                 </View>
@@ -462,6 +460,7 @@ export default function EditInvoiceScreen() {
                 placeholderTextColor={colors.gray400}
                 value={productQuery}
                 onChangeText={setProductQuery}
+                onFocus={scrollIntoView}
               />
               <View style={{ maxHeight: 220 }}>
                 <FlatList
@@ -469,6 +468,7 @@ export default function EditInvoiceScreen() {
                   keyExtractor={(item) => String(item.id)}
                   scrollEnabled
                   keyboardShouldPersistTaps="handled"
+                  onScrollBeginDrag={() => Keyboard.dismiss()}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={[styles.productPickerRow, { borderBottomColor: colors.gray100, flexDirection }]}
@@ -581,7 +581,7 @@ export default function EditInvoiceScreen() {
         />
 
         <View style={{ height: 32 }} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -646,9 +646,6 @@ const styles = StyleSheet.create({
   itemFields: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   itemFieldGroup: { flex: 1 },
   itemFieldLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
-  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  stepBtn:    { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  qtyText:    { fontSize: 15, fontWeight: '700', minWidth: 20, textAlign: 'center' },
   itemInput: {
     height: 36, borderWidth: 1.5, borderRadius: 8,
     paddingHorizontal: 10, fontSize: 14,

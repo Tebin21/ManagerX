@@ -4,6 +4,8 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
@@ -35,8 +37,7 @@ export function CartItemRow({
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
-
-  const atMaxStock = item.product.idMode === 'repeatable' && item.quantity >= item.product.quantity;
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const [iqdPriceText, setIqdPriceText] = useState(String(item.sellingPrice));
   const [usdPrice, setUsdPrice] = useState(
@@ -129,23 +130,17 @@ export function CartItemRow({
       {/* Quantity stepper */}
       <View style={[styles.stepperRow, { flexDirection }]}>
         <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>{t('sales.qty')}</Text>
-        <View style={[styles.stepper, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
-          <TouchableOpacity
-            onPress={() => onUpdateQty(item.quantity - 1)}
-            disabled={item.quantity <= 1 || item.product.idMode === 'unique'}
-            style={[styles.stepBtn, (item.quantity <= 1 || item.product.idMode === 'unique') && styles.stepBtnDisabled]}
-          >
-            <Ionicons name="remove" size={16} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={[styles.qty, { color: colors.black }]}>{item.quantity}</Text>
-          <TouchableOpacity
-            onPress={() => onUpdateQty(item.quantity + 1)}
-            disabled={item.product.idMode === 'unique' || atMaxStock}
-            style={[styles.stepBtn, (item.product.idMode === 'unique' || atMaxStock) && styles.stepBtnDisabled]}
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+        <QuantityStepper
+          value={String(item.quantity)}
+          onChangeText={(text) => {
+            const n = parseInt(text, 10);
+            if (!isNaN(n)) onUpdateQty(n);
+          }}
+          min={1}
+          max={item.product.idMode === 'repeatable' ? item.product.quantity : undefined}
+          disabled={item.product.idMode === 'unique'}
+          containerStyle={styles.stepperContainer}
+        />
         {item.product.idMode === 'repeatable' && (
           <Text style={[styles.stockNote, { color: colors.gray400 }]}>/ {item.product.quantity}</Text>
         )}
@@ -163,7 +158,7 @@ export function CartItemRow({
               style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
               value={iqdDisplay}
               onChangeText={onIqdChange}
-              onFocus={() => setIqdFocused(true)}
+              onFocus={(e) => { setIqdFocused(true); scrollIntoView(e); }}
               onBlur={onIqdBlur}
               keyboardType="decimal-pad"
               placeholder="0"
@@ -179,7 +174,7 @@ export function CartItemRow({
               style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
               value={usdDisplay}
               onChangeText={onUsdChange}
-              onFocus={() => setUsdFocused(true)}
+              onFocus={(e) => { setUsdFocused(true); scrollIntoView(e); }}
               onBlur={() => setUsdFocused(false)}
               keyboardType="decimal-pad"
               placeholder="0.00"
@@ -223,6 +218,7 @@ export function CartItemRow({
           style={[styles.discountInput, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
           value={discountText}
           onChangeText={onDiscountChange}
+          onFocus={scrollIntoView}
           onBlur={onDiscountBlur}
           keyboardType="decimal-pad"
           placeholder={item.discountType === 'percentage' ? '0%' : '0'}
@@ -282,15 +278,7 @@ const styles = StyleSheet.create({
   warningText: { fontSize: 11, color: Colors.warning, fontWeight: '500', marginBottom: 8 },
 
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  stepBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  stepBtnDisabled: { opacity: 0.35 },
-  qty: { minWidth: 30, textAlign: 'center', fontSize: 15, fontWeight: '700' },
+  stepperContainer: { flex: 1 },
   stockNote: { fontSize: 12 },
 
   section: { marginBottom: 12 },

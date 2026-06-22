@@ -31,7 +31,9 @@
     "thisMonth":  " مانگ",
     "allTime":    "هەموو کات",
     "time":       "کات",
-    "next":       "دواتر"
+    "next":       "دواتر",
+    "decreaseQty":"کەمکردنەوەی بڕ",
+    "increaseQty":"زیادکردنی بڕ"
   },
   "splash": {
     "tagline": "بازرگانیەکەت، بە سادەیی"
@@ -469,9 +471,15 @@
     "reportLowStockSub":              "بەرهەمەکانی کەمتر لە ئەستەندەی کەمینە",
     "reportCategory":                 "ڕاپۆرتی جۆر",
     "reportCategorySub":              "بەرهەمەکانی جۆرێکی دیاریکراو",
+    "reportOutOfStock":               "ڕاپۆرتی نەماوەی کۆگا",
+    "reportOutOfStockSub":            "بەرهەمە چالاکەکان کە بڕیان سفرە",
     "selectCategoryTitle":            "جۆر هەڵبژێرە",
     "noLowStockProducts":             "هیچ بەرهەمێکی کەمی کۆگا نییە",
     "noLowStockProductsDetail":       "هەموو بەرهەمەکان ئەستەندەی پێویستیان هەیە",
+    "noOutOfStockProducts":           "هیچ بەرهەمێکی نەماوە نییە",
+    "noOutOfStockProductsDetail":     "هەموو بەرهەمەکان لە کۆگادا بەردەستن",
+    "noRecordsInPeriod":              "هیچ تۆمارێک لەم ماوەیەدا نییە",
+    "noRecordsInPeriodDetail":        "هیچ بەرهەمێک لەگەڵ ماوەی هەڵبژێردراو ناگونجێت",
     "generatingReport":               "ڕاپۆرت دروستدەکرێت..."
   },
   "inventoryHistory": {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, ScrollView, TextInput, TouchableOpacity,
+  View, TextInput, TouchableOpacity,
+  KeyboardAvoidingView, Platform,
   StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
@@ -9,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useCustomerStore } from '@/store/customerStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
@@ -21,6 +23,7 @@ export default function EditCustomerScreen() {
   const { textAlign, flexDirection } = useRTL();
   const { colors } = useAppTheme();
   const { customers, editCustomer } = useCustomerStore();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const customer = customers.find((c) => c.id === Number(id));
 
@@ -82,10 +85,10 @@ export default function EditCustomerScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader title={t('customers.editCustomer')} showBack />
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.card, { backgroundColor: colors.white }]}>
           <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('customers.customerInfo')}</Text>
 
@@ -94,6 +97,7 @@ export default function EditCustomerScreen() {
             style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
             value={name} onChangeText={setName}
             placeholder={t('customers.name')} placeholderTextColor={colors.gray300}
+            onFocus={scrollIntoView}
           />
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.phone')}</Text>
@@ -102,6 +106,7 @@ export default function EditCustomerScreen() {
             value={phone} onChangeText={setPhone}
             placeholder={t('sales.customerPhone')} placeholderTextColor={colors.gray300}
             keyboardType="phone-pad"
+            onFocus={scrollIntoView}
           />
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.address')}</Text>
@@ -109,6 +114,7 @@ export default function EditCustomerScreen() {
             style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
             value={address} onChangeText={setAddress}
             placeholder={t('sales.customerAddress')} placeholderTextColor={colors.gray300}
+            onFocus={scrollIntoView}
           />
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.notesLabel')}</Text>
@@ -117,6 +123,7 @@ export default function EditCustomerScreen() {
             value={notes} onChangeText={setNotes}
             placeholder={t('purchases.notes')} placeholderTextColor={colors.gray300}
             multiline numberOfLines={4}
+            onFocus={scrollIntoView}
           />
         </View>
 
@@ -135,8 +142,8 @@ export default function EditCustomerScreen() {
             </>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

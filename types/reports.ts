@@ -10,15 +10,6 @@ export interface DateRange {
 export const EXPENSE_CATEGORIES = ['Transport', 'Food', 'Utilities'] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
-export interface SmartAlert {
-  id: string;
-  type: 'warning' | 'error' | 'info';
-  icon: string;
-  title: string;
-  body: string;
-  action?: { label: string; route: string };
-}
-
 export type {
   SalesReportData,
   PurchaseReportData,

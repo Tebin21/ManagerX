@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
-  View, ScrollView, StyleSheet,
+  View, StyleSheet,
   Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
@@ -62,7 +63,7 @@ export default function BusinessProfileScreen() {
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.profileScreen.title')} showBack />
 
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView contentContainerStyle={styles.body}>
 
           {/* Logo */}
           <View style={styles.logoSection}>
@@ -104,7 +105,7 @@ export default function BusinessProfileScreen() {
           />
 
           <View style={{ height: 32 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </KeyboardAvoidingView>
   );
