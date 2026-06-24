@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/AppText';
 import { BackButton } from './BackButton';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { Typography } from '@/constants/typography';
 
 interface Props {
   title: string;
@@ -95,8 +96,7 @@ const styles = StyleSheet.create({
   title: {
     flex:          1,
     textAlign:     'center',
-    fontSize:      17,
-    fontWeight:    '700',
+    ...Typography.title,
     color:         '#FFFFFF',
     letterSpacing: 0.15,
   },

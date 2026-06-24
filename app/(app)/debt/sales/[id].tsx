@@ -10,6 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
+import { TimeText } from '@/components/ui/TimeText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -27,7 +31,6 @@ import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, DebtPayment } from '@/types/debt';
 import type { Sale } from '@/types/sales';
-import { fmtIQD, formatDateShort, formatDateTimeUI } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
@@ -86,14 +89,18 @@ function PaymentTimelineItem({
         {!isLast && <View style={styles.timelineLine} />}
       </View>
       <View style={styles.timelineCard}>
-        <Text style={[styles.timelineDate, { textAlign }]}>{formatDateTimeUI(payment.createdAt)}</Text>
+        <Text style={[styles.timelineDate, { textAlign }]}>
+          <DateText value={payment.createdAt} size="small" /> · <TimeText value={payment.createdAt} style={styles.timelineDate} />
+        </Text>
         <View style={[styles.timelineAmountRow, { flexDirection }]}>
           <View style={styles.timelineAmountChip}>
-            <Text style={styles.timelineAmountChipText}>+{fmtIQD(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
+            <Text style={styles.timelineAmountChipText}>
+              <AmountText value={payment.amount} prefix="+" currency="IQD" variant="small" style={styles.timelineAmountChipText} /> {i18n.t('debt.paidLabel')}
+            </Text>
           </View>
         </View>
         <Text style={[styles.timelineRemaining, { textAlign }]}>
-          {i18n.t('debt.remainingLabel')}: {fmtIQD(payment.remainingAfter)} IQD
+          {i18n.t('debt.remainingLabel')}: <AmountText value={payment.remainingAfter} currency="IQD" variant="small" style={styles.timelineRemaining} />
         </Text>
         {payment.note ? (
           <Text style={[styles.timelineNote, { textAlign }]}>{payment.note}</Text>
@@ -238,7 +245,7 @@ export default function SalesDebtDetailScreen() {
             <View style={[styles.statusRow, { flexDirection }]}>
               <View>
                 <Text style={[styles.remainingLabel, { textAlign }]}>{t('sales.remainingDebt')}</Text>
-                <Text style={[styles.remainingAmount, { color: colors.primary }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
+                <AmountText value={debt.remainingAmount} currency="IQD" variant="hero" style={[styles.remainingAmount, { color: colors.primary }]} />
               </View>
               <StatusBadge status={displayStatus} />
             </View>
@@ -250,14 +257,12 @@ export default function SalesDebtDetailScreen() {
             <View style={[styles.amountRow, { flexDirection }]}>
               <View style={styles.amountCell}>
                 <Text style={[styles.amountCellLabel, { textAlign }]}>{t('debt.totalOwedLabel')}</Text>
-                <Text style={styles.amountCellValue}>{fmtIQD(debt.originalAmount)} IQD</Text>
+                <AmountText value={debt.originalAmount} currency="IQD" style={styles.amountCellValue} />
               </View>
               <View style={styles.amountDivider} />
               <View style={styles.amountCell}>
                 <Text style={[styles.amountCellLabel, { textAlign }]}>{t('debt.paidLabel')}</Text>
-                <Text style={[styles.amountCellValue, { color: Colors.success }]}>
-                  {fmtIQD(debt.paidAmount)} IQD
-                </Text>
+                <AmountText value={debt.paidAmount} currency="IQD" style={[styles.amountCellValue, { color: Colors.success }]} />
               </View>
             </View>
           </PremiumCard>
@@ -269,11 +274,11 @@ export default function SalesDebtDetailScreen() {
             <Text style={[styles.sectionTitle, { textAlign }]}>{t('sales.invoicePreview')}</Text>
             <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.purchaseNumber')}</Text>
-              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.invoiceNumber}</Text>
+              <IdText style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.invoiceNumber}</IdText>
             </View>
             <View style={[styles.infoRow, { flexDirection }]}>
               <Text style={[styles.infoLabel, { textAlign }]}>{t('inventory.date')}</Text>
-              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{formatDateShort(debt.createdAt)}</Text>
+              <DateText value={debt.createdAt} style={[styles.infoValue, { textAlign: valueAlign }]} />
             </View>
             {debt.warranty ? (
               <View style={[styles.infoRow, { flexDirection }]}>
@@ -303,9 +308,9 @@ export default function SalesDebtDetailScreen() {
                       <Text style={styles.itemQtyBadge}>×{item.quantity}</Text>
                     ) : null}
                   </View>
-                  <Text style={[styles.itemPrice, { textAlign: valueAlign }]}>{fmtIQD(item.lineTotal)} IQD</Text>
+                  <AmountText value={item.lineTotal} currency="IQD" style={[styles.itemPrice, { textAlign: valueAlign }]} />
                   {item.itemId ? (
-                    <Text style={[styles.itemId, { textAlign: valueAlign }]}>ID: {item.itemId}</Text>
+                    <Text style={[styles.itemId, { textAlign: valueAlign }]}>ID: <IdText size="small" style={styles.itemId}>{item.itemId}</IdText></Text>
                   ) : null}
                 </View>
               ))}
@@ -348,7 +353,7 @@ export default function SalesDebtDetailScreen() {
               <PremiumCard style={styles.section}>
                 <Text style={[styles.sectionTitle, { textAlign }]}>{t('debt.recordPayment')}</Text>
                 <Text style={[styles.payRemaining, { color: colors.primary, textAlign }]}>
-                  {t('debt.remainingLabel')}: {fmtIQD(debt.remainingAmount)} IQD
+                  {t('debt.remainingLabel')}: <AmountText value={debt.remainingAmount} currency="IQD" variant="small" style={[styles.payRemaining, { color: colors.primary }]} />
                 </Text>
                 <TextInput
                   style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}

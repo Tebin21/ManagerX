@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { Sale } from '@/types/sales';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   sale: Sale;
@@ -30,20 +32,26 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
       <View style={styles.left}>
-        <Text style={[styles.invoice, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{sale.invoiceNumber}</Text>
+        <IdText style={[styles.invoice, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{sale.invoiceNumber}</IdText>
         {sale.customerName ? (
           <Text style={[styles.customer, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]} numberOfLines={1}>{sale.customerName}</Text>
         ) : null}
-        <Text style={[styles.date, { textAlign }]}>{formatDateShort(sale.date ?? sale.createdAt)}</Text>
+        <DateText value={sale.date ?? sale.createdAt} size="small" style={[styles.date, { textAlign }]} />
       </View>
 
       <View style={[styles.right, { alignItems: alignEnd, marginEnd: isRTL ? RTL_SPACING.gap : 8 }]}>
-        <Text style={[styles.total, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{fmtIQD(sale.grandTotal)}</Text>
+        <AmountText value={sale.grandTotal} style={[styles.total, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', marginBottom: isRTL ? RTL_SPACING.title : 4 }]} />
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
         </View>
         {sale.remainingDebt > 0 ? (
-          <Text style={[styles.debt, { textAlign: isRTL ? 'left' : 'right', marginTop: isRTL ? RTL_SPACING.title : 2 }]}>−{fmtIQD(sale.remainingDebt)} debt</Text>
+          <AmountText
+            value={sale.remainingDebt}
+            prefix="−"
+            currency="debt"
+            variant="small"
+            style={[styles.debt, { textAlign: isRTL ? 'left' : 'right', marginTop: isRTL ? RTL_SPACING.title : 2 }]}
+          />
         ) : null}
       </View>
 
@@ -65,7 +73,7 @@ const styles = StyleSheet.create({
   left: { flex: 1 },
   invoice: { fontSize: 13, fontWeight: '700', color: Colors.black, marginBottom: 2 },
   customer: { fontSize: 13, color: Colors.gray600, marginBottom: 2 },
-  date: { fontSize: 11, color: Colors.gray400 },
+  date: { color: Colors.gray400 },
   right: { alignItems: 'flex-end', marginEnd: 8 },
   total: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   badge: {

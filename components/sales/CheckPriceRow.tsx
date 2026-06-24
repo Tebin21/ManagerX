@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
-import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   product: Product;
@@ -25,7 +26,7 @@ export function CheckPriceRow({ product }: Props) {
         <View style={[styles.badges, { flexDirection }]}>
           {product.itemId ? (
             <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
-              <Text style={[styles.idText, { color: colors.primary }]}>#{product.itemId}</Text>
+              <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{product.itemId}</IdText>
             </View>
           ) : null}
           {product.unit !== 'pcs' ? (
@@ -35,8 +36,8 @@ export function CheckPriceRow({ product }: Props) {
       </View>
 
       <View style={[styles.prices, { alignItems: alignEnd }]}>
-        <Text style={styles.buyPrice}>{fmtIQD(product.purchasePrice)}</Text>
-        <Text style={[styles.sellPrice, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)}</Text>
+        <AmountText value={product.purchasePrice} variant="small" style={styles.buyPrice} />
+        <AmountText value={product.sellingPrice} style={[styles.sellPrice, { color: colors.primary }]} />
       </View>
 
       <View style={styles.stockBadge}>

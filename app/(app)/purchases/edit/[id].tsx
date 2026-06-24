@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { QuantityStepper } from '@/components/ui/QuantityStepper';
+import { LockedFieldRow } from '@/components/ui/LockedFieldRow';
+import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -25,44 +26,10 @@ import { getPurchaseById, getSoldQuantityForPurchase } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 
-
-function PaymentToggle({
-  value,
-  onChange,
-}: {
-  value: 'paid' | 'debt';
-  onChange: (v: 'paid' | 'debt') => void;
-}) {
-  const { colors } = useAppTheme();
-  const { t } = useTranslation();
-  const { flexDirection } = useRTL();
-  return (
-    <View style={[toggle.row, { backgroundColor: colors.gray100, flexDirection }]}>
-      {(['paid', 'debt'] as const).map((opt) => (
-        <TouchableOpacity
-          key={opt}
-          style={[toggle.pill, value === opt && { backgroundColor: colors.white }]}
-          onPress={() => onChange(opt)}
-          activeOpacity={0.8}
-        >
-          <Text style={[toggle.pillText, { color: value === opt ? colors.primary : colors.gray400 }]}>
-            {opt === 'paid' ? t('purchases.paid') : t('purchases.debt')}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-const toggle = StyleSheet.create({
-  row:      { flexDirection: 'row', borderRadius: Theme.radius.full, padding: 4, gap: 4 },
-  pill:     { flex: 1, borderRadius: Theme.radius.full, paddingVertical: 9, alignItems: 'center' },
-  pillText: { fontSize: 14, fontWeight: '700' },
-});
 
 export default function EditPurchaseScreen() {
   const router = useRouter();
@@ -76,27 +43,21 @@ export default function EditPurchaseScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [date, setDate]               = useState('');
   const [productName, setProductName] = useState('');
   const [category, setCategory]       = useState('');
-  const [quantity, setQuantity]       = useState('');
-  const [buyPriceIQD, setBuyPriceIQD] = useState('');
-  const [buyPriceUSD, setBuyPriceUSD] = useState('');
   const [sellPriceIQD, setSellPriceIQD] = useState('');
   const [sellPriceUSD, setSellPriceUSD] = useState('');
   const [warranty, setWarranty]       = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes]             = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'debt'>('paid');
+  const [imageUri, setImageUri]       = useState<string | null>(null);
   const [soldQty, setSoldQty]         = useState(0);
 
   const exchangeRate = purchase?.exchangeRate ?? 1500;
-  const buyNum  = parseFloat(buyPriceIQD)  || 0;
+  const buyNum  = purchase?.buyPriceIQD ?? 0;
   const sellNum = parseFloat(sellPriceIQD) || 0;
-  const qty     = parseInt(quantity, 10) || 0;
-  const totalIQD  = qty * buyNum;
+  const qty     = purchase?.quantity ?? 0;
   const profitIQD = (sellNum - buyNum) * qty;
-  const isCustomId = purchase?.idType === 'custom';
 
   useEffect(() => {
     (async () => {
@@ -104,36 +65,20 @@ export default function EditPurchaseScreen() {
       const p = await getPurchaseById(Number(id));
       if (p) {
         setPurchase(p);
-        setDate(p.date ?? '');
         setProductName(p.productName);
         setCategory(p.category ?? '');
-        setQuantity(String(p.quantity));
-        setBuyPriceIQD(String(p.buyPriceIQD));
-        setBuyPriceUSD(String(p.buyPriceUSD));
         setSellPriceIQD(String(p.sellPriceIQD));
         setSellPriceUSD(String(p.sellPriceUSD));
         setWarranty(p.warranty ?? '');
         setDescription(p.description ?? '');
         setNotes(p.notes ?? '');
-        setPaymentStatus(p.paymentStatus);
+        setImageUri(p.imageUri ?? null);
         const sold = await getSoldQuantityForPurchase(p.id);
         setSoldQty(sold);
       }
       setLoading(false);
     })();
   }, [id]);
-
-  const syncBuyUSD = (iqd: string) => {
-    setBuyPriceIQD(iqd);
-    const n = parseFloat(iqd);
-    if (!isNaN(n) && exchangeRate > 0) setBuyPriceUSD((n / exchangeRate).toFixed(2));
-  };
-
-  const syncBuyIQD = (usd: string) => {
-    setBuyPriceUSD(usd);
-    const n = parseFloat(usd);
-    if (!isNaN(n)) setBuyPriceIQD(String(roundToNearest250(n * exchangeRate)));
-  };
 
   const syncSellUSD = (iqd: string) => {
     setSellPriceIQD(iqd);
@@ -152,42 +97,23 @@ export default function EditPurchaseScreen() {
       Alert.alert(t('common.error'), t('purchases.validationRequired'));
       return;
     }
-    if (!buyPriceIQD || buyNum <= 0) {
-      Alert.alert(t('common.error'), t('purchases.validationBuyPrice'));
-      return;
-    }
 
     setSaving(true);
     try {
       await updatePurchase(Number(id), {
-        date: date.trim() || undefined,
         productName: productName.trim(),
         category: category.trim() || null,
-        quantity: qty,
-        buyPriceIQD: roundToNearest250(buyNum),
-        buyPriceUSD: parseFloat(buyPriceUSD) || 0,
         sellPriceIQD: roundToNearest250(sellNum),
         sellPriceUSD: parseFloat(sellPriceUSD) || 0,
         warranty: warranty.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
-        paymentStatus,
+        imageUri,
       });
       router.back();
     } catch (err: any) {
       console.error(err);
-      const msg: string = err?.message ?? '';
-      if (msg.startsWith('QUANTITY_BELOW_SOLD')) {
-        Alert.alert(t('common.error'), t('purchases.cannotReduceBelowSold'));
-      } else if (msg === 'CUSTOM_QTY_INCREASE_UNSUPPORTED') {
-        Alert.alert(t('common.error'), t('purchases.customQtyIncreaseBlocked'));
-      } else if (msg === 'QUANTITY_INVALID') {
-        Alert.alert(t('common.error'), t('purchases.validationQty'));
-      } else if (msg === 'INSUFFICIENT_UNSOLD_ITEMS') {
-        Alert.alert(t('common.error'), t('purchases.insufficientUnsoldItems'));
-      } else {
-        Alert.alert(t('common.error'), t('common.tryAgain'));
-      }
+      Alert.alert(t('common.error'), t('common.tryAgain'));
     } finally {
       setSaving(false);
     }
@@ -235,6 +161,16 @@ export default function EditPurchaseScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 200 }}
         >
+          {/* Product image */}
+          <PremiumCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productImage')}</Text>
+            <ProductImagePicker
+              uri={imageUri}
+              onSelect={setImageUri}
+              onRemove={() => setImageUri(null)}
+            />
+          </PremiumCard>
+
           {/* Supplier info (read-only) */}
           {purchase.supplierName && (
             <PremiumCard style={styles.card}>
@@ -255,13 +191,11 @@ export default function EditPurchaseScreen() {
           {/* Product info */}
           <PremiumCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productInfo')}</Text>
-            <AppTextInput
+            <LockedFieldRow
               label={t('purchases.date')}
-              value={date}
-              onChangeText={setDate}
-              placeholder={t('purchases.datePlaceholder')}
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="next"
+              value={purchase.date}
+              caption={t('purchases.dateLockedNote')}
+              valueNumeric
             />
             <AppTextInput
               label={`${t('purchases.productName')} *`}
@@ -279,20 +213,15 @@ export default function EditPurchaseScreen() {
               autoCapitalize="words"
               returnKeyType="next"
             />
-            <QuantityStepper
+            <LockedFieldRow
               label={t('purchases.qty')}
-              value={quantity}
-              onChangeText={setQuantity}
-              min={0}
+              value={String(qty)}
+              caption={t('purchases.quantityLockedNote')}
+              valueNumeric
             />
             <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
               {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
             </Text>
-            {isCustomId && (
-              <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
-                {t('purchases.customQtyDecreaseOnly')}
-              </Text>
-            )}
           </PremiumCard>
 
           {/* Pricing */}
@@ -300,26 +229,18 @@ export default function EditPurchaseScreen() {
             <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.pricingInfo')}</Text>
             <View style={[styles.priceRow, { flexDirection }]}>
               <View style={{ flex: 1 }}>
-                <AppTextInput
+                <LockedFieldRow
                   label={`${t('purchases.buyPrice')} (IQD)`}
-                  value={buyPriceIQD}
-                  onChangeText={syncBuyUSD}
-                  onEndEditing={() => {
-                    const r = roundToNearest250(parseFloat(buyPriceIQD) || 0);
-                    setBuyPriceIQD(String(r));
-                    if (exchangeRate > 0) setBuyPriceUSD((r / exchangeRate).toFixed(2));
-                  }}
-                  keyboardType="decimal-pad"
-                  returnKeyType="next"
+                  value={fmtIQD(purchase.buyPriceIQD)}
+                  caption={t('purchases.buyPriceLockedNote')}
+                  valueNumeric
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <AppTextInput
+                <LockedFieldRow
                   label={`${t('purchases.buyPrice')} (USD)`}
-                  value={buyPriceUSD}
-                  onChangeText={syncBuyIQD}
-                  keyboardType="decimal-pad"
-                  returnKeyType="next"
+                  value={fmtUSD(purchase.buyPriceUSD)}
+                  valueNumeric
                 />
               </View>
             </View>
@@ -336,6 +257,7 @@ export default function EditPurchaseScreen() {
                   }}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
+                  style={{ textAlign: 'left', writingDirection: 'ltr' }}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -345,6 +267,7 @@ export default function EditPurchaseScreen() {
                   onChangeText={syncSellIQD}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
+                  style={{ textAlign: 'left', writingDirection: 'ltr' }}
                 />
               </View>
             </View>
@@ -353,14 +276,17 @@ export default function EditPurchaseScreen() {
             <View style={[styles.totalBox, { backgroundColor: colors.softBlue }]}>
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.autoTotal')}</Text>
-                <Text style={[styles.totalValue, { color: colors.primary, textAlign: 'right' }]}>{fmtIQD(totalIQD)} IQD</Text>
+                <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary, textAlign: 'right' }]} />
               </View>
               {sellNum > 0 && (
                 <View style={[styles.totalRow, { flexDirection }]}>
                   <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.profitLabel')}</Text>
-                  <Text style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error, textAlign: 'right' }]}>
-                    {profitIQD >= 0 ? '+' : ''}{fmtIQD(profitIQD)} IQD
-                  </Text>
+                  <AmountText
+                    value={profitIQD}
+                    currency="IQD"
+                    prefix={profitIQD >= 0 ? '+' : ''}
+                    style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error, textAlign: 'right' }]}
+                  />
                 </View>
               )}
             </View>
@@ -369,11 +295,15 @@ export default function EditPurchaseScreen() {
           {/* Payment status */}
           <PremiumCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.paymentInfo')}</Text>
-            <PaymentToggle value={paymentStatus} onChange={setPaymentStatus} />
-            {paymentStatus === 'debt' && (
+            <LockedFieldRow
+              label={t('purchases.paymentInfo')}
+              value={purchase.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
+              caption={t('purchases.paymentStatusLockedNote')}
+            />
+            {purchase.paymentStatus === 'debt' && (
               <View style={[styles.debtNote, { backgroundColor: '#FFF7ED' }]}>
                 <Text style={[styles.debtNoteText, { color: Colors.warning, writingDirection }]}>
-                  {fmtIQD(totalIQD)} IQD {t('common.debt')}
+                  <AmountText value={purchase.totalIQD} currency="IQD" variant="small" style={[styles.debtNoteText, { color: Colors.warning }]} /> {t('common.debt')}
                 </Text>
               </View>
             )}
@@ -438,7 +368,7 @@ const styles = StyleSheet.create({
   infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, marginBottom: 4 },
   infoLabel: { fontSize: 13 },
   infoValue: { fontSize: 14, fontWeight: '600' },
-  hintText:  { fontSize: 12, marginTop: 6, marginBottom: 8 },
+  hintText:  { fontSize: 12, marginTop: -2, marginBottom: 8 },
 
   totalBox: { borderRadius: Theme.radius.md, padding: 14, marginTop: 10, gap: 6 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

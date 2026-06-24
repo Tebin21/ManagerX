@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   purchase: Purchase;
@@ -30,7 +32,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       <View style={[styles.header, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
         <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.numBadge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.numText}>{purchase.purchaseNumber}</Text>
+            <IdText style={styles.numText}>{purchase.purchaseNumber}</IdText>
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.productName, { textAlign }]} numberOfLines={1}>{purchase.productName}</Text>
@@ -40,7 +42,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
           </View>
         </View>
         <View style={[styles.headerRight, { alignItems: alignEnd, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
-          <Text style={[styles.date, { textAlign }]}>{formatDateShort(purchase.createdAt)}</Text>
+          <DateText value={purchase.createdAt} size="small" style={[styles.date, { textAlign }]} />
           <View style={[styles.statusBadge, isPaid ? styles.statusPaid : styles.statusDebt]}>
             <Text style={[styles.statusText, isPaid ? styles.statusTextPaid : styles.statusTextDebt]}>
               {isPaid ? 'Paid' : 'Debt'}
@@ -58,12 +60,12 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
         <View style={styles.divider} />
         <View style={styles.detailItem}>
           <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>Price / Unit</Text>
-          <Text style={styles.detailValue}>{fmtIQD(purchase.buyPriceIQD)} IQD</Text>
+          <AmountText value={purchase.buyPriceIQD} currency="IQD" style={styles.detailValue} />
         </View>
         <View style={styles.divider} />
         <View style={styles.detailItem}>
           <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>Total</Text>
-          <Text style={[styles.detailValue, { color: colors.primary }]}>{fmtIQD(purchase.totalIQD)} IQD</Text>
+          <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.detailValue, { color: colors.primary }]} />
         </View>
       </View>
 
@@ -71,7 +73,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       <View style={[styles.actions, { flexDirection, paddingHorizontal: isRTL ? RTL_SPACING.cardPad : 14 }]}>
         <View style={[styles.purchaseNum, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
           <Ionicons name="receipt-outline" size={13} color={Colors.gray400} />
-          <Text style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</Text>
+          <IdText size="small" style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</IdText>
         </View>
         <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} hitSlop={8}>
           <Ionicons name="trash-outline" size={16} color={Colors.error} />

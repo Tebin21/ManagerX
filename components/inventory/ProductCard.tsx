@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -9,7 +12,6 @@ import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { LowStockBadge } from './LowStockBadge';
 import i18n from '@/lib/i18n';
 import type { InventoryProduct } from '@/types/inventory';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   product: InventoryProduct;
@@ -61,7 +63,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
             </View>
             {product.itemId ? (
               <View style={styles.idChip}>
-                <Text style={styles.idText} numberOfLines={1}># {product.itemId}</Text>
+                <IdText size="small" style={styles.idText} numberOfLines={1}># {product.itemId}</IdText>
               </View>
             ) : null}
           </View>
@@ -86,17 +88,17 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
       <View style={[styles.priceRow, { flexDirection }]}>
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.buyPrice')}</Text>
-          <Text style={styles.priceValue}>{fmtIQD(product.purchasePrice)} IQD</Text>
+          <AmountText value={product.purchasePrice} currency="IQD" variant="small" style={styles.priceValue} />
         </View>
         <View style={styles.divider} />
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.sellPrice')}</Text>
-          <Text style={[styles.priceValue, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)} IQD</Text>
+          <AmountText value={product.sellingPrice} currency="IQD" variant="small" style={[styles.priceValue, { color: colors.primary }]} />
         </View>
         <View style={styles.divider} />
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.totalValueLabel')}</Text>
-          <Text style={styles.priceValue}>{fmtIQD(product.purchasePrice * product.quantity)} IQD</Text>
+          <AmountText value={product.purchasePrice * product.quantity} currency="IQD" variant="small" style={styles.priceValue} />
         </View>
       </View>
 
@@ -110,7 +112,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
             </View>
           ) : null}
           {product.purchaseDate ? (
-            <Text style={[styles.dateText, { textAlign }]}>{formatDateShort(product.purchaseDate)}</Text>
+            <DateText value={product.purchaseDate} size="small" style={[styles.dateText, { textAlign }]} />
           ) : null}
         </View>
 
@@ -194,8 +196,6 @@ const styles = StyleSheet.create({
     maxWidth: 120,
   },
   idText: {
-    fontSize: 11,
-    fontWeight: '500',
     color: Colors.gray600,
   },
 
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   priceItem: { flex: 1, alignItems: 'center' },
   priceLabel: { fontSize: 10, color: Colors.gray400, fontWeight: '600', marginBottom: 2 },
-  priceValue: { fontSize: 12, fontWeight: '700', color: Colors.black },
+  priceValue: { color: Colors.black },
   divider: {
     width: 1,
     backgroundColor: Colors.gray200,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   bottomLeft: { gap: 2 },
   supplierRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   supplierText: { fontSize: 12, color: Colors.gray500, maxWidth: 160 },
-  dateText: { fontSize: 11, color: Colors.gray400 },
+  dateText: { color: Colors.gray400 },
 
   bottomRight: {
     flexDirection: 'row',

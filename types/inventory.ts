@@ -16,6 +16,7 @@ export interface InventoryProduct extends Product {
   purchaseDate: string | null;
   paymentStatus: 'paid' | 'debt';
   warranty: string | null;
+  notes: string | null;
   imageUri: string | null;
   imageRemoteUrl: string | null;
   buyPriceUsd: number;
@@ -57,6 +58,7 @@ export interface NewProductData {
   purchaseDate: string | null;
   paymentStatus: 'paid' | 'debt';
   warranty: string | null;
+  notes: string | null;
   imageUri: string | null;
   lowStockThreshold?: number | null;
   lowStockEnabled?: 1 | 0 | null;

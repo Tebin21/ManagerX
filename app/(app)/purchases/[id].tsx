@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
-  Alert, StyleSheet, Text as RNText, TextStyle,
+  Alert, StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +26,7 @@ import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
-import { fmtIQD, fmtExchangeRate, formatDateShort } from '@/utils/formatters';
+import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 
 // Plain alphanumeric codes (item/shared/warranty IDs like "K5421") — never
@@ -32,14 +34,6 @@ import { useRTL } from '@/lib/rtl';
 const ID_CODE_PATTERN = /^[A-Za-z0-9-]+$/;
 function isIdCode(value: string): boolean {
   return ID_CODE_PATTERN.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
-}
-
-// AppText splits a Kurdish-styled string's numeral runs into a separate
-// system-font <Text>, so a code like "K5421" renders its letter in Rudaw and
-// its digits in the system font — two different letterforms for one code.
-// Render the whole string in a single font instead so it reads as one unit.
-function IdText({ style, children }: { style?: TextStyle | TextStyle[]; children: React.ReactNode }) {
-  return <RNText style={[style, { fontFamily: SYSTEM_FONT_OVERRIDE }]}>{children}</RNText>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -203,7 +197,7 @@ export default function PurchaseDetailScreen() {
             <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
               <View>
                 <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
-                <Text style={styles.invoiceNumber}>{purchase.purchaseNumber}</Text>
+                <IdText style={styles.invoiceNumber}>{purchase.purchaseNumber}</IdText>
               </View>
               <View style={[styles.statusPill, isPaid ? styles.statusPillPaid : styles.statusPillDebt]}>
                 <Text style={[styles.statusPillText, isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt]}>
@@ -211,10 +205,10 @@ export default function PurchaseDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.invoiceDate}>{formatDateShort(purchase.date)}</Text>
+            <DateText value={purchase.date} style={styles.invoiceDate} />
             <View style={[styles.invoiceTotalRow, { flexDirection }]}>
               <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
-              <Text style={styles.invoiceTotalValue}>{fmtIQD(purchase.totalIQD)} IQD</Text>
+              <AmountText value={purchase.totalIQD} currency="IQD" variant="large" style={styles.invoiceTotalValue} />
             </View>
           </LinearGradient>
         </MotiView>
@@ -252,7 +246,7 @@ export default function PurchaseDetailScreen() {
                   </View>
                   <View style={[styles.itemRight, { alignItems: alignEnd }]}>
                     <Text style={[styles.itemQty, { color: colors.gray400 }]}>×{item.quantity}</Text>
-                    <Text style={[styles.itemPrice, { color: colors.primary }]}>{fmtIQD(item.lineTotalIQD)} IQD</Text>
+                    <AmountText value={item.lineTotalIQD} currency="IQD" style={[styles.itemPrice, { color: colors.primary }]} />
                   </View>
                 </View>
               ))}

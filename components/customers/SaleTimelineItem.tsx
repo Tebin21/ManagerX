@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import type { Sale } from '@/types/sales';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   sale: Sale;
@@ -35,8 +37,6 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
     fib:  colors.primary,
     debt: Colors.warning,
   };
-  const dateStr = formatDateShort(sale.date ?? sale.createdAt);
-
   return (
     <View style={[styles.row, { flexDirection }]}>
       {/* Timeline spine */}
@@ -50,8 +50,8 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
         {/* Header */}
         <View style={[styles.cardTop, { flexDirection }]}>
           <View>
-            <Text style={styles.invoice}>{sale.invoiceNumber}</Text>
-            <Text style={styles.date}>{dateStr}</Text>
+            <IdText style={styles.invoice}>{sale.invoiceNumber}</IdText>
+            <DateText value={sale.date ?? sale.createdAt} size="small" style={styles.date} />
           </View>
           <View style={[styles.badges, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
             <View style={[styles.methodBadge, { backgroundColor: `${methodColor[sale.paymentMethod]}20` }]}>
@@ -61,9 +61,7 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
             </View>
             {hasDebt && (
               <View style={styles.debtBadge}>
-                <Text style={styles.debtText}>
-                  {fmtIQD(sale.remainingDebt)} IQD left
-                </Text>
+                <AmountText value={sale.remainingDebt} currency="IQD left" variant="small" style={styles.debtText} />
               </View>
             )}
           </View>
@@ -83,21 +81,17 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
         <View style={[styles.totalsRow, { flexDirection }]}>
           <View style={styles.totalItem}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={styles.totalValue}>{fmtIQD(sale.grandTotal)} IQD</Text>
+            <AmountText value={sale.grandTotal} currency="IQD" style={styles.totalValue} />
           </View>
           {sale.discountTotal > 0 && (
             <View style={styles.totalItem}>
               <Text style={styles.totalLabel}>Discount</Text>
-              <Text style={[styles.totalValue, styles.discountValue]}>
-                -{fmtIQD(sale.discountTotal)} IQD
-              </Text>
+              <AmountText value={sale.discountTotal} currency="IQD" prefix="-" style={[styles.totalValue, styles.discountValue]} />
             </View>
           )}
           <View style={styles.totalItem}>
             <Text style={styles.totalLabel}>Paid</Text>
-            <Text style={[styles.totalValue, styles.paidValue]}>
-              {fmtIQD(sale.paidAmount)} IQD
-            </Text>
+            <AmountText value={sale.paidAmount} currency="IQD" style={[styles.totalValue, styles.paidValue]} />
           </View>
         </View>
 

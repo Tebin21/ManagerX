@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -19,7 +20,6 @@ import { useSupplierStore } from '@/store/supplierStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import type { SupplierWithStats } from '@/types/suppliers';
-import { fmtIQD } from '@/utils/formatters';
 import { useDirectionalChevron } from '@/lib/rtl';
 
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
@@ -41,7 +41,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
           <Text style={[styles.cardPhone, { color: colors.gray400 }]}>{supplier.phone}</Text>
         ) : null}
         <Text style={[styles.cardSub, { color: colors.gray400 }]}>
-          {supplier.purchaseCount} {t('suppliers.purchases')} · {fmtIQD(supplier.totalSpent)} IQD
+          {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant="small" />
         </Text>
       </View>
       <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
@@ -112,7 +112,7 @@ export default function SuppliersScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{fmtIQD(totalSpent)}</Text>
+              <AmountText value={totalSpent} variant="large" style={styles.headerStatVal} />
               <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </MotiView>

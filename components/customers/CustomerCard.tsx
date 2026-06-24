@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -8,7 +10,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { CustomerWithStats } from '@/types/customers';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   customer: CustomerWithStats;
@@ -23,7 +24,6 @@ function CustomerCardImpl({ customer, onPress }: Props) {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const hasDebt = customer.remainingDebt > 0;
-  const lastDate = customer.lastPurchaseDate ? formatDateShort(customer.lastPurchaseDate) : null;
 
   return (
     <TouchableOpacity
@@ -61,25 +61,21 @@ function CustomerCardImpl({ customer, onPress }: Props) {
             {customer.saleCount} {t('suppliers.purchases')}
           </Text>
           <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
-          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
-            {fmtIQD(customer.totalPurchases)} IQD
-          </Text>
+          <AmountText value={customer.totalPurchases} currency="IQD" variant="small" style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]} />
         </View>
         {hasDebt && (
           <View style={[styles.debtRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Text style={[styles.debtRowLabel, { color: colors.gray400, textAlign }]}>
               {t('debt.remainingLabel')}
             </Text>
-            <Text style={[styles.debtRowValue, { color: colors.gray400, textAlign }]}>
-              {fmtIQD(customer.remainingDebt)} IQD
-            </Text>
+            <AmountText value={customer.remainingDebt} currency="IQD" variant="small" style={[styles.debtRowValue, { color: colors.gray400, textAlign }]} />
           </View>
         )}
-        {lastDate ? (
+        {customer.lastPurchaseDate ? (
           <View style={[styles.dateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
             <Text style={[styles.dateText, { color: colors.gray400, textAlign }]}>
-              {t('suppliers.lastPurchase')}: {lastDate}
+              {t('suppliers.lastPurchase')}: <DateText value={customer.lastPurchaseDate} size="small" />
             </Text>
           </View>
         ) : null}

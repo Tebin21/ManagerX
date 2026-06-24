@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +15,6 @@ import { usePurchaseStore } from '@/store/purchaseStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-import { fmtIQD } from '@/utils/formatters';
 
 
 function getTodayStats(purchases: ReturnType<typeof usePurchaseStore.getState>['purchases']) {
@@ -107,7 +107,7 @@ export default function PurchasesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#FEF3C7' }]}>
               <Ionicons name="cash-outline" size={20} color={colors.warning} />
             </View>
-            <Text style={[styles.statValue, { color: colors.warning }]}>{fmtIQD(total)}</Text>
+            <AmountText value={total} variant="large" style={[styles.statValue, { color: colors.warning }]} />
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('purchases.totalSpent')}</Text>
           </PremiumCard>
         </MotiView>

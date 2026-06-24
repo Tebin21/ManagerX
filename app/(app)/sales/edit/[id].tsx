@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -32,7 +33,6 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
-import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 
 interface EditItem {
@@ -428,9 +428,7 @@ export default function EditInvoiceScreen() {
 
                 <View style={[styles.itemTotalRow, { flexDirection }]}>
                   <Text style={[styles.itemTotalLabel, { color: colors.gray400, textAlign }]}>{t('sales.lineTotal')}</Text>
-                  <Text style={[styles.itemTotalValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
-                    {fmtIQD(item.lineTotal)} IQD
-                  </Text>
+                  <AmountText value={item.lineTotal} currency="IQD" style={[styles.itemTotalValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               </View>
             ))
@@ -480,7 +478,7 @@ export default function EditInvoiceScreen() {
                           {item.name}
                         </Text>
                         <Text style={[styles.productPickerMeta, { color: colors.gray400, textAlign }]}>
-                          {fmtIQD(item.sellingPrice)} IQD · Qty: {item.quantity}
+                          <AmountText value={item.sellingPrice} currency="IQD" variant="small" style={styles.productPickerMeta} /> · Qty: {item.quantity}
                         </Text>
                       </View>
                       <Ionicons name="add-circle" size={22} color={colors.primary} />
@@ -502,17 +500,17 @@ export default function EditInvoiceScreen() {
           </Text>
           <View style={[styles.summaryRow, { flexDirection }]}>
             <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.subtotal')}</Text>
-            <Text style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(subtotal)} IQD</Text>
+            <AmountText value={subtotal} currency="IQD" style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]} />
           </View>
           {discountTotal > 0 && (
             <View style={[styles.summaryRow, { flexDirection }]}>
               <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.totalDiscount')}</Text>
-              <Text style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(discountTotal)} IQD</Text>
+              <AmountText value={discountTotal} currency="IQD" prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
             </View>
           )}
           <View style={[styles.summaryRow, styles.grandRow, { borderTopColor: colors.gray100, flexDirection }]}>
             <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
-            <Text style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(grandTotal)} IQD</Text>
+            <AmountText value={grandTotal} currency="IQD" variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
           </View>
         </View>
 
@@ -542,7 +540,7 @@ export default function EditInvoiceScreen() {
                 <View style={[styles.debtAlert, { backgroundColor: '#FEE2E2', flexDirection }]}>
                   <Ionicons name="time-outline" size={16} color={colors.error} />
                   <Text style={[styles.debtText, { color: colors.error, textAlign }]}>
-                    {t('sales.remainingDebt')}: {fmtIQD(remainingDebt)} IQD
+                    {t('sales.remainingDebt')}: <AmountText value={remainingDebt} currency="IQD" variant="small" style={[styles.debtText, { color: colors.error }]} />
                   </Text>
                 </View>
               )}

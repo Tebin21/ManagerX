@@ -10,6 +10,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -23,7 +26,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
+import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
@@ -120,7 +123,7 @@ function SalesDebtCardImpl({
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.customerName}</Text>
             <Text style={styles.cardSub}>
-              {debt.invoiceNumber} · {formatDateShort(debt.createdAt)}
+              <IdText size="small" style={styles.cardSub}>{debt.invoiceNumber}</IdText> · <DateText value={debt.createdAt} size="small" style={styles.cardSub} />
             </Text>
             {debt.lastPaymentAt && (
               <Text style={styles.cardSub2}>{i18n.t('debt.lastPaymentDaysAgo', { count: daysAgo(debt.lastPaymentAt) })}</Text>
@@ -133,7 +136,7 @@ function SalesDebtCardImpl({
         </View>
 
         <View style={[styles.cardAmounts, { flexDirection }]}>
-          <Text style={[styles.amountRemaining, { color: colors.primary }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }]} />
           <Text style={styles.amountSub}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
@@ -202,7 +205,7 @@ function PurchaseDebtCardImpl({
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.supplierName}</Text>
             <Text style={styles.cardSub}>
-              {debt.purchaseNumber ?? i18n.t('debt.noRef')} · {formatDateShort(debt.createdAt)}
+              {debt.purchaseNumber ? <IdText size="small" style={styles.cardSub}>{debt.purchaseNumber}</IdText> : i18n.t('debt.noRef')} · <DateText value={debt.createdAt} size="small" style={styles.cardSub} />
             </Text>
             {debt.lastPaymentAt && (
               <Text style={styles.cardSub2}>{i18n.t('debt.lastPaymentDaysAgo', { count: daysAgo(debt.lastPaymentAt) })}</Text>
@@ -215,9 +218,7 @@ function PurchaseDebtCardImpl({
         </View>
 
         <View style={[styles.cardAmounts, { flexDirection }]}>
-          <Text style={[styles.amountRemaining, { color: Colors.error }]}>
-            {fmtIQD(debt.remainingAmount)} IQD
-          </Text>
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error }]} />
           <Text style={styles.amountSub}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
@@ -277,7 +278,9 @@ function QuickPayModal({
       >
         <Text style={styles.modalTitle}>{i18n.t('debt.recordPayment')}</Text>
         <Text style={styles.modalSub}>{name}</Text>
-        <Text style={[styles.modalRemaining, { color: colors.primary }]}>{i18n.t('debt.remainingLabel')}: {fmtIQD(remaining)} IQD</Text>
+        <Text style={[styles.modalRemaining, { color: colors.primary }]}>
+          {i18n.t('debt.remainingLabel')}: <AmountText value={remaining} currency="IQD" variant="small" style={[styles.modalRemaining, { color: colors.primary }]} />
+        </Text>
         <TextInput
           style={styles.modalInput}
           placeholder={i18n.t('debt.amountPlaceholder')}
@@ -381,23 +384,27 @@ export default function DebtScreen() {
   const overviewCards = useMemo(() => [
     {
       label: t('debt.totalReceivable'),
-      value: fmtIQD(summary?.totalSalesDebt ?? 0),
+      value: summary?.totalSalesDebt ?? 0,
+      isAmount: true,
       icon: 'arrow-down-circle' as const,
     },
     {
       label: t('debt.overdueDebts'),
-      value: String(summary?.overdueCount ?? 0),
+      value: summary?.overdueCount ?? 0,
+      isAmount: false,
       icon: 'alert-circle' as const,
       highlight: (summary?.overdueCount ?? 0) > 0,
     },
     {
       label: t('debt.totalOwed'),
-      value: fmtIQD(summary?.totalPurchaseDebt ?? 0),
+      value: summary?.totalPurchaseDebt ?? 0,
+      isAmount: true,
       icon: 'arrow-up-circle' as const,
     },
     {
       label: t('common.allTime'),
-      value: String((summary?.activeSalesCount ?? 0) + (summary?.activePurchaseCount ?? 0)),
+      value: (summary?.activeSalesCount ?? 0) + (summary?.activePurchaseCount ?? 0),
+      isAmount: false,
       icon: 'layers' as const,
     },
   ], [summary, t]);
@@ -422,7 +429,11 @@ export default function DebtScreen() {
                 color="rgba(255,255,255,0.75)"
                 style={{ marginBottom: 4 }}
               />
-              <Text style={styles.overviewValue}>{card.value}</Text>
+              {card.isAmount ? (
+                <AmountText value={card.value} variant="large" style={styles.overviewValue} />
+              ) : (
+                <Text style={styles.overviewValue}>{card.value}</Text>
+              )}
               <Text style={styles.overviewLabel}>{card.label}</Text>
             </View>
           ))}

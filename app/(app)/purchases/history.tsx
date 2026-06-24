@@ -4,6 +4,7 @@ import {
   RefreshControl, Keyboard, StyleSheet, Alert,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -17,7 +18,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD } from '@/utils/formatters';
 
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
@@ -147,9 +147,12 @@ export default function PurchaseHistoryScreen() {
           <Text style={[styles.summaryText, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'purchase' : 'purchases'}
           </Text>
-          <Text style={[styles.summaryTotal, { color: colors.primary }]}>
-            {fmtIQD(visible.reduce((s, p) => s + p.totalIQD, 0))} IQD total
-          </Text>
+          <AmountText
+            value={visible.reduce((s, p) => s + p.totalIQD, 0)}
+            currency="IQD total"
+            variant="small"
+            style={[styles.summaryTotal, { color: colors.primary }]}
+          />
         </View>
       )}
 

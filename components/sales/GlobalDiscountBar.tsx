@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -9,7 +10,6 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import type { GlobalDiscountType } from '@/types/sales';
-import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   type: GlobalDiscountType;
@@ -86,9 +86,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
 
           {discountAmount > 0 && (
             <View style={[styles.previewBadge, { backgroundColor: colors.softBlue ?? '#EFF6FF', flexDirection }]}>
-              <Text style={[styles.previewText, { color: colors.primary, textAlign }]}>
-                −{fmtIQD(discountAmount)} IQD
-              </Text>
+              <AmountText value={discountAmount} currency="IQD" prefix="−" variant="small" style={[styles.previewText, { color: colors.primary, textAlign }]} />
               {subtotal > 0 && (
                 <Text style={[styles.previewPct, { color: colors.gray500, textAlign }]}>
                   ({((discountAmount / subtotal) * 100).toFixed(1)}% {t('sales.ofTotal')})

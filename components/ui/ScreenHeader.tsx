@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { Typography } from '@/constants/typography';
 
 interface Props {
   title: string;
@@ -48,8 +49,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 17,
-    fontWeight: '600',
+    ...Typography.title,
     letterSpacing: 0.2,
   },
 });

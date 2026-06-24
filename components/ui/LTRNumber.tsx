@@ -11,5 +11,5 @@ export function LTRNumber({ style, ...props }: TextProps) {
 }
 
 const styles = StyleSheet.create({
-  ltr: { writingDirection: 'ltr' },
+  ltr: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
 });

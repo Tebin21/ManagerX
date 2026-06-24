@@ -1,6 +1,7 @@
 import type { InventoryProduct } from '@/types/inventory';
-import { fmtIQD, formatDate as fmtDate, formatTime as fmtTime } from '@/utils/formatters';
+import { fmtIQD, formatDate as fmtDate, formatDateShort, formatTime as fmtTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
+import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
   name: string;
@@ -17,6 +18,20 @@ function escHtml(str: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// Kurdish PDF language follows the app's current language automatically, same
+// as every other report template -- there's no separate PDF language setting.
+function isKurdishActive(): boolean {
+  return i18n.language === 'ku';
+}
+function t(key: string, opts?: Record<string, unknown>): string {
+  return i18n.t(`inventoryReportPdf.${key}`, opts) as string;
+}
+// Wraps an already-translated label in the Rudaw/RTL span. Never wraps
+// numbers, dates, or raw product data (names, IDs, category/supplier text).
+function ku(html: string): string {
+  return isKurdishActive() ? `<span class="ku-text" dir="rtl">${html}</span>` : html;
 }
 
 
@@ -36,19 +51,22 @@ function logoBlock(logoUri: string | null): string {
 // Mirrors lib/invoiceTemplate.ts's SALES_CSS design tokens so inventory reports
 // feel like part of the same ManagerX PDF system.
 
-function reportCSS(dir: 'ltr' | 'rtl'): string {
-  const alignEnd = dir === 'rtl' ? 'left' : 'right';
+function reportCSS(isKurdish: boolean): string {
+  const kuAlign = isKurdish ? 'right' : 'left';
+  const numAlign = isKurdish ? 'left' : 'right';
   return `
     ${KURDISH_FONT_FACE}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      direction: ltr;
+      direction: ${isKurdish ? 'rtl' : 'ltr'};
+      text-align: ${isKurdish ? 'right' : 'left'};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
       background: #ffffff;
       color: #000000;
       font-size: 13px;
       line-height: 1.5;
     }
+    .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; font-weight: 400; letter-spacing: normal; text-transform: none; }
     .page { max-width: 900px; margin: 0 auto; background: #fff; }
 
     /* ── Header ── */
@@ -58,25 +76,26 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
     }
     .header-inner {
       display: flex;
+      direction: ltr;
       justify-content: space-between;
       align-items: flex-start;
       gap: 20px;
     }
-    .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; }
+    .biz-name { font-size: 17px; font-weight: ${isKurdish ? 400 : 800}; letter-spacing: -0.3px; color: #000000; }
     .biz-meta { color: #000000; font-size: 12px; margin-top: 4px; line-height: 1.6; }
-    .report-title-col { text-align: ${alignEnd}; }
-    .report-title { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #000000; }
+    .report-title-col { text-align: right; }
+    .report-title { font-size: 16px; font-weight: ${isKurdish ? 400 : 800}; letter-spacing: 0.5px; text-transform: ${isKurdish ? 'none' : 'uppercase'}; color: #000000; }
     .report-subtitle { color: #475569; font-size: 12px; margin-top: 3px; }
     .report-id {
       display: inline-block;
       margin-top: 8px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: ${isKurdish ? 400 : 700};
       letter-spacing: 0.8px;
-      color: #94a3b8;
+      color: ${isKurdish ? '#000000' : '#94a3b8'};
       text-transform: uppercase;
     }
-    .report-date { color: #94a3b8; font-size: 11.5px; margin-top: 4px; }
+    .report-date { color: ${isKurdish ? '#000000' : '#94a3b8'}; font-size: 11.5px; margin-top: 4px; }
 
     /* ── Body ── */
     .body { padding: 22px 32px 32px; }
@@ -94,12 +113,12 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
     }
     .period-label {
       font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-weight: ${isKurdish ? 400 : 700};
+      text-transform: ${isKurdish ? 'none' : 'uppercase'};
+      letter-spacing: ${isKurdish ? 'normal' : '1px'};
       color: #64748b;
     }
-    .period-value { font-size: 14px; font-weight: 700; color: #000000; }
+    .period-value { font-size: 14px; font-weight: ${isKurdish ? 400 : 700}; color: #000000; direction: ltr; unicode-bidi: isolate; }
 
     /* ── KPI grid ── */
     .kpi-grid { display: flex; gap: 10px; margin-bottom: 22px; }
@@ -112,24 +131,26 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
     }
     .kpi-label {
       font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
+      font-weight: ${isKurdish ? 400 : 700};
+      text-transform: ${isKurdish ? 'none' : 'uppercase'};
+      letter-spacing: ${isKurdish ? 'normal' : '0.8px'};
       color: #64748b;
       margin-bottom: 6px;
+      text-align: ${kuAlign};
     }
-    .kpi-value { font-size: 17px; font-weight: 800; color: #000000; line-height: 1.2; }
+    .kpi-value { font-size: 17px; font-weight: ${isKurdish ? 400 : 800}; color: #000000; line-height: 1.2; text-align: ${kuAlign}; }
 
     /* ── Section label ── */
     .section-label {
       font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
+      font-weight: ${isKurdish ? 400 : 700};
+      text-transform: ${isKurdish ? 'none' : 'uppercase'};
+      letter-spacing: ${isKurdish ? 'normal' : '0.8px'};
       color: #64748b;
       margin-bottom: 10px;
       padding-bottom: 7px;
       border-bottom: 1px solid #e2e8f0;
+      text-align: ${kuAlign};
     }
 
     /* ── Table ── */
@@ -138,14 +159,14 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
       border-radius: 14px;
       overflow: hidden;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
     thead tr { background: #f8fafc; }
     th {
       padding: 10px 11px;
-      text-align: left;
+      text-align: ${kuAlign};
       font-size: 10.5px;
-      font-weight: 700;
-      text-transform: uppercase;
+      font-weight: ${isKurdish ? 400 : 700};
+      text-transform: ${isKurdish ? 'none' : 'uppercase'};
       letter-spacing: 0.5px;
       color: #000000;
       white-space: nowrap;
@@ -162,7 +183,7 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
     tfoot tr { background: #f8fafc; }
     tfoot td {
       border-top: 2px solid #e2e8f0;
-      font-weight: 700;
+      font-weight: ${isKurdish ? 400 : 700};
       font-size: 12.5px;
       padding: 11px;
       color: #000000;
@@ -184,7 +205,7 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
       border-radius: 20px;
       padding: 2px 8px;
       font-size: 10.5px;
-      font-weight: 700;
+      font-weight: ${isKurdish ? 400 : 700};
       color: #000000;
       white-space: nowrap;
     }
@@ -194,12 +215,12 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
       border-radius: 20px;
       padding: 2px 8px;
       font-size: 10.5px;
-      font-weight: 700;
+      font-weight: ${isKurdish ? 400 : 700};
       color: #ffffff;
       white-space: nowrap;
     }
     .badge-sold {
-      font-style: italic;
+      font-style: ${isKurdish ? 'normal' : 'italic'};
       color: #94a3b8;
       font-size: 11px;
     }
@@ -230,6 +251,9 @@ function reportCSS(dir: 'ltr' | 'rtl'): string {
 
 // ─── Shared header block ──────────────────────────────────────────────────────
 
+// title/subtitle arrive pre-escaped and, for Kurdish, already ku()-wrapped --
+// callers own that so raw data embedded in a subtitle (e.g. a category name)
+// gets escaped before the translated label text around it does not.
 function reportHeaderBlock(
   business: BusinessInfo,
   title: string,
@@ -237,11 +261,22 @@ function reportHeaderBlock(
   reportId: string,
   dateStr: string,
   timeStr: string,
+  isKurdish: boolean,
 ): string {
-  return `
-  <div class="header">
-    <div class="header-inner">
-      <div>
+  // Kurdish puts the logo and business text side by side (logo left, name/
+  // phone/address stacked to its right) instead of logo-above-text -- the
+  // narrow logo-width column English uses cramps longer Kurdish business
+  // names. English keeps its original stacked layout untouched.
+  const bizBlock = isKurdish
+    ? `<div style="display:flex;align-items:center;gap:10px;">
+        ${logoBlock(business.logoUri)}
+        <div>
+          <div class="biz-name">${escHtml(business.name || 'Business')}</div>
+          ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
+          ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+        </div>
+      </div>`
+    : `<div>
         ${logoBlock(business.logoUri)}
         <div class="biz-name">${escHtml(business.name || 'Business')}</div>
         <div class="biz-meta">
@@ -249,10 +284,15 @@ function reportHeaderBlock(
           ${business.phone && business.address ? ' &middot; ' : ''}
           ${business.address ? escHtml(business.address) : ''}
         </div>
-      </div>
+      </div>`;
+
+  return `
+  <div class="header">
+    <div class="header-inner">
+      ${bizBlock}
       <div class="report-title-col">
-        <div class="report-title">${escHtml(title)}</div>
-        ${subtitle ? `<div class="report-subtitle">${escHtml(subtitle)}</div>` : ''}
+        <div class="report-title">${title}</div>
+        ${subtitle ? `<div class="report-subtitle">${subtitle}</div>` : ''}
         <div class="report-id">${escHtml(reportId)}</div>
         <div class="report-date">${dateStr} &middot; ${timeStr}</div>
       </div>
@@ -260,10 +300,11 @@ function reportHeaderBlock(
   </div>`;
 }
 
-function periodBannerBlock(periodLabel: string): string {
+function periodBannerBlock(periodLabel: string, isKurdish: boolean): string {
+  const label = isKurdish ? ku(escHtml(t('period'))) : 'Period';
   return `
     <div class="period-row">
-      <div class="period-label">Period</div>
+      <div class="period-label">${label}</div>
       <div class="period-value">${escHtml(periodLabel)}</div>
     </div>`;
 }
@@ -275,11 +316,15 @@ export function buildFullInventoryReportHTML(
   business: BusinessInfo,
   lowStockIds: Set<number>,
   periodLabel: string,
-  dir: 'ltr' | 'rtl' = 'ltr',
+  _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const dir = isKurdish ? 'rtl' : 'ltr';
+  const kuAlign = isKurdish ? 'right' : 'left';
+  const numAlign = isKurdish ? 'left' : 'right';
   const now = new Date();
-  const dateStr = fmtDate(now);
+  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('INV');
   const totalQuantity = products.reduce((s, p) => s + p.quantity, 0);
@@ -293,84 +338,95 @@ export function buildFullInventoryReportHTML(
 
     let statusCell: string;
     if (isSold) {
-      statusCell = `<span class="badge-sold">Sold</span>`;
+      statusCell = isKurdish
+        ? `<span class="badge-sold">${ku(escHtml(t('sold')))}</span>`
+        : `<span class="badge-sold">Sold</span>`;
     } else if (isLow) {
-      statusCell = `<span class="badge-lowstock">Low Stock &#9888;</span>`;
+      statusCell = isKurdish
+        ? `<span class="badge-lowstock">${ku(escHtml(t('lowStockBadge')))} &#9888;</span>`
+        : `<span class="badge-lowstock">Low Stock &#9888;</span>`;
     } else {
-      statusCell = `<span class="badge-instock">In Stock</span>`;
+      statusCell = isKurdish
+        ? `<span class="badge-instock">${ku(escHtml(t('inStock')))}</span>`
+        : `<span class="badge-instock">In Stock</span>`;
     }
 
     return `
       <tr>
-        <td style="font-weight:600;">${escHtml(p.name)}</td>
-        <td style="color:#475569;font-size:11px;">${escHtml(p.itemId ?? '—')}</td>
-        <td style="color:#475569;">${escHtml(p.category)}</td>
-        <td style="text-align:center;font-weight:600;">${isSold ? '<span style="color:#94a3b8;font-style:italic;">—</span>' : String(p.quantity)}</td>
-        <td style="text-align:right;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
-        <td style="text-align:right;color:#000000;font-weight:600;">${fmtIQD(p.sellingPrice)} IQD</td>
-        <td style="text-align:right;font-weight:700;">${totalVal} IQD</td>
-        <td style="color:#475569;">${escHtml(p.supplierName ?? '—')}</td>
+        <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
+        <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
+        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
+        <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtIQD(p.sellingPrice)} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${totalVal} IQD</td>
+        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
         <td style="text-align:center;">${statusCell}</td>
       </tr>`;
   }).join('');
+
+  const titleHTML = isKurdish ? ku(escHtml(t('title'))) : 'Inventory Report';
+  const allProductsLabel = isKurdish
+    ? ku(escHtml(t('allProducts', { count: products.length })))
+    : `All Products (${products.length})`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Full Inventory Report</title>
-<style>${reportCSS(dir)}</style>
+<title>${isKurdish ? escHtml(t('title')) : 'Full Inventory Report'}</title>
+<style>${reportCSS(isKurdish)}</style>
 </head>
 <body>
 <div class="page">
 
-  ${reportHeaderBlock(business, 'Inventory Report', '', reportId, dateStr, timeStr)}
+  ${reportHeaderBlock(business, titleHTML, '', reportId, dateStr, timeStr, isKurdish)}
 
   <div class="body">
 
-    ${periodBannerBlock(periodLabel)}
+    ${periodBannerBlock(periodLabel, isKurdish)}
 
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-label">Total Products</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalProducts'))) : 'Total Products'}</div>
         <div class="kpi-value">${fmtIQD(products.length)}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Total Quantity</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalQuantity'))) : 'Total Quantity'}</div>
         <div class="kpi-value">${fmtIQD(totalQuantity)}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Total Value</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</div>
         <div class="kpi-value">${fmtIQD(totalValueIQD)} IQD</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Est. Profit</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('estProfit'))) : 'Est. Profit'}</div>
         <div class="kpi-value">${fmtIQD(estProfit)} IQD</div>
       </div>
     </div>
 
-    <div class="section-label">All Products (${products.length})</div>
+    <div class="section-label">${allProductsLabel}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>ID</th>
-            <th>Category</th>
-            <th style="text-align:center;">Qty</th>
-            <th style="text-align:right;">Buy Price</th>
-            <th style="text-align:right;">Sell Price</th>
-            <th style="text-align:right;">Total Value</th>
-            <th>Supplier</th>
-            <th style="text-align:center;">Status</th>
+            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
+            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
         <tfoot>
           <tr>
-            <td colspan="6" style="text-align:right;color:#475569;font-weight:500;">Total Inventory Value:</td>
-            <td style="text-align:right;">${fmtIQD(totalValueIQD)} IQD</td>
+            <td colspan="6" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('totalInventoryValue'))) : 'Total Inventory Value:'}</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValueIQD)} IQD</td>
             <td colspan="2"></td>
           </tr>
         </tfoot>
@@ -380,7 +436,9 @@ export function buildFullInventoryReportHTML(
   </div>
 
   <div class="footer">
-    Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}
+    ${isKurdish
+      ? `${ku(escHtml(t('generatedBy')))} ${escHtml(business.name || 'Business')} &middot; ManagerX &middot; ${dateStr} &middot; ${timeStr}`
+      : `Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}`}
   </div>
 
 </div>
@@ -394,50 +452,61 @@ export function buildLowStockReportHTML(
   products: InventoryProduct[],
   business: BusinessInfo,
   periodLabel: string,
-  dir: 'ltr' | 'rtl' = 'ltr',
+  _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const dir = isKurdish ? 'rtl' : 'ltr';
+  const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
-  const dateStr = fmtDate(now);
+  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('LSK');
 
   const rows = products.map((p) => `
     <tr>
-      <td style="font-weight:600;">${escHtml(p.name)}</td>
-      <td style="color:#475569;font-size:11px;">${escHtml(p.itemId ?? '—')}</td>
-      <td style="color:#475569;">${escHtml(p.category)}</td>
-      <td style="text-align:center;font-weight:700;color:#000000;">${p.quantity}</td>
-      <td style="color:#475569;">${escHtml(p.supplierName ?? '—')}</td>
-      <td style="text-align:center;"><span class="badge-lowstock">Low Stock &#9888;</span></td>
+      <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
+      <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
+      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
+      <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
+      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
+      <td style="text-align:center;"><span class="badge-lowstock">${isKurdish ? ku(escHtml(t('lowStockBadge'))) : 'Low Stock'} &#9888;</span></td>
     </tr>`).join('');
+
+  const titleHTML = isKurdish ? ku(escHtml(t('lowStockReportTitle'))) : 'Low Stock Report';
+  const subtitleHTML = isKurdish
+    ? ku(escHtml(t('lowStockSubtitle', { count: products.length })))
+    : `${products.length} product${products.length !== 1 ? 's' : ''} below threshold`;
+  const sectionLabel = isKurdish
+    ? ku(escHtml(t('lowStockSection', { count: products.length })))
+    : `Low Stock Products (${products.length})`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Low Stock Report</title>
-<style>${reportCSS(dir)}</style>
+<title>${isKurdish ? escHtml(t('lowStockReportTitle')) : 'Low Stock Report'}</title>
+<style>${reportCSS(isKurdish)}</style>
 </head>
 <body>
 <div class="page">
 
-  ${reportHeaderBlock(business, 'Low Stock Report', `${products.length} product${products.length !== 1 ? 's' : ''} below threshold`, reportId, dateStr, timeStr)}
+  ${reportHeaderBlock(business, titleHTML, subtitleHTML, reportId, dateStr, timeStr, isKurdish)}
 
   <div class="body">
-    ${periodBannerBlock(periodLabel)}
-    <div class="section-label">Low Stock Products (${products.length})</div>
+    ${periodBannerBlock(periodLabel, isKurdish)}
+    <div class="section-label">${sectionLabel}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>ID</th>
-            <th>Category</th>
-            <th style="text-align:center;">Qty Remaining</th>
-            <th>Supplier</th>
-            <th style="text-align:center;">Status</th>
+            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
+            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -446,7 +515,9 @@ export function buildLowStockReportHTML(
   </div>
 
   <div class="footer">
-    Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}
+    ${isKurdish
+      ? `${ku(escHtml(t('generatedBy')))} ${escHtml(business.name || 'Business')} &middot; ManagerX &middot; ${dateStr} &middot; ${timeStr}`
+      : `Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}`}
   </div>
 
 </div>
@@ -460,50 +531,61 @@ export function buildOutOfStockReportHTML(
   products: InventoryProduct[],
   business: BusinessInfo,
   periodLabel: string,
-  dir: 'ltr' | 'rtl' = 'ltr',
+  _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const dir = isKurdish ? 'rtl' : 'ltr';
+  const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
-  const dateStr = fmtDate(now);
+  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('OOS');
 
   const rows = products.map((p) => `
     <tr>
-      <td style="font-weight:600;">${escHtml(p.name)}</td>
-      <td style="color:#475569;font-size:11px;">${escHtml(p.itemId ?? '—')}</td>
-      <td style="color:#475569;">${escHtml(p.category)}</td>
-      <td style="text-align:center;font-weight:700;color:#000000;">${p.quantity}</td>
-      <td style="color:#475569;">${escHtml(p.supplierName ?? '—')}</td>
-      <td style="text-align:center;"><span class="badge-outofstock">Out of Stock</span></td>
+      <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
+      <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
+      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
+      <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
+      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
+      <td style="text-align:center;"><span class="badge-outofstock">${isKurdish ? ku(escHtml(t('outOfStock'))) : 'Out of Stock'}</span></td>
     </tr>`).join('');
+
+  const titleHTML = isKurdish ? ku(escHtml(t('outOfStockReportTitle'))) : 'Out of Stock Report';
+  const subtitleHTML = isKurdish
+    ? ku(escHtml(t('outOfStockSubtitle', { count: products.length })))
+    : `${products.length} product${products.length !== 1 ? 's' : ''} with zero quantity`;
+  const sectionLabel = isKurdish
+    ? ku(escHtml(t('outOfStockSection', { count: products.length })))
+    : `Out of Stock Products (${products.length})`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Out of Stock Report</title>
-<style>${reportCSS(dir)}</style>
+<title>${isKurdish ? escHtml(t('outOfStockReportTitle')) : 'Out of Stock Report'}</title>
+<style>${reportCSS(isKurdish)}</style>
 </head>
 <body>
 <div class="page">
 
-  ${reportHeaderBlock(business, 'Out of Stock Report', `${products.length} product${products.length !== 1 ? 's' : ''} with zero quantity`, reportId, dateStr, timeStr)}
+  ${reportHeaderBlock(business, titleHTML, subtitleHTML, reportId, dateStr, timeStr, isKurdish)}
 
   <div class="body">
-    ${periodBannerBlock(periodLabel)}
-    <div class="section-label">Out of Stock Products (${products.length})</div>
+    ${periodBannerBlock(periodLabel, isKurdish)}
+    <div class="section-label">${sectionLabel}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>ID</th>
-            <th>Category</th>
-            <th style="text-align:center;">Qty Remaining</th>
-            <th>Supplier</th>
-            <th style="text-align:center;">Status</th>
+            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
+            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -512,7 +594,9 @@ export function buildOutOfStockReportHTML(
   </div>
 
   <div class="footer">
-    Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}
+    ${isKurdish
+      ? `${ku(escHtml(t('generatedBy')))} ${escHtml(business.name || 'Business')} &middot; ManagerX &middot; ${dateStr} &middot; ${timeStr}`
+      : `Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}`}
   </div>
 
 </div>
@@ -527,13 +611,18 @@ export function buildCategoryReportHTML(
   categoryName: string,
   business: BusinessInfo,
   periodLabel: string,
-  dir: 'ltr' | 'rtl' = 'ltr',
+  _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const dir = isKurdish ? 'rtl' : 'ltr';
+  const kuAlign = isKurdish ? 'right' : 'left';
+  const numAlign = isKurdish ? 'left' : 'right';
   const now = new Date();
-  const dateStr = fmtDate(now);
+  const dateStr = isKurdish ? formatDateShort(now) : fmtDate(now);
   const timeStr = fmtTime(now);
   const reportId = genReportId('CAT');
+  const categoryNameSafe = escHtml(categoryName);
 
   const totalQty   = products.reduce((s, p) => s + p.quantity, 0);
   const totalValue = products.reduce((s, p) => s + p.purchasePrice * p.quantity, 0);
@@ -544,71 +633,79 @@ export function buildCategoryReportHTML(
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
     return `
       <tr>
-        <td style="font-weight:600;">${escHtml(p.name)}</td>
-        <td style="color:#475569;font-size:11px;">${escHtml(p.itemId ?? '—')}</td>
-        <td style="text-align:center;font-weight:600;">${isSold ? '<span style="color:#94a3b8;font-style:italic;">—</span>' : String(p.quantity)}</td>
-        <td style="text-align:right;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
-        <td style="text-align:right;color:#000000;font-weight:600;">${fmtIQD(p.sellingPrice)} IQD</td>
-        <td style="text-align:right;font-weight:700;">${val} IQD</td>
-        <td style="color:#475569;">${escHtml(p.supplierName ?? '—')}</td>
+        <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
+        <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
+        <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtIQD(p.sellingPrice)} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${val} IQD</td>
+        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
       </tr>`;
   }).join('');
+
+  const titleHTML = isKurdish ? ku(escHtml(t('categoryReportTitle'))) : 'Category Report';
+  const subtitleHTML = isKurdish
+    ? ku(t('categorySubtitle', { name: categoryNameSafe }))
+    : `Category: ${categoryNameSafe}`;
+  const sectionLabel = isKurdish
+    ? ku(t('categorySection', { name: categoryNameSafe, count: products.length }))
+    : `${categoryNameSafe} — Products (${products.length})`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Category Report — ${escHtml(categoryName)}</title>
-<style>${reportCSS(dir)}</style>
+<title>${isKurdish ? `${escHtml(t('categoryReportTitle'))} — ${categoryNameSafe}` : `Category Report — ${categoryNameSafe}`}</title>
+<style>${reportCSS(isKurdish)}</style>
 </head>
 <body>
 <div class="page">
 
-  ${reportHeaderBlock(business, 'Category Report', `Category: ${categoryName}`, reportId, dateStr, timeStr)}
+  ${reportHeaderBlock(business, titleHTML, subtitleHTML, reportId, dateStr, timeStr, isKurdish)}
 
   <div class="body">
 
-    ${periodBannerBlock(periodLabel)}
+    ${periodBannerBlock(periodLabel, isKurdish)}
 
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-label">Products</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('products'))) : 'Products'}</div>
         <div class="kpi-value">${products.length}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Total Quantity</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalQuantity'))) : 'Total Quantity'}</div>
         <div class="kpi-value">${fmtIQD(totalQty)}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Total Value</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</div>
         <div class="kpi-value">${fmtIQD(totalValue)} IQD</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Est. Profit</div>
+        <div class="kpi-label">${isKurdish ? ku(escHtml(t('estProfit'))) : 'Est. Profit'}</div>
         <div class="kpi-value">${fmtIQD(estProfit)} IQD</div>
       </div>
     </div>
 
-    <div class="section-label">${escHtml(categoryName)} — Products (${products.length})</div>
+    <div class="section-label">${sectionLabel}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>ID</th>
-            <th style="text-align:center;">Qty</th>
-            <th style="text-align:right;">Buy Price</th>
-            <th style="text-align:right;">Sell Price</th>
-            <th style="text-align:right;">Total Value</th>
-            <th>Supplier</th>
+            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
+            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
+            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
         <tfoot>
           <tr>
-            <td colspan="5" style="text-align:right;color:#475569;font-weight:500;">Category Total Value:</td>
-            <td style="text-align:right;">${fmtIQD(totalValue)} IQD</td>
+            <td colspan="5" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('categoryTotalValue'))) : 'Category Total Value:'}</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValue)} IQD</td>
             <td></td>
           </tr>
         </tfoot>
@@ -618,7 +715,9 @@ export function buildCategoryReportHTML(
   </div>
 
   <div class="footer">
-    Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}
+    ${isKurdish
+      ? `${ku(escHtml(t('generatedBy')))} ${escHtml(business.name || 'Business')} &middot; ManagerX &middot; ${dateStr} &middot; ${timeStr}`
+      : `Generated By: <strong>${escHtml(business.name || 'Business')}</strong> &middot; ManagerX &middot; ${dateStr} at ${timeStr}`}
   </div>
 
 </div>

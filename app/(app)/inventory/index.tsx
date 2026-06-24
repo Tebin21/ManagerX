@@ -33,8 +33,9 @@ import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryFilter, InventoryProduct } from '@/types/inventory';
 import { CompactAmount } from '@/components/shared/CompactAmount';
-import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
+import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
 
 type ActiveTab = 'all' | 'categories';
@@ -84,7 +85,6 @@ export default function InventoryScreen() {
   const [reportGenerating, setReportGenerating]     = useState(false);
   const [periodModalVisible, setPeriodModalVisible] = useState(false);
   const [pendingReport, setPendingReport]           = useState<PendingReport | null>(null);
-  const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   useEffect(() => {
@@ -552,108 +552,39 @@ export default function InventoryScreen() {
         onScrollBeginDrag={() => Keyboard.dismiss()}
       />
 
-      {/* ── Report Picker Modal ── */}
-      <Modal
-        visible={reportModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setReportModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.sheetOverlay}
-          activeOpacity={1}
-          onPress={() => setReportModalVisible(false)}
+      {/* ── Report Picker Sheet ── */}
+      <AppSheet visible={reportModalVisible} onClose={() => setReportModalVisible(false)}>
+        <AppSheetHeader title={t('inventory.reports')} onClose={() => setReportModalVisible(false)} />
+
+        <AppSheetOption
+          icon="reader-outline"
+          label={t('inventory.reportFull')}
+          subtitle={t('inventory.reportFullSub')}
+          indicator="chevron"
+          onPress={handleFullReport}
         />
-        <View style={[styles.filterSheet, { backgroundColor: colors.white }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: colors.gray200 }]} />
-          <View style={[styles.reportModalHeader, { flexDirection }]}>
-            <Text style={[styles.reportModalTitle, { color: colors.black, textAlign }]}>
-              {t('inventory.reports')}
-            </Text>
-            <TouchableOpacity onPress={() => setReportModalVisible(false)} hitSlop={8}>
-              <Ionicons name="close" size={22} color={colors.gray500} />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
-            onPress={handleFullReport}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.reportIconWrap, { backgroundColor: colors.gray100 }]}>
-              <Ionicons name="reader-outline" size={20} color={colors.gray600} />
-            </View>
-            <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
-                {t('inventory.reportFull')}
-              </Text>
-              <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
-                {t('inventory.reportFullSub')}
-              </Text>
-            </View>
-            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
-            onPress={handleLowStockReport}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.reportIconWrap, { backgroundColor: colors.gray100 }]}>
-              <Ionicons name="alert-circle-outline" size={20} color={colors.gray600} />
-            </View>
-            <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
-                {t('inventory.reportLowStock')}
-              </Text>
-              <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
-                {t('inventory.reportLowStockSub')}
-              </Text>
-            </View>
-            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
-            onPress={handleOutOfStockReport}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.reportIconWrap, { backgroundColor: colors.gray100 }]}>
-              <Ionicons name="close-circle-outline" size={20} color={colors.gray600} />
-            </View>
-            <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
-                {t('inventory.reportOutOfStock')}
-              </Text>
-              <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
-                {t('inventory.reportOutOfStockSub')}
-              </Text>
-            </View>
-            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.reportOption, { borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14 }]}
-            onPress={() => { setReportModalVisible(false); setCatPickerVisible(true); }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.reportIconWrap, { backgroundColor: colors.gray100 }]}>
-              <Ionicons name="folder-open-outline" size={20} color={colors.gray600} />
-            </View>
-            <View style={styles.reportOptionText}>
-              <Text style={[styles.reportOptionTitle, { color: colors.black, textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>
-                {t('inventory.reportCategory')}
-              </Text>
-              <Text style={[styles.reportOptionSub, { color: colors.gray400, textAlign }]}>
-                {t('inventory.reportCategorySub')}
-              </Text>
-            </View>
-            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
-          </TouchableOpacity>
-
-          <View style={styles.sheetBottomPad} />
-        </View>
-      </Modal>
+        <AppSheetOption
+          icon="alert-circle-outline"
+          label={t('inventory.reportLowStock')}
+          subtitle={t('inventory.reportLowStockSub')}
+          indicator="chevron"
+          onPress={handleLowStockReport}
+        />
+        <AppSheetOption
+          icon="close-circle-outline"
+          label={t('inventory.reportOutOfStock')}
+          subtitle={t('inventory.reportOutOfStockSub')}
+          indicator="chevron"
+          onPress={handleOutOfStockReport}
+        />
+        <AppSheetOption
+          icon="folder-open-outline"
+          label={t('inventory.reportCategory')}
+          subtitle={t('inventory.reportCategorySub')}
+          indicator="chevron"
+          onPress={() => { setReportModalVisible(false); setCatPickerVisible(true); }}
+        />
+      </AppSheet>
 
       {/* ── Period Filter Modal (gates every report export) ── */}
       <PeriodFilterModal
@@ -662,80 +593,31 @@ export default function InventoryScreen() {
         onSelect={handlePeriodSelect}
       />
 
-      {/* ── Category Picker Modal (for Category Report) ── */}
-      <Modal
-        visible={catPickerVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setCatPickerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.sheetOverlay}
-          activeOpacity={1}
-          onPress={() => setCatPickerVisible(false)}
-        />
-        <View style={[styles.filterSheet, { backgroundColor: colors.white }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: colors.gray200 }]} />
-          <View style={[styles.reportModalHeader, { flexDirection }]}>
-            <Text style={[styles.reportModalTitle, { color: colors.black, textAlign }]}>
-              {t('inventory.selectCategoryTitle')}
-            </Text>
-            <TouchableOpacity onPress={() => setCatPickerVisible(false)} hitSlop={8}>
-              <Ionicons name="close" size={22} color={colors.gray500} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => handleCategoryReport(cat)}
-                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection, paddingVertical: isRTL ? 18 : 16 }]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.sheetOptionText, { color: colors.black, textAlign }]}>{cat}</Text>
-                <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <View style={styles.sheetBottomPad} />
-        </View>
-      </Modal>
+      {/* ── Category Picker Sheet (for Category Report) ── */}
+      <AppSheet visible={catPickerVisible} onClose={() => setCatPickerVisible(false)}>
+        <AppSheetHeader title={t('inventory.selectCategoryTitle')} onClose={() => setCatPickerVisible(false)} />
+        {categories.map((cat) => (
+          <AppSheetOption
+            key={cat}
+            label={cat}
+            indicator="chevron"
+            onPress={() => handleCategoryReport(cat)}
+          />
+        ))}
+      </AppSheet>
 
-      {/* ── Filter Bottom Sheet ── */}
-      <Modal
-        visible={filterSheetVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setFilterSheetVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.sheetOverlay}
-          activeOpacity={1}
-          onPress={() => setFilterSheetVisible(false)}
-        />
-        <View style={[styles.filterSheet, { backgroundColor: colors.white }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: colors.gray200 }]} />
-          {FILTER_OPTIONS.map(({ key, labelKey }) => {
-            const active = filter === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => handleFilterSelect(key)}
-                style={[styles.sheetOption, { borderBottomColor: colors.gray100, flexDirection, paddingVertical: isRTL ? 18 : 16 }]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.sheetOptionText, { color: active ? colors.primary : colors.black, fontWeight: active ? '700' : '500', textAlign }]}>
-                  {t(labelKey)}
-                </Text>
-                {active && (
-                  <Ionicons name="checkmark" size={18} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-          <View style={styles.sheetBottomPad} />
-        </View>
-      </Modal>
+      {/* ── Filter Sheet (status filter) ── */}
+      <AppSheet visible={filterSheetVisible} onClose={() => setFilterSheetVisible(false)}>
+        {FILTER_OPTIONS.map(({ key, labelKey }) => (
+          <AppSheetOption
+            key={key}
+            label={t(labelKey)}
+            active={filter === key}
+            indicator="check"
+            onPress={() => handleFilterSelect(key)}
+          />
+        ))}
+      </AppSheet>
 
       {/* ── Manage Categories Modal ── */}
       <Modal visible={catModalVisible} animationType="fade" transparent onRequestClose={() => setCatModalVisible(false)}>
@@ -885,23 +767,6 @@ const styles = StyleSheet.create({
   emptySub:       { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   emptyAction:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Theme.radius.full, paddingHorizontal: 20, paddingVertical: 10, marginTop: 20 },
   emptyActionText:{ fontSize: 14, fontWeight: '600' },
-
-  // ── Filter bottom sheet ──
-  sheetOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  filterSheet:    { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12 },
-  sheetHandle:    { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
-  sheetOption:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1 },
-  sheetOptionText:{ fontSize: 15 },
-  sheetBottomPad: { height: 32 },
-
-  // ── Report picker modal ──
-  reportModalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, marginBottom: 4 },
-  reportModalTitle:   { fontSize: 17, fontWeight: '800' },
-  reportOption:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, gap: 12 },
-  reportIconWrap:     { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  reportOptionText:   { flex: 1 },
-  reportOptionTitle:  { fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  reportOptionSub:    { fontSize: 12 },
 
   // ── Manage categories modal ──
   modalOverlay:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },

@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -26,7 +29,6 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 
 export default function CustomerProfileScreen() {
@@ -178,7 +180,6 @@ export default function CustomerProfileScreen() {
 
   const activeDebts = debts.filter((d) => d.status === 'active' && d.remainingAmount > 0);
   const settledDebts = debts.filter((d) => d.status === 'settled' || d.remainingAmount <= 0);
-  const lastActivity = sales.length > 0 ? formatDateShort(sales[0].date ?? sales[0].createdAt) : null;
   const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
   const canDeleteAccount = sales.length === 0 && activeDebts.length === 0;
 
@@ -232,7 +233,7 @@ export default function CustomerProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
                   <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-                  <Text style={[styles.statVal, { color: colors.black }]}>{fmtIQD(customer.totalPurchases)}</Text>
+                  <AmountText value={customer.totalPurchases} variant="large" style={[styles.statVal, { color: colors.black }]} />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalSpent')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
@@ -244,24 +245,28 @@ export default function CustomerProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={[styles.statCard, { backgroundColor: colors.white }, customer.remainingDebt > 0 && styles.statCardDebt]}>
                   <Ionicons name="alert-circle-outline" size={16} color={customer.remainingDebt > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
-                  <Text style={[styles.statVal, { color: customer.remainingDebt > 0 ? colors.error : colors.black }]}>
-                    {fmtIQD(customer.remainingDebt)}
-                  </Text>
+                  <AmountText
+                    value={customer.remainingDebt}
+                    variant="large"
+                    style={[styles.statVal, { color: customer.remainingDebt > 0 ? colors.error : colors.black }]}
+                  />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.remainingDebt')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
                   <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? '#10B981' : colors.gray300} style={{ marginBottom: 4 }} />
-                  <Text style={[styles.statVal, { color: totalPaid > 0 ? '#10B981' : colors.black }]}>
-                    {fmtIQD(totalPaid)}
-                  </Text>
+                  <AmountText
+                    value={totalPaid}
+                    variant="large"
+                    style={[styles.statVal, { color: totalPaid > 0 ? '#10B981' : colors.black }]}
+                  />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalPaid')}</Text>
                 </View>
               </View>
-              {lastActivity ? (
+              {sales.length > 0 ? (
                 <View style={[styles.activityRow, { backgroundColor: colors.white, flexDirection }]}>
                   <Ionicons name="time-outline" size={14} color={colors.gray400} />
                   <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                    {t('customers.lastActivity')}: {lastActivity}
+                    {t('customers.lastActivity')}: <DateText value={sales[0].date ?? sales[0].createdAt} size="small" />
                   </Text>
                 </View>
               ) : null}
@@ -306,12 +311,10 @@ export default function CustomerProfileScreen() {
                   <View key={debt.id} style={[styles.settledDebtRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                     <Ionicons name="checkmark-circle" size={16} color="#10B981" />
                     <View style={{ flex: 1, marginStart: 8 }}>
-                      <Text style={[styles.settledDebtInvoice, { color: colors.black }]}>
+                      <IdText style={[styles.settledDebtInvoice, { color: colors.black }]}>
                         {matchedSale?.invoiceNumber ?? '—'}
-                      </Text>
-                      <Text style={[styles.settledDebtAmount, { color: colors.gray400 }]}>
-                        {fmtIQD(debt.originalAmount)} IQD
-                      </Text>
+                      </IdText>
+                      <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledDebtAmount, { color: colors.gray400 }]} />
                     </View>
                     <View style={styles.settledBadge}>
                       <Text style={styles.settledBadgeText}>{t('common.settled')}</Text>

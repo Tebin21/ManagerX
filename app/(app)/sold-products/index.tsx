@@ -11,6 +11,9 @@ import {
   Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -22,7 +25,6 @@ import { useSoldProductsStore } from '@/store/soldProductsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import type { SoldProductRecord, SoldSortBy, SoldPaymentFilter } from '@/types/soldProducts';
-import { fmtIQD, formatDateShort as fmtDate } from '@/utils/formatters';
 
 const SORT_KEYS: SoldSortBy[] = ['date', 'customer', 'product', 'profit'];
 const FILTER_KEYS: SoldPaymentFilter[] = ['all', 'cash', 'fib', 'debt'];
@@ -64,18 +66,18 @@ function SoldProductCardImpl({ item, colors, t }: CardProps) {
         </Text>
         {item.itemId ? (
           <Text style={[styles.cardItemId, { color: colors.gray400 }]} numberOfLines={1}>
-            ID: {item.itemId}
+            ID: <IdText size="small" style={styles.cardItemId}>{item.itemId}</IdText>
           </Text>
         ) : null}
 
         <View style={styles.cardRow}>
           <Ionicons name="receipt-outline" size={11} color={colors.gray400} />
-          <Text style={[styles.cardMeta, { color: colors.gray500 }]}> {item.invoiceNumber}</Text>
+          <IdText size="small" style={[styles.cardMeta, { color: colors.gray500 }]}> {item.invoiceNumber}</IdText>
         </View>
 
         <View style={styles.cardRow}>
           <Ionicons name="calendar-outline" size={11} color={colors.gray400} />
-          <Text style={[styles.cardMeta, { color: colors.gray500 }]}> {fmtDate(item.soldDate)}</Text>
+          <Text style={[styles.cardMeta, { color: colors.gray500 }]}> <DateText value={item.soldDate} size="small" /></Text>
         </View>
 
         <View style={styles.cardRow}>
@@ -88,20 +90,22 @@ function SoldProductCardImpl({ item, colors, t }: CardProps) {
 
       {/* Right: price + profit + payment */}
       <View style={styles.cardRight}>
-        <Text style={[styles.cardTotal, { color: colors.black }]}>
-          {fmtIQD(item.lineTotal)} IQD
-        </Text>
+        <AmountText value={item.lineTotal} currency="IQD" style={[styles.cardTotal, { color: colors.black }]} />
         <Text style={[styles.cardQtyPrice, { color: colors.gray500 }]}>
-          {item.soldQty} × {fmtIQD(item.sellingPrice)}
+          {item.soldQty} × <AmountText value={item.sellingPrice} variant="small" style={styles.cardQtyPrice} />
         </Text>
 
         <View style={[
           styles.profitBadge,
           { backgroundColor: isProfit ? '#D1FAE5' : '#FEE2E2' }
         ]}>
-          <Text style={[styles.profitText, { color: isProfit ? '#065F46' : '#991B1B' }]}>
-            {isProfit ? '+' : ''}{fmtIQD(item.profit)} IQD
-          </Text>
+          <AmountText
+            value={item.profit}
+            currency="IQD"
+            prefix={isProfit ? '+' : ''}
+            variant="small"
+            style={[styles.profitText, { color: isProfit ? '#065F46' : '#991B1B' }]}
+          />
           <Text style={[styles.profitPct, { color: isProfit ? '#059669' : '#DC2626' }]}>
             {profitPct}%
           </Text>
@@ -114,9 +118,7 @@ function SoldProductCardImpl({ item, colors, t }: CardProps) {
         </View>
 
         {item.remainingDebt > 0 ? (
-          <Text style={[styles.debtHint, { color: '#DC2626' }]}>
-            -{fmtIQD(item.remainingDebt)} IQD
-          </Text>
+          <AmountText value={item.remainingDebt} currency="IQD" prefix="-" variant="small" style={[styles.debtHint, { color: '#DC2626' }]} />
         ) : null}
       </View>
     </View>
@@ -211,19 +213,21 @@ export default function SoldProductsScreen() {
         {/* Stats bar */}
         <View style={[styles.statsRow, { backgroundColor: colors.white }]}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(visible.length)}</Text>
+            <Text style={[styles.statValue, { color: colors.black }]}>{visible.length}</Text>
             <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalSold')}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(totalRevenue)}</Text>
+            <AmountText value={totalRevenue} style={[styles.statValue, { color: colors.black }]} />
             <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalRevenue')} IQD</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: totalProfit >= 0 ? '#059669' : '#DC2626' }]}>
-              {totalProfit >= 0 ? '+' : ''}{fmtIQD(totalProfit)}
-            </Text>
+            <AmountText
+              value={totalProfit}
+              prefix={totalProfit >= 0 ? '+' : ''}
+              style={[styles.statValue, { color: totalProfit >= 0 ? '#059669' : '#DC2626' }]}
+            />
             <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalProfit')} IQD</Text>
           </View>
         </View>
@@ -325,9 +329,7 @@ export default function SoldProductsScreen() {
           <Text style={[styles.summaryText, { color: colors.gray500 }]}>
             {visible.length} {t('soldProducts.totalSold').toLowerCase()}
           </Text>
-          <Text style={[styles.summaryTotal, { color: colors.primary }]}>
-            {fmtIQD(totalRevenue)} IQD
-          </Text>
+          <AmountText value={totalRevenue} currency="IQD" variant="small" style={[styles.summaryTotal, { color: colors.primary }]} />
         </View>
       )}
 

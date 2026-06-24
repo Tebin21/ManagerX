@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { Typography } from '@/constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +65,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
         <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.statusDot, isSettled ? styles.dotSettled : styles.dotActive]} />
           {invoiceNumber && (
-            <Text style={[styles.invoiceNum, { textAlign }]} numberOfLines={1}>{invoiceNumber}</Text>
+            <IdText style={[styles.invoiceNum, { textAlign }]} numberOfLines={1}>{invoiceNumber}</IdText>
           )}
         </View>
         {isSettled ? (
@@ -77,19 +80,17 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
       {isSettled ? (
         // Settled — just confirm what the debt was for, no remaining/progress needed.
         <Text style={[styles.amounts, { textAlign, marginBottom: 0 }]}>
-          {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+          <AmountText value={debt.paidAmount} variant="small" /> / <AmountText value={debt.originalAmount} currency="IQD" variant="small" />
         </Text>
       ) : (
         <>
           {/* Line 2 — remaining label */}
           <Text style={[styles.remainingLabel, { textAlign }]}>{t('debt.remainingLabel')}</Text>
           {/* Line 3 — remaining amount */}
-          <Text style={[styles.remainingValue, { textAlign }]}>
-            {fmtIQD(debt.remainingAmount)} IQD
-          </Text>
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.remainingValue, { textAlign }]} />
           {/* Line 4 — paid / total */}
           <Text style={[styles.amounts, { textAlign }]}>
-            {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+            <AmountText value={debt.paidAmount} variant="small" /> / <AmountText value={debt.originalAmount} currency="IQD" variant="small" />
           </Text>
           {/* Line 5 — progress percentage */}
           <Text style={[styles.progressText, { textAlign }]}>{percent}% {t('debt.paidLabel')}</Text>
@@ -179,9 +180,9 @@ const styles = StyleSheet.create({
 
   invoiceNum: { fontSize: 13, fontWeight: '700', color: Colors.black },
 
-  remainingLabel: { fontSize: 11, fontWeight: '600', color: Colors.gray400, marginBottom: 2 },
-  remainingValue: { fontSize: 16, fontWeight: '800', color: Colors.error, marginBottom: 10 },
-  amounts:        { fontSize: 12, color: Colors.gray500, marginBottom: 10 },
+  remainingLabel: { ...Typography.label, color: Colors.gray400, marginBottom: 2 },
+  remainingValue: { color: Colors.error, marginBottom: 10 },
+  amounts:        { ...Typography.bodySmall, color: Colors.gray500, marginBottom: 10 },
 
   settledBadge: {
     backgroundColor: '#DCFCE7',

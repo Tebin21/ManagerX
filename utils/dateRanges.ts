@@ -1,5 +1,5 @@
 import type { InventoryProduct } from '@/types/inventory';
-import { formatDate } from '@/utils/formatters';
+import { formatDateShort } from '@/utils/formatters';
 
 export type PeriodKey = 'today' | 'week' | 'month' | 'year' | 'custom';
 
@@ -79,7 +79,7 @@ export function formatPeriodLabel(key: PeriodKey, from: Date, to: Date): string 
     case 'week': return 'This Week';
     case 'month': return 'This Month';
     case 'year': return 'This Year';
-    case 'custom': return `${formatDate(from)} → ${formatDate(to)}`;
+    case 'custom': return `${formatDateShort(from)} → ${formatDateShort(to)}`;
   }
 }
 

@@ -1,5 +1,4 @@
 import type { Sale } from '@/types/sales';
-import i18n from '@/lib/i18n';
 
 const IQD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 0, maximumFractionDigits: 0 };
 const USD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
@@ -110,17 +109,14 @@ export function formatDateTime(v: string | Date): string {
   return `${formatDate(d)} · ${formatTime(d)}`;
 }
 
-// UI-facing date display — locale-aware (English: "Jun 22, 2026", Kurdish:
-// "22-Jun-2026"). PDF/invoice templates use formatDate/formatDateTime
-// directly so their output stays fixed regardless of app language.
+// UI-facing date display — "23-Jun-2026" in both languages, for visual
+// consistency regardless of app language. PDF/invoice templates use
+// formatDate/formatDateTime directly so their output stays fixed.
 export function formatDateShort(v: string | Date): string {
   const d = parseDateSafe(v);
-  if (i18n.language === 'ku') {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = d.toLocaleDateString('en-US', { month: 'short' });
-    return `${day}-${month}-${d.getFullYear()}`;
-  }
-  return formatDate(d);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  return `${day}-${month}-${d.getFullYear()}`;
 }
 
 export function formatDateTimeUI(v: string | Date): string {

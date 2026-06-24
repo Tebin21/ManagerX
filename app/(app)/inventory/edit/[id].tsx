@@ -17,7 +17,7 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
-import { QuantityStepper } from '@/components/ui/QuantityStepper';
+import { LockedFieldRow } from '@/components/ui/LockedFieldRow';
 
 import { useTranslation } from 'react-i18next';
 import { getInventoryProductById } from '@/lib/sqlite';
@@ -31,11 +31,12 @@ import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250 } from '@/utils/rounding';
 import { roundUSD } from '@/utils/rounding';
+import { fmtIQD, fmtUSD } from '@/utils/formatters';
 
 
 type FieldKey =
-  | 'name' | 'category' | 'buyPriceIQD' | 'buyPriceUSD'
-  | 'sellPriceIQD' | 'sellPriceUSD' | 'quantity' | 'lowStockThreshold'
+  | 'name' | 'category'
+  | 'sellPriceIQD' | 'sellPriceUSD' | 'lowStockThreshold'
   | 'warranty' | 'description' | 'notes' | 'imageUri';
 
 export default function EditProductScreen() {
@@ -46,7 +47,7 @@ export default function EditProductScreen() {
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const globalLowStockThreshold = useSettingsStore((s) => s.globalLowStockThreshold);
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign } = useRTL();
   const insets = useSafeAreaInsets();
   const scrollIntoView = useKeyboardAwareFocus();
 
@@ -57,11 +58,8 @@ export default function EditProductScreen() {
   // Form state
   const [name, setName]               = useState('');
   const [category, setCategory]       = useState('');
-  const [buyIQD, setBuyIQD]           = useState('');
-  const [buyUSD, setBuyUSD]           = useState('');
   const [sellIQD, setSellIQD]         = useState('');
   const [sellUSD, setSellUSD]         = useState('');
-  const [quantity, setQuantity]       = useState('');
   const [warranty, setWarranty]       = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes]             = useState('');
@@ -80,11 +78,8 @@ export default function EditProductScreen() {
         setProduct(p);
         setName(p.name);
         setCategory(p.category);
-        setBuyIQD(String(p.purchasePrice));
-        setBuyUSD(String(p.buyPriceUsd));
         setSellIQD(String(p.sellingPrice));
         setSellUSD(String(p.sellPriceUsd));
-        setQuantity(String(p.quantity));
         setWarranty(p.warranty ?? '');
         setDescription(p.description ?? '');
         setNotes(p.notes ?? '');
@@ -95,18 +90,6 @@ export default function EditProductScreen() {
     })();
     return () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); };
   }, [id]);
-
-  const syncBuyIQD = (val: string) => {
-    setBuyIQD(val);
-    const n = parseFloat(val);
-    if (!isNaN(n)) setBuyUSD(String(roundUSD(n / exchangeRate)));
-  };
-
-  const syncBuyUSD = (val: string) => {
-    setBuyUSD(val);
-    const n = parseFloat(val);
-    if (!isNaN(n)) setBuyIQD(String(roundToNearest250(n * exchangeRate)));
-  };
 
   const syncSellIQD = (val: string) => {
     setSellIQD(val);
@@ -123,20 +106,14 @@ export default function EditProductScreen() {
   const handleSave = useCallback(async () => {
     if (!product) return;
     if (!name.trim()) { Alert.alert(t('common.required'), t('inventory.errorSave')); return; }
-    const buyPrice  = roundToNearest250(parseFloat(buyIQD) || 0);
     const sellPrice = roundToNearest250(parseFloat(sellIQD) || 0);
-    const qty       = parseInt(quantity, 10);
-    if (isNaN(buyPrice) || buyPrice < 0)  { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
     if (isNaN(sellPrice) || sellPrice < 0) { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
-    if (isNaN(qty) || qty < 0)            { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
 
     // Detect which fields changed
     const changed = new Set<FieldKey>();
     if (name.trim() !== product.name)            changed.add('name');
     if (category !== product.category)           changed.add('category');
-    if (buyPrice !== product.purchasePrice)      changed.add('buyPriceIQD');
     if (sellPrice !== product.sellingPrice)      changed.add('sellPriceIQD');
-    if (qty !== product.quantity)                changed.add('quantity');
     if (warranty.trim() !== (product.warranty ?? ''))       changed.add('warranty');
     if (description.trim() !== (product.description ?? '')) changed.add('description');
     if (notes.trim() !== (product.notes ?? ''))             changed.add('notes');
@@ -149,11 +126,8 @@ export default function EditProductScreen() {
       const data: Partial<NewProductData> = {
         name:               name.trim(),
         category,
-        purchasePrice:      buyPrice,
-        buyPriceUsd:        parseFloat(buyUSD) || 0,
         sellingPrice:       sellPrice,
         sellPriceUsd:       parseFloat(sellUSD) || 0,
-        quantity:           qty,
         warranty:           warranty.trim() || null,
         description:        description.trim() || null,
         notes:              notes.trim() || null,
@@ -177,7 +151,7 @@ export default function EditProductScreen() {
     } finally {
       setSaving(false);
     }
-  }, [product, name, category, buyIQD, buyUSD, sellIQD, sellUSD, quantity, warranty, description, notes, imageUri, lowStockThreshold, editProduct]);
+  }, [product, name, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, editProduct]);
 
   const fieldBg = (key: FieldKey) =>
     changedFields.has(key) ? colors.softBlue : 'transparent';
@@ -234,12 +208,12 @@ export default function EditProductScreen() {
 
         {/* Name */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.productInfo')}</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('inventory.productInfo')}</Text>
 
           <MotiView animate={{ backgroundColor: fieldBg('name') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.productName')}</Text>
+            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.productName')}</Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
               value={name}
               onChangeText={setName}
               placeholder={t('inventory.productName')}
@@ -261,47 +235,32 @@ export default function EditProductScreen() {
 
         {/* Pricing */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.pricing')}</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('inventory.pricing')}</Text>
 
-          <Text style={[styles.subLabel, { color: colors.gray500 }]}>{t('inventory.buyPrice')}</Text>
           <View style={[styles.priceRow, { flexDirection }]}>
-            <MotiView animate={{ backgroundColor: fieldBg('buyPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
-              <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>IQD</Text>
-              <TextInput
-                style={[styles.priceInput, { color: colors.black }]}
-                value={buyIQD}
-                onChangeText={syncBuyIQD}
-                onEndEditing={() => {
-                  const r = roundToNearest250(parseFloat(buyIQD) || 0);
-                  setBuyIQD(String(r));
-                  setBuyUSD(String(roundUSD(r / exchangeRate)));
-                }}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={colors.gray300}
-                onFocus={scrollIntoView}
+            <View style={{ flex: 1 }}>
+              <LockedFieldRow
+                label={`${t('inventory.buyPrice')} (IQD)`}
+                value={fmtIQD(product.purchasePrice)}
+                caption={t('inventory.buyPriceLockedNote')}
+                valueNumeric
               />
-            </MotiView>
-            <MotiView animate={{ backgroundColor: fieldBg('buyPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
-              <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>USD</Text>
-              <TextInput
-                style={[styles.priceInput, { color: colors.black }]}
-                value={buyUSD}
-                onChangeText={syncBuyUSD}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                placeholderTextColor={colors.gray300}
-                onFocus={scrollIntoView}
+            </View>
+            <View style={{ flex: 1 }}>
+              <LockedFieldRow
+                label={`${t('inventory.buyPrice')} (USD)`}
+                value={fmtUSD(product.buyPriceUsd)}
+                valueNumeric
               />
-            </MotiView>
+            </View>
           </View>
 
-          <Text style={[styles.subLabel, { marginTop: 12, color: colors.gray500 }]}>{t('inventory.sellPrice')}</Text>
+          <Text style={[styles.subLabel, { marginTop: 12, color: colors.gray500, textAlign }]}>{t('inventory.sellPrice')}</Text>
           <View style={[styles.priceRow, { flexDirection }]}>
             <MotiView animate={{ backgroundColor: fieldBg('sellPriceIQD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>IQD</Text>
               <TextInput
-                style={[styles.priceInput, { color: colors.black }]}
+                style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                 value={sellIQD}
                 onChangeText={syncSellIQD}
                 onEndEditing={() => {
@@ -318,7 +277,7 @@ export default function EditProductScreen() {
             <MotiView animate={{ backgroundColor: fieldBg('sellPriceUSD') }} transition={{ type: 'timing', duration: 600 }} style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.white, flexDirection }]}>
               <Text style={[styles.priceCurrency, { color: colors.gray400 }]}>USD</Text>
               <TextInput
-                style={[styles.priceInput, { color: colors.black }]}
+                style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                 value={sellUSD}
                 onChangeText={syncSellUSD}
                 keyboardType="decimal-pad"
@@ -332,15 +291,13 @@ export default function EditProductScreen() {
 
         {/* Quantity */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.stock')}</Text>
-          <MotiView animate={{ backgroundColor: fieldBg('quantity') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <QuantityStepper
-              label={t('inventory.quantity')}
-              value={quantity}
-              onChangeText={setQuantity}
-              min={0}
-            />
-          </MotiView>
+          <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('inventory.stock')}</Text>
+          <LockedFieldRow
+            label={t('inventory.quantity')}
+            value={String(product.quantity)}
+            caption={t('inventory.quantityLockedNote')}
+            valueNumeric
+          />
 
           <MotiView
             animate={{ backgroundColor: fieldBg('lowStockThreshold') }}
@@ -349,14 +306,14 @@ export default function EditProductScreen() {
           >
             <View style={[styles.alertLabelRow, { flexDirection }]}>
               <Ionicons name="notifications-outline" size={13} color={colors.warning} />
-              <Text style={[styles.label, { color: colors.gray500, marginBottom: 0 }]}>{t('inventory.productAlertOverride')}</Text>
+              <Text style={[styles.label, { color: colors.gray500, marginBottom: 0, textAlign }]}>{t('inventory.productAlertOverride')}</Text>
             </View>
-            <Text style={[styles.hintText, { color: colors.gray400, marginBottom: 6 }]}>
+            <Text style={[styles.hintText, { color: colors.gray400, marginBottom: 6, textAlign }]}>
               {t('inventory.productAlertOverrideHint', { threshold: globalLowStockThreshold })}
             </Text>
             <View style={[styles.alertInputRow, { flexDirection }]}>
               <TextInput
-                style={[styles.input, { flex: 1, borderColor: lowStockThreshold ? '#FDE68A' : colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+                style={[styles.input, { flex: 1, borderColor: lowStockThreshold ? '#FDE68A' : colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign: 'left', writingDirection: 'ltr' }]}
                 value={lowStockThreshold}
                 onChangeText={setLowStockThreshold}
                 keyboardType="number-pad"
@@ -379,12 +336,12 @@ export default function EditProductScreen() {
 
         {/* Additional */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
-          <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('inventory.additionalInfo')}</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('inventory.additionalInfo')}</Text>
 
           <MotiView animate={{ backgroundColor: fieldBg('warranty') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.warranty')}</Text>
+            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.warranty')}</Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
               value={warranty}
               onChangeText={setWarranty}
               placeholder={t('sales.warrantyPlaceholder')}
@@ -394,9 +351,9 @@ export default function EditProductScreen() {
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('description') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.description')}</Text>
+            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.description')}</Text>
             <TextInput
-              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
               value={description}
               onChangeText={setDescription}
               placeholder={t('inventory.description')}
@@ -408,9 +365,9 @@ export default function EditProductScreen() {
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('notes') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500 }]}>{t('inventory.notes')}</Text>
+            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.notes')}</Text>
             <TextInput
-              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
               value={notes}
               onChangeText={setNotes}
               placeholder={t('inventory.notes')}

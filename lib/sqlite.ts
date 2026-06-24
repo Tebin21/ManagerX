@@ -250,6 +250,7 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE products ADD COLUMN purchase_date TEXT`,
     `ALTER TABLE products ADD COLUMN payment_status TEXT DEFAULT 'paid'`,
     `ALTER TABLE products ADD COLUMN warranty TEXT`,
+    `ALTER TABLE products ADD COLUMN notes TEXT`,
     `ALTER TABLE products ADD COLUMN image_uri TEXT`,
     `ALTER TABLE products ADD COLUMN buy_price_usd REAL DEFAULT 0`,
     `ALTER TABLE products ADD COLUMN sell_price_usd REAL DEFAULT 0`,
@@ -593,6 +594,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     purchaseDate: (row.purchase_date as string | null) ?? null,
     paymentStatus: ((row.payment_status as string) ?? 'paid') as 'paid' | 'debt',
     warranty: (row.warranty as string | null) ?? null,
+    notes: (row.notes as string | null) ?? null,
     imageUri: (row.image_uri as string | null) ?? null,
     imageRemoteUrl: (row.image_remote_url as string | null) ?? null,
     buyPriceUsd: (row.buy_price_usd as number) ?? 0,
@@ -674,6 +676,7 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.unit !== undefined)           { fields.push('unit = ?');             values.push(data.unit); }
   if (data.description !== undefined)    { fields.push('description = ?');      values.push(data.description); }
   if (data.warranty !== undefined)       { fields.push('warranty = ?');         values.push(data.warranty); }
+  if (data.notes !== undefined)          { fields.push('notes = ?');            values.push(data.notes); }
   if (data.imageUri !== undefined)       { fields.push('image_uri = ?');        values.push(data.imageUri);
                                             fields.push('image_remote_url = NULL'); }
   if (data.paymentStatus !== undefined)  { fields.push('payment_status = ?');   values.push(data.paymentStatus); }
@@ -687,10 +690,36 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
 
-  await database.runAsync(
-    `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
-    values as SQLite.SQLiteBindValue[]
-  );
+  await database.withTransactionAsync(async () => {
+    await database.runAsync(
+      `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
+      values as SQLite.SQLiteBindValue[]
+    );
+
+    // Mirror the fields shared with a purchase back onto its header/line-item, so
+    // Purchase History stays fresh when these are edited from the Inventory side.
+    const sharedField =
+      data.name !== undefined || data.category !== undefined ||
+      data.sellingPrice !== undefined || data.sellPriceUsd !== undefined ||
+      data.warranty !== undefined || data.description !== undefined || data.notes !== undefined;
+    if (sharedField) {
+      const row = await database.getFirstAsync<{ purchase_id: number | null }>(
+        'SELECT purchase_id FROM products WHERE id = ?', [id]
+      );
+      if (row?.purchase_id != null) {
+        await propagateToPurchase(database, row.purchase_id, {
+          name: data.name,
+          category: data.category,
+          sellPriceIQD: data.sellingPrice,
+          sellPriceUSD: data.sellPriceUsd,
+          warranty: data.warranty,
+          description: data.description,
+          notes: data.notes,
+        });
+      }
+    }
+  });
+
   await enqueueSyncChange(id, 'upsert');
 }
 
@@ -2186,7 +2215,14 @@ export async function getPurchaseById(id: number): Promise<Purchase | null> {
   const row = await database.getFirstAsync<Record<string, unknown>>(
     'SELECT * FROM purchases WHERE id = ?', [id]
   );
-  return row ? rowToPurchase(row) : null;
+  if (!row) return null;
+
+  const purchase = rowToPurchase(row);
+  const productRow = await database.getFirstAsync<{ image_uri: string | null }>(
+    'SELECT image_uri FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
+  );
+  purchase.imageUri = productRow?.image_uri ?? null;
+  return purchase;
 }
 
 // Sold quantity for a purchase = units sold from products still linked via purchase_id,
@@ -2272,6 +2308,79 @@ export interface UpdatePurchaseInput {
   description?: string | null;
   notes?: string | null;
   paymentStatus?: 'paid' | 'debt';
+  imageUri?: string | null;
+}
+
+// Pushes the fields shared between a purchase and its linked product(s) onto the
+// live `products` row(s) — keeps Inventory/Search/Reports/Sales/Dashboard in sync
+// when these are edited from the Purchase side, since they all read from `products`.
+async function propagateToProducts(
+  database: SQLite.SQLiteDatabase,
+  purchaseId: number,
+  fields: {
+    name?: string; category?: string | null;
+    sellingPrice?: number; sellPriceUsd?: number;
+    warranty?: string | null; description?: string | null; notes?: string | null;
+    imageUri?: string | null;
+  }
+): Promise<void> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  if (fields.name !== undefined)         { setClauses.push('name = ?');           values.push(fields.name); }
+  if (fields.category !== undefined)     { setClauses.push('category = ?');       values.push(fields.category); }
+  if (fields.sellingPrice !== undefined) { setClauses.push('selling_price = ?');  values.push(fields.sellingPrice); }
+  if (fields.sellPriceUsd !== undefined) { setClauses.push('sell_price_usd = ?'); values.push(fields.sellPriceUsd); }
+  if (fields.warranty !== undefined)     { setClauses.push('warranty = ?');       values.push(fields.warranty); }
+  if (fields.description !== undefined) { setClauses.push('description = ?');    values.push(fields.description); }
+  if (fields.notes !== undefined)        { setClauses.push('notes = ?');          values.push(fields.notes); }
+  if (fields.imageUri !== undefined)     { setClauses.push('image_uri = ?', 'image_remote_url = NULL'); values.push(fields.imageUri); }
+  if (setClauses.length === 0) return;
+  setClauses.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(purchaseId);
+  await database.runAsync(
+    `UPDATE products SET ${setClauses.join(', ')} WHERE purchase_id = ?`,
+    values as SQLite.SQLiteBindValue[]
+  );
+}
+
+// Reverse direction — pushes shared fields from a product edit back onto the
+// purchase header and its purchase_items mirror, so Purchase History/Detail stay
+// fresh when these are edited from the Inventory side. purchase_items has no
+// warranty/description/notes/image columns, so those only land on `purchases`.
+async function propagateToPurchase(
+  database: SQLite.SQLiteDatabase,
+  purchaseId: number,
+  fields: {
+    name?: string; category?: string | null;
+    sellPriceIQD?: number; sellPriceUSD?: number;
+    warranty?: string | null; description?: string | null; notes?: string | null;
+  }
+): Promise<void> {
+  const pFields: string[] = [];
+  const pValues: unknown[] = [];
+  if (fields.name !== undefined)         { pFields.push('product_name = ?'); pValues.push(fields.name); }
+  if (fields.category !== undefined)     { pFields.push('category = ?');     pValues.push(fields.category); }
+  if (fields.sellPriceIQD !== undefined) { pFields.push('sell_price_iqd = ?'); pValues.push(fields.sellPriceIQD); }
+  if (fields.sellPriceUSD !== undefined) { pFields.push('sell_price_usd = ?'); pValues.push(fields.sellPriceUSD); }
+  if (fields.warranty !== undefined)     { pFields.push('warranty = ?');     pValues.push(fields.warranty); }
+  if (fields.description !== undefined) { pFields.push('description = ?');  pValues.push(fields.description); }
+  if (fields.notes !== undefined)        { pFields.push('notes = ?');        pValues.push(fields.notes); }
+  if (pFields.length > 0) {
+    pFields.push('updated_at = CURRENT_TIMESTAMP');
+    pValues.push(purchaseId);
+    await database.runAsync(`UPDATE purchases SET ${pFields.join(', ')} WHERE id = ?`, pValues as SQLite.SQLiteBindValue[]);
+  }
+
+  const piFields: string[] = [];
+  const piValues: unknown[] = [];
+  if (fields.name !== undefined)         { piFields.push('product_name = ?'); piValues.push(fields.name); }
+  if (fields.category !== undefined)     { piFields.push('category = ?');     piValues.push(fields.category); }
+  if (fields.sellPriceIQD !== undefined) { piFields.push('sell_price_iqd = ?'); piValues.push(fields.sellPriceIQD); }
+  if (fields.sellPriceUSD !== undefined) { piFields.push('sell_price_usd = ?'); piValues.push(fields.sellPriceUSD); }
+  if (piFields.length > 0) {
+    piValues.push(purchaseId);
+    await database.runAsync(`UPDATE purchase_items SET ${piFields.join(', ')} WHERE purchase_id = ?`, piValues as SQLite.SQLiteBindValue[]);
+  }
 }
 
 export async function updatePurchase(id: number, input: UpdatePurchaseInput, actor: PurchaseActor): Promise<void> {
@@ -2321,12 +2430,16 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
 
     await database.runAsync(`UPDATE purchases SET ${fields.join(', ')} WHERE id = ?`, values as SQLite.SQLiteBindValue[]);
 
-    if (input.productName !== undefined) {
-      await database.runAsync(
-        'UPDATE products SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE purchase_id = ?',
-        [input.productName, id]
-      );
-    }
+    await propagateToProducts(database, id, {
+      name: input.productName,
+      category: input.category,
+      sellingPrice: input.sellPriceIQD,
+      sellPriceUsd: input.sellPriceUSD,
+      warranty: input.warranty,
+      description: input.description,
+      notes: input.notes,
+      imageUri: input.imageUri,
+    });
 
     // Quantity-driven stock sync — never allow negative inventory.
     if (input.quantity !== undefined && newQty !== oldQty) {
@@ -3261,40 +3374,6 @@ export async function getMostProfitableProducts(
       marginPct:   rev > 0 ? (profit / rev) * 100 : 0,
     };
   });
-}
-
-export interface DailyRevenuePoint {
-  date: string;
-  revenue: number;
-  profit: number;
-}
-
-export async function getDailyRevenueChart(days = 30): Promise<DailyRevenuePoint[]> {
-  const database = await getDatabase();
-  const cutoff = `date('now', 'localtime', '-${days} days')`;
-
-  const [revenueRows, profitRows] = await Promise.all([
-    database.getAllAsync<{ date: string; revenue: number }>(
-      `SELECT date(created_at, 'localtime') AS date, COALESCE(SUM(paid_amount), 0) AS revenue
-       FROM sales WHERE date(created_at, 'localtime') >= ${cutoff}
-       GROUP BY date(created_at, 'localtime') ORDER BY date ASC`
-    ),
-    database.getAllAsync<{ date: string; profit: number }>(
-      `SELECT date(s.created_at, 'localtime') AS date,
-              COALESCE(SUM(s.grand_total - cogs.total_cost), 0) AS profit
-       FROM (SELECT sale_id, SUM(purchase_price * quantity) AS total_cost FROM sale_items GROUP BY sale_id) cogs
-       JOIN sales s ON s.id = cogs.sale_id
-       WHERE date(s.created_at, 'localtime') >= ${cutoff}
-       GROUP BY date(s.created_at, 'localtime') ORDER BY date ASC`
-    ),
-  ]);
-
-  const profitMap = new Map(profitRows.map((r) => [r.date, r.profit]));
-  return revenueRows.map((r) => ({
-    date:    r.date,
-    revenue: r.revenue,
-    profit:  profitMap.get(r.date) ?? 0,
-  }));
 }
 
 // ─── Loss Analysis ────────────────────────────────────────────────────────────

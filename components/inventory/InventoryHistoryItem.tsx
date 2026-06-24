@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -8,7 +11,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   item: HistoryItem;
@@ -27,8 +29,6 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
   const statusLabel = isSoldOut
     ? t('inventoryHistory.statusSoldOut')
     : t('inventoryHistory.statusRemoved');
-
-  const dateStr = item.archivedAt ? formatDateShort(item.archivedAt) : '';
 
   return (
     <View style={[styles.card, { backgroundColor: colors.white }]}>
@@ -52,9 +52,9 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
             </View>
             {item.itemId ? (
               <View style={[styles.chip, { backgroundColor: colors.gray100 }]}>
-                <Text style={[styles.chipText, { color: colors.gray500 }]} numberOfLines={1}>
+                <IdText style={[styles.chipText, { color: colors.gray500 }]} numberOfLines={1}>
                   {item.itemId}
-                </Text>
+                </IdText>
               </View>
             ) : null}
           </View>
@@ -73,16 +73,12 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.black }]}>
-            {fmtIQD(item.purchasePrice)} IQD
-          </Text>
+          <AmountText value={item.purchasePrice} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
           <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventoryHistory.buyPrice')}</Text>
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.black }]}>
-            {fmtIQD(item.sellingPrice)} IQD
-          </Text>
+          <AmountText value={item.sellingPrice} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
           <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventoryHistory.sellPrice')}</Text>
         </View>
       </View>
@@ -90,7 +86,9 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       {/* Date footer */}
       <View style={[styles.footer, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}>
         <Ionicons name="calendar-outline" size={12} color={colors.gray400} />
-        <Text style={[styles.footerText, { color: colors.gray400, textAlign }]}>{dateStr}</Text>
+        {item.archivedAt ? (
+          <DateText value={item.archivedAt} size="small" style={[styles.footerText, { color: colors.gray400, textAlign }]} />
+        ) : null}
       </View>
 
       {/* Action buttons */}
@@ -219,9 +217,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.gray100,
   },
-  footerText: {
-    fontSize: 11,
-  },
+  footerText: {},
   actionsRow: {
     flexDirection: 'row',
     gap: 8,

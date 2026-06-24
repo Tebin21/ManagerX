@@ -1,15 +1,19 @@
 import React from 'react';
-import { Text as RNText, TextProps } from 'react-native';
+import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, splitLatinRuns, SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
+import { applyKurdishFont, splitLatinRuns } from '@/lib/settingsFont';
+import { resolveInterFont } from '@/constants/typography';
 
 // React Native's fontFamily has no CSS-style fallback list, so a
 // Kurdish-styled <Text> would otherwise render Latin letters and digits in
 // Rudaw too. Isolate Latin runs (IDs, phone numbers, prices, dates, times,
-// English product names, ...) into a nested <Text> forced back to the
-// system font — everything else (Kurdish words) is left untouched and keeps
-// inheriting Rudaw.
-function withSystemFontLatin(children: React.ReactNode): React.ReactNode {
+// English product names, ...) into a nested <Text> forced to the same Inter
+// weight the parent requested (so e.g. a bold Kurdish label's embedded date
+// stays visually bold, not reset to regular) plus `writingDirection: 'ltr'`
+// so the run's bidi direction is isolated too — everything else (Kurdish
+// words) is left untouched and keeps inheriting Rudaw.
+function withSystemFontLatin(children: React.ReactNode, parentStyle?: TextStyle): React.ReactNode {
+  const fontFamily = resolveInterFont(parentStyle?.fontWeight);
   const items = Array.isArray(children) ? children : [children];
   const out: React.ReactNode[] = [];
   let key = 0;
@@ -27,7 +31,7 @@ function withSystemFontLatin(children: React.ReactNode): React.ReactNode {
       if (!run.text) continue;
       out.push(
         run.latin
-          ? <RNText key={key++} style={{ fontFamily: SYSTEM_FONT_OVERRIDE }}>{run.text}</RNText>
+          ? <RNText key={key++} style={{ fontFamily, writingDirection: 'ltr' }}>{run.text}</RNText>
           : run.text
       );
     }
@@ -40,9 +44,10 @@ function withSystemFontLatin(children: React.ReactNode): React.ReactNode {
 // whenever the app language is Kurdish, with no per-screen wiring.
 export function AppText({ style, children, ...props }: TextProps) {
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const parentStyle = isKurdish ? (StyleSheet.flatten(style) as TextStyle | undefined) : undefined;
   return (
     <RNText {...props} style={applyKurdishFont(isKurdish, style as never)}>
-      {isKurdish ? withSystemFontLatin(children) : children}
+      {isKurdish ? withSystemFontLatin(children, parentStyle) : children}
     </RNText>
   );
 }

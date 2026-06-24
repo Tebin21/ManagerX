@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
-import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   itemCount: number;
@@ -34,7 +34,7 @@ export function CartSummaryBar({ itemCount, grandTotal, onPress }: Props) {
         </Text>
       </View>
       <View style={[styles.right, { flexDirection }]}>
-        <Text style={styles.total}>{fmtIQD(grandTotal)}</Text>
+        <AmountText value={grandTotal} variant="large" style={styles.total} />
         <Ionicons name={arrowForward as never} size={20} color="#FFFFFF" />
       </View>
     </TouchableOpacity>

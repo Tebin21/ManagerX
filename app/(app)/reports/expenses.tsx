@@ -4,6 +4,9 @@ import {
   StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
+import { TimeText } from '@/components/ui/TimeText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +24,7 @@ import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
-import { fmtIQD, toDateOnly, formatDateShort, formatTime } from '@/utils/formatters';
+import { toDateOnly } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
@@ -148,7 +151,7 @@ function ExpenseFilterBar({
         </ScrollView>
         {filter === 'custom' && appliedRange && (
           <Text style={[efbStyles.rangeLabel, { color: colors.gray500 }]}>
-            {formatDateShort(appliedRange.from)} {'→'} {formatDateShort(appliedRange.to)}
+            <DateText value={appliedRange.from} size="small" style={efbStyles.rangeLabel} /> {'→'} <DateText value={appliedRange.to} size="small" style={efbStyles.rangeLabel} />
           </Text>
         )}
       </View>
@@ -246,7 +249,7 @@ function ExpenseFormModal({
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { isRTL, flexDirection } = useRTL();
+  const { isRTL, flexDirection, textAlign } = useRTL();
 
   const [amount, setAmount]           = useState(() => initial ? String(initial.amount) : '');
   const [rounded, setRounded]         = useState<number | null>(() => initial ? initial.amount : null);
@@ -354,12 +357,13 @@ function ExpenseFormModal({
           >
             {/* Amount */}
             <PremiumCard style={styles.formCard}>
-              <Text style={[styles.fieldLabel, { color: colors.gray600 }]}>
+              <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>
                 {t('reports.amount')}
               </Text>
               <View style={[styles.amountInputRow, { borderColor: errors.amount ? colors.error : colors.gray200, backgroundColor: colors.white, flexDirection }]}>
                 <TextInput
-                  style={[styles.amountInput, { color: colors.black }]}
+                  // numbers stay LTR regardless of app language
+                  style={[styles.amountInput, { color: colors.black, textAlign: 'left' }]}
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
@@ -372,21 +376,21 @@ function ExpenseFormModal({
                 </View>
               </View>
               {errors.amount ? (
-                <Text style={[styles.errorText, { color: colors.error }]}>{errors.amount}</Text>
+                <Text style={[styles.errorText, { color: colors.error, textAlign }]}>{errors.amount}</Text>
               ) : rounded !== null ? (
-                <Text style={[styles.roundedHint, { color: colors.primary }]}>
-                  → {fmtIQD(rounded)} IQD
+                <Text style={[styles.roundedHint, { color: colors.primary, textAlign }]}>
+                  → <AmountText value={rounded} currency="IQD" variant="small" style={[styles.roundedHint, { color: colors.primary }]} />
                 </Text>
               ) : null}
 
               {/* Reason */}
-              <Text style={[styles.fieldLabel, { color: colors.gray600, marginTop: 16 }]}>
+              <Text style={[styles.fieldLabel, { color: colors.gray600, marginTop: 16, textAlign }]}>
                 {t('reports.expenseReason')}
               </Text>
               <TextInput
                 style={[
                   styles.reasonInput,
-                  { borderColor: errors.reason ? colors.error : colors.gray200, backgroundColor: colors.white, color: colors.black },
+                  { borderColor: errors.reason ? colors.error : colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
                 ]}
                 placeholder={t('reports.expenseReasonPlaceholder')}
                 placeholderTextColor={colors.gray400}
@@ -395,16 +399,16 @@ function ExpenseFormModal({
                 returnKeyType="done"
               />
               {errors.reason ? (
-                <Text style={[styles.errorText, { color: colors.error }]}>{errors.reason}</Text>
+                <Text style={[styles.errorText, { color: colors.error, textAlign }]}>{errors.reason}</Text>
               ) : null}
 
               {/* Helper text */}
-              <Text style={[styles.helperText, { color: colors.gray400 }]}>
+              <Text style={[styles.helperText, { color: colors.gray400, textAlign }]}>
                 {t('reports.expenseReasonHelper')}
               </Text>
 
               {/* Quick-fill example chips */}
-              <Text style={[styles.examplesLabel, { color: colors.gray500 }]}>
+              <Text style={[styles.examplesLabel, { color: colors.gray500, textAlign }]}>
                 {t('reports.expenseExamplesLabel')}
               </Text>
               <View style={[styles.examplesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -437,13 +441,13 @@ function ExpenseFormModal({
 
               {/* Optional note */}
               <View style={[styles.noteDivider, { backgroundColor: colors.gray100 }]} />
-              <Text style={[styles.fieldLabel, { color: colors.gray600 }]}>
+              <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>
                 {t('reports.note')}
               </Text>
               <TextInput
                 style={[
                   styles.reasonInput,
-                  { borderColor: colors.gray200, backgroundColor: colors.white, color: colors.black },
+                  { borderColor: colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
                 ]}
                 placeholder={t('reports.notePlaceholder')}
                 placeholderTextColor={colors.gray400}
@@ -515,16 +519,14 @@ function ExpenseCard({
               </Text>
             ) : null}
           </View>
-          <Text style={[styles.cardAmount, { color: Colors.error }]}>
-            {fmtIQD(expense.amount)} IQD
-          </Text>
+          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: Colors.error }]} />
         </View>
 
         {/* Bottom row: date/time + action buttons */}
         <View style={[styles.cardBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Text style={[styles.cardDate, { color: colors.gray400 }]}>
-            {formatDateShort(expense.date)}
-            {expense.createdAt ? ` · ${formatTime(expense.createdAt)}` : ''}
+            <DateText value={expense.date} size="small" style={styles.cardDate} />
+            {expense.createdAt ? <> · <TimeText value={expense.createdAt} style={styles.cardDate} /></> : null}
           </Text>
           <View style={[styles.cardActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
@@ -793,7 +795,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center', justifyContent: 'center',
   },
-  formHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.15 },
+  formHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.15, textAlign: 'center' },
 
   formBody: { flex: 1 },
   formBodyContent: { padding: 16, gap: 12 },

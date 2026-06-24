@@ -2,7 +2,7 @@
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
-  Modal, Alert, KeyboardAvoidingView, Platform,
+  Alert,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -20,11 +20,12 @@ import { useReportStore } from '@/store/reportStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import type { DateRangeKey } from '@/types/reports';
-import { fmtIQD, formatCompactIQD } from '@/utils/formatters';
+import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
 import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
 import { CompactAmount } from '@/components/shared/CompactAmount';
+import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -172,7 +173,7 @@ function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: strin
           ]}
         >
           {typeof c.value === 'string' || typeof c.value === 'number' ? (
-            <Text style={[scStyles.value, c.color ? { color: c.color } : null]}>{c.value}</Text>
+            <Text style={[scStyles.value, scStyles.ltrTabular, c.color ? { color: c.color } : null]}>{c.value}</Text>
           ) : c.value}
           <Text style={scStyles.label}>{c.label}</Text>
         </View>
@@ -185,6 +186,7 @@ const scStyles = StyleSheet.create({
   row: { flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: Colors.gray100, paddingTop: 12 },
   chip: { flex: 1, alignItems: 'center' },
   value: { fontSize: 16, fontWeight: '800', color: Colors.black, marginBottom: 2 },
+  ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
   label: { fontSize: 10, color: Colors.gray400, textAlign: 'center' },
 });
 
@@ -248,93 +250,71 @@ function FilterPeriodSheet({
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={fpStyles.root}>
-        <TouchableOpacity style={fpStyles.overlay} activeOpacity={1} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[fpStyles.sheet, { backgroundColor: colors.white }]}>
-          <View style={fpStyles.handle} />
-          <Text style={[fpStyles.sheetTitle, { color: Colors.black }]}>
-            {i18n.t('reports.filterByPeriod')}
-          </Text>
+    <AppSheet visible={visible} onClose={onClose}>
+      <AppSheetHeader title={i18n.t('reports.filterByPeriod')} />
 
-          {options.map(({ key, icon, label }) => {
-            const active = current === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[fpStyles.option, active && { backgroundColor: `${colors.primary}12` }]}
-                onPress={() => {
-                  if (key !== 'custom') { onChange(key); onClose(); }
-                  else { onChange('custom'); }
-                }}
-              >
-                <View style={[fpStyles.iconCircle, { backgroundColor: active ? `${colors.primary}20` : Colors.gray100 }]}>
-                  <Ionicons name={icon} size={16} color={active ? colors.primary : Colors.gray500} />
-                </View>
-                <Text style={[fpStyles.optionLabel, { color: active ? colors.primary : Colors.black }, active && { fontWeight: '700' }]}>
-                  {label}
-                </Text>
-                {active && <Ionicons name="checkmark" size={16} color={colors.primary} style={fpStyles.checkmark} />}
-              </TouchableOpacity>
-            );
-          })}
+      {options.map(({ key, icon, label }) => {
+        const active = current === key;
+        return (
+          <AppSheetOption
+            key={key}
+            icon={icon}
+            label={label}
+            active={active}
+            indicator="check"
+            onPress={() => {
+              if (key !== 'custom') { onChange(key); onClose(); }
+              else { onChange('custom'); }
+            }}
+          />
+        );
+      })}
 
-          {current === 'custom' && (
-            <View style={fpStyles.customBox}>
-              <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
-              <TextInput
-                style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
-                placeholder="2026-01-01"
-                placeholderTextColor={Colors.gray400}
-                value={customFrom}
-                onChangeText={setCustomFrom}
-                onFocus={scrollIntoView}
-              />
-              <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
-              <TextInput
-                style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
-                placeholder="2026-12-31"
-                placeholderTextColor={Colors.gray400}
-                value={customTo}
-                onChangeText={setCustomTo}
-                onFocus={scrollIntoView}
-              />
-              <TouchableOpacity
-                style={[fpStyles.applyBtn, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  if (customFrom && customTo) {
-                    if (customFrom > customTo) {
-                      Alert.alert(i18n.t('common.error'), i18n.t('reports.invalidDateRange'));
-                      return;
-                    }
-                    onChange('custom', `${customFrom}T00:00:00.000Z`, `${customTo}T23:59:59.999Z`);
-                    onClose();
-                  } else {
-                    Alert.alert(i18n.t('common.required'), i18n.t('purchases.validationDate'));
-                  }
-                }}
-              >
-                <Text style={fpStyles.applyText}>{i18n.t('reports.apply')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      {current === 'custom' && (
+        <View style={fpStyles.customBox}>
+          <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
+          <TextInput
+            style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+            placeholder="2026-01-01"
+            placeholderTextColor={Colors.gray400}
+            value={customFrom}
+            onChangeText={setCustomFrom}
+            onFocus={scrollIntoView}
+          />
+          <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
+          <TextInput
+            style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+            placeholder="2026-12-31"
+            placeholderTextColor={Colors.gray400}
+            value={customTo}
+            onChangeText={setCustomTo}
+            onFocus={scrollIntoView}
+          />
+          <TouchableOpacity
+            style={[fpStyles.applyBtn, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              if (customFrom && customTo) {
+                if (customFrom > customTo) {
+                  Alert.alert(i18n.t('common.error'), i18n.t('reports.invalidDateRange'));
+                  return;
+                }
+                onChange('custom', `${customFrom}T00:00:00.000Z`, `${customTo}T23:59:59.999Z`);
+                onClose();
+              } else {
+                Alert.alert(i18n.t('common.required'), i18n.t('purchases.validationDate'));
+              }
+            }}
+          >
+            <Text style={fpStyles.applyText}>{i18n.t('reports.apply')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </AppSheet>
   );
 }
 
 const fpStyles = StyleSheet.create({
-  root:        { flex: 1, justifyContent: 'flex-end' },
-  overlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet:       { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, paddingTop: 12 },
-  handle:      { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.gray200, alignSelf: 'center', marginBottom: 16 },
-  sheetTitle:  { fontSize: 16, fontWeight: '800', paddingHorizontal: 20, marginBottom: 8 },
-  option:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 13, gap: 12, borderRadius: 12, marginHorizontal: 8, marginBottom: 2 },
-  iconCircle:  { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  optionLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  checkmark:   { marginStart: 'auto' as any },
-  customBox:   { marginHorizontal: 20, marginTop: 8 },
+  customBox:   { marginTop: 8 },
   dateLabel:   { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 8 },
   dateInput:   { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 4 },
   applyBtn:    { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
@@ -495,12 +475,12 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   const [customTo, setCustomTo]   = useState('');
   const [loading, setLoading]     = useState(false);
 
-  const options: { key: ExportPeriod; label: string; desc: string }[] = [
-    { key: 'today',  label: t('reports.dailyReport'),   desc: t('reports.dailyReportDesc')   },
-    { key: 'week',   label: t('reports.weeklyReport'),  desc: t('reports.weeklyReportDesc')  },
-    { key: 'month',  label: t('reports.monthlyReport'), desc: t('reports.monthlyReportDesc') },
-    { key: 'year',   label: t('reports.yearlyReport'),  desc: t('reports.yearlyReportDesc')  },
-    { key: 'custom', label: t('reports.customRange'),   desc: t('reports.customRangeDesc')   },
+  const options: { key: ExportPeriod; label: string; desc: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
+    { key: 'today',  label: t('reports.dailyReport'),   desc: t('reports.dailyReportDesc'),   icon: 'today-outline' },
+    { key: 'week',   label: t('reports.weeklyReport'),  desc: t('reports.weeklyReportDesc'),  icon: 'calendar-outline' },
+    { key: 'month',  label: t('reports.monthlyReport'), desc: t('reports.monthlyReportDesc'), icon: 'calendar-number-outline' },
+    { key: 'year',   label: t('reports.yearlyReport'),  desc: t('reports.yearlyReportDesc'),  icon: 'stats-chart-outline' },
+    { key: 'custom', label: t('reports.customRange'),   desc: t('reports.customRangeDesc'),   icon: 'options-outline' },
   ];
 
   async function handleGenerate() {
@@ -549,117 +529,76 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={ermStyles.overlay}>
-        <View style={ermStyles.sheet}>
-          <View style={[ermStyles.header, { flexDirection }]}>
-            <Text style={ermStyles.title}>{t('reports.exportReportTitle')}</Text>
-            <TouchableOpacity onPress={onClose} style={ermStyles.closeBtn} disabled={loading}>
-              <Ionicons name="close" size={20} color={Colors.gray500} />
-            </TouchableOpacity>
-          </View>
+    <AppSheet visible={visible} onClose={onClose}>
+      <AppSheetHeader title={t('reports.exportReportTitle')} onClose={onClose} />
 
-          <Text style={ermStyles.sectionLabel}>{t('reports.selectPeriod')}</Text>
+      <Text style={ermStyles.sectionLabel}>{t('reports.selectPeriod')}</Text>
 
-          {options.map((opt) => {
-            const active = period === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                style={[ermStyles.option, active && ermStyles.optionActive, { flexDirection }]}
-                onPress={() => setPeriod(opt.key)}
-                disabled={loading}
-              >
-                <View style={[ermStyles.radio, active && ermStyles.radioActive]}>
-                  {active && <View style={ermStyles.radioDot} />}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[ermStyles.optionText, active && ermStyles.optionTextActive]}>{opt.label}</Text>
-                  <Text style={ermStyles.optionDesc}>{opt.desc}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+      {options.map((opt) => (
+        <AppSheetOption
+          key={opt.key}
+          icon={opt.icon}
+          label={opt.label}
+          subtitle={opt.desc}
+          active={period === opt.key}
+          indicator="check"
+          onPress={() => setPeriod(opt.key)}
+        />
+      ))}
 
-          {period === 'custom' && (
-            <View style={ermStyles.customDates}>
-              <Text style={ermStyles.dateLabel}>{t('reports.fromDate')} (YYYY-MM-DD)</Text>
-              <TextInput
-                style={ermStyles.dateInput}
-                placeholder="2026-01-01"
-                placeholderTextColor={Colors.gray400}
-                value={customFrom}
-                onChangeText={setCustomFrom}
-                onFocus={scrollIntoView}
-                editable={!loading}
-              />
-              <Text style={ermStyles.dateLabel}>{t('reports.toDate')} (YYYY-MM-DD)</Text>
-              <TextInput
-                style={ermStyles.dateInput}
-                placeholder="2026-12-31"
-                placeholderTextColor={Colors.gray400}
-                value={customTo}
-                onChangeText={setCustomTo}
-                onFocus={scrollIntoView}
-                editable={!loading}
-              />
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[ermStyles.generateBtn, loading && ermStyles.generateBtnLoading, { flexDirection }]}
-            onPress={handleGenerate}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={ermStyles.generateText}>{t('reports.generating')}</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-                <Text style={ermStyles.generateText}>{t('reports.generatePDF')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <Text style={ermStyles.hint}>{t('reports.pdfHint')}</Text>
+      {period === 'custom' && (
+        <View style={ermStyles.customDates}>
+          <Text style={ermStyles.dateLabel}>{t('reports.fromDate')} (YYYY-MM-DD)</Text>
+          <TextInput
+            style={ermStyles.dateInput}
+            placeholder="2026-01-01"
+            placeholderTextColor={Colors.gray400}
+            value={customFrom}
+            onChangeText={setCustomFrom}
+            onFocus={scrollIntoView}
+            editable={!loading}
+          />
+          <Text style={ermStyles.dateLabel}>{t('reports.toDate')} (YYYY-MM-DD)</Text>
+          <TextInput
+            style={ermStyles.dateInput}
+            placeholder="2026-12-31"
+            placeholderTextColor={Colors.gray400}
+            value={customTo}
+            onChangeText={setCustomTo}
+            onFocus={scrollIntoView}
+            editable={!loading}
+          />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      )}
+
+      <TouchableOpacity
+        style={[ermStyles.generateBtn, loading && ermStyles.generateBtnLoading, { flexDirection }]}
+        onPress={handleGenerate}
+        disabled={loading}
+      >
+        {loading ? (
+          <>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+            <Text style={ermStyles.generateText}>{t('reports.generating')}</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
+            <Text style={ermStyles.generateText}>{t('reports.generatePDF')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <Text style={ermStyles.hint}>{t('reports.pdfHint')}</Text>
+    </AppSheet>
   );
 }
 
 const ermStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32,
-  },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  title: { fontSize: 17, fontWeight: '800', color: Colors.black },
-  closeBtn: { padding: 4 },
   sectionLabel: {
     fontSize: 11, fontWeight: '700', color: Colors.gray500,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
   },
-  option: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 12, borderWidth: 1, borderColor: Colors.gray200,
-    marginBottom: 8, backgroundColor: '#FAFAFA',
-  },
-  optionActive: { borderColor: '#111111', backgroundColor: '#F5F5F5' },
-  radio: {
-    width: 18, height: 18, borderRadius: 9, borderWidth: 2,
-    borderColor: Colors.gray300, alignItems: 'center', justifyContent: 'center',
-  },
-  radioActive: { borderColor: '#111111' },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#111111' },
-  optionText: { fontSize: 13.5, fontWeight: '600', color: Colors.gray600 },
-  optionTextActive: { color: '#111111', fontWeight: '700' },
-  optionDesc: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
   customDates: { marginTop: 4, marginBottom: 4 },
   dateLabel: { fontSize: 12, fontWeight: '600', color: Colors.gray600, marginBottom: 6, marginTop: 10 },
   dateInput: {
@@ -922,7 +861,7 @@ export default function ReportsScreen() {
                 <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Ionicons name="star" size={12} color={Colors.warning} />
                   <Text style={[styles.topText, { textAlign }]}>
-                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} ({formatCompactIQD(purchaseData.topSupplierCost).text} IQD)
+                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} (<CompactAmount value={purchaseData.topSupplierCost} style={styles.topText} />)
                   </Text>
                 </View>
               )}

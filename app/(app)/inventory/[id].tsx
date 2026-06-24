@@ -9,6 +9,9 @@ import {
   Switch,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -24,7 +27,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 export default function InventoryDetailScreen() {
@@ -170,19 +172,19 @@ export default function InventoryDetailScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.buyPrice')}</Text>
-              <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(product.purchasePrice)} IQD</Text>
+              <AmountText value={product.purchasePrice} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
             </View>
           </View>
           <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
           <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.sellPrice')}</Text>
-              <Text style={[styles.statValue, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)} IQD</Text>
+              <AmountText value={product.sellingPrice} currency="IQD" style={[styles.statValue, { color: colors.primary }]} />
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.totalValueLabel')}</Text>
-              <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(totalValue)} IQD</Text>
+              <AmountText value={totalValue} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
             </View>
           </View>
           {profitPerUnit !== 0 && (
@@ -191,9 +193,12 @@ export default function InventoryDetailScreen() {
               <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
                 <View style={[styles.statItem, { flex: 1 }]}>
                   <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.profitPerUnit')}</Text>
-                  <Text style={[styles.statValue, { color: profitPerUnit > 0 ? colors.success : colors.error }]}>
-                    {profitPerUnit > 0 ? '+' : ''}{fmtIQD(profitPerUnit)} IQD
-                  </Text>
+                  <AmountText
+                    value={profitPerUnit}
+                    currency="IQD"
+                    prefix={profitPerUnit > 0 ? '+' : ''}
+                    style={[styles.statValue, { color: profitPerUnit > 0 ? colors.success : colors.error }]}
+                  />
                 </View>
               </View>
             </>
@@ -234,7 +239,7 @@ export default function InventoryDetailScreen() {
               <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>{formatDateShort(product.purchaseDate)}</Text>
+                <DateText value={product.purchaseDate} style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]} />
               </View>
             )}
             {product.purchaseId && (
@@ -323,12 +328,12 @@ export default function InventoryDetailScreen() {
                 activeOpacity={0.75}
               >
                 <View>
-                  <Text style={[styles.saleInvoice, { color: colors.black, textAlign }]}>{s.invoiceNumber}</Text>
-                  <Text style={[styles.saleDate, { color: colors.gray400, textAlign }]}>{formatDateShort(s.saleCreatedAt)}</Text>
+                  <IdText style={[styles.saleInvoice, { color: colors.black, textAlign }]}>{s.invoiceNumber}</IdText>
+                  <DateText value={s.saleCreatedAt} size="small" style={[styles.saleDate, { color: colors.gray400, textAlign }]} />
                 </View>
                 <View style={[styles.saleRight, { alignItems: alignEnd }]}>
                   <Text style={[styles.saleQty, { color: colors.gray500 }]}>× {s.quantity}</Text>
-                  <Text style={[styles.saleTotal, { color: colors.primary }]}>{fmtIQD(s.lineTotal)} IQD</Text>
+                  <AmountText value={s.lineTotal} currency="IQD" style={[styles.saleTotal, { color: colors.primary }]} />
                 </View>
               </TouchableOpacity>
             ))

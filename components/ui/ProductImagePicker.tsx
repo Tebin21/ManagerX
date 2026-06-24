@@ -5,8 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Modal,
-  Pressable,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +14,7 @@ import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 
 interface Props {
   uri: string | null;
@@ -154,59 +153,33 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
         )}
       </View>
 
-      {/* ── Source selection bottom sheet ── */}
-      <Modal
-        visible={showModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowModal(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setShowModal(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: colors.white }]}>
-            <Text style={[styles.sheetTitle, { color: colors.gray500 }]}>
-              {t('inventory.imageSource')}
-            </Text>
+      {/* ── Source selection sheet ── */}
+      <AppSheet visible={showModal} onClose={() => setShowModal(false)}>
+        <AppSheetHeader title={t('inventory.imageSource')} />
 
-            <TouchableOpacity
-              style={[styles.sheetOption, { borderTopColor: colors.gray100 }]}
-              onPress={pickFromCamera}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.sheetIconWrap, { backgroundColor: colors.primary + '18' }]}>
-                <Ionicons name="camera-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={[styles.sheetOptionText, { color: colors.black }]}>
-                {t('inventory.takePhoto')}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
-            </TouchableOpacity>
+        <AppSheetOption
+          icon="camera-outline"
+          label={t('inventory.takePhoto')}
+          indicator="chevron"
+          onPress={pickFromCamera}
+        />
+        <AppSheetOption
+          icon="images-outline"
+          label={t('inventory.chooseFromGallery')}
+          indicator="chevron"
+          onPress={pickFromGallery}
+        />
 
-            <TouchableOpacity
-              style={[styles.sheetOption, { borderTopColor: colors.gray100 }]}
-              onPress={pickFromGallery}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.sheetIconWrap, { backgroundColor: colors.primary + '18' }]}>
-                <Ionicons name="images-outline" size={22} color={colors.primary} />
-              </View>
-              <Text style={[styles.sheetOptionText, { color: colors.black }]}>
-                {t('inventory.chooseFromGallery')}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.gray300} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.cancelBtn, { borderTopColor: colors.gray100 }]}
-              onPress={() => setShowModal(false)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.cancelText, { color: colors.gray500 }]}>
-                {t('common.cancel')}
-              </Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <TouchableOpacity
+          style={[styles.cancelBtn, { borderTopColor: colors.gray100 }]}
+          onPress={() => setShowModal(false)}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.cancelText, { color: colors.gray500 }]}>
+            {t('common.cancel')}
+          </Text>
+        </TouchableOpacity>
+      </AppSheet>
     </View>
   );
 }
@@ -277,54 +250,15 @@ const styles = StyleSheet.create({
 
   hint: { fontSize: 12, flex: 1, flexWrap: 'wrap' },
 
-  /* Bottom sheet modal */
-  backdrop: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent:  'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius:  20,
-    borderTopRightRadius: 20,
-    paddingBottom:        32,
-    overflow:             'hidden',
-  },
-  sheetTitle: {
-    fontSize:     12,
-    fontWeight:   '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    textAlign:    'center',
-    paddingVertical: 14,
-  },
-  sheetOption: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            14,
-    paddingHorizontal: 20,
-    paddingVertical:   16,
-    borderTopWidth: 1,
-  },
-  sheetIconWrap: {
-    width:        40,
-    height:       40,
-    borderRadius: 10,
-    alignItems:   'center',
-    justifyContent: 'center',
-  },
-  sheetOptionText: {
-    flex:       1,
-    fontSize:   16,
-    fontWeight: '500',
-  },
+  /* Source selection sheet */
   cancelBtn: {
     alignItems:     'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderTopWidth:  1,
     marginTop:       4,
   },
   cancelText: {
-    fontSize:   16,
-    fontWeight: '500',
+    fontSize:   15,
+    fontWeight: '600',
   },
 });

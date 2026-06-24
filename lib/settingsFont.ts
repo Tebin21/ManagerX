@@ -1,4 +1,5 @@
 import { Platform, StyleSheet, TextStyle } from 'react-native';
+import { resolveInterFont } from '@/constants/typography';
 
 // Loaded in app/_layout.tsx. This is the app-wide Kurdish typeface — applied
 // by components/ui/AppText.tsx (and AppTextInput's raw TextInput), so every
@@ -12,13 +13,25 @@ export const SETTINGS_KURDISH_FONT = 'RudawRegular';
 // spans many sizes (10–30). Never lowers a lineHeight the caller already set.
 const KURDISH_LINE_HEIGHT_RATIO = 1.45;
 
+// Applies the app-wide font for the current language to a <Text> style.
+// English: resolves the caller's own fontWeight to the matching loaded Inter
+// file instead of leaving fontFamily unset (which silently falls back to the
+// OS default — San Francisco/Roboto — and lets the OS fake-bold every
+// fontWeight value, which is what made Latin text/IDs/dates/numbers render
+// inconsistently across screens). Kurdish: same as before — RudawRegular +
+// the line-height floor. Name kept as `applyKurdishFont` since it's imported
+// directly by several Settings-screen wrappers (SettingsText, SettingsHeader,
+// SettingsTextInput, SettingsPrimaryButton, AppTextInput, settings/data.tsx).
 export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
   isKurdish: boolean,
   style?: T
 ): TextStyle | T {
-  if (!isKurdish) return style as T;
-
   const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
+
+  if (!isKurdish) {
+    return [style, { fontFamily: resolveInterFont(flat.fontWeight) }] as unknown as T;
+  }
+
   const fontSize = typeof flat.fontSize === 'number' ? flat.fontSize : 14;
   const minLineHeight = Math.ceil(fontSize * KURDISH_LINE_HEIGHT_RATIO);
 
@@ -28,19 +41,18 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
       fontFamily: SETTINGS_KURDISH_FONT,
       lineHeight: Math.max(flat.lineHeight ?? 0, minLineHeight),
     },
-  ] as unknown as TextStyle;
+  ] as unknown as T;
 }
 
 // React Native's `fontFamily` takes a single name, not a CSS-style fallback
 // list, so a Kurdish-styled <Text> renders its *entire* content — including
-// any Latin letters and digits — in Rudaw. AppText splits out Latin runs
-// (IDs, phone numbers, invoice/receipt numbers, prices, percentages, dates,
-// times, English product names, ...) into a nested <Text> forced back to
-// this value, so they always render in the platform default font regardless
-// of the surrounding Kurdish text. 'System' and 'sans-serif' are the
-// platform font names that actually override an inherited custom fontFamily
-// — plain `undefined` does not (an inherited value wins over an explicitly-
-// undefined one), so this can't just be left unset.
+// any Latin letters and digits — in Rudaw. Used directly by a couple of
+// screens (settings/about.tsx, purchases/[id].tsx) that do their own Latin-run
+// isolation outside AppText's splitter. Kept as the plain platform font (not
+// routed through Inter) since those call sites don't know the surrounding
+// fontWeight and forcing a single Inter weight could conflict with one they
+// already set — AppText's own splitter (below) resolves the real Inter
+// weight instead, since it has access to the parent style.
 export const SYSTEM_FONT_OVERRIDE = Platform.select<string>({ ios: 'System', default: 'sans-serif' });
 
 // Matches a run of Latin letters/digits plus any directly-attached Latin

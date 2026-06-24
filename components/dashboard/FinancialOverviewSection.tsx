@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useReportStore } from '@/store/reportStore';
-import { fmtIQD } from '@/utils/formatters';
+import { AmountText } from '@/components/ui/AmountText';
 import type { FinancialSummaryCards } from '@/types/reports';
 import { ExpensesCard } from './ExpensesCard';
 import { CashBalanceCard } from './CashBalanceCard';
@@ -98,9 +98,7 @@ function MiniCard({ card, index, colors }: MiniCardProps) {
       <View style={[styles.miniIcon, { backgroundColor: card.color + '15' }]}>
         <Ionicons name={card.icon as never} size={16} color={card.color} />
       </View>
-      <Text style={[styles.miniValue, { color: colors.darkBlue }]} numberOfLines={1}>
-        {fmtIQD(card.value)}
-      </Text>
+      <AmountText value={card.value} variant="large" numberOfLines={1} style={[styles.miniValue, { color: colors.darkBlue }]} />
       <Text style={[styles.miniLabel, { color: colors.gray400 }]} numberOfLines={1}>
         {t(card.labelKey)}
       </Text>

@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
-import { fmtIQD } from '@/utils/formatters';
 
 interface Props {
   product: Product;
@@ -43,13 +44,13 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
           </Text>
           {product.itemId ? (
             <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
-              <Text style={[styles.idText, { color: colors.primary }]}>#{product.itemId}</Text>
+              <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{product.itemId}</IdText>
             </View>
           ) : null}
         </View>
 
         <View style={[styles.meta, { flexDirection }]}>
-          <Text style={[styles.price, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)}</Text>
+          <AmountText value={product.sellingPrice} variant="small" style={[styles.price, { color: colors.primary }]} />
           <Text style={styles.dot}>·</Text>
           {isUniqueAndSold ? (
             <View style={styles.soldBadge}>

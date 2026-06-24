@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,7 +14,6 @@ import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-import { fmtIQD } from '@/utils/formatters';
 
 
 function getTodayStats(sales: ReturnType<typeof useSalesStore.getState>['sales']) {
@@ -93,7 +93,7 @@ export default function SalesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="trending-up" size={20} color={colors.success} />
             </View>
-            <Text style={[styles.statValue, { color: colors.success }]}>{fmtIQD(revenue)}</Text>
+            <AmountText value={revenue} variant="large" style={[styles.statValue, { color: colors.success }]} />
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('sales.todayRevenue')}</Text>
           </PremiumCard>
         </MotiView>

@@ -10,6 +10,9 @@ import {
   TextInput,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -27,7 +30,7 @@ import { getPurchasesBySupplierName } from '@/lib/sqlite';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt } from '@/types/debt';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
+import { fmtIQD } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 
@@ -77,9 +80,9 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
     <View style={[debtStyles.card, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
       {/* Line 1 — purchase ref + status badge */}
       <View style={[debtStyles.top, { flexDirection }]}>
-        <Text style={[debtStyles.ref, { color: colors.primary, textAlign }]} numberOfLines={1}>
+        <IdText style={[debtStyles.ref, { color: colors.primary, textAlign }]} numberOfLines={1}>
           {debt.purchaseNumber ?? '—'}
-        </Text>
+        </IdText>
         <View style={[debtStyles.badge, { backgroundColor: '#FFF7ED' }]}>
           <Text style={[debtStyles.badgeText, { color: Colors.warning }]}>{t('common.debt')}</Text>
         </View>
@@ -90,12 +93,10 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
         {t('debt.remainingLabel')}
       </Text>
       {/* Line 3 — remaining amount */}
-      <Text style={[debtStyles.remainingValue, { color: Colors.error, textAlign }]}>
-        {fmtIQD(debt.remainingAmount)} IQD
-      </Text>
+      <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[debtStyles.remainingValue, { color: Colors.error, textAlign }]} />
       {/* Line 4 — paid / total */}
       <Text style={[debtStyles.amounts, { color: colors.gray500, textAlign }]}>
-        {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+        <AmountText value={debt.paidAmount} variant="small" /> / <AmountText value={debt.originalAmount} currency="IQD" variant="small" />
       </Text>
       {/* Line 5 — progress percentage */}
       <Text style={[debtStyles.progressText, { color: colors.gray400, textAlign }]}>
@@ -354,21 +355,27 @@ export default function SupplierDetailScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
               <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-              <Text style={[styles.statVal, { color: colors.primary }]} numberOfLines={1}>{fmtIQD(supplier.totalSpent)}</Text>
+              <AmountText value={supplier.totalSpent} variant="large" numberOfLines={1} style={[styles.statVal, { color: colors.primary }]} />
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </View>
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.white }, totalRemaining > 0 && styles.statCardDebt]}>
               <Ionicons name="alert-circle-outline" size={16} color={totalRemaining > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
-              <Text style={[styles.statVal, { color: totalRemaining > 0 ? colors.error : colors.black }]}
-                numberOfLines={1}>{totalRemaining > 0 ? fmtIQD(totalRemaining) : '—'}</Text>
+              {totalRemaining > 0 ? (
+                <AmountText value={totalRemaining} variant="large" numberOfLines={1} style={[styles.statVal, { color: colors.error }]} />
+              ) : (
+                <Text style={[styles.statVal, { color: colors.black }]} numberOfLines={1}>—</Text>
+              )}
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.remainingDebt')}</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
               <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? Colors.success : colors.gray300} style={{ marginBottom: 4 }} />
-              <Text style={[styles.statVal, { color: totalPaid > 0 ? Colors.success : colors.black }]}
-                numberOfLines={1}>{totalPaid > 0 ? fmtIQD(totalPaid) : '—'}</Text>
+              {totalPaid > 0 ? (
+                <AmountText value={totalPaid} variant="large" numberOfLines={1} style={[styles.statVal, { color: Colors.success }]} />
+              ) : (
+                <Text style={[styles.statVal, { color: colors.black }]} numberOfLines={1}>—</Text>
+              )}
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalPaid')}</Text>
             </View>
           </View>
@@ -376,7 +383,7 @@ export default function SupplierDetailScreen() {
             <View style={[styles.activityRow, { backgroundColor: colors.white }]}>
               <Ionicons name="time-outline" size={14} color={colors.gray400} />
               <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                {t('suppliers.lastPurchase')}: {formatDateShort(supplier.lastPurchaseDate)}
+                {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" />
               </Text>
             </View>
           ) : null}
@@ -464,10 +471,8 @@ export default function SupplierDetailScreen() {
               <View key={debt.id} style={[styles.settledRow, { borderBottomColor: colors.gray100 }]}>
                 <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
                 <View style={{ flex: 1, marginStart: 8 }}>
-                  <Text style={[styles.settledInvoice, { color: colors.black }]}>{debt.purchaseNumber ?? '—'}</Text>
-                  <Text style={[styles.settledAmount, { color: colors.gray400 }]}>
-                    {fmtIQD(debt.originalAmount)} IQD
-                  </Text>
+                  <IdText style={[styles.settledInvoice, { color: colors.black }]}>{debt.purchaseNumber ?? '—'}</IdText>
+                  <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledAmount, { color: colors.gray400 }]} />
                 </View>
                 <View style={styles.settledBadge}>
                   <Text style={styles.settledBadgeText}>{t('common.settled')}</Text>
@@ -505,12 +510,12 @@ export default function SupplierDetailScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.purchaseLeft}>
-                    <Text style={[styles.purchaseNum, { color: colors.primary }]}>{p.purchaseNumber}</Text>
+                    <IdText style={[styles.purchaseNum, { color: colors.primary }]}>{p.purchaseNumber}</IdText>
                     <Text style={[styles.purchaseName, { color: colors.black }]} numberOfLines={1}>{p.productName}</Text>
-                    <Text style={[styles.purchaseDate, { color: colors.gray400 }]}>{formatDateShort(p.date ?? p.createdAt)}</Text>
+                    <DateText value={p.date ?? p.createdAt} size="small" style={[styles.purchaseDate, { color: colors.gray400 }]} />
                   </View>
                   <View style={styles.purchaseRight}>
-                    <Text style={[styles.purchaseTotal, { color: colors.primary }]}>{fmtIQD(p.totalIQD)} IQD</Text>
+                    <AmountText value={p.totalIQD} currency="IQD" style={[styles.purchaseTotal, { color: colors.primary }]} />
                     <View style={[styles.statusBadge, { backgroundColor: p.paymentStatus === 'paid' ? '#F0FDF4' : '#FFF7ED' }]}>
                       <Text style={[styles.statusText, { color: p.paymentStatus === 'paid' ? Colors.success : Colors.warning }]}>
                         {p.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}

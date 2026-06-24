@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -42,7 +43,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
-import { fmtIQD, fmtUSD } from '@/utils/formatters';
+import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
 
 type Step = 1 | 2 | 3;
@@ -273,27 +274,27 @@ export default function NewSaleScreen() {
               <View style={[styles.summaryRow, { flexDirection }]}>
                 <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.subtotal')}</Text>
                 <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                  <Text style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(subtotal)}</Text>
-                  <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>{fmtUSD(roundUSD(subtotalUsd))}</Text>
+                  <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]} />
+                  <AmountText value={roundUSD(subtotalUsd)} formatter={fmtUSD} variant="small" style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               </View>
               {discountTotal > 0 && (
                 <View style={[styles.summaryRow, { flexDirection }]}>
                   <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.totalDiscount')}</Text>
-                  <Text style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(discountTotal)}</Text>
+                  <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               )}
               {globalDiscountAmount > 0 && (
                 <View style={[styles.summaryRow, { flexDirection }]}>
                   <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.globalDiscount')}</Text>
-                  <Text style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]}>−{fmtIQD(globalDiscountAmount)}</Text>
+                  <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               )}
               <View style={[styles.summaryRow, styles.summaryGrand, { borderTopColor: colors.gray100 }]}>
                 <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
                 <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                  <Text style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(grandTotal)}</Text>
-                  <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtUSD(roundUSD(grandTotalUsd))}</Text>
+                  <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
+                  <AmountText value={roundUSD(grandTotalUsd)} formatter={fmtUSD} variant="small" style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               </View>
             </PremiumCard>
@@ -372,7 +373,7 @@ export default function NewSaleScreen() {
                 {remainingDebt > 0 && (
                   <View style={[styles.debtAlert, { flexDirection }]}>
                     <Ionicons name="time-outline" size={16} color={colors.error} />
-                    <Text style={[styles.debtText, { color: colors.error, textAlign }]}>{t('sales.remainingDebt')}: {fmtIQD(remainingDebt)}</Text>
+                    <Text style={[styles.debtText, { color: colors.error, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: colors.error }]} /></Text>
                   </View>
                 )}
               </View>

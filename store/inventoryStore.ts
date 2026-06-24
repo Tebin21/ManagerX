@@ -171,6 +171,12 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     } catch (e) {
       if (__DEV__) console.warn('[inventoryStore] report sync failed after editProduct:', e);
     }
+    try {
+      const { usePurchaseStore } = await import('@/store/purchaseStore');
+      await usePurchaseStore.getState().loadPurchases();
+    } catch (e) {
+      if (__DEV__) console.warn('[inventoryStore] purchase sync failed after editProduct:', e);
+    }
   },
 
   removeProduct: async (id) => {

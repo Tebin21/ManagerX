@@ -17,7 +17,6 @@ export type {
   InventoryReportSummary,
   DebtReportData,
   ProfitableProduct,
-  DailyRevenuePoint,
   Expense,
   RevenuePoint,
   FinancialSummaryCards,

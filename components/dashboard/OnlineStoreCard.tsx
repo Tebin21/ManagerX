@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
+import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +13,7 @@ import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { InfoModal } from '@/components/ui/InfoModal';
-import { formatDateShort, formatRelativeTime } from '@/utils/formatters';
+import { formatRelativeTime } from '@/utils/formatters';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -111,7 +112,7 @@ export function OnlineStoreCard() {
         <Ionicons name="checkmark-circle" size={14} color={colors.success} />
         <Text style={[styles.subText, { color: colors.gray600 }]} numberOfLines={1}>
           {t('dashboard.onlineStore.activeSubscriptionLabel')}
-          {subscriptionExpiresAt ? ` · ${formatDateShort(subscriptionExpiresAt)}` : ''}
+          {subscriptionExpiresAt ? <> · <DateText value={subscriptionExpiresAt} size="small" style={styles.subText} /></> : null}
           {remainingDays !== null ? ` · ${remainingDays}d` : ''}
         </Text>
       </View>

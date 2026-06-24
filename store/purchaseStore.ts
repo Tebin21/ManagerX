@@ -146,6 +146,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       purchaseDate:    data.date,
       paymentStatus:   data.paymentStatus,
       warranty:        data.warranty,
+      notes:           data.notes,
       imageUri:        input.imageUri ?? null,
       isActive:        true,
     };

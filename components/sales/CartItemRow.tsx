@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
+import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -114,7 +116,7 @@ export function CartItemRow({
           <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>{item.product.name}</Text>
           {item.product.itemId ? (
             <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
-              <Text style={[styles.idText, { color: colors.primary }]}>#{item.product.itemId}</Text>
+              <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{item.product.itemId}</IdText>
             </View>
           ) : null}
         </View>
@@ -230,16 +232,10 @@ export function CartItemRow({
       {/* Price preview (only when discount active) */}
       {showDiscountPreview && (
         <View style={[styles.previewRow, { backgroundColor: colors.gray50, borderColor: colors.gray100 }]}>
-          <Text style={[styles.previewLabel, { color: colors.gray500 }]}>
-            {fmtIQD(item.sellingPrice)}
-          </Text>
-          <Text style={[styles.previewMinus, { color: Colors.error }]}>
-            −{fmtIQD(item.discount)}
-          </Text>
+          <AmountText value={item.sellingPrice} variant="small" style={[styles.previewLabel, { color: colors.gray500 }]} />
+          <AmountText value={item.discount} prefix="−" variant="small" style={[styles.previewMinus, { color: Colors.error }]} />
           <Text style={styles.previewEq}>=</Text>
-          <Text style={[styles.previewFinal, { color: Colors.success }]}>
-            {fmtIQD(Math.max(0, effectivePrice))}
-          </Text>
+          <AmountText value={Math.max(0, effectivePrice)} variant="small" style={[styles.previewFinal, { color: Colors.success }]} />
           <Text style={[styles.previewPerUnit, { color: colors.gray400 }]}>/unit</Text>
         </View>
       )}
@@ -248,10 +244,13 @@ export function CartItemRow({
       <View style={[styles.lineTotalRow, { borderTopColor: colors.gray100 }]}>
         <Text style={[styles.lineTotalLabel, { color: colors.gray400, textAlign }]}>{t('sales.lineTotal')}</Text>
         <View style={[styles.lineTotalStack, { alignItems: alignEnd }]}>
-          <Text style={[styles.lineTotal, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(item.lineTotal)}</Text>
-          <Text style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
-            {fmtUSD(item.lineTotal / exchangeRate)}
-          </Text>
+          <AmountText value={item.lineTotal} variant="large" style={[styles.lineTotal, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
+          <AmountText
+            value={item.lineTotal / exchangeRate}
+            formatter={fmtUSD}
+            variant="small"
+            style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}
+          />
         </View>
       </View>
     </View>
@@ -273,7 +272,7 @@ const styles = StyleSheet.create({
   titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
   idBadge: { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  idText: { fontSize: 10, fontWeight: '500' },
+  idText: {},
   deleteBtn: { padding: 4, marginStart: 8 },
   warningText: { fontSize: 11, color: Colors.warning, fontWeight: '500', marginBottom: 8 },
 
@@ -343,7 +342,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   lineTotalLabel: { fontSize: 12 },
-  lineTotal: { fontSize: 18, fontWeight: '800' },
+  lineTotal: {},
   lineTotalStack: { alignItems: 'flex-end' },
   lineTotalUsd: { fontSize: 12, fontWeight: '500', marginTop: 1 },
 });

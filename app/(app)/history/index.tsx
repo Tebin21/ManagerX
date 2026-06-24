@@ -9,6 +9,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
+import { DateText } from '@/components/ui/DateText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -23,7 +25,6 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
-import { fmtIQD, formatDateShort } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 type Tab = 'customers' | 'suppliers';
@@ -33,7 +34,6 @@ function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; 
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { t } = useTranslation();
-  const lastDate = supplier.lastPurchaseDate ? formatDateShort(supplier.lastPurchaseDate) : null;
   return (
     <TouchableOpacity
       style={[styles.supplierCard, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
@@ -56,15 +56,13 @@ function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; 
             {supplier.purchaseCount} {t('suppliers.purchases')}
           </Text>
           <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
-          <Text style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
-            {fmtIQD(supplier.totalSpent)} IQD
-          </Text>
+          <AmountText value={supplier.totalSpent} currency="IQD" variant="small" style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]} />
         </View>
-        {lastDate ? (
+        {supplier.lastPurchaseDate ? (
           <View style={[styles.cardDateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
             <Text style={[styles.cardDate, { color: colors.gray400, textAlign }]}>
-              {t('suppliers.lastPurchase')}: {lastDate}
+              {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" />
             </Text>
           </View>
         ) : null}
@@ -245,7 +243,7 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{fmtIQD(totalCustValue)}</Text>
+              <AmountText value={totalCustValue} variant="large" style={styles.headerStatVal} />
               <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
             </View>
           </MotiView>
@@ -268,7 +266,7 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{fmtIQD(totalSupSpent)}</Text>
+              <AmountText value={totalSupSpent} variant="large" style={styles.headerStatVal} />
               <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </MotiView>

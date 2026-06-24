@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -33,7 +34,7 @@ import { generateUniqueProductId } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
-import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
+import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 
 function round(n: number, decimals: number) {
@@ -447,7 +448,7 @@ export default function NewPurchaseScreen() {
             {/* Auto Total */}
             <View style={[styles.totalBox, { backgroundColor: colors.softBlue, borderColor: colors.mediumBlue, flexDirection }]}>
               <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
-              <Text style={[styles.totalValue, { color: colors.primary }]}>{fmtIQD(totalIQD)} IQD</Text>
+              <AmountText value={totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary }]} />
             </View>
 
             <DateTimePicker
@@ -509,9 +510,12 @@ export default function NewPurchaseScreen() {
             {sellIQDNum > 0 && (
               <View style={[styles.totalBox, { backgroundColor: profitIQD >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: profitIQD >= 0 ? '#BBF7D0' : '#FECACA', flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
-                <Text style={[styles.totalValue, { color: profitIQD >= 0 ? colors.success : colors.error }]}>
-                  {profitIQD >= 0 ? '+' : ''}{fmtIQD(profitIQD)} IQD
-                </Text>
+                <AmountText
+                  value={profitIQD}
+                  currency="IQD"
+                  prefix={profitIQD >= 0 ? '+' : ''}
+                  style={[styles.totalValue, { color: profitIQD >= 0 ? colors.success : colors.error }]}
+                />
               </View>
             )}
 
@@ -574,7 +578,7 @@ export default function NewPurchaseScreen() {
                 />
                 <View style={[styles.totalBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', flexDirection }]}>
                   <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
-                  <Text style={[styles.totalValue, { color: colors.error }]}>{fmtIQD(remainingDebt)} IQD</Text>
+                  <AmountText value={remainingDebt} currency="IQD" style={[styles.totalValue, { color: colors.error }]} />
                 </View>
               </>
             )}
