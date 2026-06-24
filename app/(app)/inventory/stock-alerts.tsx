@@ -22,6 +22,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryProduct } from '@/types/inventory';
 
 const THRESHOLD_OPTIONS = [1, 2, 3, 5, 10, 20, 50];
@@ -45,6 +46,7 @@ function StockAlertRow({
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const scrollIntoView = useKeyboardAwareFocus();
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   const isProductActive = product.lowStockEnabled !== 0;
   const isCurrentlyLow  = computeProductLowStock(product, globalEnabled, globalThreshold);
@@ -91,12 +93,12 @@ function StockAlertRow({
         activeOpacity={0.82}
       >
         {/* ── Top line: name · qty · threshold ── */}
-        <View style={styles.rowTop}>
-          <Text style={[styles.rowName, { color: colors.black }]} numberOfLines={1}>
+        <View style={[styles.rowTop, { flexDirection }]}>
+          <Text style={[styles.rowName, { color: colors.black, textAlign }]} numberOfLines={1}>
             {product.name}
           </Text>
 
-          <View style={styles.rowTopRight}>
+          <View style={[styles.rowTopRight, { flexDirection }]}>
             {/* Qty badge */}
             <View style={[
               styles.qtyBadge,
@@ -111,7 +113,7 @@ function StockAlertRow({
             </View>
 
             {/* Threshold override input */}
-            <View style={styles.threshWrap}>
+            <View style={[styles.threshWrap, { flexDirection }]}>
               <TextInput
                 style={[
                   styles.threshInput,
@@ -143,7 +145,7 @@ function StockAlertRow({
         </View>
 
         {/* ── Bottom line: category · Active/Disabled ── */}
-        <View style={styles.rowBottom}>
+        <View style={[styles.rowBottom, { flexDirection }]}>
           <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
             <Text style={[styles.catText, { color: colors.primaryDark }]}>
               {product.category}
@@ -151,7 +153,7 @@ function StockAlertRow({
           </View>
 
           {/* Active / Disabled segmented control */}
-          <View style={[styles.statusControl, { borderColor: colors.gray200 }]}>
+          <View style={[styles.statusControl, { borderColor: colors.gray200, flexDirection }]}>
             <TouchableOpacity
               onPress={(e) => stopAndCall(e, () => onStatusChange(product.id, true))}
               style={[
@@ -198,6 +200,7 @@ export default function StockAlertsScreen() {
   const { t }    = useTranslation();
   const { colors } = useAppTheme();
   const scrollIntoView = useKeyboardAwareFocus();
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   const { products, editProduct } = useInventoryStore();
   const {
@@ -259,8 +262,8 @@ export default function StockAlertsScreen() {
         >
           <View style={[styles.globalCard, { backgroundColor: colors.white }]}>
             {/* Toggle row */}
-            <View style={styles.globalRow}>
-              <View style={styles.globalLeft}>
+            <View style={[styles.globalRow, { flexDirection }]}>
+              <View style={[styles.globalLeft, { flexDirection }]}>
                 <View style={[
                   styles.bellWrap,
                   { backgroundColor: globalLowStockEnabled ? '#FEF3C7' : colors.gray100 },
@@ -271,7 +274,7 @@ export default function StockAlertsScreen() {
                     color={globalLowStockEnabled ? '#92400E' : colors.gray400}
                   />
                 </View>
-                <Text style={[styles.globalTitle, { color: colors.black }]}>
+                <Text style={[styles.globalTitle, { color: colors.black, textAlign }]}>
                   {t('inventory.inventoryAlerts')}
                 </Text>
               </View>
@@ -291,11 +294,11 @@ export default function StockAlertsScreen() {
                 transition={{ type: 'timing', duration: 180 }}
               >
                 <View style={[styles.thresholdSection, { borderTopColor: colors.gray100 }]}>
-                  <Text style={[styles.thresholdLabel, { color: colors.gray500 }]}>
+                  <Text style={[styles.thresholdLabel, { color: colors.gray500, textAlign, writingDirection }]}>
                     {t('inventory.globalAlertQuantity')}
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.chips}>
+                    <View style={[styles.chips, { flexDirection }]}>
                       {THRESHOLD_OPTIONS.map((val) => (
                         <TouchableOpacity
                           key={val}
@@ -333,9 +336,9 @@ export default function StockAlertsScreen() {
             animate={{ opacity: 1 }}
             transition={{ type: 'timing', duration: 200, delay: 60 }}
           >
-            <View style={styles.summaryBanner}>
+            <View style={[styles.summaryBanner, { flexDirection }]}>
               <Ionicons name="warning-outline" size={13} color="#92400E" />
-              <Text style={styles.summaryText}>
+              <Text style={[styles.summaryText, { textAlign, writingDirection }]}>
                 {t('inventory.alertSummary', { count: alertCount })}
               </Text>
             </View>
@@ -344,11 +347,11 @@ export default function StockAlertsScreen() {
 
         {/* ── Search + count (sticky) ── */}
         <View style={[styles.searchSection, { backgroundColor: colors.gray50 }]}>
-          <View style={styles.searchRow}>
-            <View style={[styles.searchWrap, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+          <View style={[styles.searchRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
+            <View style={[styles.searchWrap, { backgroundColor: colors.white, borderColor: colors.gray200, flexDirection }]}>
               <Ionicons name="search" size={14} color={colors.gray400} />
               <TextInput
-                style={[styles.searchInput, { color: colors.black }]}
+                style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
                 value={search}
                 onChangeText={setSearch}
                 onFocus={scrollIntoView}
@@ -363,7 +366,7 @@ export default function StockAlertsScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={[styles.countLabel, { color: colors.gray400 }]}>
+            <Text style={[styles.countLabel, { color: colors.gray400, textAlign }]}>
               {filtered.length} {t('inventory.products')}
             </Text>
           </View>

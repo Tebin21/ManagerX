@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
-  Alert, StyleSheet,
+  Alert, StyleSheet, Text as RNText, TextStyle,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,16 +24,32 @@ import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
-import { fmtIQD, fmtExchangeRate, formatDate } from '@/utils/formatters';
+import { fmtIQD, fmtExchangeRate, formatDateShort } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+
+// Plain alphanumeric codes (item/shared/warranty IDs like "K5421") — never
+// Kurdish prose, so this never collides with real Kurdish field values.
+const ID_CODE_PATTERN = /^[A-Za-z0-9-]+$/;
+function isIdCode(value: string): boolean {
+  return ID_CODE_PATTERN.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
+}
+
+// AppText splits a Kurdish-styled string's numeral runs into a separate
+// system-font <Text>, so a code like "K5421" renders its letter in Rudaw and
+// its digits in the system font — two different letterforms for one code.
+// Render the whole string in a single font instead so it reads as one unit.
+function IdText({ style, children }: { style?: TextStyle | TextStyle[]; children: React.ReactNode }) {
+  return <RNText style={[style, { fontFamily: SYSTEM_FONT_OVERRIDE }]}>{children}</RNText>;
+}
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   const { colors } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const ValueText = isIdCode(value) ? IdText : Text;
   return (
     <View style={[infoRow.row, { borderBottomColor: colors.gray100, flexDirection }]}>
-      <Text style={[infoRow.label, { color: colors.gray500 }]}>{label}</Text>
-      <Text style={[infoRow.value, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]}>{value}</Text>
+      <Text style={[infoRow.label, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{label}</Text>
+      <ValueText style={[infoRow.value, { color: colors.black, textAlign: 'right' }]}>{value}</ValueText>
     </View>
   );
 }
@@ -47,7 +64,7 @@ export default function PurchaseDetailScreen() {
   const router   = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection, alignEnd } = useRTL();
+  const { isRTL, flexDirection, alignEnd } = useRTL();
   const { deletePurchase } = usePurchaseStore();
   const business = useBusinessStore();
 
@@ -194,7 +211,7 @@ export default function PurchaseDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.invoiceDate}>{formatDate(purchase.date)}</Text>
+            <Text style={styles.invoiceDate}>{formatDateShort(purchase.date)}</Text>
             <View style={[styles.invoiceTotalRow, { flexDirection }]}>
               <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
               <Text style={styles.invoiceTotalValue}>{fmtIQD(purchase.totalIQD)} IQD</Text>
@@ -205,7 +222,7 @@ export default function PurchaseDetailScreen() {
         {/* Product */}
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 60 }}>
           <PremiumCard style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>{t('purchases.productSection')}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productSection')}</Text>
             <InfoRow label={t('purchases.productName')} value={purchase.productName} />
             {purchase.category ? <InfoRow label={t('purchases.category')} value={purchase.category} /> : null}
             <InfoRow label={t('purchases.qty')} value={String(purchase.quantity)} />
@@ -226,12 +243,12 @@ export default function PurchaseDetailScreen() {
         {purchaseItems.length > 1 && (
           <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 80 }}>
             <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
+              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
               {purchaseItems.map((item) => (
                 <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                   <View style={styles.itemLeft}>
-                    <Text style={[styles.itemName, { color: colors.black }]}>{item.productName}</Text>
-                    {item.category ? <Text style={[styles.itemCat, { color: colors.gray400 }]}>{item.category}</Text> : null}
+                    <Text style={[styles.itemName, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>{item.productName}</Text>
+                    {item.category ? <Text style={[styles.itemCat, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{item.category}</Text> : null}
                   </View>
                   <View style={[styles.itemRight, { alignItems: alignEnd }]}>
                     <Text style={[styles.itemQty, { color: colors.gray400 }]}>×{item.quantity}</Text>
@@ -247,7 +264,7 @@ export default function PurchaseDetailScreen() {
         {(purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) && (
           <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 100 }}>
             <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>{t('purchases.supplierSection')}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
               {purchase.supplierName    ? <InfoRow label={t('purchases.supplierName')}    value={purchase.supplierName} />    : null}
               {purchase.supplierPhone   ? <InfoRow label={t('inventory.phone')}           value={purchase.supplierPhone} />   : null}
               {purchase.supplierAddress ? <InfoRow label={t('inventory.address')}         value={purchase.supplierAddress} /> : null}
@@ -259,19 +276,19 @@ export default function PurchaseDetailScreen() {
         {hasIds && (
           <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 140 }}>
             <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>
+              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
                 {purchase.idType === 'shared' ? t('purchases.sharedIdTitle') : `${t('purchases.itemIdsTitle')} (${purchase.itemIds.length})`}
               </Text>
               {purchase.idType === 'shared' ? (
                 <View style={[styles.sharedIdBox, { backgroundColor: colors.softBlue }]}>
-                  <Text style={[styles.sharedIdText, { color: colors.primary }]}>{purchase.itemIds[0] || '—'}</Text>
+                  <IdText style={[styles.sharedIdText, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.itemIds[0] || '—'}</IdText>
                 </View>
               ) : (
                 <View style={styles.chipsWrap}>
                   {purchase.itemIds.map((v, i) => (
                     <View key={i} style={[styles.idChip, { backgroundColor: colors.softBlue, flexDirection }]}>
                       <Text style={[styles.idChipBadge, { backgroundColor: colors.primary }]}>{i + 1}</Text>
-                      <Text style={[styles.idChipText, { color: colors.primary }]}>{v || '—'}</Text>
+                      <IdText style={[styles.idChipText, { color: colors.primary }]}>{v || '—'}</IdText>
                     </View>
                   ))}
                 </View>
@@ -284,17 +301,17 @@ export default function PurchaseDetailScreen() {
         {(purchase.description || purchase.notes) && (
           <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 180 }}>
             <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500 }]}>{t('purchases.additionalSection')}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalSection')}</Text>
               {purchase.description && (
                 <View style={styles.notesBlock}>
-                  <Text style={[styles.notesLabel, { color: colors.gray400 }]}>{t('purchases.description')}</Text>
-                  <Text style={[styles.notesText, { color: colors.gray600 }]}>{purchase.description}</Text>
+                  <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.description')}</Text>
+                  <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.description}</Text>
                 </View>
               )}
               {purchase.notes && (
                 <View style={styles.notesBlock}>
-                  <Text style={[styles.notesLabel, { color: colors.gray400 }]}>{t('purchases.notes')}</Text>
-                  <Text style={[styles.notesText, { color: colors.gray600 }]}>{purchase.notes}</Text>
+                  <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.notes')}</Text>
+                  <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.notes}</Text>
                 </View>
               )}
             </PremiumCard>

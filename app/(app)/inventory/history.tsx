@@ -18,6 +18,7 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { InventoryHistoryItem } from '@/components/inventory/InventoryHistoryItem';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
 
 type StatusFilter = 'all' | 'sold_out' | 'removed';
@@ -26,6 +27,7 @@ export default function InventoryHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const {
     inventoryHistory,
     loadInventoryHistory,
@@ -158,7 +160,7 @@ export default function InventoryHistoryScreen() {
       />
 
       {/* Status filter chips */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
         {FILTERS.map(({ key, label }) => {
           const active = statusFilter === key;
           return (
@@ -176,7 +178,7 @@ export default function InventoryHistoryScreen() {
               <Text
                 style={[
                   styles.filterChipText,
-                  { color: active ? colors.white : colors.gray600 },
+                  { color: active ? colors.white : colors.gray600, textAlign },
                 ]}
               >
                 {label}
@@ -188,8 +190,8 @@ export default function InventoryHistoryScreen() {
 
       {/* Count strip */}
       {filtered.length > 0 && (
-        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
-          <Text style={[styles.countText, { color: colors.gray500 }]}>
+        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100, justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+          <Text style={[styles.countText, { color: colors.gray500, textAlign }]}>
             {filtered.length} {t('inventory.products')}
           </Text>
         </View>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, ScrollView, TextInput, TouchableOpacity,
+  View, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -15,7 +16,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
-import { fmtRate, fmtExchangeRate, formatDateTime } from '@/utils/formatters';
+import { fmtRate, fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 
 export default function CurrencyScreen() {
@@ -23,6 +24,7 @@ export default function CurrencyScreen() {
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
   const textAlign = isRTL ? 'right' : 'left';
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const exchangeRate   = useSettingsStore((s) => s.exchangeRate);
   const rateUpdatedAt  = useSettingsStore((s) => s.rateUpdatedAt);
@@ -77,10 +79,9 @@ export default function CurrencyScreen() {
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.currencyScreen.title')} showBack />
 
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.body}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
 
           {/* ── Current rate display ── */}
@@ -100,7 +101,7 @@ export default function CurrencyScreen() {
             </Text>
             {rateUpdatedAt ? (
               <Text style={styles.rateUpdated}>
-                {formatDateTime(rateUpdatedAt)}
+                {formatDateTimeUI(rateUpdatedAt)}
               </Text>
             ) : (
               <Text style={styles.rateUpdated}>{t('settings.currencyScreen.defaultRate')}</Text>
@@ -130,6 +131,7 @@ export default function CurrencyScreen() {
                 placeholderTextColor={colors.gray400}
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
+                onFocus={scrollIntoView}
               />
               <Text style={[styles.inputSuffix, { color: colors.gray500 }]}>{t('settings.currencyScreen.inputSuffix')}</Text>
             </View>
@@ -180,7 +182,7 @@ export default function CurrencyScreen() {
                       100 USD = {fmtExchangeRate(entry.rate)} IQD
                     </Text>
                     <Text style={[styles.historyDate, { color: colors.gray400, textAlign }]}>
-                      {formatDateTime(entry.createdAt)}
+                      {formatDateTimeUI(entry.createdAt)}
                       {entry.note ? ` · ${entry.note}` : ''}
                     </Text>
                   </View>
@@ -203,7 +205,7 @@ export default function CurrencyScreen() {
           </View>
 
           <View style={{ height: 40 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </KeyboardAvoidingView>
   );

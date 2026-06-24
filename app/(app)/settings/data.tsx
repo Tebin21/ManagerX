@@ -17,6 +17,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
@@ -358,7 +360,7 @@ export default function DataScreen() {
         onRequestClose={handleDismissReset}
         statusBarTranslucent
       >
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
           <View style={[
             styles.dialog,
             {
@@ -431,7 +433,7 @@ export default function DataScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Restore confirmation modal ──────────────────────────────────── */}

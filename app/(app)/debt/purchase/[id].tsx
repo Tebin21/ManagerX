@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  ScrollView,
   TouchableOpacity,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -16,6 +17,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
+import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { getPurchaseDebtById, getDebtPayments, addPaymentToPurchaseDebt, getPurchaseById } from '@/lib/sqlite';
 import { useDebtStore } from '@/store/debtStore';
@@ -25,7 +27,7 @@ import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { PurchaseDebt, DebtPayment } from '@/types/debt';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD, formatDate, formatDateTime } from '@/utils/formatters';
+import { fmtIQD, formatDateShort, formatDateTimeUI } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
@@ -75,21 +77,25 @@ function PaymentTimelineItem({
   payment: DebtPayment;
   isLast: boolean;
 }) {
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign } = useRTL();
   return (
     <View style={[styles.timelineItem, { flexDirection }]}>
       <View style={styles.timelineDotCol}>
         <View style={styles.timelineDot} />
         {!isLast && <View style={styles.timelineLine} />}
       </View>
-      <View style={styles.timelineContent}>
-        <Text style={styles.timelineDate}>{formatDateTime(payment.createdAt)}</Text>
-        <Text style={styles.timelineAmount}>+{fmtIQD(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
-        <Text style={styles.timelineRemaining}>
+      <View style={styles.timelineCard}>
+        <Text style={[styles.timelineDate, { textAlign }]}>{formatDateTimeUI(payment.createdAt)}</Text>
+        <View style={[styles.timelineAmountRow, { flexDirection }]}>
+          <View style={styles.timelineAmountChip}>
+            <Text style={styles.timelineAmountChipText}>+{fmtIQD(payment.amount)} IQD {i18n.t('debt.paidLabel')}</Text>
+          </View>
+        </View>
+        <Text style={[styles.timelineRemaining, { textAlign }]}>
           {i18n.t('debt.remainingLabel')}: {fmtIQD(payment.remainingAfter)} IQD
         </Text>
         {payment.note ? (
-          <Text style={styles.timelineNote}>{payment.note}</Text>
+          <Text style={[styles.timelineNote, { textAlign }]}>{payment.note}</Text>
         ) : null}
       </View>
     </View>
@@ -104,8 +110,8 @@ export default function PurchaseDebtDetailScreen() {
   const { t } = useTranslation();
   const { reloadAfterSale } = useDebtStore();
   const { colors } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
-  const valueAlign = (isRTL ? 'left' : 'right') as 'left' | 'right';
+  const scrollIntoView = useKeyboardAwareFocus();
+  const { textAlign, flexDirection, valueAlign } = useRTL();
 
   const [debt, setDebt]         = useState<PurchaseDebt | null>(null);
   const [purchase, setPurchase] = useState<Purchase | null>(null);
@@ -208,42 +214,39 @@ export default function PurchaseDebtDetailScreen() {
     : 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
         title={debt.supplierName}
         showBack
         gradient={[Colors.errorDark, Colors.error]}
       >
-        <View style={styles.headerMeta}>
-          {debt.supplierPhone ? (
-            <View style={styles.chip}>
-              <Ionicons name="call" size={12} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.chipText}>{debt.supplierPhone}</Text>
-            </View>
-          ) : null}
-          {debt.supplierAddress ? (
-            <View style={styles.chip}>
-              <Ionicons name="location" size={12} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.chipText}>{debt.supplierAddress}</Text>
-            </View>
-          ) : null}
-          {debt.purchaseNumber ? (
-            <View style={styles.chip}>
-              <Ionicons name="receipt" size={12} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.chipText}>{debt.purchaseNumber}</Text>
-            </View>
-          ) : null}
-        </View>
+        {(debt.supplierPhone || debt.supplierAddress) ? (
+          <View style={styles.headerMeta}>
+            {debt.supplierPhone ? (
+              <View style={[styles.headerMetaItem, { flexDirection }]}>
+                <Ionicons name="call" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.headerMetaText}>{debt.supplierPhone}</Text>
+              </View>
+            ) : null}
+            {debt.supplierPhone && debt.supplierAddress ? <View style={styles.headerMetaDot} /> : null}
+            {debt.supplierAddress ? (
+              <View style={[styles.headerMetaItem, { flexDirection }]}>
+                <Ionicons name="location" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.headerMetaText} numberOfLines={1}>{debt.supplierAddress}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </AppHeader>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
 
         {/* Status card */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <PremiumCard style={styles.section}>
             <View style={[styles.statusRow, { flexDirection }]}>
               <View>
-                <Text style={styles.remainingLabel}>{t('debt.weOweSupplier')}</Text>
+                <Text style={[styles.remainingLabel, { textAlign }]}>{t('debt.weOweSupplier')}</Text>
                 <Text style={[styles.remainingAmount, { color: Colors.error }]}>
                   {fmtIQD(debt.remainingAmount)} IQD
                 </Text>
@@ -253,16 +256,16 @@ export default function PurchaseDebtDetailScreen() {
 
             <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-            <Text style={styles.progressPct}>{t('debt.pctPaidSupplier', { pct: pctPaid })}</Text>
+            <Text style={[styles.progressPct, { textAlign }]}>{t('debt.pctPaidSupplier', { pct: pctPaid })}</Text>
 
             <View style={[styles.amountRow, { flexDirection }]}>
               <View style={styles.amountCell}>
-                <Text style={styles.amountCellLabel}>{t('debt.totalOwedLabel')}</Text>
+                <Text style={[styles.amountCellLabel, { textAlign }]}>{t('debt.totalOwedLabel')}</Text>
                 <Text style={styles.amountCellValue}>{fmtIQD(debt.originalAmount)} IQD</Text>
               </View>
               <View style={styles.amountDivider} />
               <View style={styles.amountCell}>
-                <Text style={styles.amountCellLabel}>{t('debt.paidLabel')}</Text>
+                <Text style={[styles.amountCellLabel, { textAlign }]}>{t('debt.paidLabel')}</Text>
                 <Text style={[styles.amountCellValue, { color: Colors.success }]}>
                   {fmtIQD(debt.paidAmount)} IQD
                 </Text>
@@ -274,36 +277,38 @@ export default function PurchaseDebtDetailScreen() {
         {/* Purchase info */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
           <PremiumCard style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('debt.purchaseDetails')}</Text>
+            <Text style={[styles.sectionTitle, { textAlign }]}>{t('debt.purchaseDetails')}</Text>
             <View style={[styles.infoRow, { flexDirection }]}>
-              <Text style={styles.infoLabel}>{t('purchases.purchaseNumber')}</Text>
+              <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.purchaseNumber')}</Text>
               <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.purchaseNumber ?? '—'}</Text>
             </View>
             <View style={[styles.infoRow, { flexDirection }]}>
-              <Text style={styles.infoLabel}>{t('inventory.date')}</Text>
-              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{formatDate(debt.createdAt)}</Text>
+              <Text style={[styles.infoLabel, { textAlign }]}>{t('inventory.date')}</Text>
+              <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{formatDateShort(debt.createdAt)}</Text>
             </View>
             {purchase ? (
-              <>
-                <View style={[styles.infoRow, { flexDirection }]}>
-                  <Text style={styles.infoLabel}>{t('purchases.productSection')}</Text>
-                  <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{purchase.productName}</Text>
+              <View style={styles.itemCard}>
+                <View style={[styles.itemNameRow, { flexDirection }]}>
+                  <Text style={[styles.itemName, { textAlign }]} numberOfLines={1}>{purchase.productName}</Text>
+                  {purchase.quantity > 1 ? (
+                    <Text style={styles.itemQtyBadge}>×{purchase.quantity}</Text>
+                  ) : null}
                 </View>
-                <View style={[styles.infoRow, { flexDirection }]}>
-                  <Text style={styles.infoLabel}>{t('purchases.qty')}</Text>
-                  <Text style={[styles.infoValue, { textAlign: valueAlign }]}>×{purchase.quantity}</Text>
-                </View>
+                <Text style={[styles.itemPrice, { textAlign: valueAlign }]}>{fmtIQD(purchase.totalIQD)} IQD</Text>
+                {purchase.itemIds.length > 0 ? (
+                  <Text style={[styles.itemId, { textAlign: valueAlign }]}>ID: {purchase.itemIds.join(', ')}</Text>
+                ) : null}
                 {purchase.warranty ? (
-                  <View style={[styles.infoRow, { flexDirection }]}>
-                    <Text style={styles.infoLabel}>{t('purchases.warranty')}</Text>
+                  <View style={[styles.infoRow, { flexDirection, marginTop: 6, marginBottom: 0 }]}>
+                    <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.warranty')}</Text>
                     <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{purchase.warranty}</Text>
                   </View>
                 ) : null}
-              </>
+              </View>
             ) : null}
             {debt.notes ? (
               <View style={[styles.infoRow, { flexDirection }]}>
-                <Text style={styles.infoLabel}>{t('purchases.notes')}</Text>
+                <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.notes')}</Text>
                 <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.notes}</Text>
               </View>
             ) : null}
@@ -323,7 +328,7 @@ export default function PurchaseDebtDetailScreen() {
         {/* Payment history */}
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
           <PremiumCard style={styles.section}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { textAlign }]}>
               {t('debt.paymentHistory')}{payments.length > 0 ? ` (${payments.length})` : ''}
             </Text>
             {payments.length === 0 ? (
@@ -353,12 +358,12 @@ export default function PurchaseDebtDetailScreen() {
               </TouchableOpacity>
             ) : (
               <PremiumCard style={styles.section}>
-                <Text style={styles.sectionTitle}>{t('debt.recordPayment')}</Text>
-                <Text style={[styles.payRemaining, { color: Colors.error }]}>
+                <Text style={[styles.sectionTitle, { textAlign }]}>{t('debt.recordPayment')}</Text>
+                <Text style={[styles.payRemaining, { color: Colors.error, textAlign }]}>
                   {t('debt.remainingLabel')}: {fmtIQD(debt.remainingAmount)} IQD
                 </Text>
                 <TextInput
-                  style={styles.payInput}
+                  style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
                   placeholder={t('debt.amountPlaceholder')}
                   placeholderTextColor={Colors.gray400}
                   keyboardType="decimal-pad"
@@ -368,6 +373,7 @@ export default function PurchaseDebtDetailScreen() {
                     const r = roundToNearest250(parseFloat(payValue) || 0);
                     setPayValue(r > 0 ? String(r) : '');
                   }}
+                  onFocus={scrollIntoView}
                   autoFocus
                 />
                 <DateTimePicker
@@ -405,8 +411,8 @@ export default function PurchaseDebtDetailScreen() {
         )}
 
         <View style={{ height: 32 }} />
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -422,20 +428,25 @@ const styles = StyleSheet.create({
   headerMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 14,
   },
-  chip: {
+  headerMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    gap: 5,
   },
-  chipText: { fontSize: 12, color: '#fff' },
+  headerMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  headerMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.9)' },
 
   body: { padding: 16, paddingTop: 14 },
   section: { marginBottom: 14 },
@@ -466,6 +477,20 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 13, color: Colors.gray400 },
   infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1 },
 
+  // Item summary
+  itemCard: {
+    paddingVertical: 10,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+    gap: 3,
+  },
+  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemName: { fontSize: 14, fontWeight: '700', color: Colors.black, flexShrink: 1 },
+  itemQtyBadge: { fontSize: 12, fontWeight: '600', color: Colors.gray400 },
+  itemPrice: { fontSize: 14, fontWeight: '700', color: Colors.black },
+  itemId: { fontSize: 11, color: Colors.gray400 },
+
   viewPurchaseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,20 +504,33 @@ const styles = StyleSheet.create({
   viewPurchaseBtnText: { fontSize: 13, fontWeight: '600' },
 
   noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
-  timelineItem: { flexDirection: 'row', marginBottom: 12 },
+  timelineItem: { flexDirection: 'row', marginBottom: 14 },
   timelineDotCol: { alignItems: 'center', width: 20, marginEnd: 12 },
   timelineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: Colors.error,
-    marginTop: 3,
+    marginTop: 14,
   },
   timelineLine: { width: 2, flex: 1, backgroundColor: Colors.gray100, marginTop: 4 },
-  timelineContent: { flex: 1 },
-  timelineDate: { fontSize: 11, color: Colors.gray400, marginBottom: 2 },
-  timelineAmount: { fontSize: 14, fontWeight: '700', color: Colors.success },
-  timelineRemaining: { fontSize: 12, color: Colors.gray500, marginTop: 1 },
+  timelineCard: {
+    flex: 1,
+    backgroundColor: Colors.gray50,
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  timelineDate: { fontSize: 11, color: Colors.gray400 },
+  timelineAmountRow: { flexDirection: 'row', marginTop: 2, marginBottom: 2 },
+  timelineAmountChip: {
+    backgroundColor: '#D1FAE5',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  timelineAmountChipText: { fontSize: 13, fontWeight: '700', color: Colors.success },
+  timelineRemaining: { fontSize: 12, color: Colors.gray500 },
   timelineNote: { fontSize: 12, color: Colors.gray400, fontStyle: 'italic', marginTop: 2 },
 
   addPayBtn: {

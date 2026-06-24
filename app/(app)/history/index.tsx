@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
+  Keyboard,
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
@@ -23,39 +24,46 @@ import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
 import { fmtIQD, formatDateShort } from '@/utils/formatters';
-import { useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 type Tab = 'customers' | 'suppliers';
 
 function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; onPress: (supplierId: number) => void }) {
   const { colors } = useAppTheme();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { t } = useTranslation();
   const lastDate = supplier.lastPurchaseDate ? formatDateShort(supplier.lastPurchaseDate) : null;
   return (
     <TouchableOpacity
-      style={[styles.supplierCard, { backgroundColor: colors.white }]}
+      style={[styles.supplierCard, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
       onPress={() => onPress(supplier.id)}
       activeOpacity={0.85}
     >
-      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue }]}>
+      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapLg : 12 }]}>
         <Ionicons name="business-outline" size={22} color={colors.primary} />
       </View>
       <View style={styles.cardBody}>
-        <Text style={[styles.cardName, { color: colors.black }]} numberOfLines={1}>{supplier.name}</Text>
+        <Text style={[styles.cardName, { color: colors.black, textAlign }]} numberOfLines={1}>{supplier.name}</Text>
         {supplier.phone ? (
-          <View style={styles.cardPhoneRow}>
+          <View style={[styles.cardPhoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="call-outline" size={12} color={colors.gray400} />
-            <Text style={[styles.cardPhone, { color: colors.gray400 }]}>{supplier.phone}</Text>
+            <Text style={[styles.cardPhone, { color: colors.gray400, textAlign }]}>{supplier.phone}</Text>
           </View>
         ) : null}
-        <Text style={[styles.cardSub, { color: colors.gray400 }]}>
-          {supplier.purchaseCount} {t('suppliers.purchases')} · {fmtIQD(supplier.totalSpent)} IQD
-        </Text>
+        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap' }]}>
+          <Text style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
+            {supplier.purchaseCount} {t('suppliers.purchases')}
+          </Text>
+          <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
+          <Text style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
+            {fmtIQD(supplier.totalSpent)} IQD
+          </Text>
+        </View>
         {lastDate ? (
-          <View style={styles.cardDateRow}>
+          <View style={[styles.cardDateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
-            <Text style={[styles.cardDate, { color: colors.gray400 }]}>
+            <Text style={[styles.cardDate, { color: colors.gray400, textAlign }]}>
               {t('suppliers.lastPurchase')}: {lastDate}
             </Text>
           </View>
@@ -72,6 +80,7 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   const { customers, isLoading: custLoading, loadCustomers, searchCustomers } = useCustomerStore();
   const { suppliers, isLoading: supLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
@@ -145,7 +154,7 @@ export default function HistoryScreen() {
           <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('customers.noCustomers')}</Text>
           <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('customers.noCustomersDetail')}</Text>
           <TouchableOpacity
-            style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => router.push('/(app)/sales/new-sale' as never)}
             activeOpacity={0.85}
           >
@@ -174,7 +183,7 @@ export default function HistoryScreen() {
           <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('suppliers.noSuppliers')}</Text>
           <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('suppliers.noSuppliersDetail')}</Text>
           <TouchableOpacity
-            style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => router.push('/(app)/purchases/new-purchase' as never)}
             activeOpacity={0.85}
           >
@@ -223,7 +232,7 @@ export default function HistoryScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStats}
+            style={[styles.headerStats, { flexDirection }]}
           >
             <View style={styles.headerStat}>
               <Text style={styles.headerStatVal}>{customers.length}</Text>
@@ -246,7 +255,7 @@ export default function HistoryScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStats}
+            style={[styles.headerStats, { flexDirection }]}
           >
             <View style={styles.headerStat}>
               <Text style={styles.headerStatVal}>{suppliers.length}</Text>
@@ -266,9 +275,9 @@ export default function HistoryScreen() {
         )}
 
         {/* Tab pills */}
-        <View style={[styles.tabRow, { backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16, marginBottom: 8 }]}>
+        <View style={[styles.tabRow, { backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16, marginBottom: 8, flexDirection }]}>
           <TouchableOpacity
-            style={[styles.tabPill, activeTab === 'customers' && { backgroundColor: '#fff' }]}
+            style={[styles.tabPill, activeTab === 'customers' && { backgroundColor: '#fff' }, { flexDirection }]}
             onPress={() => setActiveTab('customers')}
             activeOpacity={0.8}
           >
@@ -278,7 +287,7 @@ export default function HistoryScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabPill, activeTab === 'suppliers' && { backgroundColor: '#fff' }]}
+            style={[styles.tabPill, activeTab === 'suppliers' && { backgroundColor: '#fff' }, { flexDirection }]}
             onPress={() => setActiveTab('suppliers')}
             activeOpacity={0.8}
           >
@@ -291,10 +300,10 @@ export default function HistoryScreen() {
 
         {/* Search */}
         {activeTab === 'customers' ? (
-          <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
+          <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
             <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.black }]}
+              style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
               value={custQuery}
               onChangeText={setCustQuery}
               placeholder={t('customers.search')}
@@ -309,10 +318,10 @@ export default function HistoryScreen() {
             )}
           </View>
         ) : (
-          <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
+          <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
             <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.black }]}
+              style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
               value={supQuery}
               onChangeText={setSupQuery}
               placeholder={t('suppliers.search')}
@@ -351,6 +360,7 @@ export default function HistoryScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         />
       )}
 
@@ -375,6 +385,7 @@ export default function HistoryScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         />
       )}
     </View>
@@ -419,6 +430,8 @@ const styles = StyleSheet.create({
   cardPhoneRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   cardPhone:     { fontSize: 12 },
   cardSub:       { fontSize: 12, marginBottom: 2 },
+  subRow:        { alignItems: 'center', marginBottom: 2 },
+  subDot:        { fontSize: 12 },
   cardDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   cardDate:      { fontSize: 11 },
 });

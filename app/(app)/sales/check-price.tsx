@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, Keyboard, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 
 import { AppHeader } from '@/components/common/AppHeader';
@@ -44,6 +44,7 @@ export default function CheckPriceScreen() {
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <CheckPriceRow product={item} />}
         contentContainerStyle={styles.list}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>

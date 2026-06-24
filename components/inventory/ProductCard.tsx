@@ -9,7 +9,7 @@ import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { LowStockBadge } from './LowStockBadge';
 import i18n from '@/lib/i18n';
 import type { InventoryProduct } from '@/types/inventory';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   product: InventoryProduct;
@@ -83,7 +83,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
       </View>
 
       {/* Price row */}
-      <View style={styles.priceRow}>
+      <View style={[styles.priceRow, { flexDirection }]}>
         <View style={styles.priceItem}>
           <Text style={styles.priceLabel}>{i18n.t('inventory.buyPrice')}</Text>
           <Text style={styles.priceValue}>{fmtIQD(product.purchasePrice)} IQD</Text>
@@ -110,7 +110,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
             </View>
           ) : null}
           {product.purchaseDate ? (
-            <Text style={[styles.dateText, { textAlign }]}>{product.purchaseDate}</Text>
+            <Text style={[styles.dateText, { textAlign }]}>{formatDateShort(product.purchaseDate)}</Text>
           ) : null}
         </View>
 

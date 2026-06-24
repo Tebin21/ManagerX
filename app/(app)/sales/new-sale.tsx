@@ -4,6 +4,7 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -201,6 +202,7 @@ export default function NewSaleScreen() {
         )}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="cube-outline" size={48} color={colors.gray300} style={styles.emptyIcon} />
@@ -225,7 +227,7 @@ export default function NewSaleScreen() {
   // ─── Step 2: Cart Review ───────────────────────────────────────────────────
 
   const renderStep2 = () => (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
         title={t('sales.step2')}
         onBack={() => setStep(1)}
@@ -236,7 +238,7 @@ export default function NewSaleScreen() {
 
       {hasWarning && <LossWarningBanner />}
 
-      <ScrollView contentContainerStyle={styles.step2Body} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={styles.step2Body}>
         {cart.items.length === 0 ? (
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>{t('sales.cartEmpty')}</Text>
@@ -302,8 +304,8 @@ export default function NewSaleScreen() {
             />
           </>
         )}
-      </ScrollView>
-    </View>
+      </KeyboardAwareScrollView>
+    </KeyboardAvoidingView>
   );
 
   // ─── Step 3: Customer & Payment ───────────────────────────────────────────

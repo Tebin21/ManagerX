@@ -3,7 +3,7 @@ import type {
   DateRange, DateRangeKey,
   SalesReportData, PurchaseReportData, ProfitLossData,
   InventoryReportSummary, DebtReportData, ProfitableProduct,
-  DailyRevenuePoint, Expense, RevenuePoint, FinancialSummaryCards,
+  Expense, RevenuePoint, FinancialSummaryCards,
   NetCashBalanceData,
 } from '@/types/reports';
 
@@ -50,7 +50,6 @@ interface ReportState {
   debtData:      DebtReportData      | null;
   topProfitable: ProfitableProduct[];
   monthlyRevenue: RevenuePoint[];
-  dailyChart:    DailyRevenuePoint[];
   expenses:      Expense[];
   cashBalance:   NetCashBalanceData  | null;
   dashboardExpenseTotals: { today: number; weekly: number; monthly: number; yearly: number } | null;

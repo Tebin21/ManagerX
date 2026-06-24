@@ -8,7 +8,6 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -44,12 +43,6 @@ export default function SalesScreen() {
         title={t('sales.title')}
         showBack
         onBack={() => router.back()}
-        rightAction={
-          <HeaderActionButton
-            icon="time-outline"
-            onPress={() => router.push('/(app)/sales/history' as never)}
-          />
-        }
       />
 
       <ScrollView contentContainerStyle={styles.body}>
@@ -127,6 +120,29 @@ export default function SalesScreen() {
           </TouchableOpacity>
         </MotiView>
 
+        <MotiView
+          from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 240 }}
+          style={styles.secondaryBtnSpacing}
+        >
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/sales/history' as never)}
+            activeOpacity={0.85}
+            style={[styles.secondaryBtn, { backgroundColor: colors.white, flexDirection }]}
+          >
+            <View style={[styles.secondaryLeft, { flexDirection }]}>
+              <View style={[styles.secondaryIcon, { backgroundColor: colors.softBlue }]}>
+                <Ionicons name="time-outline" size={20} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.secondaryTitle, { color: colors.black, textAlign }]}>{t('sales.viewHistory')}</Text>
+                <Text style={[styles.secondarySub, { color: colors.gray400, textAlign }]}>{t('sales.viewHistorySub')}</Text>
+              </View>
+            </View>
+            <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+          </TouchableOpacity>
+        </MotiView>
+
       </ScrollView>
 
     </View>
@@ -143,12 +159,13 @@ const styles = StyleSheet.create({
   newSaleBtnInner:     { flexDirection: 'row', alignItems: 'center', gap: 14 },
   newSaleIconBox:      { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   newSaleTitle:        { fontSize: 17, fontWeight: '700', color: '#FFFFFF', marginBottom: 2 },
-  newSaleSub:          { fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 16 },
+  newSaleSub:          { fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 15 },
   statsRow:    { flexDirection: 'row', gap: 12, marginBottom: 16 },
   statCard:    { flex: 1, alignItems: 'center', paddingVertical: 18 },
   statIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   statValue:   { fontSize: 22, fontWeight: '800', marginBottom: 2 },
   statLabel:   { fontSize: 11, fontWeight: '500' },
+  secondaryBtnSpacing: { marginTop: 12 },
   secondaryBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: Theme.radius.card, padding: 16, ...Theme.shadow.soft },
   secondaryLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
   secondaryIcon:  { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

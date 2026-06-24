@@ -7,6 +7,7 @@ import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
@@ -86,7 +87,7 @@ export default function OnlineStoreInfoScreen() {
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
 
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView contentContainerStyle={styles.body}>
           <PremiumCard style={styles.card}>
             <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>
               {t('settings.onlineStoreInfoScreen.section')}
@@ -140,7 +141,7 @@ export default function OnlineStoreInfoScreen() {
           />
 
           <View style={{ height: 32 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </KeyboardAvoidingView>
   );

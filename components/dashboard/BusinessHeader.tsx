@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useBusinessStore } from '@/store/businessStore';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -44,28 +44,29 @@ export function BusinessHeader() {
           </View>
 
           <View style={styles.info}>
-            <Text style={styles.businessName} numberOfLines={1}>
-              {name || 'My Business'}
-            </Text>
-            {resolved ? (
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>
-                  {resolved.emoji ? `${resolved.emoji} ${resolved.label}` : resolved.label}
-                </Text>
-              </View>
-            ) : null}
-            {phone ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="call-outline" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.detailText}>{phone}</Text>
-              </View>
-            ) : null}
-            {address ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.detailText} numberOfLines={1}>{address}</Text>
-              </View>
-            ) : null}
+            <View style={styles.nameGroup}>
+              <Text style={styles.businessName} numberOfLines={1}>
+                {name || 'My Business'}
+              </Text>
+              {resolved ? (
+                <Text style={styles.typeText} numberOfLines={1}>{resolved.label}</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.contactGroup}>
+              {phone ? (
+                <View style={styles.detailRow}>
+                  <Ionicons name="call-outline" size={12} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.detailText}>{phone}</Text>
+                </View>
+              ) : null}
+              {address ? (
+                <View style={styles.detailRow}>
+                  <Feather name="map-pin" size={12} color="rgba(255,255,255,0.7)" />
+                  <Text style={[styles.detailText, styles.addressText]} numberOfLines={1}>{address}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         </View>
 
@@ -90,12 +91,12 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 16,
   },
   logoContainer: {
-    width: 94,
-    height: 94,
+    width: 120,
+    height: 120,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 2.5,
@@ -113,41 +114,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoEmoji: {
-    fontSize: 40,
+    fontSize: 50,
   },
   info: {
     flex: 1,
     gap: 4,
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  nameGroup: {
+    gap: 2,
+  },
+  contactGroup: {
+    gap: 4,
   },
   businessName: {
-    fontSize: 20,
+    fontSize: 17,
+    lineHeight: 19,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  typeBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
   typeText: {
-    fontSize: 11,
+    fontSize: 13,
+    lineHeight: 14,
     color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
   },
   detailText: {
     fontSize: 12,
+    lineHeight: 13,
     color: 'rgba(255,255,255,0.7)',
     flex: 1,
+  },
+  addressText: {
+    // The map-pin glyph's visual weight (circle) sits above its own bounding-box
+    // center, same as every pin-shaped icon — nudge the text down to optically
+    // meet it. translateY is paint-only so it can't affect row height/spacing.
+    transform: [{ translateY: 1 }],
   },
   brandRow: {
     marginTop: 16,

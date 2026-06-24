@@ -11,6 +11,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -31,7 +32,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryFilter, InventoryProduct } from '@/types/inventory';
-import { fmtIQD } from '@/utils/formatters';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
@@ -68,6 +69,7 @@ export default function InventoryScreen() {
 
   const { colors } = useAppTheme();
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
+  const scrollIntoView = useKeyboardAwareFocus();
   const [query, setQuery]                     = useState('');
   const [refreshing, setRefreshing]           = useState(false);
   const [activeTab, setActiveTab]             = useState<ActiveTab>('all');
@@ -386,7 +388,7 @@ export default function InventoryScreen() {
               <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={60} />
             </View>
             <View style={styles.statsRow}>
-              <InventoryStatsCard label={t('inventory.totalValue')} value={`${fmtIQD(stats.totalValueIQD)} IQD`} icon="wallet" delay={120} />
+              <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={120} />
               <InventoryStatsCard label={t('inventory.lowStock')}  value={String(stats.lowStockCount)} icon="warning" accent={stats.lowStockCount > 0} delay={180} />
             </View>
           </View>
@@ -523,9 +525,7 @@ export default function InventoryScreen() {
           <Text style={[styles.summaryCount, { color: colors.gray500, textAlign }]}>
             {visible.length} {t('inventory.products')}
           </Text>
-          <Text style={[styles.summaryValue, { color: colors.primary, textAlign }]}>
-            {fmtIQD(totalVisible)} IQD
-          </Text>
+          <CompactAmount value={totalVisible} style={[styles.summaryValue, { color: colors.primary, textAlign }]} />
         </View>
       </View>
 
@@ -549,6 +549,7 @@ export default function InventoryScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       />
 
       {/* ── Report Picker Modal ── */}
@@ -755,6 +756,7 @@ export default function InventoryScreen() {
                 value={newCatName}
                 onChangeText={setNewCatName}
                 onSubmitEditing={handleAddCategory}
+                onFocus={scrollIntoView}
                 returnKeyType="done"
               />
               <TouchableOpacity
@@ -766,7 +768,7 @@ export default function InventoryScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.catList} contentContainerStyle={{ paddingBottom: 16 }}>
+            <KeyboardAwareScrollView showsVerticalScrollIndicator={false} style={styles.catList} contentContainerStyle={{ paddingBottom: 16 }}>
               {managedCategories.map((cat) => {
                 const canDelete = !cat.isDefault && cat.productCount === 0;
                 if (editingCategory === cat.name) {
@@ -777,6 +779,7 @@ export default function InventoryScreen() {
                         value={editCatName}
                         onChangeText={setEditCatName}
                         onSubmitEditing={handleConfirmRename}
+                        onFocus={scrollIntoView}
                         autoFocus
                         returnKeyType="done"
                       />
@@ -833,7 +836,7 @@ export default function InventoryScreen() {
                   {t('inventory.noCustomCategories')}
                 </Text>
               )}
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>

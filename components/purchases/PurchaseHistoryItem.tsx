@@ -7,7 +7,7 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD, formatDate } from '@/utils/formatters';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
 
 interface Props {
   purchase: Purchase;
@@ -40,7 +40,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
           </View>
         </View>
         <View style={[styles.headerRight, { alignItems: alignEnd, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
-          <Text style={[styles.date, { textAlign }]}>{formatDate(purchase.createdAt)}</Text>
+          <Text style={[styles.date, { textAlign }]}>{formatDateShort(purchase.createdAt)}</Text>
           <View style={[styles.statusBadge, isPaid ? styles.statusPaid : styles.statusDebt]}>
             <Text style={[styles.statusText, isPaid ? styles.statusTextPaid : styles.statusTextDebt]}>
               {isPaid ? 'Paid' : 'Debt'}

@@ -6,6 +6,13 @@ export function useRTL() {
   return {
     isRTL,
     textAlign:        (isRTL ? 'right'       : 'left')       as TextStyle['textAlign'],
+    // For standalone value text (prices, IDs, dates...) paired with a label
+    // rendered in its own Text node — values dock to the opposite edge from
+    // labels, so they stay visually anchored to the same side in both
+    // directions. Don't use this on a Text that mixes a label and a value
+    // together (e.g. "Remaining: 1,000 IQD") — textAlign already handles
+    // that correctly via Unicode bidi.
+    valueAlign:       (isRTL ? 'left'        : 'right')      as TextStyle['textAlign'],
     writingDirection: (isRTL ? 'rtl'         : 'ltr')        as TextStyle['writingDirection'],
     flexDirection:    (isRTL ? 'row-reverse' : 'row')        as ViewStyle['flexDirection'],
     alignEnd:         (isRTL ? 'flex-start'  : 'flex-end')   as ViewStyle['alignItems'],

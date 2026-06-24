@@ -19,7 +19,7 @@ import { useLicenseStore } from '@/store/licenseStore';
 import { getInventoryStats } from '@/lib/sqlite';
 import { SUPPORT_PHONE } from '@/constants/config';
 import { useRTL } from '@/lib/rtl';
-import { formatDate } from '@/utils/formatters';
+import { formatDateShort } from '@/utils/formatters';
 
 const PLAN_LABEL_KEYS: Record<string, string> = {
   basic: 'settings.upgradeScreen.planBasic',
@@ -88,7 +88,7 @@ export default function PlanLimitsScreen() {
         setResult({
           type: 'error',
           message: res.expiresAt
-            ? t('settings.upgradeScreen.codeExpiredOn', { date: formatDate(res.expiresAt) })
+            ? t('settings.upgradeScreen.codeExpiredOn', { date: formatDateShort(res.expiresAt) })
             : t('settings.upgradeScreen.codeExpired'),
         });
       } else if (res.status === 'no_upgrade') {
@@ -127,7 +127,7 @@ export default function PlanLimitsScreen() {
             <Text style={styles.heroUsed}>{usedLabel}</Text>
             {expiresAt && (
               <Text style={styles.heroExpiry}>
-                {t('settings.upgradeScreen.validUntil', { date: formatDate(expiresAt) })}
+                {t('settings.upgradeScreen.validUntil', { date: formatDateShort(expiresAt) })}
               </Text>
             )}
           </LinearGradient>

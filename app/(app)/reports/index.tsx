@@ -2,7 +2,7 @@
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
-  Modal, Alert,
+  Modal, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,17 +13,18 @@ import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { MiniLineChart } from '@/components/reports/MiniLineChart';
 import { DonutRing } from '@/components/reports/DonutRing';
 import { useReportStore } from '@/store/reportStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import type { DateRangeKey } from '@/types/reports';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, formatCompactIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
 import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -115,9 +116,9 @@ const frStyles = StyleSheet.create({
 // ─── Big Metric Row (icon + label + large value) ──────────────────────────────
 
 function BigMetricRow({
-  label, value, sub, color, icon,
+  label, amount, sub, color, icon,
 }: {
-  label: string; value: string; sub?: string;
+  label: string; amount: number; sub?: string;
   color?: string; icon: ComponentProps<typeof Ionicons>['name'];
 }) {
   const { colors } = useAppTheme();
@@ -136,14 +137,13 @@ function BigMetricRow({
         <Text style={[bmStyles.label, { textAlign }]}>{label}</Text>
         {sub ? <Text style={[bmStyles.sub, { textAlign }]}>{sub}</Text> : null}
       </View>
-      <Text
+      <CompactAmount
+        value={amount}
         style={[bmStyles.value, { color: resolvedColor, textAlign: isRTL ? 'left' : 'right' }]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.65}
-      >
-        {value}
-      </Text>
+      />
     </View>
   );
 }
@@ -159,7 +159,7 @@ const bmStyles = StyleSheet.create({
 
 // ─── Stat Chip Row ─────────────────────────────────────────────────────────────
 
-function StatChipsRow({ chips }: { chips: { value: string; label: string; color?: string }[] }) {
+function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: string; color?: string }[] }) {
   const { isRTL } = useRTL();
   return (
     <View style={scStyles.row}>
@@ -171,7 +171,9 @@ function StatChipsRow({ chips }: { chips: { value: string; label: string; color?
             i > 0 && { borderStartWidth: 1, borderStartColor: Colors.gray100 },
           ]}
         >
-          <Text style={[scStyles.value, c.color ? { color: c.color } : null]}>{c.value}</Text>
+          {typeof c.value === 'string' || typeof c.value === 'number' ? (
+            <Text style={[scStyles.value, c.color ? { color: c.color } : null]}>{c.value}</Text>
+          ) : c.value}
           <Text style={scStyles.label}>{c.label}</Text>
         </View>
       ))}
@@ -232,6 +234,7 @@ function FilterPeriodSheet({
   onChange: (key: DateRangeKey, from?: string, to?: string) => void;
 }) {
   const { colors } = useAppTheme();
+  const scrollIntoView = useKeyboardAwareFocus();
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
 
@@ -248,7 +251,7 @@ function FilterPeriodSheet({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={fpStyles.root}>
         <TouchableOpacity style={fpStyles.overlay} activeOpacity={1} onPress={onClose} />
-        <View style={[fpStyles.sheet, { backgroundColor: colors.white }]}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[fpStyles.sheet, { backgroundColor: colors.white }]}>
           <View style={fpStyles.handle} />
           <Text style={[fpStyles.sheetTitle, { color: Colors.black }]}>
             {i18n.t('reports.filterByPeriod')}
@@ -285,6 +288,7 @@ function FilterPeriodSheet({
                 placeholderTextColor={Colors.gray400}
                 value={customFrom}
                 onChangeText={setCustomFrom}
+                onFocus={scrollIntoView}
               />
               <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
               <TextInput
@@ -293,6 +297,7 @@ function FilterPeriodSheet({
                 placeholderTextColor={Colors.gray400}
                 value={customTo}
                 onChangeText={setCustomTo}
+                onFocus={scrollIntoView}
               />
               <TouchableOpacity
                 style={[fpStyles.applyBtn, { backgroundColor: colors.primary }]}
@@ -313,7 +318,7 @@ function FilterPeriodSheet({
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -339,10 +344,10 @@ const fpStyles = StyleSheet.create({
 // ─── Financial Summary Card ───────────────────────────────────────────────────
 
 function FinancialCard({
-  label, value, icon, color,
+  label, amount, icon, color,
 }: {
   label: string;
-  value: string;
+  amount: number;
   icon: ComponentProps<typeof Ionicons>['name'];
   color: string;
 }) {
@@ -353,9 +358,14 @@ function FinancialCard({
         <Ionicons name={icon} size={18} color={color} />
       </View>
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
-      <Text style={[fcStyles.value, { color, textAlign }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55}>
-        {value}
-      </Text>
+      <CompactAmount
+        value={amount}
+        showCurrency={false}
+        style={[fcStyles.value, { color, textAlign }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.55}
+      />
       <Text style={[fcStyles.currency, { textAlign }]}>IQD</Text>
     </View>
   );
@@ -414,13 +424,13 @@ function FinancialSummaryGrid({
       <View style={fsgStyles.row}>
         <FinancialCard
           label={t('reports.totalSales')}
-          value={fmtIQD(totalSales)}
+          amount={totalSales}
           icon="trending-up"
           color={colors.primary}
         />
         <FinancialCard
           label={t('reports.netProfit')}
-          value={fmtIQD(netProfit)}
+          amount={netProfit}
           icon="cash"
           color={Colors.success}
         />
@@ -428,13 +438,13 @@ function FinancialSummaryGrid({
       <View style={fsgStyles.row}>
         <FinancialCard
           label={t('reports.totalLoss')}
-          value={fmtIQD(totalLoss)}
+          amount={totalLoss}
           icon="trending-down"
           color={Colors.error}
         />
         <FinancialCard
           label={t('reports.remainingDebt')}
-          value={fmtIQD(remainingDebt)}
+          amount={remainingDebt}
           icon="time"
           color={Colors.warning}
         />
@@ -479,6 +489,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   const { t } = useTranslation();
   type ExportPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
   const { flexDirection } = useRTL();
+  const scrollIntoView = useKeyboardAwareFocus();
   const [period, setPeriod]       = useState<ExportPeriod>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]   = useState('');
@@ -539,7 +550,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={ermStyles.overlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={ermStyles.overlay}>
         <View style={ermStyles.sheet}>
           <View style={[ermStyles.header, { flexDirection }]}>
             <Text style={ermStyles.title}>{t('reports.exportReportTitle')}</Text>
@@ -579,6 +590,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
                 placeholderTextColor={Colors.gray400}
                 value={customFrom}
                 onChangeText={setCustomFrom}
+                onFocus={scrollIntoView}
                 editable={!loading}
               />
               <Text style={ermStyles.dateLabel}>{t('reports.toDate')} (YYYY-MM-DD)</Text>
@@ -588,6 +600,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
                 placeholderTextColor={Colors.gray400}
                 value={customTo}
                 onChangeText={setCustomTo}
+                onFocus={scrollIntoView}
                 editable={!loading}
               />
             </View>
@@ -613,7 +626,7 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
 
           <Text style={ermStyles.hint}>{t('reports.pdfHint')}</Text>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -673,7 +686,7 @@ export default function ReportsScreen() {
   const {
     dateRange, isLoading, financialCards,
     salesData, purchaseData, plData, inventoryData,
-    debtData, topProfitable, monthlyRevenue, dailyChart, expenses,
+    debtData, topProfitable, monthlyRevenue, expenses,
     cashBalance, dashboardExpenseTotals,
     setDateRange, reload,
   } = useReportStore();
@@ -791,7 +804,7 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.purchaseSpendingDesc')}
-                value={`${fmtIQD(purchaseData?.totalCost ?? 0)} IQD`}
+                amount={purchaseData?.totalCost ?? 0}
                 icon="bag-handle"
                 color="#7C3AED"
               />
@@ -804,7 +817,7 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.expectedProfitDesc')}
-                value={`${fmtIQD(potProfit)} IQD`}
+                amount={potProfit}
                 icon="bulb"
                 color={potProfit >= 0 ? Colors.warning : Colors.error}
               />
@@ -817,27 +830,27 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.grossRevenue')}
-                value={`${fmtIQD(revenue)} IQD`}
+                amount={revenue}
                 icon="trending-up"
                 color={colors.primary}
               />
               <BigMetricRow
                 label={`💵 ${t('sales.cash')}`}
-                value={`${fmtIQD(salesData?.cashRevenue ?? 0)} IQD`}
+                amount={salesData?.cashRevenue ?? 0}
                 icon="cash"
                 color={Colors.success}
                 sub={`${salesData?.cashCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={`📱 ${t('sales.fib')}`}
-                value={`${fmtIQD(salesData?.fibRevenue ?? 0)} IQD`}
+                amount={salesData?.fibRevenue ?? 0}
                 icon="phone-portrait"
                 color={colors.primary}
                 sub={`${salesData?.fibCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={`📋 ${t('common.debt')}`}
-                value={`${fmtIQD(salesData?.debtRevenue ?? 0)} IQD`}
+                amount={salesData?.debtRevenue ?? 0}
                 icon="document-text"
                 color={Colors.warning}
                 sub={`${salesData?.debtCount ?? 0} ${t('reports.salesCount')}`}
@@ -845,7 +858,7 @@ export default function ReportsScreen() {
               <StatChipsRow chips={[
                 { value: fmtIQD(salesData?.totalItemsSold ?? 0), label: t('reports.totalSoldProducts') },
                 { value: String(salesData?.totalSales ?? 0),  label: t('reports.totalInvoices') },
-                { value: fmtIQD(salesData?.avgOrderValue ?? 0),  label: `${t('reports.avgOrderValue')} IQD` },
+                { value: <CompactAmount value={salesData?.avgOrderValue ?? 0} showCurrency={false} style={scStyles.value} />, label: `${t('reports.avgOrderValue')} IQD` },
               ]} />
 
               {revenue > 0 && (
@@ -869,7 +882,7 @@ export default function ReportsScreen() {
                   <Ionicons name="pricetag" size={12} color="#D97706" />
                   <View style={[styles.discountInner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={styles.discountText}>{t('reports.discountsGiven')}:</Text>
-                    <Text style={styles.discountText}>{fmtIQD(salesData?.totalDiscounts ?? 0)} IQD</Text>
+                    <CompactAmount value={salesData?.totalDiscounts ?? 0} style={styles.discountText} />
                   </View>
                 </View>
               )}
@@ -882,20 +895,20 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.totalCost')}
-                value={`${fmtIQD(purchaseData?.totalCost ?? 0)} IQD`}
+                amount={purchaseData?.totalCost ?? 0}
                 icon="cart"
                 color={Colors.gray600}
               />
               <BigMetricRow
                 label={t('common.paid')}
-                value={`${fmtIQD(purchaseData?.paidCost ?? 0)} IQD`}
+                amount={purchaseData?.paidCost ?? 0}
                 icon="checkmark-circle"
                 color={Colors.success}
                 sub={`${purchaseData?.paidCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={t('common.debt')}
-                value={`${fmtIQD(purchaseData?.debtCost ?? 0)} IQD`}
+                amount={purchaseData?.debtCost ?? 0}
                 icon="time"
                 color={(purchaseData?.debtCost ?? 0) > 0 ? Colors.warning : Colors.success}
                 sub={`${purchaseData?.debtCount ?? 0} ${t('reports.salesCount')}`}
@@ -909,7 +922,7 @@ export default function ReportsScreen() {
                 <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Ionicons name="star" size={12} color={Colors.warning} />
                   <Text style={[styles.topText, { textAlign }]}>
-                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} ({fmtIQD(purchaseData.topSupplierCost)} IQD)
+                    {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} ({formatCompactIQD(purchaseData.topSupplierCost).text} IQD)
                   </Text>
                 </View>
               )}
@@ -934,7 +947,7 @@ export default function ReportsScreen() {
                 <>
                   <BigMetricRow
                     label={t('reports.totalExpenses')}
-                    value={`${fmtIQD(totalExp)} IQD`}
+                    amount={totalExp}
                     icon="wallet"
                     color={Colors.error}
                   />
@@ -942,7 +955,7 @@ export default function ReportsScreen() {
                     <View key={e.category} style={{ marginTop: 10 }}>
                       <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <Text style={[styles.catLabel, { textAlign }]}>{tCat(e.category)}</Text>
-                        <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(e.total)} IQD</Text>
+                        <CompactAmount value={e.total} style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]} />
                       </View>
                       <ProgressBar value={e.total} total={totalExp} color={Colors.error} />
                     </View>
@@ -958,14 +971,14 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.customerDebt')}
-                value={`${fmtIQD(custDebt)} IQD`}
+                amount={custDebt}
                 icon="person"
                 color={custDebt > 0 ? Colors.warning : Colors.success}
                 sub={`${debtData?.activeSalesCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={t('reports.supplierDebt')}
-                value={`${fmtIQD(suppDebt)} IQD`}
+                amount={suppDebt}
                 icon="business"
                 color={suppDebt > 0 ? Colors.error : Colors.success}
                 sub={`${debtData?.activePurchaseCount ?? 0} ${t('reports.salesCount')}`}
@@ -973,9 +986,10 @@ export default function ReportsScreen() {
               <View style={styles.dividerLine} />
               <View style={[styles.debtTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={[styles.debtTotalLabel, { textAlign }]}>{t('reports.combinedDebt')}</Text>
-                <Text style={[styles.debtTotalValue, { color: combinedDebt > 0 ? Colors.error : Colors.success, textAlign: isRTL ? 'left' : 'right' }]}>
-                  {fmtIQD(combinedDebt)} IQD
-                </Text>
+                <CompactAmount
+                  value={combinedDebt}
+                  style={[styles.debtTotalValue, { color: combinedDebt > 0 ? Colors.error : Colors.success, textAlign: isRTL ? 'left' : 'right' }]}
+                />
               </View>
               {(debtData?.overdueCount ?? 0) > 0 && (
                 <View style={[styles.overdueChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1003,20 +1017,20 @@ export default function ReportsScreen() {
             <PremiumCard style={styles.card}>
               <BigMetricRow
                 label={t('reports.expectedRevenue')}
-                value={`${fmtIQD(expectedRev)} IQD`}
+                amount={expectedRev}
                 icon="trending-up"
                 color={colors.primary}
                 sub={t('reports.stockSellValue')}
               />
               <BigMetricRow
                 label={t('reports.potentialProfit')}
-                value={`${fmtIQD(potProfit)} IQD`}
+                amount={potProfit}
                 icon="cash"
                 color={potProfit >= 0 ? Colors.success : Colors.error}
               />
               <BigMetricRow
                 label={t('reports.stockCostValue')}
-                value={`${fmtIQD(inventoryData?.stockValueCost ?? 0)} IQD`}
+                amount={inventoryData?.stockValueCost ?? 0}
                 icon="cart"
                 color={Colors.gray600}
               />
@@ -1033,7 +1047,7 @@ export default function ReportsScreen() {
                 <View key={cat.category} style={{ marginTop: 10 }}>
                   <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={[styles.catLabel, { textAlign }]}>{tCat(cat.category)}</Text>
-                    <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(cat.value)} IQD</Text>
+                    <CompactAmount value={cat.value} style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]} />
                   </View>
                   <ProgressBar value={cat.value} total={inventoryData?.stockValueCost ?? 1} color={colors.primary} />
                 </View>
@@ -1042,22 +1056,18 @@ export default function ReportsScreen() {
           </MotiView>
 
 
-          {/* Daily profit mini line chart */}
-          {dailyChart.length >= 3 && (
-            <>
-              <SectionHeader title={t('reports.profit')} icon="analytics" />
-              <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 400, delay: 100 }}>
-                <PremiumCard style={styles.card}>
-                  <Text style={styles.chartLabel}>{t('reports.last6Months')} (IQD)</Text>
-                  <MiniLineChart
-                    data={dailyChart.map((d) => ({ value: d.profit }))}
-                    height={64}
-                    color={netProfit >= 0 ? Colors.success : Colors.error}
-                  />
-                </PremiumCard>
-              </MotiView>
-            </>
-          )}
+          {/* ─── Profit Summary ─── */}
+          <SectionHeader title={t('reports.profit')} icon="analytics" />
+          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 100 }}>
+            <PremiumCard style={styles.card}>
+              <BigMetricRow
+                label={t('reports.netProfit')}
+                amount={netProfit}
+                icon="cash"
+                color={netProfit >= 0 ? Colors.success : Colors.error}
+              />
+            </PremiumCard>
+          </MotiView>
 
           {/* ─── 9. Most Profitable Products ─── */}
           <SectionHeader title={t('reports.topProducts')} icon="star" />
@@ -1075,9 +1085,10 @@ export default function ReportsScreen() {
                         {t('reports.soldMargin', { qty: p.totalQty, pct: p.marginPct.toFixed(1) })}
                       </Text>
                     </View>
-                    <Text style={[styles.rankValue, { color: p.grossProfit >= 0 ? Colors.success : Colors.error, textAlign: isRTL ? 'left' : 'right' }]}>
-                      {fmtIQD(p.grossProfit)} IQD
-                    </Text>
+                    <CompactAmount
+                      value={p.grossProfit}
+                      style={[styles.rankValue, { color: p.grossProfit >= 0 ? Colors.success : Colors.error, textAlign: isRTL ? 'left' : 'right' }]}
+                    />
                   </View>
                 ))
               )}
@@ -1137,7 +1148,7 @@ function TopCustomersSection() {
               {t('reports.invoiceCount', { count: c.saleCount })}{c.phone ? ` · ${c.phone}` : ''}
             </Text>
           </View>
-          <Text style={[styles.rankValue, { textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(c.totalPurchases)} IQD</Text>
+          <CompactAmount value={c.totalPurchases} style={[styles.rankValue, { textAlign: isRTL ? 'left' : 'right' }]} />
         </TouchableOpacity>
       ))}
     </>
@@ -1178,7 +1189,7 @@ function TopSuppliersSection() {
               {t('reports.purchaseCount', { count: s.purchaseCount })}{s.phone ? ` · ${s.phone}` : ''}
             </Text>
           </View>
-          <Text style={[styles.rankValue, { color: Colors.warning, textAlign: isRTL ? 'left' : 'right' }]}>{fmtIQD(s.totalSpent)} IQD</Text>
+          <CompactAmount value={s.totalSpent} style={[styles.rankValue, { color: Colors.warning, textAlign: isRTL ? 'left' : 'right' }]} />
         </TouchableOpacity>
       ))}
     </>
@@ -1227,9 +1238,6 @@ const styles = StyleSheet.create({
   catHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   catLabel: { fontSize: 12, color: Colors.gray500 },
   catValue: { fontSize: 12, fontWeight: '700', color: Colors.black },
-
-  // ── Charts ─────────────────────────────────────────────────────────────────
-  chartLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 10, fontWeight: '600' },
 
   // ── Rank rows ──────────────────────────────────────────────────────────────
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },

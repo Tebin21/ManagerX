@@ -7,18 +7,23 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 
 interface Props {
   label: string;
-  value: string;
+  /** Plain display value (counts, etc). Ignored when `amount` is set. */
+  value?: string;
+  /** Raw IQD amount — renders via CompactAmount so large totals stay readable. */
+  amount?: number;
   icon: keyof typeof Ionicons.glyphMap;
   accent?: boolean;
   delay?: number;
 }
 
-export function InventoryStatsCard({ label, value, icon, accent = false, delay = 0 }: Props) {
+export function InventoryStatsCard({ label, value, amount, icon, accent = false, delay = 0 }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const valueStyle = [styles.value, accent && styles.accentValue, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 1 }];
   return (
     <MotiView
       from={{ opacity: 0, translateY: 6 }}
@@ -34,7 +39,11 @@ export function InventoryStatsCard({ label, value, icon, accent = false, delay =
         <Ionicons name={icon} size={14} color={accent ? '#B45309' : colors.primary} />
       </View>
       <View style={styles.textBlock}>
-        <Text style={[styles.value, accent && styles.accentValue, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 1 }]} numberOfLines={1}>{value}</Text>
+        {amount !== undefined ? (
+          <CompactAmount value={amount} style={valueStyle} numberOfLines={1} />
+        ) : (
+          <Text style={valueStyle} numberOfLines={1}>{value}</Text>
+        )}
         <Text style={[styles.label, { textAlign }]} numberOfLines={1}>{label}</Text>
       </View>
     </MotiView>

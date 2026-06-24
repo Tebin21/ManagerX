@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 
@@ -32,6 +33,7 @@ export function CategoryAutocompleteInput({
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const trimmedLower = value.trim().toLowerCase();
   const filtered = trimmedLower
@@ -50,9 +52,10 @@ export function CategoryAutocompleteInput({
     if (closeTimer.current) clearTimeout(closeTimer.current);
   }
 
-  function handleFocus() {
+  function handleFocus(e: Parameters<ReturnType<typeof useKeyboardAwareFocus>>[0]) {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setShowDropdown(true);
+    scrollIntoView(e);
   }
 
   function handleBlur() {

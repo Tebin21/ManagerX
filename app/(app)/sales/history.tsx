@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, Keyboard, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
 
@@ -50,6 +50,7 @@ export default function SalesHistoryScreen() {
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={5}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>

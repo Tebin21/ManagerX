@@ -1,10 +1,11 @@
 import React, { useState, type ComponentProps } from 'react';
-import { View, Modal, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, StyleSheet, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/lib/i18n';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useRTL } from '@/lib/rtl';
 import type { PeriodKey } from '@/utils/dateRanges';
 
@@ -17,6 +18,7 @@ interface Props {
 export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
   const { colors } = useAppTheme();
   const { flexDirection, textAlign } = useRTL();
+  const scrollIntoView = useKeyboardAwareFocus();
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showCustom, setShowCustom] = useState(false);
@@ -62,7 +64,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose} />
-      <View style={[styles.sheet, { backgroundColor: colors.white }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.sheet, { backgroundColor: colors.white }]}>
         <View style={[styles.handle, { backgroundColor: colors.gray200 }]} />
         <Text style={[styles.title, { color: colors.black, textAlign }]}>
           {i18n.t('reports.filterByPeriod')}
@@ -99,6 +101,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
               placeholderTextColor={colors.gray400}
               value={customFrom}
               onChangeText={setCustomFrom}
+              onFocus={scrollIntoView}
             />
             <Text style={[styles.dateLabel, { color: colors.gray600, textAlign }]}>
               {i18n.t('reports.toDate')} (YYYY-MM-DD)
@@ -109,6 +112,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
               placeholderTextColor={colors.gray400}
               value={customTo}
               onChangeText={setCustomTo}
+              onFocus={scrollIntoView}
             />
             <TouchableOpacity style={[styles.applyBtn, { backgroundColor: colors.primary }]} onPress={handleApplyCustom}>
               <Text style={styles.applyText}>{i18n.t('reports.apply')}</Text>
@@ -117,7 +121,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
         )}
 
         <View style={styles.bottomPad} />
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

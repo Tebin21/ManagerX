@@ -27,6 +27,7 @@ import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
+import { useRTL } from '@/lib/rtl';
 
 
 function PaymentToggle({
@@ -38,8 +39,9 @@ function PaymentToggle({
 }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { flexDirection } = useRTL();
   return (
-    <View style={[toggle.row, { backgroundColor: colors.gray100 }]}>
+    <View style={[toggle.row, { backgroundColor: colors.gray100, flexDirection }]}>
       {(['paid', 'debt'] as const).map((opt) => (
         <TouchableOpacity
           key={opt}
@@ -68,6 +70,7 @@ export default function EditPurchaseScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { updatePurchase } = usePurchaseStore();
+  const { isRTL, flexDirection, writingDirection } = useRTL();
 
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
@@ -235,15 +238,15 @@ export default function EditPurchaseScreen() {
           {/* Supplier info (read-only) */}
           {purchase.supplierName && (
             <PremiumCard style={styles.card}>
-              <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.supplierSection')}</Text>
-              <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.supplierName')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.supplierName}</Text>
+              <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
+              <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierName')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierName}</Text>
               </View>
               {purchase.supplierPhone ? (
-                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
-                  <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('purchases.supplierPhone')}</Text>
-                  <Text style={[styles.infoValue, { color: colors.black }]}>{purchase.supplierPhone}</Text>
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
+                  <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierPhone')}</Text>
+                  <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierPhone}</Text>
                 </View>
               ) : null}
             </PremiumCard>
@@ -251,7 +254,7 @@ export default function EditPurchaseScreen() {
 
           {/* Product info */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.productInfo')}</Text>
+            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productInfo')}</Text>
             <AppTextInput
               label={t('purchases.date')}
               value={date}
@@ -282,11 +285,11 @@ export default function EditPurchaseScreen() {
               onChangeText={setQuantity}
               min={0}
             />
-            <Text style={[styles.hintText, { color: colors.gray400 }]}>
+            <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
               {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
             </Text>
             {isCustomId && (
-              <Text style={[styles.hintText, { color: colors.gray400 }]}>
+              <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
                 {t('purchases.customQtyDecreaseOnly')}
               </Text>
             )}
@@ -294,8 +297,8 @@ export default function EditPurchaseScreen() {
 
           {/* Pricing */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.pricingInfo')}</Text>
-            <View style={styles.priceRow}>
+            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.pricingInfo')}</Text>
+            <View style={[styles.priceRow, { flexDirection }]}>
               <View style={{ flex: 1 }}>
                 <AppTextInput
                   label={`${t('purchases.buyPrice')} (IQD)`}
@@ -320,7 +323,7 @@ export default function EditPurchaseScreen() {
                 />
               </View>
             </View>
-            <View style={styles.priceRow}>
+            <View style={[styles.priceRow, { flexDirection }]}>
               <View style={{ flex: 1 }}>
                 <AppTextInput
                   label={`${t('purchases.sellPrice')} (IQD)`}
@@ -348,14 +351,14 @@ export default function EditPurchaseScreen() {
 
             {/* Live totals */}
             <View style={[styles.totalBox, { backgroundColor: colors.softBlue }]}>
-              <View style={styles.totalRow}>
-                <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
-                <Text style={[styles.totalValue, { color: colors.primary }]}>{fmtIQD(totalIQD)} IQD</Text>
+              <View style={[styles.totalRow, { flexDirection }]}>
+                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.autoTotal')}</Text>
+                <Text style={[styles.totalValue, { color: colors.primary, textAlign: 'right' }]}>{fmtIQD(totalIQD)} IQD</Text>
               </View>
               {sellNum > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
-                  <Text style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error }]}>
+                <View style={[styles.totalRow, { flexDirection }]}>
+                  <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.profitLabel')}</Text>
+                  <Text style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error, textAlign: 'right' }]}>
                     {profitIQD >= 0 ? '+' : ''}{fmtIQD(profitIQD)} IQD
                   </Text>
                 </View>
@@ -365,11 +368,11 @@ export default function EditPurchaseScreen() {
 
           {/* Payment status */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.paymentInfo')}</Text>
+            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.paymentInfo')}</Text>
             <PaymentToggle value={paymentStatus} onChange={setPaymentStatus} />
             {paymentStatus === 'debt' && (
               <View style={[styles.debtNote, { backgroundColor: '#FFF7ED' }]}>
-                <Text style={[styles.debtNoteText, { color: Colors.warning }]}>
+                <Text style={[styles.debtNoteText, { color: Colors.warning, writingDirection }]}>
                   {fmtIQD(totalIQD)} IQD {t('common.debt')}
                 </Text>
               </View>
@@ -378,7 +381,7 @@ export default function EditPurchaseScreen() {
 
           {/* Additional info */}
           <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400 }]}>{t('purchases.additionalInfo')}</Text>
+            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalInfo')}</Text>
             <AppTextInput
               label={t('purchases.warranty')}
               value={warranty}
@@ -435,7 +438,7 @@ const styles = StyleSheet.create({
   infoRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, marginBottom: 4 },
   infoLabel: { fontSize: 13 },
   infoValue: { fontSize: 14, fontWeight: '600' },
-  hintText:  { fontSize: 12, marginTop: -8, marginBottom: 8 },
+  hintText:  { fontSize: 12, marginTop: 6, marginBottom: 8 },
 
   totalBox: { borderRadius: Theme.radius.md, padding: 14, marginTop: 10, gap: 6 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

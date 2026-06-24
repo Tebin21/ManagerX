@@ -25,7 +25,7 @@ import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
 import { fmtIQD, formatDateShort } from '@/utils/formatters';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -36,7 +36,8 @@ export default function InventoryDetailScreen() {
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { colors } = useAppTheme();
   const { chevronForward } = useDirectionalChevron();
-  const { flexDirection, alignEnd } = useRTL();
+  const { isRTL, textAlign, writingDirection, valueAlign, flexDirection, alignEnd } = useRTL();
+  const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [salesHistory, setSalesHistory] = useState<Array<{
@@ -128,10 +129,11 @@ export default function InventoryDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader title={product.name} showBack>
-        {/* Category + status row inside gradient */}
-        <View style={[styles.headerMeta, { flexDirection }]}>
+        {/* Category + status row inside gradient — centered & wrapped so it
+            never crowds the title or collides with the gradient's bottom edge */}
+        <View style={[styles.headerMeta, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
           <View style={styles.catChip}>
-            <Text style={styles.catText}>{product.category}</Text>
+            <Text style={styles.catText} numberOfLines={1}>{product.category}</Text>
           </View>
           {isLowStock && !isSold && <LowStockBadge />}
           {isSold && (
@@ -158,37 +160,37 @@ export default function InventoryDetailScreen() {
           transition={{ type: 'spring', damping: 20, stiffness: 220 }}
           style={[styles.statsCard, { backgroundColor: colors.white }]}
         >
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.quantity')}</Text>
+              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.quantity')}</Text>
               <Text style={[styles.statValue, { color: isSold ? colors.gray400 : colors.black }]}>
                 {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
               </Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.buyPrice')}</Text>
+              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.buyPrice')}</Text>
               <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(product.purchasePrice)} IQD</Text>
             </View>
           </View>
           <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.sellPrice')}</Text>
+              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.sellPrice')}</Text>
               <Text style={[styles.statValue, { color: colors.primary }]}>{fmtIQD(product.sellingPrice)} IQD</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.totalValueLabel')}</Text>
+              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.totalValueLabel')}</Text>
               <Text style={[styles.statValue, { color: colors.black }]}>{fmtIQD(totalValue)} IQD</Text>
             </View>
           </View>
           {profitPerUnit !== 0 && (
             <>
               <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
-              <View style={styles.statsRow}>
+              <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
                 <View style={[styles.statItem, { flex: 1 }]}>
-                  <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('inventory.profitPerUnit')}</Text>
+                  <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.profitPerUnit')}</Text>
                   <Text style={[styles.statValue, { color: profitPerUnit > 0 ? colors.success : colors.error }]}>
                     {profitPerUnit > 0 ? '+' : ''}{fmtIQD(profitPerUnit)} IQD
                   </Text>
@@ -204,45 +206,45 @@ export default function InventoryDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 60 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('inventory.supplierAndPurchase')}</Text>
+            <Text style={sectionTitleStyle}>{t('inventory.supplierAndPurchase')}</Text>
             {product.supplierName && (
-              <View style={[styles.infoRow, { flexDirection }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.supplier')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierName}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.supplier')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierName}</Text>
               </View>
             )}
             {product.supplierPhone && (
-              <View style={[styles.infoRow, { flexDirection }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="call-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.phone')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierPhone}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.phone')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>{product.supplierPhone}</Text>
               </View>
             )}
             {product.supplierAddress && (
-              <View style={[styles.infoRow, { flexDirection }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="location-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.address')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{product.supplierAddress}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.address')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierAddress}</Text>
               </View>
             )}
             {product.purchaseDate && (
-              <View style={[styles.infoRow, { flexDirection }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.date')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{product.purchaseDate}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>{formatDateShort(product.purchaseDate)}</Text>
               </View>
             )}
             {product.purchaseId && (
               <TouchableOpacity
-                style={[styles.linkRow, { borderTopColor: colors.gray100, flexDirection }]}
+                style={[styles.linkRow, { borderTopColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}
                 onPress={() => router.push(`/(app)/purchases/${product.purchaseId}` as never)}
                 activeOpacity={0.75}
               >
                 <Ionicons name="receipt-outline" size={16} color={colors.primary} />
-                <Text style={[styles.linkText, { color: colors.primary }]}>{t('inventory.viewPurchaseInvoice')}</Text>
+                <Text style={[styles.linkText, { color: colors.primary, textAlign, writingDirection }]}>{t('inventory.viewPurchaseInvoice')}</Text>
                 <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
               </TouchableOpacity>
             )}
@@ -255,10 +257,10 @@ export default function InventoryDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
-            <View style={styles.idChipWrap}>
+            <Text style={sectionTitleStyle}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
+            <View style={[styles.idChipWrap, { flexDirection }]}>
               <View style={[styles.idChip, { backgroundColor: colors.softBlue }]}>
                 <Text style={[styles.idChipText, { color: colors.primaryDark }]}>{product.itemId}</Text>
               </View>
@@ -277,26 +279,26 @@ export default function InventoryDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('inventory.details')}</Text>
+            <Text style={sectionTitleStyle}>{t('inventory.details')}</Text>
             {product.warranty && (
-              <View style={[styles.infoRow, { flexDirection }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
                 <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500 }]}>{t('inventory.warranty')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black }]}>{product.warranty}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.warranty')}</Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.warranty}</Text>
               </View>
             )}
             {product.description && (
               <View style={styles.noteRow}>
-                <Text style={[styles.noteLabel, { color: colors.gray400 }]}>{t('inventory.description')}</Text>
-                <Text style={[styles.noteText, { color: colors.black }]}>{product.description}</Text>
+                <Text style={[styles.noteLabel, { color: colors.gray400, textAlign, writingDirection }]}>{t('inventory.description')}</Text>
+                <Text style={[styles.noteText, { color: colors.black, textAlign, writingDirection }]}>{product.description}</Text>
               </View>
             )}
             {product.notes && (
               <View style={styles.noteRow}>
-                <Text style={[styles.noteLabel, { color: colors.gray400 }]}>{t('inventory.notes')}</Text>
-                <Text style={[styles.noteText, { color: colors.black }]}>{product.notes}</Text>
+                <Text style={[styles.noteLabel, { color: colors.gray400, textAlign, writingDirection }]}>{t('inventory.notes')}</Text>
+                <Text style={[styles.noteText, { color: colors.black, textAlign, writingDirection }]}>{product.notes}</Text>
               </View>
             )}
           </MotiView>
@@ -307,11 +309,11 @@ export default function InventoryDetailScreen() {
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-          style={[styles.section, { backgroundColor: colors.white }]}
+          style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('inventory.salesHistory')} ({salesHistory.length})</Text>
+          <Text style={sectionTitleStyle}>{t('inventory.salesHistory')} ({salesHistory.length})</Text>
           {salesHistory.length === 0 ? (
-            <Text style={[styles.noSales, { color: colors.gray400 }]}>{t('inventory.noSales')}</Text>
+            <Text style={[styles.noSales, { color: colors.gray400, textAlign, writingDirection }]}>{t('inventory.noSales')}</Text>
           ) : (
             salesHistory.map((s) => (
               <TouchableOpacity
@@ -321,8 +323,8 @@ export default function InventoryDetailScreen() {
                 activeOpacity={0.75}
               >
                 <View>
-                  <Text style={[styles.saleInvoice, { color: colors.black }]}>{s.invoiceNumber}</Text>
-                  <Text style={[styles.saleDate, { color: colors.gray400 }]}>{formatDateShort(s.saleCreatedAt)}</Text>
+                  <Text style={[styles.saleInvoice, { color: colors.black, textAlign }]}>{s.invoiceNumber}</Text>
+                  <Text style={[styles.saleDate, { color: colors.gray400, textAlign }]}>{formatDateShort(s.saleCreatedAt)}</Text>
                 </View>
                 <View style={[styles.saleRight, { alignItems: alignEnd }]}>
                   <Text style={[styles.saleQty, { color: colors.gray500 }]}>× {s.quantity}</Text>
@@ -334,10 +336,10 @@ export default function InventoryDetailScreen() {
         </MotiView>
 
         {/* Actions */}
-        <View style={[styles.storeVisRow, { backgroundColor: colors.white, flexDirection }]}>
+        <View style={[styles.storeVisRow, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.storeVisLabel, { color: colors.black }]}>{t('inventory.onlineStoreVisible')}</Text>
-            <Text style={[styles.storeVisSub, { color: colors.gray400 }]}>
+            <Text style={[styles.storeVisLabel, { color: colors.black, textAlign, writingDirection }]}>{t('inventory.onlineStoreVisible')}</Text>
+            <Text style={[styles.storeVisSub, { color: colors.gray400, textAlign, writingDirection }]}>
               {hasActiveSubscription
                 ? t('inventory.onlineStoreVisibleSub')
                 : t('dashboard.onlineStore.subscriptionRequired')}
@@ -352,9 +354,9 @@ export default function InventoryDetailScreen() {
           />
         </View>
 
-        <View style={[styles.actions, { flexDirection }]}>
+        <View style={[styles.actions, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 12 }]}>
           <TouchableOpacity
-            style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection }]}
+            style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}
             onPress={() => router.push(`/(app)/inventory/edit/${product.id}` as never)}
             activeOpacity={0.85}
           >
@@ -362,7 +364,7 @@ export default function InventoryDetailScreen() {
             <Text style={styles.editBtnText}>{t('inventory.editProduct')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.deleteBtn, { borderColor: colors.error, flexDirection }]}
+            style={[styles.deleteBtn, { borderColor: colors.error, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}
             onPress={confirmDelete}
             activeOpacity={0.85}
           >
@@ -386,10 +388,13 @@ const styles = StyleSheet.create({
   headerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     flexWrap: 'wrap',
+    rowGap: 8,
     gap: 8,
     paddingHorizontal: 20,
-    marginTop: 6,
+    marginTop: 10,
+    paddingBottom: 16,
   },
   catChip: {
     backgroundColor: 'rgba(255,255,255,0.2)',

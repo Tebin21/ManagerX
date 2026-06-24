@@ -18,7 +18,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { SUPPORT_PHONE } from '@/constants/config';
 import { useRTL } from '@/lib/rtl';
-import { formatDate } from '@/utils/formatters';
+import { formatDateShort } from '@/utils/formatters';
 
 const PLAN_LABEL_KEYS: Record<string, string> = {
   '1m': 'settings.onlineStoreSubscriptionScreen.planLabel1m',
@@ -75,7 +75,7 @@ export default function OnlineStoreSubscriptionScreen() {
         setResult({
           type: 'error',
           message: res.expiresAt
-            ? t('settings.onlineStoreSubscriptionScreen.codeExpiredOn', { date: formatDate(res.expiresAt) })
+            ? t('settings.onlineStoreSubscriptionScreen.codeExpiredOn', { date: formatDateShort(res.expiresAt) })
             : t('settings.onlineStoreSubscriptionScreen.codeExpired'),
         });
       } else if (res.status === 'not_an_extension') {
@@ -111,7 +111,7 @@ export default function OnlineStoreSubscriptionScreen() {
             <Text style={styles.heroExpiry}>
               {isActive
                 ? expiresAt
-                  ? t('settings.onlineStoreSubscriptionScreen.expiresOn', { date: formatDate(expiresAt) })
+                  ? t('settings.onlineStoreSubscriptionScreen.expiresOn', { date: formatDateShort(expiresAt) })
                   : t('settings.onlineStoreSubscriptionScreen.neverExpires')
                 : ''}
             </Text>

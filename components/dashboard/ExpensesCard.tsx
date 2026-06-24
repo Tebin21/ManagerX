@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { LTRNumber } from '@/components/ui/LTRNumber';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { fmtIQD } from '@/utils/formatters';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 
 type Filter = 'today' | 'weekly' | 'monthly' | 'yearly';
 
@@ -74,10 +73,14 @@ export function ExpensesCard({ totals, index = 0, showLink = true }: Props) {
       </View>
 
       {/* Amount — numbers always LTR, row anchors to reading-direction start */}
-      <LTRNumber style={[styles.amount, { color: hasExpenses ? colors.error : colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {fmtIQD(amount)}{' '}
-        <Text style={[styles.currency, { color: hasExpenses ? colors.error + 'AA' : colors.gray300 }]}>IQD</Text>
-      </LTRNumber>
+      <View style={[styles.amountLine, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+        <CompactAmount
+          value={amount}
+          showCurrency={false}
+          style={[styles.amount, { color: hasExpenses ? colors.error : colors.gray400 }]}
+        />
+        <Text style={[styles.currency, { color: hasExpenses ? colors.error + 'AA' : colors.gray300 }]}> IQD</Text>
+      </View>
 
       {/* Link to full report — only shown outside the reports screen */}
       {showLink && (
@@ -153,6 +156,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 16,
+  },
+  amountLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   amount: {
     fontSize: 28,

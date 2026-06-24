@@ -2,9 +2,10 @@ import type { Sale } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
 import {
   fmtIQD, fmtUSD, fmtPct, formatDate, formatTime,
-  getPaymentStatus, PAYMENT_STATUS_LABEL,
+  getPaymentStatus,
 } from '@/utils/formatters';
 import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
+import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
   name: string;
@@ -21,13 +22,32 @@ function escHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// PDF language follows the app's current language automatically. `t()`
+// reads from the invoicePdf i18n namespace; `ku()` wraps already-translated
+// label text in an RTL-shaped, Rudaw-fonted span without ever touching the
+// position/width/alignment of the element it sits inside -- numbers, IDs,
+// dates, and user-entered data (names/addresses/etc.) never pass through
+// `ku()`, so they always keep rendering as plain LTR/Latin-digit text.
+function isKurdishActive(): boolean {
+  return i18n.language === 'ku';
+}
+function t(key: string, opts?: Record<string, unknown>): string {
+  return i18n.t(`invoicePdf.${key}`, opts) as string;
+}
+function ku(html: string): string {
+  return isKurdishActive() ? `<span class="ku-text" dir="rtl">${html}</span>` : html;
+}
+
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
-// Mirrors PURCHASE_CSS's design system (monochrome, 3-column header, card
-// layout) exactly — kept as a separate constant so the two templates can
+// Mirrors buildPurchaseCSS's design system (monochrome, 3-column header, card
+// layout) exactly — kept as a separate function so the two templates can
 // still diverge in the few places sales genuinely needs more (discount
 // column, 3-state payment status), without risking the purchase template.
 
-const SALES_CSS = `
+function buildSalesCSS(isKurdish: boolean): string {
+  const kuAlign = isKurdish ? 'right' : 'left';
+  const numAlign = isKurdish ? 'left' : 'right';
+  return `
   ${KURDISH_FONT_FACE}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -38,6 +58,8 @@ const SALES_CSS = `
     font-size: 14px;
     line-height: 1.5;
   }
+  .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
 
   /* ── Header: 3-column (Business | Customer | Invoice Info) ── */
   .header {
@@ -78,10 +100,10 @@ const SALES_CSS = `
   .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; margin-bottom: 4px; }
   .biz-meta { font-size: 12px; color: #000000; line-height: 1.6; }
 
-  .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
-  .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
-  .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
-  .inv-status-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .inv-label { font-size: ${isKurdish ? '14px' : '10.5px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.4px'}; color: #000000; margin-bottom: 8px; text-align: ${kuAlign}; }
+  .inv-meta-title { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
+  .inv-meta-line { font-size: 12.5px; font-weight: 400; color: #000000; margin-bottom: 2px; text-align: ${kuAlign}; }
+  .inv-status-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: center; gap: 6px; margin-top: 6px; }
 
   .pill {
     display: inline-block;
@@ -109,17 +131,19 @@ const SALES_CSS = `
   }
   .card-tint { background: #f8fafc; }
   .card-label {
-    font-size: 10px;
-    font-weight: 700;
+    font-size: ${isKurdish ? '14px' : '10px'};
+    font-weight: ${isKurdish ? '400' : '700'};
     text-transform: uppercase;
-    letter-spacing: 1.1px;
+    letter-spacing: ${isKurdish ? 'normal' : '1.1px'};
     color: #000000;
     margin-bottom: 12px;
+    text-align: ${kuAlign};
   }
+  ${!isKurdish ? '.col-customer .card-label { font-size: 10px; text-align: left; }' : ''}
 
   /* ── Customer info rows: compact, label hugs value ── */
-  .info-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
-  .row-label { color: #000000; font-weight: 700; }
+  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
+  .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
 
   /* ── Table ── */
@@ -129,7 +153,7 @@ const SALES_CSS = `
     overflow: hidden;
     margin-bottom: 16px;
   }
-  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
   thead { display: table-header-group; }
   tbody tr { page-break-inside: avoid; }
   th {
@@ -152,8 +176,8 @@ const SALES_CSS = `
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
-  .right  { text-align: right; }
-  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; }
+  .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
+  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
   .id-chip {
     display: inline-block;
     font-size: 9.5px;
@@ -162,14 +186,17 @@ const SALES_CSS = `
     border-radius: 6px;
     padding: 1px 6px;
     font-weight: 600;
+    unicode-bidi: isolate;
+    direction: ltr;
   }
-  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; }
+  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
   .empty-row { text-align: center; color: #000000; padding: 26px 14px; font-size: 13px; }
   .muted-cell { color: #94a3b8; }
 
   /* ── Financial ── */
   .fin-row {
     display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
     justify-content: space-between;
     align-items: center;
     padding: 7px 0;
@@ -180,6 +207,7 @@ const SALES_CSS = `
 
   .total-block {
     display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
     justify-content: space-between;
     align-items: baseline;
     padding-top: 12px;
@@ -191,11 +219,22 @@ const SALES_CSS = `
 
   /* ── USD conversion ── */
   .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
-  .usd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #000000; margin-bottom: 6px; }
+  .usd-stack { width: 100%; }
+  .usd-label { font-size: ${isKurdish ? '14px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
   .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
 
   /* ── Block text ── */
-  .block-text { font-size: 13px; color: #000000; line-height: 1.7; }
+  .block-text { font-size: 13px; color: #000000; line-height: 1.7; overflow-wrap: break-word; word-break: break-word; }
+
+  /* ── Warranty + Notes: side-by-side info area ── */
+  .info-pair {
+    display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+    align-items: stretch;
+    gap: 16px;
+    page-break-inside: avoid;
+  }
+  .info-pair > .card { flex: 1 1 50%; min-width: 0; }
 
   /* ── Footer ── */
   .footer {
@@ -208,6 +247,7 @@ const SALES_CSS = `
 
   @media print { body { background: white; } }
 `;
+}
 
 // ─── Sales Invoice ─────────────────────────────────────────────────────────────
 
@@ -218,7 +258,9 @@ export function buildInvoiceHTML(
   exchangeRate: number = 1310
 ): string {
   const items = sale.items ?? [];
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const kuAlign = isKurdish ? 'right' : 'left';
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
@@ -226,76 +268,82 @@ export function buildInvoiceHTML(
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const paymentStatus = getPaymentStatus(sale);
+  const statusKey = paymentStatus === 'paid' ? 'statusPaid' : paymentStatus === 'partial' ? 'statusPartial' : 'statusUnpaid';
   const pillClass = paymentStatus === 'paid' ? 'pill-paid' : paymentStatus === 'partial' ? 'pill-partial' : 'pill-debt';
-  const statusBadge = `<span class="pill ${pillClass}">${PAYMENT_STATUS_LABEL[paymentStatus]}</span>`;
+  const statusBadge = `<span class="pill ${pillClass}">${ku(t(statusKey))}</span>`;
 
   // ── Customer (rendered inside the header's middle column) ──
   const customerColumn = (sale.customerName || sale.customerPhone || sale.customerAddress) ? `
-      <div class="card-label">Customer</div>
-      ${sale.customerName    ? `<div class="info-row"><span class="row-label">Name:</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
-      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">Phone:</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
-      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">Address:</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
+      <div class="card-label">${ku(t('customer'))}</div>
+      ${sale.customerName    ? `<div class="info-row"><span class="row-label">${ku(t('name'))}:</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
+      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone'))}:</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
+      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">${ku(t('address'))}:</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
 
   // ── Items table — Product ID is always its own column, never hidden ──
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col">${i + 1}</td>
-      <td><span class="item-name">${escHtml(item.productName)}</span></td>
+      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span></td>
       <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${fmtIQD(item.sellingPrice)} IQD</td>
       <td class="right">${item.discount > 0 ? fmtIQD(item.discount) + ' IQD' : '<span class="muted-cell">—</span>'}</td>
       <td class="right" style="font-weight:700;">${fmtIQD(item.lineTotal)} IQD</td>
     </tr>
-  `).join('') : `<tr><td colspan="7" class="empty-row">No items</td></tr>`;
+  `).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
 
   const dateTimeValue = sale.date ?? sale.createdAt;
 
+  const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
+
   const warrantyBlock = sale.warranty ? `
     <div class="card">
-      <div class="card-label">Warranty</div>
-      <p class="block-text">${escHtml(sale.warranty)}</p>
+      <div class="card-label">${ku(t('warranty'))}</div>
+      <p class="block-text" style="${blockTextStyle}">${escHtml(sale.warranty)}</p>
     </div>` : '';
 
-  const notesBlock = sale.notes ? `
+  const notesText = sale.notes ? escHtml(sale.notes) : ku(t('noNotes'));
+  const notesBlock = `
     <div class="card">
-      <div class="card-label">Notes</div>
-      <p class="block-text">${escHtml(sale.notes)}</p>
-    </div>` : '';
+      <div class="card-label">${ku(t('notes'))}</div>
+      <p class="block-text" style="${blockTextStyle}">${notesText}</p>
+    </div>`;
+
+  const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
 
   const totalUSD = fmtUSD(sale.grandTotal / exchangeRate);
 
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row">
-      <span>Amount Paid</span>
+      <span>${ku(t('amountPaid'))}</span>
       <span class="fin-amount">${fmtIQD(sale.paidAmount)} IQD</span>
     </div>` : '';
 
   const debtRow = sale.remainingDebt > 0 ? `
     <div class="fin-row">
-      <span>Remaining Debt</span>
+      <span>${ku(t('remainingDebt'))}</span>
       <span class="fin-amount" style="font-weight:700;">${fmtIQD(sale.remainingDebt)} IQD</span>
     </div>` : '';
 
   const financialCard = `
     <div class="card">
-      <div class="card-label">Payment Summary</div>
+      <div class="card-label">${ku(t('paymentSummary'))}</div>
       <div class="fin-row">
-        <span>Subtotal</span>
+        <span>${ku(t('subtotal'))}</span>
         <span class="fin-amount">${fmtIQD(sale.subtotal)} IQD</span>
       </div>
       ${sale.discountTotal > 0 ? `
       <div class="fin-row">
-        <span>Item Discount Total</span>
+        <span>${ku(t('itemDiscountTotal'))}</span>
         <span class="fin-amount">− ${fmtIQD(sale.discountTotal)} IQD</span>
       </div>` : ''}
       ${sale.globalDiscount > 0 ? `
       <div class="fin-row">
-        <span>Cart Discount Total</span>
+        <span>${ku(t('cartDiscountTotal'))}</span>
         <span class="fin-amount">− ${fmtIQD(sale.globalDiscount)} IQD</span>
       </div>` : ''}
       <div class="total-block">
-        <span class="total-label">Total (IQD)</span>
+        <span class="total-label">${ku(t('totalIqd'))}</span>
         <span class="total-amount">${fmtIQD(sale.grandTotal)} IQD</span>
       </div>
       ${paidRow}
@@ -305,8 +353,8 @@ export function buildInvoiceHTML(
   const usdCard = `
     <div class="card card-tint">
       <div class="usd-row">
-        <div>
-          <div class="usd-label">Total (USD)</div>
+        <div class="usd-stack">
+          <div class="usd-label">${ku(t('totalUsd'))}</div>
           <div class="usd-amount">$${totalUSD}</div>
         </div>
       </div>
@@ -318,7 +366,7 @@ export function buildInvoiceHTML(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${escHtml(sale.invoiceNumber)}</title>
-<style>${SALES_CSS}</style>
+<style>${buildSalesCSS(isKurdish)}</style>
 </head>
 <body>
 
@@ -336,12 +384,12 @@ export function buildInvoiceHTML(
       ${customerColumn}
     </div>
     <div class="col-invoice">
-      <div class="inv-label">Sales Invoice</div>
-      <div class="inv-meta-title">Invoice #${escHtml(sale.invoiceNumber)}</div>
-      <div class="inv-meta-line">Date: ${escHtml(formatDate(dateTimeValue))}</div>
-      <div class="inv-meta-line">Time: ${escHtml(formatTime(dateTimeValue))}</div>
+      <div class="inv-label">${ku(t('salesInvoiceLabel'))}</div>
+      <div class="inv-meta-title">${ku(t('invoiceNumberLabel'))} #${escHtml(sale.invoiceNumber)}</div>
+      <div class="inv-meta-line">${ku(t('date'))}: ${escHtml(formatDate(dateTimeValue))}</div>
+      <div class="inv-meta-line">${ku(t('time'))}: ${escHtml(formatTime(dateTimeValue))}</div>
       <div class="inv-status-row">
-        <span class="inv-meta-line">Status:</span>
+        <span class="inv-meta-line">${ku(t('status'))}:</span>
         ${statusBadge}
       </div>
     </div>
@@ -350,19 +398,19 @@ export function buildInvoiceHTML(
 
 <div class="body">
 
-  ${warrantyBlock}
+  ${infoPair}
 
   <div class="table-card">
     <table>
       <thead>
         <tr>
           <th class="center" style="width:30px;">#</th>
-          <th style="text-align:left;">Product</th>
-          <th class="center" style="width:100px;">Product ID</th>
-          <th class="center" style="width:50px;">Qty</th>
-          <th class="right" style="width:100px;">Unit Price</th>
-          <th class="right" style="width:90px;">Discount</th>
-          <th class="right" style="width:110px;">Line Total</th>
+          <th style="text-align:${kuAlign};">${ku(t('colProduct'))}</th>
+          <th class="center" style="width:100px;">${ku(t('colProductId'))}</th>
+          <th class="center" style="width:50px;">${ku(t('colQty'))}</th>
+          <th class="right" style="width:100px;">${ku(t('colUnitPrice'))}</th>
+          <th class="right" style="width:90px;">${ku(t('colDiscount'))}</th>
+          <th class="right" style="width:110px;">${ku(t('colLineTotal'))}</th>
         </tr>
       </thead>
       <tbody>
@@ -374,12 +422,10 @@ export function buildInvoiceHTML(
   ${financialCard}
   ${usdCard}
 
-  ${notesBlock}
-
 </div>
 
 <div class="footer">
-  Sales Invoice &nbsp;·&nbsp; Powered by ManagerX &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
+  ${ku(t('salesInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ManagerX &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
 </div>
 
 </body>
@@ -399,7 +445,10 @@ export interface PurchaseItemRow {
 }
 
 
-const PURCHASE_CSS = `
+function buildPurchaseCSS(isKurdish: boolean): string {
+  const kuAlign = isKurdish ? 'right' : 'left';
+  const numAlign = isKurdish ? 'left' : 'right';
+  return `
   ${KURDISH_FONT_FACE}
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -410,6 +459,8 @@ const PURCHASE_CSS = `
     font-size: 14px;
     line-height: 1.5;
   }
+  .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
 
   /* ── Header: 3-column (Business | Supplier | Invoice Info) ── */
   .header {
@@ -450,10 +501,10 @@ const PURCHASE_CSS = `
   .biz-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #000000; margin-bottom: 4px; }
   .biz-meta { font-size: 12px; color: #000000; line-height: 1.6; }
 
-  .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
-  .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
-  .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
-  .inv-status-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .inv-label { font-size: ${isKurdish ? '14px' : '10.5px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.4px'}; color: #000000; margin-bottom: 8px; text-align: ${kuAlign}; }
+  .inv-meta-title { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
+  .inv-meta-line { font-size: 12.5px; font-weight: 400; color: #000000; margin-bottom: 2px; text-align: ${kuAlign}; }
+  .inv-status-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: center; gap: 6px; margin-top: 6px; }
 
   .pill {
     display: inline-block;
@@ -480,17 +531,19 @@ const PURCHASE_CSS = `
   }
   .card-tint { background: #f8fafc; }
   .card-label {
-    font-size: 10px;
-    font-weight: 700;
+    font-size: ${isKurdish ? '14px' : '10px'};
+    font-weight: ${isKurdish ? '400' : '700'};
     text-transform: uppercase;
-    letter-spacing: 1.1px;
+    letter-spacing: ${isKurdish ? 'normal' : '1.1px'};
     color: #000000;
     margin-bottom: 12px;
+    text-align: ${kuAlign};
   }
+  ${!isKurdish ? '.col-supplier .card-label { font-size: 10px; text-align: left; }' : ''}
 
   /* ── Supplier info rows: compact, label hugs value ── */
-  .info-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
-  .row-label { color: #000000; font-weight: 700; }
+  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
+  .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
 
   /* ── Table ── */
@@ -500,7 +553,7 @@ const PURCHASE_CSS = `
     overflow: hidden;
     margin-bottom: 16px;
   }
-  table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
   thead { display: table-header-group; }
   tbody tr { page-break-inside: avoid; }
   th {
@@ -523,8 +576,8 @@ const PURCHASE_CSS = `
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
-  .right  { text-align: right; }
-  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; }
+  .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
+  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
   .item-id {
     display: inline-block;
     margin-top: 3px;
@@ -534,12 +587,15 @@ const PURCHASE_CSS = `
     border-radius: 6px;
     padding: 1px 6px;
     font-weight: 600;
+    unicode-bidi: isolate;
+    direction: ltr;
   }
-  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; }
+  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
 
   /* ── Financial ── */
   .fin-row {
     display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
     justify-content: space-between;
     align-items: center;
     padding: 7px 0;
@@ -551,6 +607,7 @@ const PURCHASE_CSS = `
 
   .total-block {
     display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
     justify-content: space-between;
     align-items: baseline;
     padding-bottom: 14px;
@@ -562,11 +619,22 @@ const PURCHASE_CSS = `
 
   /* ── USD conversion ── */
   .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
-  .usd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #000000; margin-bottom: 6px; }
+  .usd-stack { width: 100%; }
+  .usd-label { font-size: ${isKurdish ? '14px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
   .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
 
   /* ── Block text ── */
   .block-text { font-size: 13px; color: #000000; line-height: 1.7; }
+
+  /* ── Warranty + Notes: side-by-side info area ── */
+  .info-pair {
+    display: flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+    align-items: stretch;
+    gap: 16px;
+    page-break-inside: avoid;
+  }
+  .info-pair > .card { flex: 1 1 50%; min-width: 0; }
 
   /* ── Footer ── */
   .footer {
@@ -579,6 +647,7 @@ const PURCHASE_CSS = `
 
   @media print { body { background: white; } }
 `;
+}
 
 // Stored purchase lines can represent several physically distinct units
 // (idType 'custom' -> one itemId per unit). Those must render as separate
@@ -612,7 +681,9 @@ export function buildPurchaseInvoiceHTML(
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'ltr'
 ): string {
-  const lang = 'en';
+  const isKurdish = isKurdishActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const kuAlign = isKurdish ? 'right' : 'left';
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
@@ -620,15 +691,15 @@ export function buildPurchaseInvoiceHTML(
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const statusBadge = purchase.paymentStatus === 'paid'
-    ? '<span class="pill pill-paid">Paid</span>'
-    : '<span class="pill pill-debt">Debt</span>';
+    ? `<span class="pill pill-paid">${ku(t('statusPaid'))}</span>`
+    : `<span class="pill pill-debt">${ku(t('statusDebt'))}</span>`;
 
   // ── Supplier (rendered inside the header's middle column) ──
   const supplierColumn = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
-      <div class="card-label">Supplier</div>
-      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">Name:</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
-      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">Phone:</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
-      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">Address:</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
+      <div class="card-label">${ku(t('supplier'))}</div>
+      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">${ku(t('name'))}:</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
+      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone'))}:</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
+      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address'))}:</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
   const displayRows: PurchaseDisplayRow[] = purchaseItems.length > 0
@@ -638,9 +709,9 @@ export function buildPurchaseInvoiceHTML(
   const rows = displayRows.map((row, i) => `
         <tr>
           <td class="num-col">${i + 1}</td>
-          <td>
+          <td style="text-align:${kuAlign};">
             <span class="item-name">${escHtml(row.name)}</span>
-            ${row.idChip ? `<span class="item-id">ID: ${escHtml(row.idChip)}</span>` : ''}
+            ${row.idChip ? `<span class="item-id">${ku(t('itemIdLabel'))}: ${escHtml(row.idChip)}</span>` : ''}
           </td>
           <td class="center">${row.qty}</td>
           <td class="right">${fmtIQD(row.unitPriceIQD)} IQD</td>
@@ -653,10 +724,10 @@ export function buildPurchaseInvoiceHTML(
           <thead>
             <tr>
               <th class="center" style="width:36px;">#</th>
-              <th style="text-align:left;">Product</th>
-              <th class="center" style="width:60px;">Qty</th>
-              <th class="right" style="width:130px;">Unit Price (IQD)</th>
-              <th class="right" style="width:130px;">Total (IQD)</th>
+              <th style="text-align:${kuAlign};">${ku(t('colProduct'))}</th>
+              <th class="center" style="width:60px;">${ku(t('colQty'))}</th>
+              <th class="right" style="width:130px;">${ku(t('colUnitPriceIqd'))}</th>
+              <th class="right" style="width:130px;">${ku(t('totalIqd'))}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -668,21 +739,21 @@ export function buildPurchaseInvoiceHTML(
   const totalUSD = fmtUSD(purchase.totalIQD / exchangeRate);
 
   const paidRows = purchase.paymentStatus === 'paid'
-    ? `<div class="fin-row"><span>Amount Paid</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
-       <div class="fin-row"><span>Remaining Debt</span><span class="fin-amount">0 IQD</span></div>`
-    : `<div class="fin-row"><span>Amount Paid</span><span class="fin-amount muted">—</span></div>
-       <div class="fin-row"><span>Remaining Debt</span><span class="fin-amount muted">—</span></div>`;
+    ? `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
+       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount">0 IQD</span></div>`
+    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount muted">—</span></div>
+       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount muted">—</span></div>`;
 
   const financialCard = `
     <div class="card">
-      <div class="card-label">Payment Summary</div>
+      <div class="card-label">${ku(t('paymentSummary'))}</div>
       <div class="total-block">
-        <span class="total-label">Total (IQD)</span>
+        <span class="total-label">${ku(t('totalIqd'))}</span>
         <span class="total-amount">${fmtIQD(purchase.totalIQD)} IQD</span>
       </div>
       ${paidRows}
       <div class="fin-row">
-        <span>Payment Status</span>
+        <span>${ku(t('paymentStatusLabel'))}</span>
         <span>${statusBadge}</span>
       </div>
     </div>`;
@@ -690,31 +761,35 @@ export function buildPurchaseInvoiceHTML(
   const usdCard = `
     <div class="card card-tint">
       <div class="usd-row">
-        <div>
-          <div class="usd-label">Total (USD)</div>
+        <div class="usd-stack">
+          <div class="usd-label">${ku(t('totalUsd'))}</div>
           <div class="usd-amount">$${totalUSD}</div>
         </div>
       </div>
     </div>`;
 
   // ── Optional blocks ──
+  const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
+
   const warrantyBlock = purchase.warranty ? `
     <div class="card">
-      <div class="card-label">Warranty</div>
-      <p class="block-text">${escHtml(purchase.warranty)}</p>
+      <div class="card-label">${ku(t('warranty'))}</div>
+      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.warranty)}</p>
     </div>` : '';
 
   const descriptionBlock = purchase.description ? `
     <div class="card">
-      <div class="card-label">Description</div>
-      <p class="block-text">${escHtml(purchase.description)}</p>
+      <div class="card-label">${ku(t('description'))}</div>
+      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.description)}</p>
     </div>` : '';
 
   const notesBlock = purchase.notes ? `
     <div class="card">
-      <div class="card-label">Notes</div>
-      <p class="block-text">${escHtml(purchase.notes)}</p>
+      <div class="card-label">${ku(t('notes'))}</div>
+      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.notes)}</p>
     </div>` : '';
+
+  const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
 
   const purchaseDateTime = purchase.date ?? purchase.createdAt;
 
@@ -724,7 +799,7 @@ export function buildPurchaseInvoiceHTML(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Purchase Invoice ${escHtml(purchase.purchaseNumber)}</title>
-<style>${PURCHASE_CSS}</style>
+<style>${buildPurchaseCSS(isKurdish)}</style>
 </head>
 <body>
 
@@ -742,12 +817,12 @@ export function buildPurchaseInvoiceHTML(
       ${supplierColumn}
     </div>
     <div class="col-invoice">
-      <div class="inv-label">Purchase Invoice</div>
-      <div class="inv-meta-title">Invoice #${escHtml(purchase.purchaseNumber)}</div>
-      <div class="inv-meta-line">Date: ${escHtml(formatDate(purchaseDateTime))}</div>
-      <div class="inv-meta-line">Time: ${escHtml(formatTime(purchaseDateTime))}</div>
+      <div class="inv-label">${ku(t('purchaseInvoiceLabel'))}</div>
+      <div class="inv-meta-title">${ku(t('invoiceNumberLabel'))} #${escHtml(purchase.purchaseNumber)}</div>
+      <div class="inv-meta-line">${ku(t('date'))}: ${escHtml(formatDate(purchaseDateTime))}</div>
+      <div class="inv-meta-line">${ku(t('time'))}: ${escHtml(formatTime(purchaseDateTime))}</div>
       <div class="inv-status-row">
-        <span class="inv-meta-line">Status:</span>
+        <span class="inv-meta-line">${ku(t('status'))}:</span>
         ${statusBadge}
       </div>
     </div>
@@ -761,14 +836,13 @@ export function buildPurchaseInvoiceHTML(
   ${financialCard}
   ${usdCard}
 
-  ${warrantyBlock}
+  ${infoPair}
   ${descriptionBlock}
-  ${notesBlock}
 
 </div>
 
 <div class="footer">
-  Purchase Invoice &nbsp;·&nbsp; Powered by ManagerX &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
+  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ManagerX &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
 </div>
 
 </body>

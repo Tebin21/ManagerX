@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
+  Keyboard,
   StyleSheet,
   ScrollView,
   Image,
@@ -349,6 +350,7 @@ export default function SoldProductsScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       />
     </View>
   );

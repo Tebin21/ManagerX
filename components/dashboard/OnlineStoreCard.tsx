@@ -12,7 +12,7 @@ import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { InfoModal } from '@/components/ui/InfoModal';
-import { formatDate, formatRelativeTime } from '@/utils/formatters';
+import { formatDateShort, formatRelativeTime } from '@/utils/formatters';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -111,7 +111,7 @@ export function OnlineStoreCard() {
         <Ionicons name="checkmark-circle" size={14} color={colors.success} />
         <Text style={[styles.subText, { color: colors.gray600 }]} numberOfLines={1}>
           {t('dashboard.onlineStore.activeSubscriptionLabel')}
-          {subscriptionExpiresAt ? ` · ${formatDate(subscriptionExpiresAt)}` : ''}
+          {subscriptionExpiresAt ? ` · ${formatDateShort(subscriptionExpiresAt)}` : ''}
           {remainingDays !== null ? ` · ${remainingDays}d` : ''}
         </Text>
       </View>

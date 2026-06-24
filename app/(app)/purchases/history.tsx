@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, FlatList, TextInput, TouchableOpacity,
-  RefreshControl, StyleSheet, Alert,
+  RefreshControl, Keyboard, StyleSheet, Alert,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -172,6 +172,7 @@ export default function PurchaseHistoryScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       />
     </View>
   );

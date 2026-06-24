@@ -56,10 +56,25 @@ function CustomerCardImpl({ customer, onPress }: Props) {
             <Text style={[styles.phone, { color: colors.gray400, textAlign }]}>{customer.phone}</Text>
           </View>
         ) : null}
-        <Text style={[styles.sub, { color: colors.gray400, textAlign }]}>
-          {customer.saleCount} {t('suppliers.purchases')} · {fmtIQD(customer.totalPurchases)} IQD
-          {hasDebt ? `  ·  ${fmtIQD(customer.remainingDebt)} IQD ${t('customers.remainingDebt').split(' ')[0]}` : ''}
-        </Text>
+        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap' }]}>
+          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
+            {customer.saleCount} {t('suppliers.purchases')}
+          </Text>
+          <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
+          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
+            {fmtIQD(customer.totalPurchases)} IQD
+          </Text>
+        </View>
+        {hasDebt && (
+          <View style={[styles.debtRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+            <Text style={[styles.debtRowLabel, { color: colors.gray400, textAlign }]}>
+              {t('debt.remainingLabel')}
+            </Text>
+            <Text style={[styles.debtRowValue, { color: colors.gray400, textAlign }]}>
+              {fmtIQD(customer.remainingDebt)} IQD
+            </Text>
+          </View>
+        )}
         {lastDate ? (
           <View style={[styles.dateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
@@ -107,6 +122,11 @@ const styles = StyleSheet.create({
   phoneRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   phone:      { fontSize: 12 },
   sub:        { fontSize: 12, marginBottom: 2 },
+  subRow:     { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  subDot:     { fontSize: 12 },
+  debtRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  debtRowLabel:  { fontSize: 12 },
+  debtRowValue:  { fontSize: 12 },
   dateRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   dateText:   { fontSize: 11 },
 });

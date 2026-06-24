@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
+  Keyboard,
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
@@ -176,6 +177,7 @@ export default function CustomersScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       />
     </View>
   );

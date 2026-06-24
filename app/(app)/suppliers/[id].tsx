@@ -27,8 +27,8 @@ import { getPurchasesBySupplierName } from '@/lib/sqlite';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt } from '@/types/debt';
-import { fmtIQD } from '@/utils/formatters';
-import { useDirectionalChevron } from '@/lib/rtl';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 
 interface DebtCardProps {
@@ -39,18 +39,22 @@ interface DebtCardProps {
 function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const [amount, setAmount] = useState('');
   const [paying, setPaying] = useState(false);
   const scrollIntoView = useKeyboardAwareFocus();
 
-  const progress = debt.originalAmount > 0
-    ? Math.min(debt.paidAmount / debt.originalAmount, 1)
+  const percent = debt.originalAmount > 0
+    ? Math.round((debt.paidAmount / debt.originalAmount) * 100)
     : 0;
 
   const handlePay = useCallback(() => {
     const val = parseFloat(amount);
     if (!val || val <= 0) { Alert.alert(t('common.error'), t('suppliers.payAmountHint')); return; }
-    if (val > debt.remainingAmount) { Alert.alert(t('common.error'), `Max: ${fmtIQD(debt.remainingAmount)} IQD`); return; }
+    if (val > debt.remainingAmount) {
+      Alert.alert(t('common.error'), t('debt.maxPaymentExceeded', { amount: fmtIQD(debt.remainingAmount) }));
+      return;
+    }
     Alert.alert(
       t('suppliers.payConfirm'),
       `${fmtIQD(val)} IQD → ${debt.purchaseNumber ?? t('common.notFound')}`,
@@ -70,30 +74,39 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   }, [amount, debt, onPay, t]);
 
   return (
-    <View style={[debtStyles.card, { backgroundColor: colors.white }]}>
-      <View style={debtStyles.top}>
-        <View>
-          <Text style={[debtStyles.ref, { color: colors.primary }]}>{debt.purchaseNumber ?? '—'}</Text>
-          <Text style={[debtStyles.orig, { color: colors.gray500 }]}>
-            {t('suppliers.originalAmount')}: {fmtIQD(debt.originalAmount)} IQD
-          </Text>
-        </View>
+    <View style={[debtStyles.card, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+      {/* Line 1 — purchase ref + status badge */}
+      <View style={[debtStyles.top, { flexDirection }]}>
+        <Text style={[debtStyles.ref, { color: colors.primary, textAlign }]} numberOfLines={1}>
+          {debt.purchaseNumber ?? '—'}
+        </Text>
         <View style={[debtStyles.badge, { backgroundColor: '#FFF7ED' }]}>
           <Text style={[debtStyles.badgeText, { color: Colors.warning }]}>{t('common.debt')}</Text>
         </View>
       </View>
+
+      {/* Line 2 — remaining label */}
+      <Text style={[debtStyles.remainingLabel, { color: colors.gray400, textAlign }]}>
+        {t('debt.remainingLabel')}
+      </Text>
+      {/* Line 3 — remaining amount */}
+      <Text style={[debtStyles.remainingValue, { color: Colors.error, textAlign }]}>
+        {fmtIQD(debt.remainingAmount)} IQD
+      </Text>
+      {/* Line 4 — paid / total */}
+      <Text style={[debtStyles.amounts, { color: colors.gray500, textAlign }]}>
+        {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+      </Text>
+      {/* Line 5 — progress percentage */}
+      <Text style={[debtStyles.progressText, { color: colors.gray400, textAlign }]}>
+        {percent}% {t('debt.paidLabel')}
+      </Text>
+      {/* Line 6 — progress bar */}
       <View style={[debtStyles.progressTrack, { backgroundColor: colors.gray100 }]}>
-        <View style={[debtStyles.progressFill, { width: `${progress * 100}%` as never, backgroundColor: Colors.success }]} />
+        <View style={[debtStyles.progressFill, { width: `${percent}%` as never, backgroundColor: Colors.success }]} />
       </View>
-      <View style={debtStyles.row}>
-        <Text style={[debtStyles.statLabel, { color: colors.gray400 }]}>{t('suppliers.paidAmount')}</Text>
-        <Text style={[debtStyles.statVal, { color: Colors.success }]}>{fmtIQD(debt.paidAmount)} IQD</Text>
-      </View>
-      <View style={debtStyles.row}>
-        <Text style={[debtStyles.statLabel, { color: colors.gray400 }]}>{t('suppliers.remainingDebt')}</Text>
-        <Text style={[debtStyles.statVal, { color: Colors.error }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
-      </View>
-      <View style={[debtStyles.payRow, { borderTopColor: colors.gray100 }]}>
+
+      <View style={[debtStyles.payRow, { borderTopColor: colors.gray100, flexDirection }]}>
         <TextInput
           style={[debtStyles.payInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50 }]}
           value={amount}
@@ -122,17 +135,17 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
 
 const debtStyles = StyleSheet.create({
   card:          { borderRadius: Theme.radius.card, padding: 14, marginBottom: 10, ...Theme.shadow.soft },
-  top:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-  ref:           { fontSize: 13, fontWeight: '700', marginBottom: 2 },
-  orig:          { fontSize: 11 },
+  top:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  ref:           { fontSize: 13, fontWeight: '700', flexShrink: 1 },
   badge:         { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText:     { fontSize: 11, fontWeight: '700' },
-  progressTrack: { height: 4, borderRadius: 2, marginBottom: 10, overflow: 'hidden' },
-  progressFill:  { height: '100%', borderRadius: 2 },
-  row:           { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  statLabel:     { fontSize: 12 },
-  statVal:       { fontSize: 13, fontWeight: '700' },
-  payRow:        { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, alignItems: 'center' },
+  remainingLabel:{ fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  remainingValue:{ fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  amounts:       { fontSize: 12, marginBottom: 10 },
+  progressText:  { fontSize: 11, marginBottom: 4 },
+  progressTrack: { height: 6, borderRadius: 3, marginBottom: 10, overflow: 'hidden' },
+  progressFill:  { height: '100%', borderRadius: 3 },
+  payRow:        { flexDirection: 'row', gap: 8, marginTop: 2, paddingTop: 12, borderTopWidth: 1, alignItems: 'center' },
   payInput:      { flex: 1, height: 40, borderWidth: 1.5, borderRadius: Theme.radius.md, paddingHorizontal: 12, fontSize: 14 },
   payBtn:        { height: 40, paddingHorizontal: 16, borderRadius: Theme.radius.md, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
   payBtnText:    { fontSize: 14, fontWeight: '700', color: '#fff' },
@@ -145,7 +158,9 @@ export default function SupplierDetailScreen() {
   const { suppliers, loadSuppliers, editSupplier, deleteSupplier } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts, payPurchaseDebt } = useDebtStore();
   const { colors } = useAppTheme();
+  const { textAlign, writingDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -361,7 +376,7 @@ export default function SupplierDetailScreen() {
             <View style={[styles.activityRow, { backgroundColor: colors.white }]}>
               <Ionicons name="time-outline" size={14} color={colors.gray400} />
               <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                {t('suppliers.lastPurchase')}: {supplier.lastPurchaseDate.slice(0, 10)}
+                {t('suppliers.lastPurchase')}: {formatDateShort(supplier.lastPurchaseDate)}
               </Text>
             </View>
           ) : null}
@@ -374,7 +389,7 @@ export default function SupplierDetailScreen() {
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 50 }}
           style={[styles.section, { backgroundColor: colors.white }]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('suppliers.contactInfo')}</Text>
+          <Text style={sectionTitleStyle}>{t('suppliers.contactInfo')}</Text>
           {editing ? (
             <View>
               <AppTextInput label={t('suppliers.name')} value={editName} onChangeText={setEditName}
@@ -425,7 +440,7 @@ export default function SupplierDetailScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
             style={[styles.section, { backgroundColor: colors.white }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>
+            <Text style={sectionTitleStyle}>
               {t('suppliers.activeDebts')} ({activeDebts.length})
             </Text>
             {activeDebts.map((debt) => (
@@ -442,7 +457,7 @@ export default function SupplierDetailScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 100 }}
             style={[styles.section, { backgroundColor: colors.white }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>
+            <Text style={sectionTitleStyle}>
               {t('suppliers.settledDebts')} ({settledDebts.length})
             </Text>
             {settledDebts.map((debt) => (
@@ -469,7 +484,7 @@ export default function SupplierDetailScreen() {
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
           style={[styles.section, { backgroundColor: colors.white }]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>
+          <Text style={sectionTitleStyle}>
             {t('suppliers.purchaseHistory')} ({purchases.length})
           </Text>
           {loading ? (
@@ -492,7 +507,7 @@ export default function SupplierDetailScreen() {
                   <View style={styles.purchaseLeft}>
                     <Text style={[styles.purchaseNum, { color: colors.primary }]}>{p.purchaseNumber}</Text>
                     <Text style={[styles.purchaseName, { color: colors.black }]} numberOfLines={1}>{p.productName}</Text>
-                    <Text style={[styles.purchaseDate, { color: colors.gray400 }]}>{p.date ?? p.createdAt?.slice(0, 10)}</Text>
+                    <Text style={[styles.purchaseDate, { color: colors.gray400 }]}>{formatDateShort(p.date ?? p.createdAt)}</Text>
                   </View>
                   <View style={styles.purchaseRight}>
                     <Text style={[styles.purchaseTotal, { color: colors.primary }]}>{fmtIQD(p.totalIQD)} IQD</Text>
@@ -517,7 +532,7 @@ export default function SupplierDetailScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
             style={[styles.section, { backgroundColor: colors.white }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('suppliers.notes')}</Text>
+            <Text style={sectionTitleStyle}>{t('suppliers.notes')}</Text>
             <Text style={[styles.notesText, { color: colors.black }]}>{supplier.notes}</Text>
           </MotiView>
         ) : null}
@@ -529,14 +544,14 @@ export default function SupplierDetailScreen() {
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
           style={[styles.section, styles.deleteSectionBorder, { backgroundColor: colors.white }]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>
+          <Text style={sectionTitleStyle}>
             {t('customers.deleteAccountSection')}
           </Text>
           {!canDelete ? (
             <>
               <View style={styles.deleteWarningBox}>
                 <Ionicons name="information-circle-outline" size={16} color={Colors.warning} />
-                <Text style={[styles.deleteWarningText, { color: colors.gray600 }]}>
+                <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
                   {purchases.length > 0
                     ? t('suppliers.hasPurchases')
                     : t('suppliers.hasActiveDebts')}

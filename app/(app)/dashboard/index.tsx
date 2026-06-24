@@ -58,7 +58,7 @@ export default function DashboardScreen() {
           <OnlineStoreCard />
         </MotiView>
 
-        <SupportFooter />
+        <SupportFooter compact />
       </ScrollView>
     </View>
   );

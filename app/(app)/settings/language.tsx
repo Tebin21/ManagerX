@@ -20,7 +20,7 @@ export default function LanguageScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { language, setLanguage } = useLanguageStore();
-  const { isRTL, flexDirection } = useRTL();
+  const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
 
   function handleSelect(code: Lang) {
     if (code === language) return;
@@ -32,7 +32,7 @@ export default function LanguageScreen() {
       <AppHeader title={t('settings.languageScreen.title')} showBack />
 
       <View style={styles.body}>
-        <Text style={[styles.hint, { color: colors.gray400 }]}>
+        <Text style={[styles.hint, { color: colors.gray400, textAlign, writingDirection }]}>
           {t('settings.languageScreen.hint')}
         </Text>
 
@@ -52,8 +52,8 @@ export default function LanguageScreen() {
                 ]}
               >
                 <View style={styles.labelWrap}>
-                  <Text style={[styles.labelMain, { color: colors.black }]}>{lang.label}</Text>
-                  <Text style={[styles.labelNative, { color: colors.gray400, marginTop: isRTL ? RTL_SPACING.title : 1 }]}>{lang.native}</Text>
+                  <Text style={[styles.labelMain, { color: colors.black, textAlign, writingDirection }]}>{lang.label}</Text>
+                  <Text style={[styles.labelNative, { color: colors.gray400, marginTop: isRTL ? RTL_SPACING.title : 1, textAlign, writingDirection }]}>{lang.native}</Text>
                 </View>
 
                 {isActive ? (

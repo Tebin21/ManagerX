@@ -4,6 +4,7 @@ import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
@@ -17,7 +18,8 @@ interface Props {
 }
 
 export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
-  const { isRTL, flexDirection } = useRTL();
+  const { t } = useTranslation();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const cardPad = isRTL ? RTL_SPACING.cardPad : 14;
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
@@ -32,11 +34,11 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const handlePay = async () => {
     const amount = parseFloat(payAmount);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid', 'Please enter a valid payment amount.');
+      Alert.alert(t('common.error'), t('debt.invalidAmount'));
       return;
     }
     if (amount > debt.remainingAmount) {
-      Alert.alert('Too much', `Maximum payment is ${fmtIQD(debt.remainingAmount)} IQD`);
+      Alert.alert(t('common.error'), t('debt.maxPaymentExceeded', { amount: fmtIQD(debt.remainingAmount) }));
       return;
     }
     setSaving(true);
@@ -51,6 +53,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
 
   return (
     <View style={[styles.card, isSettled && styles.cardSettled, { padding: cardPad }]}>
+      {/* Line 1 — invoice number + status */}
       <TouchableOpacity
         style={[styles.header, { flexDirection }]}
         onPress={() => !isSettled && setExpanded((e) => !e)}
@@ -58,42 +61,39 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
       >
         <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.statusDot, isSettled ? styles.dotSettled : styles.dotActive]} />
-          <View>
-            {invoiceNumber && (
-              <Text style={styles.invoiceNum}>{invoiceNumber}</Text>
-            )}
-            <Text style={[styles.amounts, { marginTop: isRTL ? RTL_SPACING.title : 1 }]}>
-              {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
-            </Text>
+          {invoiceNumber && (
+            <Text style={[styles.invoiceNum, { textAlign }]} numberOfLines={1}>{invoiceNumber}</Text>
+          )}
+        </View>
+        {isSettled ? (
+          <View style={styles.settledBadge}>
+            <Text style={styles.settledText}>{t('common.settled')}</Text>
           </View>
-        </View>
-
-        <View style={[styles.headerRight, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
-          {isSettled ? (
-            <View style={styles.settledBadge}>
-              <Text style={styles.settledText}>Settled</Text>
-            </View>
-          ) : (
-            <View>
-              <Text style={styles.remainingLabel}>Remaining</Text>
-              <Text style={[styles.remainingValue, { marginTop: isRTL ? RTL_SPACING.title : 0 }]}>
-                {fmtIQD(debt.remainingAmount)} IQD
-              </Text>
-            </View>
-          )}
-          {!isSettled && (
-            <Ionicons
-              name={expanded ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={Colors.gray400}
-            />
-          )}
-        </View>
+        ) : (
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.gray400} />
+        )}
       </TouchableOpacity>
 
-      {/* Progress bar */}
-      {!isSettled && (
-        <View style={[styles.progressWrap, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+      {isSettled ? (
+        // Settled — just confirm what the debt was for, no remaining/progress needed.
+        <Text style={[styles.amounts, { textAlign, marginBottom: 0 }]}>
+          {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+        </Text>
+      ) : (
+        <>
+          {/* Line 2 — remaining label */}
+          <Text style={[styles.remainingLabel, { textAlign }]}>{t('debt.remainingLabel')}</Text>
+          {/* Line 3 — remaining amount */}
+          <Text style={[styles.remainingValue, { textAlign }]}>
+            {fmtIQD(debt.remainingAmount)} IQD
+          </Text>
+          {/* Line 4 — paid / total */}
+          <Text style={[styles.amounts, { textAlign }]}>
+            {fmtIQD(debt.paidAmount)} / {fmtIQD(debt.originalAmount)} IQD
+          </Text>
+          {/* Line 5 — progress percentage */}
+          <Text style={[styles.progressText, { textAlign }]}>{percent}% {t('debt.paidLabel')}</Text>
+          {/* Line 6 — progress bar */}
           <View style={styles.progressBg}>
             <MotiView
               from={{ width: '0%' }}
@@ -102,8 +102,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
               style={styles.progressFill}
             />
           </View>
-          <Text style={[styles.progressText, { textAlign: isRTL ? 'left' : 'right' }]}>{percent}% paid</Text>
-        </View>
+        </>
       )}
 
       {/* Payment form */}
@@ -118,7 +117,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
             value={payAmount}
             onChangeText={setPayAmount}
-            placeholder={`Amount (max ${fmtIQD(debt.remainingAmount)} IQD)`}
+            placeholder={t('suppliers.payAmountHint')}
             placeholderTextColor={Colors.gray300}
             keyboardType="decimal-pad"
             autoFocus
@@ -133,7 +132,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             {saving ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.payBtnText}>Add Payment</Text>
+              <Text style={styles.payBtnText}>{t('debt.recordPayment')}</Text>
             )}
           </TouchableOpacity>
         </MotiView>
@@ -161,17 +160,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 10,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     flex: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
 
   statusDot: {
@@ -182,11 +177,11 @@ const styles = StyleSheet.create({
   dotActive:   { backgroundColor: Colors.warning },
   dotSettled:  { backgroundColor: Colors.success },
 
-  invoiceNum: { fontSize: 12, fontWeight: '700', color: Colors.black },
-  amounts:    { fontSize: 12, color: Colors.gray500, marginTop: 1 },
+  invoiceNum: { fontSize: 13, fontWeight: '700', color: Colors.black },
 
-  remainingLabel: { fontSize: 10, color: Colors.gray400, fontWeight: '600' },
-  remainingValue: { fontSize: 14, fontWeight: '800', color: Colors.error },
+  remainingLabel: { fontSize: 11, fontWeight: '600', color: Colors.gray400, marginBottom: 2 },
+  remainingValue: { fontSize: 16, fontWeight: '800', color: Colors.error, marginBottom: 10 },
+  amounts:        { fontSize: 12, color: Colors.gray500, marginBottom: 10 },
 
   settledBadge: {
     backgroundColor: '#DCFCE7',
@@ -196,14 +191,8 @@ const styles = StyleSheet.create({
   },
   settledText: { fontSize: 11, fontWeight: '700', color: '#166534' },
 
-  progressWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
-  },
+  progressText: { fontSize: 11, color: Colors.gray400, marginBottom: 4 },
   progressBg: {
-    flex: 1,
     height: 6,
     backgroundColor: Colors.gray100,
     borderRadius: 3,
@@ -214,7 +203,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
     borderRadius: 3,
   },
-  progressText: { fontSize: 11, color: Colors.gray400, width: 54 },
 
   payForm: {
     marginTop: 12,

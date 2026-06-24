@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Text as RNText } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -7,8 +7,49 @@ import { useTranslation } from 'react-i18next';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
 import { Colors } from '@/constants/colors';
+
+// RN's `writingDirection` style is iOS-only (no Android view manager honors
+// it), so per-paragraph RTL/LTR correctness can't rely on style props alone —
+// it has to be encoded in the text itself via real Unicode bidi controls,
+// which both platforms' native text shapers (ICU/CoreText) resolve the same
+// way. RLM is a strong, invisible RTL character: prefixing the paragraph with
+// it anchors the paragraph's bidi base direction to RTL even when the first
+// visible word is a Latin term (e.g. a sentence starting with "BexDre" or
+// "ManagerX"), which is what was pushing the justified last line to align
+// left instead of right. LRI/PDI isolate each embedded Latin run (BexDre,
+// ManagerX, ERP, POS, API, UI/UX, ...) so it can never get reordered or have
+// its characters split by the surrounding RTL paragraph; the nested Text's
+// own font/writingDirection overrides are kept as an iOS-side belt-and-
+// suspenders and to render the run in a font that actually has Latin glyphs
+// (Rudaw doesn't). English paragraphs are returned untouched.
+const RLM = String.fromCharCode(0x200f); // Right-to-Left Mark — invisible, strong RTL
+const LRI = String.fromCharCode(0x2066); // Left-to-Right Isolate
+const PDI = String.fromCharCode(0x2069); // Pop Directional Isolate (closes LRI)
+const LATIN_TERM = /[A-Za-z0-9][A-Za-z0-9/]*/g;
+
+function withBidiLatinTerms(text: string, isRTL: boolean): React.ReactNode {
+  if (!isRTL) return text;
+
+  const source = RLM + text;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  for (const match of source.matchAll(LATIN_TERM)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) parts.push(source.slice(lastIndex, start));
+    parts.push(
+      <RNText key={key++} style={{ fontFamily: SYSTEM_FONT_OVERRIDE, writingDirection: 'ltr' }}>
+        {LRI}{match[0]}{PDI}
+      </RNText>
+    );
+    lastIndex = start + match[0].length;
+  }
+  if (lastIndex < source.length) parts.push(source.slice(lastIndex));
+  return parts;
+}
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   const { colors } = useAppTheme();
@@ -61,22 +102,26 @@ export default function AboutScreen() {
         </SettingSection>
 
         <SettingSection title={t('settings.aboutScreen.aboutBexDre')}>
-          <View style={[styles.descBlock, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+          <View style={[styles.descBlock, isRTL && styles.descBlockRTL]}>
             <Text style={[styles.descHeading, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
               BexDre
             </Text>
-            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('settings.aboutScreen.bexDreDesc1')}
-            </Text>
-            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('settings.aboutScreen.bexDreDesc2')}
-            </Text>
-            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('settings.aboutScreen.bexDreDesc3')}
-            </Text>
-            <Text style={[styles.descBody, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('settings.aboutScreen.bexDreDesc4')}
-            </Text>
+            {(['bexDreDesc1', 'bexDreDesc2', 'bexDreDesc3', 'bexDreDesc4'] as const).map((key) => (
+              <Text
+                key={key}
+                style={[
+                  styles.descBody,
+                  {
+                    color: colors.gray500,
+                    textAlign: 'justify',
+                    direction: isRTL ? 'rtl' : 'ltr',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}
+              >
+                {withBidiLatinTerms(t(`settings.aboutScreen.${key}`), isRTL)}
+              </Text>
+            ))}
           </View>
         </SettingSection>
 
@@ -110,7 +155,8 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 14 },
   infoValue: { fontSize: 14, fontWeight: '600' },
 
-  descBlock:   { paddingVertical: 14, gap: 12 },
-  descHeading: { fontSize: 16, fontWeight: '700' },
-  descBody:    { fontSize: 14, lineHeight: 22 },
+  descBlock:    { paddingVertical: 14, gap: 12 },
+  descBlockRTL: { gap: RTL_SPACING.gap },
+  descHeading:  { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  descBody:     { fontSize: 14, lineHeight: 22 },
 });

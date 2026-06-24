@@ -4,6 +4,7 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Keyboard,
   StyleSheet,
   Alert,
   RefreshControl,
@@ -22,7 +23,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
-import { fmtIQD, formatDate } from '@/utils/formatters';
+import { fmtIQD, formatDateShort } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 
@@ -90,7 +91,7 @@ function SalesDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -119,13 +120,13 @@ function SalesDebtCardImpl({
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.customerName}</Text>
             <Text style={styles.cardSub}>
-              {debt.invoiceNumber} · {formatDate(debt.createdAt)}
+              {debt.invoiceNumber} · {formatDateShort(debt.createdAt)}
             </Text>
             {debt.lastPaymentAt && (
-              <Text style={styles.cardSub2}>Last payment {daysAgo(debt.lastPaymentAt)}d ago</Text>
+              <Text style={styles.cardSub2}>{i18n.t('debt.lastPaymentDaysAgo', { count: daysAgo(debt.lastPaymentAt) })}</Text>
             )}
           </View>
-          <View style={styles.cardRight}>
+          <View style={[styles.cardRight, { alignItems: alignEnd }]}>
             <StatusPill status={displayStatus} />
             <OverdueBadge level={overdueLevel} />
           </View>
@@ -133,7 +134,7 @@ function SalesDebtCardImpl({
 
         <View style={[styles.cardAmounts, { flexDirection }]}>
           <Text style={[styles.amountRemaining, { color: colors.primary }]}>{fmtIQD(debt.remainingAmount)} IQD</Text>
-          <Text style={styles.amountSub}>of {fmtIQD(debt.originalAmount)} IQD</Text>
+          <Text style={styles.amountSub}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -172,7 +173,7 @@ function PurchaseDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -201,13 +202,13 @@ function PurchaseDebtCardImpl({
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.supplierName}</Text>
             <Text style={styles.cardSub}>
-              {debt.purchaseNumber ?? 'No ref'} · {formatDate(debt.createdAt)}
+              {debt.purchaseNumber ?? i18n.t('debt.noRef')} · {formatDateShort(debt.createdAt)}
             </Text>
             {debt.lastPaymentAt && (
-              <Text style={styles.cardSub2}>Last payment {daysAgo(debt.lastPaymentAt)}d ago</Text>
+              <Text style={styles.cardSub2}>{i18n.t('debt.lastPaymentDaysAgo', { count: daysAgo(debt.lastPaymentAt) })}</Text>
             )}
           </View>
-          <View style={styles.cardRight}>
+          <View style={[styles.cardRight, { alignItems: alignEnd }]}>
             <StatusPill status={displayStatus} />
             <OverdueBadge level={overdueLevel} />
           </View>
@@ -217,7 +218,7 @@ function PurchaseDebtCardImpl({
           <Text style={[styles.amountRemaining, { color: Colors.error }]}>
             {fmtIQD(debt.remainingAmount)} IQD
           </Text>
-          <Text style={styles.amountSub}>of {fmtIQD(debt.originalAmount)} IQD owed to supplier</Text>
+          <Text style={styles.amountSub}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -325,7 +326,7 @@ export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection } = useRTL();
   const {
     salesDebts, purchaseDebts, summary, isLoading,
     loadAll, paySalesDebt, payPurchaseDebt,
@@ -458,7 +459,7 @@ export default function DebtScreen() {
       <View style={[styles.searchRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
         <Ionicons name="search" size={16} color={colors.gray400} />
         <TextInput
-          style={[styles.searchInput, { color: colors.black }]}
+          style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
           placeholder={
             tab === 'sales'
               ? t('debt.searchSales')
@@ -500,6 +501,7 @@ export default function DebtScreen() {
               )}
             </View>
           }
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         />
       ) : (
         <FlatList
@@ -525,6 +527,7 @@ export default function DebtScreen() {
               )}
             </View>
           }
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         />
       )}
 

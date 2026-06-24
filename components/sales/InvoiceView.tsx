@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -36,15 +37,30 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export function InvoiceView({ sale, compact = false }: Props) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { isRTL, textAlign, flexDirection, alignStart } = useRTL();
+  const { isRTL, textAlign, writingDirection, flexDirection, alignStart } = useRTL();
   const { logoUri, name: businessName } = useBusinessStore();
   const [logoFailed, setLogoFailed] = useState(false);
+  const tableScrollRef = useRef<ScrollView>(null);
 
   const items = sale.items ?? [];
   const status = getPaymentStatus(sale);
   const exchangeRate = sale.exchangeRateUsed || 1310;
   const valueAlign = isRTL ? 'left' : 'right';
+
+  // Kurdish section titles read heavier in RudawRegular than the same weight does in
+  // Inter, so the bold+uppercase treatment that works for English looks clenched here —
+  // lean on a touch more size instead of weight to keep them distinct.
+  const kuLabel = isRTL
+    ? { fontWeight: '600' as const, fontSize: 12.5, textTransform: 'none' as const, letterSpacing: 0 }
+    : null;
+  // Same RudawRegular faux-bold issue as kuLabel above, but for the inline
+  // "Name:"/"Phone:"/... prefixes in the top info card — only one Rudaw
+  // weight is registered, so any fontWeight above 400 gets synthetically
+  // emboldened by the OS. Drop to Regular for Kurdish; size/color/structure
+  // stay untouched.
+  const kuInfoLabel = isRTL ? { fontWeight: '400' as const } : null;
 
   const hasCustomer = !!(sale.customerName || sale.customerPhone || sale.customerAddress);
 
@@ -67,7 +83,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
           )}
         </View>
         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-          <Text style={[styles.invoiceNumber, { color: colors.black, textAlign }]}>{sale.invoiceNumber}</Text>
+          <Text style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr' }]}>{sale.invoiceNumber}</Text>
           <View style={[styles.statusPill, { backgroundColor: STATUS_BG[status] }]}>
             <Text style={[styles.statusPillText, { color: STATUS_TEXT[status] }]}>
               {PAYMENT_STATUS_LABEL[status]}
@@ -77,115 +93,136 @@ export function InvoiceView({ sale, compact = false }: Props) {
         </View>
       </View>
 
-      {/* Invoice info: two-column grid (Date/Time | Customer) */}
+      {/* Invoice info: single stacked column, one field per row */}
       <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
-        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Invoice Info</Text>
-        <View style={[styles.infoGrid, { flexDirection }]}>
-          <View style={styles.infoCol}>
-            <View style={[styles.infoRow, { flexDirection }]}>
-              <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Date</Text>
-              <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{formatDate(sale.date ?? sale.createdAt)}</Text>
-            </View>
-            <View style={[styles.infoRow, { flexDirection }]}>
-              <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Time</Text>
-              <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{formatTime(sale.date ?? sale.createdAt)}</Text>
-            </View>
-          </View>
+        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.invoiceInfo')}</Text>
+        <View style={styles.infoStack}>
           {hasCustomer && (
-            <View style={styles.infoCol}>
+            <>
               {sale.customerName ? (
-                <View style={[styles.infoRow, { flexDirection }]}>
-                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Name</Text>
-                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerName}</Text>
-                </View>
+                <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
+                  <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.name')}: </Text>
+                  {sale.customerName}
+                </Text>
               ) : null}
               {sale.customerPhone ? (
-                <View style={[styles.infoRow, { flexDirection }]}>
-                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Phone</Text>
-                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerPhone}</Text>
-                </View>
+                <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
+                  <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.phone')}: </Text>
+                  <Text style={{ writingDirection: 'ltr' }}>{sale.customerPhone}</Text>
+                </Text>
               ) : null}
               {sale.customerAddress ? (
-                <View style={[styles.infoRow, { flexDirection }]}>
-                  <Text style={[styles.rowLabel, { color: colors.gray400, textAlign }]}>Address</Text>
-                  <Text style={[styles.rowValue, { color: colors.black, textAlign: valueAlign }]}>{sale.customerAddress}</Text>
-                </View>
+                <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
+                  <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.address')}: </Text>
+                  {sale.customerAddress}
+                </Text>
               ) : null}
-            </View>
+            </>
           )}
+          <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
+            <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.date')}: </Text>
+            <Text style={{ writingDirection: 'ltr' }}>{formatDate(sale.date ?? sale.createdAt)}</Text>
+          </Text>
+          <Text style={[styles.infoLine, { color: colors.black, textAlign, writingDirection }]}>
+            <Text style={[styles.infoLineLabel, { color: colors.gray400 }, kuInfoLabel]}>{t('invoicePreview.time')}: </Text>
+            <Text style={{ writingDirection: 'ltr' }}>{formatTime(sale.date ?? sale.createdAt)}</Text>
+          </Text>
         </View>
       </View>
 
       {/* Warranty */}
       {sale.warranty ? (
         <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Warranty</Text>
-          <Text style={[styles.blockText, { color: colors.gray600, textAlign }]}>{sale.warranty}</Text>
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.warranty')}</Text>
+          <Text style={[styles.blockText, { color: colors.gray600, textAlign, writingDirection }]}>{sale.warranty}</Text>
         </View>
       ) : null}
 
       {/* Items */}
       {!compact && items.length > 0 && (
         <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Items</Text>
-          {items.map((item, i) => (
-            <View
-              key={item.id ?? i}
-              style={[
-                styles.itemRow,
-                { flexDirection },
-                i % 2 === 1 ? { backgroundColor: colors.gray50 } : null,
-              ]}
-            >
-              <View style={styles.itemLeft}>
-                <Text style={[styles.itemName, { color: colors.black, textAlign }]}>{item.productName}</Text>
-                {item.itemId ? <Text style={[styles.itemId, { color: colors.primary, textAlign }]}>#{item.itemId}</Text> : null}
-                {item.discount > 0 ? (
-                  <Text style={[styles.itemDiscount, { color: Colors.success, textAlign }]}>−{fmtIQD(item.discount)} IQD</Text>
-                ) : null}
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.items')}</Text>
+          <ScrollView
+            ref={tableScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            // No native RTL here (the app mirrors layout via JS, not I18nManager), so a
+            // horizontal ScrollView always opens at its physical-left edge. In Kurdish
+            // the table is mirrored so the "first" column (Product/#) sits on the
+            // physical right — without this it would default to showing Total/Discount
+            // instead of the product name.
+            onContentSizeChange={() => { if (isRTL) tableScrollRef.current?.scrollToEnd({ animated: false }); }}
+          >
+            <View>
+              <View style={[styles.tableHeaderRow, { flexDirection, borderColor: colors.gray200 }]}>
+                <Text style={[styles.colNum, styles.tableHeaderText, { color: colors.gray400 }]}>#</Text>
+                <Text style={[styles.colProduct, styles.tableHeaderText, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.colProduct')}</Text>
+                <Text style={[styles.colId, styles.tableHeaderText, { color: colors.gray400, writingDirection }]}>{t('invoicePreview.colId')}</Text>
+                <Text style={[styles.colQty, styles.tableHeaderText, { color: colors.gray400, writingDirection }]}>{t('invoicePreview.colQty')}</Text>
+                <Text style={[styles.colUnitPrice, styles.tableHeaderText, { color: colors.gray400, writingDirection }]}>{t('invoicePreview.colUnitPrice')}</Text>
+                <Text style={[styles.colDiscount, styles.tableHeaderText, { color: colors.gray400, writingDirection }]}>{t('invoicePreview.colDiscount')}</Text>
+                <Text style={[styles.colTotal, styles.tableHeaderText, { color: colors.gray400, writingDirection }]}>{t('invoicePreview.colTotal')}</Text>
               </View>
-              <Text style={[styles.itemQty, { color: colors.gray500, textAlign: valueAlign }]}>×{item.quantity}</Text>
-              <Text style={[styles.itemTotal, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(item.lineTotal)}</Text>
+              {items.map((item, i) => (
+                <View
+                  key={item.id ?? i}
+                  style={[
+                    styles.tableRow,
+                    { flexDirection },
+                    i % 2 === 1 ? { backgroundColor: colors.gray50 } : null,
+                  ]}
+                >
+                  <Text style={[styles.colNum, styles.tableCellMuted, { color: colors.gray500 }]}>{i + 1}</Text>
+                  <Text style={[styles.colProduct, styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
+                  <Text style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</Text>
+                  <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
+                  <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtIQD(item.sellingPrice)}</Text>
+                  <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? Colors.success : colors.gray300 }]}>
+                    {item.discount > 0 ? `−${fmtIQD(item.discount)}` : '—'}
+                  </Text>
+                  <Text style={[styles.colTotal, styles.tableCellTotal, { color: colors.black }]}>{fmtIQD(item.lineTotal)}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          </ScrollView>
         </View>
       )}
 
       {/* Payment Summary */}
       <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Payment Summary</Text>
+        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.paymentSummary')}</Text>
         <View style={[styles.totalRow, { flexDirection }]}>
-          <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Subtotal</Text>
-          <Text style={[styles.totalValue, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(sale.subtotal)}</Text>
+          <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.subtotal')}</Text>
+          <Text style={[styles.totalValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.subtotal)}</Text>
         </View>
         {sale.discountTotal > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
-            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Item Discount</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>−{fmtIQD(sale.discountTotal)}</Text>
+            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.itemDiscount')}</Text>
+            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.discountTotal)}</Text>
           </View>
         )}
         {(sale.globalDiscount ?? 0) > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
-            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Invoice Discount</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
+            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.invoiceDiscount')}</Text>
+            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
           </View>
         )}
         <View style={[styles.grandRow, { flexDirection, borderTopColor: colors.gray200 }]}>
-          <Text style={[styles.grandLabel, { color: colors.black, textAlign }]}>Grand Total</Text>
-          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign }]}>{fmtIQD(sale.grandTotal)}</Text>
+          <Text style={[styles.grandLabel, { color: colors.black, textAlign, writingDirection }]}>{t('invoicePreview.grandTotal')}</Text>
+          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.grandTotal)}</Text>
         </View>
         {sale.paymentMethod === 'debt' && (
           <>
             {sale.paidAmount > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
-                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign }]}>Paid</Text>
-                <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign }]}>{fmtIQD(sale.paidAmount)}</Text>
+                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.paid')}</Text>
+                <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.paidAmount)}</Text>
               </View>
             )}
             {sale.remainingDebt > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
-                <Text style={[styles.totalLabel, { color: Colors.error, textAlign }]}>Remaining Debt</Text>
-                <Text style={[styles.totalValue, { color: Colors.error, fontWeight: '700', textAlign: valueAlign }]}>
+                <Text style={[styles.totalLabel, { color: Colors.error, textAlign, writingDirection }]}>{t('invoicePreview.remainingDebt')}</Text>
+                <Text style={[styles.totalValue, { color: Colors.error, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
                   {fmtIQD(sale.remainingDebt)}
                 </Text>
               </View>
@@ -195,23 +232,36 @@ export function InvoiceView({ sale, compact = false }: Props) {
       </View>
 
       {/* USD conversion */}
-      <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
-        <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-          <Text style={[styles.usdLabel, { color: colors.gray400, textAlign }]}>Total (USD)</Text>
-          <Text style={[styles.usdAmount, { color: colors.black, textAlign }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+      {isRTL ? (
+        <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+          <View style={[styles.totalRow, { flexDirection }]}>
+            <Text style={[styles.usdRate, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.exchangeRate')}</Text>
+            <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(exchangeRate)} IQD/USD</Text>
+          </View>
+          <View style={[styles.totalRow, { flexDirection, marginBottom: 0 }]}>
+            <Text style={[styles.usdLabel, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.totalUsd')}</Text>
+            <Text style={[styles.usdAmount, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+          </View>
         </View>
-        <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign }]}>
-          Rate: {fmtIQD(exchangeRate)} IQD/USD
-        </Text>
-      </View>
+      ) : (
+        <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
+          <View style={{ alignItems: 'flex-start' }}>
+            <Text style={[styles.usdLabel, { color: colors.gray400, textAlign: 'left' }]}>{t('invoicePreview.totalUsd')}</Text>
+            <Text style={[styles.usdAmount, { color: colors.black, textAlign: 'left' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+          </View>
+          <Text style={[styles.usdRate, { color: colors.gray400, textAlign: 'right' }]}>
+            Rate: {fmtIQD(exchangeRate)} IQD/USD
+          </Text>
+        </View>
+      )}
 
       {/* Notes */}
-      {sale.notes ? (
-        <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
-          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign }]}>Notes</Text>
-          <Text style={[styles.blockText, { color: colors.gray600, textAlign }]}>{sale.notes}</Text>
-        </View>
-      ) : null}
+      <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+        <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.notes')}</Text>
+        <Text style={[styles.blockText, { color: sale.notes ? colors.gray600 : colors.gray400, textAlign, writingDirection }]}>
+          {sale.notes || t('invoicePreview.noNotes')}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -260,26 +310,44 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  infoGrid: { flexWrap: 'wrap', gap: 12 },
-  infoCol: { flex: 1, minWidth: 140 },
-  infoRow: { justifyContent: 'space-between', paddingVertical: 4 },
-  rowLabel: { fontSize: 12.5, flexShrink: 0 },
-  rowValue: { fontSize: 13, fontWeight: '600', flex: 1, marginLeft: 8 },
+  infoStack: { flexDirection: 'column' },
+  infoLine: { fontSize: 13, fontWeight: '600', paddingVertical: 4 },
+  infoLineLabel: { fontSize: 12.5, fontWeight: '500' },
 
   blockText: { fontSize: 13, lineHeight: 19 },
 
-  itemRow: {
+  tableHeaderRow: {
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingBottom: 6,
+    marginBottom: 2,
+    borderBottomWidth: 1,
+    gap: 6,
+  },
+  tableHeaderText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  tableRow: {
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 6,
     borderRadius: Theme.radius.sm,
+    gap: 6,
   },
-  itemLeft: { flex: 1 },
-  itemName: { fontSize: 13, fontWeight: '600' },
-  itemId: { fontSize: 11, marginTop: 1 },
-  itemDiscount: { fontSize: 11, fontWeight: '600', marginTop: 1 },
-  itemQty: { fontSize: 13, marginHorizontal: 12 },
-  itemTotal: { fontSize: 14, fontWeight: '700', minWidth: 70 },
+  tableCellMuted: { fontSize: 12, textAlign: 'center' },
+  tableCellValue: { fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
+  tableCellTotal: { fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+  tableCellName: { fontSize: 13, fontWeight: '600' },
+
+  colNum: { width: 20 },
+  colProduct: { width: 100 },
+  colId: { width: 54 },
+  colQty: { width: 28 },
+  colUnitPrice: { width: 76 },
+  colDiscount: { width: 70 },
+  colTotal: { width: 80 },
 
   totalRow: { justifyContent: 'space-between', marginBottom: 6 },
   totalLabel: { fontSize: 13 },

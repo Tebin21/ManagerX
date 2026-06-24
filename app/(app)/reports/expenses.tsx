@@ -18,11 +18,13 @@ import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
-import { fmtIQD, toDateOnly, formatDate, formatTime } from '@/utils/formatters';
+import { fmtIQD, toDateOnly, formatDateShort, formatTime } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -100,6 +102,7 @@ function ExpenseFilterBar({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const [customOpen, setCustomOpen] = useState(false);
   const [fromVal, setFromVal]       = useState('');
@@ -145,13 +148,13 @@ function ExpenseFilterBar({
         </ScrollView>
         {filter === 'custom' && appliedRange && (
           <Text style={[efbStyles.rangeLabel, { color: colors.gray500 }]}>
-            {formatDate(appliedRange.from)} {'→'} {formatDate(appliedRange.to)}
+            {formatDateShort(appliedRange.from)} {'→'} {formatDateShort(appliedRange.to)}
           </Text>
         )}
       </View>
 
       <Modal visible={customOpen} animationType="fade" transparent>
-        <View style={efbStyles.overlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={efbStyles.overlay}>
           <View style={[efbStyles.modal, { backgroundColor: colors.white }]}>
             <Text style={[efbStyles.modalTitle, { color: colors.black }]}>
               {t('reports.customRange')}
@@ -165,6 +168,7 @@ function ExpenseFilterBar({
               placeholderTextColor={Colors.gray400}
               value={fromVal}
               onChangeText={setFromVal}
+              onFocus={scrollIntoView}
             />
             <Text style={[efbStyles.dateLabel, { color: colors.gray600 }]}>
               {t('reports.toDate')} (YYYY-MM-DD)
@@ -175,6 +179,7 @@ function ExpenseFilterBar({
               placeholderTextColor={Colors.gray400}
               value={toVal}
               onChangeText={setToVal}
+              onFocus={scrollIntoView}
             />
             <View style={efbStyles.modalActions}>
               <TouchableOpacity
@@ -202,7 +207,7 @@ function ExpenseFilterBar({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -518,7 +523,7 @@ function ExpenseCard({
         {/* Bottom row: date/time + action buttons */}
         <View style={[styles.cardBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Text style={[styles.cardDate, { color: colors.gray400 }]}>
-            {formatDate(expense.date)}
+            {formatDateShort(expense.date)}
             {expense.createdAt ? ` · ${formatTime(expense.createdAt)}` : ''}
           </Text>
           <View style={[styles.cardActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -646,9 +651,7 @@ export default function ExpensesScreen() {
                   <Text style={[styles.summaryLabel, { color: colors.gray400, textAlign }]}>
                     {t('reports.totalExpenses')}
                   </Text>
-                  <Text style={[styles.summaryTotal, { textAlign }]}>
-                    {fmtIQD(totalExpenses)} IQD
-                  </Text>
+                  <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { textAlign }]} />
 
                   <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
                   <View style={[styles.summaryCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>

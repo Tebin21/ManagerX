@@ -17,7 +17,7 @@ import { MotiView } from 'moti';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-import { formatDateTime, toDateOnly } from '@/utils/formatters';
+import { formatDateTimeUI, toDateOnly } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
 
 export interface Props {
@@ -132,7 +132,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
         >
           <Ionicons name="calendar-outline" size={17} color={colors.primary} style={styles.triggerIcon} />
           <Text style={[styles.triggerText, { flex: 1, color: colors.black, textAlign }]} numberOfLines={1}>
-            {formatDateTime(value)}
+            {formatDateTimeUI(value)}
           </Text>
           <Ionicons name="chevron-down" size={15} color={colors.gray400} />
         </Pressable>

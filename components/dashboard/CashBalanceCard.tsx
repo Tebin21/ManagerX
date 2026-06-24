@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { LTRNumber } from '@/components/ui/LTRNumber';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { fmtIQD } from '@/utils/formatters';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import type { NetCashBalanceData } from '@/types/reports';
 
 interface Props {
@@ -47,10 +46,14 @@ export function CashBalanceCard({ data, index = 0 }: Props) {
       </View>
 
       {/* Main balance */}
-      <LTRNumber style={[styles.balance, { color: balanceColor, textAlign }]}>
-        {fmtIQD(Math.abs(data.netBalance))}
+      <View style={[styles.balanceRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+        <CompactAmount
+          value={Math.abs(data.netBalance)}
+          showCurrency={false}
+          style={[styles.balance, { color: balanceColor }]}
+        />
         <Text style={[styles.currency, { color: balanceColor + 'AA' }]}> IQD</Text>
-      </LTRNumber>
+      </View>
       {!isPositive && (
         <Text style={[styles.negativeTag, { color: colors.error, textAlign }]}>
           {t('dashboard.negativeBalance')}
@@ -108,9 +111,11 @@ function BreakdownRow({ icon, label, value, color, colors, negative, isRTL }: Br
         <Ionicons name={icon as never} size={15} color={color} />
         <Text style={[styles.rowLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{label}</Text>
       </View>
-      <LTRNumber style={[styles.rowValue, { color: negative ? colors.gray700 : color, textAlign: isRTL ? 'left' : 'right' }]}>
-        {negative ? '− ' : '+ '}{fmtIQD(value)} IQD
-      </LTRNumber>
+      <CompactAmount
+        value={value}
+        prefix={negative ? '− ' : '+ '}
+        style={[styles.rowValue, { color: negative ? colors.gray700 : color, textAlign: isRTL ? 'left' : 'right' }]}
+      />
     </View>
   );
 }
@@ -146,11 +151,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.2,
   },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+  },
   balance: {
     fontSize: 30,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginBottom: 4,
   },
   currency: {
     fontSize: 16,

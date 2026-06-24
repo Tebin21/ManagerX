@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import type { GlobalDiscountType } from '@/types/sales';
@@ -29,6 +30,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
+  const scrollIntoView = useKeyboardAwareFocus();
 
   const [inputText, setInputText] = React.useState('');
 
@@ -79,6 +81,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
             placeholder={type === 'percentage' ? '0%' : '0 IQD'}
             placeholderTextColor={colors.gray400}
             selectTextOnFocus
+            onFocus={scrollIntoView}
           />
 
           {discountAmount > 0 && (

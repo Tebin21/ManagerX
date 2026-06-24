@@ -41,8 +41,9 @@ export default function CustomerProfileScreen() {
   const [loading, setLoading] = useState(true);
 
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection } = useRTL();
   const customer: CustomerWithStats | undefined = customers.find((c) => c.id === Number(id));
+  const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
   const loadAll = useCallback(async () => {
     if (!id) return;
@@ -275,7 +276,7 @@ export default function CustomerProfileScreen() {
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 60 }}
               style={[styles.section, { backgroundColor: colors.white }]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('customers.outstandingDebts')}</Text>
+              <Text style={sectionTitleStyle}>{t('customers.outstandingDebts')}</Text>
               {activeDebts.map((debt) => {
                 const matchedSale = sales.find((s) => s.id === debt.saleId);
                 return (
@@ -298,7 +299,7 @@ export default function CustomerProfileScreen() {
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
               style={[styles.section, { backgroundColor: colors.white }]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('customers.settledDebts')} ({settledDebts.length})</Text>
+              <Text style={sectionTitleStyle}>{t('customers.settledDebts')} ({settledDebts.length})</Text>
               {settledDebts.map((debt) => {
                 const matchedSale = sales.find((s) => s.id === debt.saleId);
                 return (
@@ -328,7 +329,7 @@ export default function CustomerProfileScreen() {
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
             style={[styles.section, { backgroundColor: colors.white }]}
           >
-            <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>{t('customers.purchaseHistory')} ({sales.length})</Text>
+            <Text style={sectionTitleStyle}>{t('customers.purchaseHistory')} ({sales.length})</Text>
             {sales.length === 0 ? (
               <Text style={[styles.noData, { color: colors.gray400 }]}>{t('customers.noHistory')}</Text>
             ) : (
@@ -356,7 +357,7 @@ export default function CustomerProfileScreen() {
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
               style={[styles.section, { backgroundColor: colors.white }]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>Notes</Text>
+              <Text style={sectionTitleStyle}>{t('customers.notesLabel')}</Text>
               <Text style={[styles.notesText, { color: colors.black }]}>{customer.notes}</Text>
             </MotiView>
           )}
@@ -369,7 +370,7 @@ export default function CustomerProfileScreen() {
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
               style={[styles.section, styles.deleteSectionBorder, { backgroundColor: colors.white }]}
             >
-              <Text style={[styles.sectionTitle, { color: colors.gray400 }]}>
+              <Text style={sectionTitleStyle}>
                 {t('customers.deleteAccountSection')}
               </Text>
 
@@ -377,7 +378,7 @@ export default function CustomerProfileScreen() {
                 <>
                   <View style={[styles.deleteWarningBox, { flexDirection }]}>
                     <Ionicons name="information-circle-outline" size={16} color={Colors.warning} />
-                    <Text style={[styles.deleteWarningText, { color: colors.gray600 }]}>
+                    <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
                       {sales.length > 0
                         ? t('customers.deleteBlockedSalesHint', { count: sales.length })
                         : t('customers.deleteBlockedDebtsHint')}
