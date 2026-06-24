@@ -595,7 +595,7 @@ export default function NewPurchaseScreen() {
             <PrimaryButton
               label={t('purchases.reset')}
               onPress={() => {
-                setProductName(''); setDate(todayISO()); setSupplierName('');
+                setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
                 setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
                 setIdType(null); setSharedId(''); setCustomIds(['']);
                 setCategory(''); setWarranty(''); setNotes('');
