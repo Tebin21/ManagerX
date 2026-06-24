@@ -42,7 +42,7 @@ function withSystemFontLatin(children: React.ReactNode, parentStyle?: TextStyle)
 // The single shared Text component used app-wide — this is where the
 // Kurdish typeface is applied, so every screen gets it automatically
 // whenever the app language is Kurdish, with no per-screen wiring.
-export function AppText({ style, children, ...props }: TextProps) {
+function AppText({ style, children, ...props }: TextProps) {
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const parentStyle = isKurdish ? (StyleSheet.flatten(style) as TextStyle | undefined) : undefined;
   return (

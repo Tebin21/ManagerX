@@ -1,7 +1,5 @@
 import { TextStyle } from 'react-native';
 
-export type AppLanguage = 'en' | 'ku';
-
 // Single source of truth for "requested weight" -> "actual loaded Inter file".
 // Consumed by lib/settingsFont.ts (both the English-mode path and the
 // Kurdish-mode Latin-run override), so every English letter, ID, date, time,

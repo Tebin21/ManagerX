@@ -4,9 +4,6 @@ export interface ThemePreset {
   primary: string;
 }
 
-export const DEFAULT_ACCENT = '#3B82F6';
-export const DEFAULT_THEME_KEY = 'default';
-
 export const THEME_PRESETS: ThemePreset[] = [
   { key: 'default',  name: 'Default Blue',  primary: '#3B82F6' },
   { key: 'navy',     name: 'Navy Blue',     primary: '#254C9B' },

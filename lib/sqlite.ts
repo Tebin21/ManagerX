@@ -447,22 +447,6 @@ function rowToProduct(row: Record<string, unknown>): Product {
   };
 }
 
-export async function getAllProducts(): Promise<Product[]> {
-  const database = await getDatabase();
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM products ORDER BY name ASC'
-  );
-  return rows.map(rowToProduct);
-}
-
-export async function getProductById(id: number): Promise<Product | null> {
-  const database = await getDatabase();
-  const row = await database.getFirstAsync<Record<string, unknown>>(
-    'SELECT * FROM products WHERE id = ?', [id]
-  );
-  return row ? rowToProduct(row) : null;
-}
-
 export async function getProductsByItemId(itemId: string): Promise<number[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<{ id: number }>(
@@ -472,44 +456,12 @@ export async function getProductsByItemId(itemId: string): Promise<number[]> {
   return rows.map((r) => r.id);
 }
 
-export async function searchProducts(query: string, category?: string): Promise<Product[]> {
-  const database = await getDatabase();
-  const q = `%${query}%`;
-
-  if (category && category !== 'all') {
-    const rows = await database.getAllAsync<Record<string, unknown>>(
-      `SELECT * FROM products
-       WHERE (name LIKE ? OR item_id LIKE ?) AND category = ?
-       ORDER BY name ASC`,
-      [q, q, category]
-    );
-    return rows.map(rowToProduct);
-  }
-
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM products WHERE name LIKE ? OR item_id LIKE ? ORDER BY name ASC',
-    [q, q]
-  );
-  return rows.map(rowToProduct);
-}
-
 export async function getProductCategories(): Promise<string[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<{ name: string }>(
     `SELECT name FROM categories ORDER BY name ASC`
   );
   return rows.map((r) => r.name);
-}
-
-export async function getAllCategories(): Promise<string[]> {
-  const database = await getDatabase();
-  const rows = await database.getAllAsync<{ category: string }>(
-    `SELECT DISTINCT category
-     FROM (SELECT category FROM products UNION SELECT category FROM purchase_items)
-     WHERE category IS NOT NULL AND category != ''
-     ORDER BY category ASC`
-  );
-  return rows.map((r) => r.category);
 }
 
 export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
@@ -934,15 +886,6 @@ export async function restoreProductFromHistory(historyId: number): Promise<numb
   return result.lastInsertRowId;
 }
 
-export async function deleteProductsByPurchaseId(purchaseId: number): Promise<void> {
-  const database = await getDatabase();
-  const rows = await database.getAllAsync<{ id: number }>(
-    'SELECT id FROM products WHERE purchase_id = ?', [purchaseId]
-  );
-  await database.runAsync('DELETE FROM products WHERE purchase_id = ?', [purchaseId]);
-  for (const row of rows) await enqueueSyncChange(row.id, 'delete');
-}
-
 export async function getAllInventoryHistory(): Promise<import('@/types/inventory').InventoryHistoryItem[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(`
@@ -1090,40 +1033,6 @@ export async function getSoldProducts(): Promise<SoldProductRecord[]> {
   }));
 }
 
-export async function reduceProductQuantity(id: number, delta: number): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    'UPDATE products SET quantity = MAX(0, quantity - ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [delta, id]
-  );
-  await enqueueSyncChange(id, 'upsert');
-}
-
-export async function restoreProductQuantity(id: number, delta: number): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    'UPDATE products SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [delta, id]
-  );
-  await enqueueSyncChange(id, 'upsert');
-}
-
-export async function markUniqueItemSold(id: number): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    'UPDATE products SET quantity = 0, is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [id]
-  );
-}
-
-export async function restoreUniqueItem(id: number): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    'UPDATE products SET quantity = 1, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [id]
-  );
-}
-
 // ─── Customers ───────────────────────────────────────────────────────────────
 
 export async function upsertCustomer(input: {
@@ -1226,35 +1135,6 @@ export async function searchCustomersList(query: string): Promise<Customer[]> {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }));
-}
-
-export async function getCustomerByPhone(phone: string): Promise<Customer | null> {
-  const database = await getDatabase();
-  const row = await database.getFirstAsync<Record<string, unknown>>(
-    'SELECT * FROM customers WHERE phone = ? LIMIT 1',
-    [phone]
-  );
-  if (!row) return null;
-  return {
-    id: row.id as number,
-    name: row.name as string,
-    phone: (row.phone as string | null) ?? null,
-    address: (row.address as string | null) ?? null,
-    totalPurchases: (row.total_purchases as number) ?? 0,
-    notes: (row.notes as string | null) ?? null,
-    createdAt: row.created_at as string,
-    updatedAt: (row.updated_at as string) ?? row.created_at as string,
-  };
-}
-
-export async function searchCustomersWithStats(query: string): Promise<CustomerWithStats[]> {
-  const database = await getDatabase();
-  const q = `%${query}%`;
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    `${CUSTOMER_STATS_QUERY} HAVING c.name LIKE ? OR c.phone LIKE ? ORDER BY c.total_purchases DESC`,
-    [q, q]
-  );
-  return rows.map(rowToCustomerWithStats);
 }
 
 export async function updateCustomer(
@@ -1856,18 +1736,6 @@ export async function getSaleById(id: number): Promise<Sale | null> {
   return sale;
 }
 
-export async function searchSales(query: string): Promise<Sale[]> {
-  const database = await getDatabase();
-  const q = `%${query}%`;
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM sales
-     WHERE invoice_number LIKE ? OR customer_name LIKE ?
-     ORDER BY created_at DESC`,
-    [q, q]
-  );
-  return rows.map(rowToSale);
-}
-
 export async function deleteSale(id: number): Promise<void> {
   const database = await getDatabase();
 
@@ -1977,23 +1845,6 @@ export async function getAllSuppliersWithStats(): Promise<SupplierWithStats[]> {
     ...rowToSupplierWithStats(row),
     totalSpent: (row.total_spent_calc as number) ?? (row.total_spent as number) ?? 0,
   }));
-}
-
-export async function getSupplierByIdWithStats(id: number): Promise<SupplierWithStats | null> {
-  const database = await getDatabase();
-  const row = await database.getFirstAsync<Record<string, unknown>>(
-    `SELECT s.*,
-            COUNT(DISTINCT p.id) AS purchase_count,
-            COALESCE(SUM(p.total_iqd), 0) AS total_spent_calc,
-            MAX(p.created_at) AS last_purchase_date
-     FROM suppliers s
-     LEFT JOIN purchases p ON LOWER(p.supplier_name) = LOWER(s.name) AND p.archived_at IS NULL
-     WHERE s.id = ?
-     GROUP BY s.id`,
-    [id]
-  );
-  if (!row) return null;
-  return { ...rowToSupplierWithStats(row), totalSpent: (row.total_spent_calc as number) ?? (row.total_spent as number) ?? 0 };
 }
 
 export async function searchSuppliersList(query: string, limit = 8): Promise<Supplier[]> {
@@ -2584,55 +2435,6 @@ export interface DebtWithContext extends Debt {
   saleGrandTotal: number;
 }
 
-export async function getAllActiveDebts(): Promise<DebtWithContext[]> {
-  const database = await getDatabase();
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT d.*, s.invoice_number, s.grand_total AS sale_grand_total
-     FROM debts d
-     JOIN sales s ON d.sale_id = s.id
-     WHERE d.status = 'active' AND d.remaining_amount > 0
-     ORDER BY d.created_at DESC`
-  );
-  return rows.map((row) => ({
-    id:              row.id as number,
-    saleId:          row.sale_id as number,
-    customerName:    row.customer_name as string,
-    customerPhone:   (row.customer_phone as string | null) ?? null,
-    originalAmount:  row.original_amount as number,
-    paidAmount:      row.paid_amount as number,
-    remainingAmount: row.remaining_amount as number,
-    status:          row.status as 'active' | 'settled',
-    createdAt:       row.created_at as string,
-    updatedAt:       row.updated_at as string,
-    invoiceNumber:   row.invoice_number as string,
-    saleGrandTotal:  row.sale_grand_total as number,
-  }));
-}
-
-export async function getDebtSummary(): Promise<{
-  totalActive: number;
-  totalRemaining: number;
-  totalSettled: number;
-}> {
-  const database = await getDatabase();
-  const row = await database.getFirstAsync<{
-    total_active: number;
-    total_remaining: number;
-    total_settled: number;
-  }>(
-    `SELECT
-      COUNT(CASE WHEN status='active' THEN 1 END) AS total_active,
-      COALESCE(SUM(CASE WHEN status='active' THEN remaining_amount END), 0) AS total_remaining,
-      COUNT(CASE WHEN status='settled' THEN 1 END) AS total_settled
-     FROM debts`
-  );
-  return {
-    totalActive:    row?.total_active    ?? 0,
-    totalRemaining: row?.total_remaining ?? 0,
-    totalSettled:   row?.total_settled   ?? 0,
-  };
-}
-
 // ─── Reports & Analytics ──────────────────────────────────────────────────────
 
 export interface ReportSummary {
@@ -2661,59 +2463,6 @@ export interface RevenuePoint {
   revenue: number;
   profit: number;
   sales: number;
-}
-
-export async function getReportSummary(from?: string, to?: string): Promise<ReportSummary> {
-  const database = await getDatabase();
-  const saleWhere  = from && to ? `WHERE created_at >= '${from}' AND created_at <= '${to}'` : '';
-  const saleWhere2 = from && to ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'` : '';
-
-  const [salesRow, profitRow, debtRow] = await Promise.all([
-    database.getFirstAsync<{ total_revenue: number; total_sales: number }>(
-      `SELECT COALESCE(SUM(paid_amount),0) AS total_revenue, COUNT(*) AS total_sales
-       FROM sales ${saleWhere}`
-    ),
-    database.getFirstAsync<{ total_profit: number }>(
-      `SELECT COALESCE(SUM(s.grand_total - cogs.total_cost), 0) AS total_profit
-       FROM (SELECT sale_id, SUM(purchase_price * quantity) AS total_cost FROM sale_items GROUP BY sale_id) cogs
-       JOIN sales s ON s.id = cogs.sale_id ${saleWhere2}`
-    ),
-    database.getFirstAsync<{ total_debt: number }>(
-      `SELECT COALESCE(SUM(remaining_amount), 0) AS total_debt FROM debts WHERE status = 'active'`
-    ),
-  ]);
-
-  const rev = salesRow?.total_revenue ?? 0;
-  const cnt = salesRow?.total_sales   ?? 0;
-  return {
-    totalRevenue:  rev,
-    totalProfit:   profitRow?.total_profit ?? 0,
-    totalSales:    cnt,
-    totalDebt:     debtRow?.total_debt     ?? 0,
-    avgOrderValue: cnt > 0 ? rev / cnt : 0,
-  };
-}
-
-export async function getTopProducts(limit = 5, from?: string, to?: string): Promise<TopProduct[]> {
-  const database = await getDatabase();
-  const where = from && to
-    ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'`
-    : '';
-  const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT si.product_name, SUM(si.quantity) AS total_qty, SUM(si.line_total) AS total_revenue
-     FROM sale_items si
-     JOIN sales s ON si.sale_id = s.id
-     ${where}
-     GROUP BY si.product_name
-     ORDER BY total_qty DESC
-     LIMIT ?`,
-    [limit]
-  );
-  return rows.map((r) => ({
-    productName:  r.product_name as string,
-    totalQty:     r.total_qty    as number,
-    totalRevenue: r.total_revenue as number,
-  }));
 }
 
 export async function getTopCustomers(limit = 5): Promise<TopCustomer[]> {
@@ -3498,25 +3247,6 @@ export async function updateExpense(
     `UPDATE expenses SET amount = ?, category = ?, reason = ?, note = ?, date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [data.amount, data.category, data.reason, data.note ?? null, data.date ?? new Date().toISOString().slice(0, 10), id]
   );
-}
-
-export async function getExpenseTotals(from?: string, to?: string): Promise<{
-  total: number;
-  byCategory: { category: string; total: number }[];
-}> {
-  const database = await getDatabase();
-  const where = from && to
-    ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
-    : '';
-  const totalRow = await database.getFirstAsync<{ total: number }>(
-    `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses ${where}`
-  );
-  const cats = await database.getAllAsync<{ category: string; total: number }>(
-    `SELECT category, COALESCE(SUM(amount), 0) AS total
-     FROM expenses ${where}
-     GROUP BY category ORDER BY total DESC`
-  );
-  return { total: totalRow?.total ?? 0, byCategory: cats };
 }
 
 // ─── Exchange Rates ───────────────────────────────────────────────────────────

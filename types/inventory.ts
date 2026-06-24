@@ -2,12 +2,6 @@ import type { Product } from '@/types/sales';
 
 export type LowStockMode = 'global' | 'enabled' | 'disabled';
 
-export function getLowStockMode(v: 1 | 0 | null): LowStockMode {
-  if (v === 1) return 'enabled';
-  if (v === 0) return 'disabled';
-  return 'global';
-}
-
 export interface InventoryProduct extends Product {
   purchaseId: number | null;
   supplierName: string | null;

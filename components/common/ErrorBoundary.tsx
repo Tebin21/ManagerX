@@ -64,20 +64,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 }
 
-/** HOC that wraps any component in an ErrorBoundary */
-export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  options?: Omit<Props, 'children'>
-): React.FC<P> {
-  return function WrappedWithBoundary(props: P) {
-    return (
-      <ErrorBoundary {...options}>
-        <Component {...props} />
-      </ErrorBoundary>
-    );
-  };
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

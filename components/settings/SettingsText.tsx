@@ -7,7 +7,7 @@ import { applyKurdishFont } from '@/lib/settingsFont';
 // Settings screens/components. Renders the Kurdish typeface (Rudaw) when
 // the app language is Kurdish; falls through to the default font
 // (Inter/system) untouched for English — never used outside Settings.
-export function SettingsText({ style, ...props }: TextProps) {
+function SettingsText({ style, ...props }: TextProps) {
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
   return <RNText {...props} style={applyKurdishFont(isKurdish, style as never)} />;
 }

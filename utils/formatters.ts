@@ -80,16 +80,8 @@ function parseDateSafe(v: string | Date): Date {
   return d;
 }
 
-export function nowISO(): string {
-  return new Date().toISOString();
-}
-
 export function toDateOnly(v: string | Date): string {
   return parseDateSafe(v).toISOString().slice(0, 10);
-}
-
-export function toDateTimeISO(d: Date): string {
-  return d.toISOString();
 }
 
 export function formatDate(v: string | Date): string {

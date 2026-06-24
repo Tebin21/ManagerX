@@ -63,8 +63,6 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-export type BusinessType = string;
-
 export const BUSINESS_TYPES: { id: string; label: string; emoji: string }[] = [
   { id: 'mobileShop',  label: 'Mobile Shop',       emoji: '📱' },
   { id: 'electronics', label: 'Electronics',        emoji: '🖥️' },

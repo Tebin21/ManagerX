@@ -62,46 +62,6 @@ export function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// ─── HSB (Hue / Saturation / Brightness) for the color picker UI ──────────────
-
-export function hsbToHex(h: number, s: number, b: number): string {
-  // Convert HSB to HSL for hslToHex
-  const l = b * (1 - s / 2);
-  const sl = l === 0 || l === 1 ? 0 : (b - l) / Math.min(l, 1 - l);
-  return hslToHex(h, sl * 100, l * 100);
-}
-
-export function hexToHsb(hex: string): [number, number, number] {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.slice(0, 2), 16) / 255;
-  const g = parseInt(clean.slice(2, 4), 16) / 255;
-  const b = parseInt(clean.slice(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  let h = 0;
-  const sv = max === 0 ? 0 : delta / max;
-  const v = max;
-
-  if (delta !== 0) {
-    switch (max) {
-      case r: h = ((g - b) / delta + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / delta + 2) / 6; break;
-      case b: h = ((r - g) / delta + 4) / 6; break;
-    }
-  }
-
-  return [Math.round(h * 360), sv, v];
-}
-
-// ─── Validation ───────────────────────────────────────────────────────────────
-
-export function isValidHex(hex: string): boolean {
-  return /^#[0-9A-Fa-f]{6}$/.test(hex);
-}
-
 // ─── Theme color generation ───────────────────────────────────────────────────
 
 export function generateThemeColors(

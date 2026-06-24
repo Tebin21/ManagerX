@@ -30,20 +30,6 @@ export interface Purchase {
   updatedAt: string;
 }
 
-export interface PurchaseItemInput {
-  productName: string;
-  category: string;
-  quantity: number;
-  buyPriceIQD: number;
-  buyPriceUSD: number;
-  sellPriceIQD: number;
-  sellPriceUSD: number;
-  idType: PurchaseIdType | null;
-  itemIds: string[];
-  warranty?: string;
-  description?: string;
-}
-
 export interface NewPurchaseInput {
   date: string;
   supplierName: string;
