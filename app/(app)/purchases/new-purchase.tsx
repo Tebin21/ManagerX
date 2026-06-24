@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -667,7 +667,6 @@ const genBtnStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container:  { flex: 1 },
   flex:       { flex: 1 },
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:       { padding: 16, paddingBottom: 40 },
   card:       { marginBottom: 16 },
 
@@ -729,9 +728,7 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  idTypeBtnActive:     { },
   idTypeBtnText:       { fontSize: 14, fontWeight: '600' },
-  idTypeBtnTextActive: { },
 
   customIdsContainer: { marginBottom: 4 },
   customIdRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },

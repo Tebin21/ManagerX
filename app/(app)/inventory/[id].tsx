@@ -42,10 +42,10 @@ export default function InventoryDetailScreen() {
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
-  const [salesHistory, setSalesHistory] = useState<Array<{
+  const [salesHistory, setSalesHistory] = useState<{
     id: number; saleId: number; invoiceNumber: string;
     quantity: number; sellingPrice: number; lineTotal: number; saleCreatedAt: string;
-  }>>([]);
+  }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -389,7 +389,6 @@ const styles = StyleSheet.create({
   backBtn:   { paddingHorizontal: 20, paddingVertical: 10, borderRadius: Theme.radius.md },
   backBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
   headerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -433,10 +432,6 @@ const styles = StyleSheet.create({
   statItem:       { flex: 1, alignItems: 'center' },
   statLabel:      { fontSize: 11, fontWeight: '600', marginBottom: 4 },
   statValue:      { fontSize: 15, fontWeight: '700' },
-  statValueSold:  { },
-  sellColor:      { },
-  profitPos:      { },
-  profitNeg:      { },
   section:        { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },
   sectionTitle:   { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
   infoRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
@@ -450,7 +445,6 @@ const styles = StyleSheet.create({
   idChipWrap:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   idChip:         { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
   idChipAvail:    { backgroundColor: '#DCFCE7' },
-  idChipSold:     { },
   idChipText:     { fontSize: 13, fontWeight: '600' },
   noSales:        { fontSize: 13, fontStyle: 'italic' },
   saleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1 },

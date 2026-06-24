@@ -15,8 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
-import { Colors } from '@/constants/colors';
-import { fmtRate, fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
+import { fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 
 export default function CurrencyScreen() {
@@ -213,7 +212,6 @@ export default function CurrencyScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:       { padding: 16, paddingTop: 12 },
 
   rateCard: {

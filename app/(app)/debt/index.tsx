@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -331,7 +331,7 @@ export default function DebtScreen() {
   const { colors } = useAppTheme();
   const { flexDirection, textAlign, writingDirection } = useRTL();
   const {
-    salesDebts, purchaseDebts, summary, isLoading,
+    summary, isLoading,
     loadAll, paySalesDebt, payPurchaseDebt,
     searchSalesDebts, searchPurchaseDebts,
   } = useDebtStore();
@@ -557,11 +557,6 @@ export default function DebtScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  gradHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingBottom: 16,
-  },
 
   // Overview grid
   overviewGrid: {
@@ -603,14 +598,12 @@ const styles = StyleSheet.create({
   },
   tabBtnActive: { backgroundColor: '#fff' },
   tabLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
-  tabLabelActive: {},
   tabBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
-  tabBadgeActive: {},
   tabBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
   // Search

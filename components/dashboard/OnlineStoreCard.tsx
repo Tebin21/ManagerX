@@ -26,7 +26,7 @@ export function OnlineStoreCard() {
   const [infoVisible, setInfoVisible] = useState(false);
 
   const {
-    enabled, storeUrl, lastSyncAt, pendingCount, isRegistering, isLoading, isSyncingNow,
+    enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
     load, enable, disable, refreshPendingCount, copyLink, openWebsite, syncNow,
   } = useOnlineStoreStore();
 

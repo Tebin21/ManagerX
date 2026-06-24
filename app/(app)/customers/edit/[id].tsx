@@ -150,7 +150,6 @@ export default function EditCustomerScreen() {
 const styles = StyleSheet.create({
   container:       { flex: 1 },
   loadWrap:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  gradHeader:      { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
   scroll:          { padding: 16, paddingBottom: 48 },
   card:            { borderRadius: Theme.radius.card, padding: 16, marginBottom: 16, ...Theme.shadow.soft },
   cardTitle:       { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 16 },

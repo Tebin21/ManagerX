@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ModuleCard } from './ModuleCard';
 import { useModuleStore } from '@/store/moduleStore';

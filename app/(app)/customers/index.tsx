@@ -190,7 +190,6 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   container:          { flex: 1 },
-  gradHeader:         { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
   headerStats:        { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingVertical: 12 },
   headerStat:         { flex: 1, alignItems: 'center' },
   headerStatVal:      { fontSize: 18, fontWeight: '800', color: '#fff' },

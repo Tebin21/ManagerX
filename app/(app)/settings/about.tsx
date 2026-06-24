@@ -9,7 +9,6 @@ import { SettingSection } from '@/components/settings/SettingSection';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
-import { Colors } from '@/constants/colors';
 
 // RN's `writingDirection` style is iOS-only (no Android view manager honors
 // it), so per-paragraph RTL/LTR correctness can't rely on style props alone —
@@ -133,7 +132,6 @@ export default function AboutScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   scroll:     { flex: 1 },
   body:       { padding: 16, paddingTop: 8 },
 

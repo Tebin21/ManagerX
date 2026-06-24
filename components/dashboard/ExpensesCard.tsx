@@ -152,11 +152,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-  },
   amountLine: {
     flexDirection: 'row',
     alignItems: 'baseline',

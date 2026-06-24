@@ -406,10 +406,6 @@ const styles = StyleSheet.create({
   searchIcon:  { flexShrink: 0 },
   searchInput: { flex: 1, fontSize: 14, height: '100%' },
 
-  countStrip:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1 },
-  countText:     { fontSize: 13 },
-  debtAlert:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  debtAlertText: { fontSize: 12, fontWeight: '600', color: '#92400E' },
 
   list:      { padding: 16, paddingBottom: 32 },
   listEmpty: { flex: 1 },

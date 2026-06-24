@@ -413,11 +413,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
 
-  gradHeader: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingBottom: 16,
-  },
   headerMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',

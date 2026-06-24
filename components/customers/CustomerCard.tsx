@@ -4,8 +4,6 @@ import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
-import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';

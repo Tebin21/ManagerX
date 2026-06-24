@@ -113,7 +113,6 @@ export default function BusinessProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  gradHeader: { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body: { padding: 16, paddingTop: 14 },
 
   logoSection: { alignItems: 'center', marginBottom: 20, paddingTop: 8 },

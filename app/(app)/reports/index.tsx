@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useCallback, useState, useRef, type ComponentProps } from 'react';
+import React, { useEffect, useCallback, useState, useRef, type ComponentProps } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
@@ -79,41 +79,6 @@ const secStyles = StyleSheet.create({
   actionText: { fontSize: 13, fontWeight: '600' },
 });
 
-// ─── Financial Row (P&L accounting style) ────────────────────────────────────
-
-function FinancialRow({
-  label, value, valueStr, color, highlighted, indent, noBorder, large,
-}: {
-  label: string; value?: number; valueStr?: string; color?: string;
-  highlighted?: boolean; indent?: boolean; noBorder?: boolean; large?: boolean;
-}) {
-  const { colors } = useAppTheme();
-  const { isRTL, textAlign } = useRTL();
-  return (
-    <View style={[
-      frStyles.row,
-      !noBorder && !large && frStyles.border,
-      highlighted && { backgroundColor: `${colors.primary}10`, borderRadius: 8, paddingHorizontal: 10, borderBottomWidth: 0, marginVertical: 3 },
-      indent && { paddingStart: 18 },
-      large && { borderTopWidth: 2, borderTopColor: Colors.gray200, marginTop: 8, paddingTop: 12, borderBottomWidth: 0 },
-    ]}>
-      <Text style={[frStyles.label, { textAlign }, large && frStyles.labelLarge]}>{label}</Text>
-      <Text style={[frStyles.value, { color: color ?? Colors.black, textAlign: isRTL ? 'left' : 'right' }, large && frStyles.valueLarge]}>
-        {valueStr ?? (value !== undefined ? `${fmtIQD(value)} IQD` : '')}
-      </Text>
-    </View>
-  );
-}
-
-const frStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  border: { borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  label: { fontSize: 13, color: Colors.gray600, flex: 1 },
-  labelLarge: { fontSize: 16, fontWeight: '800', color: Colors.black },
-  value: { fontSize: 13, fontWeight: '700' },
-  valueLarge: { fontSize: 16, fontWeight: '800' },
-});
-
 // ─── Big Metric Row (icon + label + large value) ──────────────────────────────
 
 function BigMetricRow({
@@ -161,7 +126,6 @@ const bmStyles = StyleSheet.create({
 // ─── Stat Chip Row ─────────────────────────────────────────────────────────────
 
 function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: string; color?: string }[] }) {
-  const { isRTL } = useRTL();
   return (
     <View style={scStyles.row}>
       {chips.map((c, i) => (
@@ -676,9 +640,7 @@ export default function ReportsScreen() {
 
   // Existing P&L / section values (unchanged)
   const revenue      = salesData?.totalRevenue  ?? 0;
-  const grossProfit  = plData?.grossProfit       ?? 0;
   const netProfit    = plData?.netProfit         ?? 0;
-  const totalCOGS    = plData?.totalCOGS         ?? 0;
   const totalExp     = plData?.totalExpenses     ?? 0;
   const custDebt     = debtData?.totalSalesDebt    ?? 0;
   const suppDebt     = debtData?.totalPurchaseDebt ?? 0;
@@ -1059,9 +1021,9 @@ function TopCustomersSection() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, textAlign } = useRTL();
-  const [customers, setCustomers] = useState<Array<{
+  const [customers, setCustomers] = useState<{
     name: string; phone: string | null; totalPurchases: number; saleCount: number;
-  }>>([]);
+  }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -1100,9 +1062,9 @@ function TopSuppliersSection() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, textAlign } = useRTL();
-  const [suppliers, setSuppliers] = useState<Array<{
+  const [suppliers, setSuppliers] = useState<{
     name: string; phone: string | null; totalSpent: number; purchaseCount: number;
-  }>>([]);
+  }[]>([]);
 
   useEffect(() => {
     (async () => {

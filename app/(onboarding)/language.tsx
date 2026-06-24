@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  selectedText: {},
   englishName: {
     fontSize: 13,
     color: Colors.gray500,

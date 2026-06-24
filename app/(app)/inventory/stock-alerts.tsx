@@ -46,7 +46,7 @@ function StockAlertRow({
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const scrollIntoView = useKeyboardAwareFocus();
-  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
 
   const isProductActive = product.lowStockEnabled !== 0;
   const isCurrentlyLow  = computeProductLowStock(product, globalEnabled, globalThreshold);

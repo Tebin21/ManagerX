@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -33,7 +33,7 @@ export default function PurchasesScreen() {
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const { chevronForward, arrowForward } = useDirectionalChevron();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const { purchases, loadPurchases } = usePurchaseStore();
 
   useEffect(() => { loadPurchases(); }, []);
@@ -144,7 +144,6 @@ export default function PurchasesScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
-  header:     { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:       { padding: 20, paddingBottom: 24 },
 
   mainAction: { marginBottom: 16 },

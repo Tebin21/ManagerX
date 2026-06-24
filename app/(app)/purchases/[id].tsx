@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, ScrollView, TouchableOpacity,
+  View, ScrollView,
   Alert, StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
@@ -130,8 +130,6 @@ export default function PurchaseDetailScreen() {
       ]
     );
   }
-
-  const gradColors = [colors.gradientStart, colors.gradientMid] as [string, string];
 
   const numId = Number(id);
   if (!id || isNaN(numId)) {
@@ -337,7 +335,6 @@ export default function PurchaseDetailScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  gradHeader:   { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:         { padding: 16, paddingBottom: 48 },
   centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   notFoundText: { fontSize: 16 },

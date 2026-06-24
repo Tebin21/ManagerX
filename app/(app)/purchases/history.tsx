@@ -22,9 +22,9 @@ import type { Purchase } from '@/types/purchases';
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
-  const { purchases, isLoading, loadPurchases, deletePurchase, searchPurchases } =
+  const { purchases, loadPurchases, deletePurchase, searchPurchases } =
     usePurchaseStore();
 
   const [query, setQuery] = useState('');
@@ -183,7 +183,6 @@ export default function PurchaseHistoryScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1 },
-  gradHeader:  { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
 
   searchWrap: {
     flexDirection:    'row',

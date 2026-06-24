@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -151,7 +151,6 @@ export default function SalesScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
-  header:     { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:       { padding: 20, paddingBottom: 24 },
   mainAction: { marginBottom: 16 },
   newSaleBtn: { borderRadius: 20, overflow: 'hidden', ...Theme.shadow.button, shadowOpacity: 0.35 },

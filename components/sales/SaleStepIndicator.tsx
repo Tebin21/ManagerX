@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { Colors } from '@/constants/colors';
 
 interface Props {
   step: 1 | 2 | 3;

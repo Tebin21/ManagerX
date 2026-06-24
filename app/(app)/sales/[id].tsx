@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
@@ -120,7 +119,6 @@ export default function SaleDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header:    { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   body:      { padding: 16, paddingBottom: 40 },
   actions:   { marginTop: 16, gap: 10 },
   spacer:    { height: 4 },

@@ -26,7 +26,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 export default function SetupScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { isRTL, textAlign } = useRTL();
+  const { textAlign } = useRTL();
   const { colors } = useAppTheme();
   const { saveAndSetBusiness } = useBusiness();
 
@@ -185,21 +185,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.gray400,
     marginTop: 6,
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.gray600,
-    marginBottom: 8,
-    letterSpacing: 0.2,
-  },
-  fieldError: {
-    fontSize: 12,
-    color: Colors.error,
-    marginTop: 4,
   },
   btnRow: {
     marginTop: 8,

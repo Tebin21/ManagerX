@@ -4,7 +4,6 @@ import { Text } from '@/components/ui/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useBusinessStore } from '@/store/businessStore';
-import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { BUSINESS_TYPES } from '@/constants/config';
 

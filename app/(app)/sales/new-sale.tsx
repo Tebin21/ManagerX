@@ -1,8 +1,7 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
-  ScrollView,
   TouchableOpacity,
   Keyboard,
   KeyboardAvoidingView,
@@ -42,7 +41,6 @@ import { useCustomerStore } from '@/store/customerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import type { Product } from '@/types/sales';
 import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
 
@@ -448,7 +446,6 @@ export default function NewSaleScreen() {
 const styles = StyleSheet.create({
   container:     { flex: 1 },
   flex:          { flex: 1 },
-  gradHeader:    { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   cartBtn:       { position: 'relative' },
   cartBadge:     { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   cartBadgeText: { fontSize: 10, color: '#fff', fontWeight: '700' },

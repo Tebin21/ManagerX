@@ -68,7 +68,6 @@ export default function SalesHistoryScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1 },
-  header:      { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   searchBar:   { paddingHorizontal: 16, paddingTop: 16 },
   searchInput: { marginBottom: 0 },
   list:        { padding: 16, paddingBottom: 24 },

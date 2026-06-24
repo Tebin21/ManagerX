@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
@@ -29,8 +29,7 @@ import { useRTL } from '@/lib/rtl';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
-import { roundToNearest250 } from '@/utils/rounding';
-import { roundUSD } from '@/utils/rounding';
+import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 
 
@@ -40,7 +39,6 @@ type FieldKey =
   | 'warranty' | 'description' | 'notes' | 'imageUri';
 
 export default function EditProductScreen() {
-  const router = useRouter();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { editProduct, categories: availableCategories } = useInventoryStore();
@@ -404,7 +402,6 @@ const styles = StyleSheet.create({
   container:        { flex: 1 },
   loadWrap:         { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFound:         { fontSize: 15 },
-  gradHeader:       { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16 },
   scroll:           { padding: 16, paddingBottom: 48 },
   imageSection:     { marginBottom: 14, borderRadius: Theme.radius.card, padding: 12 },
   card:             { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },

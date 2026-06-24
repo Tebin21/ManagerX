@@ -62,7 +62,6 @@ export default function CheckPriceScreen() {
 
 const styles = StyleSheet.create({
   container:  { flex: 1 },
-  header:     { borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   list:       { padding: 16, paddingBottom: 24 },
   empty:      { paddingTop: 60, alignItems: 'center' },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
