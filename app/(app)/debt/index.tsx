@@ -20,6 +20,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useDebtStore } from '@/store/debtStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -29,6 +30,9 @@ import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
 import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
+import { isDateWithinRange } from '@/utils/dateRanges';
+import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 
 
 function daysAgo(dateStr: string): number {
@@ -94,7 +98,7 @@ function SalesDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection, alignEnd } = useRTL();
+  const { flexDirection, alignEnd, textAlign } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -135,9 +139,9 @@ function SalesDebtCardImpl({
           </View>
         </View>
 
-        <View style={[styles.cardAmounts, { flexDirection }]}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }]} />
-          <Text style={styles.amountSub}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
+        <View style={styles.cardAmounts}>
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary, textAlign }]} />
+          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -176,7 +180,7 @@ function PurchaseDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection, alignEnd } = useRTL();
+  const { flexDirection, alignEnd, textAlign } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -217,9 +221,9 @@ function PurchaseDebtCardImpl({
           </View>
         </View>
 
-        <View style={[styles.cardAmounts, { flexDirection }]}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error }]} />
-          <Text style={styles.amountSub}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
+        <View style={styles.cardAmounts}>
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error, textAlign }]} />
+          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -341,13 +345,20 @@ export default function DebtScreen() {
   const [payTarget, setPayTarget] = useState<{
     id: number; name: string; remaining: number; type: Tab;
   } | null>(null);
+  const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } = usePeriodFilter();
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const onRefresh = useCallback(() => { loadAll(); }, [loadAll]);
 
-  const visibleSales    = useMemo(() => searchSalesDebts(query), [query, searchSalesDebts]);
-  const visiblePurchase = useMemo(() => searchPurchaseDebts(query), [query, searchPurchaseDebts]);
+  const visibleSales = useMemo(
+    () => searchSalesDebts(query).filter((d) => isDateWithinRange(d.createdAt, bounds.from, bounds.to)),
+    [query, searchSalesDebts, bounds]
+  );
+  const visiblePurchase = useMemo(
+    () => searchPurchaseDebts(query).filter((d) => isDateWithinRange(d.createdAt, bounds.from, bounds.to)),
+    [query, searchPurchaseDebts, bounds]
+  );
 
   const handlePay = useCallback(async (amount: number) => {
     if (!payTarget) return;
@@ -411,7 +422,14 @@ export default function DebtScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-      <AppHeader title={t('debt.title')} showBack onBack={() => router.back()}>
+      <AppHeader
+        title={t('debt.title')}
+        showBack
+        onBack={() => router.back()}
+        rightAction={
+          <HeaderActionButton icon="funnel-outline" onPress={() => setPeriodSheetVisible(true)} />
+        }
+      >
 
         {/* 2×2 overview grid */}
         <View style={styles.overviewGrid}>
@@ -430,7 +448,13 @@ export default function DebtScreen() {
                 style={{ marginBottom: 4 }}
               />
               {card.isAmount ? (
-                <AmountText value={card.value} variant="large" style={styles.overviewValue} />
+                <AmountText
+                  value={card.value}
+                  style={styles.overviewValue}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.5}
+                />
               ) : (
                 <Text style={styles.overviewValue}>{card.value}</Text>
               )}
@@ -505,9 +529,9 @@ export default function DebtScreen() {
             <View style={styles.empty}>
               <Ionicons name="checkmark-circle-outline" size={56} color={Colors.gray300} />
               <Text style={styles.emptyTitle}>
-                {isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('debt.noSalesDebts')}
+                {isLoading ? t('common.loading') : (query || period !== 'today') ? t('inventory.noResults') : t('debt.noSalesDebts')}
               </Text>
-              {!isLoading && !query && (
+              {!isLoading && !query && period === 'today' && (
                 <Text style={styles.emptySub}>{t('debt.noSalesDebtsDetail')}</Text>
               )}
             </View>
@@ -531,9 +555,9 @@ export default function DebtScreen() {
             <View style={styles.empty}>
               <Ionicons name="checkmark-circle-outline" size={56} color={Colors.gray300} />
               <Text style={styles.emptyTitle}>
-                {isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('debt.noPurchaseDebts')}
+                {isLoading ? t('common.loading') : (query || period !== 'today') ? t('inventory.noResults') : t('debt.noPurchaseDebts')}
               </Text>
-              {!isLoading && !query && (
+              {!isLoading && !query && period === 'today' && (
                 <Text style={styles.emptySub}>{t('debt.noPurchaseDebtsDetail')}</Text>
               )}
             </View>
@@ -549,6 +573,20 @@ export default function DebtScreen() {
         remaining={payTarget?.remaining ?? 0}
         onCancel={() => setPayTarget(null)}
         onConfirm={handlePay}
+      />
+
+      <PeriodFilterModal
+        visible={periodSheetVisible}
+        current={period}
+        labels={{
+          today: t('periodFilter.today'),
+          week: t('periodFilter.thisWeek'),
+          month: t('periodFilter.thisMonth'),
+          year: t('periodFilter.thisYear'),
+          custom: t('periodFilter.customRange'),
+        }}
+        onClose={() => setPeriodSheetVisible(false)}
+        onSelect={handlePeriodSelect}
       />
     </View>
   );
@@ -657,7 +695,7 @@ const styles = StyleSheet.create({
   cardSub2: { fontSize: 11, color: Colors.gray400, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 4 },
 
-  cardAmounts: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 8 },
+  cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: 8 },
   amountRemaining: { fontSize: 17, fontWeight: '800' },
   amountSub: { fontSize: 12, color: Colors.gray400 },
 

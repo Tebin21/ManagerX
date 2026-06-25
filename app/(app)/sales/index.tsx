@@ -93,7 +93,14 @@ export default function SalesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="trending-up" size={20} color={colors.success} />
             </View>
-            <AmountText value={revenue} variant="large" style={[styles.statValue, { color: colors.success }]} />
+            <AmountText
+              value={revenue}
+              currency="IQD"
+              style={[styles.statValue, { color: colors.success }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+            />
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('sales.todayRevenue')}</Text>
           </PremiumCard>
         </MotiView>

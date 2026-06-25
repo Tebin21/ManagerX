@@ -10,17 +10,17 @@ export function fmtIQD(n: number): string {
 
 // ─── Compact Money Display (summary/stat cards only — see CompactAmount) ──────
 
-const COMPACT_THRESHOLD = 1_000_000;
+const COMPACT_THRESHOLD = 10_000_000;
 
 function trimTrailingZeros(s: string): string {
   return s.replace(/\.?0+$/, '');
 }
 
 /**
- * Compacts large IQD amounts for summary/stat cards (3,980,000 -> "3.98M").
- * Below the 1M threshold returns the same full, comma-separated string as
- * fmtIQD so small values never change. Full precision is never lost — callers
- * pair this with the full fmtIQD value in a tap-to-expand affordance.
+ * Compacts large IQD amounts for summary/stat cards (12,500,000 -> "12.5M").
+ * Below the 10M threshold returns the same full, comma-separated string as
+ * fmtIQD so small/everyday values never change. Full precision is never lost
+ * — callers pair this with the full fmtIQD value in a tap-to-expand affordance.
  */
 export function formatCompactIQD(n: number): { text: string; isCompact: boolean } {
   const abs = Math.abs(n);

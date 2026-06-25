@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { CompactAmount } from '@/components/shared/CompactAmount';
+import { AmountText } from '@/components/ui/AmountText';
 import type { NetCashBalanceData } from '@/types/reports';
 
 interface Props {
@@ -47,10 +47,12 @@ export function CashBalanceCard({ data, index = 0 }: Props) {
 
       {/* Main balance */}
       <View style={[styles.balanceRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
-        <CompactAmount
+        <AmountText
           value={Math.abs(data.netBalance)}
-          showCurrency={false}
           style={[styles.balance, { color: balanceColor }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
         />
         <Text style={[styles.currency, { color: balanceColor + 'AA' }]}> IQD</Text>
       </View>
@@ -111,10 +113,13 @@ function BreakdownRow({ icon, label, value, color, colors, negative, isRTL }: Br
         <Ionicons name={icon as never} size={15} color={color} />
         <Text style={[styles.rowLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{label}</Text>
       </View>
-      <CompactAmount
+      <AmountText
         value={value}
         prefix={negative ? '− ' : '+ '}
         style={[styles.rowValue, { color: negative ? colors.gray700 : color, textAlign: isRTL ? 'left' : 'right' }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
       />
     </View>
   );

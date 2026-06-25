@@ -30,9 +30,11 @@ interface CompactAmountProps extends Omit<TextProps, 'children'> {
 
 /**
  * Drop-in replacement for `{fmtIQD(value)} IQD` in summary/stat cards. Switches
- * to compact notation (3.98M) once the value crosses the 1M threshold, and
+ * to compact notation (12.5M) once the value crosses the 10M threshold, and
  * makes itself tappable so the user can always see the full, exact amount —
  * never used for invoices/receipts/transaction tables, which must stay full.
+ * Always single-line and auto-shrinks to fit (never truncates with "…") so a
+ * card's layout never breaks, on either side of the threshold.
  *
  * Tap-to-expand is wired via Text's own onPress (not a wrapping Touchable) so
  * this component stays safe to nest inside another <Text> for inline cases
@@ -48,6 +50,9 @@ export function CompactAmount({ value, currency = 'IQD', showCurrency = true, pr
       <LTRNumber
         style={style}
         onPress={isCompact ? () => setOpen(true) : undefined}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
         {...rest}
       >
         {display}

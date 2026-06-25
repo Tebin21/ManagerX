@@ -83,10 +83,13 @@ export function formatPeriodLabel(key: PeriodKey, from: Date, to: Date): string 
   }
 }
 
-export function isWithinRange(product: InventoryProduct, from: Date, to: Date): boolean {
-  const raw = product.purchaseDate ?? product.createdAt;
-  if (!raw) return false;
-  const t = new Date(raw).getTime();
+export function isDateWithinRange(dateStr: string | null | undefined, from: Date, to: Date): boolean {
+  if (!dateStr) return false;
+  const t = new Date(dateStr).getTime();
   if (isNaN(t)) return false;
   return t >= from.getTime() && t <= to.getTime();
+}
+
+export function isWithinRange(product: InventoryProduct, from: Date, to: Date): boolean {
+  return isDateWithinRange(product.purchaseDate ?? product.createdAt, from, to);
 }

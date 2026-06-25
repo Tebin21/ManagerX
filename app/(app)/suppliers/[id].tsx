@@ -12,6 +12,7 @@ import {
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -355,7 +356,7 @@ export default function SupplierDetailScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
               <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-              <AmountText value={supplier.totalSpent} variant="large" numberOfLines={1} style={[styles.statVal, { color: colors.primary }]} />
+              <CompactAmount value={supplier.totalSpent} showCurrency={false} style={[styles.statVal, { color: colors.primary }]} />
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </View>
@@ -363,7 +364,7 @@ export default function SupplierDetailScreen() {
             <View style={[styles.statCard, { backgroundColor: colors.white }, totalRemaining > 0 && styles.statCardDebt]}>
               <Ionicons name="alert-circle-outline" size={16} color={totalRemaining > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
               {totalRemaining > 0 ? (
-                <AmountText value={totalRemaining} variant="large" numberOfLines={1} style={[styles.statVal, { color: colors.error }]} />
+                <CompactAmount value={totalRemaining} showCurrency={false} style={[styles.statVal, { color: colors.error }]} />
               ) : (
                 <Text style={[styles.statVal, { color: colors.black }]} numberOfLines={1}>—</Text>
               )}
@@ -372,7 +373,7 @@ export default function SupplierDetailScreen() {
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
               <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? Colors.success : colors.gray300} style={{ marginBottom: 4 }} />
               {totalPaid > 0 ? (
-                <AmountText value={totalPaid} variant="large" numberOfLines={1} style={[styles.statVal, { color: Colors.success }]} />
+                <CompactAmount value={totalPaid} showCurrency={false} style={[styles.statVal, { color: Colors.success }]} />
               ) : (
                 <Text style={[styles.statVal, { color: colors.black }]} numberOfLines={1}>—</Text>
               )}

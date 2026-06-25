@@ -37,6 +37,7 @@ import { getDatabase } from '@/lib/sqlite';
 import {
   exportBackup,
   validateAndParseBackup,
+  assertBackupWithinItemLimit,
   performRestore,
   type ManagerXBackup,
 } from '@/lib/backup';
@@ -167,18 +168,38 @@ export default function DataScreen() {
 
       try {
         const backup = await validateAndParseBackup(asset.uri);
+        await assertBackupWithinItemLimit(backup);
         setPendingBackup(backup);
         setShowRestoreModal(true);
       } catch (err: unknown) {
         const code = err instanceof Error ? err.message : '';
-        Alert.alert(
-          code === 'INVALID_JSON' || code === 'INVALID_BACKUP'
-            ? t('settings.dataScreen.restoreInvalidFile')
-            : t('settings.dataScreen.restoreError'),
-          code === 'INVALID_JSON' || code === 'INVALID_BACKUP'
-            ? t('settings.dataScreen.restoreInvalidFileMsg')
-            : t('settings.dataScreen.restoreErrorMsg'),
-        );
+
+        if (code.startsWith('RESTORE_LIMIT_EXCEEDED|')) {
+          const [needed, limit] = code.split('|')[1].split(',');
+          Alert.alert(
+            t('settings.dataScreen.restoreLimitExceededTitle'),
+            t('settings.dataScreen.restoreLimitExceededMsg', { needed, limit }),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('settings.upgradeScreen.title'), onPress: () => router.push('/(app)/settings/plan-limits' as never) },
+            ]
+          );
+        } else if (code === 'RESTORE_LIMIT_UNDETERMINED') {
+          Alert.alert(
+            t('settings.dataScreen.restoreLimitUndeterminedTitle'),
+            t('settings.dataScreen.restoreLimitUndeterminedMsg'),
+          );
+        } else if (code === 'INVALID_JSON' || code === 'INVALID_BACKUP') {
+          Alert.alert(
+            t('settings.dataScreen.restoreInvalidFile'),
+            t('settings.dataScreen.restoreInvalidFileMsg'),
+          );
+        } else {
+          Alert.alert(
+            t('settings.dataScreen.restoreError'),
+            t('settings.dataScreen.restoreErrorMsg'),
+          );
+        }
       }
     } catch {
       // User dismissed the picker or the OS returned an unexpected error —

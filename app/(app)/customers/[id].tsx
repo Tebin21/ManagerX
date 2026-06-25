@@ -11,6 +11,7 @@ import {
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -233,7 +234,7 @@ export default function CustomerProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
                   <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-                  <AmountText value={customer.totalPurchases} variant="large" style={[styles.statVal, { color: colors.black }]} />
+                  <CompactAmount value={customer.totalPurchases} showCurrency={false} style={[styles.statVal, { color: colors.black }]} />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalSpent')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
@@ -245,18 +246,18 @@ export default function CustomerProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={[styles.statCard, { backgroundColor: colors.white }, customer.remainingDebt > 0 && styles.statCardDebt]}>
                   <Ionicons name="alert-circle-outline" size={16} color={customer.remainingDebt > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
-                  <AmountText
+                  <CompactAmount
                     value={customer.remainingDebt}
-                    variant="large"
+                    showCurrency={false}
                     style={[styles.statVal, { color: customer.remainingDebt > 0 ? colors.error : colors.black }]}
                   />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.remainingDebt')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
                   <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? '#10B981' : colors.gray300} style={{ marginBottom: 4 }} />
-                  <AmountText
+                  <CompactAmount
                     value={totalPaid}
-                    variant="large"
+                    showCurrency={false}
                     style={[styles.statVal, { color: totalPaid > 0 ? '#10B981' : colors.black }]}
                   />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalPaid')}</Text>

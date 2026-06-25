@@ -7,13 +7,13 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
-import { CompactAmount } from '@/components/shared/CompactAmount';
+import { AmountText } from '@/components/ui/AmountText';
 
 interface Props {
   label: string;
   /** Plain display value (counts, etc). Ignored when `amount` is set. */
   value?: string;
-  /** Raw IQD amount — renders via CompactAmount so large totals stay readable. */
+  /** Raw IQD amount — always renders the full value, shrinking font to fit. */
   amount?: number;
   icon: keyof typeof Ionicons.glyphMap;
   accent?: boolean;
@@ -40,7 +40,7 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
       </View>
       <View style={styles.textBlock}>
         {amount !== undefined ? (
-          <CompactAmount value={amount} style={valueStyle} numberOfLines={1} />
+          <AmountText value={amount} style={valueStyle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} />
         ) : (
           <Text style={valueStyle} numberOfLines={1}>{value}</Text>
         )}

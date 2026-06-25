@@ -12,8 +12,8 @@ for setup and day-to-day usage.
 
 - `server/` — Express + TypeScript. Holds the private signing key; the browser never
   sees it. All settings (admin password, port, allowed origin) come from
-  `server/config.local.json` — see `server/src/config.ts` for the loader.
-  Current admin password: `change-me`.
+  `server/config.local.json` — see `server/src/config.ts` for the loader and
+  [README_LOCAL.md](./README_LOCAL.md) for how to set/change the password.
   `licenseRepository.ts` is a small interface implemented by `jsonLicenseRepository.ts`,
   which reads/writes the local JSON ledger at `scripts/license-admin/licenses.json`.
 - `client/` — Vite + React + TypeScript + Tailwind. Talks to the server only over

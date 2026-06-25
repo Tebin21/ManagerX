@@ -25,6 +25,7 @@ import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
 import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
 import { CompactAmount } from '@/components/shared/CompactAmount';
+import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -302,13 +303,12 @@ function FinancialCard({
         <Ionicons name={icon} size={18} color={color} />
       </View>
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
-      <CompactAmount
+      <AmountText
         value={amount}
-        showCurrency={false}
         style={[fcStyles.value, { color, textAlign }]}
         numberOfLines={1}
         adjustsFontSizeToFit
-        minimumFontScale={0.55}
+        minimumFontScale={0.5}
       />
       <Text style={[fcStyles.currency, { textAlign }]}>IQD</Text>
     </View>

@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { AmountText } from '@/components/ui/AmountText';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -118,11 +118,7 @@ export default function CustomersScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <AmountText
-                value={totalValue}
-                formatter={(n) => `${(n / 1000).toFixed(0)}K`}
-                style={styles.headerStatVal}
-              />
+              <CompactAmount value={totalValue} showCurrency={false} style={styles.headerStatVal} />
               <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
             </View>
           </MotiView>

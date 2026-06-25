@@ -13,9 +13,13 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSelect: (key: PeriodKey, customFrom?: string, customTo?: string) => void;
+  /** Highlights the currently active period when the sheet (re)opens. */
+  current?: PeriodKey;
+  /** Optional label overrides, e.g. for callers that need exact wording independent of the shared common/reports keys. */
+  labels?: Partial<Record<PeriodKey, string>>;
 }
 
-export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
+export function PeriodFilterModal({ visible, onClose, onSelect, current, labels }: Props) {
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -25,11 +29,11 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
 
   type Option = { key: PeriodKey; label: string; icon: ComponentProps<typeof Ionicons>['name'] };
   const options: Option[] = [
-    { key: 'today', label: i18n.t('common.today'), icon: 'today-outline' },
-    { key: 'week', label: i18n.t('common.thisWeek'), icon: 'calendar-outline' },
-    { key: 'month', label: i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
-    { key: 'year', label: i18n.t('reports.year'), icon: 'stats-chart-outline' },
-    { key: 'custom', label: i18n.t('reports.custom'), icon: 'options-outline' },
+    { key: 'today', label: labels?.today ?? i18n.t('common.today'), icon: 'today-outline' },
+    { key: 'week', label: labels?.week ?? i18n.t('common.thisWeek'), icon: 'calendar-outline' },
+    { key: 'month', label: labels?.month ?? i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
+    { key: 'year', label: labels?.year ?? i18n.t('reports.year'), icon: 'stats-chart-outline' },
+    { key: 'custom', label: labels?.custom ?? i18n.t('reports.custom'), icon: 'options-outline' },
   ];
 
   function handleClose() {
@@ -66,7 +70,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect }: Props) {
       <AppSheetHeader title={i18n.t('reports.filterByPeriod')} />
 
       {options.map(({ key, icon, label }) => {
-        const active = showCustom ? key === 'custom' : false;
+        const active = showCustom ? key === 'custom' : key === current;
         return (
           <AppSheetOption
             key={key}

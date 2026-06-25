@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { useTranslation } from 'react-i18next';
 import { useCustomerStore } from '@/store/customerStore';
@@ -26,6 +27,9 @@ import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
+import { isDateWithinRange } from '@/utils/dateRanges';
+import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 
 type Tab = 'customers' | 'suppliers';
 
@@ -89,6 +93,7 @@ export default function HistoryScreen() {
   const [supQuery, setSupQuery] = useState('');
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);
+  const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } = usePeriodFilter();
 
   useEffect(() => {
     loadCustomers();
@@ -109,12 +114,18 @@ export default function HistoryScreen() {
   }, [loadSuppliers]);
 
   const visibleCustomers = useMemo(
-    () => (custQuery.trim() ? searchCustomers(custQuery) : customers),
-    [custQuery, customers, searchCustomers]
+    () =>
+      (custQuery.trim() ? searchCustomers(custQuery) : customers).filter((c) =>
+        isDateWithinRange(c.lastPurchaseDate ?? c.createdAt, bounds.from, bounds.to)
+      ),
+    [custQuery, customers, searchCustomers, bounds]
   );
   const visibleSuppliers = useMemo(
-    () => (supQuery.trim() ? searchSuppliers(supQuery) : suppliers),
-    [supQuery, suppliers, searchSuppliers]
+    () =>
+      (supQuery.trim() ? searchSuppliers(supQuery) : suppliers).filter((s) =>
+        isDateWithinRange(s.lastPurchaseDate ?? s.createdAt, bounds.from, bounds.to)
+      ),
+    [supQuery, suppliers, searchSuppliers, bounds]
   );
 
   const totalDebtors = useMemo(
@@ -145,7 +156,7 @@ export default function HistoryScreen() {
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
         <Ionicons name="people-outline" size={48} color={colors.gray300} />
       </View>
-      {custQuery.trim() ? (
+      {custQuery.trim() || period !== 'today' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
@@ -174,7 +185,7 @@ export default function HistoryScreen() {
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
         <Ionicons name="business-outline" size={48} color={colors.gray300} />
       </View>
-      {supQuery.trim() ? (
+      {supQuery.trim() || period !== 'today' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
@@ -223,7 +234,14 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-      <AppHeader title={t('history.title')} showBack onBack={() => router.back()}>
+      <AppHeader
+        title={t('history.title')}
+        showBack
+        onBack={() => router.back()}
+        rightAction={
+          <HeaderActionButton icon="funnel-outline" onPress={() => setPeriodSheetVisible(true)} />
+        }
+      >
         {/* Stats strip */}
         {activeTab === 'customers' && customers.length > 0 && (
           <MotiView
@@ -243,7 +261,14 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <AmountText value={totalCustValue} variant="large" style={styles.headerStatVal} />
+              <AmountText
+                value={totalCustValue}
+                currency="IQD"
+                style={styles.headerStatVal}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              />
               <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
             </View>
           </MotiView>
@@ -266,8 +291,15 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <AmountText value={totalSupSpent} variant="large" style={styles.headerStatVal} />
-              <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')} IQD</Text>
+              <AmountText
+                value={totalSupSpent}
+                currency="IQD"
+                style={styles.headerStatVal}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              />
+              <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')}</Text>
             </View>
           </MotiView>
         )}
@@ -386,6 +418,20 @@ export default function HistoryScreen() {
           onScrollBeginDrag={() => Keyboard.dismiss()}
         />
       )}
+
+      <PeriodFilterModal
+        visible={periodSheetVisible}
+        current={period}
+        labels={{
+          today: t('periodFilter.today'),
+          week: t('periodFilter.thisWeek'),
+          month: t('periodFilter.thisMonth'),
+          year: t('periodFilter.thisYear'),
+          custom: t('periodFilter.customRange'),
+        }}
+        onClose={() => setPeriodSheetVisible(false)}
+        onSelect={handlePeriodSelect}
+      />
     </View>
   );
 }

@@ -107,7 +107,14 @@ export default function PurchasesScreen() {
             <View style={[styles.statIconBox, { backgroundColor: '#FEF3C7' }]}>
               <Ionicons name="cash-outline" size={20} color={colors.warning} />
             </View>
-            <AmountText value={total} variant="large" style={[styles.statValue, { color: colors.warning }]} />
+            <AmountText
+              value={total}
+              currency="IQD"
+              style={[styles.statValue, { color: colors.warning }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+            />
             <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('purchases.totalSpent')}</Text>
           </PremiumCard>
         </MotiView>

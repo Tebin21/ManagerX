@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
+import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -112,7 +113,7 @@ export default function SuppliersScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <AmountText value={totalSpent} variant="large" style={styles.headerStatVal} />
+              <CompactAmount value={totalSpent} showCurrency={false} style={styles.headerStatVal} />
               <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </MotiView>

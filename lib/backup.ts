@@ -148,6 +148,43 @@ export async function validateAndParseBackup(fileUri: string): Promise<ManagerXB
   return backup;
 }
 
+// ─── Pre-restore limit check ──────────────────────────────────────────────────
+
+/**
+ * Sums the stock quantity the backup would install, using the same metric as
+ * live enforcement (assertItemLimitNotExceeded / getInventoryStats): only rows
+ * with is_active = 1 AND quantity > 0 count, and the metric is total quantity,
+ * not row count. Must resolve before performRestore() ever starts a transaction.
+ *
+ * Throws:
+ *   'RESTORE_LIMIT_UNDETERMINED'              — plan/license could not be read; never guess.
+ *   'RESTORE_LIMIT_EXCEEDED|<needed>,<limit>' — backup total exceeds the plan limit.
+ * Resolves (no throw) when the backup fits, including the unlimited plan.
+ */
+export async function assertBackupWithinItemLimit(backup: ManagerXBackup): Promise<void> {
+  const { loadLicenseFromDb } = await import('@/lib/itemLimit');
+
+  let limit: number;
+  try {
+    ({ limit } = await loadLicenseFromDb());
+  } catch {
+    throw new Error('RESTORE_LIMIT_UNDETERMINED');
+  }
+
+  if (limit === Infinity) return;
+
+  const products = backup.database?.products ?? [];
+  const needed = products.reduce((sum, row) => {
+    const isActive = Number(row.is_active) === 1;
+    const quantity  = Number(row.quantity);
+    return isActive && quantity > 0 ? sum + quantity : sum;
+  }, 0);
+
+  if (needed > limit) {
+    throw new Error(`RESTORE_LIMIT_EXCEEDED|${needed},${limit}`);
+  }
+}
+
 // ─── Restore ──────────────────────────────────────────────────────────────────
 
 async function insertRows(
