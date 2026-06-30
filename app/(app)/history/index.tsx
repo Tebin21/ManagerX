@@ -248,28 +248,30 @@ export default function HistoryScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={[styles.headerStats, { flexDirection }]}
+            style={styles.headerStatsCard}
           >
-            <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{customers.length}</Text>
-              <Text style={styles.headerStatLabel}>{t('customers.title')}</Text>
-            </View>
-            <View style={styles.headerStatDivider} />
-            <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{totalDebtors}</Text>
-              <Text style={styles.headerStatLabel}>{t('customers.activeDebts')}</Text>
-            </View>
-            <View style={styles.headerStatDivider} />
-            <View style={styles.headerStat}>
+            <View style={styles.headerStatTotal}>
               <AmountText
                 value={totalCustValue}
                 currency="IQD"
-                style={styles.headerStatVal}
+                style={styles.headerStatTotalVal}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.5}
               />
               <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
+            </View>
+            <View style={styles.headerStatsDividerH} />
+            <View style={[styles.headerStatsRow, { flexDirection }]}>
+              <View style={styles.headerStat}>
+                <Text style={styles.headerStatVal}>{customers.length}</Text>
+                <Text style={styles.headerStatLabel}>{t('customers.title')}</Text>
+              </View>
+              <View style={styles.headerStatDivider} />
+              <View style={styles.headerStat}>
+                <Text style={styles.headerStatVal}>{totalDebtors}</Text>
+                <Text style={styles.headerStatLabel}>{t('customers.activeDebts')}</Text>
+              </View>
             </View>
           </MotiView>
         )}
@@ -278,28 +280,30 @@ export default function HistoryScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={[styles.headerStats, { flexDirection }]}
+            style={styles.headerStatsCard}
           >
-            <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{suppliers.length}</Text>
-              <Text style={styles.headerStatLabel}>{t('suppliers.title')}</Text>
-            </View>
-            <View style={styles.headerStatDivider} />
-            <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{activeSupplierDebts}</Text>
-              <Text style={styles.headerStatLabel}>{t('suppliers.activeDebts')}</Text>
-            </View>
-            <View style={styles.headerStatDivider} />
-            <View style={styles.headerStat}>
+            <View style={styles.headerStatTotal}>
               <AmountText
                 value={totalSupSpent}
                 currency="IQD"
-                style={styles.headerStatVal}
+                style={styles.headerStatTotalVal}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.5}
               />
               <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')}</Text>
+            </View>
+            <View style={styles.headerStatsDividerH} />
+            <View style={[styles.headerStatsRow, { flexDirection }]}>
+              <View style={styles.headerStat}>
+                <Text style={styles.headerStatVal}>{suppliers.length}</Text>
+                <Text style={styles.headerStatLabel}>{t('suppliers.title')}</Text>
+              </View>
+              <View style={styles.headerStatDivider} />
+              <View style={styles.headerStat}>
+                <Text style={styles.headerStatVal}>{activeSupplierDebts}</Text>
+                <Text style={styles.headerStatLabel}>{t('suppliers.activeDebts')}</Text>
+              </View>
             </View>
           </MotiView>
         )}
@@ -438,7 +442,11 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container:         { flex: 1 },
-  headerStats:       { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingVertical: 12 },
+  headerStatsCard:    { marginHorizontal: 20, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
+  headerStatTotal:    { alignItems: 'center', paddingBottom: 12 },
+  headerStatTotalVal: { fontSize: 26, lineHeight: 34, fontWeight: '800', color: '#fff', alignSelf: 'stretch', textAlign: 'center' },
+  headerStatsDividerH:{ height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginBottom: 12 },
+  headerStatsRow:     { flexDirection: 'row' },
   headerStat:        { flex: 1, alignItems: 'center' },
   headerStatVal:     { fontSize: 18, fontWeight: '800', color: '#fff' },
   headerStatLabel:   { fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },

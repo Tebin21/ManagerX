@@ -36,6 +36,7 @@ import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
+import { SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -46,7 +47,7 @@ function round(n: number, decimals: number) {
 export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { textAlign, flexDirection } = useRTL();
+  const { textAlign, flexDirection, isRTL } = useRTL();
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { colors } = useAppTheme();
@@ -94,7 +95,7 @@ export default function NewPurchaseScreen() {
   const sellIQDNum   = parseFloat(sellIQD) || 0;
   const totalIQD     = qtyNum * buyIQDNum;
   const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
-  const amountPaidNum = Math.max(0, parseFloat(amountPaid) || 0);
+  const amountPaidNum = roundToNearest250(Math.max(0, parseFloat(amountPaid) || 0));
   const remainingDebt = Math.max(0, totalIQD - amountPaidNum);
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
@@ -312,7 +313,7 @@ export default function NewPurchaseScreen() {
               label={t('purchases.productName')}
               value={productName}
               onChangeText={setProductName}
-              placeholder="e.g. iPhone 16 Pro"
+              placeholder={t('purchases.productNameNewPlaceholder')}
               returnKeyType="next"
             />
 
@@ -332,7 +333,7 @@ export default function NewPurchaseScreen() {
               onChangeText={onQtyChange}
               min={1}
               max={100}
-              placeholder="1"
+              placeholder={t('purchases.qtyPlaceholder')}
             />
 
             {/* ID Type */}
@@ -423,7 +424,7 @@ export default function NewPurchaseScreen() {
                     setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
                   }}
                   keyboardType="decimal-pad"
-                  placeholder="0"
+                  placeholder={t('purchases.buyPriceIQDPlaceholder')}
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
                   onFocus={scrollIntoView}
@@ -436,7 +437,7 @@ export default function NewPurchaseScreen() {
                   value={buyUSD}
                   onChangeText={onBuyUSDChange}
                   keyboardType="decimal-pad"
-                  placeholder="0.00"
+                  placeholder={t('purchases.buyPriceUSDPlaceholder')}
                   placeholderTextColor={colors.gray400}
                   returnKeyType="next"
                   onFocus={scrollIntoView}
@@ -525,14 +526,17 @@ export default function NewPurchaseScreen() {
               value={category}
               onChange={setCategory}
               categories={availableCategories}
+              placeholder={t('purchases.categoryPlaceholder')}
+              inputStyle={isRTL ? { fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT } : undefined}
             />
 
             <AppTextInput
               label={t('purchases.warranty')}
               value={warranty}
               onChangeText={setWarranty}
-              placeholder="e.g. 1 year"
+              placeholder={t('purchases.warrantyPlaceholder')}
               returnKeyType="next"
+              style={isRTL ? { fontSize: 13 } : undefined}
             />
 
             <AppTextInput
@@ -542,7 +546,7 @@ export default function NewPurchaseScreen() {
               placeholder={t('purchases.notesPlaceholder')}
               multiline
               numberOfLines={3}
-              style={styles.textarea}
+              style={[styles.textarea, isRTL && { fontSize: 13 }]}
             />
 
             {/* Payment Status */}

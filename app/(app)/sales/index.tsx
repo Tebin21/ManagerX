@@ -96,7 +96,7 @@ export default function SalesScreen() {
             <AmountText
               value={revenue}
               currency="IQD"
-              style={[styles.statValue, { color: colors.success }]}
+              style={[styles.statValue, { color: colors.success, lineHeight: 28 }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.5}

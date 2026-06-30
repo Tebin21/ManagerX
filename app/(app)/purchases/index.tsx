@@ -110,7 +110,7 @@ export default function PurchasesScreen() {
             <AmountText
               value={total}
               currency="IQD"
-              style={[styles.statValue, { color: colors.warning }]}
+              style={[styles.statValue, { color: colors.warning, lineHeight: 28 }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.5}

@@ -288,7 +288,7 @@ export default function NewSaleScreen() {
                   <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
                 </View>
               )}
-              <View style={[styles.summaryRow, styles.summaryGrand, { borderTopColor: colors.gray100 }]}>
+              <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100 }]}>
                 <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
                 <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
                   <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />

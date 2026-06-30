@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
+  TextStyle,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,8 @@ interface Props {
   categories: string[];
   label?: string;
   placeholder?: string;
+  /** Merged onto the input's default style — undefined leaves it unchanged */
+  inputStyle?: TextStyle;
 }
 
 export function CategoryAutocompleteInput({
@@ -28,6 +31,7 @@ export function CategoryAutocompleteInput({
   categories,
   label,
   placeholder = 'e.g. Electronics',
+  inputStyle,
 }: Props) {
   const [showDropdown, setShowDropdown] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,7 +84,7 @@ export function CategoryAutocompleteInput({
         ]}
       >
         <TextInput
-          style={[styles.input, { color: colors.black, textAlign }]}
+          style={[styles.input, { color: colors.black, textAlign }, inputStyle]}
           value={value}
           onChangeText={onChange}
           onFocus={handleFocus}

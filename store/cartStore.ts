@@ -78,7 +78,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   remainingDebt: () => {
     const s = get();
     if (s.paymentMethod !== 'debt') return 0;
-    const paid = parseFloat(s.paidAmount) || 0;
+    const paid = roundToNearest250(parseFloat(s.paidAmount) || 0);
     return Math.max(0, s.grandTotal() - paid);
   },
 

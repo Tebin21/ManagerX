@@ -39,6 +39,16 @@ function daysAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
 }
 
+// Forces a numeric Text/AmountText to render LTR + left-aligned regardless of app language.
+const NUMBER_LTR = { textAlign: 'left' as const, writingDirection: 'ltr' as const };
+
+type SummaryTone = 'primary' | 'error' | 'neutral';
+const TONE_STYLES: Record<SummaryTone, { wrapBg: string; iconColor: string; valueColor: string }> = {
+  primary: { wrapBg: Colors.softBlue, iconColor: Colors.primary, valueColor: Colors.primary },
+  error:   { wrapBg: '#FEE2E2',       iconColor: Colors.error,   valueColor: Colors.error },
+  neutral: { wrapBg: Colors.gray100,  iconColor: Colors.gray500, valueColor: Colors.black },
+};
+
 // ─── Overdue Badge ─────────────────────────────────────────────────────────────
 
 function OverdueBadge({ level }: { level: 0 | 1 | 2 }) {
@@ -140,22 +150,22 @@ function SalesDebtCardImpl({
         </View>
 
         <View style={styles.cardAmounts}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary, textAlign }]} />
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
           <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-        <View style={[styles.cardActions, { flexDirection }]}>
+        <View style={styles.cardActionsStack}>
           <TouchableOpacity
-            style={[styles.quickPayBtn, { backgroundColor: colors.primary, flexDirection }]}
+            style={[styles.quickPayBtnFull, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => onPay(debt.id)}
           >
             <Ionicons name="flash" size={14} color="#fff" />
             <Text style={styles.quickPayText}>{i18n.t('debt.payCustomer')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.detailBtn}
+            style={[styles.detailBtnRow, { flexDirection }]}
             onPress={() => router.push(`/(app)/debt/sales/${debt.id}` as never)}
           >
             <Text style={[styles.detailBtnText, { color: colors.primary }]}>{i18n.t('debt.details')}</Text>
@@ -222,22 +232,22 @@ function PurchaseDebtCardImpl({
         </View>
 
         <View style={styles.cardAmounts}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error, textAlign }]} />
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error }, NUMBER_LTR]} />
           <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-        <View style={[styles.cardActions, { flexDirection }]}>
+        <View style={styles.cardActionsStack}>
           <TouchableOpacity
-            style={[styles.quickPayBtn, { backgroundColor: Colors.error, flexDirection }]}
+            style={[styles.quickPayBtnFull, { backgroundColor: Colors.error, flexDirection }]}
             onPress={() => onPay(debt.id)}
           >
             <Ionicons name="flash" size={14} color="#fff" />
             <Text style={styles.quickPayText}>{i18n.t('debt.paySupplier')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.detailBtn}
+            style={[styles.detailBtnRow, { flexDirection }]}
             onPress={() => router.push(`/(app)/debt/purchase/${debt.id}` as never)}
           >
             <Text style={[styles.detailBtnText, { color: colors.primary }]}>{i18n.t('debt.details')}</Text>
@@ -283,7 +293,7 @@ function QuickPayModal({
         <Text style={styles.modalTitle}>{i18n.t('debt.recordPayment')}</Text>
         <Text style={styles.modalSub}>{name}</Text>
         <Text style={[styles.modalRemaining, { color: colors.primary }]}>
-          {i18n.t('debt.remainingLabel')}: <AmountText value={remaining} currency="IQD" variant="small" style={[styles.modalRemaining, { color: colors.primary }]} />
+          {i18n.t('debt.remainingLabel')}: <AmountText value={remaining} currency="IQD" variant="small" style={[styles.modalRemaining, { color: colors.primary }, NUMBER_LTR]} />
         </Text>
         <TextInput
           style={styles.modalInput}
@@ -398,30 +408,63 @@ export default function DebtScreen() {
       value: summary?.totalSalesDebt ?? 0,
       isAmount: true,
       icon: 'arrow-down-circle' as const,
-    },
-    {
-      label: t('debt.overdueDebts'),
-      value: summary?.overdueCount ?? 0,
-      isAmount: false,
-      icon: 'alert-circle' as const,
-      highlight: (summary?.overdueCount ?? 0) > 0,
+      tone: 'primary' as const,
     },
     {
       label: t('debt.totalOwed'),
       value: summary?.totalPurchaseDebt ?? 0,
       isAmount: true,
       icon: 'arrow-up-circle' as const,
+      tone: 'error' as const,
+    },
+    {
+      label: t('debt.overdueDebts'),
+      value: summary?.overdueCount ?? 0,
+      isAmount: false,
+      icon: 'alert-circle' as const,
+      tone: ((summary?.overdueCount ?? 0) > 0 ? 'error' : 'neutral') as SummaryTone,
     },
     {
       label: t('common.allTime'),
       value: (summary?.activeSalesCount ?? 0) + (summary?.activePurchaseCount ?? 0),
       isAmount: false,
       icon: 'layers' as const,
+      tone: 'neutral' as const,
     },
   ], [summary, t]);
 
+  // Icon-left / value-over-label-right — white card with a soft shadow, sitting
+  // on the white body now that the summary section lives below the header.
+  const renderOverviewCell = (card: typeof overviewCards[number]) => {
+    const tone = TONE_STYLES[card.tone];
+    const valueStyle = [styles.summaryValue, { color: tone.valueColor }, NUMBER_LTR];
+    const valueNode = card.isAmount ? (
+      <AmountText
+        value={card.value}
+        style={valueStyle}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+      />
+    ) : (
+      <Text style={valueStyle}>{card.value}</Text>
+    );
+
+    return (
+      <View key={card.label} style={[styles.summaryCard, { flexDirection }]}>
+        <View style={[styles.summaryIconWrap, { backgroundColor: tone.wrapBg }]}>
+          <Ionicons name={card.icon} size={18} color={tone.iconColor} />
+        </View>
+        <View style={styles.cellTextBlock}>
+          {valueNode}
+          <Text style={[styles.summaryLabel, { textAlign }]} numberOfLines={1}>{card.label}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+    <View style={[styles.container, { backgroundColor: colors.white }]}>
       <AppHeader
         title={t('debt.title')}
         showBack
@@ -430,40 +473,7 @@ export default function DebtScreen() {
           <HeaderActionButton icon="funnel-outline" onPress={() => setPeriodSheetVisible(true)} />
         }
       >
-
-        {/* 2×2 overview grid */}
-        <View style={styles.overviewGrid}>
-          {overviewCards.map((card) => (
-            <View
-              key={card.label}
-              style={[
-                styles.overviewCell,
-                card.highlight ? styles.overviewCellAlert : null,
-              ]}
-            >
-              <Ionicons
-                name={card.icon}
-                size={18}
-                color="rgba(255,255,255,0.75)"
-                style={{ marginBottom: 4 }}
-              />
-              {card.isAmount ? (
-                <AmountText
-                  value={card.value}
-                  style={styles.overviewValue}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.5}
-                />
-              ) : (
-                <Text style={styles.overviewValue}>{card.value}</Text>
-              )}
-              <Text style={styles.overviewLabel}>{card.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Tab bar */}
+        {/* Tab bar — sits directly under the title */}
         <View style={[styles.tabBar, { flexDirection }]}>
           {(['sales', 'purchase'] as Tab[]).map((t) => {
             const count = t === 'sales'
@@ -476,39 +486,58 @@ export default function DebtScreen() {
                 style={[styles.tabBtn, tab === t && styles.tabBtnActive, { flexDirection }]}
                 onPress={() => { setTab(t); setQuery(''); }}
               >
-                <Text style={[styles.tabLabel, tab === t && { color: colors.primary }]}>
+                <Text
+                  style={[styles.tabLabel, tab === t && { color: colors.primary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.85}
+                >
                   {label}
                 </Text>
                 {count > 0 && (
                   <View style={[styles.tabBadge, tab === t && { backgroundColor: colors.primary }]}>
-                    <Text style={styles.tabBadgeText}>{count}</Text>
+                    <Text style={[styles.tabBadgeText, NUMBER_LTR]}>{count}</Text>
                   </View>
                 )}
               </TouchableOpacity>
             );
           })}
         </View>
+
+        {/* Search bar — moved into the header, directly under the segmented control */}
+        <View style={[styles.searchRow, { backgroundColor: colors.white, flexDirection }]}>
+          <Ionicons name="search" size={16} color={colors.gray400} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+            placeholder={
+              tab === 'sales'
+                ? t('debt.searchSales')
+                : t('debt.searchPurchases')
+            }
+            placeholderTextColor={colors.gray400}
+            value={query}
+            onChangeText={setQuery}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')}>
+              <Ionicons name="close-circle" size={16} color={colors.gray400} />
+            </TouchableOpacity>
+          )}
+        </View>
       </AppHeader>
 
-      {/* Search bar */}
-      <View style={[styles.searchRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
-        <Ionicons name="search" size={16} color={colors.gray400} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
-          placeholder={
-            tab === 'sales'
-              ? t('debt.searchSales')
-              : t('debt.searchPurchases')
-          }
-          placeholderTextColor={colors.gray400}
-          value={query}
-          onChangeText={setQuery}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={16} color={colors.gray400} />
-          </TouchableOpacity>
-        )}
+      {/* Summary section — white body: receivable + payable each their own row, outstanding/total paired */}
+      <View style={styles.summarySection}>
+        <View style={styles.summaryRow}>
+          {renderOverviewCell(overviewCards[0])}
+        </View>
+        <View style={styles.summaryRow}>
+          {renderOverviewCell(overviewCards[1])}
+        </View>
+        <View style={styles.summaryRow}>
+          {renderOverviewCell(overviewCards[2])}
+          {renderOverviewCell(overviewCards[3])}
+        </View>
       </View>
 
       {/* Debt list */}
@@ -596,31 +625,45 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
 
-  // Overview grid
-  overviewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // Summary section — white body, below the header: receivable + payable each
+  // get their own full-width row, outstanding/total debt paired in one row.
+  summarySection: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingBottom: 4,
     gap: 10,
   },
-  overviewCell: {
-    flex: 1,
-    minWidth: '44%',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
-  overviewCellAlert: { backgroundColor: 'rgba(239,68,68,0.25)' },
-  overviewValue: { fontSize: 18, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  overviewLabel: { fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
+  cellTextBlock: { flex: 1, minWidth: 0 },
+  summaryCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: Theme.radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    ...Theme.shadow.soft,
+  },
+  summaryIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: 10,
+  },
+  summaryValue: { fontSize: 18, fontWeight: '800', marginBottom: 1 },
+  summaryLabel: { fontSize: 11, color: Colors.gray500 },
 
-  // Tab bar
+  // Tab bar — directly under the title, on the blue gradient
   tabBar: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 14,
+    alignSelf: 'stretch',
+    marginHorizontal: 24,
+    marginTop: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
     padding: 3,
@@ -631,11 +674,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: 10,
     gap: 6,
   },
   tabBtnActive: { backgroundColor: '#fff' },
-  tabLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)', flexShrink: 1 },
   tabBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 8,
@@ -644,13 +688,14 @@ const styles = StyleSheet.create({
   },
   tabBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  // Search
+  // Search — floats on the blue gradient, directly under the segmented control
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 10,
+    marginBottom: 14,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
@@ -663,7 +708,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.black },
 
-  listContent: { padding: 16, paddingBottom: 32 },
+  listContent: { padding: 16, paddingTop: 8, paddingBottom: 32 },
 
   // Card
   card: {
@@ -708,20 +753,19 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', borderRadius: 3 },
 
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  quickPayBtn: {
-    flexDirection: 'row',
+  // Quick-pay action and Details link each get their own dedicated row
+  cardActionsStack: { gap: 8 },
+  quickPayBtnFull: {
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: 4,
+    paddingVertical: 10,
+    gap: 6,
   },
   quickPayText: { fontSize: 13, fontWeight: '600', color: '#fff' },
-  detailBtn: {
-    flexDirection: 'row',
+  detailBtnRow: {
     alignItems: 'center',
-    marginStart: 'auto',
+    justifyContent: 'center',
     gap: 2,
   },
   detailBtnText: { fontSize: 13, fontWeight: '600' },

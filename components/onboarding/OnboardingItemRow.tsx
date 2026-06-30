@@ -4,7 +4,6 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useRTL } from '@/lib/rtl';
 import type { OnboardingItem } from '@/constants/onboardingSlides';
 
 interface Props {
@@ -14,14 +13,13 @@ interface Props {
 export function OnboardingItemRow({ item }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection, textAlign } = useRTL();
 
   return (
-    <View style={[styles.row, { flexDirection }]}>
+    <View style={styles.item}>
       <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue }]}>
         <Ionicons name={item.icon} size={18} color={colors.primary} />
       </View>
-      <Text style={[styles.label, { color: colors.darkBlue, textAlign }]} numberOfLines={2}>
+      <Text style={[styles.label, { color: colors.darkBlue }]}>
         {t(item.labelKey)}
       </Text>
     </View>
@@ -29,11 +27,10 @@ export function OnboardingItemRow({ item }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: {
+  item: {
     width: '48%',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   iconWrapper: {
     width: 34,
@@ -41,10 +38,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
   label: {
-    flex: 1,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

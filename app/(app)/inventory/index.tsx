@@ -384,11 +384,11 @@ export default function InventoryScreen() {
         {stats && (
           <View style={styles.statsGrid}>
             <View style={styles.statsRow}>
-              <InventoryStatsCard label={t('inventory.products')}  value={String(stats.totalProducts)}  icon="cube"    delay={0} />
-              <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={60} />
+              <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={0} />
             </View>
             <View style={styles.statsRow}>
-              <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={120} />
+              <InventoryStatsCard label={t('inventory.products')}  value={String(stats.totalProducts)}  icon="cube"    delay={60} />
+              <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={120} />
               <InventoryStatsCard label={t('inventory.lowStock')}  value={String(stats.lowStockCount)} icon="warning" accent={stats.lowStockCount > 0} delay={180} />
             </View>
           </View>

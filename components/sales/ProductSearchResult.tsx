@@ -25,18 +25,24 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
 
   return (
     <View style={[styles.row, isDisabled && styles.rowDisabled, { flexDirection }]}>
-      {product.imageUri ? (
-        <Image
-          source={{ uri: product.imageUri }}
-          style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
-          resizeMode="contain"
-          fadeDuration={0}
-        />
-      ) : (
-        <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
-          <Ionicons name="cube-outline" size={28} color={Colors.gray300} />
-        </View>
-      )}
+      <TouchableOpacity
+        onPress={onAdd}
+        disabled={isDisabled}
+        activeOpacity={0.75}
+      >
+        {product.imageUri ? (
+          <Image
+            source={{ uri: product.imageUri }}
+            style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
+            resizeMode="contain"
+            fadeDuration={0}
+          />
+        ) : (
+          <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
+            <Ionicons name="cube-outline" size={28} color={Colors.gray300} />
+          </View>
+        )}
+      </TouchableOpacity>
       <View style={styles.left}>
         <View style={[styles.nameRow, { flexDirection }]}>
           <Text style={[styles.name, isDisabled && styles.nameDisabled, { textAlign }]} numberOfLines={1}>

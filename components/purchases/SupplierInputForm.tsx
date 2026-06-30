@@ -88,7 +88,7 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
     <View>
       <AppTextInput
         label={t('purchases.supplierName')}
-        placeholder="e.g. Apple Inc."
+        placeholder={t('purchases.supplierNamePlaceholder')}
         value={name}
         onChangeText={handleNameChange}
         returnKeyType="next"
@@ -141,7 +141,8 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
 
       <AppTextInput
         label={t('purchases.supplierPhone')}
-        placeholder="e.g. 0770 123 4567"
+        placeholder={t('purchases.supplierPhonePlaceholder')}
+        kurdishPlaceholderFont
         value={phone}
         onChangeText={handlePhoneChange}
         keyboardType="phone-pad"
@@ -150,7 +151,7 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
 
       <AppTextInput
         label={t('purchases.supplierAddress')}
-        placeholder="e.g. Sulaymaniyah, Iraq"
+        placeholder={t('purchases.supplierAddressPlaceholder')}
         value={address}
         onChangeText={onAddressChange}
         returnKeyType="next"

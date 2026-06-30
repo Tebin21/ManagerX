@@ -5,6 +5,7 @@ import {
   Alert,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { useLanguageStore } from '@/store/languageStore';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -297,6 +298,7 @@ function FinancialCard({
   color: string;
 }) {
   const { isRTL, textAlign } = useRTL();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
   return (
     <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
       <View style={[fcStyles.iconBox, { backgroundColor: `${color}1A`, alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
@@ -305,7 +307,11 @@ function FinancialCard({
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
       <AmountText
         value={amount}
-        style={[fcStyles.value, { color, textAlign }]}
+        // fcStyles.value's fontSize (20) is taller than AmountText's inherited
+        // preset lineHeight (18), which crops the top/bottom of the digits in
+        // LTR — bump the line box just for English so the glyphs have room.
+        // Kurdish already renders fine, so its line-height is left untouched.
+        style={[fcStyles.value, { color, textAlign }, !isKurdish && fcStyles.valueLtrLineHeight]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.5}
@@ -339,6 +345,11 @@ const fcStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 2,
+  },
+  // English-only line-height bump (see usage) so the 20px digits aren't
+  // cropped by the 18px line-height inherited from AmountText's preset.
+  valueLtrLineHeight: {
+    lineHeight: 26,
   },
   currency: {
     fontSize: 11,

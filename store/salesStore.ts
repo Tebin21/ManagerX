@@ -9,6 +9,7 @@ import {
 } from '@/lib/sqlite';
 import { useInventoryStore } from './inventoryStore';
 import { useSettingsStore } from './settingsStore';
+import { roundToNearest250 } from '@/utils/rounding';
 import type { Sale, SaleItem, CartItem, CustomerInput, PaymentMethod, UpdateSaleCompleteInput, GlobalDiscountType } from '@/types/sales';
 
 interface CartStateArg {
@@ -59,7 +60,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const discountTotal = cart.discountTotal();
     const globalDiscountAmount = cart.globalDiscountAmount();
     const grandTotal = cart.grandTotal();
-    const paid = parseFloat(cart.paidAmount) || 0;
+    const paid = roundToNearest250(parseFloat(cart.paidAmount) || 0);
     const remaining = cart.remainingDebt();
 
     const customer = cart.customerInput;

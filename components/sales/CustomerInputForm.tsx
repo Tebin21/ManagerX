@@ -83,7 +83,7 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
     <View>
       <AppTextInput
         label={t('sales.customerName') + ' *'}
-        placeholder={t('common.required')}
+        placeholder={t('sales.customerNamePlaceholder')}
         value={value.name}
         onChangeText={handleNameChange}
         returnKeyType="next"
@@ -125,7 +125,8 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
 
       <AppTextInput
         label={t('sales.customerPhone') + ' *'}
-        placeholder={t('common.required')}
+        placeholder={t('sales.customerPhonePlaceholder')}
+        kurdishPlaceholderFont
         value={value.phone}
         onChangeText={handlePhoneChange}
         keyboardType="phone-pad"
@@ -147,7 +148,7 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
 
       <AppTextInput
         label={t('sales.customerAddress')}
-        placeholder={t('common.optional')}
+        placeholder={t('sales.customerAddressPlaceholder')}
         value={value.address}
         onChangeText={(v) => onChange({ address: v })}
         returnKeyType="next"

@@ -16,6 +16,15 @@ interface Props extends TextInputProps {
   labelStyle?: TextStyle;
   /** Merged onto the error text's default style — undefined leaves it unchanged */
   errorStyle?: TextStyle;
+  /**
+   * Renders the placeholder (only) in the Kurdish typeface (Rudaw), even on
+   * numeric-keyboard fields that otherwise skip it — for placeholders that
+   * mix Kurdish words with Kurdish digits (e.g. phone-number examples). The
+   * typed value keeps rendering in its normal font; this only swaps the
+   * empty-state placeholder's font and is a no-op outside the Kurdish
+   * language.
+   */
+  kurdishPlaceholderFont?: boolean;
 }
 
 // A single TextInput can't mix fonts per-character the way AppText can for
@@ -25,12 +34,14 @@ const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
   'numeric', 'phone-pad', 'decimal-pad', 'number-pad', 'numbers-and-punctuation',
 ]);
 
-export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, ...rest }: Props) {
+export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, kurdishPlaceholderFont, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku') && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType);
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isKurdish = isKuLanguage && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType);
   const scrollIntoView = useKeyboardAwareFocus();
+  const showKuPlaceholderOverlay = !!kurdishPlaceholderFont && isKuLanguage && !rest.value;
   return (
     <View style={styles.container}>
       {label && (
@@ -56,20 +67,43 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
         ]}
       >
         <View style={styles.inputRow}>
-          <TextInput
-            {...rest}
-            style={applyKurdishFont(isKurdish, [styles.input, { flex: 1, color: colors.black, textAlign }, style] as never)}
-            placeholderTextColor={colors.gray400}
-            onFocus={(e) => {
-              setFocused(true);
-              scrollIntoView(e);
-              rest.onFocus?.(e);
-            }}
-            onBlur={(e) => {
-              setFocused(false);
-              rest.onBlur?.(e);
-            }}
-          />
+          {showKuPlaceholderOverlay ? (
+            <View style={styles.inputBox}>
+              <TextInput
+                {...rest}
+                placeholder={undefined}
+                style={applyKurdishFont(isKurdish, [styles.input, { color: colors.black, textAlign }, style] as never)}
+                placeholderTextColor={colors.gray400}
+                onFocus={(e) => {
+                  setFocused(true);
+                  scrollIntoView(e);
+                  rest.onFocus?.(e);
+                }}
+                onBlur={(e) => {
+                  setFocused(false);
+                  rest.onBlur?.(e);
+                }}
+              />
+              <Text pointerEvents="none" style={[styles.kuPlaceholderOverlay, { textAlign, color: colors.gray400 }]}>
+                {rest.placeholder}
+              </Text>
+            </View>
+          ) : (
+            <TextInput
+              {...rest}
+              style={applyKurdishFont(isKurdish, [styles.input, { flex: 1, color: colors.black, textAlign }, style] as never)}
+              placeholderTextColor={colors.gray400}
+              onFocus={(e) => {
+                setFocused(true);
+                scrollIntoView(e);
+                rest.onFocus?.(e);
+              }}
+              onBlur={(e) => {
+                setFocused(false);
+                rest.onBlur?.(e);
+              }}
+            />
+          )}
           {rightElement}
         </View>
       </MotiView>
@@ -103,6 +137,20 @@ const styles = StyleSheet.create({
     height:      Theme.input.height,
     paddingStart: 16,
     fontSize:    15,
+  },
+  inputBox: {
+    flex:     1,
+    position: 'relative',
+  },
+  kuPlaceholderOverlay: {
+    position:     'absolute',
+    top:          0,
+    start:        0,
+    end:          0,
+    bottom:       0,
+    paddingStart: 16,
+    fontSize:     15,
+    lineHeight:   Theme.input.height,
   },
   error: {
     fontSize:  12,

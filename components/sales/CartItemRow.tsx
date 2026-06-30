@@ -241,7 +241,7 @@ export function CartItemRow({
       )}
 
       {/* Line total */}
-      <View style={[styles.lineTotalRow, { borderTopColor: colors.gray100 }]}>
+      <View style={[styles.lineTotalRow, { borderTopColor: colors.gray100, flexDirection }]}>
         <Text style={[styles.lineTotalLabel, { color: colors.gray400, textAlign }]}>{t('sales.lineTotal')}</Text>
         <View style={[styles.lineTotalStack, { alignItems: alignEnd }]}>
           <AmountText value={item.lineTotal} variant="large" style={[styles.lineTotal, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />

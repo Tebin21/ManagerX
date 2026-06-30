@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,60 +23,70 @@ export function OnboardingSlide({ slide }: Props) {
 
   return (
     <View style={[styles.page, { width }]}>
-      <MotiView
-        from={{ opacity: 0, translateY: -10 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, delay: 80 }}
-        style={[styles.heroWrapper, { backgroundColor: colors.softBlue }]}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <Ionicons name={slide.heroIcon} size={36} color={colors.primary} />
-      </MotiView>
-
-      <MotiView
-        from={{ opacity: 0, translateY: 12 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 140 }}
-      >
-        <Text style={[styles.title, { color: colors.darkBlue, textAlign }]}>
-          {t(slide.titleKey)}
-        </Text>
-        <Text style={[styles.description, { textAlign }]}>
-          {t(slide.descriptionKey)}
-        </Text>
-      </MotiView>
-
-      {slide.groups.map((group, groupIndex) => (
         <MotiView
-          key={groupIndex}
-          from={{ opacity: 0, translateY: 16 }}
+          from={{ opacity: 0, translateY: -10 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 180 + groupIndex * 80 }}
-          style={styles.group}
+          transition={{ type: 'spring', damping: 18, delay: 80 }}
+          style={[styles.heroWrapper, { backgroundColor: colors.softBlue }]}
         >
-          {group.labelKey && (
-            <Text style={[styles.groupLabel, { textAlign }]}>{t(group.labelKey)}</Text>
-          )}
-          <View style={styles.itemsWrap}>
-            {group.items.map((item) => (
-              <OnboardingItemRow key={item.labelKey} item={item} />
-            ))}
-          </View>
+          <Ionicons name={slide.heroIcon} size={36} color={colors.primary} />
         </MotiView>
-      ))}
 
-      {slide.closingKeys.map((closingKey) => (
-        <Text key={closingKey} style={[styles.closing, { color: colors.primary, textAlign }]}>
-          {t(closingKey)}
-        </Text>
-      ))}
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 140 }}
+        >
+          <Text style={[styles.title, { color: colors.darkBlue, textAlign }]}>
+            {t(slide.titleKey)}
+          </Text>
+          <Text style={[styles.description, { textAlign }]}>
+            {t(slide.descriptionKey)}
+          </Text>
+        </MotiView>
+
+        {slide.groups.map((group, groupIndex) => (
+          <MotiView
+            key={groupIndex}
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 180 + groupIndex * 80 }}
+            style={styles.group}
+          >
+            {group.labelKey && (
+              <Text style={[styles.groupLabel, { textAlign }]}>{t(group.labelKey)}</Text>
+            )}
+            <View style={styles.itemsWrap}>
+              {group.items.map((item) => (
+                <OnboardingItemRow key={item.labelKey} item={item} />
+              ))}
+            </View>
+          </MotiView>
+        ))}
+
+        {slide.closingKeys.map((closingKey) => (
+          <Text key={closingKey} style={[styles.closing, { color: colors.primary, textAlign }]}>
+            {t(closingKey)}
+          </Text>
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
+    paddingBottom: 24,
   },
   heroWrapper: {
     width: 72,
@@ -113,7 +123,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: Theme.spacing.xs,
+    rowGap: Theme.spacing.lg,
   },
   closing: {
     fontSize: 13,
