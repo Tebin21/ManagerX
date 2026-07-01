@@ -19,6 +19,21 @@ import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscription
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { useBusinessStore } from '@/store/businessStore';
 
+function toLocalIraqiPhone(stored: string): string {
+  const digits = stored.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('964')) return '0' + digits.slice(3);
+  return stored; // legacy/unexpected format — show as-is
+}
+
+function toInternationalIraqiPhone(input: string): string {
+  const digits = input.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('964')) return digits;       // already international
+  if (digits.startsWith('0')) return '964' + digits.slice(1);
+  return '964' + digits;                              // bare local number, no leading 0
+}
+
 export default function OnlineStoreInfoScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -36,7 +51,7 @@ export default function OnlineStoreInfoScreen() {
   const [facebookUrl, setFacebookUrl] = useState(storeInfoFields.facebookUrl);
   const [instagramUrl, setInstagramUrl] = useState(storeInfoFields.instagramUrl);
   const [tiktokUrl, setTiktokUrl] = useState(storeInfoFields.tiktokUrl);
-  const [whatsappNumber, setWhatsappNumber] = useState(storeInfoFields.whatsappNumber);
+  const [whatsappNumber, setWhatsappNumber] = useState(toLocalIraqiPhone(storeInfoFields.whatsappNumber));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -51,7 +66,7 @@ export default function OnlineStoreInfoScreen() {
     setFacebookUrl(storeInfoFields.facebookUrl);
     setInstagramUrl(storeInfoFields.instagramUrl);
     setTiktokUrl(storeInfoFields.tiktokUrl);
-    setWhatsappNumber(storeInfoFields.whatsappNumber);
+    setWhatsappNumber(toLocalIraqiPhone(storeInfoFields.whatsappNumber));
   }, [storeInfoFields]);
 
   async function handleSave() {
@@ -62,7 +77,7 @@ export default function OnlineStoreInfoScreen() {
         facebookUrl: facebookUrl.trim(),
         instagramUrl: instagramUrl.trim(),
         tiktokUrl: tiktokUrl.trim(),
-        whatsappNumber: whatsappNumber.trim(),
+        whatsappNumber: toInternationalIraqiPhone(whatsappNumber.trim()),
       });
       if (Platform.OS === 'android') {
         ToastAndroid.show(t('settings.onlineStoreInfoScreen.saved'), ToastAndroid.SHORT);

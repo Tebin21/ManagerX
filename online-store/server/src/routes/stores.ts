@@ -7,10 +7,21 @@ import { requireActiveSubscription, checkSubscriptionHeaders } from '../subscrip
 import { upload, saveUploadedImage } from '../uploads';
 import { config } from '../config';
 import type { SyncChangeInput } from '../storeRepository';
+import { withStoreLock } from '../storeLock';
 
 const repo = new JsonStoreRepository();
 
 export const storesRouter = Router();
+
+// withStoreLock() elsewhere in this file is keyed by slug — fine for operations on an
+// already-existing store, but registration doesn't have a slug yet at the point the
+// lock must be acquired (the device-lookup and the uniqueness check both need to be
+// atomic with the eventual write). A fixed sentinel key serializes ALL registrations
+// through one critical section instead; registration is rare/low-throughput so this
+// costs nothing in practice, and it closes the race where two concurrent requests for
+// the same business name could both resolve the same "free" slug before either had
+// written it.
+const REGISTRATION_LOCK_KEY = '__registration__';
 
 function slugify(name: string): string {
   const base = name
@@ -31,22 +42,63 @@ async function resolveUniqueSlug(base: string): Promise<string> {
   return candidate;
 }
 
-// POST /api/stores — register a new store. Called once by ManagerX the first time
-// the business owner presses "Enable Store". Requires an active Online Store
-// Subscription — there's no store/API-key yet at this point, so the subscription
-// header is the only available proof of entitlement.
+// POST /api/stores — register a new store, called by ManagerX the first time the
+// business owner presses "Enable Store" — OR recover an existing one. Requires an
+// active Online Store Subscription — there's no store/API-key yet at this point, so
+// the subscription header is the only available proof of entitlement.
+//
+// A device that already owns a store (recognized via the X-Device-Id header — the
+// same hardware-derived, reinstall-stable ID already used for subscription checks)
+// is always a RECOVERY, never a fresh create: this is what keeps the store's slug/
+// URL/products permanent across a reinstall that wiped the locally-cached slug/apiKey,
+// instead of silently spawning a second, empty, differently-slugged store.
 storesRouter.post('/', requireActiveSubscription, async (req, res) => {
   const { businessName } = req.body ?? {};
   if (!businessName?.trim()) {
     res.status(400).json({ error: 'businessName is required' });
     return;
   }
+  const deviceIdHeader = req.headers['x-device-id'];
+  const deviceId = typeof deviceIdHeader === 'string' && deviceIdHeader ? deviceIdHeader : undefined;
 
-  const slug = await resolveUniqueSlug(slugify(businessName));
-  const apiKey = generateApiKey();
-  await repo.create({ slug, businessName: businessName.trim(), apiKeyHash: hashApiKey(apiKey) });
+  const result = await withStoreLock(REGISTRATION_LOCK_KEY, async () => {
+    if (deviceId) {
+      const existing = await repo.getByDeviceId(deviceId);
+      if (existing) {
+        const apiKey = generateApiKey();
+        const updated = await repo.rotateApiKey(existing.slug, hashApiKey(apiKey));
+        // updated can't be null here — we just read `existing` by the same slug inside
+        // this same lock, so nothing else could have removed it in between.
+        return { slug: updated!.slug, apiKey, recovered: true, status: 200 as const };
+      }
+    }
 
-  res.status(201).json({ slug, apiKey });
+    const baseSlug = slugify(businessName);
+
+    // Legacy migration: a store created before deviceId tracking existed has no
+    // deviceId stamped at all, so getByDeviceId() above can never find it. If this
+    // businessName resolves to exactly that pre-existing store's slug, this is that
+    // same store finally getting a device attached — not a new registration — so
+    // stores created before this fix become permanently recoverable too, exactly like
+    // ones created after it. Runs at most once per store: claimLegacyStore() only ever
+    // claims a record with NO deviceId, so an already-migrated/already-owned store at
+    // this slug (a genuinely different, later business reusing the same name) always
+    // falls through to resolveUniqueSlug() below instead, unchanged from before.
+    if (deviceId) {
+      const apiKey = generateApiKey();
+      const migrated = await repo.claimLegacyStore(baseSlug, deviceId, hashApiKey(apiKey));
+      if (migrated) {
+        return { slug: migrated.slug, apiKey, recovered: true, status: 200 as const };
+      }
+    }
+
+    const slug = await resolveUniqueSlug(baseSlug);
+    const apiKey = generateApiKey();
+    await repo.create({ slug, businessName: businessName.trim(), apiKeyHash: hashApiKey(apiKey), deviceId });
+    return { slug, apiKey, recovered: false, status: 201 as const };
+  });
+
+  res.status(result.status).json({ slug: result.slug, apiKey: result.apiKey, recovered: result.recovered });
 });
 
 // GET /api/stores/:slug — public storefront data, no auth. Used by the storefront

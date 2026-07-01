@@ -407,6 +407,11 @@ export async function loadSetting(key: string): Promise<string | null> {
 
 // ─── Invoice Counter ──────────────────────────────────────────────────────────
 
+function formatSequenceNumber(n: number): string {
+  const width = Math.max(4, String(n).length + 1);
+  return String(n).padStart(width, '0');
+}
+
 export async function generateInvoiceNumber(): Promise<string> {
   const database = await getDatabase();
   let invoiceNumber = '';
@@ -423,7 +428,7 @@ export async function generateInvoiceNumber(): Promise<string> {
       [nextNumber]
     );
 
-    invoiceNumber = String(nextNumber).padStart(4, '0');
+    invoiceNumber = formatSequenceNumber(nextNumber);
   });
 
   return invoiceNumber;
@@ -2015,7 +2020,7 @@ export async function generatePurchaseNumber(): Promise<string> {
       [nextNumber]
     );
 
-    purchaseNumber = String(nextNumber).padStart(4, '0');
+    purchaseNumber = formatSequenceNumber(nextNumber);
   });
 
   return purchaseNumber;

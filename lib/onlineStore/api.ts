@@ -96,7 +96,12 @@ async function subscriptionHeaders(): Promise<Record<string, string>> {
   return { 'X-OSS-Subscription': sub.code, 'X-Device-Id': sub.deviceId };
 }
 
-export async function registerStore(businessName: string): Promise<{ slug: string; apiKey: string }> {
+// `recovered: true` means the backend recognized this device (via the X-Device-Id
+// header already attached by subscriptionHeaders()) as already owning a store and
+// reissued a credential for it, rather than creating a new one — e.g. after a
+// reinstall wiped the locally-cached slug/apiKey. Callers don't need to branch on
+// this; it's surfaced only for diagnostics.
+export async function registerStore(businessName: string): Promise<{ slug: string; apiKey: string; recovered?: boolean }> {
   return request('/api/stores', {
     method: 'POST',
     headers: await subscriptionHeaders(),

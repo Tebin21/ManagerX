@@ -23,11 +23,15 @@ export class JsonStoreRepository implements StoreRepository {
     return readLedger().find((s) => s.slug === slug) ?? null;
   }
 
+  async getByDeviceId(deviceId: string): Promise<StoreRecord | null> {
+    return readLedger().find((s) => s.deviceId === deviceId) ?? null;
+  }
+
   async isSlugTaken(slug: string): Promise<boolean> {
     return readLedger().some((s) => s.slug === slug);
   }
 
-  async create(data: { slug: string; businessName: string; apiKeyHash: string }): Promise<StoreRecord> {
+  async create(data: { slug: string; businessName: string; apiKeyHash: string; deviceId?: string }): Promise<StoreRecord> {
     return withStoreLock(data.slug, async () => {
       const records = readLedger();
       const record: StoreRecord = {
@@ -35,6 +39,9 @@ export class JsonStoreRepository implements StoreRepository {
         businessName: data.businessName,
         enabled: true,
         apiKeyHash: data.apiKeyHash,
+        // Omit the key entirely when absent rather than writing a literal `undefined`
+        // into the JSON ledger.
+        ...(data.deviceId ? { deviceId: data.deviceId } : {}),
         createdAt: new Date().toISOString(),
         lastSyncAt: null,
         products: [],
@@ -42,6 +49,37 @@ export class JsonStoreRepository implements StoreRepository {
       records.push(record);
       writeLedger(records);
       return record;
+    });
+  }
+
+  // Recovery path: reissues a credential for an already-existing store without
+  // touching anything else, so a device that lost its local slug/apiKey (e.g.
+  // reinstall) can reclaim the SAME store instead of a new one being created.
+  async rotateApiKey(slug: string, apiKeyHash: string): Promise<StoreRecord | null> {
+    return withStoreLock(slug, async () => {
+      const records = readLedger();
+      const idx = records.findIndex((s) => s.slug === slug);
+      if (idx === -1) return null;
+      records[idx] = { ...records[idx], apiKeyHash };
+      writeLedger(records);
+      return records[idx];
+    });
+  }
+
+  // Legacy migration: a store created before deviceId tracking existed has no
+  // deviceId at all. Re-checks `!records[idx].deviceId` INSIDE the lock (not just
+  // relying on a caller's earlier read) so this is safe even if ever called outside
+  // the registration route's own outer lock — an already-claimed record is never
+  // reassigned, full stop.
+  async claimLegacyStore(slug: string, deviceId: string, apiKeyHash: string): Promise<StoreRecord | null> {
+    return withStoreLock(slug, async () => {
+      const records = readLedger();
+      const idx = records.findIndex((s) => s.slug === slug);
+      if (idx === -1) return null;
+      if (records[idx].deviceId) return null;
+      records[idx] = { ...records[idx], deviceId, apiKeyHash, legacyMigratedAt: new Date().toISOString() };
+      writeLedger(records);
+      return records[idx];
     });
   }
 

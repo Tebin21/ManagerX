@@ -488,8 +488,10 @@ export function buildFullInventoryReportHTML(
     </div>
 
     <div class="section-label">${allProductsLabel}</div>
-    ${renderPaginatedTable({
-      theadRowHTML: `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
             <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
             <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
             <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
@@ -498,14 +500,19 @@ export function buildFullInventoryReportHTML(
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
             <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
-      bodyRows: rows,
-      tfootHTML: `
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join('')}</tbody>
+        <tfoot>
+          <tr>
             <td colspan="6" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('totalInventoryValue'))) : 'Total Inventory Value:'}</td>
             <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValueIQD)} IQD</td>
-            <td colspan="2"></td>`,
-      headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
-    })}
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
 
   </div>
 
