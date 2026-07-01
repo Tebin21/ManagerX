@@ -251,6 +251,10 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       await processQueue(onProgress); // bypasses the debounce, like syncNow()
       set({ bulkPublishEnabled: enabled });
       await get().refreshPendingCount();
+      // processQueue() never throws (failures are written to storage instead) — read
+      // it back so a failure during this bulk action is visible immediately in
+      // whichever screen is mounted, instead of waiting for a fresh load() elsewhere.
+      set({ lastSyncError: (await getLastSyncError()) || null });
       return { status: 'ok' };
     } finally {
       set({ isBulkPublishing: false });

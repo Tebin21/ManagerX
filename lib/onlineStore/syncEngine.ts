@@ -79,6 +79,7 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
     name: p.name,
     category: p.category,
     description: p.description,
+    websiteDescription: p.websiteDescription,
     price: p.sellingPrice,
     quantity: p.quantity,
     imageUrl: p.imageRemoteUrl ?? (isLocalUri ? null : p.imageUri),

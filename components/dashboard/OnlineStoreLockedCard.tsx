@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Linking } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { InfoModal } from '@/components/ui/InfoModal';
+import { STORE_FRONTEND_BASE_URL } from '@/lib/onlineStore/api';
 
 interface Props {
   /** Was previously subscribed and the subscription has since lapsed — distinct copy
@@ -73,6 +74,17 @@ export function OnlineStoreLockedCard({ expired, legacy }: Props) {
         <Ionicons name="lock-open-outline" size={16} color={colors.white} />
         <Text style={styles.actionText}>
           {expired ? t('dashboard.onlineStore.expiredCta') : t('dashboard.onlineStore.activateCta')}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => Linking.openURL(`${STORE_FRONTEND_BASE_URL}/demo`)}
+        activeOpacity={0.85}
+        style={[styles.demoBtn, { borderColor: colors.primary, flexDirection }]}
+      >
+        <Ionicons name="eye-outline" size={16} color={colors.primary} />
+        <Text style={[styles.demoText, { color: colors.primary }]}>
+          {t('dashboard.onlineStore.previewDemoStore')}
         </Text>
       </TouchableOpacity>
 
@@ -166,5 +178,19 @@ const styles = StyleSheet.create({
     fontSize:   15,
     fontWeight: '700',
     color:      '#fff',
+  },
+  demoBtn: {
+    height:         Theme.button.height,
+    borderRadius:   Theme.button.borderRadius,
+    borderWidth:    1.5,
+    backgroundColor:'transparent',
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            8,
+    marginTop:      10,
+  },
+  demoText: {
+    fontSize:   14,
+    fontWeight: '700',
   },
 });

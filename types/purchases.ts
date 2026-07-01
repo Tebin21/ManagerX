@@ -48,6 +48,7 @@ export interface NewPurchaseInput {
   warranty: string;
   description: string;
   notes: string;
+  websiteDescription: string;
   paymentStatus: PurchasePaymentStatus;
   initialAmountPaid?: number;
   imageUri?: string | null;

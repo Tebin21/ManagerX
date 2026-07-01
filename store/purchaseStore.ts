@@ -147,6 +147,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       paymentStatus:   data.paymentStatus,
       warranty:        data.warranty,
       notes:           data.notes,
+      websiteDescription: input.websiteDescription.trim() || null,
       imageUri:        input.imageUri ?? null,
       isActive:        true,
     };

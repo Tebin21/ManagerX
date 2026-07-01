@@ -36,7 +36,7 @@ import { fmtIQD, fmtUSD } from '@/utils/formatters';
 type FieldKey =
   | 'name' | 'category'
   | 'sellPriceIQD' | 'sellPriceUSD' | 'lowStockThreshold'
-  | 'warranty' | 'description' | 'notes' | 'imageUri';
+  | 'warranty' | 'description' | 'notes' | 'imageUri' | 'websiteDescription';
 
 export default function EditProductScreen() {
   const { t } = useTranslation();
@@ -63,6 +63,7 @@ export default function EditProductScreen() {
   const [notes, setNotes]             = useState('');
   const [imageUri, setImageUri]       = useState<string | null>(null);
   const [lowStockThreshold, setLowStockThreshold] = useState('');
+  const [websiteDescription, setWebsiteDescription] = useState('');
 
   // Change-highlight state
   const [changedFields, setChangedFields] = useState<Set<FieldKey>>(new Set());
@@ -83,6 +84,7 @@ export default function EditProductScreen() {
         setNotes(p.notes ?? '');
         setImageUri(p.imageUri ?? null);
         setLowStockThreshold(p.lowStockThreshold != null ? String(p.lowStockThreshold) : '');
+        setWebsiteDescription(p.websiteDescription ?? '');
       }
       setLoading(false);
     })();
@@ -116,6 +118,7 @@ export default function EditProductScreen() {
     if (description.trim() !== (product.description ?? '')) changed.add('description');
     if (notes.trim() !== (product.notes ?? ''))             changed.add('notes');
     if (imageUri !== product.imageUri)           changed.add('imageUri');
+    if (websiteDescription.trim() !== (product.websiteDescription ?? '')) changed.add('websiteDescription');
     const parsedThreshold = lowStockThreshold.trim() ? parseInt(lowStockThreshold, 10) : null;
     if (parsedThreshold !== (product.lowStockThreshold ?? null)) changed.add('lowStockThreshold');
 
@@ -132,6 +135,7 @@ export default function EditProductScreen() {
         imageUri,
         lowStockThreshold:  (!isNaN(parsedThreshold as number) && parsedThreshold !== null && (parsedThreshold as number) > 0) ? parsedThreshold : null,
         lowStockEnabled:    null,
+        websiteDescription: websiteDescription.trim() || null,
       };
       await editProduct(product.id, data);
 
@@ -149,7 +153,7 @@ export default function EditProductScreen() {
     } finally {
       setSaving(false);
     }
-  }, [product, name, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, editProduct]);
+  }, [product, name, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, websiteDescription, editProduct]);
 
   const fieldBg = (key: FieldKey) =>
     changedFields.has(key) ? colors.softBlue : 'transparent';
@@ -374,6 +378,22 @@ export default function EditProductScreen() {
               numberOfLines={3}
               onFocus={scrollIntoView}
             />
+          </MotiView>
+
+          <MotiView animate={{ backgroundColor: fieldBg('websiteDescription') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
+            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.websiteDescription')}</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              value={websiteDescription}
+              onChangeText={setWebsiteDescription}
+              placeholder={t('inventory.websiteDescriptionPlaceholder')}
+              placeholderTextColor={colors.gray300}
+              maxLength={30}
+              onFocus={scrollIntoView}
+            />
+            <Text style={[styles.hintText, { color: colors.gray400, marginTop: 6, textAlign }]}>
+              {t('inventory.websiteDescriptionHint')}
+            </Text>
           </MotiView>
         </View>
 

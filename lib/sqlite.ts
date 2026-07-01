@@ -333,6 +333,9 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)`,
     `CREATE INDEX IF NOT EXISTS idx_debt_payments_debt_id ON debt_payments(debt_id)`,
     `CREATE INDEX IF NOT EXISTS idx_products_active_quantity ON products(is_active, quantity)`,
+    // Online Store — short storefront-only product description (separate from the
+    // generic `description` column, which is edit-screen-only and never synced/shown).
+    `ALTER TABLE products ADD COLUMN website_description TEXT`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -554,6 +557,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     lowStockThreshold: (row.low_stock_threshold as number | null) ?? null,
     lowStockEnabled: (row.low_stock_enabled as 1 | 0 | null) ?? null,
     storeVisible: (row.store_visible as number) === 1,
+    websiteDescription: (row.website_description as string | null) ?? null,
   };
 }
 
@@ -564,13 +568,22 @@ export async function insertProduct(data: NewProductData): Promise<number> {
   // per row here was pure redundant overhead (a device-id lookup + Ed25519 verify
   // + full inventory-stats scan) for a value already validated atomically.
   const database = await getDatabase();
+
+  // Online Store "bulk publish" policy — when on, every newly created product is
+  // auto-published, regardless of where it was created (insertProduct is the sole
+  // call site for product creation app-wide). Reads the setting key directly instead
+  // of importing lib/onlineStore/storage.ts's getter, since that file already imports
+  // loadSetting/saveSetting FROM this file — importing back would be circular.
+  const bulkPublishEnabled = (await loadSetting('online_store_bulk_publish_enabled')) === '1';
+
   const result = await database.runAsync(
     `INSERT INTO products (
       name, category, item_id, id_mode,
       purchase_price, selling_price, quantity, unit, description, is_active,
       purchase_id, supplier_name, supplier_phone, supplier_address, purchase_date,
-      payment_status, warranty, image_uri, buy_price_usd, sell_price_usd
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      payment_status, warranty, image_uri, buy_price_usd, sell_price_usd,
+      website_description, store_visible
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.name,
       data.category,
@@ -592,20 +605,10 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.imageUri ?? null,
       data.buyPriceUsd,
       data.sellPriceUsd,
+      data.websiteDescription ?? null,
+      bulkPublishEnabled ? 1 : 0,
     ]
   );
-
-  // Online Store "bulk publish" policy — when on, every newly created product is
-  // auto-published, regardless of where it was created (insertProduct is the sole
-  // call site for product creation app-wide). Reads the setting key directly instead
-  // of importing lib/onlineStore/storage.ts's getter, since that file already imports
-  // loadSetting/saveSetting FROM this file — importing back would be circular.
-  if ((await loadSetting('online_store_bulk_publish_enabled')) === '1') {
-    await database.runAsync(
-      'UPDATE products SET store_visible = 1 WHERE id = ?',
-      [result.lastInsertRowId]
-    );
-  }
 
   await enqueueSyncChange(result.lastInsertRowId, 'upsert');
   return result.lastInsertRowId;
@@ -637,6 +640,7 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.supplierAddress !== undefined){ fields.push('supplier_address = ?'); values.push(data.supplierAddress); }
   if (data.lowStockThreshold !== undefined) { fields.push('low_stock_threshold = ?'); values.push(data.lowStockThreshold ?? null); }
   if (data.lowStockEnabled !== undefined)  { fields.push('low_stock_enabled = ?');  values.push(data.lowStockEnabled ?? null); }
+  if (data.websiteDescription !== undefined) { fields.push('website_description = ?'); values.push(data.websiteDescription); }
 
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');

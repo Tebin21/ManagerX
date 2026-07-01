@@ -1,0 +1,105 @@
+import type { StoreResponse } from '../lib/api';
+
+// Hardcoded catalog for the /demo route — lets a business owner preview the
+// storefront's design before ever registering a real store. Images are bundled
+// locally under public/demo/ (not hotlinked) so the preview never depends on a
+// third-party image CDN staying up.
+export const DEMO_STORE: StoreResponse = {
+  businessName: 'ManagerX Demo Store',
+  enabled: true,
+  info: {
+    description: 'A preview storefront showing what your own Online Store could look like.',
+  },
+  products: [
+    {
+      productId: 1,
+      name: 'Wireless Bluetooth Earbuds Pro',
+      category: 'Electronics',
+      description: null,
+      websiteDescription: 'Crisp sound, all-day battery',
+      price: 145000,
+      imageUrl: '/demo/product-01.jpg',
+    },
+    {
+      productId: 2,
+      name: 'Stainless Steel Insulated Water Bottle',
+      category: 'Home & Kitchen',
+      description: null,
+      websiteDescription: 'Keeps drinks cold 24h',
+      price: 25000,
+      imageUrl: '/demo/product-02.jpg',
+    },
+    {
+      productId: 3,
+      name: "Genuine Leather Wallet",
+      category: 'Accessories',
+      description: null,
+      websiteDescription: 'Slim, handstitched leather',
+      price: 35000,
+      imageUrl: '/demo/product-03.jpg',
+    },
+    {
+      productId: 4,
+      name: 'Portable Power Bank 20000mAh',
+      category: 'Electronics',
+      description: null,
+      websiteDescription: 'Fast-charge for 2 devices',
+      price: 60000,
+      imageUrl: '/demo/product-04.jpg',
+    },
+    {
+      productId: 5,
+      name: 'Smart Fitness Watch',
+      category: 'Electronics',
+      description: null,
+      websiteDescription: 'Tracks steps, sleep & heart rate',
+      price: 180000,
+      imageUrl: '/demo/product-05.jpg',
+    },
+    {
+      productId: 6,
+      name: 'Ceramic Non-Stick Cookware Set (5pc)',
+      category: 'Home & Kitchen',
+      description: null,
+      websiteDescription: 'Even heat, easy cleanup',
+      price: 95000,
+      imageUrl: '/demo/product-06.jpg',
+    },
+    {
+      productId: 7,
+      name: 'Premium Cotton Bath Towel Set',
+      category: 'Home & Kitchen',
+      description: null,
+      websiteDescription: 'Soft, absorbent, quick-dry',
+      price: 30000,
+      imageUrl: '/demo/product-07.jpg',
+    },
+    {
+      productId: 8,
+      name: 'Adjustable Laptop Stand',
+      category: 'Office',
+      description: null,
+      websiteDescription: 'Ergonomic height, foldable',
+      price: 40000,
+      imageUrl: '/demo/product-08.jpg',
+    },
+    {
+      productId: 9,
+      name: 'Polarized Sunglasses',
+      category: 'Accessories',
+      description: null,
+      websiteDescription: 'UV400 protection, unisex',
+      price: 28000,
+      imageUrl: '/demo/product-09.jpg',
+    },
+    {
+      productId: 10,
+      name: 'Backpack 30L Water-Resistant',
+      category: 'Accessories',
+      description: null,
+      websiteDescription: 'Fits 15" laptop, padded straps',
+      price: 55000,
+      imageUrl: '/demo/product-10.jpg',
+    },
+  ],
+};

@@ -22,8 +22,8 @@ interface Props {
 
 export function InventoryStatsCard({ label, value, amount, icon, accent = false, delay = 0 }: Props) {
   const { colors } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
-  const valueStyle = [styles.value, accent && styles.accentValue, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 1 }];
+  const { isRTL, textAlign, valueAlign, flexDirection } = useRTL();
+  const valueStyle = [styles.value, accent && styles.accentValue, { flex: 1, textAlign: valueAlign }];
   return (
     <MotiView
       from={{ opacity: 0, translateY: 6 }}
@@ -32,20 +32,20 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
       style={[
         styles.card,
         accent && styles.accentCard,
-        { flexDirection, paddingVertical: isRTL ? 12 : 10, paddingHorizontal: isRTL ? RTL_SPACING.gap : 12 },
+        { paddingVertical: isRTL ? 12 : 10, paddingHorizontal: isRTL ? RTL_SPACING.gap : 12 },
       ]}
     >
-      <View style={[styles.iconWrap, { backgroundColor: accent ? '#FEF3C7' : colors.softBlue, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? RTL_SPACING.gap : 0 }]}>
-        <Ionicons name={icon} size={14} color={accent ? '#B45309' : colors.primary} />
-      </View>
-      <View style={styles.textBlock}>
+      <View style={[styles.topRow, { flexDirection }]}>
+        <View style={[styles.iconWrap, { backgroundColor: accent ? '#FEF3C7' : colors.softBlue }]}>
+          <Ionicons name={icon} size={14} color={accent ? '#B45309' : colors.primary} />
+        </View>
         {amount !== undefined ? (
           <AmountText value={amount} style={valueStyle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} />
         ) : (
           <Text style={valueStyle} numberOfLines={1}>{value}</Text>
         )}
-        <Text style={[styles.label, { textAlign }]} numberOfLines={1}>{label}</Text>
       </View>
+      <Text style={[styles.label, { textAlign }]}>{label}</Text>
     </MotiView>
   );
 }
@@ -53,8 +53,7 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
     backgroundColor: Colors.white,
     borderRadius: Theme.radius.md,
     paddingVertical: 10,
@@ -66,24 +65,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   iconWrap: {
     width: 28,
     height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
     flexShrink: 0,
-  },
-  textBlock: {
-    flex: 1,
-    minWidth: 0,
   },
   value: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.black,
-    marginBottom: 1,
   },
   accentValue: {
     color: '#B45309',

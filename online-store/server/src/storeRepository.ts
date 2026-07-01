@@ -3,6 +3,7 @@ export interface StoreProduct {
   name: string;
   category: string;
   description: string | null;
+  websiteDescription: string | null;
   price: number;
   quantity: number;
   imageUrl: string | null;
@@ -36,6 +37,7 @@ export interface SyncChangeInput {
   name?: string;
   category?: string;
   description?: string | null;
+  websiteDescription?: string | null;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;

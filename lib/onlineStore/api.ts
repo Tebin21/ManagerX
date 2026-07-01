@@ -34,6 +34,7 @@ export interface SyncChange {
   name?: string;
   category?: string;
   description?: string | null;
+  websiteDescription?: string | null;
   price?: number;
   quantity?: number;
   imageUrl?: string | null;

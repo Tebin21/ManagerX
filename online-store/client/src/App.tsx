@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { StorefrontPage } from './pages/StorefrontPage';
+import { DemoStorefrontPage } from './pages/DemoStorefrontPage';
 import { StorefrontLayout } from './components/StorefrontLayout';
 
 export default function App() {
@@ -8,6 +9,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/demo" element={<StorefrontLayout />}>
+          <Route index element={<DemoStorefrontPage />} />
+        </Route>
         <Route path="/:slug" element={<StorefrontLayout />}>
           <Route index element={<StorefrontPage />} />
         </Route>

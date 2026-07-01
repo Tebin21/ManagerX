@@ -18,6 +18,9 @@ export interface InventoryProduct extends Product {
   lowStockThreshold: number | null;
   lowStockEnabled: 1 | 0 | null;
   storeVisible: boolean;
+  /** Short description shown only on the Online Store product card — never displayed
+   *  anywhere in the app dashboard. Distinct from the generic `description` field. */
+  websiteDescription: string | null;
 }
 
 export interface InventoryStats {
@@ -56,6 +59,7 @@ export interface NewProductData {
   imageUri: string | null;
   lowStockThreshold?: number | null;
   lowStockEnabled?: 1 | 0 | null;
+  websiteDescription?: string | null;
 }
 
 export interface InventoryHistoryItem {

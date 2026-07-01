@@ -228,7 +228,7 @@ export default function PurchaseDebtDetailScreen() {
         gradient={[Colors.errorDark, Colors.error]}
       >
         {(debt.supplierPhone || debt.supplierAddress) ? (
-          <View style={styles.headerMeta}>
+          <View style={[styles.headerMeta, { flexDirection }]}>
             {debt.supplierPhone ? (
               <View style={[styles.headerMetaItem, { flexDirection }]}>
                 <Ionicons name="call" size={13} color="rgba(255,255,255,0.85)" />
@@ -299,12 +299,12 @@ export default function PurchaseDebtDetailScreen() {
                 </View>
                 <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.itemPrice, { textAlign: valueAlign }]} />
                 {purchase.itemIds.length > 0 ? (
-                  <Text style={[styles.itemId, { textAlign: valueAlign }]}>ID: <IdText size="small" style={styles.itemId}>{purchase.itemIds.join(', ')}</IdText></Text>
+                  <Text style={[styles.itemId, { textAlign: 'right' }]}>ID: <IdText size="small" style={styles.itemId}>{purchase.itemIds.join(', ')}</IdText></Text>
                 ) : null}
                 {purchase.warranty ? (
                   <View style={[styles.infoRow, { flexDirection, marginTop: 6, marginBottom: 0 }]}>
                     <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.warranty')}</Text>
-                    <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{purchase.warranty}</Text>
+                    <Text style={[styles.infoValue, { textAlign: 'right' }]}>{purchase.warranty}</Text>
                   </View>
                 ) : null}
               </View>
@@ -312,7 +312,7 @@ export default function PurchaseDebtDetailScreen() {
             {debt.notes ? (
               <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={[styles.infoLabel, { textAlign }]}>{t('purchases.notes')}</Text>
-                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.notes}</Text>
+                <Text style={[styles.infoValue, { textAlign: 'right' }]}>{debt.notes}</Text>
               </View>
             ) : null}
 
@@ -502,8 +502,8 @@ const styles = StyleSheet.create({
   viewPurchaseBtnText: { fontSize: 13, fontWeight: '600' },
 
   noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
-  timelineItem: { flexDirection: 'row', marginBottom: 14 },
-  timelineDotCol: { alignItems: 'center', width: 20, marginEnd: 12 },
+  timelineItem: { flexDirection: 'row', marginBottom: 14, gap: 12 },
+  timelineDotCol: { alignItems: 'center', width: 20 },
   timelineDot: {
     width: 10,
     height: 10,

@@ -219,7 +219,7 @@ export default function SalesDebtDetailScreen() {
         showBack
       >
         {(debt.customerPhone || debt.customerAddress) ? (
-          <View style={styles.headerMeta}>
+          <View style={[styles.headerMeta, { flexDirection }]}>
             {debt.customerPhone ? (
               <View style={[styles.headerMetaItem, { flexDirection }]}>
                 <Ionicons name="call" size={13} color="rgba(255,255,255,0.85)" />
@@ -283,13 +283,13 @@ export default function SalesDebtDetailScreen() {
             {debt.warranty ? (
               <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={[styles.infoLabel, { textAlign }]}>{t('sales.warranty')}</Text>
-                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.warranty}</Text>
+                <Text style={[styles.infoValue, { textAlign: 'right' }]}>{debt.warranty}</Text>
               </View>
             ) : null}
             {debt.saleNotes ? (
               <View style={[styles.infoRow, { flexDirection }]}>
                 <Text style={[styles.infoLabel, { textAlign }]}>{t('sales.notes')}</Text>
-                <Text style={[styles.infoValue, { textAlign: valueAlign }]}>{debt.saleNotes}</Text>
+                <Text style={[styles.infoValue, { textAlign: 'right' }]}>{debt.saleNotes}</Text>
               </View>
             ) : null}
           </PremiumCard>
@@ -310,7 +310,7 @@ export default function SalesDebtDetailScreen() {
                   </View>
                   <AmountText value={item.lineTotal} currency="IQD" style={[styles.itemPrice, { textAlign: valueAlign }]} />
                   {item.itemId ? (
-                    <Text style={[styles.itemId, { textAlign: valueAlign }]}>ID: <IdText size="small" style={styles.itemId}>{item.itemId}</IdText></Text>
+                    <Text style={[styles.itemId, { textAlign: 'right' }]}>ID: <IdText size="small" style={styles.itemId}>{item.itemId}</IdText></Text>
                   ) : null}
                 </View>
               ))}
@@ -482,8 +482,8 @@ const styles = StyleSheet.create({
 
   // Payment timeline
   noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
-  timelineItem: { flexDirection: 'row', marginBottom: 14 },
-  timelineDotCol: { alignItems: 'center', width: 20, marginEnd: 12 },
+  timelineItem: { flexDirection: 'row', marginBottom: 14, gap: 12 },
+  timelineDotCol: { alignItems: 'center', width: 20 },
   timelineDot: {
     width: 10,
     height: 10,

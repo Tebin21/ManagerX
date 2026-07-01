@@ -12,6 +12,7 @@ export interface StoreProduct {
   name: string;
   category: string;
   description: string | null;
+  websiteDescription: string | null;
   price: number;
   imageUrl: string | null;
 }

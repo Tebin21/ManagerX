@@ -29,7 +29,7 @@ import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
 import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
-import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, useDirectionalChevron, RTL_SPACING } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { isDateWithinRange } from '@/utils/dateRanges';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
@@ -277,7 +277,7 @@ function QuickPayModal({
   onConfirm: (amount: number) => void;
 }) {
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, isRTL } = useRTL();
   const [value, setValue] = useState('');
 
   if (!visible) return null;
@@ -290,13 +290,13 @@ function QuickPayModal({
         transition={{ type: 'spring', damping: 18 }}
         style={styles.modal}
       >
-        <Text style={styles.modalTitle}>{i18n.t('debt.recordPayment')}</Text>
-        <Text style={styles.modalSub}>{name}</Text>
-        <Text style={[styles.modalRemaining, { color: colors.primary }]}>
+        <Text style={[styles.modalTitle, { textAlign }]}>{i18n.t('debt.recordPayment')}</Text>
+        <Text style={[styles.modalSub, { textAlign }]}>{name}</Text>
+        <Text style={[styles.modalRemaining, { color: colors.primary, textAlign }]}>
           {i18n.t('debt.remainingLabel')}: <AmountText value={remaining} currency="IQD" variant="small" style={[styles.modalRemaining, { color: colors.primary }, NUMBER_LTR]} />
         </Text>
         <TextInput
-          style={styles.modalInput}
+          style={[styles.modalInput, isRTL && { textAlign: 'right', writingDirection: 'ltr' }]}
           placeholder={i18n.t('debt.amountPlaceholder')}
           placeholderTextColor={Colors.gray400}
           keyboardType="decimal-pad"
@@ -343,7 +343,7 @@ export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { flexDirection, textAlign, writingDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const {
     summary, isLoading,
     loadAll, paySalesDebt, payPurchaseDebt,
@@ -451,14 +451,14 @@ export default function DebtScreen() {
     );
 
     return (
-      <View key={card.label} style={[styles.summaryCard, { flexDirection }]}>
-        <View style={[styles.summaryIconWrap, { backgroundColor: tone.wrapBg }]}>
-          <Ionicons name={card.icon} size={18} color={tone.iconColor} />
-        </View>
-        <View style={styles.cellTextBlock}>
+      <View key={card.label} style={styles.summaryCard}>
+        <View style={[styles.summaryTopRow, { flexDirection: isRTL ? 'row' : 'row-reverse' }]}>
+          <View style={[styles.summaryIconWrap, { backgroundColor: tone.wrapBg }]}>
+            <Ionicons name={card.icon} size={18} color={tone.iconColor} />
+          </View>
           {valueNode}
-          <Text style={[styles.summaryLabel, { textAlign }]} numberOfLines={1}>{card.label}</Text>
         </View>
+        <Text style={[styles.summaryLabel, { textAlign }]}>{card.label}</Text>
       </View>
     );
   };
@@ -524,21 +524,19 @@ export default function DebtScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </AppHeader>
 
-      {/* Summary section — white body: receivable + payable each their own row, outstanding/total paired */}
-      <View style={styles.summarySection}>
-        <View style={styles.summaryRow}>
-          {renderOverviewCell(overviewCards[0])}
+        {/* Summary cards — 2×2 grid, inside the blue header */}
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryRow}>
+            {renderOverviewCell(overviewCards[0])}
+            {renderOverviewCell(overviewCards[1])}
+          </View>
+          <View style={styles.summaryRow}>
+            {renderOverviewCell(overviewCards[2])}
+            {renderOverviewCell(overviewCards[3])}
+          </View>
         </View>
-        <View style={styles.summaryRow}>
-          {renderOverviewCell(overviewCards[1])}
-        </View>
-        <View style={styles.summaryRow}>
-          {renderOverviewCell(overviewCards[2])}
-          {renderOverviewCell(overviewCards[3])}
-        </View>
-      </View>
+      </AppHeader>
 
       {/* Debt list */}
       {tab === 'sales' ? (
@@ -625,27 +623,34 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
 
-  // Summary section — white body, below the header: receivable + payable each
-  // get their own full-width row, outstanding/total debt paired in one row.
-  summarySection: {
+  summaryGrid: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 16,
+    gap: 8,
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
-  cellTextBlock: { flex: 1, minWidth: 0 },
+  summaryTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   summaryCard: {
     flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    ...Theme.shadow.soft,
+    flexDirection: 'column',
+    gap: 6,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
   },
   summaryIconWrap: {
     width: 32,
@@ -653,7 +658,6 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginEnd: 10,
   },
   summaryValue: { fontSize: 18, fontWeight: '800', marginBottom: 1 },
   summaryLabel: { fontSize: 11, color: Colors.gray500 },

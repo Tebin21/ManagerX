@@ -66,7 +66,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
   const cardOpacity     = useRef(new Animated.Value(0)).current;
 
   const { colors } = useAppTheme();
-  const { textAlign } = useRTL();
+  const { textAlign, flexDirection } = useRTL();
   const { t } = useTranslation();
 
   // ── Animations ──────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
         style={[styles.trigger, { borderColor: colors.gray200, backgroundColor: colors.gray50, shadowColor: colors.primary }]}
       >
         <Pressable
-          style={styles.triggerRow}
+          style={[styles.triggerRow, { flexDirection }]}
           onPress={openModal}
           android_ripple={{ color: colors.gray100 }}
         >
@@ -174,11 +174,11 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
               ]}
             >
               {/* ── Header ── */}
-              <View style={[styles.cardHeader, { borderBottomColor: colors.gray100 }]}>
+              <View style={[styles.cardHeader, { borderBottomColor: colors.gray100, flexDirection }]}>
                 <View style={[styles.cardHeaderIcon, { backgroundColor: colors.softBlue }]}>
                   <Ionicons name="calendar" size={18} color={colors.primary} />
                 </View>
-                <Text style={[styles.cardTitle, { color: colors.black }]}>
+                <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
                   {label ?? t('common.confirm')}
                 </Text>
               </View>
@@ -188,10 +188,10 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
 
                 {/* Date */}
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.gray500 }]}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
                     {t('purchases.date')}
                   </Text>
-                  <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+                  <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="calendar-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.inputField, { color: colors.black }]}
@@ -210,10 +210,10 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
 
                 {/* Time */}
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.gray500 }]}>
+                  <Text style={[styles.inputLabel, { color: colors.gray500, textAlign }]}>
                     {t('common.time')}
                   </Text>
-                  <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+                  <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="time-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.inputField, { color: colors.black }]}
@@ -232,14 +232,14 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
                 </View>
 
                 {/* Format hint + Now shortcut */}
-                <View style={styles.hintRow}>
+                <View style={[styles.hintRow, { flexDirection }]}>
                   <Text style={[styles.hint, { color: colors.gray400 }]}>
                     YYYY-MM-DD · HH:MM
                   </Text>
                   <TouchableOpacity
                     onPress={handleNow}
                     activeOpacity={0.7}
-                    style={[styles.nowChip, { backgroundColor: colors.softBlue }]}
+                    style={[styles.nowChip, { backgroundColor: colors.softBlue, flexDirection }]}
                   >
                     <Ionicons name="flash" size={12} color={colors.primary} />
                     <Text style={[styles.nowChipText, { color: colors.primary }]}>
@@ -250,7 +250,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
               </View>
 
               {/* ── Footer buttons ── */}
-              <View style={[styles.cardFooter, { borderTopColor: colors.gray100 }]}>
+              <View style={[styles.cardFooter, { borderTopColor: colors.gray100, flexDirection }]}>
                 <TouchableOpacity
                   style={[styles.btnCancel, { borderColor: colors.gray200 }]}
                   onPress={closeModal}

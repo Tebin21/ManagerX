@@ -47,6 +47,87 @@ function logoBlock(logoUri: string | null): string {
   return `<img src="${logoUri}" style="height:54px;max-width:130px;object-fit:contain;display:block;background:#fff;border-radius:5px;padding:3px;margin-bottom:9px;" alt="logo" />`;
 }
 
+// ─── Manual row pagination ─────────────────────────────────────────────────
+// expo-print's PDF pipeline (WebKit on iOS, Chromium print on Android) does
+// not reliably honor `page-break-inside`/`break-inside: avoid` on <tr>, so a
+// product row can still get sliced across a page boundary even with that CSS
+// in place. Instead, row placement is decided here, in JS, before any HTML is
+// emitted: for every row we check whether it fits in the space left on the
+// current page; if it doesn't, a new page starts and the row is placed there
+// instead. Each page is rendered as its own <table>, and a real (not "avoid")
+// page-break-before is inserted between them -- that's a hard instruction to
+// start a fresh page, not a fit-calculation hint, so it's honored reliably.
+//
+// The measurements below are derived from the fixed CSS in reportCSS() (row
+// padding, font-size, line-height, borders), padded with a generous safety
+// margin since there's no live layout pass available to measure actual
+// rendered heights. Every page chunk built here must fit inside one real
+// physical page with room to spare -- if a chunk's *actual* rendered height
+// ever exceeded the true page height, the browser would silently continue
+// that table's rows onto an extra page of its own (natural reflow, not one
+// of our forced breaks), and that extra page would have no <thead> on it.
+// Erring well on the side of "fewer rows per page" is what prevents that.
+const PX_PER_MM = 96 / 25.4;
+// A4 (297mm) minus the @page 15mm top/bottom margins (~1009px), minus a large
+// safety margin for rendering variance across platforms.
+const PAGE_CONTENT_HEIGHT_PX = Math.floor((297 - 15 - 15) * PX_PER_MM) - 150;
+const TABLE_HEADER_ROW_HEIGHT_PX = 55; // thead th row: padding 10+10 + line-height + border, safety-padded
+const TABLE_BODY_ROW_HEIGHT_PX = 70;   // tbody td row: padding 9+9 + line-height + border, safety-padded for possible text wrap
+const REPORT_HEADER_NO_KPI_PX = 450;   // header block + period banner + section label (no KPI grid)
+const REPORT_HEADER_WITH_KPI_PX = 550; // same, plus the KPI grid
+// Hard ceiling on rows per page, independent of the height estimates above --
+// a second, simpler guarantee that a page can never be packed so full that
+// it silently overflows its physical page.
+const MAX_ROWS_PER_PAGE = 14;
+
+// Splits `bodyRows` into per-page chunks so a row is never split across a
+// page boundary: each row is checked against the remaining space on the
+// current page (and against the hard row-count ceiling) before being placed
+// there; if it doesn't fit, a new page starts and the row goes there instead.
+function paginateRows<T>(bodyRows: T[], firstPageHeaderPx: number): T[][] {
+  const pages: T[][] = [];
+  let currentPage: T[] = [];
+  let remaining = PAGE_CONTENT_HEIGHT_PX - firstPageHeaderPx - TABLE_HEADER_ROW_HEIGHT_PX;
+
+  for (const row of bodyRows) {
+    const pageFull = currentPage.length > 0 &&
+      (TABLE_BODY_ROW_HEIGHT_PX > remaining || currentPage.length >= MAX_ROWS_PER_PAGE);
+    if (pageFull) {
+      pages.push(currentPage);
+      currentPage = [];
+      remaining = PAGE_CONTENT_HEIGHT_PX - TABLE_HEADER_ROW_HEIGHT_PX;
+    }
+    currentPage.push(row);
+    remaining -= TABLE_BODY_ROW_HEIGHT_PX;
+  }
+  if (currentPage.length > 0) pages.push(currentPage);
+  return pages;
+}
+
+// Renders `bodyRows` as one or more <table>s (one per page), each with its
+// own repeated header row, forcing a real page break before every table
+// after the first. `tfootHTML` (if given) is only attached to the last page.
+function renderPaginatedTable(opts: {
+  theadRowHTML: string;
+  bodyRows: string[];
+  tfootHTML?: string;
+  headerBudgetPx: number;
+}): string {
+  const pages = paginateRows(opts.bodyRows, opts.headerBudgetPx);
+  return pages.map((pageRows, i) => {
+    const isFirst = i === 0;
+    const isLast = i === pages.length - 1;
+    return `
+    <div class="table-wrap"${isFirst ? '' : ' style="page-break-before: always;"'}>
+      <table>
+        <thead><tr>${opts.theadRowHTML}</tr></thead>
+        <tbody>${pageRows.join('')}</tbody>
+        ${isLast && opts.tfootHTML ? `<tfoot><tr>${opts.tfootHTML}</tr></tfoot>` : ''}
+      </table>
+    </div>`;
+  }).join('');
+}
+
 // ─── Shared white/monochrome CSS ──────────────────────────────────────────────
 // Mirrors lib/invoiceTemplate.ts's SALES_CSS design tokens so inventory reports
 // feel like part of the same ManagerX PDF system.
@@ -363,7 +444,7 @@ export function buildFullInventoryReportHTML(
         <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
         <td style="text-align:center;">${statusCell}</td>
       </tr>`;
-  }).join('');
+  });
 
   const titleHTML = isKurdish ? ku(escHtml(t('title'))) : 'Inventory Report';
   const allProductsLabel = isKurdish
@@ -407,10 +488,8 @@ export function buildFullInventoryReportHTML(
     </div>
 
     <div class="section-label">${allProductsLabel}</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
+    ${renderPaginatedTable({
+      theadRowHTML: `
             <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
             <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
             <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
@@ -419,19 +498,14 @@ export function buildFullInventoryReportHTML(
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
             <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          <tr>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+      bodyRows: rows,
+      tfootHTML: `
             <td colspan="6" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('totalInventoryValue'))) : 'Total Inventory Value:'}</td>
             <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValueIQD)} IQD</td>
-            <td colspan="2"></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+            <td colspan="2"></td>`,
+      headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
+    })}
 
   </div>
 
@@ -471,7 +545,7 @@ export function buildLowStockReportHTML(
       <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
       <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
       <td style="text-align:center;"><span class="badge-lowstock">${isKurdish ? ku(escHtml(t('lowStockBadge'))) : 'Low Stock'} &#9888;</span></td>
-    </tr>`).join('');
+    </tr>`);
 
   const titleHTML = isKurdish ? ku(escHtml(t('lowStockReportTitle'))) : 'Low Stock Report';
   const subtitleHTML = isKurdish
@@ -497,21 +571,17 @@ export function buildLowStockReportHTML(
   <div class="body">
     ${periodBannerBlock(periodLabel, isKurdish)}
     <div class="section-label">${sectionLabel}</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
+    ${renderPaginatedTable({
+      theadRowHTML: `
             <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
             <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
             <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
             <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
             <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+      bodyRows: rows,
+      headerBudgetPx: REPORT_HEADER_NO_KPI_PX,
+    })}
   </div>
 
   <div class="footer">
@@ -550,7 +620,7 @@ export function buildOutOfStockReportHTML(
       <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
       <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
       <td style="text-align:center;"><span class="badge-outofstock">${isKurdish ? ku(escHtml(t('outOfStock'))) : 'Out of Stock'}</span></td>
-    </tr>`).join('');
+    </tr>`);
 
   const titleHTML = isKurdish ? ku(escHtml(t('outOfStockReportTitle'))) : 'Out of Stock Report';
   const subtitleHTML = isKurdish
@@ -576,21 +646,17 @@ export function buildOutOfStockReportHTML(
   <div class="body">
     ${periodBannerBlock(periodLabel, isKurdish)}
     <div class="section-label">${sectionLabel}</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
+    ${renderPaginatedTable({
+      theadRowHTML: `
             <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
             <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
             <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
             <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
             <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
+            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+      bodyRows: rows,
+      headerBudgetPx: REPORT_HEADER_NO_KPI_PX,
+    })}
   </div>
 
   <div class="footer">
@@ -641,7 +707,7 @@ export function buildCategoryReportHTML(
         <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${val} IQD</td>
         <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
       </tr>`;
-  }).join('');
+  });
 
   const titleHTML = isKurdish ? ku(escHtml(t('categoryReportTitle'))) : 'Category Report';
   const subtitleHTML = isKurdish
@@ -688,29 +754,22 @@ export function buildCategoryReportHTML(
     </div>
 
     <div class="section-label">${sectionLabel}</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
+    ${renderPaginatedTable({
+      theadRowHTML: `
             <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
             <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
             <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
             <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
-            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          <tr>
+            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>`,
+      bodyRows: rows,
+      tfootHTML: `
             <td colspan="5" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('categoryTotalValue'))) : 'Category Total Value:'}</td>
             <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValue)} IQD</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+            <td></td>`,
+      headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
+    })}
 
   </div>
 

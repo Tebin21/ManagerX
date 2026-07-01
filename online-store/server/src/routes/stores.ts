@@ -72,6 +72,7 @@ storesRouter.get('/:slug', async (req, res) => {
       // that the client's non-optional `category: string` type doesn't expect.
       category: p.category ?? 'General',
       description: p.description ?? null,
+      websiteDescription: p.websiteDescription ?? null,
       price: p.price,
       imageUrl: p.imageUrl,
     }));

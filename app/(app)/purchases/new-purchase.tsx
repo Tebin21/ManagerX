@@ -75,6 +75,7 @@ export default function NewPurchaseScreen() {
   const [category, setCategory]             = useState('');
   const [warranty, setWarranty]             = useState('');
   const [notes, setNotes]                   = useState('');
+  const [websiteDescription, setWebsiteDescription] = useState('');
   const [supplierPhone, setSupplierPhone]   = useState('');
   const [supplierAddress, setSupplierAddress] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
@@ -244,6 +245,7 @@ export default function NewPurchaseScreen() {
         warranty,
         description: '',
         notes,
+        websiteDescription,
         paymentStatus,
         initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
         imageUri,
@@ -549,6 +551,19 @@ export default function NewPurchaseScreen() {
               style={[styles.textarea, isRTL && { fontSize: 13 }]}
             />
 
+            <AppTextInput
+              label={t('purchases.websiteDescription')}
+              value={websiteDescription}
+              onChangeText={setWebsiteDescription}
+              placeholder={t('purchases.websiteDescriptionPlaceholder')}
+              maxLength={30}
+              returnKeyType="next"
+              style={isRTL ? { fontSize: 13 } : undefined}
+            />
+            <Text style={[styles.hintText, { color: colors.gray400, textAlign }]}>
+              {t('purchases.websiteDescriptionHint')}
+            </Text>
+
             {/* Payment Status */}
             <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
             <View style={[styles.paymentRow, { flexDirection }]}>
@@ -688,6 +703,11 @@ const styles = StyleSheet.create({
     fontWeight:    '500',
     marginBottom:  8,
     letterSpacing: 0.2,
+  },
+  hintText: {
+    fontSize:     11,
+    marginTop:    -8,
+    marginBottom: 12,
   },
 
   priceRow:   { flexDirection: 'row', gap: 10, marginBottom: 4 },
