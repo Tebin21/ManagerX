@@ -14,6 +14,7 @@ import { Text } from '@/components/settings/SettingsText';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { THEME_PRESETS } from '@/constants/themes';
 import { darken, lighten } from '@/lib/colorUtils';
 import { useRTL } from '@/lib/rtl';
@@ -31,6 +32,7 @@ export default function ThemeScreen() {
   const { width: screenW }  = useWindowDimensions();
   const accentColor         = useSettingsStore((s) => s.accentColor);
   const setAccentColor      = useSettingsStore((s) => s.setAccentColor);
+  const notifyAccentColorChanged = useOnlineStoreStore((s) => s.notifyAccentColorChanged);
 
   const cardWidth = (screenW - PADDING * 2 - GAP * (COLS - 1)) / COLS;
 
@@ -52,7 +54,7 @@ export default function ThemeScreen() {
     <View>
       <TouchableOpacity
         activeOpacity={0.80}
-        onPress={() => setAccentColor(null)}
+        onPress={() => { setAccentColor(null); notifyAccentColorChanged(); }}
         style={[
           st.resetCard,
           {
@@ -102,7 +104,7 @@ export default function ThemeScreen() {
           return (
             <TouchableOpacity
               activeOpacity={0.82}
-              onPress={() => setAccentColor(preset.primary)}
+              onPress={() => { setAccentColor(preset.primary); notifyAccentColorChanged(); }}
               style={[
                 st.card,
                 { width: cardWidth },

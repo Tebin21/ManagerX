@@ -9,6 +9,12 @@ export const DEMO_STORE: StoreResponse = {
   enabled: true,
   info: {
     description: 'A preview storefront showing what your own Online Store could look like.',
+    // Clearly fake sample values -- lets /demo visually verify the "has a
+    // value -> opens the real destination" icon behavior with no backend.
+    facebookUrl: 'https://facebook.com/managerxdemo',
+    instagramUrl: 'https://instagram.com/managerxdemo',
+    tiktokUrl: 'https://tiktok.com/@managerxdemo',
+    whatsappNumber: '9647701234567',
   },
   products: [
     {

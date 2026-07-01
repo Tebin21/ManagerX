@@ -124,6 +124,9 @@ export interface StoreInfoPayload {
   logoUrl?: string;
   facebookUrl?: string;
   instagramUrl?: string;
+  tiktokUrl?: string;
+  whatsappNumber?: string;
+  themeColor?: string;
 }
 
 export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {

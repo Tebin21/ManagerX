@@ -11,12 +11,16 @@ export interface StoreInfoFields {
   description: string;
   facebookUrl: string;
   instagramUrl: string;
+  tiktokUrl: string;
+  whatsappNumber: string;
 }
 
 const FIELD_KEYS: Record<keyof StoreInfoFields, string> = {
   description: 'online_store_description',
   facebookUrl: 'online_store_facebook',
   instagramUrl: 'online_store_instagram',
+  tiktokUrl: 'online_store_tiktok',
+  whatsappNumber: 'online_store_whatsapp',
 };
 
 export async function loadStoreInfoFields(): Promise<StoreInfoFields> {

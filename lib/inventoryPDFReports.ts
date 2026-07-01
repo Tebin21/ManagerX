@@ -58,27 +58,27 @@ function logoBlock(logoUri: string | null): string {
 // page-break-before is inserted between them -- that's a hard instruction to
 // start a fresh page, not a fit-calculation hint, so it's honored reliably.
 //
-// The measurements below are derived from the fixed CSS in reportCSS() (row
-// padding, font-size, line-height, borders), padded with a generous safety
-// margin since there's no live layout pass available to measure actual
-// rendered heights. Every page chunk built here must fit inside one real
-// physical page with room to spare -- if a chunk's *actual* rendered height
-// ever exceeded the true page height, the browser would silently continue
-// that table's rows onto an extra page of its own (natural reflow, not one
-// of our forced breaks), and that extra page would have no <thead> on it.
-// Erring well on the side of "fewer rows per page" is what prevents that.
+// The measurements below are computed directly from the fixed CSS in
+// reportCSS() (row padding, font-size, line-height, borders) -- they track
+// the real rendered height closely rather than being padded with a large
+// blanket safety margin, so pages fill up almost completely instead of
+// breaking early. The only deliberate slack is PAGE_CONTENT_HEIGHT_PX's
+// one-row buffer (see below) plus MAX_ROWS_PER_PAGE, a backstop ceiling that
+// only matters if a page's real content ever runs taller than expected.
 const PX_PER_MM = 96 / 25.4;
-// A4 (297mm) minus the @page 15mm top/bottom margins (~1009px), minus a large
-// safety margin for rendering variance across platforms.
-const PAGE_CONTENT_HEIGHT_PX = Math.floor((297 - 15 - 15) * PX_PER_MM) - 150;
-const TABLE_HEADER_ROW_HEIGHT_PX = 55; // thead th row: padding 10+10 + line-height + border, safety-padded
-const TABLE_BODY_ROW_HEIGHT_PX = 70;   // tbody td row: padding 9+9 + line-height + border, safety-padded for possible text wrap
-const REPORT_HEADER_NO_KPI_PX = 450;   // header block + period banner + section label (no KPI grid)
-const REPORT_HEADER_WITH_KPI_PX = 550; // same, plus the KPI grid
-// Hard ceiling on rows per page, independent of the height estimates above --
-// a second, simpler guarantee that a page can never be packed so full that
-// it silently overflows its physical page.
-const MAX_ROWS_PER_PAGE = 14;
+// A4 (297mm) minus the @page 15mm top/bottom margins (~1009px), minus roughly
+// one table row's worth of buffer -- this is the "leave about one row of
+// slack before breaking" margin, not a large blanket safety cushion.
+const PAGE_CONTENT_HEIGHT_PX = Math.floor((297 - 15 - 15) * PX_PER_MM) - 40;
+const TABLE_HEADER_ROW_HEIGHT_PX = 40; // thead th row: padding 10+10 + line-height(10.5*1.5) + border
+const TABLE_BODY_ROW_HEIGHT_PX = 40;   // tbody td row: padding 9+9 + line-height(12.5*1.5) + border
+const REPORT_HEADER_NO_KPI_PX = 300;   // header block + period banner + section label (no KPI grid)
+const REPORT_HEADER_WITH_KPI_PX = 400; // same, plus the KPI grid
+// Backstop ceiling on rows per page, well above what the height estimates
+// above would ever pack onto one page -- guards against the header-block
+// estimate being off (e.g. extra-long wrapped business address) without
+// forcing early breaks on ordinary pages.
+const MAX_ROWS_PER_PAGE = 24;
 
 // Splits `bodyRows` into per-page chunks so a row is never split across a
 // page boundary: each row is checked against the remaining space on the

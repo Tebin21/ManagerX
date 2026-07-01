@@ -1,5 +1,6 @@
 import { Phone, MapPin, Store as StoreIcon } from 'lucide-react';
 import type { StoreInfo } from '../lib/api';
+import { SocialIcons } from './SocialIcons';
 
 function initials(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || '?';
@@ -10,8 +11,8 @@ interface Props {
   info: StoreInfo;
 }
 
-// Pure storefront-info display — logo, name, description, phone, address only.
-// This is a catalog, not a shop: no cart, no WhatsApp ordering link here.
+// Pure storefront-info display — logo, name, description, phone, address, and
+// social icons only. This is a catalog, not a shop: no cart, no checkout flow.
 export function StoreHeader({ businessName, info }: Props) {
   return (
     <header className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-6 py-10 text-white shadow-card">
@@ -49,6 +50,13 @@ export function StoreHeader({ businessName, info }: Props) {
             </span>
           )}
         </div>
+
+        <SocialIcons
+          facebookUrl={info.facebookUrl}
+          instagramUrl={info.instagramUrl}
+          tiktokUrl={info.tiktokUrl}
+          whatsappNumber={info.whatsappNumber}
+        />
       </div>
     </header>
   );

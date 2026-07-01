@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { StoreProduct, StoreResponse } from '../lib/api';
+import { getBrandCssVars } from '../lib/theme';
 import { ProductCard } from './ProductCard';
 import { StoreHeader } from './StoreHeader';
 import { SearchBar } from './SearchBar';
@@ -19,6 +20,11 @@ function CenteredMessage({ children }: { children: React.ReactNode }) {
 export function StorefrontView({ store }: { store: StoreResponse }) {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Scoped to this component's own subtree (header, search, filters, product grid)
+  // so the sibling Footer — rendered separately by StorefrontLayout — keeps its own
+  // gold BexDre-credit palette regardless of the store's brand color.
+  const brandStyle = useMemo(() => getBrandCssVars(store.info.themeColor), [store.info.themeColor]);
 
   // Distinct categories in first-seen order — derived from products, no separate
   // category endpoint needed (matches the existing "no pagination, fetch everything"
@@ -58,7 +64,7 @@ export function StorefrontView({ store }: { store: StoreResponse }) {
   }, [filteredProducts, categories, selectedCategory, query]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50" style={brandStyle}>
       <StoreHeader businessName={store.businessName} info={store.info} />
 
       <main className="mx-auto max-w-5xl px-4 py-6">

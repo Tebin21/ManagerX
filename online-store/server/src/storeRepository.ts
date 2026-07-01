@@ -18,6 +18,9 @@ export interface StoreInfo {
   logoUrl?: string;
   facebookUrl?: string;
   instagramUrl?: string;
+  tiktokUrl?: string;
+  whatsappNumber?: string;
+  themeColor?: string;
 }
 
 export interface StoreRecord {

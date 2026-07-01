@@ -124,13 +124,16 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
   try {
     const fields = await loadStoreInfoFields();
     const { useBusinessStore } = await import('@/store/businessStore');
+    const { useSettingsStore } = await import('@/store/settingsStore');
     const business = useBusinessStore.getState();
+    const accentColor = useSettingsStore.getState().accentColor;
     await pushStoreInfo(slug, apiKey, {
       ...fields,
       businessName: business.name || undefined,
       phone: business.phone || undefined,
       address: business.address || undefined,
       logoUrl: logoUrl ?? undefined,
+      themeColor: accentColor ?? undefined,
     });
     await clearStoreInfoDirty();
   } catch (err) {

@@ -20,6 +20,7 @@ import {
 import {
   loadStoreInfoFields,
   saveStoreInfoFields,
+  markStoreInfoDirty,
   type StoreInfoFields,
 } from '@/lib/onlineStore/storeInfo';
 import { useBusinessStore } from '@/store/businessStore';
@@ -82,6 +83,13 @@ interface OnlineStoreState {
    *  periodic/manual) retry it opportunistically until it succeeds. Not gated here
    *  directly — processQueue() (which this calls) already gates itself. */
   saveStoreInfo: (fields: Partial<StoreInfoFields>) => Promise<void>;
+  /** Fire-and-forget: called by the Theme settings screen whenever the app's accent
+   *  color changes. accentColor itself lives in settingsStore (an app-wide UI
+   *  concern, read live by syncEngine.ts), not in storeInfoFields — this just marks
+   *  the same "dirty" flag storeInfoFields edits use and kicks an opportunistic push,
+   *  so a theme-only change (no other Online Store field touched) still syncs.
+   *  processQueue() already self-gates on subscription/enabled state. */
+  notifyAccentColorChanged: () => void;
   /** Manual "Sync Now" action. Returns {status:'locked'} immediately, with no
    *  network call, when there's no active Online Store Subscription. Safe to call
    *  even if a debounced/periodic sync is already in flight — processQueue() has its
@@ -114,7 +122,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   isRegistering: false,
   isLoading: false,
   isSyncingNow: false,
-  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '' },
+  storeInfoFields: { description: '', facebookUrl: '', instagramUrl: '', tiktokUrl: '', whatsappNumber: '' },
   lastSyncError: null,
   bulkPublishEnabled: false,
   isBulkPublishing: false,
@@ -264,6 +272,11 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   saveStoreInfo: async (fields) => {
     await saveStoreInfoFields(fields);
     set({ storeInfoFields: { ...get().storeInfoFields, ...fields } });
+    processQueue(); // fire-and-forget — opportunistic push, retried automatically on failure
+  },
+
+  notifyAccentColorChanged: () => {
+    markStoreInfoDirty();
     processQueue(); // fire-and-forget — opportunistic push, retried automatically on failure
   },
 

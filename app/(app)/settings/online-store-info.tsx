@@ -35,6 +35,8 @@ export default function OnlineStoreInfoScreen() {
   const [description, setDescription] = useState(storeInfoFields.description);
   const [facebookUrl, setFacebookUrl] = useState(storeInfoFields.facebookUrl);
   const [instagramUrl, setInstagramUrl] = useState(storeInfoFields.instagramUrl);
+  const [tiktokUrl, setTiktokUrl] = useState(storeInfoFields.tiktokUrl);
+  const [whatsappNumber, setWhatsappNumber] = useState(storeInfoFields.whatsappNumber);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -48,6 +50,8 @@ export default function OnlineStoreInfoScreen() {
     setDescription(storeInfoFields.description);
     setFacebookUrl(storeInfoFields.facebookUrl);
     setInstagramUrl(storeInfoFields.instagramUrl);
+    setTiktokUrl(storeInfoFields.tiktokUrl);
+    setWhatsappNumber(storeInfoFields.whatsappNumber);
   }, [storeInfoFields]);
 
   async function handleSave() {
@@ -57,6 +61,8 @@ export default function OnlineStoreInfoScreen() {
         description: description.trim(),
         facebookUrl: facebookUrl.trim(),
         instagramUrl: instagramUrl.trim(),
+        tiktokUrl: tiktokUrl.trim(),
+        whatsappNumber: whatsappNumber.trim(),
       });
       if (Platform.OS === 'android') {
         ToastAndroid.show(t('settings.onlineStoreInfoScreen.saved'), ToastAndroid.SHORT);
@@ -117,6 +123,21 @@ export default function OnlineStoreInfoScreen() {
               onChangeText={setInstagramUrl}
               autoCapitalize="none"
               keyboardType="url"
+            />
+            <AppTextInput
+              label={t('settings.onlineStoreInfoScreen.tiktokUrl')}
+              placeholder="https://tiktok.com/@yourpage"
+              value={tiktokUrl}
+              onChangeText={setTiktokUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <AppTextInput
+              label={t('settings.onlineStoreInfoScreen.whatsappNumber')}
+              placeholder={t('settings.onlineStoreInfoScreen.whatsappNumberPlaceholder')}
+              value={whatsappNumber}
+              onChangeText={setWhatsappNumber}
+              keyboardType="phone-pad"
             />
           </PremiumCard>
 
