@@ -747,13 +747,32 @@ export async function bulkSetStoreVisibility(visible: boolean): Promise<number> 
       [visible ? 1 : 0]
     );
     affected = result.changes;
-    await database.runAsync(
-      `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
+
+    // SQLite's ON CONFLICT...DO UPDATE upsert isn't supported by the on-device
+    // build (was throwing 'near "DO": syntax error'), so dedupe via a bulk
+    // UPDATE followed by an INSERT of only the rows that didn't already exist.
+    // Still two single-statement operations, no per-row JS loop.
+    const updateSql = `UPDATE sync_queue SET operation = 'upsert', updated_at = CURRENT_TIMESTAMP
+       WHERE entity_type = 'product'
+         AND entity_id IN (SELECT id FROM products)`;
+    console.log('[ManagerX][sync_queue] bulk update', updateSql); // TEMP: debug logging for sync upsert fix
+    try {
+      await database.runAsync(updateSql);
+    } catch (err) {
+      console.error('[ManagerX][sync_queue] bulk update failed:', updateSql, err); // TEMP
+      throw err;
+    }
+
+    const insertSql = `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
        SELECT 'product', id, 'upsert', CURRENT_TIMESTAMP FROM products
-       ON CONFLICT(entity_type, entity_id) DO UPDATE SET
-         operation = excluded.operation,
-         updated_at = excluded.updated_at`
-    );
+       WHERE id NOT IN (SELECT entity_id FROM sync_queue WHERE entity_type = 'product')`;
+    console.log('[ManagerX][sync_queue] bulk insert', insertSql); // TEMP: debug logging for sync upsert fix
+    try {
+      await database.runAsync(insertSql);
+    } catch (err) {
+      console.error('[ManagerX][sync_queue] bulk insert failed:', insertSql, err); // TEMP
+      throw err;
+    }
   });
   // Same dynamic-import fire-and-forget pattern as enqueueSyncChange below — avoids a
   // circular import (syncEngine.ts already imports FROM this file).
@@ -771,14 +790,33 @@ export async function enqueueSyncChange(
   operation: 'upsert' | 'delete'
 ): Promise<void> {
   const database = await getDatabase();
-  await database.runAsync(
-    `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
-     VALUES ('product', ?, ?, CURRENT_TIMESTAMP)
-     ON CONFLICT(entity_type, entity_id) DO UPDATE SET
-       operation = excluded.operation,
-       updated_at = excluded.updated_at`,
-    [productId, operation]
-  );
+  // SQLite's ON CONFLICT...DO UPDATE upsert isn't supported by the on-device
+  // build (was throwing 'near "DO": syntax error'), so dedupe via UPDATE first,
+  // then INSERT only if no existing row was found.
+  await database.withTransactionAsync(async () => {
+    const updateSql = `UPDATE sync_queue SET operation = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE entity_type = 'product' AND entity_id = ?`;
+    console.log('[ManagerX][sync_queue] update', updateSql, [operation, productId]); // TEMP: debug logging for sync upsert fix
+    let updateResult;
+    try {
+      updateResult = await database.runAsync(updateSql, [operation, productId]);
+    } catch (err) {
+      console.error('[ManagerX][sync_queue] update failed:', updateSql, [operation, productId], err); // TEMP
+      throw err;
+    }
+
+    if (updateResult.changes === 0) {
+      const insertSql = `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
+         VALUES ('product', ?, ?, CURRENT_TIMESTAMP)`;
+      console.log('[ManagerX][sync_queue] insert', insertSql, [productId, operation]); // TEMP: debug logging for sync upsert fix
+      try {
+        await database.runAsync(insertSql, [productId, operation]);
+      } catch (err) {
+        console.error('[ManagerX][sync_queue] insert failed:', insertSql, [productId, operation], err); // TEMP
+        throw err;
+      }
+    }
+  });
   // Dynamic import avoids a circular import (syncEngine.ts already imports FROM
   // this file). Fire-and-forget — enqueueSyncChange is called inline inside bulk
   // loops (e.g. deleteProductsByPurchaseId) and must never block on a debounce
