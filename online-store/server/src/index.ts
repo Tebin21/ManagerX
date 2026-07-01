@@ -3,6 +3,8 @@ import path from 'path';
 import cors from 'cors';
 import { config } from './config';
 import { storesRouter } from './routes/stores';
+import { adminRouter } from './routes/admin';
+import { requireAdminAuth } from './adminAuth';
 import { UPLOADS_ROOT } from './uploads';
 
 // Pure API process — the storefront (online-store/client) is deployed separately to
@@ -19,6 +21,10 @@ app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_ROOT));
 
 app.use('/api/stores', storesRouter);
+// Server-to-server only — the ManagerX Store Control Center's Next.js server is
+// the sole caller (see adminAuth.ts); never reached directly from a browser, so
+// this doesn't need to be listed in `allowedOrigin` above.
+app.use('/api/admin', requireAdminAuth, adminRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(config.port, () => {

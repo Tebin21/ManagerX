@@ -1,5 +1,6 @@
 {
   "port": 4100,
   "allowedOrigin": "http://localhost:5174",
-  "publicApiUrl": "http://localhost:4100"
+  "publicApiUrl": "http://localhost:4100",
+  "adminApiKey": "replace-with-a-long-random-string-shared-with-online-store-admin"
 }
