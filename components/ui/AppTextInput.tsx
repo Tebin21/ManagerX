@@ -67,30 +67,10 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
         ]}
       >
         <View style={styles.inputRow}>
-          {showKuPlaceholderOverlay ? (
-            <View style={styles.inputBox}>
-              <TextInput
-                {...rest}
-                placeholder={undefined}
-                style={applyKurdishFont(isKurdish, [styles.input, { color: colors.black, textAlign }, style] as never)}
-                placeholderTextColor={colors.gray400}
-                onFocus={(e) => {
-                  setFocused(true);
-                  scrollIntoView(e);
-                  rest.onFocus?.(e);
-                }}
-                onBlur={(e) => {
-                  setFocused(false);
-                  rest.onBlur?.(e);
-                }}
-              />
-              <Text pointerEvents="none" style={[styles.kuPlaceholderOverlay, { textAlign, color: colors.gray400 }]}>
-                {rest.placeholder}
-              </Text>
-            </View>
-          ) : (
+          <View style={styles.inputBox}>
             <TextInput
               {...rest}
+              placeholder={showKuPlaceholderOverlay ? undefined : rest.placeholder}
               style={applyKurdishFont(isKurdish, [styles.input, { flex: 1, color: colors.black, textAlign }, style] as never)}
               placeholderTextColor={colors.gray400}
               onFocus={(e) => {
@@ -103,7 +83,12 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
                 rest.onBlur?.(e);
               }}
             />
-          )}
+            {showKuPlaceholderOverlay && (
+              <Text pointerEvents="none" style={[styles.kuPlaceholderOverlay, { textAlign, color: colors.gray400 }]}>
+                {rest.placeholder}
+              </Text>
+            )}
+          </View>
           {rightElement}
         </View>
       </MotiView>

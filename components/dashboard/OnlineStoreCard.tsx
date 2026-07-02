@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
-import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +12,7 @@ import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { InfoModal } from '@/components/ui/InfoModal';
-import { formatRelativeTime } from '@/utils/formatters';
+import { formatRelativeTime, formatDateShort } from '@/utils/formatters';
 
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
@@ -22,7 +21,7 @@ function stripProtocol(url: string): string {
 export function OnlineStoreCard() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection } = useRTL();
   const [infoVisible, setInfoVisible] = useState(false);
 
   const {
@@ -82,18 +81,18 @@ export function OnlineStoreCard() {
           <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue }]}>
             <Ionicons name="storefront" size={22} color={colors.primary} />
           </View>
-          <Text style={[styles.title, { color: colors.darkBlue }]}>{t('dashboard.onlineStore.title')}</Text>
+          <Text style={[styles.title, { color: colors.darkBlue, textAlign }]}>{t('dashboard.onlineStore.title')}</Text>
         </View>
 
         <View style={[styles.headerRight, { flexDirection }]}>
           <View
             style={[
               styles.statusPill,
-              { backgroundColor: enabled ? '#DCFCE7' : colors.gray100 },
+              { backgroundColor: enabled ? '#DCFCE7' : colors.gray100, flexDirection },
             ]}
           >
             <View style={[styles.statusDot, { backgroundColor: enabled ? colors.success : colors.gray400 }]} />
-            <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500 }]}>
+            <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500, textAlign }]}>
               {enabled ? t('dashboard.onlineStore.active') : t('dashboard.onlineStore.disabled')}
             </Text>
           </View>
@@ -110,11 +109,16 @@ export function OnlineStoreCard() {
       {/* Subscription status */}
       <View style={[styles.subRow, { backgroundColor: colors.gray50, flexDirection }]}>
         <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-        <Text style={[styles.subText, { color: colors.gray600 }]} numberOfLines={1}>
+        <Text style={[styles.subText, { color: colors.gray600, textAlign, writingDirection }]} numberOfLines={1}>
           {t('dashboard.onlineStore.activeSubscriptionLabel')}
-          {subscriptionExpiresAt ? <> · <DateText value={subscriptionExpiresAt} size="small" style={styles.subText} /></> : null}
-          {remainingDays !== null ? ` · ${remainingDays}d` : ''}
         </Text>
+        {(subscriptionExpiresAt || remainingDays !== null) && (
+          <LTRNumber style={[styles.subDate, { color: colors.gray600 }]} numberOfLines={1}>
+            {subscriptionExpiresAt ? formatDateShort(subscriptionExpiresAt) : ''}
+            {subscriptionExpiresAt && remainingDays !== null ? ' · ' : ''}
+            {remainingDays !== null ? `${remainingDays}d` : ''}
+          </LTRNumber>
+        )}
       </View>
 
       {/* Store URL */}
@@ -161,14 +165,16 @@ export function OnlineStoreCard() {
       {/* Stats */}
       <View style={[styles.statsRow, { flexDirection }]}>
         <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('dashboard.onlineStore.lastSync')}</Text>
-          <Text style={[styles.statValue, { color: colors.darkBlue }]}>
-            {lastSyncAt ? formatRelativeTime(lastSyncAt) : t('dashboard.onlineStore.never')}
-          </Text>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign }]}>{t('dashboard.onlineStore.lastSync')}</Text>
+          {lastSyncAt ? (
+            <LTRNumber style={[styles.statValue, { color: colors.darkBlue, textAlign }]}>{formatRelativeTime(lastSyncAt)}</LTRNumber>
+          ) : (
+            <Text style={[styles.statValue, { color: colors.darkBlue, textAlign, writingDirection }]}>{t('dashboard.onlineStore.never')}</Text>
+          )}
         </View>
         <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
-          <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success }]}>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
+          <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success, textAlign, writingDirection }]}>
             {pendingCount > 0
               ? t('dashboard.onlineStore.changesWaiting', { count: pendingCount })
               : t('dashboard.onlineStore.allSynced')}
@@ -246,7 +252,11 @@ const styles = StyleSheet.create({
     marginBottom:      12,
   },
   subText: {
-    flex:       1,
+    flexShrink: 1,
+    fontSize:   11.5,
+    fontWeight: '600',
+  },
+  subDate: {
     fontSize:   11.5,
     fontWeight: '600',
   },
