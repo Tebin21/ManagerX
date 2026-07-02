@@ -8,6 +8,12 @@ services:
   - type: web
     name: online-store-api
     runtime: docker
+    # This service is currently configured as a MANUAL Docker Web Service in the Render
+    # dashboard, not as a synced Blueprint — the dashboard's own "Root Directory" and
+    # "Docker Build Context Directory" fields are what Render actually builds with, and
+    # they are NOT read from this file. Whatever you set here, also set those two dashboard
+    # fields to the repo root (blank/"."), or every cross-boundary COPY below breaks again
+    # with "not found" errors, since Docker can never COPY files from outside its context.
     dockerContext: .
     dockerfilePath: ./online-store/server/Dockerfile
     plan: starter
