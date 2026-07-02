@@ -13,9 +13,38 @@ function readLedger(): StoreRecord[] {
   return JSON.parse(fs.readFileSync(LEDGER_PATH, 'utf8'));
 }
 
-function writeLedger(records: StoreRecord[]): void {
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Crash-safe temp-file-then-rename write: a plain writeFileSync truncates the
+// destination before writing the new content, so a crash mid-write (a restart, a
+// deploy, an OOM kill) could leave an empty/corrupt stores.json that reads back as
+// "nothing exists here" — silently wiping every registered store at once. Writing
+// to a temp file first and renaming it into place means the destination is always
+// either fully replaced or completely untouched.
+async function writeLedger(records: StoreRecord[]): Promise<void> {
   fs.mkdirSync(path.dirname(LEDGER_PATH), { recursive: true });
-  fs.writeFileSync(LEDGER_PATH, JSON.stringify(records, null, 2));
+  const tmpPath = `${LEDGER_PATH}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(records, null, 2));
+  // fs.renameSync can transiently fail with EPERM/EBUSY if something else
+  // (antivirus, a sync client, a search indexer) briefly has the destination file
+  // open for reading. A short retry absorbs that without weakening the atomicity
+  // guarantee above: at every attempt the destination is either fully replaced or
+  // completely untouched, we may just need more than one try to get there.
+  const maxAttempts = 5;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      fs.renameSync(tmpPath, LEDGER_PATH);
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (attempt >= maxAttempts || (code !== 'EPERM' && code !== 'EBUSY')) {
+        throw e;
+      }
+      await delay(20 * attempt);
+    }
+  }
 }
 
 export class JsonStoreRepository implements StoreRepository {
@@ -28,7 +57,7 @@ export class JsonStoreRepository implements StoreRepository {
   }
 
   async create(data: { slug: string; businessName: string; apiKeyHash: string }): Promise<StoreRecord> {
-    return withStoreLock(data.slug, async () => {
+    return withStoreLock(async () => {
       const records = readLedger();
       const record: StoreRecord = {
         slug: data.slug,
@@ -40,24 +69,24 @@ export class JsonStoreRepository implements StoreRepository {
         products: [],
       };
       records.push(record);
-      writeLedger(records);
+      await writeLedger(records);
       return record;
     });
   }
 
   async setEnabled(slug: string, enabled: boolean): Promise<StoreRecord | null> {
-    return withStoreLock(slug, async () => {
+    return withStoreLock(async () => {
       const records = readLedger();
       const idx = records.findIndex((s) => s.slug === slug);
       if (idx === -1) return null;
       records[idx] = { ...records[idx], enabled };
-      writeLedger(records);
+      await writeLedger(records);
       return records[idx];
     });
   }
 
   async updateInfo(slug: string, update: Partial<StoreInfo> & { businessName?: string }): Promise<StoreRecord | null> {
-    return withStoreLock(slug, async () => {
+    return withStoreLock(async () => {
       const records = readLedger();
       const idx = records.findIndex((s) => s.slug === slug);
       if (idx === -1) return null;
@@ -67,13 +96,13 @@ export class JsonStoreRepository implements StoreRepository {
         ...(businessName ? { businessName } : {}),
         info: { ...records[idx].info, ...info },
       };
-      writeLedger(records);
+      await writeLedger(records);
       return records[idx];
     });
   }
 
   async applySync(slug: string, changes: SyncChangeInput[]): Promise<{ syncedAt: string; accepted: number }> {
-    return withStoreLock(slug, async () => {
+    return withStoreLock(async () => {
       const records = readLedger();
       const idx = records.findIndex((s) => s.slug === slug);
       if (idx === -1) throw new Error('STORE_NOT_FOUND');
@@ -106,7 +135,7 @@ export class JsonStoreRepository implements StoreRepository {
 
       const syncedAt = new Date().toISOString();
       records[idx] = { ...store, products: Array.from(productsById.values()), lastSyncAt: syncedAt };
-      writeLedger(records);
+      await writeLedger(records);
       return { syncedAt, accepted: changes.length };
     });
   }
