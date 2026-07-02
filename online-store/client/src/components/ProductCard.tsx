@@ -1,10 +1,15 @@
 import { ImageOff } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import type { StoreProduct } from '../lib/api';
 import { formatIQD } from '../lib/format';
 
-// View-only catalog tile — no purchasing affordance of any kind.
+// View-only catalog tile — no purchasing affordance of any kind. Links to the product
+// details page only when rendered under a real store route (a `slug` param exists); under
+// /demo (DemoStorefrontPage.tsx) there is no slug, so the card stays non-interactive.
 export function ProductCard({ product }: { product: StoreProduct }) {
-  return (
+  const { slug } = useParams<{ slug: string }>();
+
+  const card = (
     <div className="group overflow-hidden rounded-2xl bg-white shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="relative aspect-square bg-slate-100">
         {product.category && (
@@ -33,5 +38,13 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         <p className="mt-2 text-base font-bold text-brand-600">{formatIQD(product.price)}</p>
       </div>
     </div>
+  );
+
+  if (!slug) return card;
+
+  return (
+    <Link to={`/${slug}/product/${product.productId}`} className="block">
+      {card}
+    </Link>
   );
 }

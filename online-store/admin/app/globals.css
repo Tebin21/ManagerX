@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Tailwind v4 has no tailwind.config.js `darkMode` option — class-based dark
+   mode (needed for next-themes' toggle, since we don't want to rely on OS
+   prefers-color-scheme alone) must be registered explicitly like this. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+.dark {
+  --color-canvas: #0a0b0d;
+  --color-surface: #131417;
+  --color-border: #24262b;
+  --color-ink: #f3f4f6;
+  --color-muted: #9ca3af;
+}
+
+@theme inline {
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-ink: var(--color-ink);
+  --color-muted: var(--color-muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Brand accent — same family as license-admin-panel/client for visual
+     continuity across ManagerX's internal tools. */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+* {
+  border-color: var(--color-border);
+}
