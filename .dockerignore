@@ -1,0 +1,38 @@
+# online-store/server's render.yaml uses this repo root as its Docker build context
+# (needed so the Dockerfile can COPY the shared lib/ folder). Everything below is
+# excluded to keep the build context small/fast — only lib/ and online-store/server/
+# are actually used by that Dockerfile.
+
+.git/
+.expo/
+.idea/
+.vscode/
+.claude/
+node_modules/
+android/
+
+app/
+assets/
+components/
+constants/
+contexts/
+hooks/
+locales/
+plugins/
+purchase-manager/
+scripts/
+store/
+types/
+utils/
+web-dist/
+
+license-admin-panel/
+
+online-store/admin/
+online-store/client/
+
+online-store/server/node_modules/
+online-store/server/dist/
+online-store/server/data/
+online-store/server/config.local.json
+online-store/server/*.log

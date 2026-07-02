@@ -8,7 +8,7 @@ services:
   - type: web
     name: online-store-api
     runtime: docker
-    dockerContext: ./online-store/server
+    dockerContext: .
     dockerfilePath: ./online-store/server/Dockerfile
     plan: starter
     healthCheckPath: /api/health
