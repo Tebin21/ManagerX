@@ -5,6 +5,7 @@ import { JsonStoreRepository } from '../jsonStoreRepository';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
 import { requireActiveSubscription, checkSubscriptionHeaders } from '../subscriptionAuth';
 import { upload, saveUploadedImage } from '../uploads';
+import { storeWriteLimiter, registrationLimiter } from '../rateLimit';
 import { config } from '../config';
 import type { SyncChangeInput } from '../storeRepository';
 
@@ -35,7 +36,7 @@ async function resolveUniqueSlug(base: string): Promise<string> {
 // the business owner presses "Enable Store". Requires an active Online Store
 // Subscription — there's no store/API-key yet at this point, so the subscription
 // header is the only available proof of entitlement.
-storesRouter.post('/', requireActiveSubscription, async (req, res) => {
+storesRouter.post('/', registrationLimiter, requireActiveSubscription, async (req, res) => {
   const { businessName } = req.body ?? {};
   if (!businessName?.trim()) {
     res.status(400).json({ error: 'businessName is required' });
@@ -53,7 +54,10 @@ storesRouter.post('/', requireActiveSubscription, async (req, res) => {
 // client to render the product grid.
 storesRouter.get('/:slug', async (req, res) => {
   const store = await repo.getBySlug(req.params.slug);
-  if (!store) {
+  // Disabled stores respond identically to nonexistent ones (same status + message)
+  // so the public endpoint never distinguishes "exists but disabled" from "no such
+  // store" — no products/settings/images are built or returned in either case.
+  if (!store || !store.enabled) {
     res.status(404).json({ error: 'Store not found' });
     return;
   }
@@ -89,7 +93,7 @@ storesRouter.get('/:slug', async (req, res) => {
 // Subscription is checked inline, only when enabled:true is requested — disabling
 // must always succeed regardless of subscription state (the system can auto-disable
 // on expiry, but a user manually disabling their own store is never blocked).
-storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
+storesRouter.patch('/:slug/status', storeWriteLimiter, requireStoreAuth, async (req, res) => {
   const { enabled } = req.body ?? {};
   if (typeof enabled !== 'boolean') {
     res.status(400).json({ error: 'enabled must be a boolean' });
@@ -116,7 +120,7 @@ storesRouter.patch('/:slug/status', requireStoreAuth, async (req, res) => {
 // the public storefront header. Freeform, partial-merge, no field validation (kept
 // loose for v1, consistent with /sync). Requires the store's API key AND an active
 // Online Store Subscription.
-storesRouter.patch('/:slug/info', requireStoreAuth, requireActiveSubscription, async (req, res) => {
+storesRouter.patch('/:slug/info', storeWriteLimiter, requireStoreAuth, requireActiveSubscription, async (req, res) => {
   const updated = await repo.updateInfo(req.params.slug, req.body ?? {});
   if (!updated) {
     res.status(404).json({ error: 'Store not found' });
@@ -128,7 +132,7 @@ storesRouter.patch('/:slug/info', requireStoreAuth, requireActiveSubscription, a
 // POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from ManagerX's
 // offline-first sync queue. Requires the store's API key AND an active Online Store
 // Subscription.
-storesRouter.post('/:slug/sync', requireStoreAuth, requireActiveSubscription, async (req, res) => {
+storesRouter.post('/:slug/sync', storeWriteLimiter, requireStoreAuth, requireActiveSubscription, async (req, res) => {
   const { changes } = req.body ?? {};
   if (!Array.isArray(changes)) {
     res.status(400).json({ error: 'changes must be an array' });
@@ -147,7 +151,7 @@ storesRouter.post('/:slug/sync', requireStoreAuth, requireActiveSubscription, as
 // own persistent disk (no third-party storage account needed) and returns a
 // public URL the storefront can load directly. Requires the store's API key AND an
 // active Online Store Subscription.
-storesRouter.post('/:slug/images', requireStoreAuth, requireActiveSubscription, upload.single('image'), async (req, res) => {
+storesRouter.post('/:slug/images', storeWriteLimiter, requireStoreAuth, requireActiveSubscription, upload.single('image'), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'image file is required (field name "image", jpeg/png/webp, max 5MB)' });
     return;

@@ -11,6 +11,11 @@ import { UPLOADS_ROOT } from './uploads';
 // split-domain deployment.
 const app = express();
 
+// Render sits in front of this service as a reverse proxy — without this, every
+// request's req.ip resolves to the proxy's address, collapsing all clients into a
+// single bucket for the IP-keyed registration rate limiter (see rateLimit.ts).
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: config.allowedOrigin }));
 app.use(express.json());
 
