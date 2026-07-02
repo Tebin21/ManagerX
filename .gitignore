@@ -40,3 +40,8 @@ scripts/online-store-subscription-admin/subscriptions.json
 # local server config, or uploaded product/logo images
 online-store/server/config.local.json
 online-store/server/data/
+
+# Next.js (online-store/admin) — build output and generated files
+.next/
+*.tsbuildinfo
+next-env.d.ts
