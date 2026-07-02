@@ -21,6 +21,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY online-store/server/package*.json ./
 RUN npm install --omit=dev
+# subscriptionCore.js (copied to /lib below) requires 'tweetnacl' at load time. Node
+# resolves bare specifiers by walking up from the requiring file's own directory, so from
+# /lib it checks /lib/node_modules then /node_modules — never /app/node_modules, since
+# /app and /lib are unrelated sibling directories. Placing it at /node_modules mirrors the
+# repo's own layout, where lib/ and node_modules/ are siblings at the repo root.
+RUN mkdir -p /node_modules && cp -r node_modules/tweetnacl /node_modules/tweetnacl
 COPY --from=build /app/dist ./dist
 COPY lib /lib
 
