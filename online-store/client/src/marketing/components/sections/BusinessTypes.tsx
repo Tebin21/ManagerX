@@ -31,11 +31,11 @@ export function BusinessTypes() {
   const t = messages.businessTypes;
 
   return (
-    <section className="py-24 sm:py-32">
+    <section className="py-16 sm:py-24 lg:py-32">
       <Container>
         <SectionHeading title={t.heading} />
 
-        <div className="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:mt-16 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {(Object.keys(BUSINESS_TYPE_ICONS) as Array<keyof typeof BUSINESS_TYPE_ICONS>).map(
             (key) => (
               <BusinessTypeCard key={key} icon={BUSINESS_TYPE_ICONS[key]} label={t.items[key]} />

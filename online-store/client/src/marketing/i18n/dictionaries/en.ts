@@ -4,6 +4,7 @@ export const en = {
     features: "Features",
     contact: "Contact",
     switchLanguage: "Switch language",
+    menu: "Menu",
   },
   hero: {
     title: "Smart Business Management for Everyone",
@@ -84,9 +85,11 @@ export const en = {
   contact: {
     heading: "Get in touch",
     websiteLabel: "Website",
-    emailLabel: "Email",
+    phoneLabel: "Phone",
+    instagramLabel: "Instagram",
     website: "froshiar.store",
-    email: "support@froshiar.store",
+    phone: "0770 822 9696",
+    instagram: "@froshiar.krd",
   },
 };
 

@@ -6,6 +6,7 @@ export const ckb: Dictionary = {
     features: "تایبەتمەندییەکان",
     contact: "پەیوەندی",
     switchLanguage: "گۆڕینی زمان",
+    menu: "پێڕست",
   },
   hero: {
     title: "بەڕێوەبردنی زیرەکی کاروبار بۆ هەمووان",
@@ -87,8 +88,10 @@ export const ckb: Dictionary = {
   contact: {
     heading: "پەیوەندیمان پێوە بکە",
     websiteLabel: "ماڵپەڕ",
-    emailLabel: "ئیمەیل",
+    phoneLabel: "ژمارەی مۆبایل",
+    instagramLabel: "ئینستاگرام",
     website: "froshiar.store",
-    email: "support@froshiar.store",
+    phone: "0770 822 9696",
+    instagram: "@froshiar.krd",
   },
 };

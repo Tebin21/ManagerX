@@ -29,11 +29,11 @@ export function Features() {
   const t = messages.features;
 
   return (
-    <section id="features" className="py-24 sm:py-32">
+    <section id="features" className="py-16 sm:py-24 lg:py-32">
       <Container>
         <SectionHeading title={t.heading} subtitle={t.subheading} />
 
-        <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {(Object.keys(FEATURE_ICONS) as Array<keyof typeof FEATURE_ICONS>).map((key) => (
             <FeatureCard
               key={key}
