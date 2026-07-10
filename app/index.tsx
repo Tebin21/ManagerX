@@ -7,6 +7,7 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { generateThemeColors } from '@/lib/colorUtils';
 import { useHasHydrated } from '@/lib/useHasHydrated';
+import { Colors } from '@/constants/colors';
 
 export default function Index() {
   const router = useRouter();
@@ -18,8 +19,8 @@ export default function Index() {
   const businessHydrated = useHasHydrated(useBusinessStore);
   const accentColor = useSettingsStore((s) => s.accentColor);
   const bgColor = accentColor
-    ? (generateThemeColors(accentColor, false).gradientStart ?? '#1E40AF') as string
-    : '#1E40AF';
+    ? (generateThemeColors(accentColor, false).gradientStart ?? Colors.gradientStart) as string
+    : Colors.gradientStart;
 
   useEffect(() => {
     if (!authHydrated || !onboardingHydrated || !businessHydrated) return;

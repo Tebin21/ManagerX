@@ -44,7 +44,7 @@ export const PLAN_LIMITS: Record<Plan, string> = {
   unlimited: 'Unlimited items',
 };
 
-// Online Store Subscription — a completely independent product from the ManagerX
+// Online Store Subscription — a completely independent product from the Froshiar
 // item-limit license above (separate keypair/storage/validation server-side). Plans
 // here are purely time-based, not item-limit-based.
 export type SubscriptionPlan = '1m' | '3m' | '6m' | '12m' | 'lifetime';

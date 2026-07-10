@@ -24,6 +24,7 @@ import { useLicenseStore } from '@/store/licenseStore';
 import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { generateThemeColors } from '@/lib/colorUtils';
+import { Colors } from '@/constants/colors';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -90,8 +91,8 @@ export default function RootLayout() {
 
   const accentColor = useSettingsStore((s) => s.accentColor);
   const loadingBg = accentColor
-    ? (generateThemeColors(accentColor, false).gradientStart ?? '#1E40AF')
-    : '#1E40AF';
+    ? (generateThemeColors(accentColor, false).gradientStart ?? Colors.gradientStart)
+    : Colors.gradientStart;
 
   if (!fontsLoaded && !fontError) {
     return (

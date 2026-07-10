@@ -31,13 +31,13 @@
   --font-mono: var(--font-geist-mono);
 
   /* Brand accent — same family as license-admin-panel/client for visual
-     continuity across ManagerX's internal tools. */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
+     continuity across Froshiar's internal tools. */
+  --color-brand-50: #fbf7ea;
+  --color-brand-100: #f6eed5;
+  --color-brand-200: #efe1b3;
+  --color-brand-500: #d4af37;
+  --color-brand-600: #b99727;
+  --color-brand-700: #977c20;
 }
 
 body {

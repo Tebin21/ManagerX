@@ -11,7 +11,7 @@ export default async function StoresPage() {
     fetchAdmin<{ stores: DeletedStoreRecord[] }>("/api/admin/deleted-stores"),
   ]);
 
-  const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL ?? "https://managerx.store";
+  const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL ?? "https://froshiar.store";
 
   return (
     <div>

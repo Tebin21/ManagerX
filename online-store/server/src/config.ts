@@ -5,7 +5,7 @@ import path from 'path';
 // Railway, etc. — inject this and expect you to listen on it) > config.local.json
 // (optional, non-secret overrides — e.g. a different CORS origin for a staging
 // environment) > these defaults, which already point at the real production domain
-// (api.managerx.store backend, managerx.store frontend) so nothing has to be set to
+// (api.froshiar.store backend, froshiar.store frontend) so nothing has to be set to
 // deploy this as-is.
 const CONFIG_PATH = path.join(__dirname, '../config.local.json');
 
@@ -17,7 +17,7 @@ export interface LocalConfig {
   // proxy). Override via PUBLIC_API_URL or config.local.json for local/LAN testing.
   publicApiUrl: string;
   // Shared secret for the /api/admin/* routes (see src/adminAuth.ts). This is a
-  // server-to-server credential, not a user password — only the ManagerX Store
+  // server-to-server credential, not a user password — only the Froshiar Store
   // Control Center's Next.js server ever sends it, never a browser. Override via
   // ADMIN_API_KEY or config.local.json; there is no usable default in production
   // (adminAuth.ts refuses every request if this is left empty).
@@ -26,8 +26,8 @@ export interface LocalConfig {
 
 const DEFAULTS: LocalConfig = {
   port: 4100,
-  allowedOrigin: ['https://managerx.store', 'https://www.managerx.store'],
-  publicApiUrl: 'https://api.managerx.store',
+  allowedOrigin: ['https://froshiar.store', 'https://www.froshiar.store'],
+  publicApiUrl: 'https://api.froshiar.store',
   adminApiKey: '',
 };
 

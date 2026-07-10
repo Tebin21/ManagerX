@@ -40,7 +40,7 @@ export default function WelcomeScreen() {
                 resizeMode="contain"
               />
             </MotiView>
-            <Text style={styles.appName}>ManagerX</Text>
+            <Text style={styles.appName}>{t('common.appName')}</Text>
           </MotiView>
 
           <MotiView

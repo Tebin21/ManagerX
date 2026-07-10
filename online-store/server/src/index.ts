@@ -8,7 +8,7 @@ import { requireAdminAuth } from './adminAuth';
 import { UPLOADS_ROOT } from './uploads';
 
 // Pure API process — the storefront (online-store/client) is deployed separately to
-// Vercel at managerx.store and talks to this server at api.managerx.store. This server
+// Vercel at froshiar.store and talks to this server at api.froshiar.store. This server
 // no longer serves any static frontend itself; see online-store/README.md for the
 // split-domain deployment.
 const app = express();
@@ -26,7 +26,7 @@ app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_ROOT));
 
 app.use('/api/stores', storesRouter);
-// Server-to-server only — the ManagerX Store Control Center's Next.js server is
+// Server-to-server only — the Froshiar Store Control Center's Next.js server is
 // the sole caller (see adminAuth.ts); never reached directly from a browser, so
 // this doesn't need to be listed in `allowedOrigin` above.
 app.use('/api/admin', requireAdminAuth, adminRouter);

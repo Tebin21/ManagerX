@@ -1,7 +1,7 @@
 import { Globe, Phone } from 'lucide-react';
 
 // Premium dark/gold treatment is deliberately scoped to this footer only — the rest
-// of the storefront keeps the blue brand palette that matches the ManagerX app.
+// of the storefront keeps the blue brand palette that matches the Froshiar app.
 export function Footer() {
   return (
     <footer className="bg-slate-950 px-6 py-10 text-slate-300">

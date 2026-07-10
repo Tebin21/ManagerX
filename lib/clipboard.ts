@@ -25,8 +25,8 @@ function getNativeModule(): ExpoClipboardNativeModule | null {
     if (__DEV__) {
       console.log(
         nativeModule
-          ? '[ManagerX] Clipboard available — using ExpoClipboard.'
-          : '[ManagerX] Clipboard unavailable (ExpoClipboard native module not linked) — copy actions will report failure instead of crashing.'
+          ? '[Froshiar] Clipboard available — using ExpoClipboard.'
+          : '[Froshiar] Clipboard unavailable (ExpoClipboard native module not linked) — copy actions will report failure instead of crashing.'
       );
     }
   }

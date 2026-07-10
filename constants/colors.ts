@@ -2,22 +2,22 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#0F172A',
 
-  // Blue gradient
-  gradientStart: '#1E40AF',
-  gradientMid: '#3B82F6',
-  gradientEnd: '#60A5FA',
+  // Gold gradient
+  gradientStart: '#725D18',
+  gradientMid: '#D4AF37',
+  gradientEnd: '#E4CD81',
 
-  // Primary blues
-  primary: '#3B82F6',
-  primaryDark: '#2563EB',
-  darkBlue: '#1E40AF',
-  navyBlue: '#1E3A8A',
+  // Primary gold
+  primary: '#D4AF37',
+  primaryDark: '#A88924',
+  darkBlue: '#5D4C14',
+  navyBlue: '#3B300C',
 
-  // Soft blues (backgrounds)
-  softBlue: '#EFF6FF',
-  lightBlue: '#DBEAFE',
-  mediumBlue: '#BFDBFE',
-  skyBlue: '#93C5FD',
+  // Soft gold (backgrounds)
+  softBlue: '#FBF7EA',
+  lightBlue: '#F6EED5',
+  mediumBlue: '#EFE1B3',
+  skyBlue: '#E6D089',
 
   // Grays
   gray50: '#F8FAFC',
@@ -34,5 +34,5 @@ export const Colors = {
   warning: '#F59E0B',
   error: '#EF4444',
   errorDark: '#B91C1C',
-  info: '#3B82F6',
+  info: '#D4AF37',
 } as const;

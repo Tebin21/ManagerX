@@ -12,7 +12,7 @@ export function NewApiKeyModal({
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-lg">
         <h2 className="text-base font-semibold">New API key for {slug}</h2>
         <p className="mt-1 text-sm text-muted">
-          Shown once — copy it now. The store&apos;s ManagerX app must be updated with this key.
+          Shown once — copy it now. The store&apos;s Froshiar app must be updated with this key.
         </p>
         <code className="mt-3 block break-all rounded-lg bg-canvas px-3 py-2 text-xs">{apiKey}</code>
         <button

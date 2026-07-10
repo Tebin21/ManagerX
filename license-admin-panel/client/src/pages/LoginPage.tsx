@@ -28,8 +28,9 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-card">
         <div className="text-center">
+          <img src="/logo.png" alt="Froshiar" className="mx-auto mb-3 h-12 w-12 object-contain" />
           <div className="text-lg font-bold tracking-tight text-slate-900">
-            ManagerX <span className="text-brand-600">License Admin</span>
+            Froshiar <span className="text-brand-600">License Admin</span>
           </div>
           <p className="mt-1 text-sm text-slate-400">Owner access only</p>
         </div>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import i18n from '@/lib/i18n';
 
 type Language = 'en' | 'ku';
@@ -27,8 +27,8 @@ export const useLanguageStore = create<LanguageState>()(
       },
     }),
     {
-      name: '@managerx_language',
-      storage: createJSONStorage(() => AsyncStorage),
+      name: '@froshiar_language',
+      storage: createJSONStorage(() => migratedAsyncStorage),
     }
   )
 );

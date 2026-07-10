@@ -6,7 +6,7 @@ import { SubscriptionPlanBadge, StatusBadge } from '../components/Badges';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
 // Deliberately a flat, searchable list with inline actions — no separate detail page
-// or customer-grouping view (unlike the ManagerX license admin's LicenseDetailPage/
+// or customer-grouping view (unlike the Froshiar license admin's LicenseDetailPage/
 // CustomersPage). A phone/device-searchable list is enough to start; revisit only if
 // subscription volume makes that genuinely painful.
 export function OnlineStoreSubscriptionsPage() {

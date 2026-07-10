@@ -5,7 +5,7 @@ const repo = new JsonStoreRepository();
 
 // Reuses the EXACT same module the mobile app ships with — single source of truth
 // for the Online Store Subscription code format/algorithm, completely independent
-// from the ManagerX item-limit license system (separate keypair, separate prefix).
+// from the Froshiar item-limit license system (separate keypair, separate prefix).
 // Mirrors license-admin-panel/server/src/crypto.ts's proven cross-project require
 // pattern — online-store/server/src/ is the same depth under the repo root as
 // license-admin-panel/server/src/, so the same '../../../' resolves correctly.

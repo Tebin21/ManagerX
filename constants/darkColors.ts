@@ -3,22 +3,22 @@ export const DarkColors = {
   white: '#0F172A',       // inverted: dark backgrounds
   black: '#F1F5F9',       // inverted: light text
 
-  // Blue gradient — slightly deeper in dark mode
-  gradientStart: '#1E3A8A',
-  gradientMid:   '#1E40AF',
-  gradientEnd:   '#2563EB',
+  // Gold gradient — same hue/saturation as light mode
+  gradientStart: '#725D18',
+  gradientMid:   '#D4AF37',
+  gradientEnd:   '#E4CD81',
 
-  // Primary blues — same, blue works in both modes
-  primary:     '#60A5FA',
-  primaryDark: '#3B82F6',
-  darkBlue:    '#93C5FD',
-  navyBlue:    '#BFDBFE',
+  // Primary gold — lightened for dark-mode contrast
+  primary:     '#D4AF37',
+  primaryDark: '#A88924',
+  darkBlue:    '#E6D089',
+  navyBlue:    '#F3E9C8',
 
-  // Soft blues — inverted to dark backgrounds with blue tint
-  softBlue:   '#1E3A8A22',
-  lightBlue:  '#1E40AF33',
-  mediumBlue: '#2563EB44',
-  skyBlue:    '#3B82F655',
+  // Soft gold — inverted to dark backgrounds with gold tint
+  softBlue:   '#725D1822',
+  lightBlue:  '#D4AF3733',
+  mediumBlue: '#E4CD8144',
+  skyBlue:    '#A8892455',
 
   // Grays — fully inverted scale
   gray50:  '#0F172A',   // darkest background
@@ -34,5 +34,5 @@ export const DarkColors = {
   success: '#34D399',
   warning: '#FBBF24',
   error:   '#F87171',
-  info:    '#60A5FA',
+  info:    '#D4AF37',
 } as const;

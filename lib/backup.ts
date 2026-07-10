@@ -1,12 +1,12 @@
 /**
- * Backup / Restore utility for ManagerX.
+ * Backup / Restore utility for Froshiar.
  *
  * expo-file-system is imported lazily inside each function (NOT at the top
  * level) so that requiring this module never calls requireNativeModule() at
  * evaluation time.  If the native module were unavailable (e.g., a version
  * mismatch in Expo Go), a top-level import would abort the entire module
  * chain and prevent Expo Router from registering the data-management route,
- * producing the "Unmatched Route managerx:///" error.
+ * producing the "Unmatched Route froshiar:///" error.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,7 +16,7 @@ import { getDatabase } from '@/lib/sqlite';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ManagerXBackup {
+export interface FroshiarBackup {
   meta: {
     version:    string;
     backupDate: string;
@@ -88,13 +88,13 @@ export async function exportBackup(): Promise<string> {
   ]);
 
   const [storedBusiness, storedSettings, storedModules, storedLanguage] = await Promise.all([
-    AsyncStorage.getItem('@managerx_business'),
-    AsyncStorage.getItem('@managerx_settings'),
-    AsyncStorage.getItem('@managerx_modules'),
-    AsyncStorage.getItem('@managerx_language'),
+    AsyncStorage.getItem('@froshiar_business'),
+    AsyncStorage.getItem('@froshiar_settings'),
+    AsyncStorage.getItem('@froshiar_modules'),
+    AsyncStorage.getItem('@froshiar_language'),
   ]);
 
-  const backup: ManagerXBackup = {
+  const backup: FroshiarBackup = {
     meta: {
       version:    '1.1',
       backupDate: new Date().toISOString(),
@@ -116,7 +116,7 @@ export async function exportBackup(): Promise<string> {
   };
 
   const dateStr  = new Date().toISOString().split('T')[0];
-  const fileName = `ManagerX_Backup_${dateStr}.json`;
+  const fileName = `Froshiar_Backup_${dateStr}.json`;
   const file     = new File(Paths.document, fileName);
 
   if (file.exists) file.delete();
@@ -127,7 +127,7 @@ export async function exportBackup(): Promise<string> {
 
 // ─── Validate ─────────────────────────────────────────────────────────────────
 
-export async function validateAndParseBackup(fileUri: string): Promise<ManagerXBackup> {
+export async function validateAndParseBackup(fileUri: string): Promise<FroshiarBackup> {
   // Lazy import — never runs at module-evaluation time.
   const { File } = await import('expo-file-system');
 
@@ -140,7 +140,7 @@ export async function validateAndParseBackup(fileUri: string): Promise<ManagerXB
     throw new Error('INVALID_JSON');
   }
 
-  const backup = parsed as ManagerXBackup;
+  const backup = parsed as FroshiarBackup;
   if (!backup?.meta?.version || !backup?.database) {
     throw new Error('INVALID_BACKUP');
   }
@@ -161,7 +161,7 @@ export async function validateAndParseBackup(fileUri: string): Promise<ManagerXB
  *   'RESTORE_LIMIT_EXCEEDED|<needed>,<limit>' — backup total exceeds the plan limit.
  * Resolves (no throw) when the backup fits, including the unlimited plan.
  */
-export async function assertBackupWithinItemLimit(backup: ManagerXBackup): Promise<void> {
+export async function assertBackupWithinItemLimit(backup: FroshiarBackup): Promise<void> {
   const { loadLicenseFromDb } = await import('@/lib/itemLimit');
 
   let limit: number;
@@ -204,7 +204,7 @@ async function insertRows(
   }
 }
 
-export async function performRestore(backup: ManagerXBackup): Promise<void> {
+export async function performRestore(backup: FroshiarBackup): Promise<void> {
   const db  = await getDatabase();
   const { database } = backup;
 
@@ -247,9 +247,9 @@ export async function performRestore(backup: ManagerXBackup): Promise<void> {
 
   // Restore Zustand stores — must happen outside the SQLite transaction.
   await AsyncStorage.multiSet([
-    ['@managerx_business', backup.stores?.business ?? '{}'],
-    ['@managerx_settings', backup.stores?.settings ?? '{}'],
-    ['@managerx_modules',  backup.stores?.modules  ?? '{}'],
-    ['@managerx_language', backup.stores?.language ?? '"en"'],
+    ['@froshiar_business', backup.stores?.business ?? '{}'],
+    ['@froshiar_settings', backup.stores?.settings ?? '{}'],
+    ['@froshiar_modules',  backup.stores?.modules  ?? '{}'],
+    ['@froshiar_language', backup.stores?.language ?? '"en"'],
   ]);
 }

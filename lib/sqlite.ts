@@ -13,10 +13,38 @@ import type { Supplier, SupplierWithStats } from '@/types/suppliers';
 
 export const DEFAULT_CATEGORY = 'General';
 
-const dbPromise = SQLite.openDatabaseAsync('managerx.db').catch((err) => {
-  console.error('[ManagerX] SQLite open failed:', err);
-  throw err;
-});
+const OLD_DB_NAME = 'managerx.db';
+const DB_NAME = 'froshiar.db';
+
+// One-time migration for the ManagerX -> Froshiar rebrand: expo-sqlite opens a
+// database purely by filename, so switching the name the app looks for would
+// silently hand every existing install a brand-new empty database unless the
+// old file is copied across first. Copies (never deletes/moves) the old file,
+// so it stays behind as a safety net; a no-op once the new file already exists.
+async function migrateDatabaseFile(): Promise<void> {
+  const { File } = await import('expo-file-system');
+  const newFile = new File(SQLite.defaultDatabaseDirectory, DB_NAME);
+  if (newFile.exists) return;
+  const oldFile = new File(SQLite.defaultDatabaseDirectory, OLD_DB_NAME);
+  if (!oldFile.exists) return;
+  oldFile.copy(newFile);
+}
+
+const dbPromise = (async () => {
+  try {
+    await migrateDatabaseFile();
+  } catch (err) {
+    // Non-fatal — worst case the app opens a fresh empty database below,
+    // rather than never starting at all.
+    console.error('[Froshiar] Database migration failed:', err);
+  }
+  try {
+    return await SQLite.openDatabaseAsync(DB_NAME);
+  } catch (err) {
+    console.error('[Froshiar] SQLite open failed:', err);
+    throw err;
+  }
+})();
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
@@ -760,22 +788,22 @@ export async function bulkSetStoreVisibility(visible: boolean): Promise<number> 
     const updateSql = `UPDATE sync_queue SET operation = 'upsert', updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'product'
          AND entity_id IN (SELECT id FROM products)`;
-    console.log('[ManagerX][sync_queue] bulk update', updateSql); // TEMP: debug logging for sync upsert fix
+    console.log('[Froshiar][sync_queue] bulk update', updateSql); // TEMP: debug logging for sync upsert fix
     try {
       await database.runAsync(updateSql);
     } catch (err) {
-      console.error('[ManagerX][sync_queue] bulk update failed:', updateSql, err); // TEMP
+      console.error('[Froshiar][sync_queue] bulk update failed:', updateSql, err); // TEMP
       throw err;
     }
 
     const insertSql = `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
        SELECT 'product', id, 'upsert', CURRENT_TIMESTAMP FROM products
        WHERE id NOT IN (SELECT entity_id FROM sync_queue WHERE entity_type = 'product')`;
-    console.log('[ManagerX][sync_queue] bulk insert', insertSql); // TEMP: debug logging for sync upsert fix
+    console.log('[Froshiar][sync_queue] bulk insert', insertSql); // TEMP: debug logging for sync upsert fix
     try {
       await database.runAsync(insertSql);
     } catch (err) {
-      console.error('[ManagerX][sync_queue] bulk insert failed:', insertSql, err); // TEMP
+      console.error('[Froshiar][sync_queue] bulk insert failed:', insertSql, err); // TEMP
       throw err;
     }
   });
@@ -801,23 +829,23 @@ export async function enqueueSyncChange(
   await database.withTransactionAsync(async () => {
     const updateSql = `UPDATE sync_queue SET operation = ?, updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'product' AND entity_id = ?`;
-    console.log('[ManagerX][sync_queue] update', updateSql, [operation, productId]); // TEMP: debug logging for sync upsert fix
+    console.log('[Froshiar][sync_queue] update', updateSql, [operation, productId]); // TEMP: debug logging for sync upsert fix
     let updateResult;
     try {
       updateResult = await database.runAsync(updateSql, [operation, productId]);
     } catch (err) {
-      console.error('[ManagerX][sync_queue] update failed:', updateSql, [operation, productId], err); // TEMP
+      console.error('[Froshiar][sync_queue] update failed:', updateSql, [operation, productId], err); // TEMP
       throw err;
     }
 
     if (updateResult.changes === 0) {
       const insertSql = `INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
          VALUES ('product', ?, ?, CURRENT_TIMESTAMP)`;
-      console.log('[ManagerX][sync_queue] insert', insertSql, [productId, operation]); // TEMP: debug logging for sync upsert fix
+      console.log('[Froshiar][sync_queue] insert', insertSql, [productId, operation]); // TEMP: debug logging for sync upsert fix
       try {
         await database.runAsync(insertSql, [productId, operation]);
       } catch (err) {
-        console.error('[ManagerX][sync_queue] insert failed:', insertSql, [productId, operation], err); // TEMP
+        console.error('[Froshiar][sync_queue] insert failed:', insertSql, [productId, operation], err); // TEMP
         throw err;
       }
     }

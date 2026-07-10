@@ -30,7 +30,7 @@ function loadSecretKey(): Uint8Array {
   if (!fs.existsSync(KEYS_PATH)) {
     throw new Error(
       `No private key found. Run "node scripts/online-store-subscription-admin/generate-keypair.js" ` +
-        `from the ManagerX root first (expected key at ${KEYS_PATH}).`
+        `from the Froshiar root first (expected key at ${KEYS_PATH}).`
     );
   }
   const { secretKeyBase64 } = JSON.parse(fs.readFileSync(KEYS_PATH, 'utf8'));

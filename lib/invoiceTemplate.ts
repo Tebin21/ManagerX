@@ -425,7 +425,7 @@ export function buildInvoiceHTML(
 </div>
 
 <div class="footer">
-  ${ku(t('salesInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ManagerX &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
+  ${ku(t('salesInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ${t('common.appName')} &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
 </div>
 
 </body>
@@ -842,7 +842,7 @@ export function buildPurchaseInvoiceHTML(
 </div>
 
 <div class="footer">
-  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ManagerX &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
+  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ${t('common.appName')} &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
 </div>
 
 </body>

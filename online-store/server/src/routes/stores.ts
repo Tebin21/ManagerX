@@ -161,7 +161,7 @@ storesRouter.patch('/:slug/info', storeWriteLimiter, requireStoreAuth, blockIfAd
   res.json({ slug: updated.slug, info: updated.info ?? {} });
 }));
 
-// POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from ManagerX's
+// POST /api/stores/:slug/sync — idempotent batch upsert/delete pushed from Froshiar's
 // offline-first sync queue. Requires the store's API key AND an active Online Store
 // Subscription.
 storesRouter.post('/:slug/sync', storeWriteLimiter, requireStoreAuth, blockIfAdminSuspended, requireActiveSubscription, asyncHandler(async (req, res) => {

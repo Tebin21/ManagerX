@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { config } from './config';
 
-// Server-to-server auth for /api/admin/* — the ONLY caller is the ManagerX
+// Server-to-server auth for /api/admin/* — the ONLY caller is the Froshiar
 // Store Control Center's Next.js server (never a browser directly; it holds
 // its own separate human-facing session, see online-store/admin's own auth).
 // Same timing-safe comparison pattern as auth.ts's store API keys and

@@ -5,15 +5,15 @@ import type { StoreResponse } from '../lib/api';
 // locally under public/demo/ (not hotlinked) so the preview never depends on a
 // third-party image CDN staying up.
 export const DEMO_STORE: StoreResponse = {
-  businessName: 'ManagerX Demo Store',
+  businessName: 'Froshiar Demo Store',
   enabled: true,
   info: {
     description: 'A preview storefront showing what your own Online Store could look like.',
     // Clearly fake sample values -- lets /demo visually verify the "has a
     // value -> opens the real destination" icon behavior with no backend.
-    facebookUrl: 'https://facebook.com/managerxdemo',
-    instagramUrl: 'https://instagram.com/managerxdemo',
-    tiktokUrl: 'https://tiktok.com/@managerxdemo',
+    facebookUrl: 'https://facebook.com/froshiardemo',
+    instagramUrl: 'https://instagram.com/froshiardemo',
+    tiktokUrl: 'https://tiktok.com/@froshiardemo',
     whatsappNumber: '9647701234567',
   },
   products: [

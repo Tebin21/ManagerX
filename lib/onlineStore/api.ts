@@ -7,12 +7,12 @@ import { getOnlineStoreSubscriptionHeaders } from '@/lib/onlineStoreSubscription
 //
 // STORE_API_BASE_URL is where fetch() calls in this file actually go.
 // Override both while developing against a backend/client running on your LAN.
-export const STORE_API_BASE_URL = 'https://api.managerx.store';
+export const STORE_API_BASE_URL = 'https://api.froshiar.store';
 
 // STORE_FRONTEND_BASE_URL is what the business owner sees, copies, and opens — the
 // public storefront itself, not the API. Used by store/onlineStoreStore.ts to build the
-// displayed/copied/opened URL (e.g. managerx.store/karwan-mobile).
-export const STORE_FRONTEND_BASE_URL = 'https://managerx.store';
+// displayed/copied/opened URL (e.g. froshiar.store/karwan-mobile).
+export const STORE_FRONTEND_BASE_URL = 'https://froshiar.store';
 
 // Generates a placeholder slug from the business name so the store URL can be shown
 // immediately — offline, before the backend has ever been reached. Mirrors

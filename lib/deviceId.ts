@@ -31,8 +31,8 @@ function getNativeModule(): ExpoApplicationNativeModule | null {
     if (__DEV__) {
       console.log(
         nativeModule
-          ? '[ManagerX] Hardware Device ID available — using ExpoApplication.'
-          : '[ManagerX] Hardware Device ID unavailable (ExpoApplication native module not linked) — using fallback Device ID.'
+          ? '[Froshiar] Hardware Device ID available — using ExpoApplication.'
+          : '[Froshiar] Hardware Device ID unavailable (ExpoApplication native module not linked) — using fallback Device ID.'
       );
     }
   }

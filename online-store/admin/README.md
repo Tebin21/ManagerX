@@ -1,8 +1,8 @@
-# ManagerX Store Control Center
+# Froshiar Store Control Center
 
 ## Overview
 
-The **ManagerX Store Control Center** is an internal, local-only web admin panel for the ManagerX Online Store platform. It is used exclusively by the **Super Admin** (the ManagerX owner) to see and manage every store registered on the platform in one place — it is not a public website and is never meant to be exposed to store owners or customers.
+The **Froshiar Store Control Center** is an internal, local-only web admin panel for the Froshiar Online Store platform. It is used exclusively by the **Super Admin** (the Froshiar owner) to see and manage every store registered on the platform in one place — it is not a public website and is never meant to be exposed to store owners or customers.
 
 It gives the Super Admin:
 
@@ -41,7 +41,7 @@ npm -v
 
 ## Installation
 
-Run these from the repository root (`ManagerX/`), in order.
+Run these from the repository root (`Froshiar/`), in order.
 
 ### 1. Install backend dependencies
 
@@ -104,7 +104,7 @@ cp .env.local.example .env.local
 | `SESSION_SECRET` | Signs the login session cookie. Any long random string. Changing it logs everyone out. | `a9f3...` (32+ random characters) |
 | `ONLINE_STORE_API_URL` | Base URL of the backend from step above | `http://localhost:4100` |
 | `ONLINE_STORE_ADMIN_API_KEY` | **Must exactly match** `adminApiKey` in `online-store/server/config.local.json` | `6f3a35b43292f18ed4c496a2e9b9ed0bef463a89db6b0866` |
-| `NEXT_PUBLIC_STOREFRONT_BASE_URL` | Public storefront base URL, used for "View Website" links and the live health check | `https://managerx.store` |
+| `NEXT_PUBLIC_STOREFRONT_BASE_URL` | Public storefront base URL, used for "View Website" links and the live health check | `https://froshiar.store` |
 
 Generate a random `SESSION_SECRET`:
 
@@ -208,7 +208,7 @@ Suspending a store blocks its owner from editing info, syncing products, or re-e
 Permanently removes a store and its uploaded images. Requires typing the literal word `DELETE` in a confirmation dialog before the button enables — this is also independently re-checked by the backend, so it can never be triggered accidentally by a UI bug. A tombstone record is kept (visible under the "Deleted" filter) so the store's prior existence is never silently lost.
 
 ### Reset API Key
-Issues a brand-new API key for a store and shows it once in a modal. The store's ManagerX mobile app must be updated with the new key to keep syncing.
+Issues a brand-new API key for a store and shows it once in a modal. The store's Froshiar mobile app must be updated with the new key to keep syncing.
 
 ### Activity Logs (`/activity`)
 A system-wide, time-ordered feed of every admin action (suspend, activate, delete, reset key, backup create/restore) plus store creation and sync failures — each entry shows time, actor, IP address, and action.
@@ -241,7 +241,7 @@ online-store/
 ├── server/                       # Express/TypeScript backend (existing, extended)
 │   ├── src/
 │   │   ├── routes/
-│   │   │   ├── stores.ts         # Public store API (used by the ManagerX mobile app + storefront)
+│   │   │   ├── stores.ts         # Public store API (used by the Froshiar mobile app + storefront)
 │   │   │   └── admin.ts          # NEW — /api/admin/* endpoints powering this dashboard
 │   │   ├── adminAuth.ts          # NEW — shared-secret auth for /api/admin/*
 │   │   ├── activityLog.ts        # NEW — append-only admin activity log

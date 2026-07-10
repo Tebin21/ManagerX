@@ -3,7 +3,7 @@
 //   node scripts/online-store-subscription-admin/generate-keypair.js
 //
 // Generates the Ed25519 keypair used to sign/verify Online Store Subscription codes.
-// Completely separate from scripts/license-admin/'s keypair (ManagerX item-limit
+// Completely separate from scripts/license-admin/'s keypair (Froshiar item-limit
 // license) — by design, per the product decision to keep these two systems fully
 // independent. The PRIVATE key never leaves this machine and is never committed to
 // git (see .gitignore). The PUBLIC key gets pasted into

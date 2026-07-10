@@ -2,7 +2,7 @@
 // One-time setup. Run manually:
 //   node scripts/license-admin/generate-keypair.js
 //
-// Generates the Ed25519 keypair used to sign/verify ManagerX license codes.
+// Generates the Ed25519 keypair used to sign/verify Froshiar license codes.
 // The PRIVATE key never leaves this machine and is never committed to git
 // (see .gitignore). The PUBLIC key gets pasted into lib/license/licenseCore.js,
 // which ships inside the app — it can verify signatures but cannot create new ones.

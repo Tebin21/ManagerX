@@ -1,6 +1,6 @@
-# ManagerX License Admin Panel
+# Froshiar License Admin Panel
 
-Local, owner-only web app for generating and managing device-bound ManagerX licenses.
+Local, owner-only web app for generating and managing device-bound Froshiar licenses.
 Replaces running `node scripts/license-admin/generate-license.js` by hand — both still
 read/write the exact same key and ledger files, so they stay interchangeable.
 
@@ -19,6 +19,6 @@ for setup and day-to-day usage.
 - `client/` — Vite + React + TypeScript + Tailwind. Talks to the server only over
   `/api`, proxied by Vite's dev server to `http://localhost:4000`.
 
-Revoking/expiring a license here only updates your own records — ManagerX is fully
+Revoking/expiring a license here only updates your own records — Froshiar is fully
 offline and never checks in with a server, so this cannot remotely deactivate a
 customer's already-activated app.

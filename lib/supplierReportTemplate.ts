@@ -65,7 +65,7 @@ export function buildSupplierReportHTML(
     : purchases.map((p) => `
         <tr>
           <td style="color:#64748B;">${fmtDate(p.date || p.createdAt)}</td>
-          <td style="font-weight:700;color:#1E40AF;">${escHtml(p.purchaseNumber)}</td>
+          <td style="font-weight:700;color:#5D4C14;">${escHtml(p.purchaseNumber)}</td>
           <td style="color:#334155;font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.productName)}</td>
           <td style="text-align:right;">${p.quantity}</td>
           <td style="text-align:right;font-weight:600;">${fmtIQD(p.totalIQD)} IQD</td>
@@ -92,7 +92,7 @@ export function buildSupplierReportHTML(
   .page { max-width: 720px; margin: 0 auto; background: #fff; }
 
   .header {
-    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 60%, #3B82F6 100%);
+    background: linear-gradient(135deg, #3B300C 0%, #A88924 60%, #D4AF37 100%);
     color: #fff;
     padding: 36px 32px 28px;
   }

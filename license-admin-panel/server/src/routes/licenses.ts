@@ -43,7 +43,7 @@ licensesRouter.get('/export.csv', async (_req, res) => {
   );
   const csv = [header.map(escape).join(','), ...rows].join('\r\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="managerx-licenses.csv"');
+  res.setHeader('Content-Disposition', 'attachment; filename="froshiar-licenses.csv"');
   res.send(csv);
 });
 

@@ -5,7 +5,7 @@ export interface ThemePreset {
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
-  { key: 'default',  name: 'Default Blue',  primary: '#3B82F6' },
+  { key: 'default',  name: 'Default',        primary: '#D4AF37' },
   { key: 'navy',     name: 'Navy Blue',     primary: '#254C9B' },
   { key: 'purple',   name: 'Soft Purple',   primary: '#7C5CE1' },
   { key: 'emerald',  name: 'Emerald',       primary: '#0A9272' },

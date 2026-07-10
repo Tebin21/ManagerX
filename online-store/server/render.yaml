@@ -20,7 +20,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: PUBLIC_API_URL
-        value: https://api.managerx.store
+        value: https://api.froshiar.store
     disk:
       name: online-store-data
       mountPath: /app/data

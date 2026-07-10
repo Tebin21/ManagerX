@@ -534,7 +534,7 @@ function buildInvoiceHTML(p) {
         </div>`;
     } else {
       const chips = p.itemIds.map((v, i) =>
-        `<span style="display:inline-block;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:3px 10px;font-size:13px;font-weight:600;color:#1E40AF;margin:3px;">${i + 1}. ${escHtml(v)}</span>`
+        `<span style="display:inline-block;background:#FBF7EA;border:1px solid #EFE1B3;border-radius:6px;padding:3px 10px;font-size:13px;font-weight:600;color:#5D4C14;margin:3px;">${i + 1}. ${escHtml(v)}</span>`
       ).join('');
       idsSection = `
         <div class="inv-section">
@@ -561,7 +561,7 @@ function buildInvoiceHTML(p) {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, Arial, sans-serif; color: #1E293B; font-size: 14px; }
   .inv-wrap { max-width: 600px; margin: 0 auto; padding: 20px; }
-  .inv-header { background: linear-gradient(135deg,#1E40AF,#3B82F6); color:#fff; border-radius:12px; padding:24px; margin-bottom:20px; text-align:center; }
+  .inv-header { background: linear-gradient(135deg,#5D4C14,#D4AF37); color:#fff; border-radius:12px; padding:24px; margin-bottom:20px; text-align:center; }
   .inv-header h1 { font-size:22px; font-weight:800; margin-bottom:4px; }
   .inv-header p { font-size:13px; opacity:0.85; }
   .inv-section { background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin-bottom:14px; }
@@ -570,8 +570,8 @@ function buildInvoiceHTML(p) {
   .inv-row:last-child { border-bottom:none; }
   .inv-label { font-size:12px; color:#64748B; font-weight:600; }
   .inv-value { font-size:13px; font-weight:700; color:#1E293B; text-align:left; }
-  .inv-total-box { background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:2px solid #BFDBFE; border-radius:12px; padding:20px; text-align:center; margin-bottom:14px; }
-  .inv-total-amount { font-size:28px; font-weight:800; color:#1E40AF; }
+  .inv-total-box { background:linear-gradient(135deg,#FBF7EA,#F6EED5); border:2px solid #EFE1B3; border-radius:12px; padding:20px; text-align:center; margin-bottom:14px; }
+  .inv-total-amount { font-size:28px; font-weight:800; color:#5D4C14; }
   .inv-total-meta { font-size:13px; color:#64748B; margin-top:6px; }
   .inv-footer { text-align:center; font-size:11px; color:#94A3B8; padding-top:10px; }
   .status-pill { display:inline-block; padding:4px 14px; border-radius:20px; font-size:12px; font-weight:700; background:${statusBg}; color:${statusColor}; }

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL ?? "https://managerx.store";
+  const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL ?? "https://froshiar.store";
 
   let store: StoreDetail;
   try {

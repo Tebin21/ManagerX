@@ -1,16 +1,16 @@
-# ManagerX Online Store
+# Froshiar Online Store
 
-The public storefront platform behind the "Online Store" feature in the ManagerX app.
-Production domain: **managerx.store** (frontend) / **api.managerx.store** (backend) — two
+The public storefront platform behind the "Online Store" feature in the Froshiar app.
+Production domain: **froshiar.store** (frontend) / **api.froshiar.store** (backend) — two
 separate deployments on two subdomains of the same domain.
 
 ## Architecture
 
 ```
-managerx.store           ──▶  online-store/client   (Vite + React + Tailwind, static)
+froshiar.store           ──▶  online-store/client   (Vite + React + Tailwind, static)
                                deployed to Vercel
 
-api.managerx.store       ──▶  online-store/server   (Express + TypeScript API)
+api.froshiar.store       ──▶  online-store/server   (Express + TypeScript API)
                                deployed to any Docker host with persistent disk
 ```
 
@@ -30,13 +30,13 @@ cd online-store/client && npm install && npm run dev   # http://localhost:5174, 
 ```
 
 No `.env` needed for local dev — the client falls back to a relative `/api/...` path that
-Vite's dev proxy forwards to the local server. Point ManagerX's `STORE_API_BASE_URL`
+Vite's dev proxy forwards to the local server. Point Froshiar's `STORE_API_BASE_URL`
 (`lib/onlineStore/api.ts`) at `http://<your-LAN-IP>:4100` to test the mobile app against
 this local server from a physical device or emulator.
 
 ## Production deployment
 
-### 1. Backend → api.managerx.store
+### 1. Backend → api.froshiar.store
 
 This needs a host with a **persistent volume/disk** (the ledger is a local file) — it will
 **not** work on pure serverless (Vercel functions, AWS Lambda, etc.) without first swapping
@@ -51,8 +51,8 @@ This needs a host with a **persistent volume/disk** (the ledger is a local file)
 - The server reads `process.env.PORT` if your host sets it (most do), otherwise defaults
   to 4100. `config.local.json` (gitignored, copy from `config.local.json.example`) lets
   you override the CORS `allowedOrigin` for a staging environment — production already
-  defaults to `https://managerx.store` and `https://www.managerx.store`, no setup needed.
-- `PUBLIC_API_URL` env var (defaults to `https://api.managerx.store`) — used to build the
+  defaults to `https://froshiar.store` and `https://www.froshiar.store`, no setup needed.
+- `PUBLIC_API_URL` env var (defaults to `https://api.froshiar.store`) — used to build the
   absolute URL returned by the image upload endpoint (`POST /:slug/images`), since the
   server can't reliably infer its own public hostname from behind a host's proxy. Already
   set in `render.yaml`; override it (or set it in `config.local.json`) if deploying
@@ -65,7 +65,7 @@ This needs a host with a **persistent volume/disk** (the ledger is a local file)
   (see DNS section below) — that host-provided hostname is something only your chosen
   platform can give you after you deploy, so it can't be filled in ahead of time here.
 
-### 2. Frontend → managerx.store
+### 2. Frontend → froshiar.store
 
 Deploy `online-store/client` to Vercel:
 
@@ -73,12 +73,12 @@ Deploy `online-store/client` to Vercel:
 2. **Root Directory**: set to `online-store/client` (this is a monorepo — Vercel needs to
    know the Vite project isn't at the repo root). Vercel auto-detects the Vite framework,
    build command (`vite build`), and output directory (`dist`) once Root Directory is set.
-3. **Environment Variables**: add `VITE_API_BASE_URL` = `https://api.managerx.store`
+3. **Environment Variables**: add `VITE_API_BASE_URL` = `https://api.froshiar.store`
    (must be set before the first deploy that needs it — Vite inlines env vars at build
    time, so changing it later requires a redeploy, not just a config reload).
 4. Deploy. `online-store/client/vercel.json` already adds the SPA rewrite so visiting
-   `managerx.store/karwan-mobile` directly (not just via in-app navigation) doesn't 404.
-5. **Domains** tab → add `managerx.store` and `www.managerx.store` → Vercel shows you the
+   `froshiar.store/karwan-mobile` directly (not just via in-app navigation) doesn't 404.
+5. **Domains** tab → add `froshiar.store` and `www.froshiar.store` → Vercel shows you the
    exact DNS records to add (see below; use what Vercel shows you if it ever differs from
    these standard published values).
 
@@ -87,7 +87,7 @@ var with `vercel env add VITE_API_BASE_URL production`.
 
 ## DNS records
 
-Add these at whichever registrar/DNS provider manages `managerx.store`:
+Add these at whichever registrar/DNS provider manages `froshiar.store`:
 
 | Type  | Name (host) | Value                       | Purpose |
 |-------|-------------|------------------------------|---------|
@@ -119,7 +119,7 @@ dashboards yourself.
 ## API contract
 
 - `POST /api/stores` `{ businessName }` → `{ slug, apiKey }` — registers a new store,
-  called once by ManagerX the first time "Enable Store" is pressed.
+  called once by Froshiar the first time "Enable Store" is pressed.
 - `GET /api/stores/:slug` (public) → `{ businessName, enabled, products, info }` — this
   is a read-only catalog, not a shop: `products` excludes anything unpublished (owner-
   hidden) or out of stock entirely, and each remaining one includes `category` and
@@ -130,7 +130,7 @@ dashboards yourself.
 - `PATCH /api/stores/:slug/info` `{ ...partial info fields }` (Bearer API key) — partial
   merge update of the store-info fields shown on the storefront header.
 - `POST /api/stores/:slug/sync` `{ changes: [...] }` (Bearer API key) — idempotent
-  upsert/delete batch, called by ManagerX's offline-first sync queue
+  upsert/delete batch, called by Froshiar's offline-first sync queue
   (`lib/onlineStore/syncEngine.ts`) whenever connectivity returns, the app foregrounds,
   ~1.5s after a local change (debounced), every 60s as a safety net, or via the manual
   "Sync Now" button.

@@ -3,6 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { BUSINESS_TYPES } from '@/constants/config';
@@ -16,6 +17,7 @@ function resolveType(type: string): { emoji: string; label: string } | null {
 }
 
 export function BusinessHeader() {
+  const { t } = useTranslation();
   const { name, type, phone, address, logoUri } = useBusinessStore();
   const { colors: themeColors } = useAppTheme();
 
@@ -70,7 +72,7 @@ export function BusinessHeader() {
         </View>
 
         <View style={styles.brandRow}>
-          <Text style={styles.brandText}>ManagerX</Text>
+          <Text style={styles.brandText}>{t('common.appName')}</Text>
         </View>
       </View>
     </LinearGradient>

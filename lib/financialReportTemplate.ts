@@ -539,7 +539,7 @@ export function buildFinancialReportHTML(
 
   <!-- ════════════════════════════════ FOOTER ══════════════════════════════ -->
   <div class="footer">
-    ${ku(t('generatedBy'))} ManagerX &nbsp;&middot;&nbsp; ${generatedDate} ${generatedTime} &nbsp;&middot;&nbsp; ${periodLabelIsTranslated ? ku(periodLabel) : periodLabel}
+    ${ku(t('generatedBy'))} ${t('common.appName')} &nbsp;&middot;&nbsp; ${generatedDate} ${generatedTime} &nbsp;&middot;&nbsp; ${periodLabelIsTranslated ? ku(periodLabel) : periodLabel}
   </div>
 
 </body>

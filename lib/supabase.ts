@@ -22,7 +22,7 @@ export const supabaseConfigured = looksLike(supabaseUrl, 20) && looksLike(supaba
 
 if (!supabaseConfigured) {
   console.warn(
-    '[ManagerX] Supabase credentials are missing or invalid.\n' +
+    '[Froshiar] Supabase credentials are missing or invalid.\n' +
       'Local dev: set real values in your .env file (URL >= 20 chars, key >= 100 chars).\n' +
       'EAS builds: run eas secret:create for EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.',
   );

@@ -63,7 +63,7 @@ export function buildCustomerReportHTML(
         return `
           <tr>
             <td style="color:#64748B;">${fmtDate(s.createdAt)}</td>
-            <td style="font-weight:700;color:#1E40AF;">${escHtml(s.invoiceNumber)}</td>
+            <td style="font-weight:700;color:#5D4C14;">${escHtml(s.invoiceNumber)}</td>
             <td style="color:#64748B;font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${itemNames}</td>
             <td style="text-align:right;font-weight:600;">${fmtIQD(s.grandTotal)} IQD</td>
             <td style="text-align:right;color:#059669;font-weight:600;">${fmtIQD(s.paidAmount)} IQD</td>
@@ -91,7 +91,7 @@ export function buildCustomerReportHTML(
   .page { max-width: 720px; margin: 0 auto; background: #fff; }
 
   .header {
-    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 60%, #3B82F6 100%);
+    background: linear-gradient(135deg, #3B300C 0%, #A88924 60%, #D4AF37 100%);
     color: #fff;
     padding: 36px 32px 28px;
   }

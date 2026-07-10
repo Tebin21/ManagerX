@@ -14,7 +14,7 @@ export async function saveBusiness(_data: {
   logoPath?: string;
 }): Promise<void> {
   try {
-    localStorage.setItem('@managerx_business_db', JSON.stringify(_data));
+    localStorage.setItem('@froshiar_business_db', JSON.stringify(_data));
   } catch {}
 }
 
@@ -26,7 +26,9 @@ export async function loadBusiness(): Promise<{
   logoPath: string | null;
 } | null> {
   try {
-    const raw = localStorage.getItem('@managerx_business_db');
+    // Falls back to the pre-rebrand key so an existing web session's data
+    // isn't stranded — see saveSetting/loadSetting below for the same pattern.
+    const raw = localStorage.getItem('@froshiar_business_db') ?? localStorage.getItem('@managerx_business_db');
     if (!raw) return null;
     const d = JSON.parse(raw);
     return { ...d, logoPath: d.logoPath ?? null };
@@ -37,13 +39,13 @@ export async function loadBusiness(): Promise<{
 
 export async function saveSetting(key: string, value: string): Promise<void> {
   try {
-    localStorage.setItem(`@managerx_setting_${key}`, value);
+    localStorage.setItem(`@froshiar_setting_${key}`, value);
   } catch {}
 }
 
 export async function loadSetting(key: string): Promise<string | null> {
   try {
-    return localStorage.getItem(`@managerx_setting_${key}`);
+    return localStorage.getItem(`@froshiar_setting_${key}`) ?? localStorage.getItem(`@managerx_setting_${key}`);
   } catch {
     return null;
   }

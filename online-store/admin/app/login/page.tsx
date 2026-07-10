@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,10 +35,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Lock size={20} />
-          </div>
-          <h1 className="text-lg font-semibold tracking-tight">ManagerX Store Control Center</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Froshiar" className="h-12 w-12 object-contain" />
+          <h1 className="text-lg font-semibold tracking-tight">Froshiar Store Control Center</h1>
           <p className="text-sm text-muted">Super Admin access only</p>
         </div>
 

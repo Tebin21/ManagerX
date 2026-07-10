@@ -1,5 +1,6 @@
 {
   "common": {
+    "appName":    "Froshiar",
     "continue":   "Continue",
     "cancel":     "Cancel",
     "delete":     "Delete",
@@ -31,7 +32,7 @@
     "compactAmount":"Compact Amount"
   },
   "welcome": {
-    "headline": "Welcome to ManagerX",
+    "headline": "Welcome to Froshiar",
     "tagline":  "Manage your business smarter, faster, and easier."
   },
   "onboarding": {
@@ -59,7 +60,7 @@
         "shareLink":         "Share your store link with customers",
         "showImages":        "Show product images and prices",
         "showBusinessInfo":  "Display business information",
-        "manageDirectly":    "Manage products directly from ManagerX"
+        "manageDirectly":    "Manage products directly from Froshiar"
       },
       "closing": "No technical knowledge required."
     },
@@ -99,7 +100,7 @@
     },
     "slide5": {
       "title":       "Built For Every Business",
-      "description": "ManagerX is designed for more than 10 business types including:",
+      "description": "Froshiar is designed for more than 10 business types including:",
       "items": {
         "mobileShops":       "Mobile Shops",
         "electronicsStores": "Electronics Stores",
@@ -116,7 +117,7 @@
     },
     "slide6": {
       "title":       "Works Everywhere",
-      "description": "Use ManagerX comfortably on:",
+      "description": "Use Froshiar comfortably on:",
       "items": {
         "mobilePhones": "Mobile Phones",
         "tablets":      "Tablets",
@@ -127,11 +128,11 @@
     },
     "final": {
       "title":       "Ready To Grow Your Business?",
-      "description": "Start managing inventory, sales, purchases, reports, invoices, and your online store with ManagerX today."
+      "description": "Start managing inventory, sales, purchases, reports, invoices, and your online store with Froshiar today."
     }
   },
   "login": {
-    "title":             "Welcome to ManagerX",
+    "title":             "Welcome to Froshiar",
     "subtitle":          "Manage your business smarter and easier.",
     "googleBtn":         "Continue with Google",
     "appleBtn":          "Continue with Apple"
@@ -952,7 +953,7 @@
     "businessProfile":    "Business Profile",
     "businessProfileSub": "Tap to set up your business",
     "subscriptions":         "Subscriptions",
-    "managerXLicense":       "ManagerX License",
+    "managerXLicense":       "Froshiar License",
     "managerXLicenseSub":    "{{limit}} item limit",
     "onlineStoreSubscription":    "Online Store Subscription",
     "onlineStoreSubscriptionSub": "Manage your store subscription",
@@ -1038,11 +1039,11 @@
     "lightMode":          "Light mode",
     "dataManagement":     "Data Management",
     "dataManagementSub":  "Cache, export, and storage",
-    "aboutManagerX":      "About ManagerX",
-    "tutorials":          "ManagerX Tutorials",
-    "tutorialsSub":       "Learn how to use ManagerX step by step",
+    "aboutManagerX":      "About Froshiar",
+    "tutorials":          "Froshiar Tutorials",
+    "tutorialsSub":       "Learn how to use Froshiar step by step",
     "tutorialsScreen": {
-      "title":      "ManagerX Tutorials",
+      "title":      "Froshiar Tutorials",
       "comingSoon": "Tutorials coming soon"
     },
     "account":            "Account",
@@ -1097,7 +1098,7 @@
       "title":    "App Theme Colors",
       "presets":  "Preset Themes",
       "reset":    "Reset to Default Theme",
-      "resetSub": "Restore original ManagerX blue",
+      "resetSub": "Restore original Froshiar gold",
       "colors": {
         "default":  "Default Blue",
         "navy":     "Navy Blue",
@@ -1170,7 +1171,7 @@
       "restoreError":         "Restore Failed",
       "restoreErrorMsg":      "Could not restore backup. The file may be corrupted.",
       "restoreInvalidFile":   "Invalid File",
-      "restoreInvalidFileMsg":"This file is not a valid ManagerX backup.",
+      "restoreInvalidFileMsg":"This file is not a valid Froshiar backup.",
       "restoreLimitExceededTitle":     "Backup Too Large for Your Plan",
       "restoreLimitExceededMsg":       "This backup contains {{needed}} items, which exceeds your plan's limit of {{limit}}. Upgrade your plan or restore a smaller backup.",
       "restoreLimitUndeterminedTitle": "Cannot Verify Plan",
@@ -1188,7 +1189,7 @@
       "syncStatus":          "Sync Status",
       "syncStatusSub":       "Offline mode — data stored locally",
       "devBuildTitle":       "Development Build Required",
-      "devBuildMsg":         "Restoring a backup requires a full ManagerX build. File access is not available in Expo Go.",
+      "devBuildMsg":         "Restoring a backup requires a full Froshiar build. File access is not available in Expo Go.",
       "devBuildRequired":    "Requires a full app build"
     },
     "aboutScreen": {
@@ -1209,7 +1210,7 @@
       "bexDreDesc1":      "BexDre is a full-service software and digital solutions company. We design, build, and scale the technology businesses run on — from custom business systems, software architecture, and UI/UX design to complete digital transformation solutions that help organizations manage, automate, and grow.",
       "bexDreDesc2":      "Our work spans ERP, POS, inventory, and accounting systems. It also includes web, mobile, and desktop applications, e-commerce platforms, cloud solutions, and API development. Every system we build is engineered for reliability, scalability, and long-term performance.",
       "bexDreDesc3":      "Behind every project stands a dedicated UI/UX team, a dedicated social media agency team, a dedicated branding team, a professional design team, and a software engineering team — combining strong technical foundations with thoughtful design to deliver products that are powerful and easy to use.",
-      "bexDreDesc4":      "ManagerX is one of our flagship products — a complete offline-first business management system built for local markets. It reflects what BexDre stands for: practical, professional technology that helps every business manage, automate, grow, and digitally transform, without complexity or unnecessary cost."
+      "bexDreDesc4":      "Froshiar is one of our flagship products — a complete offline-first business management system built for local markets. It reflects what BexDre stands for: practical, professional technology that helps every business manage, automate, grow, and digitally transform, without complexity or unnecessary cost."
     },
     "profileScreen": {
       "title":       "Business Profile",

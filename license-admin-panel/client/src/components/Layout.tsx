@@ -18,8 +18,9 @@ export function Layout() {
       <header className="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-8">
-            <span className="text-sm font-bold tracking-tight text-slate-900">
-              ManagerX <span className="text-brand-600">License Admin</span>
+            <span className="flex items-center gap-2 text-sm font-bold tracking-tight text-slate-900">
+              <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+              Froshiar <span className="text-brand-600">License Admin</span>
             </span>
             <nav className="flex items-center gap-1">
               {NAV_ITEMS.map((item) => (

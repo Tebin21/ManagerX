@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "ManagerX",
-    "slug": "managerx",
+    "name": "Froshiar",
+    "slug": "froshiar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-icon.png",
-    "scheme": "managerx",
+    "scheme": "froshiar",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1E40AF"
+      "backgroundColor": "#181917"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.managerx.app",
+      "bundleIdentifier": "com.froshiar.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "We need access to your photos to upload your business logo.",
@@ -25,9 +25,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo-icon.png",
-        "backgroundColor": "#1E40AF"
+        "backgroundColor": "#181917"
       },
-      "package": "com.managerx.app",
+      "package": "com.froshiar.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -65,8 +65,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ManagerX needs access to your photos to upload a business logo.",
-          "cameraPermission": "ManagerX needs camera access to take a business logo photo."
+          "photosPermission": "Froshiar needs access to your photos to upload a business logo.",
+          "cameraPermission": "Froshiar needs camera access to take a business logo photo."
         }
       ]
     ],

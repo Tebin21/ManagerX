@@ -73,7 +73,7 @@ export default function SettingsScreen() {
           />
         </SettingSection>
 
-        {/* Subscriptions — ManagerX License (existing Plan & Limits, relabeled/regrouped
+        {/* Subscriptions — Froshiar License (existing Plan & Limits, relabeled/regrouped
             only, zero functional change) + Online Store Subscription (new, independent) */}
         <SettingSection title={t('settings.subscriptions')}>
           <SettingRow

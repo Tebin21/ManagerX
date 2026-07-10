@@ -4,9 +4,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --primary:       #1E40AF;
-  --primary-light: #3B82F6;
-  --primary-pale:  #EFF6FF;
+  --primary:       #A88924;
+  --primary-light: #D4AF37;
+  --primary-pale:  #FBF7EA;
   --surface:       #F8FAFC;
   --surface-card:  #FFFFFF;
   --border:        #E2E8F0;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import {
   isFirebaseAvailable,
@@ -133,15 +133,15 @@ export const useAuthStore = create<AuthState>()(
               }
             });
           } catch (e) {
-            console.error('[ManagerX] Firebase Auth unavailable:', e);
+            console.error('[Froshiar] Firebase Auth unavailable:', e);
             set({ isLoading: false });
             resolve();
           }
         }),
     }),
     {
-      name: '@managerx_auth',
-      storage: createJSONStorage(() => AsyncStorage),
+      name: '@froshiar_auth',
+      storage: createJSONStorage(() => migratedAsyncStorage),
       partialize: (state) => ({ user: state.user }),
     }
   )

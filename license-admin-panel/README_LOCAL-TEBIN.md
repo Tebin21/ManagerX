@@ -83,7 +83,7 @@ Open your browser to:
 
 http://localhost:5173
 
-The "ManagerX License Admin — Owner access only" login screen should appear.
+The "Froshiar License Admin — Owner access only" login screen should appear.
 
 ## 7. Log in
 

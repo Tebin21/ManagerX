@@ -72,7 +72,7 @@ export function StoreDetailActions({ store }: { store: StoreSummary }) {
           Reset API Key
         </button>
         <span
-          title="Sync is device-push: the ManagerX app uploads changes when it's next online. There's no way for the server to pull from an offline device on demand."
+          title="Sync is device-push: the Froshiar app uploads changes when it's next online. There's no way for the server to pull from an offline device on demand."
           className="flex cursor-help items-center gap-1.5 rounded-lg border border-dashed border-border px-3.5 py-2 text-sm text-muted"
         >
           <RefreshCw size={13} />

@@ -153,7 +153,7 @@ export function LicensesPage() {
           title={pendingAction.type === 'revoke' ? 'Revoke this license?' : 'Delete this license?'}
           message={
             pendingAction.type === 'revoke'
-              ? 'This updates your records only — ManagerX has no internet connection, so this does not remotely deactivate the customer\'s app. The device will keep working until you tell the customer otherwise.'
+              ? 'This updates your records only — Froshiar has no internet connection, so this does not remotely deactivate the customer\'s app. The device will keep working until you tell the customer otherwise.'
               : 'This permanently removes the record from your ledger. This cannot be undone.'
           }
           confirmLabel={pendingAction.type === 'revoke' ? 'Revoke' : 'Delete'}

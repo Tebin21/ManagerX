@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, Text as RNText } from 'react-native';
+import { View, Image, ScrollView, StyleSheet, Text as RNText } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
@@ -16,10 +15,10 @@ import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
 // which both platforms' native text shapers (ICU/CoreText) resolve the same
 // way. RLM is a strong, invisible RTL character: prefixing the paragraph with
 // it anchors the paragraph's bidi base direction to RTL even when the first
-// visible word is a Latin term (e.g. a sentence starting with "BexDre" or
-// "ManagerX"), which is what was pushing the justified last line to align
-// left instead of right. LRI/PDI isolate each embedded Latin run (BexDre,
-// ManagerX, ERP, POS, API, UI/UX, ...) so it can never get reordered or have
+// visible word is a Latin term (e.g. a sentence starting with "BexDre"),
+// which is what was pushing the justified last line to align left instead of
+// right. LRI/PDI isolate each embedded Latin run (BexDre, ERP, POS, API,
+// UI/UX, ...) so it can never get reordered or have
 // its characters split by the surrounding RTL paragraph; the nested Text's
 // own font/writingDirection overrides are kept as an iOS-side belt-and-
 // suspenders and to render the run in a font that actually has Latin glyphs
@@ -79,9 +78,9 @@ export default function AboutScreen() {
         {/* Logo block */}
         <View style={styles.logoBlock}>
           <View style={[styles.logoWrap, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons name="stats-chart" size={40} color={colors.primary} />
+            <Image source={require('@/assets/images/logo.png')} style={styles.logoImage} resizeMode="contain" />
           </View>
-          <Text style={[styles.appName, { color: colors.black }]}>ManagerX</Text>
+          <Text style={[styles.appName, { color: colors.black }]}>{t('common.appName')}</Text>
           <Text style={[styles.tagline, { color: colors.gray400 }]}>
             {t('settings.aboutScreen.tagline')}
           </Text>
@@ -141,6 +140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
+  logoImage: { width: 48, height: 48 },
   appName: { fontSize: 22, fontWeight: '800' },
   tagline: { fontSize: 13 },
 

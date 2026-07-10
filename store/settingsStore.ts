@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { migratedAsyncStorage } from '@/lib/migratedStorage';
 
 export const DEFAULT_EXCHANGE_RATE = 1310;
 
@@ -45,8 +45,8 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: '@managerx_settings',
-      storage: createJSONStorage(() => AsyncStorage),
+      name: '@froshiar_settings',
+      storage: createJSONStorage(() => migratedAsyncStorage),
       merge: (persisted: unknown, current: SettingsState): SettingsState => {
         const p = persisted as Partial<SettingsState> | null;
         return {

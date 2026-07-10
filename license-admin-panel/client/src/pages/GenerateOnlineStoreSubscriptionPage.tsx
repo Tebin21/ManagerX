@@ -50,7 +50,7 @@ export function GenerateOnlineStoreSubscriptionPage() {
         <h1 className="text-xl font-bold text-slate-900">Generate Online Store Subscription</h1>
         <p className="mt-1 text-sm text-slate-500">
           Creates a cryptographically signed subscription code bound to one specific
-          Device ID — completely independent from ManagerX license codes (separate
+          Device ID — completely independent from Froshiar license codes (separate
           keypair, separate ledger).
         </p>
       </div>
@@ -90,7 +90,7 @@ export function GenerateOnlineStoreSubscriptionPage() {
           />
           <p className="mt-1 text-xs text-slate-400">
             Read this from the customer's Settings → Online Store Subscription screen
-            (same Device ID shown on the ManagerX License screen — one device, one ID).
+            (same Device ID shown on the Froshiar License screen — one device, one ID).
           </p>
         </div>
 

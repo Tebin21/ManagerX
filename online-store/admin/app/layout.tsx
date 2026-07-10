@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ManagerX Store Control Center",
-  description: "Internal super-admin dashboard for ManagerX Online Stores",
+  title: "Froshiar Store Control Center",
+  description: "Internal super-admin dashboard for Froshiar Online Stores",
 };
 
 export default function RootLayout({

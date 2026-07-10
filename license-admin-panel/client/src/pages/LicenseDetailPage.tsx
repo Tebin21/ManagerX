@@ -174,7 +174,7 @@ export function LicenseDetailPage() {
           message={
             confirmType === 'delete'
               ? 'This permanently removes the record from your ledger. This cannot be undone.'
-              : "This updates your records only — ManagerX has no internet connection, so this does not remotely affect the customer's app."
+              : "This updates your records only — Froshiar has no internet connection, so this does not remotely affect the customer's app."
           }
           confirmLabel={confirmType === 'revoke' ? 'Revoke' : confirmType === 'expire' ? 'Mark Expired' : 'Delete'}
           destructive={confirmType !== 'expire'}

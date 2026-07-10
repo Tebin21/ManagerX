@@ -35,7 +35,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" description="Live overview of every ManagerX Online Store." />
+      <PageHeader title="Dashboard" description="Live overview of every Froshiar Online Store." />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         <StatCard label="Total Stores" value={cards.totalStores} icon={Store} tone="brand" />

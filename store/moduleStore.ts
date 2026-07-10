@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import { ModuleId } from '@/constants/config';
 
 interface ModuleConfig {
@@ -50,8 +50,8 @@ export const useModuleStore = create<ModuleState>()(
         }),
     }),
     {
-      name: '@managerx_modules',
-      storage: createJSONStorage(() => AsyncStorage),
+      name: '@froshiar_modules',
+      storage: createJSONStorage(() => migratedAsyncStorage),
       // Deep-merge the modules sub-object so that any module IDs added after
       // the user's first install (e.g. 'suppliers') get their default config
       // rather than being silently undefined after rehydration.

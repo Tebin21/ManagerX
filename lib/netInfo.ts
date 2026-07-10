@@ -23,7 +23,7 @@ function warnUnavailableOnce(): void {
   if (__DEV__ && !warnedOnce) {
     warnedOnce = true;
     console.log(
-      '[ManagerX] NetInfo unavailable (RNCNetInfo native module not linked) — ' +
+      '[Froshiar] NetInfo unavailable (RNCNetInfo native module not linked) — ' +
       'connectivity-triggered sync is disabled until the next native rebuild; ' +
       'app-foreground sync still works as a fallback.'
     );

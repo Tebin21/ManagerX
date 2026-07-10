@@ -39,7 +39,7 @@ import {
   validateAndParseBackup,
   assertBackupWithinItemLimit,
   performRestore,
-  type ManagerXBackup,
+  type FroshiarBackup,
 } from '@/lib/backup';
 import { useAuthStore }     from '@/store/authStore';
 import { useBusinessStore }  from '@/store/businessStore';
@@ -68,7 +68,7 @@ export default function DataScreen() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showResetModal,   setShowResetModal]   = useState(false);
   const [resetInput,       setResetInput]       = useState('');
-  const [pendingBackup,    setPendingBackup]    = useState<ManagerXBackup | null>(null);
+  const [pendingBackup,    setPendingBackup]    = useState<FroshiarBackup | null>(null);
   const [dbRecords,        setDbRecords]        = useState<number | null>(null);
 
   useEffect(() => { void loadDbStats(); }, []);
@@ -278,6 +278,13 @@ export default function DataScreen() {
       await db.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
       await db.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
       await AsyncStorage.multiRemove([
+        '@froshiar_business',
+        '@froshiar_settings',
+        '@froshiar_modules',
+        '@froshiar_language',
+        '@froshiar_onboarding',
+        // Pre-rebrand keys — harmless if already migrated/absent, but a "reset app to
+        // factory state" action should never leave old-brand data lingering on disk.
         '@managerx_business',
         '@managerx_settings',
         '@managerx_modules',
