@@ -992,7 +992,7 @@
       "instagramUrl":     "Instagram URL",
       "tiktokUrl":        "TikTok URL",
       "whatsappNumber":            "WhatsApp Number",
-      "whatsappNumberPlaceholder": "e.g. 9647701234567 (include country code, no leading 0)",
+      "whatsappNumberPlaceholder": "e.g. 07701234567",
       "contactSection":   "Phone & address come from your Business Profile",
       "editProfile":       "Edit Business Profile",
       "save":             "Save",

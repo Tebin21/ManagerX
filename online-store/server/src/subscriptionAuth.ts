@@ -1,4 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
+import { JsonStoreRepository } from './jsonStoreRepository';
+
+const repo = new JsonStoreRepository();
 
 // Reuses the EXACT same module the mobile app ships with — single source of truth
 // for the Online Store Subscription code format/algorithm, completely independent
@@ -27,10 +30,29 @@ export function checkSubscriptionHeaders(req: Request): SubscriptionCheckResult 
   const code = req.headers['x-oss-subscription'];
   const deviceId = req.headers['x-device-id'];
   if (typeof code !== 'string' || typeof deviceId !== 'string' || !code || !deviceId) {
+    persistSubscriptionSnapshot(req, { status: 'missing' });
     return { status: 'missing' };
   }
   const result = subscriptionCore.verifySubscriptionCode(code, deviceId);
+  persistSubscriptionSnapshot(req, {
+    status: result.status,
+    plan: result.planToken,
+    expiresAt: result.expiryToken,
+  });
   return { status: result.status };
+}
+
+// Fire-and-forget snapshot for the admin dashboard only — never awaited by
+// callers and never allowed to affect the actual authorization decision above.
+// Only meaningful once a store exists (req.params.slug is unset on the
+// registration route, before there's a record to attach this to).
+function persistSubscriptionSnapshot(
+  req: Request,
+  result: { status: SubscriptionCheckResult['status']; plan?: string; expiresAt?: string }
+): void {
+  const slug = req.params?.slug;
+  if (!slug) return;
+  void repo.recordSubscriptionCheck(slug, result);
 }
 
 // Express middleware for routes that are ALWAYS gated regardless of request body

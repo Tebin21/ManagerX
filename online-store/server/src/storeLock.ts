@@ -18,7 +18,11 @@ let queue: Promise<unknown> = Promise.resolve();
 
 // Not reentrant: a caller already running inside withStoreLock() must never
 // call it again before its own callback resolves, or the inner call
-// deadlocks waiting on the outer call that is itself waiting on it.
+// deadlocks waiting on the outer call that is itself waiting on it. Callers
+// needing a multi-step transaction (e.g. registration's recover-or-create
+// decision tree) must do all of their reads/mutations inside ONE
+// withStoreLock() call instead of composing several separately-locked
+// repository methods.
 export function withStoreLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = queue.then(fn, fn);
   // The continuation stored back into the queue must never itself reject, or

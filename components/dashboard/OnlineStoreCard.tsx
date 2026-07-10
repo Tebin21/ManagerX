@@ -81,7 +81,7 @@ export function OnlineStoreCard() {
           <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue }]}>
             <Ionicons name="storefront" size={22} color={colors.primary} />
           </View>
-          <Text style={[styles.title, { color: colors.darkBlue, textAlign }]}>{t('dashboard.onlineStore.title')}</Text>
+          <Text style={[styles.title, { color: colors.darkBlue, textAlign, writingDirection }]}>{t('dashboard.onlineStore.title')}</Text>
         </View>
 
         <View style={[styles.headerRight, { flexDirection }]}>
@@ -165,7 +165,7 @@ export function OnlineStoreCard() {
       {/* Stats */}
       <View style={[styles.statsRow, { flexDirection }]}>
         <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500, textAlign }]}>{t('dashboard.onlineStore.lastSync')}</Text>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('dashboard.onlineStore.lastSync')}</Text>
           {lastSyncAt ? (
             <LTRNumber style={[styles.statValue, { color: colors.darkBlue, textAlign }]}>{formatRelativeTime(lastSyncAt)}</LTRNumber>
           ) : (
@@ -173,7 +173,7 @@ export function OnlineStoreCard() {
           )}
         </View>
         <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500, textAlign }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
           <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success, textAlign, writingDirection }]}>
             {pendingCount > 0
               ? t('dashboard.onlineStore.changesWaiting', { count: pendingCount })

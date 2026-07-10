@@ -16,12 +16,19 @@ export interface LocalConfig {
   // images (the server can't reliably infer this from a request behind Render's
   // proxy). Override via PUBLIC_API_URL or config.local.json for local/LAN testing.
   publicApiUrl: string;
+  // Shared secret for the /api/admin/* routes (see src/adminAuth.ts). This is a
+  // server-to-server credential, not a user password — only the ManagerX Store
+  // Control Center's Next.js server ever sends it, never a browser. Override via
+  // ADMIN_API_KEY or config.local.json; there is no usable default in production
+  // (adminAuth.ts refuses every request if this is left empty).
+  adminApiKey: string;
 }
 
 const DEFAULTS: LocalConfig = {
   port: 4100,
   allowedOrigin: ['https://managerx.store', 'https://www.managerx.store'],
   publicApiUrl: 'https://api.managerx.store',
+  adminApiKey: '',
 };
 
 function loadConfig(): LocalConfig {
@@ -41,6 +48,7 @@ function loadConfig(): LocalConfig {
     ...fileConfig,
     port: envPort ?? fileConfig.port ?? DEFAULTS.port,
     publicApiUrl: process.env.PUBLIC_API_URL ?? fileConfig.publicApiUrl ?? DEFAULTS.publicApiUrl,
+    adminApiKey: process.env.ADMIN_API_KEY ?? fileConfig.adminApiKey ?? DEFAULTS.adminApiKey,
   };
 }
 

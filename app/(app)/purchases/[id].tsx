@@ -195,7 +195,7 @@ export default function PurchaseDetailScreen() {
             <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
               <View>
                 <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
-                <IdText style={styles.invoiceNumber}>{purchase.purchaseNumber}</IdText>
+                <IdText style={[styles.invoiceNumber, !isRTL && styles.invoiceNumberSpacing]}>{purchase.purchaseNumber}</IdText>
               </View>
               <View style={[styles.statusPill, isPaid ? styles.statusPillPaid : styles.statusPillDebt]}>
                 <Text style={[styles.statusPillText, isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt]}>
@@ -343,6 +343,7 @@ const styles = StyleSheet.create({
   invoiceHeaderTop:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   invoiceLabel:      { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
   invoiceNumber:     { fontSize: 18, fontWeight: '700', color: '#fff' },
+  invoiceNumberSpacing: { lineHeight: 24, marginTop: 4 },
   invoiceDate:       { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 16 },
   statusPill:        { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Theme.radius.full },
   statusPillPaid:    { backgroundColor: 'rgba(16,185,129,0.25)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)' },

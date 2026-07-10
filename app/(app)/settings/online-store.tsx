@@ -25,7 +25,7 @@ function stripProtocol(url: string): string {
 export default function OnlineStoreScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const { textAlign, flexDirection, writingDirection } = useRTL();
   const router = useRouter();
 
   const {
@@ -110,7 +110,7 @@ export default function OnlineStoreScreen() {
 
           <View style={[styles.statsRow, { flexDirection }]}>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>
+              <Text style={[styles.statLabel, { color: colors.gray400, textAlign, writingDirection }]}>
                 {t('settings.onlineStoreScreen.lastSync')}
               </Text>
               <Text style={[styles.statValue, { color: colors.black }]}>
@@ -119,7 +119,7 @@ export default function OnlineStoreScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>
+              <Text style={[styles.statLabel, { color: colors.gray400, textAlign, writingDirection }]}>
                 {t('settings.onlineStoreScreen.pendingChanges')}
               </Text>
               <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success }]}>

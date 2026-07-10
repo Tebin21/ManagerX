@@ -150,8 +150,8 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
 
 export async function completeStoreRegistration(businessName: string): Promise<{ slug: string }> {
   if (__DEV__) console.log('[onlineStore] registering store, businessName =', businessName);
-  const { slug, apiKey } = await registerStore(businessName);
-  if (__DEV__) console.log('[onlineStore] registration succeeded, slug =', slug);
+  const { slug, apiKey, recovered } = await registerStore(businessName);
+  if (__DEV__) console.log('[onlineStore] registration succeeded, slug =', slug, 'recovered =', !!recovered);
   await setStoreSlug(slug);
   await setStoreApiKey(apiKey);
   return { slug };
