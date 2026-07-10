@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* Tailwind v4 has no tailwind.config.js `darkMode` option — class-based dark
+   mode (needed for next-themes' toggle, since we don't want to rely on OS
+   prefers-color-scheme alone) must be registered explicitly like this. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --color-canvas: #ffffff;
+  --color-canvas-soft: #f8fafc;
+  --color-ink: #0f172a;
+}
+
+.dark {
+  /* Dark mode remaps to a deep navy, not a CSS invert — the gold accent
+     keeps the exact same value in both themes (see --color-gold-500). */
+  --color-canvas: #14110a;
+  --color-canvas-soft: #1c1810;
+  --color-ink: #f1f5f9;
+}
+
+@theme inline {
+  --color-canvas: var(--color-canvas);
+  --color-canvas-soft: var(--color-canvas-soft);
+  --color-ink: var(--color-ink);
+  /* Fixed (non-theme-adaptive) dark ink — always used for text sitting on a
+     gold background (buttons, active pills, stat tiles), since gold-500 only
+     has safe contrast against a dark foreground in both light and dark mode. */
+  --color-ink-fixed: #0f172a;
+
+  --color-gold-50: #fbf7ea;
+  --color-gold-100: #f6eed5;
+  --color-gold-200: #efe1b3;
+  --color-gold-300: #e6d089;
+  --color-gold-400: #e4cd81;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #a88924;
+  --color-gold-700: #5d4c14;
+  --color-gold-800: #3b300c;
+  --color-gold-900: #725d18;
+
+  --color-gray-50: #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+
+  --font-sans: var(--font-inter);
+  --font-kurdish: var(--font-rudaw);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.font-kurdish {
+  font-family: var(--font-kurdish), var(--font-sans), sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

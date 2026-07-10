@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1097351210121-f2si0qu4850q7na3tq4ouu58gch22rhj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.froshiar.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com",
           "client_type": 3
         }

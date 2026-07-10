@@ -111,7 +111,27 @@
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('locales/ku.json','utf8'\\)\\); console.log\\('ku.json: valid'\\)\")",
       "Bash(git commit -m ' *)",
       "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\Tebin_PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Tebin-PC-OneDrive-Desktop-ManagerX\\\\4aa34aeb-a96e-49ae-9cdf-1a19c730b57f\\\\scratchpad\\\\make-white-logo.ps1\")",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(npx --yes create-next-app@latest froshiar-website --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --turbopack --eslint --use-npm)",
+      "Bash(xargs grep -l \"hasLocale\")",
+      "Bash(mkdir -p \"[locale]\")",
+      "Bash(mv layout.tsx \"[locale]/layout.tsx\")",
+      "Bash(mv page.tsx \"[locale]/page.tsx\")",
+      "Bash(mkdir -p froshiar-website/public/images froshiar-website/lib/fonts)",
+      "Bash(cp assets/images/logo.png froshiar-website/public/images/logo.png)",
+      "Bash(cp assets/images/logo-icon.png froshiar-website/public/images/logo-icon.png)",
+      "Bash(cp assets/images/logo-splash-white.png froshiar-website/public/images/logo-splash-white.png)",
+      "Bash(cp assets/images/bexdrelogo-dark.png froshiar-website/public/images/bexdrelogo-dark.png)",
+      "Bash(xargs grep -l \"Languages\")",
+      "Bash(curl -s -o /tmp/froshiar-home.html -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /tmp/froshiar-ckb.html -w \"%{http_code}\\\\n\" http://localhost:3000/ckb)",
+      "Bash(NODE_PATH=\"c:\\\\Users\\\\Tebin_PC\\\\OneDrive\\\\Desktop\\\\ManagerX\\\\froshiar-website\\\\node_modules\" node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(taskkill //F //IM node.exe //FI \"WINDOWTITLE eq npm*\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(pkill -f \"next-server\")",
+      "Bash(taskkill //F //PID 20572)",
+      "Bash(tee /tmp/build.log)",
+      "Bash(taskkill //F //PID 15232)"
     ],
     "additionalDirectories": [
       "C:\\tmp"
