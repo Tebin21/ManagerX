@@ -22,10 +22,17 @@ const DB_NAME = 'froshiar.db';
 // old file is copied across first. Copies (never deletes/moves) the old file,
 // so it stays behind as a safety net; a no-op once the new file already exists.
 async function migrateDatabaseFile(): Promise<void> {
-  const { File } = await import('expo-file-system');
-  const newFile = new File(SQLite.defaultDatabaseDirectory, DB_NAME);
+  const { File, Directory } = await import('expo-file-system');
+  // SQLite.defaultDatabaseDirectory is a plain OS path (e.g. "/data/user/0/.../SQLite"),
+  // not a "file://" URI — but expo-file-system's File/Directory constructors require an
+  // absolute URI, or they throw "URI is not absolute". Give it a scheme before use.
+  const dbDirUri = SQLite.defaultDatabaseDirectory.startsWith('file://')
+    ? SQLite.defaultDatabaseDirectory
+    : `file://${SQLite.defaultDatabaseDirectory}`;
+  const dbDir = new Directory(dbDirUri);
+  const newFile = new File(dbDir, DB_NAME);
   if (newFile.exists) return;
-  const oldFile = new File(SQLite.defaultDatabaseDirectory, OLD_DB_NAME);
+  const oldFile = new File(dbDir, OLD_DB_NAME);
   if (!oldFile.exists) return;
   oldFile.copy(newFile);
 }

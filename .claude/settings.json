@@ -94,7 +94,24 @@
       "Bash(adb -s emulator-5554 pull /sdcard/screenC.png C:/tmp/screenC.png)",
       "Bash(tasklist)",
       "Bash(adb -s emulator-5554 shell screencap -p /sdcard/screenD.png)",
-      "Bash(adb -s emulator-5554 pull /sdcard/screenD.png C:/tmp/screenD.png)"
+      "Bash(adb -s emulator-5554 pull /sdcard/screenD.png C:/tmp/screenD.png)",
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(grep -v \"node_modules\\\\|\\\\.next\\\\|dist\\\\|/\\\\.git/\\\\|package-lock\")",
+      "Bash(grep -v \"node_modules\\\\|\\\\.next\\\\|dist\\\\|/\\\\.git/\\\\|package-lock\\\\|/android/\\\\|/ios/\\\\|\\\\.claude/\")",
+      "Bash(sed -i \"s/@managerx_/@froshiar_/g\" store/authStore.ts store/languageStore.ts store/moduleStore.ts store/settingsStore.ts store/businessStore.ts store/onboardingStore.ts lib/i18n.ts lib/sqlite.web.ts lib/backup.ts)",
+      "Bash(grep -rn \"@managerx_\" store/ lib/)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\Tebin_PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Tebin-PC-OneDrive-Desktop-ManagerX\\\\4aa34aeb-a96e-49ae-9cdf-1a19c730b57f\\\\scratchpad\\\\process-logos.ps1\")",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\Tebin_PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Tebin-PC-OneDrive-Desktop-ManagerX\\\\4aa34aeb-a96e-49ae-9cdf-1a19c730b57f\\\\scratchpad\\\\make-favicon2.ps1\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('app.json','utf8'\\)\\); console.log\\('app.json: valid JSON'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\); console.log\\('package.json: valid JSON'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('froshiar-demo-data.json','utf8'\\)\\); console.log\\('froshiar-demo-data.json: valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('froshiar-mobile-shop-backup.json','utf8'\\)\\); console.log\\('froshiar-mobile-shop-backup.json: valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('locales/en.json','utf8'\\)\\); console.log\\('en.json: valid'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('locales/ku.json','utf8'\\)\\); console.log\\('ku.json: valid'\\)\")",
+      "Bash(git commit -m ' *)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\Tebin_PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Tebin-PC-OneDrive-Desktop-ManagerX\\\\4aa34aeb-a96e-49ae-9cdf-1a19c730b57f\\\\scratchpad\\\\make-white-logo.ps1\")",
+      "Bash(xargs cat)"
     ],
     "additionalDirectories": [
       "C:\\tmp"

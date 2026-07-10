@@ -7,6 +7,42 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:1097351210121:android:760994c20ecc605e641258",
+        "android_client_info": {
+          "package_name": "com.froshiar.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPt_45ZxiC6VZALYX65NN_igouWJ-Qpjo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1097351210121-sumdom9j1d2t36h9hd7f8jee56eo3jo5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.managerx.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:1097351210121:android:a7f2704401975cdc641258",
         "android_client_info": {
           "package_name": "com.managerx.app"
@@ -37,6 +73,13 @@
             {
               "client_id": "1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1097351210121-sumdom9j1d2t36h9hd7f8jee56eo3jo5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.managerx.app"
+              }
             }
           ]
         }
