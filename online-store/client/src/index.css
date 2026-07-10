@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Used only by the marketing homepage (locale === 'ckb') — generic sans fonts
+   don't render Sorani Kurdish's Arabic-script joining forms correctly. */
+@font-face {
+  font-family: 'Rudaw';
+  src: url('/fonts/rudawregular2.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
 }

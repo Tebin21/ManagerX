@@ -1,18 +1,17 @@
 import { Footer } from '../components/Footer';
+import { MarketingHomepage } from '../marketing/MarketingHomepage';
 
 export function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <img src="/logo.png" alt="Froshiar" className="mb-4 h-14 w-14 object-contain" />
-        <h1 className="text-xl font-bold text-slate-800">Froshiar Online Store</h1>
-        <p className="mt-2 max-w-sm text-sm text-slate-500">
-          This is the storefront platform that powers public stores created from the
-          Froshiar app. Visit a specific store at its own address, e.g.
-          froshiar.store/your-store-name.
-        </p>
+      <MarketingHomepage />
+      {/* Footer is a fixed, English-only, LTR brand element (BexDre credit) shared
+          with /demo and every store — force it back to ltr/en regardless of the
+          homepage's own locale toggle, since <html dir>/<html lang> are inherited
+          and would otherwise leak the homepage's RTL/Kurdish state into it. */}
+      <div dir="ltr" lang="en">
+        <Footer />
       </div>
-      <Footer />
     </div>
   );
 }

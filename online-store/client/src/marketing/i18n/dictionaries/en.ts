@@ -1,0 +1,93 @@
+export const en = {
+  nav: {
+    home: "Home",
+    features: "Features",
+    contact: "Contact",
+    switchLanguage: "Switch language",
+  },
+  hero: {
+    title: "Smart Business Management for Everyone",
+    subtitle:
+      "Froshiar helps businesses manage products, sales, inventory, customers, reports and online stores from one beautiful application.",
+  },
+  features: {
+    heading: "Everything your business needs",
+    subheading: "One app, every tool — built to feel effortless.",
+    items: {
+      inventory: {
+        title: "Inventory Management",
+        description: "Track stock levels, product variants, and low-stock alerts in real time.",
+      },
+      salesPos: {
+        title: "Sales & POS",
+        description: "A fast, intuitive checkout built for busy counters and every device.",
+      },
+      customers: {
+        title: "Customer Management",
+        description: "Keep customer details, purchase history, and balances in one place.",
+      },
+      expenses: {
+        title: "Expense Tracking",
+        description: "Record and categorize expenses to see exactly where money goes.",
+      },
+      reports: {
+        title: "Reports & Analytics",
+        description: "Clear, visual reports that turn daily transactions into real insight.",
+      },
+      onlineStore: {
+        title: "Online Store",
+        description: "Turn your catalog into a shareable online store in minutes.",
+      },
+      cloudSync: {
+        title: "Cloud Sync",
+        description: "Your data stays backed up and in sync across every device.",
+      },
+      multiLang: {
+        title: "Multi-language Support",
+        description: "A fully bilingual experience, including native Kurdish support.",
+      },
+    },
+  },
+  about: {
+    heading: "About Froshiar",
+    paragraph:
+      "Froshiar is an all-in-one business management solution designed for shops, restaurants, pharmacies, supermarkets, cafés and many other businesses.",
+  },
+  businessTypes: {
+    heading: "Built for every kind of business",
+    items: {
+      mobileShops: "Mobile Shops",
+      restaurants: "Restaurants",
+      cafes: "Cafés",
+      pharmacies: "Pharmacies",
+      markets: "Markets",
+      clothing: "Clothing Stores",
+      electronics: "Electronics",
+      warehouses: "Warehouses",
+      more: "More...",
+    },
+  },
+  downloadApp: {
+    heading: "Take Froshiar with you",
+    subheading:
+      "Manage sales, inventory, and reports from your phone — the Froshiar mobile app is launching soon on iOS and Android.",
+    comingSoon: "Coming soon",
+    appStore: {
+      eyebrow: "Download on the",
+      name: "App Store",
+    },
+    googlePlay: {
+      eyebrow: "Get it on",
+      name: "Google Play",
+    },
+  },
+  contact: {
+    heading: "Get in touch",
+    websiteLabel: "Website",
+    emailLabel: "Email",
+    website: "froshiar.store",
+    email: "support@froshiar.store",
+  },
+};
+
+export type Dictionary = typeof en;
