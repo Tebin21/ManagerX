@@ -11,8 +11,6 @@ export function PhoneMockup() {
       <div className="rounded-[2.4rem] border-[4px] border-ink bg-ink p-0.5 shadow-2xl shadow-black/30 md:rounded-[2.6rem] md:border-[5px]">
         <div className="relative aspect-[643/1280] overflow-hidden rounded-[2.15rem] bg-white md:rounded-[2.3rem]">
           <ScreenshotCarousel startIndex={0} priority className="h-full w-full" />
-          {/* Dynamic island */}
-          <div className="pointer-events-none absolute left-1/2 top-2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-ink" />
         </div>
       </div>
     </div>
