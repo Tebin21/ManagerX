@@ -131,7 +131,13 @@
       "Bash(pkill -f \"next-server\")",
       "Bash(taskkill //F //PID 20572)",
       "Bash(tee /tmp/build.log)",
-      "Bash(taskkill //F //PID 15232)"
+      "Bash(taskkill //F //PID 15232)",
+      "Bash(node -e \"console.log\\(require.resolve\\('pngjs'\\)\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('sharp'\\)\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('jimp'\\)\\)\")",
+      "Bash(node \"C:/Users/Tebin_PC/AppData/Local/Temp/claude/c--Users-Tebin-PC-OneDrive-Desktop-ManagerX/7be05b86-e9f6-4253-b7ac-f5215083e415/scratchpad/resize_icon.js\")",
+      "Bash(node resize_icon_tmp.js)",
+      "Bash(node preview_masks_tmp.js)"
     ],
     "additionalDirectories": [
       "C:\\tmp"
