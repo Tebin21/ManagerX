@@ -137,7 +137,9 @@
       "Bash(node -e \"console.log\\(require.resolve\\('jimp'\\)\\)\")",
       "Bash(node \"C:/Users/Tebin_PC/AppData/Local/Temp/claude/c--Users-Tebin-PC-OneDrive-Desktop-ManagerX/7be05b86-e9f6-4253-b7ac-f5215083e415/scratchpad/resize_icon.js\")",
       "Bash(node resize_icon_tmp.js)",
-      "Bash(node preview_masks_tmp.js)"
+      "Bash(node preview_masks_tmp.js)",
+      "Bash(node -e \"console.log\\(require.resolve\\('cwebp-bin'\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('fs'\\).statSync\\('assets/images/android-icon-foreground.png'\\).mtime\\)\")"
     ],
     "additionalDirectories": [
       "C:\\tmp"
