@@ -1,6 +1,7 @@
 {
   "common": {
     "appName":    "Froshiar",
+    "developedBy": "Developed by",
     "continue":   "Continue",
     "cancel":     "Cancel",
     "delete":     "Delete",

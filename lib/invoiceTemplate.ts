@@ -4,7 +4,7 @@ import {
   fmtIQD, fmtUSD, fmtPct, formatDate, formatTime,
   getPaymentStatus,
 } from '@/utils/formatters';
-import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
+import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
@@ -425,7 +425,7 @@ export function buildInvoiceHTML(
 </div>
 
 <div class="footer">
-  ${ku(t('salesInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ${t('common.appName')} &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
+  ${ku(t('salesInvoiceLabel'))} &nbsp;·&nbsp; ${ku(i18n.t('common.developedBy') as string)} ${i18n.t('common.appName')} · ${PDF_BRAND_WEBSITE} &nbsp;·&nbsp; ${escHtml(sale.invoiceNumber)}
 </div>
 
 </body>
@@ -842,7 +842,7 @@ export function buildPurchaseInvoiceHTML(
 </div>
 
 <div class="footer">
-  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(t('poweredBy'))} ${t('common.appName')} &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
+  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(i18n.t('common.developedBy') as string)} ${i18n.t('common.appName')} · ${PDF_BRAND_WEBSITE} &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
 </div>
 
 </body>

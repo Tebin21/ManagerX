@@ -1,7 +1,7 @@
 import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
 import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
-import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
+import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE } from '@/lib/pdfFont';
 
 interface BusinessInfo {
   name: string;
@@ -264,7 +264,7 @@ export function buildCustomerReportHTML(
   </div>` : ''}
 
   <div class="footer">
-    <strong>${escHtml(business.name)}</strong> &middot; Customer Report &middot; ${now}
+    <strong>${escHtml(business.name)}</strong> &middot; Customer Report &middot; ${now} &middot; Developed by Froshiar &middot; ${PDF_BRAND_WEBSITE}
   </div>
 
 </div>

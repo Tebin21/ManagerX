@@ -5,7 +5,7 @@ import type {
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
 import { fmtIQD, fmtPct, formatDate as fmtDate, formatTime } from '@/utils/formatters';
-import { KURDISH_FONT_FACE } from '@/lib/pdfFont';
+import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
@@ -539,7 +539,7 @@ export function buildFinancialReportHTML(
 
   <!-- ════════════════════════════════ FOOTER ══════════════════════════════ -->
   <div class="footer">
-    ${ku(t('generatedBy'))} ${t('common.appName')} &nbsp;&middot;&nbsp; ${generatedDate} ${generatedTime} &nbsp;&middot;&nbsp; ${periodLabelIsTranslated ? ku(periodLabel) : periodLabel}
+    ${ku(i18n.t('common.developedBy') as string)} ${i18n.t('common.appName')} · ${PDF_BRAND_WEBSITE} &nbsp;&middot;&nbsp; ${generatedDate} ${generatedTime} &nbsp;&middot;&nbsp; ${periodLabelIsTranslated ? ku(periodLabel) : periodLabel}
   </div>
 
 </body>

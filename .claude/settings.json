@@ -139,7 +139,10 @@
       "Bash(node resize_icon_tmp.js)",
       "Bash(node preview_masks_tmp.js)",
       "Bash(node -e \"console.log\\(require.resolve\\('cwebp-bin'\\)\\)\")",
-      "Bash(node -e \"console.log\\(require\\('fs'\\).statSync\\('assets/images/android-icon-foreground.png'\\).mtime\\)\")"
+      "Bash(node -e \"console.log\\(require\\('fs'\\).statSync\\('assets/images/android-icon-foreground.png'\\).mtime\\)\")",
+      "Bash(grep -rn \"financialReportTemplate\\\\|from '\\\\.\\\\./\\\\.\\\\./lib/reportTemplate'\\\\|from '@/lib/reportTemplate'\\\\|from '@/lib/financialReportTemplate'\" --include=\"*.ts\" --include=\"*.tsx\" app)",
+      "Bash(node -e \"const en=require\\('./locales/en.json'\\); const ku=require\\('./locales/ku.json'\\); console.log\\('en.common.developedBy:', en.common.developedBy\\); console.log\\('ku.common.developedBy:', ku.common.developedBy\\); console.log\\('en.common.appName:', en.common.appName\\); console.log\\('ku.common.appName:', ku.common.appName\\);\")",
+      "Bash(node -e \"require\\('esbuild'\\)\")"
     ],
     "additionalDirectories": [
       "C:\\tmp"

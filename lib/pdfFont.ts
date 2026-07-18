@@ -24,3 +24,5 @@ export const KURDISH_FONT_FACE = `
     font-style: normal;
   }
 `;
+
+export const PDF_BRAND_WEBSITE = 'www.froshiar.store';
