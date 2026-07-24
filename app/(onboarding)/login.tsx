@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
-import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
@@ -85,7 +84,6 @@ export default function LoginScreen() {
             style={styles.buttonGroup}
           >
             <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
-            <AppleSignInButton />
 
             {authError && (
               <View style={styles.errorBox}>

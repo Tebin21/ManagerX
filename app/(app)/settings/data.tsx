@@ -33,7 +33,7 @@ import { SettingRow } from '@/components/settings/SettingRow';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont } from '@/lib/settingsFont';
-import { getDatabase } from '@/lib/sqlite';
+import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
 import {
   exportBackup,
   validateAndParseBackup,
@@ -261,22 +261,7 @@ export default function DataScreen() {
   async function executeReset() {
     setResetting(true);
     try {
-      const db = await getDatabase();
-      for (const table of [
-        'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
-        'sale_items', 'debts', 'sales', 'purchases',
-        'products', 'customers', 'suppliers', 'expenses',
-        'exchange_rates', 'reports_cache',
-        'invoice_counter', 'purchase_counter',
-        'inventory_history', 'categories',
-        'settings', 'businesses',
-      ]) {
-        await db.runAsync(`DELETE FROM ${table}`);
-      }
-      // Re-seed rows that must exist for the app to function
-      await db.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
-      await db.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
-      await db.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
+      await wipeAllBusinessData();
       await AsyncStorage.multiRemove([
         '@froshiar_business',
         '@froshiar_settings',

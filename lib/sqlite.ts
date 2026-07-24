@@ -57,6 +57,31 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
+// Deletes every business-data row (products, sales, purchases, customers, debts,
+// reports, etc.) and re-seeds the counter/rate rows the app needs to keep functioning.
+// Used by the explicit "Reset app to factory defaults" flow (app/(app)/settings/data.tsx)
+// and by authStore's automatic wipe when a different account signs in on a device that
+// already holds another account's local business data — this app has no per-account data
+// scoping, SQLite is fully device-local, so switching accounts must not leak the prior
+// account's records to the newly signed-in user.
+export async function wipeAllBusinessData(): Promise<void> {
+  const database = await getDatabase();
+  for (const table of [
+    'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
+    'sale_items', 'debts', 'sales', 'purchases',
+    'products', 'customers', 'suppliers', 'expenses',
+    'exchange_rates', 'reports_cache',
+    'invoice_counter', 'purchase_counter',
+    'inventory_history', 'categories',
+    'settings', 'businesses',
+  ]) {
+    await database.runAsync(`DELETE FROM ${table}`);
+  }
+  await database.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+  await database.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+  await database.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
+}
+
 export async function initializeDatabase(): Promise<void> {
   const database = await getDatabase();
 
@@ -833,7 +858,7 @@ export async function enqueueSyncChange(
   // SQLite's ON CONFLICT...DO UPDATE upsert isn't supported by the on-device
   // build (was throwing 'near "DO": syntax error'), so dedupe via UPDATE first,
   // then INSERT only if no existing row was found.
-  await database.withTransactionAsync(async () => {
+  const runQueueUpsert = async () => {
     const updateSql = `UPDATE sync_queue SET operation = ?, updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'product' AND entity_id = ?`;
     console.log('[Froshiar][sync_queue] update', updateSql, [operation, productId]); // TEMP: debug logging for sync upsert fix
@@ -856,7 +881,19 @@ export async function enqueueSyncChange(
         throw err;
       }
     }
-  });
+  };
+
+  // enqueueSyncChange is called both standalone (e.g. renameCategory) and from inside
+  // other functions' own withTransactionAsync (insertSale, updateSaleComplete, deleteSale,
+  // archivePurchase, updatePurchase). expo-sqlite's withTransactionAsync has no reentrancy
+  // guard — opening a second one here while already inside a transaction issues a nested
+  // BEGIN, which SQLite rejects and rolls back the outer (caller's) transaction. Only open
+  // our own transaction when we're not already inside one.
+  if (database.isInTransactionSync()) {
+    await runQueueUpsert();
+  } else {
+    await database.withTransactionAsync(runQueueUpsert);
+  }
   // Dynamic import avoids a circular import (syncEngine.ts already imports FROM
   // this file). Fire-and-forget — enqueueSyncChange is called inline inside bulk
   // loops (e.g. deleteProductsByPurchaseId) and must never block on a debounce
@@ -1987,7 +2024,7 @@ export async function updateSupplier(id: number, data: {
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
-  await database.runAsync(`UPDATE suppliers SET ${fields.join(', ')} WHERE id = ?`, values);
+  await database.runAsync(`UPDATE suppliers SET ${fields.join(', ')} WHERE id = ?`, values as SQLite.SQLiteBindValue[]);
 }
 
 export async function deleteSupplier(id: number): Promise<void> {

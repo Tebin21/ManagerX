@@ -401,6 +401,7 @@ export default function NewSaleScreen() {
                 paidAmount: cart.paymentMethod === 'debt' ? (parseFloat(cart.paidAmount) || 0) : grandTotal,
                 remainingDebt,
                 status: 'completed',
+                exchangeRateUsed: exchangeRate,
                 date: saleDate.toISOString(),
                 createdAt: saleDate.toISOString(),
                 updatedAt: saleDate.toISOString(),

@@ -25,6 +25,7 @@ import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { generateThemeColors } from '@/lib/colorUtils';
 import { Colors } from '@/constants/colors';
+import { useRTL } from '@/lib/rtl';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -45,6 +46,7 @@ I18nManager.forceRTL(false);
 function AppStack() {
   const { isDark, colors } = useAppTheme();
   const language = useLanguageStore((s) => s.language);
+  const { isRTL } = useRTL();
 
   return (
     <>
@@ -54,6 +56,7 @@ function AppStack() {
         screenOptions={{
           headerShown:  false,
           contentStyle: { backgroundColor: colors.gray50 },
+          animation: isRTL ? 'slide_from_left' : 'slide_from_right',
         }}
       />
     </>

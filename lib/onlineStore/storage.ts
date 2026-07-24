@@ -2,7 +2,13 @@
 // last sync time) live in the generic SQLite settings table (see lib/sqlite.ts). The API
 // key is a credential, so it goes in expo-secure-store instead — same pattern lib/supabase.ts
 // already uses for auth secrets.
-import * as SecureStore from 'expo-secure-store';
+//
+// expo-secure-store is imported lazily (inside each function below) rather than as a
+// static top-level import: its entry point calls requireNativeModule() — a *throwing*
+// native-module lookup — at module-evaluation time. This file is reached from
+// app/(app)/_layout.tsx on essentially every authenticated session, so a static import
+// would crash the whole app shell on any build where the native module isn't linked,
+// instead of confining the failure to the one Online Store action that needs it.
 import { saveSetting, loadSetting } from '@/lib/sqlite';
 
 const API_KEY_STORE_KEY = 'online_store_api_key';
@@ -43,10 +49,12 @@ export async function setLastSyncAt(iso: string): Promise<void> {
 }
 
 export async function getStoreApiKey(): Promise<string | null> {
+  const SecureStore = await import('expo-secure-store');
   return SecureStore.getItemAsync(API_KEY_STORE_KEY);
 }
 
 export async function setStoreApiKey(key: string): Promise<void> {
+  const SecureStore = await import('expo-secure-store');
   await SecureStore.setItemAsync(API_KEY_STORE_KEY, key);
 }
 
@@ -55,6 +63,7 @@ export async function setStoreApiKey(key: string): Promise<void> {
 // `if (!slug || !apiKey)` check in syncEngine.ts re-registers automatically instead
 // of retrying the same doomed request against a dead registration forever.
 export async function clearStoreApiKey(): Promise<void> {
+  const SecureStore = await import('expo-secure-store');
   await SecureStore.deleteItemAsync(API_KEY_STORE_KEY);
 }
 

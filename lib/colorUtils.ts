@@ -74,6 +74,11 @@ export function generateThemeColors(
   const gradientDarkenAmount = lightness < 25 ? 0.05 : 0.25;
   const gradientLightenAmount = lightness < 25 ? 0.30 : 0.18;
 
+  // AppColors is `typeof Colors` off a `constants/colors.ts` object declared `as const`,
+  // so each field's type is its specific default hex literal (e.g. `'#D4AF37'`), not
+  // `string` — but this function computes real hex values from the user's chosen accent
+  // color. Same "trust me, it's still a hex color" cast used for DarkColors in
+  // contexts/ThemeContext.tsx.
   return {
     primary:      accentHex,
     primaryDark:  darken(accentHex, 0.12),
@@ -87,5 +92,5 @@ export function generateThemeColors(
     lightBlue:    hexToRgba(accentHex, isDark ? 0.20 : 0.15),
     mediumBlue:   hexToRgba(accentHex, isDark ? 0.28 : 0.22),
     skyBlue:      hexToRgba(accentHex, isDark ? 0.40 : 0.35),
-  };
+  } as unknown as Partial<AppColors>;
 }

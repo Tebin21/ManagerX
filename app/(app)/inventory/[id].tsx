@@ -267,7 +267,7 @@ export default function InventoryDetailScreen() {
             <Text style={sectionTitleStyle}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
             <View style={[styles.idChipWrap, { flexDirection }]}>
               <View style={[styles.idChip, { backgroundColor: colors.softBlue }]}>
-                <Text style={[styles.idChipText, { color: colors.primaryDark }]}>{product.itemId}</Text>
+                <IdText style={[styles.idChipText, { color: colors.primaryDark, lineHeight: undefined }]}>{product.itemId}</IdText>
               </View>
               {isCustom && (
                 <View style={[styles.idChip, isSold ? { backgroundColor: colors.gray100 } : styles.idChipAvail]}>

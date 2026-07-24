@@ -9,7 +9,7 @@ import { useRTL } from '@/lib/rtl';
 import { Typography } from '@/constants/typography';
 
 interface Props {
-  title: string;
+  title: React.ReactNode;
   showBack?: boolean;
   rightAction?: React.ReactNode;
   onBack?: () => void;

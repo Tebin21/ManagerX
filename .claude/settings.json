@@ -142,10 +142,19 @@
       "Bash(node -e \"console.log\\(require\\('fs'\\).statSync\\('assets/images/android-icon-foreground.png'\\).mtime\\)\")",
       "Bash(grep -rn \"financialReportTemplate\\\\|from '\\\\.\\\\./\\\\.\\\\./lib/reportTemplate'\\\\|from '@/lib/reportTemplate'\\\\|from '@/lib/financialReportTemplate'\" --include=\"*.ts\" --include=\"*.tsx\" app)",
       "Bash(node -e \"const en=require\\('./locales/en.json'\\); const ku=require\\('./locales/ku.json'\\); console.log\\('en.common.developedBy:', en.common.developedBy\\); console.log\\('ku.common.developedBy:', ku.common.developedBy\\); console.log\\('en.common.appName:', en.common.appName\\); console.log\\('ku.common.appName:', ku.common.appName\\);\")",
-      "Bash(node -e \"require\\('esbuild'\\)\")"
+      "Bash(node -e \"require\\('esbuild'\\)\")",
+      "Bash(xargs -I{} grep -l \"Stack\" {})",
+      "Bash(xargs wc -l)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Tebin_PC\\\\.claude\\\\plans\" 2>/dev/null; echo ok)",
+      "Bash(npm outdated *)",
+      "Bash(grep -n \"^\\\\.env\\\\|/\\\\.env\\\\|\\\\.env$\" .gitignore)",
+      "Bash(xargs grep -l \"withTransactionAsync\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('locales/en.json','utf8'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('locales/ku.json','utf8'\\)\\); console.log\\('locales OK'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('app.json','utf8'\\)\\); console.log\\('app.json OK'\\)\")"
     ],
     "additionalDirectories": [
-      "C:\\tmp"
+      "C:\\tmp",
+      "C:\\Users\\Tebin_PC\\.claude\\plans"
     ]
   }
 }

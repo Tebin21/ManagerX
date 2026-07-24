@@ -31,7 +31,7 @@ export function AmountText({ value, currency, variant = 'default', prefix, forma
   const preset = PRESET[variant];
   return (
     <Text style={[preset, styles.ltrTabular, style]} {...props}>
-      {prefix ?? ''}{formatter(value)}{currency ? ` ${currency}` : ''}
+      {prefix ?? ''}{formatter(value ?? 0)}{currency ? ` ${currency}` : ''}
     </Text>
   );
 }

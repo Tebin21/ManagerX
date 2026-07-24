@@ -88,6 +88,27 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       });
     }
 
+    // Validate itemId uniqueness and the item-limit BEFORE the purchase (and, if
+    // buying on credit, its debt) is committed. These used to run after insertPurchase/
+    // createPurchaseDebt, so hitting the item limit left a permanent purchase row (and
+    // debt owed) with no matching product ever inserted — inventory silently short.
+    const idsToCheck = (input.itemIds ?? []).filter(Boolean);
+    const duplicates: string[] = [];
+    for (const itemId of idsToCheck) {
+      const existing = await getProductsByItemId(itemId);
+      if (existing.length > 0) duplicates.push(itemId);
+    }
+    if (duplicates.length > 0) {
+      throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
+    }
+
+    // The limit is on total stock QUANTITY: each custom id is inserted as its own row
+    // with quantity 1 (so quantity added = number of ids), while the shared/repeatable
+    // branch inserts ONE row carrying the full purchased quantity.
+    const additionalQuantity = input.idType === 'custom' ? idsToCheck.length : input.quantity;
+    const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
+    await assertItemLimitNotExceeded(additionalQuantity);
+
     const purchaseId = await insertPurchase(data);
 
     // Backfill purchase_items row (mirrors current single-product model)
@@ -151,26 +172,6 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       imageUri:        input.imageUri ?? null,
       isActive:        true,
     };
-
-    // Validate itemId uniqueness before any insertions
-    const idsToCheck = (input.itemIds ?? []).filter(Boolean);
-    const duplicates: string[] = [];
-    for (const itemId of idsToCheck) {
-      const existing = await getProductsByItemId(itemId);
-      if (existing.length > 0) duplicates.push(itemId);
-    }
-    if (duplicates.length > 0) {
-      throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
-    }
-
-    // Pre-flight item-limit check — fails atomically before any product rows are
-    // inserted, instead of failing partway through the custom-id loop below. The
-    // limit is on total stock QUANTITY: each custom id below is inserted as its own
-    // row with quantity 1 (so quantity added = number of ids), while the shared/
-    // repeatable branch inserts ONE row carrying the full purchased quantity.
-    const additionalQuantity = input.idType === 'custom' ? idsToCheck.length : input.quantity;
-    const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
-    await assertItemLimitNotExceeded(additionalQuantity);
 
     if (input.idType === 'custom') {
       for (const itemId of input.itemIds) {

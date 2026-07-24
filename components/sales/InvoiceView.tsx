@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -83,7 +84,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
           )}
         </View>
         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-          <Text style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr' }]}>{sale.invoiceNumber}</Text>
+          <IdText style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr', lineHeight: undefined }]}>{sale.invoiceNumber}</IdText>
           <View style={[styles.statusPill, { backgroundColor: STATUS_BG[status] }]}>
             <Text style={[styles.statusPillText, { color: STATUS_TEXT[status] }]}>
               {PAYMENT_STATUS_LABEL[status]}
@@ -174,7 +175,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
                 >
                   <Text style={[styles.colNum, styles.tableCellMuted, { color: colors.gray500 }]}>{i + 1}</Text>
                   <Text style={[styles.colProduct, styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
-                  <Text style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</Text>
+                  <IdText style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</IdText>
                   <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
                   <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtIQD(item.sellingPrice)}</Text>
                   <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? Colors.success : colors.gray300 }]}>

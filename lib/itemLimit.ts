@@ -137,8 +137,20 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
   }
 
   const newLimit = TOKEN_TO_LIMIT[result.limitToken];
-  if (newLimit <= current.limit) {
+  const newExpiresAt = expiryTokenToIso(result.expiryToken);
+  if (newLimit < current.limit) {
     return { status: 'no_upgrade', plan: current.plan, limit: current.limit };
+  }
+  if (newLimit === current.limit) {
+    // Same tier: only accept if it extends the current expiry (a renewal), matching
+    // lib/onlineStoreSubscription/subscription.ts's activation logic for the sibling
+    // subscription system. current.expiresAt is only null here when no license is
+    // currently active (default plan) — current.limit can't equal a real newLimit in
+    // that case unless the code being activated matches the default tier, which is a
+    // legitimate first activation, not a renewal, so it falls through to accept.
+    if (current.expiresAt !== null && newExpiresAt !== null && newExpiresAt <= current.expiresAt) {
+      return { status: 'no_upgrade', plan: current.plan, limit: current.limit };
+    }
   }
 
   await saveSetting(KEY_LICENSE_CODE, code);
@@ -148,7 +160,7 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
     status: 'activated',
     plan: limitToPlanLabel(newLimit),
     limit: newLimit,
-    expiresAt: expiryTokenToIso(result.expiryToken),
+    expiresAt: newExpiresAt,
   };
 }
 

@@ -2,6 +2,14 @@ export const SUPPORT_PHONE   = '07708229696';
 export const SUPPORT_WEBSITE = 'https://www.BexDre.com';
 export const SUPPORT_WEBSITE_DISPLAY = 'www.BexDre.com';
 
+// Must be set to a real, published privacy policy URL before release — required by
+// both Google Play (Data Safety section) and Apple App Store review, since the app
+// collects data via Google Sign-In/Firebase. Left blank intentionally: no policy text
+// or URL has been authored yet, and this app must not ship a fabricated one. The
+// Settings > About "Privacy Policy" row (app/(app)/settings/index.tsx) only renders
+// when this is non-empty, so nothing broken/misleading ships while it's unset.
+export const PRIVACY_POLICY_URL = '';
+
 export type ModuleId =
   | 'purchases'
   | 'sales'

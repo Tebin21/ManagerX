@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MotiView } from 'moti';
@@ -25,10 +26,13 @@ import { usePurchaseStore } from '@/store/purchaseStore';
 import { getPurchaseById, getSoldQuantityForPurchase } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
+
+const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
 
 export default function EditPurchaseScreen() {
@@ -150,7 +154,14 @@ export default function EditPurchaseScreen() {
       style={[styles.container, { backgroundColor: colors.gray50 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <AppHeader title={`${t('purchases.editPurchase')} · ${purchase.purchaseNumber}`} showBack />
+      <AppHeader
+        title={
+          <>
+            {t('purchases.editPurchase')} · <IdText style={HEADER_TITLE_STYLE}>{purchase.purchaseNumber}</IdText>
+          </>
+        }
+        showBack
+      />
 
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}

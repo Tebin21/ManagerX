@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useLicenseStore } from '@/store/licenseStore';
 import { Colors } from '@/constants/colors';
+import { PRIVACY_POLICY_URL } from '@/constants/config';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 
@@ -155,6 +157,16 @@ export default function SettingsScreen() {
             label={t('settings.aboutManagerX')}
             onPress={() => router.push('/(app)/settings/about' as never)}
           />
+          {/* PRIVACY_POLICY_URL is unset until a real policy is published — see
+              constants/config.ts. Hidden rather than shown with a dead/placeholder
+              link. */}
+          {PRIVACY_POLICY_URL ? (
+            <SettingRow
+              icon="shield-checkmark"
+              label={t('settings.privacyPolicy')}
+              onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            />
+          ) : null}
         </SettingSection>
 
         {/* Account / Logout — visually separated */}

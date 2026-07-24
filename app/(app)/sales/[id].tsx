@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 
@@ -16,7 +17,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
+import { Typography } from '@/constants/typography';
 import type { Sale } from '@/types/sales';
+
+const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
 export default function SaleDetailScreen() {
   const { id, new: isNew } = useLocalSearchParams<{ id: string; new?: string }>();
@@ -90,7 +94,7 @@ export default function SaleDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader
-        title={sale.invoiceNumber}
+        title={<IdText style={HEADER_TITLE_STYLE}>{sale.invoiceNumber}</IdText>}
         rightAction={
           <HeaderActionButton icon="share-outline" onPress={handleShare} disabled={isSharing} />
         }

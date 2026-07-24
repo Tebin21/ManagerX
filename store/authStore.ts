@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { migratedAsyncStorage } from '@/lib/migratedStorage';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import {
   isFirebaseAvailable,
   getFirebaseAuth,
@@ -14,11 +13,24 @@ import {
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
 
+// Lazily imported — @react-native-google-signin/google-signin's package entry point
+// also re-exports GoogleSigninButton, which calls TurboModuleRegistry.getEnforcing()
+// (a *throwing* native-module lookup) at module-evaluation time, not inside a function.
+// A static top-level import here would crash the whole app at launch (this file is
+// imported from app/_layout.tsx) on any build where the native module isn't linked.
+// This app's actual Google Sign-In button (components/auth/GoogleSignInButton.tsx) is
+// fully custom and never uses the package's GoogleSigninButton, so deferring the import
+// to first use — same pattern already used for expo-image-picker/expo-document-picker
+// elsewhere in this codebase — costs nothing and confines any crash to the sign-in
+// action itself instead of app startup.
 let googleSigninConfigured = false;
-function ensureGoogleSigninConfigured() {
-  if (googleSigninConfigured) return;
-  GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
-  googleSigninConfigured = true;
+async function getGoogleSignin() {
+  const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+  if (!googleSigninConfigured) {
+    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+    googleSigninConfigured = true;
+  }
+  return GoogleSignin;
 }
 
 export interface AppUser {
@@ -70,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ isLoading: true });
         try {
-          ensureGoogleSigninConfigured();
+          const GoogleSignin = await getGoogleSignin();
           await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
           const signInResult = await GoogleSignin.signIn();
@@ -90,6 +102,21 @@ export const useAuthStore = create<AuthState>()(
           const credential = GoogleAuthProvider.credential(idToken);
           const { user } = await signInWithCredential(getFirebaseAuth(), credential);
 
+          // This device's local business data (SQLite) isn't scoped per account. If it
+          // already belongs to a *different* account than the one signing in now, wipe
+          // it first so the newly signed-in user never sees the previous account's
+          // products/customers/sales/financial records. A null ownerUserId means either
+          // a fresh install or an existing install upgrading to this tracking — leave
+          // that data alone rather than wiping on an unrelated app update.
+          const { useBusinessStore } = await import('@/store/businessStore');
+          const business = useBusinessStore.getState();
+          if (business.isSetupComplete && business.ownerUserId && business.ownerUserId !== user.uid) {
+            const { wipeAllBusinessData } = await import('@/lib/sqlite');
+            await wipeAllBusinessData();
+            business.clearBusiness();
+          }
+          useBusinessStore.getState().setOwnerUserId(user.uid);
+
           set({ user: firebaseUserToAppUser(user), isLoading: false });
           return { error: null };
         } catch (e: any) {
@@ -101,7 +128,10 @@ export const useAuthStore = create<AuthState>()(
       signOut: async () => {
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}
-          try { await GoogleSignin.signOut(); } catch {}
+          try {
+            const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+            await GoogleSignin.signOut();
+          } catch {}
         }
         set({ user: null });
       },

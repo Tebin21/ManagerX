@@ -14,6 +14,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
+import { IdText } from '@/components/ui/IdText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLicenseStore } from '@/store/licenseStore';
 import { getInventoryStats } from '@/lib/sqlite';
@@ -150,9 +151,9 @@ export default function PlanLimitsScreen() {
             <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
               {t('settings.upgradeScreen.deviceIdHint')}
             </Text>
-            <LTRNumber selectable style={[styles.deviceIdText, { color: colors.black, backgroundColor: colors.gray50 }]}>
+            <IdText selectable style={[styles.deviceIdText, { color: colors.black, backgroundColor: colors.gray50, lineHeight: undefined }]}>
               {deviceId ?? '...'}
-            </LTRNumber>
+            </IdText>
           </PremiumCard>
 
           {/* ── Activation ── */}

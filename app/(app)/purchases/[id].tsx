@@ -24,10 +24,13 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { getPurchaseById, getPurchaseItemsByPurchaseId } from '@/lib/sqlite';
 import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
+import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
 import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+
+const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
 // Plain alphanumeric codes (item/shared/warranty IDs like "K5421") — never
 // Kurdish prose, so this never collides with real Kurdish field values.
@@ -167,7 +170,7 @@ export default function PurchaseDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader
-        title={purchase.purchaseNumber}
+        title={<IdText style={HEADER_TITLE_STYLE}>{purchase.purchaseNumber}</IdText>}
         rightAction={
           <View style={{ flexDirection, gap: 4 }}>
             <HeaderActionButton

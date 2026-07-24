@@ -1,8 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, Image, View, StyleSheet } from 'react-native';
+import { TouchableOpacity, Image, View, StyleSheet, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 
@@ -12,24 +12,35 @@ interface Props {
 }
 
 export function LogoUploader({ uri, onSelect }: Props) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
 
   const pick = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const tempUri = result.assets[0].uri;
-      try {
-        const permanentUri = await copyToPermanentStorage(tempUri, 'logo_images');
-        onSelect(permanentUri);
-      } catch (saveErr) {
-        console.warn('[LogoUploader] permanent save skipped, using temp URI:', saveErr);
-        onSelect(tempUri);
+    // Lazy import — a static top-level import of expo-image-picker calls a throwing
+    // native-module lookup at module-evaluation time (same pattern already used in
+    // components/ui/ProductImagePicker.tsx), which would crash app startup instead of
+    // just this action if the native module isn't linked in a given build.
+    try {
+      const { launchImageLibraryAsync } = await import('expo-image-picker');
+      const result = await launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const tempUri = result.assets[0].uri;
+        try {
+          const permanentUri = await copyToPermanentStorage(tempUri, 'logo_images');
+          onSelect(permanentUri);
+        } catch (saveErr) {
+          console.warn('[LogoUploader] permanent save skipped, using temp URI:', saveErr);
+          onSelect(tempUri);
+        }
       }
+    } catch (err) {
+      console.error('[LogoUploader] gallery error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
     }
   };
 

@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,9 +32,12 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { getSaleById, searchCustomersList } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
+import { Typography } from '@/constants/typography';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 import { roundToNearest250 } from '@/utils/rounding';
+
+const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
 interface EditItem {
   productId: number;
@@ -288,7 +292,14 @@ export default function EditInvoiceScreen() {
       style={[styles.container, { backgroundColor: colors.gray50 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <AppHeader title={`${t('sales.editInvoice')} · ${sale.invoiceNumber}`} showBack />
+      <AppHeader
+        title={
+          <>
+            {t('sales.editInvoice')} · <IdText style={HEADER_TITLE_STYLE}>{sale.invoiceNumber}</IdText>
+          </>
+        }
+        showBack
+      />
 
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
