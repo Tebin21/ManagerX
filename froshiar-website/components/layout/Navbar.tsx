@@ -5,18 +5,30 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
+// Home/Features/Contact are same-page anchors; Privacy/Terms are real routed
+// pages, so they need the locale-aware Link + an active/aria-current state.
+// Privacy/Terms labels are hardcoded English, matching the footer's legal
+// links — those pages are English-only by product decision.
 const NAV_LINKS = [
-  { href: "#home", key: "home" },
-  { href: "#features", key: "features" },
-  { href: "#contact", key: "contact" },
+  { type: "anchor", href: "#home", key: "home" },
+  { type: "anchor", href: "#features", key: "features" },
+  { type: "route", href: "/privacy", label: "Privacy" },
+  { type: "route", href: "/terms", label: "Terms" },
+  { type: "anchor", href: "#contact", key: "contact" },
 ] as const;
+
+const linkClass =
+  "transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm";
+const mobileLinkClass =
+  "block rounded-lg px-2 py-2.5 transition-colors hover:bg-gray-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 dark:hover:bg-white/[0.06]";
 
 export function Navbar() {
   const t = useTranslations("nav");
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
@@ -35,16 +47,29 @@ export function Navbar() {
 
         <div className="flex items-center gap-6">
           <ul className="hidden items-center gap-8 text-sm font-medium text-gray-600 sm:flex dark:text-gray-300">
-            {NAV_LINKS.map((link) => (
-              <li key={link.key}>
-                <a
-                  href={link.href}
-                  className="transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm"
-                >
-                  {t(link.key)}
-                </a>
-              </li>
-            ))}
+            {NAV_LINKS.map((link) => {
+              if (link.type === "route") {
+                const isActive = pathname === link.href;
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`${linkClass} ${isActive ? "text-ink" : ""}`}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              }
+              return (
+                <li key={link.key}>
+                  <a href={link.href} className={linkClass}>
+                    {t(link.key)}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
 
           <div className="hidden items-center gap-3 sm:flex">
@@ -74,17 +99,34 @@ export function Navbar() {
             className="overflow-hidden border-t border-gray-100 sm:hidden dark:border-gold-900/40"
           >
             <ul className="flex flex-col gap-1 px-5 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">
-              {NAV_LINKS.map((link) => (
-                <li key={link.key}>
-                  <a
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className="block rounded-lg px-2 py-2.5 transition-colors hover:bg-gray-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 dark:hover:bg-white/[0.06]"
-                  >
-                    {t(link.key)}
-                  </a>
-                </li>
-              ))}
+              {NAV_LINKS.map((link) => {
+                if (link.type === "route") {
+                  const isActive = pathname === link.href;
+                  return (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`${mobileLinkClass} ${isActive ? "text-ink" : ""}`}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={link.key}>
+                    <a
+                      href={link.href}
+                      onClick={() => setOpen(false)}
+                      className={mobileLinkClass}
+                    >
+                      {t(link.key)}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
             <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 dark:border-gold-900/40">
               <LanguageSwitcher />
