@@ -21,7 +21,7 @@ export function SectionAnchorLink({ href, children }: { href: string; children: 
 
 export function MailLink({ children }: { children: ReactNode }) {
   return (
-    <a href="mailto:support@froshiar.store" className={linkClass}>
+    <a href="mailto:tebin.faruq@gmail.com" className={linkClass}>
       {children}
     </a>
   );

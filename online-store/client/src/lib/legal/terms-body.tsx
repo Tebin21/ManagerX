@@ -165,7 +165,7 @@ export const TERMS_BODY: Record<TermsSectionId, ReactNode> = {
       <p>
         The core Service is currently available at no charge, subject to certain usage limits (such as
         inventory item limits). Some features, including the Online Store, currently require a separately
-        issued paid subscription code, obtained by contacting <MailLink>support@froshiar.store</MailLink> and
+        issued paid subscription code, obtained by contacting <MailLink>tebin.faruq@gmail.com</MailLink> and
         activated within the Service on a specific device.
       </p>
       <p>
@@ -243,7 +243,7 @@ export const TERMS_BODY: Record<TermsSectionId, ReactNode> = {
       <p>
         No method of transmission over the internet or electronic storage is completely secure. If you suspect
         unauthorized access to your account, contact us immediately at{" "}
-        <MailLink>support@froshiar.store</MailLink>.
+        <MailLink>tebin.faruq@gmail.com</MailLink>.
       </p>
     </>
   ),
@@ -337,7 +337,7 @@ export const TERMS_BODY: Record<TermsSectionId, ReactNode> = {
           </>,
           <>
             <strong className="text-ink">Support email:</strong>{" "}
-            <MailLink>support@froshiar.store</MailLink>
+            <MailLink>tebin.faruq@gmail.com</MailLink>
           </>,
         ]}
       />

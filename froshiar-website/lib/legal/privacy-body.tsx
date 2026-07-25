@@ -239,7 +239,7 @@ export const PRIVACY_BODY: Record<PrivacySectionId, ReactNode> = {
         ]}
       />
       <p>
-        To exercise any of these rights, contact us at <MailLink>support@froshiar.store</MailLink>.
+        To exercise any of these rights, contact us at <MailLink>tebin.faruq@gmail.com</MailLink>.
       </p>
     </>
   ),
@@ -266,7 +266,7 @@ export const PRIVACY_BODY: Record<PrivacySectionId, ReactNode> = {
       </p>
       <p>
         If you believe a child has provided us with personal information, please contact us at{" "}
-        <MailLink>support@froshiar.store</MailLink> and we will take steps to delete such information.
+        <MailLink>tebin.faruq@gmail.com</MailLink> and we will take steps to delete such information.
       </p>
     </>
   ),
@@ -290,7 +290,7 @@ export const PRIVACY_BODY: Record<PrivacySectionId, ReactNode> = {
     <>
       <p>
         You may request deletion of your Froshiar account and associated personal information at any time by
-        emailing <MailLink>support@froshiar.store</MailLink> from the email address associated with your
+        emailing <MailLink>tebin.faruq@gmail.com</MailLink> from the email address associated with your
         account, requesting account deletion.
       </p>
       <p>
@@ -341,7 +341,7 @@ export const PRIVACY_BODY: Record<PrivacySectionId, ReactNode> = {
           </>,
           <>
             <strong className="text-ink">Support email:</strong>{" "}
-            <MailLink>support@froshiar.store</MailLink>
+            <MailLink>tebin.faruq@gmail.com</MailLink>
           </>,
         ]}
       />
