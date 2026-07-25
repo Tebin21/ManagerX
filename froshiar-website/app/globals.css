@@ -65,6 +65,10 @@ body {
   font-family: var(--font-kurdish), var(--font-sans), sans-serif;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

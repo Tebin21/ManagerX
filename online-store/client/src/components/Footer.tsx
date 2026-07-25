@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Globe, Phone } from 'lucide-react';
 
 // Premium dark/gold treatment is deliberately scoped to this footer only — the rest
@@ -12,6 +13,14 @@ export function Footer() {
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
             This website was professionally designed and developed by BexDre.
           </p>
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm sm:justify-start">
+            <Link to="/privacy" className="text-slate-400 transition-colors hover:text-gold-light">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="text-slate-400 transition-colors hover:text-gold-light">
+              Terms of Service
+            </Link>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-3 sm:items-end">

@@ -9,6 +9,8 @@ import type {
   SyncChangeInput,
 } from './storeRepository';
 import { withStoreLock } from './storeLock';
+import { isReservedSlug } from './reservedSlugs';
+import { slugify } from './slugify';
 
 // Plain local JSON ledger — no database account required to run this server. Fine
 // for a single-process deployment; swap in a real DB-backed StoreRepository if you
@@ -90,15 +92,6 @@ function writeDeletedLedger(records: DeletedStoreRecord[]): Promise<void> {
   return writeJsonLedger(DELETED_STORES_PATH, records);
 }
 
-function slugify(name: string): string {
-  const base = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return base || 'store';
-}
-
 function uniqueSlugAgainst(records: StoreRecord[], base: string): string {
   let candidate = base;
   let n = 2;
@@ -123,6 +116,9 @@ export class JsonStoreRepository implements StoreRepository {
   }
 
   async create(data: { slug: string; businessName: string; apiKeyHash: string; deviceId?: string }): Promise<StoreRecord> {
+    if (isReservedSlug(data.slug)) {
+      throw new Error('RESERVED_SLUG');
+    }
     return withStoreLock(async () => {
       const records = readLedger();
       const record: StoreRecord = {
@@ -287,6 +283,13 @@ export class JsonStoreRepository implements StoreRepository {
           await writeLedger(records);
           return { record: records[idx], recovered: true };
         }
+      }
+
+      // Only reached when creating a brand-new store (no matching device or
+      // claimable legacy record above) — a pre-existing store's slug, even one
+      // that happens to match this list, is never rejected retroactively.
+      if (isReservedSlug(baseSlug)) {
+        throw new Error('RESERVED_SLUG');
       }
 
       const slug = uniqueSlugAgainst(records, baseSlug);

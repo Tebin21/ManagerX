@@ -67,11 +67,26 @@ storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHand
   // no concurrent request can interleave between the "is this a recovery"
   // check and the eventual write.
   const apiKey = generateApiKey();
-  const { record, recovered } = await repo.registerOrRecover({
-    businessName: businessName.trim(),
-    deviceId,
-    apiKeyHash: hashApiKey(apiKey),
-  });
+  let record: Awaited<ReturnType<typeof repo.registerOrRecover>>['record'];
+  let recovered: boolean;
+  try {
+    ({ record, recovered } = await repo.registerOrRecover({
+      businessName: businessName.trim(),
+      deviceId,
+      apiKeyHash: hashApiKey(apiKey),
+    }));
+  } catch (e) {
+    // A pre-existing device/legacy recovery is never rejected here — only a
+    // brand-new store whose name maps to a reserved slug (see reservedSlugs.ts).
+    if (e instanceof Error && e.message === 'RESERVED_SLUG') {
+      res.status(400).json({
+        error: 'This business name maps to a reserved URL and cannot be used. Please choose a different name.',
+        code: 'RESERVED_SLUG',
+      });
+      return;
+    }
+    throw e;
+  }
 
   void logActivity(req, 'system', recovered ? 'store_recovered' : 'store_created', { slug: record.slug });
   res.status(recovered ? 200 : 201).json({ slug: record.slug, apiKey, recovered });
