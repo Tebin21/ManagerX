@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
@@ -19,13 +19,15 @@ interface Props {
 }
 
 export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
 
   const isSoldOut = item.status === 'sold_out';
-  const statusBg   = isSoldOut ? '#FEE2E2' : colors.gray100;
-  const statusText = isSoldOut ? '#DC2626'  : colors.gray500;
+  const statusBg   = isSoldOut ? errorTint.bg : colors.gray100;
+  const statusText = isSoldOut ? colors.error  : colors.gray500;
   const statusLabel = isSoldOut
     ? t('inventoryHistory.statusSoldOut')
     : t('inventoryHistory.statusRemoved');
@@ -124,7 +126,8 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
   card: {
     borderRadius: Theme.radius.card,
     marginBottom: 10,
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: colors.gray100,
   },
   statItem: {
     flex: 1,
@@ -215,7 +218,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: colors.gray100,
   },
   footerText: {},
   actionsRow: {
@@ -241,4 +244,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-});
+  });
+}

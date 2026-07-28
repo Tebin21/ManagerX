@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { Text } from '@/components/ui/AppText';
@@ -8,7 +8,8 @@ import { Typography } from '@/constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
-import { Colors } from '@/constants/colors';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import type { Debt } from '@/types/sales';
@@ -23,6 +24,9 @@ interface Props {
 export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const settledTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const cardPad = isRTL ? RTL_SPACING.cardPad : 14;
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
@@ -69,11 +73,11 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           )}
         </View>
         {isSettled ? (
-          <View style={styles.settledBadge}>
-            <Text style={styles.settledText}>{t('common.settled')}</Text>
+          <View style={[styles.settledBadge, { backgroundColor: settledTint.bg }]}>
+            <Text style={[styles.settledText, { color: settledTint.text }]}>{t('common.settled')}</Text>
           </View>
         ) : (
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.gray400} />
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.gray400} />
         )}
       </TouchableOpacity>
 
@@ -119,7 +123,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             value={payAmount}
             onChangeText={setPayAmount}
             placeholder={t('suppliers.payAmountHint')}
-            placeholderTextColor={Colors.gray300}
+            placeholderTextColor={colors.gray300}
             keyboardType="decimal-pad"
             autoFocus
             onFocus={scrollIntoView}
@@ -131,7 +135,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             activeOpacity={0.85}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={colors.white} size="small" />
             ) : (
               <Text style={styles.payBtnText}>{t('debt.recordPayment')}</Text>
             )}
@@ -142,88 +146,89 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.md,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    ...Theme.shadow.soft,
-  },
-  cardSettled: {
-    borderColor: '#BBF7D0',
-    opacity: 0.85,
-  },
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.white,
+      borderRadius: Theme.radius.md,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      ...Theme.shadow.soft,
+    },
+    cardSettled: {
+      borderColor: colors.success,
+      opacity: 0.85,
+    },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
 
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive:   { backgroundColor: Colors.warning },
-  dotSettled:  { backgroundColor: Colors.success },
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    dotActive:   { backgroundColor: colors.warning },
+    dotSettled:  { backgroundColor: colors.success },
 
-  invoiceNum: { fontSize: 13, fontWeight: '700', color: Colors.black },
+    invoiceNum: { fontSize: 13, fontWeight: '700', color: colors.black },
 
-  remainingLabel: { ...Typography.label, color: Colors.gray400, marginBottom: 2 },
-  remainingValue: { color: Colors.error, marginBottom: 10 },
-  amounts:        { ...Typography.bodySmall, color: Colors.gray500, marginBottom: 10 },
+    remainingLabel: { ...Typography.label, color: colors.gray400, marginBottom: 2 },
+    remainingValue: { color: colors.error, marginBottom: 10 },
+    amounts:        { ...Typography.bodySmall, color: colors.gray500, marginBottom: 10 },
 
-  settledBadge: {
-    backgroundColor: '#DCFCE7',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  settledText: { fontSize: 11, fontWeight: '700', color: '#166534' },
+    settledBadge: {
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+    },
+    settledText: { fontSize: 11, fontWeight: '700' },
 
-  progressText: { fontSize: 11, color: Colors.gray400, marginBottom: 4 },
-  progressBg: {
-    height: 6,
-    backgroundColor: Colors.gray100,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: 3,
-  },
+    progressText: { fontSize: 11, color: colors.gray400, marginBottom: 4 },
+    progressBg: {
+      height: 6,
+      backgroundColor: colors.gray100,
+      borderRadius: 3,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.success,
+      borderRadius: 3,
+    },
 
-  payForm: {
-    marginTop: 12,
-    gap: 8,
-  },
-  payInput: {
-    height: 48,
-    borderWidth: 1.5,
-    borderColor: Colors.gray200,
-    borderRadius: Theme.radius.md,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: Colors.black,
-  },
-  payBtn: {
-    backgroundColor: Colors.success,
-    borderRadius: Theme.radius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  payBtnDisabled: { opacity: 0.6 },
-  payBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-});
+    payForm: {
+      marginTop: 12,
+      gap: 8,
+    },
+    payInput: {
+      height: 48,
+      borderWidth: 1.5,
+      borderColor: colors.gray200,
+      borderRadius: Theme.radius.md,
+      paddingHorizontal: 14,
+      fontSize: 15,
+      color: colors.black,
+    },
+    payBtn: {
+      backgroundColor: colors.success,
+      borderRadius: Theme.radius.md,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    payBtnDisabled: { opacity: 0.6 },
+    payBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  });
+}

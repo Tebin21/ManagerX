@@ -376,6 +376,7 @@ export default function NewPurchaseScreen() {
                 onChangeText={setSharedId}
                 placeholder="e.g. SN-12345"
                 returnKeyType="done"
+                forceLatin
                 rightElement={
                   <GenerateIdButton
                     loading={isGeneratingShared}
@@ -393,7 +394,7 @@ export default function NewPurchaseScreen() {
                       <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
                     </View>
                     <TextInput
-                      style={[styles.customIdInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50 }]}
+                      style={[styles.customIdInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign: 'left', writingDirection: 'ltr' }]}
                       value={customIds[i] ?? ''}
                       onChangeText={(val) => updateCustomId(i, val)}
                       placeholder={`ID for item ${i + 1}`}
@@ -417,7 +418,7 @@ export default function NewPurchaseScreen() {
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
                 <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
+                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                   value={buyIQD}
                   onChangeText={onBuyIQDChange}
                   onEndEditing={() => {
@@ -435,7 +436,7 @@ export default function NewPurchaseScreen() {
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
                 <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
+                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                   value={buyUSD}
                   onChangeText={onBuyUSDChange}
                   keyboardType="decimal-pad"
@@ -480,7 +481,7 @@ export default function NewPurchaseScreen() {
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
                 <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
+                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                   value={sellIQD}
                   onChangeText={onSellIQDChange}
                   onEndEditing={() => {
@@ -498,7 +499,7 @@ export default function NewPurchaseScreen() {
               <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                 <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
                 <TextInput
-                  style={[styles.priceInput, { color: colors.black }]}
+                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
                   value={sellUSD}
                   onChangeText={onSellUSDChange}
                   keyboardType="decimal-pad"
@@ -594,6 +595,7 @@ export default function NewPurchaseScreen() {
                   keyboardType="decimal-pad"
                   placeholder={t('purchases.amountPaidPlaceholder')}
                   returnKeyType="done"
+                  forceLatin
                 />
                 <View style={[styles.totalBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', flexDirection }]}>
                   <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>

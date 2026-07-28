@@ -25,6 +25,14 @@ interface Props extends TextInputProps {
    * language.
    */
   kurdishPlaceholderFont?: boolean;
+  /**
+   * For alphanumeric codes/IDs/serials the user may type with a full
+   * keyboard (so a numeric `keyboardType` isn't an option) — e.g. a shared
+   * item ID like "SN-12345". Skips the Kurdish typeface entirely (not just
+   * incidentally, like numeric-keyboard fields) and forces LTR alignment,
+   * so mixed letters+digits never render in Rudaw or get right-aligned.
+   */
+  forceLatin?: boolean;
 }
 
 // A single TextInput can't mix fonts per-character the way AppText can for
@@ -34,12 +42,12 @@ const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
   'numeric', 'phone-pad', 'decimal-pad', 'number-pad', 'numbers-and-punctuation',
 ]);
 
-export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, kurdishPlaceholderFont, ...rest }: Props) {
+export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, kurdishPlaceholderFont, forceLatin, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const isKurdish = isKuLanguage && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType);
+  const isKurdish = isKuLanguage && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType) && !forceLatin;
   const scrollIntoView = useKeyboardAwareFocus();
   const showKuPlaceholderOverlay = !!kurdishPlaceholderFont && isKuLanguage && !rest.value;
   return (
@@ -71,7 +79,12 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
             <TextInput
               {...rest}
               placeholder={showKuPlaceholderOverlay ? undefined : rest.placeholder}
-              style={applyKurdishFont(isKurdish, [styles.input, { flex: 1, color: colors.black, textAlign }, style] as never)}
+              style={applyKurdishFont(isKurdish, [
+                styles.input,
+                { flex: 1, color: colors.black, textAlign },
+                forceLatin && { textAlign: 'left', writingDirection: 'ltr' },
+                style,
+              ] as never)}
               placeholderTextColor={colors.gray400}
               onFocus={(e) => {
                 setFocused(true);

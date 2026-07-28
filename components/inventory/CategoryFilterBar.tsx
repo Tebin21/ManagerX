@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
@@ -39,12 +38,12 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
               styles.chip,
               active
                 ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : { backgroundColor: Colors.white, borderColor: Colors.gray200 },
+                : { backgroundColor: colors.white, borderColor: colors.gray200 },
               { paddingHorizontal: isRTL ? RTL_SPACING.gap : 14, paddingVertical: isRTL ? 9 : 7 },
             ]}
             activeOpacity={0.75}
           >
-            <Text style={[styles.chipText, { color: active ? '#FFFFFF' : Colors.gray600 }]}>
+            <Text style={[styles.chipText, { color: active ? colors.white : colors.gray600 }]}>
               {categoryLabel(cat)}
             </Text>
           </TouchableOpacity>

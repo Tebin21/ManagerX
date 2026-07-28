@@ -24,3 +24,9 @@ export const GoogleAuthProvider = {
     throw new Error('Firebase Auth is not available on web.');
   },
 };
+
+export const AppleAuthProvider = {
+  credential(): never {
+    throw new Error('Firebase Auth is not available on web.');
+  },
+};

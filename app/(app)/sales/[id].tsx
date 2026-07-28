@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, InteractionManager, Alert } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -37,7 +37,10 @@ export default function SaleDetailScreen() {
   useEffect(() => { loadSale(); }, [id]);
 
   useEffect(() => {
-    if (isNew === '1' && sale) handleShare();
+    if (isNew === '1' && sale) {
+      const task = InteractionManager.runAfterInteractions(() => handleShare());
+      return () => task.cancel();
+    }
   }, [isNew, sale]);
 
   async function loadSale() {
@@ -59,6 +62,9 @@ export default function SaleDetailScreen() {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
       });
+    } catch (err) {
+      console.error('[PDF] handleShare unexpected error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
     } finally { setIsSharing(false); }
   }
 

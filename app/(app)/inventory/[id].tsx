@@ -24,6 +24,7 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
@@ -36,7 +37,8 @@ export default function InventoryDetailScreen() {
   const { removeProduct } = useInventoryStore();
   const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const idAvailTint = getStatusTint('success', colors, isDark);
   const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, valueAlign, flexDirection, alignEnd } = useRTL();
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
@@ -116,7 +118,7 @@ export default function InventoryDetailScreen() {
         <AppHeader title={t('inventory.productNotFound')} />
         <Text style={[styles.notFound, { color: colors.gray500 }]}>{t('inventory.productNotFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.primary }]}>
-          <Text style={styles.backBtnText}>{t('common.goBack')}</Text>
+          <Text style={[styles.backBtnText, { color: colors.white }]}>{t('common.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -270,7 +272,7 @@ export default function InventoryDetailScreen() {
                 <IdText style={[styles.idChipText, { color: colors.primaryDark, lineHeight: undefined }]}>{product.itemId}</IdText>
               </View>
               {isCustom && (
-                <View style={[styles.idChip, isSold ? { backgroundColor: colors.gray100 } : styles.idChipAvail]}>
+                <View style={[styles.idChip, isSold ? { backgroundColor: colors.gray100 } : { backgroundColor: idAvailTint.bg }]}>
                   <Text style={[styles.idChipText, { color: colors.primaryDark }]}>{isSold ? t('inventory.soldBadge') : t('inventory.availableBadge')}</Text>
                 </View>
               )}
@@ -366,7 +368,7 @@ export default function InventoryDetailScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="create-outline" size={18} color={colors.white} />
-            <Text style={styles.editBtnText}>{t('inventory.editProduct')}</Text>
+            <Text style={[styles.editBtnText, { color: colors.white }]}>{t('inventory.editProduct')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.deleteBtn, { borderColor: colors.error, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}
@@ -387,7 +389,7 @@ const styles = StyleSheet.create({
   loadWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFound:  { fontSize: 15, marginBottom: 16 },
   backBtn:   { paddingHorizontal: 20, paddingVertical: 10, borderRadius: Theme.radius.md },
-  backBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  backBtnText: { fontWeight: '600', fontSize: 14 },
 
   headerMeta: {
     flexDirection: 'row',
@@ -444,7 +446,6 @@ const styles = StyleSheet.create({
   noteText:       { fontSize: 13, lineHeight: 19 },
   idChipWrap:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   idChip:         { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  idChipAvail:    { backgroundColor: '#DCFCE7' },
   idChipText:     { fontSize: 13, fontWeight: '600' },
   noSales:        { fontSize: 13, fontStyle: 'italic' },
   saleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1 },
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
 
   actions:        { flexDirection: 'row', gap: 12, marginTop: 4 },
   editBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 14, ...Theme.shadow.button },
-  editBtnText:    { fontSize: 15, fontWeight: '700', color: '#fff' },
+  editBtnText:    { fontSize: 15, fontWeight: '700' },
   deleteBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderRadius: Theme.radius.md, paddingVertical: 14, paddingHorizontal: 18 },
   deleteBtnText:  { fontSize: 15, fontWeight: '700' },
 });

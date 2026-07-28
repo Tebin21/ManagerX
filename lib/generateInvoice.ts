@@ -55,8 +55,39 @@ interface BusinessInfo {
 }
 
 // ─── Double-tap guard ─────────────────────────────────────────────────────────
+//
+// One PDF/share flow at a time app-wide (a second WebView/print job while one
+// is already open can misbehave). `Sharing.shareAsync`'s share sheet on iOS
+// keeps its promise pending until the user dismisses it, so this lock can be
+// held for a while during normal use -- a blocked call must tell the user why
+// instead of silently doing nothing. `_generatingSince` lets a lock that
+// never reached its `finally` (which nothing here should ever cause, but a
+// future change might) self-clear instead of wedging every PDF button.
 
 let _generating = false;
+let _generatingSince = 0;
+const GENERATION_LOCK_STALE_MS = 45_000;
+
+function tryAcquireGenerationLock(): boolean {
+  if (_generating && Date.now() - _generatingSince > GENERATION_LOCK_STALE_MS) {
+    _generating = false;
+  }
+  if (_generating) {
+    Alert.alert(
+      'Please wait',
+      'A PDF is already being generated. Please wait for it to finish before starting another.'
+    );
+    return false;
+  }
+  _generating = true;
+  _generatingSince = Date.now();
+  return true;
+}
+
+function releaseGenerationLock(): void {
+  _generating = false;
+  _generatingSince = 0;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,15 +105,27 @@ const LOGO_MIME_BY_EXT: Record<string, string> = {
  * able to reach a file:// path. Returns null (omit the logo) on any
  * failure: missing file, corrupted file, or unreadable path.
  */
+// Every PDF call re-resolves the business logo, but the logo rarely changes
+// between exports -- cache the last resolved URI's result so back-to-back
+// generations (or a session with many exports) skip redundant FileSystem
+// reads + base64 encoding of the same image.
+let _logoCache: { uri: string; dataUri: string | null } | null = null;
+
 async function resolveLogoDataUri(logoUri: string | null): Promise<string | null> {
   if (!logoUri) return null;
   if (logoUri.startsWith('data:')) return logoUri;
+  if (_logoCache && _logoCache.uri === logoUri) return _logoCache.dataUri;
   try {
     const info = await FileSystem.getInfoAsync(logoUri);
-    if (!info.exists) return null;
+    if (!info.exists) {
+      _logoCache = { uri: logoUri, dataUri: null };
+      return null;
+    }
     const base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: FileSystem.EncodingType.Base64 });
     const ext = logoUri.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpg';
-    return `data:${LOGO_MIME_BY_EXT[ext] ?? 'image/jpeg'};base64,${base64}`;
+    const dataUri = `data:${LOGO_MIME_BY_EXT[ext] ?? 'image/jpeg'};base64,${base64}`;
+    _logoCache = { uri: logoUri, dataUri };
+    return dataUri;
   } catch (err) {
     console.warn('[PDF] failed to resolve logo image, omitting from receipt:', err);
     return null;
@@ -222,8 +265,7 @@ async function generateAndShare(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
@@ -237,7 +279,7 @@ export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<
     console.error('[PDF] shareInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate invoice PDF. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -246,8 +288,7 @@ export async function sharePurchaseInvoice(
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir());
@@ -260,7 +301,7 @@ export async function sharePurchaseInvoice(
     console.error('[PDF] sharePurchaseInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate purchase invoice PDF. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -269,8 +310,7 @@ export async function shareInventoryReport(
   stats: InventoryStats,
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildInventoryReportHTML(products, stats, biz, getDir());
@@ -283,7 +323,7 @@ export async function shareInventoryReport(
     console.error('[PDF] shareInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the inventory report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -292,8 +332,7 @@ export async function shareSalesDebtReport(
   payments: DebtPayment[],
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildSalesDebtReportHTML(debt, payments, biz, getDir());
@@ -306,7 +345,7 @@ export async function shareSalesDebtReport(
     console.error('[PDF] shareSalesDebtReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the debt report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -315,8 +354,7 @@ export async function sharePurchaseDebtReport(
   payments: DebtPayment[],
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir());
@@ -329,7 +367,7 @@ export async function sharePurchaseDebtReport(
     console.error('[PDF] sharePurchaseDebtReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the supplier debt report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -339,8 +377,7 @@ export async function shareCustomerReport(
   debts: Debt[],
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildCustomerReportHTML(customer, sales, debts, biz, getDir());
@@ -353,7 +390,7 @@ export async function shareCustomerReport(
     console.error('[PDF] shareCustomerReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the customer report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -363,8 +400,7 @@ export async function shareSupplierReport(
   debts: PurchaseDebt[],
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildSupplierReportHTML(supplier, purchases, debts, biz, getDir());
@@ -377,7 +413,7 @@ export async function shareSupplierReport(
     console.error('[PDF] shareSupplierReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the supplier report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -388,8 +424,7 @@ export async function shareFullInventoryReport(
   globalLowStockThreshold: number,
   periodLabel: string,
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const lowStockIds = new Set<number>(
@@ -407,7 +442,7 @@ export async function shareFullInventoryReport(
     console.error('[PDF] shareFullInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the inventory report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -416,8 +451,7 @@ export async function shareLowStockInventoryReport(
   business: BusinessInfo,
   periodLabel: string,
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildLowStockReportHTML(lowStockProducts, biz, periodLabel, getDir());
@@ -430,7 +464,7 @@ export async function shareLowStockInventoryReport(
     console.error('[PDF] shareLowStockInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the low stock report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -439,8 +473,7 @@ export async function shareOutOfStockInventoryReport(
   business: BusinessInfo,
   periodLabel: string,
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildOutOfStockReportHTML(outOfStockProducts, biz, periodLabel, getDir());
@@ -453,7 +486,7 @@ export async function shareOutOfStockInventoryReport(
     console.error('[PDF] shareOutOfStockInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the out of stock report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -463,8 +496,7 @@ export async function shareCategoryInventoryReport(
   business: BusinessInfo,
   periodLabel: string,
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const html = buildCategoryReportHTML(products, categoryName, biz, periodLabel, getDir());
@@ -477,7 +509,7 @@ export async function shareCategoryInventoryReport(
     console.error('[PDF] shareCategoryInventoryReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the category report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -485,8 +517,7 @@ export async function shareFullReport(
   data: FullReportData,
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const { buildFullReportHTML } = await import('./reportTemplate');
@@ -500,7 +531,7 @@ export async function shareFullReport(
     console.error('[PDF] shareFullReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the report PDF. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }
 
@@ -508,8 +539,7 @@ export async function shareFinancialReport(
   data: FinancialExportData,
   business: BusinessInfo
 ): Promise<void> {
-  if (_generating) return;
-  _generating = true;
+  if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const { buildFinancialReportHTML } = await import('./financialReportTemplate');
@@ -523,6 +553,6 @@ export async function shareFinancialReport(
     console.error('[PDF] shareFinancialReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the financial report. Please try again.');
   } finally {
-    _generating = false;
+    releaseGenerationLock();
   }
 }

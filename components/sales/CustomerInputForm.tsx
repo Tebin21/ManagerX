@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,8 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Colors } from '@/constants/colors';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { searchCustomersList } from '@/lib/sqlite';
 import type { CustomerInput } from '@/types/sales';
@@ -29,7 +29,9 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const { arrowForwardOutline } = useDirectionalChevron();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,7 +118,7 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
                     <Text style={[styles.suggestionPhone, { textAlign }]}>{item.phone}</Text>
                   ) : null}
                 </View>
-                <Ionicons name={arrowForwardOutline as never} size={14} color={Colors.gray300} />
+                <Ionicons name={arrowForwardOutline as never} size={14} color={colors.gray300} />
               </TouchableOpacity>
             )}
           />
@@ -139,10 +141,10 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
           from={{ opacity: 0, translateY: -4 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 200 }}
-          style={[styles.foundBadge, { flexDirection }]}
+          style={[styles.foundBadge, { backgroundColor: successTint.bg, flexDirection }]}
         >
-          <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-          <Text style={[styles.foundText, { textAlign }]}>{t('sales.returningCustomer')}</Text>
+          <Ionicons name="checkmark-circle" size={14} color={successTint.text} />
+          <Text style={[styles.foundText, { color: successTint.text, textAlign }]}>{t('sales.returningCustomer')}</Text>
         </MotiView>
       )}
 
@@ -174,39 +176,41 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
   );
 }
 
-const styles = StyleSheet.create({
-  dropdown: {
-    backgroundColor: Colors.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    marginTop: -12,
-    marginBottom: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    zIndex: 100,
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
-  },
-  suggestionIcon: { marginEnd: 10 },
-  suggestionInfo: { flex: 1 },
-  suggestionName: { fontSize: 13, fontWeight: '600', color: Colors.black },
-  suggestionPhone: { fontSize: 12, color: Colors.gray400, marginTop: 1 },
-  foundBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F0FDF4', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6,
-    marginBottom: 14, marginTop: -8,
-  },
-  foundText: { fontSize: 12, color: Colors.success, fontWeight: '600' },
-});
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    dropdown: {
+      backgroundColor: colors.white,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      marginTop: -12,
+      marginBottom: 14,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+      zIndex: 100,
+    },
+    suggestionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.gray100,
+    },
+    suggestionIcon: { marginEnd: 10 },
+    suggestionInfo: { flex: 1 },
+    suggestionName: { fontSize: 13, fontWeight: '600', color: colors.black },
+    suggestionPhone: { fontSize: 12, color: colors.gray400, marginTop: 1 },
+    foundBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 6,
+      marginBottom: 14, marginTop: -8,
+    },
+    foundText: { fontSize: 12, fontWeight: '600' },
+  });
+}

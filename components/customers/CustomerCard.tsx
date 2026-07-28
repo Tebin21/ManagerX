@@ -5,6 +5,7 @@ import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { CustomerWithStats } from '@/types/customers';
@@ -17,7 +18,8 @@ interface Props {
 }
 
 function CustomerCardImpl({ customer, onPress }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const debtTint = getStatusTint('warning', colors, isDark);
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
@@ -43,8 +45,8 @@ function CustomerCardImpl({ customer, onPress }: Props) {
             {customer.name}
           </Text>
           {hasDebt && (
-            <View style={styles.debtBadge}>
-              <Text style={styles.debtBadgeText}>{t('common.debt')}</Text>
+            <View style={[styles.debtBadge, { backgroundColor: debtTint.bg }]}>
+              <Text style={[styles.debtBadgeText, { color: debtTint.text }]}>{t('common.debt')}</Text>
             </View>
           )}
         </View>
@@ -111,8 +113,8 @@ const styles = StyleSheet.create({
   body:       { flex: 1 },
   nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   name:       { fontSize: 15, fontWeight: '700', flexShrink: 1 },
-  debtBadge:  { backgroundColor: '#FEF3C7', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  debtBadgeText: { fontSize: 10, fontWeight: '700', color: '#92400E' },
+  debtBadge:  { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  debtBadgeText: { fontSize: 10, fontWeight: '700' },
   phoneRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   phone:      { fontSize: 12 },
   sub:        { fontSize: 12, marginBottom: 2 },

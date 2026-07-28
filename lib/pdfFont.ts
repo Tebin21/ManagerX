@@ -26,3 +26,22 @@ export const KURDISH_FONT_FACE = `
 `;
 
 export const PDF_BRAND_WEBSITE = 'www.froshiar.store';
+
+// Brand name for PDF footers only — always Latin, never translated, so the
+// Kurdish footer sentence reads "دروستکراوە لەلایەن Froshiar" rather than
+// the transliterated "فرۆشیار". `common.appName` in locales/*.json is left
+// untouched since it's still used for legitimate in-app Kurdish UI text.
+export const PDF_BRAND_NAME = 'Froshiar';
+
+// For Kurdish/RTL-capable templates: caller wraps the whole returned string
+// in its own ku()/dir="rtl" mechanism so "developedBy" + brand name move as
+// one bidi unit — wrapping them separately is what causes the two halves to
+// reorder against each other.
+import i18n from '@/lib/i18n';
+export function pdfDevelopedByText(): string {
+  return `${i18n.t('common.developedBy')} ${PDF_BRAND_NAME}`;
+}
+
+// For the English-only templates (no Kurdish/RTL infrastructure) — a plain
+// literal, so a future rebrand only touches this file.
+export const PDF_DEVELOPED_BY_EN = `Developed by ${PDF_BRAND_NAME}`;

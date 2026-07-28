@@ -4,7 +4,6 @@ import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
@@ -109,7 +108,7 @@ export function CartItemRow({
   const showDiscountPreview = item.discount > 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.white ?? Colors.white }, item.hasLossWarning && styles.cardWarning]}>
+    <View style={[styles.card, { backgroundColor: colors.white }, item.hasLossWarning && { borderStartWidth: 3, borderStartColor: colors.warning }]}>
       {/* Header */}
       <View style={[styles.header, { flexDirection }]}>
         <View style={[styles.titleRow, { flexDirection }]}>
@@ -121,12 +120,12 @@ export function CartItemRow({
           ) : null}
         </View>
         <TouchableOpacity onPress={onRemove} hitSlop={8} style={styles.deleteBtn}>
-          <Ionicons name="trash-outline" size={18} color={Colors.error} />
+          <Ionicons name="trash-outline" size={18} color={colors.error} />
         </TouchableOpacity>
       </View>
 
       {item.hasLossWarning && (
-        <Text style={[styles.warningText, { textAlign }]}>{t('sales.belowCost')}</Text>
+        <Text style={[styles.warningText, { color: colors.warning, textAlign }]}>{t('sales.belowCost')}</Text>
       )}
 
       {/* Quantity stepper */}
@@ -203,7 +202,7 @@ export function CartItemRow({
               ]}
               onPress={() => switchDiscountType('percentage')}
             >
-              <Text style={[styles.typePillText, { color: item.discountType === 'percentage' ? Colors.white : colors.gray500 }]}>%</Text>
+              <Text style={[styles.typePillText, { color: item.discountType === 'percentage' ? colors.white : colors.gray500 }]}>%</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -212,7 +211,7 @@ export function CartItemRow({
               ]}
               onPress={() => switchDiscountType('amount')}
             >
-              <Text style={[styles.typePillText, { color: item.discountType === 'amount' ? Colors.white : colors.gray500 }]}>IQD</Text>
+              <Text style={[styles.typePillText, { color: item.discountType === 'amount' ? colors.white : colors.gray500 }]}>IQD</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -233,9 +232,9 @@ export function CartItemRow({
       {showDiscountPreview && (
         <View style={[styles.previewRow, { backgroundColor: colors.gray50, borderColor: colors.gray100 }]}>
           <AmountText value={item.sellingPrice} variant="small" style={[styles.previewLabel, { color: colors.gray500 }]} />
-          <AmountText value={item.discount} prefix="−" variant="small" style={[styles.previewMinus, { color: Colors.error }]} />
-          <Text style={styles.previewEq}>=</Text>
-          <AmountText value={Math.max(0, effectivePrice)} variant="small" style={[styles.previewFinal, { color: Colors.success }]} />
+          <AmountText value={item.discount} prefix="−" variant="small" style={[styles.previewMinus, { color: colors.error }]} />
+          <Text style={[styles.previewEq, { color: colors.gray400 }]}>=</Text>
+          <AmountText value={Math.max(0, effectivePrice)} variant="small" style={[styles.previewFinal, { color: colors.success }]} />
           <Text style={[styles.previewPerUnit, { color: colors.gray400 }]}>/unit</Text>
         </View>
       )}
@@ -264,17 +263,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     ...Theme.shadow.card,
   },
-  cardWarning: {
-    borderStartWidth: 3,
-    borderStartColor: Colors.warning,
-  },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
   idBadge: { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   idText: {},
   deleteBtn: { padding: 4, marginStart: 8 },
-  warningText: { fontSize: 11, color: Colors.warning, fontWeight: '500', marginBottom: 8 },
+  warningText: { fontSize: 11, fontWeight: '500', marginBottom: 8 },
 
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   stepperContainer: { flex: 1 },
@@ -329,7 +324,7 @@ const styles = StyleSheet.create({
   },
   previewLabel: { fontSize: 13 },
   previewMinus: { fontSize: 13, fontWeight: '600' },
-  previewEq: { fontSize: 13, color: Colors.gray400 },
+  previewEq: { fontSize: 13 },
   previewFinal: { fontSize: 14, fontWeight: '700' },
   previewPerUnit: { fontSize: 11 },
 

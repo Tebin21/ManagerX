@@ -2,7 +2,6 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import type { PaymentMethod } from '@/types/sales';
@@ -41,15 +40,15 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
               styles.option,
               active
                 ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
-                : { borderColor: Colors.gray200, backgroundColor: Colors.gray50 },
+                : { borderColor: colors.gray200, backgroundColor: colors.gray50 },
             ]}
           >
             <Ionicons
               name={opt.icon}
               size={20}
-              color={active ? colors.primary : Colors.gray400}
+              color={active ? colors.primary : colors.gray400}
             />
-            <Text style={[styles.label, { color: active ? colors.primary : Colors.gray500 }]}>
+            <Text style={[styles.label, { color: active ? colors.primary : colors.gray500 }]}>
               {opt.label}
             </Text>
           </TouchableOpacity>

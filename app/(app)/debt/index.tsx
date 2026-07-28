@@ -22,8 +22,8 @@ import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useDebtStore } from '@/store/debtStore';
-import { Colors } from '@/constants/colors';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
@@ -43,21 +43,26 @@ function daysAgo(dateStr: string): number {
 const NUMBER_LTR = { textAlign: 'left' as const, writingDirection: 'ltr' as const };
 
 type SummaryTone = 'primary' | 'error' | 'neutral';
-const TONE_STYLES: Record<SummaryTone, { wrapBg: string; iconColor: string; valueColor: string }> = {
-  primary: { wrapBg: Colors.softBlue, iconColor: Colors.primary, valueColor: Colors.primary },
-  error:   { wrapBg: '#FEE2E2',       iconColor: Colors.error,   valueColor: Colors.error },
-  neutral: { wrapBg: Colors.gray100,  iconColor: Colors.gray500, valueColor: Colors.black },
-};
+function getToneStyles(colors: AppColors, isDark: boolean): Record<SummaryTone, { wrapBg: string; iconColor: string; valueColor: string }> {
+  const errorTint = getStatusTint('error', colors, isDark);
+  return {
+    primary: { wrapBg: colors.softBlue, iconColor: colors.primary, valueColor: colors.primary },
+    error:   { wrapBg: errorTint.bg,    iconColor: colors.error,    valueColor: colors.error },
+    neutral: { wrapBg: colors.gray100,  iconColor: colors.gray500,  valueColor: colors.black },
+  };
+}
 
 // ─── Overdue Badge ─────────────────────────────────────────────────────────────
 
 function OverdueBadge({ level }: { level: 0 | 1 | 2 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   if (level === 0) return null;
-  const bg  = level === 2 ? Colors.error : '#F59E0B';
+  const bg  = level === 2 ? colors.error : colors.warning;
   const txt = level === 2 ? i18n.t('debt.overdueLong') : i18n.t('debt.overdueShort');
   return (
     <View style={[styles.overdueBadge, { backgroundColor: bg }]}>
-      <Text style={styles.overdueBadgeText}>{txt}</Text>
+      <Text style={[styles.overdueBadgeText, { color: colors.white }]}>{txt}</Text>
     </View>
   );
 }
@@ -65,11 +70,16 @@ function OverdueBadge({ level }: { level: 0 | 1 | 2 }) {
 // ─── Status Pill ───────────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: string }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const errorTint = getStatusTint('error', colors, isDark);
+  const warningTint = getStatusTint('warning', colors, isDark);
+  const successTint = getStatusTint('success', colors, isDark);
   const configs: Record<string, { bg: string; fg: string; label: string }> = {
-    unpaid:  { bg: '#FEE2E2',       fg: Colors.error,  label: i18n.t('debt.statusUnpaid')  },
-    partial: { bg: '#FEF3C7',       fg: '#92400E',     label: i18n.t('debt.statusPartial') },
-    overdue: { bg: Colors.error,    fg: '#fff',        label: i18n.t('debt.statusOverdue') },
-    paid:    { bg: '#D1FAE5',       fg: Colors.success, label: i18n.t('debt.statusPaid')   },
+    unpaid:  { bg: errorTint.bg,    fg: errorTint.text,   label: i18n.t('debt.statusUnpaid')  },
+    partial: { bg: warningTint.bg,  fg: warningTint.text, label: i18n.t('debt.statusPartial') },
+    overdue: { bg: colors.error,    fg: colors.white,     label: i18n.t('debt.statusOverdue') },
+    paid:    { bg: successTint.bg,  fg: successTint.text, label: i18n.t('debt.statusPaid')   },
   };
   const cfg = configs[status] ?? configs.unpaid;
   return (
@@ -82,8 +92,10 @@ function StatusPill({ status }: { status: string }) {
 // ─── Progress Bar ──────────────────────────────────────────────────────────────
 
 function ProgressBar({ paid, total }: { paid: number; total: number }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const pct = total > 0 ? Math.min(1, paid / total) : 0;
-  const color = pct >= 1 ? Colors.success : pct > 0 ? '#F59E0B' : Colors.error;
+  const color = pct >= 1 ? colors.success : pct > 0 ? colors.warning : colors.error;
   return (
     <View style={styles.progressTrack}>
       <View
@@ -108,6 +120,7 @@ function SalesDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { flexDirection, alignEnd, textAlign } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
@@ -161,8 +174,8 @@ function SalesDebtCardImpl({
             style={[styles.quickPayBtnFull, { backgroundColor: colors.primary, flexDirection }]}
             onPress={() => onPay(debt.id)}
           >
-            <Ionicons name="flash" size={14} color="#fff" />
-            <Text style={styles.quickPayText}>{i18n.t('debt.payCustomer')}</Text>
+            <Ionicons name="flash" size={14} color={colors.white} />
+            <Text style={[styles.quickPayText, { color: colors.white }]}>{i18n.t('debt.payCustomer')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.detailBtnRow, { flexDirection }]}
@@ -189,7 +202,9 @@ function PurchaseDebtCardImpl({
   onPay: (debtId: number) => void;
 }) {
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { flexDirection, alignEnd, textAlign } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
@@ -213,8 +228,8 @@ function PurchaseDebtCardImpl({
         onPress={() => router.push(`/(app)/debt/purchase/${debt.id}` as never)}
       >
         <View style={[styles.cardTop, { flexDirection }]}>
-          <View style={[styles.cardAvatar, styles.cardAvatarPurchase]}>
-            <Text style={[styles.cardAvatarText, { color: Colors.error }]}>{initials || '?'}</Text>
+          <View style={[styles.cardAvatar, { backgroundColor: purchaseAvatarTint.bg }]}>
+            <Text style={[styles.cardAvatarText, { color: purchaseAvatarTint.text }]}>{initials || '?'}</Text>
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardName} numberOfLines={1}>{debt.supplierName}</Text>
@@ -232,7 +247,7 @@ function PurchaseDebtCardImpl({
         </View>
 
         <View style={styles.cardAmounts}>
-          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: Colors.error }, NUMBER_LTR]} />
+          <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
           <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
         </View>
 
@@ -240,11 +255,11 @@ function PurchaseDebtCardImpl({
 
         <View style={styles.cardActionsStack}>
           <TouchableOpacity
-            style={[styles.quickPayBtnFull, { backgroundColor: Colors.error, flexDirection }]}
+            style={[styles.quickPayBtnFull, { backgroundColor: colors.error, flexDirection }]}
             onPress={() => onPay(debt.id)}
           >
-            <Ionicons name="flash" size={14} color="#fff" />
-            <Text style={styles.quickPayText}>{i18n.t('debt.paySupplier')}</Text>
+            <Ionicons name="flash" size={14} color={colors.white} />
+            <Text style={[styles.quickPayText, { color: colors.white }]}>{i18n.t('debt.paySupplier')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.detailBtnRow, { flexDirection }]}
@@ -277,6 +292,7 @@ function QuickPayModal({
   onConfirm: (amount: number) => void;
 }) {
   const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { flexDirection, textAlign, isRTL } = useRTL();
   const [value, setValue] = useState('');
 
@@ -298,7 +314,7 @@ function QuickPayModal({
         <TextInput
           style={[styles.modalInput, isRTL && { textAlign: 'right', writingDirection: 'ltr' }]}
           placeholder={i18n.t('debt.amountPlaceholder')}
-          placeholderTextColor={Colors.gray400}
+          placeholderTextColor={colors.gray400}
           keyboardType="decimal-pad"
           value={value}
           onChangeText={setValue}
@@ -327,7 +343,7 @@ function QuickPayModal({
               onConfirm(amt);
             }}
           >
-            <Text style={styles.modalConfirmText}>{i18n.t('common.confirm')}</Text>
+            <Text style={[styles.modalConfirmText, { color: colors.white }]}>{i18n.t('common.confirm')}</Text>
           </TouchableOpacity>
         </View>
       </MotiView>
@@ -342,7 +358,9 @@ type Tab = 'sales' | 'purchase';
 export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const {
     summary, isLoading,
@@ -436,7 +454,7 @@ export default function DebtScreen() {
   // Icon-left / value-over-label-right — white card with a soft shadow, sitting
   // on the white body now that the summary section lives below the header.
   const renderOverviewCell = (card: typeof overviewCards[number]) => {
-    const tone = TONE_STYLES[card.tone];
+    const tone = toneStyles[card.tone];
     const valueStyle = [styles.summaryValue, { color: tone.valueColor }, NUMBER_LTR];
     const valueNode = card.isAmount ? (
       <AmountText
@@ -554,7 +572,7 @@ export default function DebtScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="checkmark-circle-outline" size={56} color={Colors.gray300} />
+              <Ionicons name="checkmark-circle-outline" size={56} color={colors.gray300} />
               <Text style={styles.emptyTitle}>
                 {isLoading ? t('common.loading') : (query || period !== 'today') ? t('inventory.noResults') : t('debt.noSalesDebts')}
               </Text>
@@ -580,7 +598,7 @@ export default function DebtScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="checkmark-circle-outline" size={56} color={Colors.gray300} />
+              <Ionicons name="checkmark-circle-outline" size={56} color={colors.gray300} />
               <Text style={styles.emptyTitle}>
                 {isLoading ? t('common.loading') : (query || period !== 'today') ? t('inventory.noResults') : t('debt.noPurchaseDebts')}
               </Text>
@@ -619,7 +637,8 @@ export default function DebtScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: { flex: 1 },
 
 
@@ -642,7 +661,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     gap: 6,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -660,9 +679,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   summaryValue: { fontSize: 18, fontWeight: '800', marginBottom: 1 },
-  summaryLabel: { fontSize: 11, color: Colors.gray500 },
+  summaryLabel: { fontSize: 11, color: colors.gray500 },
 
-  // Tab bar — directly under the title, on the blue gradient
+  // Tab bar — directly under the title, on the blue gradient. The gradient
+  // itself never changes with theme, so this whole "frosted glass on
+  // gradient" chrome (translucent overlays, white pill, white text) stays
+  // fixed in both modes — same treatment as SaleStepIndicator's dots.
   tabBar: {
     flexDirection: 'row',
     alignSelf: 'stretch',
@@ -696,7 +718,7 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 14,
@@ -710,13 +732,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 14, color: Colors.black },
+  searchInput: { flex: 1, fontSize: 14, color: colors.black },
 
   listContent: { padding: 16, paddingTop: 8, paddingBottom: 32 },
 
   // Card
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: Theme.radius.card,
     padding: 14,
     marginBottom: 12,
@@ -726,7 +748,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardPurchase: { borderStartWidth: 3, borderStartColor: Colors.error },
+  cardPurchase: { borderStartWidth: 3, borderStartColor: colors.error },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   cardAvatar: {
     width: 40,
@@ -736,21 +758,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginEnd: 10,
   },
-  cardAvatarPurchase: { backgroundColor: '#FEE2E2' },
   cardAvatarText: { fontSize: 15, fontWeight: '700' },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '700', color: Colors.black, marginBottom: 2 },
-  cardSub: { fontSize: 12, color: Colors.gray400 },
-  cardSub2: { fontSize: 11, color: Colors.gray400, marginTop: 2 },
+  cardName: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 2 },
+  cardSub: { fontSize: 12, color: colors.gray400 },
+  cardSub2: { fontSize: 11, color: colors.gray400, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 4 },
 
   cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: 8 },
   amountRemaining: { fontSize: 17, fontWeight: '800' },
-  amountSub: { fontSize: 12, color: Colors.gray400 },
+  amountSub: { fontSize: 12, color: colors.gray400 },
 
   progressTrack: {
     height: 6,
-    backgroundColor: Colors.gray100,
+    backgroundColor: colors.gray100,
     borderRadius: 3,
     marginBottom: 12,
     overflow: 'hidden',
@@ -766,7 +787,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 6,
   },
-  quickPayText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  quickPayText: { fontSize: 13, fontWeight: '600' },
   detailBtnRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -778,11 +799,11 @@ const styles = StyleSheet.create({
   statusPillText: { fontSize: 11, fontWeight: '700' },
 
   overdueBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 3 },
-  overdueBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  overdueBadgeText: { fontSize: 10, fontWeight: '700' },
 
   empty: { paddingTop: 60, alignItems: 'center', gap: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: Colors.gray500, marginTop: 8 },
-  emptySub: { fontSize: 13, color: Colors.gray400, textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.gray500, marginTop: 8 },
+  emptySub: { fontSize: 13, color: colors.gray400, textAlign: 'center' },
 
   // Quick pay modal
   modalOverlay: {
@@ -794,7 +815,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   modal: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 24,
     width: '85%',
@@ -804,34 +825,35 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.black, marginBottom: 4 },
-  modalSub: { fontSize: 14, color: Colors.gray500, marginBottom: 2 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.black, marginBottom: 4 },
+  modalSub: { fontSize: 14, color: colors.gray500, marginBottom: 2 },
   modalRemaining: { fontSize: 14, fontWeight: '600', marginBottom: 16 },
   modalInput: {
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: colors.gray200,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: Colors.black,
+    color: colors.black,
     marginBottom: 16,
   },
   modalActions: { flexDirection: 'row', gap: 10 },
   modalCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: colors.gray200,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  modalCancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
+  modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.gray500 },
   modalConfirm: {
     flex: 1,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  modalConfirmText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-});
+  modalConfirmText: { fontSize: 14, fontWeight: '600' },
+  });
+}

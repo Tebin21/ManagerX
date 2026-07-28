@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -25,8 +25,8 @@ import { DebtCard } from '@/components/customers/DebtCard';
 import { SaleTimelineItem } from '@/components/customers/SaleTimelineItem';
 import { useCustomerStore, fetchCustomerSales, fetchCustomerDebts } from '@/store/customerStore';
 import { useSalesStore } from '@/store/salesStore';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors } from '@/constants/colors';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
@@ -43,7 +43,11 @@ export default function CustomerProfileScreen() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
+  const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
+  const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection } = useRTL();
   const customer: CustomerWithStats | undefined = customers.find((c) => c.id === Number(id));
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
@@ -173,7 +177,7 @@ export default function CustomerProfileScreen() {
         <AppHeader title={t('customers.notFound')} />
         <Text style={[styles.notFound, { color: colors.gray500 }]}>{t('customers.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.primary }]}>
-          <Text style={styles.backBtnText}>{t('common.goBack')}</Text>
+          <Text style={[styles.backBtnText, { color: colors.white }]}>{t('common.goBack')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -244,7 +248,7 @@ export default function CustomerProfileScreen() {
                 </View>
               </View>
               <View style={styles.statsRow}>
-                <View style={[styles.statCard, { backgroundColor: colors.white }, customer.remainingDebt > 0 && styles.statCardDebt]}>
+                <View style={[styles.statCard, { backgroundColor: colors.white }, customer.remainingDebt > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }]}>
                   <Ionicons name="alert-circle-outline" size={16} color={customer.remainingDebt > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
                   <CompactAmount
                     value={customer.remainingDebt}
@@ -254,11 +258,11 @@ export default function CustomerProfileScreen() {
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.remainingDebt')}</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.white }]}>
-                  <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? '#10B981' : colors.gray300} style={{ marginBottom: 4 }} />
+                  <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? colors.success : colors.gray300} style={{ marginBottom: 4 }} />
                   <CompactAmount
                     value={totalPaid}
                     showCurrency={false}
-                    style={[styles.statVal, { color: totalPaid > 0 ? '#10B981' : colors.black }]}
+                    style={[styles.statVal, { color: totalPaid > 0 ? colors.success : colors.black }]}
                   />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalPaid')}</Text>
                 </View>
@@ -310,15 +314,15 @@ export default function CustomerProfileScreen() {
                 const matchedSale = sales.find((s) => s.id === debt.saleId);
                 return (
                   <View key={debt.id} style={[styles.settledDebtRow, { borderBottomColor: colors.gray100, flexDirection }]}>
-                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                     <View style={{ flex: 1, marginStart: 8 }}>
                       <IdText style={[styles.settledDebtInvoice, { color: colors.black }]}>
                         {matchedSale?.invoiceNumber ?? '—'}
                       </IdText>
                       <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledDebtAmount, { color: colors.gray400 }]} />
                     </View>
-                    <View style={styles.settledBadge}>
-                      <Text style={styles.settledBadgeText}>{t('common.settled')}</Text>
+                    <View style={[styles.settledBadge, { backgroundColor: successTint.bg }]}>
+                      <Text style={[styles.settledBadgeText, { color: successTint.text }]}>{t('common.settled')}</Text>
                     </View>
                   </View>
                 );
@@ -372,7 +376,7 @@ export default function CustomerProfileScreen() {
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-              style={[styles.section, styles.deleteSectionBorder, { backgroundColor: colors.white }]}
+              style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
             >
               <Text style={sectionTitleStyle}>
                 {t('customers.deleteAccountSection')}
@@ -380,8 +384,8 @@ export default function CustomerProfileScreen() {
 
               {!canDeleteAccount ? (
                 <>
-                  <View style={[styles.deleteWarningBox, { flexDirection }]}>
-                    <Ionicons name="information-circle-outline" size={16} color={Colors.warning} />
+                  <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg, flexDirection }]}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
                     <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
                       {sales.length > 0
                         ? t('customers.deleteBlockedSalesHint', { count: sales.length })
@@ -389,11 +393,11 @@ export default function CustomerProfileScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.deleteAccountBtn, styles.deleteAccountBtnDisabled, { flexDirection }]}
+                    style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}
                     disabled
                     activeOpacity={1}
                   >
-                    <Ionicons name="person-remove-outline" size={16} color={Colors.gray400} />
+                    <Ionicons name="person-remove-outline" size={16} color={colors.gray400} />
                     <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
                       {t('customers.deleteAccount')}
                     </Text>
@@ -401,12 +405,12 @@ export default function CustomerProfileScreen() {
                 </>
               ) : (
                 <TouchableOpacity
-                  style={[styles.deleteAccountBtn, { flexDirection }]}
+                  style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg, flexDirection }]}
                   onPress={handleDeleteCustomer}
                   activeOpacity={0.82}
                 >
-                  <Ionicons name="person-remove-outline" size={16} color={Colors.error} />
-                  <Text style={[styles.deleteAccountBtnText, { color: Colors.error }]}>
+                  <Ionicons name="person-remove-outline" size={16} color={colors.error} />
+                  <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
                     {t('customers.deleteAccount')}
                   </Text>
                 </TouchableOpacity>
@@ -419,13 +423,15 @@ export default function CustomerProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
   container:              { flex: 1 },
   loadWrap:               { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingCenter:          { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFound:               { fontSize: 15, marginBottom: 16 },
   backBtn:                { paddingHorizontal: 20, paddingVertical: 10, borderRadius: Theme.radius.md },
-  backBtnText:            { color: '#fff', fontWeight: '600', fontSize: 14 },
+  backBtnText:            { fontWeight: '600', fontSize: 14 },
+  // chipsRow/chip sit inside AppHeader's gradient — theme-invariant.
   chipsRow:               { flexDirection: 'row', paddingHorizontal: 20, gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   chip:                   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   chipText:               { fontSize: 12, color: '#fff', fontWeight: '500' },
@@ -433,7 +439,6 @@ const styles = StyleSheet.create({
   statsGrid:              { marginBottom: 14, gap: 10 },
   statsRow:               { flexDirection: 'row', gap: 10 },
   statCard:               { flex: 1, borderRadius: Theme.radius.card, padding: 14, alignItems: 'center', ...Theme.shadow.soft },
-  statCardDebt:           { backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FECACA' },
   statVal:                { fontSize: 18, fontWeight: '800', marginBottom: 4 },
   statLabel:              { fontSize: 11, fontWeight: '500' },
   section:                { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },
@@ -446,13 +451,12 @@ const styles = StyleSheet.create({
   settledDebtRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
   settledDebtInvoice:     { fontSize: 13, fontWeight: '600' },
   settledDebtAmount:      { fontSize: 11, marginTop: 1 },
-  settledBadge:           { backgroundColor: '#F0FDF4', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  settledBadgeText:       { fontSize: 11, fontWeight: '700', color: '#10B981' },
+  settledBadge:           { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  settledBadgeText:       { fontSize: 11, fontWeight: '700' },
   // Danger Zone
-  deleteSectionBorder:    { borderWidth: 1, borderColor: '#FECACA' },
-  deleteWarningBox:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFBEB', borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
+  deleteWarningBox:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
   deleteWarningText:      { flex: 1, fontSize: 13, lineHeight: 18 },
-  deleteAccountBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 12, borderWidth: 1.5, borderColor: Colors.error, backgroundColor: '#FFF5F5' },
-  deleteAccountBtnDisabled: { borderColor: Colors.gray200, backgroundColor: Colors.gray50 },
+  deleteAccountBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 12, borderWidth: 1.5 },
   deleteAccountBtnText:   { fontSize: 14, fontWeight: '700' },
-});
+  });
+}

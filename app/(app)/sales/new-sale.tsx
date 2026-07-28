@@ -40,6 +40,7 @@ import { useSalesStore } from '@/store/salesStore';
 import { useCustomerStore } from '@/store/customerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
 import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
@@ -53,7 +54,8 @@ export default function NewSaleScreen() {
 
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
   const { createSale } = useSalesStore();
@@ -369,9 +371,9 @@ export default function NewSaleScreen() {
                   keyboardType="decimal-pad"
                 />
                 {remainingDebt > 0 && (
-                  <View style={[styles.debtAlert, { flexDirection }]}>
-                    <Ionicons name="time-outline" size={16} color={colors.error} />
-                    <Text style={[styles.debtText, { color: colors.error, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: colors.error }]} /></Text>
+                  <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
+                    <Ionicons name="time-outline" size={16} color={errorTint.text} />
+                    <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
                   </View>
                 )}
               </View>
@@ -470,7 +472,7 @@ const styles = StyleSheet.create({
   sectionCard:   { marginBottom: 14 },
   sectionTitle:  { fontSize: 15, fontWeight: '700', marginBottom: 14 },
   debtSection:   { marginTop: 14 },
-  debtAlert:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEE2E2', padding: 10, borderRadius: 10, marginTop: 4 },
+  debtAlert:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 10, marginTop: 4 },
   debtText:      { fontSize: 14, fontWeight: '600' },
   bottomSpacer:  { height: 24 },
 });

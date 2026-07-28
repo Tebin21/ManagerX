@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>1097351210121-sumdom9j1d2t36h9hd7f8jee56eo3jo5.apps.googleusercontent.com</string>
+	<string>1097351210121-kbgfqulbdac46tnqvidhqgd1pjcu7hkj.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1097351210121-sumdom9j1d2t36h9hd7f8jee56eo3jo5</string>
+	<string>com.googleusercontent.apps.1097351210121-kbgfqulbdac46tnqvidhqgd1pjcu7hkj</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>1097351210121-1rqknavvlvfhf8g9pkrkj9l7m0i6beom.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.managerx.app</string>
+	<string>com.froshiar.app</string>
 	<key>PROJECT_ID</key>
 	<string>managerx-bac3a</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1097351210121:ios:a74e1bc6b1d6250d641258</string>
+	<string>1:1097351210121:ios:71357a59176ba931641258</string>
 </dict>
 </plist>

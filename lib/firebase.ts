@@ -5,12 +5,13 @@ import {
   signInWithCredential,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
+  AppleAuthProvider,
   type FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
 
 export const isFirebaseAvailable = true;
 
-export { onAuthStateChanged, signInWithCredential, GoogleAuthProvider };
+export { onAuthStateChanged, signInWithCredential, GoogleAuthProvider, AppleAuthProvider };
 export { firebaseSignOut as signOut };
 
 export function getFirebaseAuth(): FirebaseAuthTypes.Module {

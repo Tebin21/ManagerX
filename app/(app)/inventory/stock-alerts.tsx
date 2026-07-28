@@ -20,6 +20,7 @@ import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/com
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
@@ -43,13 +44,14 @@ function StockAlertRow({
   product, globalEnabled, globalThreshold,
   onStatusChange, onSaveThreshold, onPress,
 }: RowProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const scrollIntoView = useKeyboardAwareFocus();
   const { textAlign, flexDirection } = useRTL();
 
   const isProductActive = product.lowStockEnabled !== 0;
   const isCurrentlyLow  = computeProductLowStock(product, globalEnabled, globalThreshold);
+  const qtyTint = getStatusTint(isCurrentlyLow ? 'warning' : 'success', colors, isDark);
 
   const [localValue, setLocalValue] = useState(
     product.lowStockThreshold !== null ? String(product.lowStockThreshold) : ''
@@ -102,11 +104,11 @@ function StockAlertRow({
             {/* Qty badge */}
             <View style={[
               styles.qtyBadge,
-              { backgroundColor: isCurrentlyLow ? '#FEF3C7' : '#DCFCE7' },
+              { backgroundColor: qtyTint.bg },
             ]}>
               <Text style={[
                 styles.qtyText,
-                { color: isCurrentlyLow ? '#92400E' : '#166534' },
+                { color: qtyTint.text },
               ]}>
                 {product.quantity}
               </Text>
@@ -118,7 +120,7 @@ function StockAlertRow({
                 style={[
                   styles.threshInput,
                   {
-                    borderColor: localValue.trim() ? '#FDE68A' : colors.gray200,
+                    borderColor: localValue.trim() ? colors.warning : colors.gray200,
                     color: colors.black,
                     backgroundColor: colors.white,
                   },
@@ -164,7 +166,7 @@ function StockAlertRow({
             >
               <Text style={[
                 styles.statusBtnText,
-                { color: isProductActive ? '#fff' : colors.gray500 },
+                { color: isProductActive ? colors.white : colors.gray500 },
               ]}>
                 {t('inventory.productActive')}
               </Text>
@@ -198,7 +200,8 @@ function StockAlertRow({
 export default function StockAlertsScreen() {
   const router   = useRouter();
   const { t }    = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const bellTint = getStatusTint('warning', colors, isDark);
   const scrollIntoView = useKeyboardAwareFocus();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
@@ -266,12 +269,12 @@ export default function StockAlertsScreen() {
               <View style={[styles.globalLeft, { flexDirection }]}>
                 <View style={[
                   styles.bellWrap,
-                  { backgroundColor: globalLowStockEnabled ? '#FEF3C7' : colors.gray100 },
+                  { backgroundColor: globalLowStockEnabled ? bellTint.bg : colors.gray100 },
                 ]}>
                   <Ionicons
                     name="notifications-outline"
                     size={16}
-                    color={globalLowStockEnabled ? '#92400E' : colors.gray400}
+                    color={globalLowStockEnabled ? bellTint.text : colors.gray400}
                   />
                 </View>
                 <Text style={[styles.globalTitle, { color: colors.black, textAlign }]}>
@@ -282,7 +285,7 @@ export default function StockAlertsScreen() {
                 value={globalLowStockEnabled}
                 onValueChange={setGlobalLowStockEnabled}
                 trackColor={{ false: colors.gray200, true: colors.primary }}
-                thumbColor="#fff"
+                thumbColor={colors.white}
               />
             </View>
 
@@ -315,7 +318,7 @@ export default function StockAlertsScreen() {
                         >
                           <Text style={[
                             styles.chipText,
-                            { color: globalLowStockThreshold === val ? '#fff' : colors.gray600 },
+                            { color: globalLowStockThreshold === val ? colors.white : colors.gray600 },
                           ]}>
                             {val}
                           </Text>
@@ -336,9 +339,9 @@ export default function StockAlertsScreen() {
             animate={{ opacity: 1 }}
             transition={{ type: 'timing', duration: 200, delay: 60 }}
           >
-            <View style={[styles.summaryBanner, { flexDirection }]}>
-              <Ionicons name="warning-outline" size={13} color="#92400E" />
-              <Text style={[styles.summaryText, { textAlign, writingDirection }]}>
+            <View style={[styles.summaryBanner, { backgroundColor: bellTint.bg, flexDirection }]}>
+              <Ionicons name="warning-outline" size={13} color={bellTint.text} />
+              <Text style={[styles.summaryText, { color: bellTint.text, textAlign, writingDirection }]}>
                 {t('inventory.alertSummary', { count: alertCount })}
               </Text>
             </View>
@@ -471,12 +474,11 @@ const styles = StyleSheet.create({
     gap: 7,
     marginHorizontal: 16,
     marginBottom: 4,
-    backgroundColor: '#FEF3C7',
     borderRadius: Theme.radius.md,
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
-  summaryText: { fontSize: 12, fontWeight: '600', color: '#92400E' },
+  summaryText: { fontSize: 12, fontWeight: '600' },
 
   // ── Search (sticky) ──
   searchSection: {

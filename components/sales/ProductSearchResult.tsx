@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
 
@@ -17,7 +17,9 @@ interface Props {
 }
 
 export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const soldTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isUniqueAndSold = product.idMode === 'unique' && (!product.isActive || product.quantity === 0);
   const atMaxStock = product.idMode === 'repeatable' && inCartQty >= product.quantity;
@@ -39,7 +41,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
           />
         ) : (
           <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
-            <Ionicons name="cube-outline" size={28} color={Colors.gray300} />
+            <Ionicons name="cube-outline" size={28} color={colors.gray300} />
           </View>
         )}
       </TouchableOpacity>
@@ -59,8 +61,8 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
           <AmountText value={product.sellingPrice} variant="small" style={[styles.price, { color: colors.primary }]} />
           <Text style={styles.dot}>·</Text>
           {isUniqueAndSold ? (
-            <View style={styles.soldBadge}>
-              <Text style={styles.soldText}>Sold</Text>
+            <View style={[styles.soldBadge, { backgroundColor: soldTint.bg }]}>
+              <Text style={[styles.soldText, { color: soldTint.text }]}>Sold</Text>
             </View>
           ) : (
             <Text style={[
@@ -79,7 +81,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
         onPress={onAdd}
         disabled={isDisabled}
         activeOpacity={0.75}
-        style={[styles.addBtn, { backgroundColor: isDisabled ? Colors.gray100 : colors.softBlue, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? RTL_SPACING.gap : 0 }]}
+        style={[styles.addBtn, { backgroundColor: isDisabled ? colors.gray100 : colors.softBlue, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? RTL_SPACING.gap : 0 }]}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         {inCartQty > 0 ? (
@@ -88,75 +90,76 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
             <Ionicons name="add" size={14} color={colors.primary} />
           </View>
         ) : (
-          <Ionicons name="add" size={20} color={isDisabled ? Colors.gray300 : colors.primary} />
+          <Ionicons name="add" size={20} color={isDisabled ? colors.gray300 : colors.primary} />
         )}
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.card,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 6,
-    ...Theme.shadow.soft,
-  },
-  rowDisabled: { opacity: 0.6 },
-  thumb: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    marginRight: 12,
-    flexShrink: 0,
-    backgroundColor: Colors.gray100,
-  },
-  thumbPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    marginRight: 12,
-    flexShrink: 0,
-    backgroundColor: Colors.gray100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  left: { flex: 1, paddingTop: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
-  name: { fontSize: 14, fontWeight: '600', color: Colors.black },
-  nameDisabled: { color: Colors.gray400 },
-  idBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  idText: { fontSize: 10, fontWeight: '500' },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  price: { fontSize: 13, fontWeight: '700' },
-  dot: { color: Colors.gray300 },
-  stock: { fontSize: 12, color: Colors.success, fontWeight: '500' },
-  stockLow: { color: Colors.warning },
-  stockOut: { color: Colors.error },
-  soldBadge: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  soldText: { fontSize: 11, color: Colors.error, fontWeight: '600' },
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-    alignSelf: 'center',
-  },
-  inCartBadge: { flexDirection: 'row', alignItems: 'center' },
-  inCartText: { fontSize: 13, fontWeight: '700' },
-});
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.white,
+      borderRadius: Theme.radius.card,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      marginBottom: 6,
+      ...Theme.shadow.soft,
+    },
+    rowDisabled: { opacity: 0.6 },
+    thumb: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
+      marginRight: 12,
+      flexShrink: 0,
+      backgroundColor: colors.gray100,
+    },
+    thumbPlaceholder: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
+      marginRight: 12,
+      flexShrink: 0,
+      backgroundColor: colors.gray100,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    left: { flex: 1, paddingTop: 2 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
+    name: { fontSize: 14, fontWeight: '600', color: colors.black },
+    nameDisabled: { color: colors.gray400 },
+    idBadge: {
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    idText: { fontSize: 10, fontWeight: '500' },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    price: { fontSize: 13, fontWeight: '700' },
+    dot: { color: colors.gray300 },
+    stock: { fontSize: 12, color: colors.success, fontWeight: '500' },
+    stockLow: { color: colors.warning },
+    stockOut: { color: colors.error },
+    soldBadge: {
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    soldText: { fontSize: 11, fontWeight: '600' },
+    addBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+      alignSelf: 'center',
+    },
+    inCartBadge: { flexDirection: 'row', alignItems: 'center' },
+    inCartText: { fontSize: 13, fontWeight: '700' },
+  });
+}

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Froshiar",
-    "slug": "froshiar",
+    "slug": "managerx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-icon.png",
@@ -17,9 +17,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.froshiar.app",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "We need access to your photos to upload your business logo.",
-        "NSCameraUsageDescription": "We need camera access to take your business logo photo."
+        "NSCameraUsageDescription": "We need camera access to take your business logo photo.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,19 +47,26 @@
       "favicon": "./assets/images/logo.png"
     },
     "plugins": [
-      ["expo-build-properties", {
-        "ios": {
-          "useFrameworks": "static",
-          "forceStaticLinking": ["RNFBApp", "RNFBAuth"]
-        },
-        "android": {
-          "compileSdkVersion": 36,
-          "targetSdkVersion": 36,
-          "ndkVersion": "28.2.13676358"
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth"
+            ]
+          },
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "ndkVersion": "28.2.13676358"
+          }
         }
-      }],
+      ],
       "@react-native-firebase/app",
       "@react-native-google-signin/google-signin",
+      "expo-apple-authentication",
       "./plugins/withFirebaseAppDelegate",
       "expo-router",
       "expo-dev-client",
@@ -81,6 +90,7 @@
       "eas": {
         "projectId": "2338ad90-88ee-4cd7-9ce9-29db5a56148e"
       }
-    }
+    },
+    "owner": "tebinfaruq"
   }
 }

@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
@@ -22,13 +23,23 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { signInWithGoogle, isLoading } = useAuthStore();
+  const { signInWithGoogle, signInWithApple, isLoading } = useAuthStore();
   const { colors } = useAppTheme();
   const [authError, setAuthError] = useState<string | null>(null);
 
   const handleGoogle = async () => {
     setAuthError(null);
     const { error } = await signInWithGoogle();
+    if (error) {
+      setAuthError(error);
+    } else {
+      router.replace('/');
+    }
+  };
+
+  const handleApple = async () => {
+    setAuthError(null);
+    const { error } = await signInWithApple();
     if (error) {
       setAuthError(error);
     } else {
@@ -84,6 +95,7 @@ export default function LoginScreen() {
             style={styles.buttonGroup}
           >
             <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
+            <AppleSignInButton onPress={handleApple} loading={isLoading} />
 
             {authError && (
               <View style={styles.errorBox}>

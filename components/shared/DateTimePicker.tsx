@@ -131,7 +131,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
           android_ripple={{ color: colors.gray100 }}
         >
           <Ionicons name="calendar-outline" size={17} color={colors.primary} style={styles.triggerIcon} />
-          <Text style={[styles.triggerText, { flex: 1, color: colors.black, textAlign }]} numberOfLines={1}>
+          <Text style={[styles.triggerText, { flex: 1, color: colors.black, textAlign, writingDirection: 'ltr' }]} numberOfLines={1}>
             {formatDateTimeUI(value)}
           </Text>
           <Ionicons name="chevron-down" size={15} color={colors.gray400} />
@@ -194,7 +194,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
                   <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="calendar-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
-                      style={[styles.inputField, { color: colors.black }]}
+                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }]}
                       value={dateStr}
                       onChangeText={setDateStr}
                       placeholder="2026-06-03"
@@ -216,7 +216,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
                   <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="time-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
-                      style={[styles.inputField, { color: colors.black }]}
+                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }]}
                       value={timeStr}
                       onChangeText={setTimeStr}
                       placeholder="14:30"

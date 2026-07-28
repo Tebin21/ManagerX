@@ -3,9 +3,9 @@ import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useTranslation } from 'react-i18next';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { hexToRgba } from '@/lib/colorUtils';
 import { useRTL } from '@/lib/rtl';
 import { useBusinessStore } from '@/store/businessStore';
 import type { Sale } from '@/types/sales';
@@ -23,11 +23,15 @@ const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Cash', fib: 'FIB', debt: 'Debt',
 };
 
-const STATUS_BG: Record<PaymentStatus, string> = {
+// Exact literals this invoice pill has always used — kept byte-for-byte in Light Mode.
+const STATUS_BG_LIGHT: Record<PaymentStatus, string> = {
   paid: '#D1FAE5', partial: '#FEF3C7', unpaid: '#FEE2E2',
 };
-const STATUS_TEXT: Record<PaymentStatus, string> = {
+const STATUS_TEXT_LIGHT: Record<PaymentStatus, string> = {
   paid: '#065F46', partial: '#92400E', unpaid: '#991B1B',
+};
+const STATUS_TONE: Record<PaymentStatus, 'success' | 'warning' | 'error'> = {
+  paid: 'success', partial: 'warning', unpaid: 'error',
 };
 
 function getInitials(name: string | null | undefined): string {
@@ -39,7 +43,7 @@ function getInitials(name: string | null | undefined): string {
 
 export function InvoiceView({ sale, compact = false }: Props) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, writingDirection, flexDirection, alignStart } = useRTL();
   const { logoUri, name: businessName } = useBusinessStore();
   const [logoFailed, setLogoFailed] = useState(false);
@@ -47,6 +51,8 @@ export function InvoiceView({ sale, compact = false }: Props) {
 
   const items = sale.items ?? [];
   const status = getPaymentStatus(sale);
+  const statusBg = isDark ? hexToRgba(colors[STATUS_TONE[status]], 0.18) : STATUS_BG_LIGHT[status];
+  const statusText = isDark ? colors[STATUS_TONE[status]] : STATUS_TEXT_LIGHT[status];
   const exchangeRate = sale.exchangeRateUsed || 1310;
   const valueAlign = isRTL ? 'left' : 'right';
 
@@ -85,8 +91,8 @@ export function InvoiceView({ sale, compact = false }: Props) {
         </View>
         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
           <IdText style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr', lineHeight: undefined }]}>{sale.invoiceNumber}</IdText>
-          <View style={[styles.statusPill, { backgroundColor: STATUS_BG[status] }]}>
-            <Text style={[styles.statusPillText, { color: STATUS_TEXT[status] }]}>
+          <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+            <Text style={[styles.statusPillText, { color: statusText }]}>
               {PAYMENT_STATUS_LABEL[status]}
             </Text>
           </View>
@@ -178,7 +184,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
                   <IdText style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</IdText>
                   <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
                   <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtIQD(item.sellingPrice)}</Text>
-                  <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? Colors.success : colors.gray300 }]}>
+                  <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? colors.success : colors.gray300 }]}>
                     {item.discount > 0 ? `−${fmtIQD(item.discount)}` : '—'}
                   </Text>
                   <Text style={[styles.colTotal, styles.tableCellTotal, { color: colors.black }]}>{fmtIQD(item.lineTotal)}</Text>
@@ -199,13 +205,13 @@ export function InvoiceView({ sale, compact = false }: Props) {
         {sale.discountTotal > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
             <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.itemDiscount')}</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.discountTotal)}</Text>
+            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.discountTotal)}</Text>
           </View>
         )}
         {(sale.globalDiscount ?? 0) > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
             <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.invoiceDiscount')}</Text>
-            <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
+            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
           </View>
         )}
         <View style={[styles.grandRow, { flexDirection, borderTopColor: colors.gray200 }]}>
@@ -217,13 +223,13 @@ export function InvoiceView({ sale, compact = false }: Props) {
             {sale.paidAmount > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.paid')}</Text>
-                <Text style={[styles.totalValue, { color: Colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.paidAmount)}</Text>
+                <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.paidAmount)}</Text>
               </View>
             )}
             {sale.remainingDebt > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
-                <Text style={[styles.totalLabel, { color: Colors.error, textAlign, writingDirection }]}>{t('invoicePreview.remainingDebt')}</Text>
-                <Text style={[styles.totalValue, { color: Colors.error, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
+                <Text style={[styles.totalLabel, { color: colors.error, textAlign, writingDirection }]}>{t('invoicePreview.remainingDebt')}</Text>
+                <Text style={[styles.totalValue, { color: colors.error, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
                   {fmtIQD(sale.remainingDebt)}
                 </Text>
               </View>

@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { useCustomerStore } from '@/store/customerStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 
@@ -27,7 +28,8 @@ export default function CustomersScreen() {
   const { t } = useTranslation();
   const { customers, isLoading, loadCustomers, searchCustomers } = useCustomerStore();
 
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -74,7 +76,7 @@ export default function CustomersScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="cart-outline" size={18} color={colors.white} />
-            <Text style={styles.emptyActionText}>{t('customers.makeFirstSale')}</Text>
+            <Text style={[styles.emptyActionText, { color: colors.white }]}>{t('customers.makeFirstSale')}</Text>
           </TouchableOpacity>
         </>
       )}
@@ -152,8 +154,8 @@ export default function CustomersScreen() {
           </Text>
           {totalDebtors > 0 && (
             <View style={styles.debtAlert}>
-              <Ionicons name="warning" size={12} color="#92400E" />
-              <Text style={styles.debtAlertText}>{totalDebtors} {t('customers.withDebt')}</Text>
+              <Ionicons name="warning" size={12} color={warningTint.text} />
+              <Text style={[styles.debtAlertText, { color: warningTint.text }]}>{totalDebtors} {t('customers.withDebt')}</Text>
             </View>
           )}
         </View>
@@ -197,7 +199,7 @@ const styles = StyleSheet.create({
   countStrip:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1 },
   countText:          { fontSize: 13 },
   debtAlert:          { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  debtAlertText:      { fontSize: 12, fontWeight: '600', color: '#92400E' },
+  debtAlertText:      { fontSize: 12, fontWeight: '600' },
   list:               { padding: 16, paddingBottom: 32 },
   listEmpty:          { flex: 1 },
   emptyContainer:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 32 },
@@ -205,5 +207,5 @@ const styles = StyleSheet.create({
   emptyTitle:         { fontSize: 17, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
   emptySub:           { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   emptyAction:        { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Theme.radius.full, paddingHorizontal: 20, paddingVertical: 10, marginTop: 20 },
-  emptyActionText:    { fontSize: 14, fontWeight: '600', color: '#fff' },
+  emptyActionText:    { fontSize: 14, fontWeight: '600' },
 });

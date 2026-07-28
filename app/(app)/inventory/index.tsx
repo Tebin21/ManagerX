@@ -438,9 +438,9 @@ export default function InventoryScreen() {
                 activeOpacity={0.75}
               >
                 {key === 'history' && (
-                  <Ionicons name="time-outline" size={12} color={isActive ? '#fff' : colors.gray500} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }} />
+                  <Ionicons name="time-outline" size={12} color={isActive ? colors.white : colors.gray500} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }} />
                 )}
-                <Text style={[styles.tabText, { color: isActive ? '#fff' : colors.gray600 }]}>
+                <Text style={[styles.tabText, { color: isActive ? colors.white : colors.gray600 }]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -457,11 +457,11 @@ export default function InventoryScreen() {
           <Ionicons
             name="notifications-outline"
             size={18}
-            color={stats?.lowStockCount ? '#EA580C' : colors.gray500}
+            color={stats?.lowStockCount ? colors.warning : colors.gray500}
           />
           {!!stats?.lowStockCount && (
-            <View style={styles.bellBadge}>
-              <Text style={styles.bellBadgeText}>
+            <View style={[styles.bellBadge, { backgroundColor: colors.warning }]}>
+              <Text style={[styles.bellBadgeText, { color: colors.white }]}>
                 {stats.lowStockCount > 9 ? '9+' : String(stats.lowStockCount)}
               </Text>
             </View>
@@ -509,15 +509,15 @@ export default function InventoryScreen() {
           <Ionicons
             name="options-outline"
             size={13}
-            color={filter !== 'all' ? '#fff' : colors.gray500}
+            color={filter !== 'all' ? colors.white : colors.gray500}
           />
-          <Text style={[styles.filterBtnText, { color: filter !== 'all' ? '#fff' : colors.gray600 }]}>
+          <Text style={[styles.filterBtnText, { color: filter !== 'all' ? colors.white : colors.gray600 }]}>
             {filterLabel}
           </Text>
           <Ionicons
             name="chevron-down"
             size={12}
-            color={filter !== 'all' ? '#fff' : colors.gray400}
+            color={filter !== 'all' ? colors.white : colors.gray400}
           />
         </TouchableOpacity>
 
@@ -646,7 +646,7 @@ export default function InventoryScreen() {
                 style={[styles.addCatBtn, { backgroundColor: colors.primary }]}
                 disabled={!newCatName.trim()}
               >
-                <Ionicons name="add" size={20} color="#fff" />
+                <Ionicons name="add" size={20} color={colors.white} />
               </TouchableOpacity>
             </View>
 
@@ -707,7 +707,7 @@ export default function InventoryScreen() {
                       <Ionicons
                         name={cat.isDefault ? 'lock-closed-outline' : 'trash-outline'}
                         size={18}
-                        color={canDelete ? '#EF4444' : colors.gray300}
+                        color={canDelete ? colors.error : colors.gray300}
                       />
                     </TouchableOpacity>
                   </View>
@@ -745,8 +745,8 @@ const styles = StyleSheet.create({
   tab:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, paddingVertical: 7, borderRadius: Theme.radius.full },
   tabText:       { fontSize: 12, fontWeight: '600' },
   iconBtn:       { paddingHorizontal: 14, paddingVertical: 12, borderStartWidth: 1, position: 'relative' },
-  bellBadge:     { position: 'absolute', top: 8, right: 8, minWidth: 14, height: 14, borderRadius: 7, backgroundColor: '#EA580C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
-  bellBadgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
+  bellBadge:     { position: 'absolute', top: 8, right: 8, minWidth: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bellBadgeText: { fontSize: 9, fontWeight: '800' },
 
   // ── Control row (filter + summary) ──
   controlRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1, gap: 10 },

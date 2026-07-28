@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { migratedAsyncStorage } from '@/lib/migratedStorage';
@@ -8,7 +9,9 @@ import {
   signInWithCredential,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
+  AppleAuthProvider,
 } from '@/lib/firebase';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
@@ -45,6 +48,7 @@ interface AuthState {
   isLoading: boolean;
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithApple: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -61,6 +65,28 @@ function firebaseUserToAppUser(u: {
     displayName: u.displayName ?? null,
     photoURL: u.photoURL ?? null,
   };
+}
+
+// This device's local business data (SQLite) isn't scoped per account. If it already
+// belongs to a *different* account than the one signing in now, wipe it first so the
+// newly signed-in user never sees the previous account's products/customers/sales/
+// financial records. A null ownerUserId means either a fresh install or an existing
+// install upgrading to this tracking — leave that data alone rather than wiping on an
+// unrelated app update. Shared by every sign-in provider (Google, Apple, ...).
+async function adoptSignedInUser(
+  user: FirebaseAuthTypes.User,
+  set: (state: Partial<AuthState>) => void
+) {
+  const { useBusinessStore } = await import('@/store/businessStore');
+  const business = useBusinessStore.getState();
+  if (business.isSetupComplete && business.ownerUserId && business.ownerUserId !== user.uid) {
+    const { wipeAllBusinessData } = await import('@/lib/sqlite');
+    await wipeAllBusinessData();
+    business.clearBusiness();
+  }
+  useBusinessStore.getState().setOwnerUserId(user.uid);
+
+  set({ user: firebaseUserToAppUser(user), isLoading: false });
 }
 
 // `user` is persisted to AsyncStorage so a returning user's session is
@@ -102,26 +128,78 @@ export const useAuthStore = create<AuthState>()(
           const credential = GoogleAuthProvider.credential(idToken);
           const { user } = await signInWithCredential(getFirebaseAuth(), credential);
 
-          // This device's local business data (SQLite) isn't scoped per account. If it
-          // already belongs to a *different* account than the one signing in now, wipe
-          // it first so the newly signed-in user never sees the previous account's
-          // products/customers/sales/financial records. A null ownerUserId means either
-          // a fresh install or an existing install upgrading to this tracking — leave
-          // that data alone rather than wiping on an unrelated app update.
-          const { useBusinessStore } = await import('@/store/businessStore');
-          const business = useBusinessStore.getState();
-          if (business.isSetupComplete && business.ownerUserId && business.ownerUserId !== user.uid) {
-            const { wipeAllBusinessData } = await import('@/lib/sqlite');
-            await wipeAllBusinessData();
-            business.clearBusiness();
-          }
-          useBusinessStore.getState().setOwnerUserId(user.uid);
-
-          set({ user: firebaseUserToAppUser(user), isLoading: false });
+          await adoptSignedInUser(user, set);
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
           return { error: e?.message ?? 'Google Sign-In failed.' };
+        }
+      },
+
+      signInWithApple: async () => {
+        if (Platform.OS !== 'ios') {
+          return { error: 'Sign in with Apple is only available on iOS.' };
+        }
+        if (!isFirebaseAvailable) {
+          return { error: 'Apple Sign-In requires the iOS app — not available on web.' };
+        }
+        set({ isLoading: true });
+        try {
+          const AppleAuthentication = await import('expo-apple-authentication');
+          const isAvailable = await AppleAuthentication.isAvailableAsync();
+          if (!isAvailable) {
+            set({ isLoading: false });
+            return { error: 'Sign in with Apple is not available on this device.' };
+          }
+
+          // Apple's sign-in sheet must receive a SHA-256-hashed nonce; Firebase's
+          // OAuthCredential verifies the identity token against the original raw value.
+          const Crypto = await import('expo-crypto');
+          const rawNonce = Array.from(await Crypto.getRandomBytesAsync(16))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join('');
+          const hashedNonce = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            rawNonce
+          );
+
+          const appleCredential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+              AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+            nonce: hashedNonce,
+          });
+
+          if (!appleCredential.identityToken) {
+            set({ isLoading: false });
+            return { error: 'Apple Sign-In failed: no identity token received.' };
+          }
+
+          const credential = AppleAuthProvider.credential(appleCredential.identityToken, rawNonce);
+          const { user } = await signInWithCredential(getFirebaseAuth(), credential);
+
+          // Firebase only receives fullName/email from Apple on the account's very first
+          // sign-in; the native credential's own copies are similarly first-sign-in-only,
+          // so fall back to them here to populate the Firebase profile once.
+          if (!user.displayName && appleCredential.fullName) {
+            const name = [appleCredential.fullName.givenName, appleCredential.fullName.familyName]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+            if (name) {
+              try { await user.updateProfile({ displayName: name }); } catch {}
+            }
+          }
+
+          await adoptSignedInUser(user, set);
+          return { error: null };
+        } catch (e: any) {
+          set({ isLoading: false });
+          if (e?.code === 'ERR_REQUEST_CANCELED') {
+            return { error: null };
+          }
+          return { error: e?.message ?? 'Apple Sign-In failed.' };
         }
       },
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -24,8 +24,8 @@ import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/com
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { Colors } from '@/constants/colors';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { getPurchasesBySupplierName } from '@/lib/sqlite';
 import type { SupplierWithStats } from '@/types/suppliers';
@@ -41,7 +41,9 @@ interface DebtCardProps {
 }
 
 function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const debtStyles = useMemo(() => getDebtStyles(colors), [colors]);
+  const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const [amount, setAmount] = useState('');
@@ -84,8 +86,8 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
         <IdText style={[debtStyles.ref, { color: colors.primary, textAlign }]} numberOfLines={1}>
           {debt.purchaseNumber ?? '—'}
         </IdText>
-        <View style={[debtStyles.badge, { backgroundColor: '#FFF7ED' }]}>
-          <Text style={[debtStyles.badgeText, { color: Colors.warning }]}>{t('common.debt')}</Text>
+        <View style={[debtStyles.badge, { backgroundColor: warningTint.bg }]}>
+          <Text style={[debtStyles.badgeText, { color: warningTint.text }]}>{t('common.debt')}</Text>
         </View>
       </View>
 
@@ -94,7 +96,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
         {t('debt.remainingLabel')}
       </Text>
       {/* Line 3 — remaining amount */}
-      <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[debtStyles.remainingValue, { color: Colors.error, textAlign }]} />
+      <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[debtStyles.remainingValue, { color: colors.error, textAlign }]} />
       {/* Line 4 — paid / total */}
       <Text style={[debtStyles.amounts, { color: colors.gray500, textAlign }]}>
         <AmountText value={debt.paidAmount} variant="small" /> / <AmountText value={debt.originalAmount} currency="IQD" variant="small" />
@@ -105,7 +107,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
       </Text>
       {/* Line 6 — progress bar */}
       <View style={[debtStyles.progressTrack, { backgroundColor: colors.gray100 }]}>
-        <View style={[debtStyles.progressFill, { width: `${percent}%` as never, backgroundColor: Colors.success }]} />
+        <View style={[debtStyles.progressFill, { width: `${percent}%` as never, backgroundColor: colors.success }]} />
       </View>
 
       <View style={[debtStyles.payRow, { borderTopColor: colors.gray100, flexDirection }]}>
@@ -126,8 +128,8 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
           activeOpacity={0.85}
         >
           {paying
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Text style={debtStyles.payBtnText}>{t('suppliers.payDebt')}</Text>
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={[debtStyles.payBtnText, { color: colors.white }]}>{t('suppliers.payDebt')}</Text>
           }
         </TouchableOpacity>
       </View>
@@ -135,7 +137,8 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   );
 }
 
-const debtStyles = StyleSheet.create({
+function getDebtStyles(colors: AppColors) {
+  return StyleSheet.create({
   card:          { borderRadius: Theme.radius.card, padding: 14, marginBottom: 10, ...Theme.shadow.soft },
   top:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   ref:           { fontSize: 13, fontWeight: '700', flexShrink: 1 },
@@ -150,8 +153,9 @@ const debtStyles = StyleSheet.create({
   payRow:        { flexDirection: 'row', gap: 8, marginTop: 2, paddingTop: 12, borderTopWidth: 1, alignItems: 'center' },
   payInput:      { flex: 1, height: 40, borderWidth: 1.5, borderRadius: Theme.radius.md, paddingHorizontal: 12, fontSize: 14 },
   payBtn:        { height: 40, paddingHorizontal: 16, borderRadius: Theme.radius.md, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
-  payBtnText:    { fontSize: 14, fontWeight: '700', color: '#fff' },
-});
+  payBtnText:    { fontSize: 14, fontWeight: '700' },
+  });
+}
 
 export default function SupplierDetailScreen() {
   const router = useRouter();
@@ -159,7 +163,11 @@ export default function SupplierDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { suppliers, loadSuppliers, editSupplier, deleteSupplier } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts, payPurchaseDebt } = useDebtStore();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
+  const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
+  const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { textAlign, writingDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
@@ -361,7 +369,7 @@ export default function SupplierDetailScreen() {
             </View>
           </View>
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.white }, totalRemaining > 0 && styles.statCardDebt]}>
+            <View style={[styles.statCard, { backgroundColor: colors.white }, totalRemaining > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }]}>
               <Ionicons name="alert-circle-outline" size={16} color={totalRemaining > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
               {totalRemaining > 0 ? (
                 <CompactAmount value={totalRemaining} showCurrency={false} style={[styles.statVal, { color: colors.error }]} />
@@ -371,9 +379,9 @@ export default function SupplierDetailScreen() {
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.remainingDebt')}</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
-              <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? Colors.success : colors.gray300} style={{ marginBottom: 4 }} />
+              <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? colors.success : colors.gray300} style={{ marginBottom: 4 }} />
               {totalPaid > 0 ? (
-                <CompactAmount value={totalPaid} showCurrency={false} style={[styles.statVal, { color: Colors.success }]} />
+                <CompactAmount value={totalPaid} showCurrency={false} style={[styles.statVal, { color: colors.success }]} />
               ) : (
                 <Text style={[styles.statVal, { color: colors.black }]} numberOfLines={1}>—</Text>
               )}
@@ -413,8 +421,8 @@ export default function SupplierDetailScreen() {
                 onPress={handleSaveEdit} disabled={saving} activeOpacity={0.85}
               >
                 {saving
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Text style={styles.saveBtnText}>{t('suppliers.editSave')}</Text>
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={[styles.saveBtnText, { color: colors.white }]}>{t('suppliers.editSave')}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -470,13 +478,13 @@ export default function SupplierDetailScreen() {
             </Text>
             {settledDebts.map((debt) => (
               <View key={debt.id} style={[styles.settledRow, { borderBottomColor: colors.gray100 }]}>
-                <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                 <View style={{ flex: 1, marginStart: 8 }}>
                   <IdText style={[styles.settledInvoice, { color: colors.black }]}>{debt.purchaseNumber ?? '—'}</IdText>
                   <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledAmount, { color: colors.gray400 }]} />
                 </View>
-                <View style={styles.settledBadge}>
-                  <Text style={styles.settledBadgeText}>{t('common.settled')}</Text>
+                <View style={[styles.settledBadge, { backgroundColor: successTint.bg }]}>
+                  <Text style={[styles.settledBadgeText, { color: successTint.text }]}>{t('common.settled')}</Text>
                 </View>
               </View>
             ))}
@@ -517,8 +525,8 @@ export default function SupplierDetailScreen() {
                   </View>
                   <View style={styles.purchaseRight}>
                     <AmountText value={p.totalIQD} currency="IQD" style={[styles.purchaseTotal, { color: colors.primary }]} />
-                    <View style={[styles.statusBadge, { backgroundColor: p.paymentStatus === 'paid' ? '#F0FDF4' : '#FFF7ED' }]}>
-                      <Text style={[styles.statusText, { color: p.paymentStatus === 'paid' ? Colors.success : Colors.warning }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: p.paymentStatus === 'paid' ? successTint.bg : warningTint.bg }]}>
+                      <Text style={[styles.statusText, { color: p.paymentStatus === 'paid' ? successTint.text : warningTint.text }]}>
                         {p.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
                       </Text>
                     </View>
@@ -548,32 +556,32 @@ export default function SupplierDetailScreen() {
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-          style={[styles.section, styles.deleteSectionBorder, { backgroundColor: colors.white }]}
+          style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
         >
           <Text style={sectionTitleStyle}>
             {t('customers.deleteAccountSection')}
           </Text>
           {!canDelete ? (
             <>
-              <View style={styles.deleteWarningBox}>
-                <Ionicons name="information-circle-outline" size={16} color={Colors.warning} />
+              <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg }]}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
                 <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
                   {purchases.length > 0
                     ? t('suppliers.hasPurchases')
                     : t('suppliers.hasActiveDebts')}
                 </Text>
               </View>
-              <TouchableOpacity style={[styles.deleteAccountBtn, styles.deleteAccountBtnDisabled]} disabled activeOpacity={1}>
-                <Ionicons name="trash-outline" size={16} color={Colors.gray400} />
+              <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]} disabled activeOpacity={1}>
+                <Ionicons name="trash-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
                   {t('suppliers.deleteAccount')}
                 </Text>
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDelete} activeOpacity={0.82}>
-              <Ionicons name="trash-outline" size={16} color={Colors.error} />
-              <Text style={[styles.deleteAccountBtnText, { color: Colors.error }]}>
+            <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg }]} onPress={handleDelete} activeOpacity={0.82}>
+              <Ionicons name="trash-outline" size={16} color={colors.error} />
+              <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
                 {t('suppliers.deleteAccount')}
               </Text>
             </TouchableOpacity>
@@ -585,9 +593,11 @@ export default function SupplierDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
   container:               { flex: 1 },
   centered:                { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // chipsRow/chip sit inside AppHeader's gradient — theme-invariant.
   chipsRow:                { flexDirection: 'row', paddingHorizontal: 20, gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   chip:                    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   chipText:                { fontSize: 12, color: '#fff', fontWeight: '500' },
@@ -596,7 +606,6 @@ const styles = StyleSheet.create({
   statsGrid:               { marginBottom: 14, gap: 10 },
   statsRow:                { flexDirection: 'row', gap: 10 },
   statCard:                { flex: 1, borderRadius: Theme.radius.card, padding: 14, alignItems: 'center', ...Theme.shadow.soft },
-  statCardDebt:            { backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FECACA' },
   statVal:                 { fontSize: 18, fontWeight: '800', marginBottom: 4 },
   statLabel:               { fontSize: 11, fontWeight: '500', textAlign: 'center' },
   activityRow:             { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Theme.radius.card, paddingHorizontal: 14, paddingVertical: 10, ...Theme.shadow.soft },
@@ -610,7 +619,7 @@ const styles = StyleSheet.create({
   infoRow:                 { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
   infoText:                { fontSize: 14, fontWeight: '500' },
   saveBtn:                 { borderRadius: Theme.radius.md, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  saveBtnText:             { fontSize: 15, fontWeight: '700', color: '#fff' },
+  saveBtnText:             { fontSize: 15, fontWeight: '700' },
   // Purchase rows (inside section card)
   purchaseRow:             { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   purchaseLeft:            { flex: 1 },
@@ -625,13 +634,12 @@ const styles = StyleSheet.create({
   settledRow:              { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
   settledInvoice:          { fontSize: 13, fontWeight: '600' },
   settledAmount:           { fontSize: 11, marginTop: 1 },
-  settledBadge:            { backgroundColor: '#F0FDF4', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  settledBadgeText:        { fontSize: 11, fontWeight: '700', color: '#10B981' },
+  settledBadge:            { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  settledBadgeText:        { fontSize: 11, fontWeight: '700' },
   // Danger zone — matches customer screen exactly
-  deleteSectionBorder:     { borderWidth: 1, borderColor: '#FECACA' },
-  deleteWarningBox:        { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFBEB', borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
+  deleteWarningBox:        { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
   deleteWarningText:       { flex: 1, fontSize: 13, lineHeight: 18 },
-  deleteAccountBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 12, borderWidth: 1.5, borderColor: Colors.error, backgroundColor: '#FFF5F5' },
-  deleteAccountBtnDisabled:{ borderColor: Colors.gray200, backgroundColor: Colors.gray50 },
+  deleteAccountBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 12, borderWidth: 1.5 },
   deleteAccountBtnText:    { fontSize: 14, fontWeight: '700' },
-});
+  });
+}

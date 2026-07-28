@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView,
-  Alert, StyleSheet,
+  Alert, StyleSheet, InteractionManager,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -74,7 +74,10 @@ export default function PurchaseDetailScreen() {
   useEffect(() => { loadPurchase(); }, [id]);
 
   useEffect(() => {
-    if (isNew === '1' && purchase) handleShare();
+    if (isNew === '1' && purchase) {
+      const task = InteractionManager.runAfterInteractions(() => handleShare());
+      return () => task.cancel();
+    }
   }, [isNew, purchase]);
 
   async function loadPurchase() {
@@ -101,6 +104,9 @@ export default function PurchaseDetailScreen() {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
       });
+    } catch (err) {
+      console.error('[PDF] handleShare unexpected error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
     } finally { setIsSharing(false); }
   }
 

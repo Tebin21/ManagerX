@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -26,7 +26,8 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { getPurchaseDebtById, getDebtPayments, addPaymentToPurchaseDebt, getPurchaseById } from '@/lib/sqlite';
 import { useDebtStore } from '@/store/debtStore';
 import { Colors } from '@/constants/colors';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { PurchaseDebt, DebtPayment } from '@/types/debt';
@@ -38,11 +39,16 @@ import { DateTimePicker } from '@/components/shared/DateTimePicker';
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const errorTint = getStatusTint('error', colors, isDark);
+  const warningTint = getStatusTint('warning', colors, isDark);
+  const successTint = getStatusTint('success', colors, isDark);
   const map: Record<string, { bg: string; fg: string }> = {
-    unpaid:  { bg: '#FEE2E2', fg: Colors.error },
-    partial: { bg: '#FEF3C7', fg: '#92400E' },
-    overdue: { bg: Colors.error, fg: '#fff' },
-    paid:    { bg: '#D1FAE5', fg: Colors.success },
+    unpaid:  { bg: errorTint.bg,   fg: errorTint.text },
+    partial: { bg: warningTint.bg, fg: warningTint.text },
+    overdue: { bg: colors.error,   fg: colors.white },
+    paid:    { bg: successTint.bg, fg: successTint.text },
   };
   const c = map[status] ?? map.unpaid;
   return (
@@ -57,8 +63,10 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Progress Bar ──────────────────────────────────────────────────────────────
 
 function ProgressBar({ paid, total }: { paid: number; total: number }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const pct = total > 0 ? Math.min(1, paid / total) : 0;
-  const color = pct >= 1 ? Colors.success : pct > 0 ? '#F59E0B' : Colors.error;
+  const color = pct >= 1 ? colors.success : pct > 0 ? colors.warning : colors.error;
   return (
     <View style={styles.progressTrack}>
       <MotiView
@@ -80,11 +88,14 @@ function PaymentTimelineItem({
   payment: DebtPayment;
   isLast: boolean;
 }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign } = useRTL();
   return (
     <View style={[styles.timelineItem, { flexDirection }]}>
       <View style={styles.timelineDotCol}>
-        <View style={styles.timelineDot} />
+        <View style={[styles.timelineDot, { backgroundColor: colors.error }]} />
         {!isLast && <View style={styles.timelineLine} />}
       </View>
       <View style={styles.timelineCard}>
@@ -92,9 +103,9 @@ function PaymentTimelineItem({
           <DateText value={payment.createdAt} size="small" /> · <TimeText value={payment.createdAt} style={styles.timelineDate} />
         </Text>
         <View style={[styles.timelineAmountRow, { flexDirection }]}>
-          <View style={styles.timelineAmountChip}>
-            <Text style={styles.timelineAmountChipText}>
-              <AmountText value={payment.amount} prefix="+" currency="IQD" variant="small" style={styles.timelineAmountChipText} /> {i18n.t('debt.paidLabel')}
+          <View style={[styles.timelineAmountChip, { backgroundColor: paidTint.bg }]}>
+            <Text style={[styles.timelineAmountChipText, { color: paidTint.text }]}>
+              <AmountText value={payment.amount} prefix="+" currency="IQD" variant="small" style={[styles.timelineAmountChipText, { color: paidTint.text }]} /> {i18n.t('debt.paidLabel')}
             </Text>
           </View>
         </View>
@@ -116,7 +127,9 @@ export default function PurchaseDebtDetailScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { reloadAfterSale } = useDebtStore();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const scrollIntoView = useKeyboardAwareFocus();
   const { textAlign, flexDirection, valueAlign } = useRTL();
 
@@ -254,7 +267,7 @@ export default function PurchaseDebtDetailScreen() {
             <View style={[styles.statusRow, { flexDirection }]}>
               <View>
                 <Text style={[styles.remainingLabel, { textAlign }]}>{t('debt.weOweSupplier')}</Text>
-                <AmountText value={debt.remainingAmount} currency="IQD" variant="hero" style={[styles.remainingAmount, { color: Colors.error }]} />
+                <AmountText value={debt.remainingAmount} currency="IQD" variant="hero" style={[styles.remainingAmount, { color: colors.error }]} />
               </View>
               <StatusBadge status={displayStatus} />
             </View>
@@ -271,7 +284,7 @@ export default function PurchaseDebtDetailScreen() {
               <View style={styles.amountDivider} />
               <View style={styles.amountCell}>
                 <Text style={[styles.amountCellLabel, { textAlign }]}>{t('debt.paidLabel')}</Text>
-                <AmountText value={debt.paidAmount} currency="IQD" style={[styles.amountCellValue, { color: Colors.success }]} />
+                <AmountText value={debt.paidAmount} currency="IQD" style={[styles.amountCellValue, { color: colors.success }]} />
               </View>
             </View>
           </PremiumCard>
@@ -299,7 +312,7 @@ export default function PurchaseDebtDetailScreen() {
                 </View>
                 <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.itemPrice, { textAlign: valueAlign }]} />
                 {purchase.itemIds.length > 0 ? (
-                  <Text style={[styles.itemId, { textAlign: 'right' }]}>ID: <IdText size="small" style={styles.itemId}>{purchase.itemIds.join(', ')}</IdText></Text>
+                  <Text style={[styles.itemId, { textAlign: 'right' }]}>{t('invoicePdf.itemIdLabel')}: <IdText size="small" style={styles.itemId}>{purchase.itemIds.join(', ')}</IdText></Text>
                 ) : null}
                 {purchase.warranty ? (
                   <View style={[styles.infoRow, { flexDirection, marginTop: 6, marginBottom: 0 }]}>
@@ -353,22 +366,22 @@ export default function PurchaseDebtDetailScreen() {
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 220 }}>
             {!showPayForm ? (
               <TouchableOpacity
-                style={[styles.addPayBtn, { backgroundColor: Colors.error, flexDirection }]}
+                style={[styles.addPayBtn, { backgroundColor: colors.error, flexDirection }]}
                 onPress={() => setShowPayForm(true)}
               >
-                <Ionicons name="add-circle" size={20} color="#fff" />
-                <Text style={styles.addPayBtnText}>{t('debt.paySupplier')}</Text>
+                <Ionicons name="add-circle" size={20} color={colors.white} />
+                <Text style={[styles.addPayBtnText, { color: colors.white }]}>{t('debt.paySupplier')}</Text>
               </TouchableOpacity>
             ) : (
               <PremiumCard style={styles.section}>
                 <Text style={[styles.sectionTitle, { textAlign }]}>{t('debt.recordPayment')}</Text>
-                <Text style={[styles.payRemaining, { color: Colors.error, textAlign }]}>
-                  {t('debt.remainingLabel')}: <AmountText value={debt.remainingAmount} currency="IQD" variant="small" style={[styles.payRemaining, { color: Colors.error }]} />
+                <Text style={[styles.payRemaining, { color: colors.error, textAlign }]}>
+                  {t('debt.remainingLabel')}: <AmountText value={debt.remainingAmount} currency="IQD" variant="small" style={[styles.payRemaining, { color: colors.error }]} />
                 </Text>
                 <TextInput
-                  style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
+                  style={[styles.payInput, { textAlign: 'left', writingDirection: 'ltr' }]}
                   placeholder={t('debt.amountPlaceholder')}
-                  placeholderTextColor={Colors.gray400}
+                  placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
                   value={payValue}
                   onChangeText={setPayValue}
@@ -393,13 +406,13 @@ export default function PurchaseDebtDetailScreen() {
                     <Text style={styles.payCancelText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.payConfirm, { backgroundColor: Colors.error }, isPaying && { opacity: 0.6 }]}
+                    style={[styles.payConfirm, { backgroundColor: colors.error }, isPaying && { opacity: 0.6 }]}
                     onPress={handlePay}
                     disabled={isPaying}
                   >
                     {isPaying
-                      ? <ActivityIndicator size="small" color="#fff" />
-                      : <Text style={styles.payConfirmText}>{t('common.confirm')}</Text>
+                      ? <ActivityIndicator size="small" color={colors.white} />
+                      : <Text style={[styles.payConfirmText, { color: colors.white }]}>{t('common.confirm')}</Text>
                     }
                   </TouchableOpacity>
                 </View>
@@ -407,9 +420,9 @@ export default function PurchaseDebtDetailScreen() {
             )}
           </MotiView>
         ) : (
-          <View style={[styles.settledBanner, { flexDirection }]}>
-            <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-            <Text style={styles.settledText}>{t('debt.fullyPaidSupplier')}</Text>
+          <View style={[styles.settledBanner, { backgroundColor: paidTint.bg, flexDirection }]}>
+            <Ionicons name="checkmark-circle" size={20} color={paidTint.text} />
+            <Text style={[styles.settledText, { color: paidTint.text }]}>{t('debt.fullyPaidSupplier')}</Text>
           </View>
         )}
 
@@ -419,10 +432,12 @@ export default function PurchaseDebtDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
 
+  // headerMeta sits inside AppHeader's fixed red gradient — theme-invariant.
   headerMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -448,46 +463,46 @@ const styles = StyleSheet.create({
 
   body: { padding: 16, paddingTop: 14 },
   section: { marginBottom: 14 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.black, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 12 },
 
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  remainingLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 2 },
+  remainingLabel: { fontSize: 12, color: colors.gray400, marginBottom: 2 },
   remainingAmount: { fontSize: 26, fontWeight: '800' },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
-  progressTrack: { height: 8, backgroundColor: Colors.gray100, borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
+  progressTrack: { height: 8, backgroundColor: colors.gray100, borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
   progressFill: { height: '100%', borderRadius: 4 },
-  progressPct: { fontSize: 12, color: Colors.gray400, marginBottom: 14 },
+  progressPct: { fontSize: 12, color: colors.gray400, marginBottom: 14 },
 
   amountRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: colors.gray100,
     paddingTop: 12,
   },
   amountCell: { flex: 1, alignItems: 'center' },
-  amountDivider: { width: 1, backgroundColor: Colors.gray100 },
-  amountCellLabel: { fontSize: 12, color: Colors.gray400, marginBottom: 3 },
-  amountCellValue: { fontSize: 15, fontWeight: '700', color: Colors.black },
+  amountDivider: { width: 1, backgroundColor: colors.gray100 },
+  amountCellLabel: { fontSize: 12, color: colors.gray400, marginBottom: 3 },
+  amountCellValue: { fontSize: 15, fontWeight: '700', color: colors.black },
 
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  infoLabel: { fontSize: 13, color: Colors.gray400 },
-  infoValue: { fontSize: 13, fontWeight: '600', color: Colors.black, flex: 1 },
+  infoLabel: { fontSize: 13, color: colors.gray400 },
+  infoValue: { fontSize: 13, fontWeight: '600', color: colors.black, flex: 1 },
 
   // Item summary
   itemCard: {
     paddingVertical: 10,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: colors.gray100,
     gap: 3,
   },
   itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itemName: { fontSize: 14, fontWeight: '700', color: Colors.black, flexShrink: 1 },
-  itemQtyBadge: { fontSize: 12, fontWeight: '600', color: Colors.gray400 },
-  itemPrice: { fontSize: 14, fontWeight: '700', color: Colors.black },
-  itemId: { fontSize: 11, color: Colors.gray400 },
+  itemName: { fontSize: 14, fontWeight: '700', color: colors.black, flexShrink: 1 },
+  itemQtyBadge: { fontSize: 12, fontWeight: '600', color: colors.gray400 },
+  itemPrice: { fontSize: 14, fontWeight: '700', color: colors.black },
+  itemId: { fontSize: 11, color: colors.gray400 },
 
   viewPurchaseBtn: {
     flexDirection: 'row',
@@ -497,39 +512,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: colors.gray100,
   },
   viewPurchaseBtnText: { fontSize: 13, fontWeight: '600' },
 
-  noPayments: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 8 },
+  noPayments: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 8 },
   timelineItem: { flexDirection: 'row', marginBottom: 14, gap: 12 },
   timelineDotCol: { alignItems: 'center', width: 20 },
   timelineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.error,
     marginTop: 14,
   },
-  timelineLine: { width: 2, flex: 1, backgroundColor: Colors.gray100, marginTop: 4 },
+  timelineLine: { width: 2, flex: 1, backgroundColor: colors.gray100, marginTop: 4 },
   timelineCard: {
     flex: 1,
-    backgroundColor: Colors.gray50,
+    backgroundColor: colors.gray50,
     borderRadius: 12,
     padding: 12,
     gap: 4,
   },
-  timelineDate: { fontSize: 11, color: Colors.gray400 },
+  timelineDate: { fontSize: 11, color: colors.gray400 },
   timelineAmountRow: { flexDirection: 'row', marginTop: 2, marginBottom: 2 },
   timelineAmountChip: {
-    backgroundColor: '#D1FAE5',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  timelineAmountChipText: { fontSize: 13, fontWeight: '700', color: Colors.success },
-  timelineRemaining: { fontSize: 12, color: Colors.gray500 },
-  timelineNote: { fontSize: 12, color: Colors.gray400, fontStyle: 'italic', marginTop: 2 },
+  timelineAmountChipText: { fontSize: 13, fontWeight: '700' },
+  timelineRemaining: { fontSize: 12, color: colors.gray500 },
+  timelineNote: { fontSize: 12, color: colors.gray400, fontStyle: 'italic', marginTop: 2 },
 
   addPayBtn: {
     flexDirection: 'row',
@@ -539,54 +552,54 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 8,
     marginBottom: 14,
-    shadowColor: Colors.error,
+    shadowColor: colors.error,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
-  addPayBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  addPayBtnText: { fontSize: 15, fontWeight: '700' },
   payRemaining: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
   payInput: {
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: colors.gray200,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: Colors.black,
+    color: colors.black,
     marginBottom: 14,
   },
   payActions: { flexDirection: 'row', gap: 10 },
   payCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: colors.gray200,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  payCancelText: { fontSize: 14, fontWeight: '600', color: Colors.gray500 },
+  payCancelText: { fontSize: 14, fontWeight: '600', color: colors.gray500 },
   payConfirm: {
     flex: 2,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  payConfirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  payConfirmText: { fontSize: 14, fontWeight: '700' },
 
   settledBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#D1FAE5',
     borderRadius: 12,
     paddingVertical: 14,
     marginBottom: 14,
   },
-  settledText: { fontSize: 14, fontWeight: '600', color: Colors.success },
+  settledText: { fontSize: 14, fontWeight: '600' },
 
-  notFound: { fontSize: 16, color: Colors.gray500, marginBottom: 12 },
+  notFound: { fontSize: 16, color: colors.gray500, marginBottom: 12 },
   notFoundBack: { fontSize: 14, fontWeight: '600' },
-});
+  });
+}
