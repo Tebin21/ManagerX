@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef, type ComponentProps } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef, type ComponentProps } from 'react';
 import {
   View, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, RefreshControl, TextInput,
@@ -18,8 +18,9 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { DonutRing } from '@/components/reports/DonutRing';
 import { useReportStore } from '@/store/reportStore';
-import { Colors } from '@/constants/colors';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import type { DateRangeKey } from '@/types/reports';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
@@ -52,6 +53,7 @@ function SectionHeader({
   const router = useRouter();
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const secStyles = useMemo(() => getSecStyles(colors), [colors]);
   return (
     <View style={[secStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <View style={[secStyles.left, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -72,14 +74,16 @@ function SectionHeader({
   );
 }
 
-const secStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 22, marginBottom: 8 },
-  left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  iconWrap: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 15, fontWeight: '800', color: Colors.black },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  actionText: { fontSize: 13, fontWeight: '600' },
-});
+function getSecStyles(colors: AppColors) {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 22, marginBottom: 8 },
+    left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+    iconWrap: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+    title: { fontSize: 15, fontWeight: '800', color: colors.black },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    actionText: { fontSize: 13, fontWeight: '600' },
+  });
+}
 
 // ─── Big Metric Row (icon + label + large value) ──────────────────────────────
 
@@ -91,6 +95,7 @@ function BigMetricRow({
 }) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const bmStyles = useMemo(() => getBmStyles(colors), [colors]);
   const resolvedColor = color ?? colors.primary;
   return (
     <View style={[bmStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -116,18 +121,22 @@ function BigMetricRow({
   );
 }
 
-const bmStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  info: { flex: 1 },
-  label: { fontSize: 13, fontWeight: '600', color: Colors.black },
-  sub: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
-  value: { fontSize: 15, fontWeight: '800', maxWidth: '52%' },
-});
+function getBmStyles(colors: AppColors) {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+    iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    info: { flex: 1 },
+    label: { fontSize: 13, fontWeight: '600', color: colors.black },
+    sub: { fontSize: 11, color: colors.gray400, marginTop: 1 },
+    value: { fontSize: 15, fontWeight: '800', maxWidth: '52%' },
+  });
+}
 
 // ─── Stat Chip Row ─────────────────────────────────────────────────────────────
 
 function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: string; color?: string }[] }) {
+  const { colors } = useAppTheme();
+  const scStyles = useMemo(() => getScStyles(colors), [colors]);
   return (
     <View style={scStyles.row}>
       {chips.map((c, i) => (
@@ -135,7 +144,7 @@ function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: strin
           key={i}
           style={[
             scStyles.chip,
-            i > 0 && { borderStartWidth: 1, borderStartColor: Colors.gray100 },
+            i > 0 && { borderStartWidth: 1, borderStartColor: colors.gray100 },
           ]}
         >
           {typeof c.value === 'string' || typeof c.value === 'number' ? (
@@ -148,18 +157,21 @@ function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: strin
   );
 }
 
-const scStyles = StyleSheet.create({
-  row: { flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: Colors.gray100, paddingTop: 12 },
-  chip: { flex: 1, alignItems: 'center' },
-  value: { fontSize: 16, fontWeight: '800', color: Colors.black, marginBottom: 2 },
-  ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
-  label: { fontSize: 10, color: Colors.gray400, textAlign: 'center' },
-});
+function getScStyles(colors: AppColors) {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: colors.gray100, paddingTop: 12 },
+    chip: { flex: 1, alignItems: 'center' },
+    value: { fontSize: 16, fontWeight: '800', color: colors.black, marginBottom: 2 },
+    ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
+    label: { fontSize: 10, color: colors.gray400, textAlign: 'center' },
+  });
+}
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
 function ProgressBar({ value, total, color }: { value: number; total: number; color?: string }) {
   const { colors } = useAppTheme();
+  const pbStyles = useMemo(() => getPbStyles(colors), [colors]);
   const resolvedColor = color ?? colors.primary;
   const pct = total > 0 ? Math.min(1, value / total) : 0;
   return (
@@ -169,16 +181,20 @@ function ProgressBar({ value, total, color }: { value: number; total: number; co
   );
 }
 
-const pbStyles = StyleSheet.create({
-  track: { height: 6, backgroundColor: Colors.gray100, borderRadius: 3, overflow: 'hidden', marginVertical: 4 },
-  fill: { height: '100%', borderRadius: 3 },
-});
+function getPbStyles(colors: AppColors) {
+  return StyleSheet.create({
+    track: { height: 6, backgroundColor: colors.gray100, borderRadius: 3, overflow: 'hidden', marginVertical: 4 },
+    fill: { height: '100%', borderRadius: 3 },
+  });
+}
 
 // ─── Rank Badge ───────────────────────────────────────────────────────────────
 
 function RankBadge({ rank }: { rank: number }) {
+  const { colors } = useAppTheme();
+  // Medal colors are decorative (gold/silver/bronze) and stay the same in both themes.
   const badgeColors = ['#F59E0B', '#9CA3AF', '#D97706'];
-  const bg = badgeColors[rank - 1] ?? Colors.gray200;
+  const bg = badgeColors[rank - 1] ?? colors.gray200;
   return (
     <View style={[rkStyles.badge, { backgroundColor: bg }]}>
       <Text style={rkStyles.text}>#{rank}</Text>
@@ -203,6 +219,7 @@ function FilterPeriodSheet({
 }) {
   const { colors } = useAppTheme();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]     = useState('');
 
@@ -238,20 +255,28 @@ function FilterPeriodSheet({
 
       {current === 'custom' && (
         <View style={fpStyles.customBox}>
-          <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
+          <Text style={[fpStyles.dateLabel, { color: colors.gray600 }]}>{i18n.t('reports.fromDate')} (YYYY-MM-DD)</Text>
           <TextInput
-            style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+            style={[
+              fpStyles.dateInput,
+              { color: colors.black, borderColor: colors.gray200 },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customFrom }), {}),
+            ]}
             placeholder="2026-01-01"
-            placeholderTextColor={Colors.gray400}
+            placeholderTextColor={colors.gray400}
             value={customFrom}
             onChangeText={setCustomFrom}
             onFocus={scrollIntoView}
           />
-          <Text style={[fpStyles.dateLabel, { color: Colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
+          <Text style={[fpStyles.dateLabel, { color: colors.gray600 }]}>{i18n.t('reports.toDate')} (YYYY-MM-DD)</Text>
           <TextInput
-            style={[fpStyles.dateInput, { color: Colors.black, borderColor: Colors.gray200 }]}
+            style={[
+              fpStyles.dateInput,
+              { color: colors.black, borderColor: colors.gray200 },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customTo }), {}),
+            ]}
             placeholder="2026-12-31"
-            placeholderTextColor={Colors.gray400}
+            placeholderTextColor={colors.gray400}
             value={customTo}
             onChangeText={setCustomTo}
             onFocus={scrollIntoView}
@@ -297,8 +322,10 @@ function FinancialCard({
   icon: ComponentProps<typeof Ionicons>['name'];
   color: string;
 }) {
+  const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const fcStyles = useMemo(() => getFcStyles(colors), [colors]);
   return (
     <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
       <View style={[fcStyles.iconBox, { backgroundColor: `${color}1A`, alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
@@ -321,42 +348,44 @@ function FinancialCard({
   );
 }
 
-const fcStyles = StyleSheet.create({
-  card: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
-  },
-  iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.gray500,
-    marginBottom: 4,
-  },
-  value: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  // English-only line-height bump (see usage) so the 20px digits aren't
-  // cropped by the 18px line-height inherited from AmountText's preset.
-  valueLtrLineHeight: {
-    lineHeight: 26,
-  },
-  currency: {
-    fontSize: 11,
-    color: Colors.gray400,
-    fontWeight: '600',
-  },
-});
+function getFcStyles(colors: AppColors) {
+  return StyleSheet.create({
+    card: {
+      flex: 1,
+      borderRadius: 16,
+      padding: 14,
+    },
+    iconBox: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    label: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.gray500,
+      marginBottom: 4,
+    },
+    value: {
+      fontSize: 20,
+      fontWeight: '800',
+      marginBottom: 2,
+    },
+    // English-only line-height bump (see usage) so the 20px digits aren't
+    // cropped by the 18px line-height inherited from AmountText's preset.
+    valueLtrLineHeight: {
+      lineHeight: 26,
+    },
+    currency: {
+      fontSize: 11,
+      color: colors.gray400,
+      fontWeight: '600',
+    },
+  });
+}
 
 function FinancialSummaryGrid({
   totalSales, netProfit, totalLoss, remainingDebt,
@@ -387,7 +416,7 @@ function FinancialSummaryGrid({
           label={t('reports.netProfit')}
           amount={netProfit}
           icon="cash"
-          color={Colors.success}
+          color={colors.success}
         />
       </View>
       <View style={fsgStyles.row}>
@@ -395,13 +424,13 @@ function FinancialSummaryGrid({
           label={t('reports.totalLoss')}
           amount={totalLoss}
           icon="trending-down"
-          color={Colors.error}
+          color={colors.error}
         />
         <FinancialCard
           label={t('reports.remainingDebt')}
           amount={remainingDebt}
           icon="time"
-          color={Colors.warning}
+          color={colors.warning}
         />
       </View>
     </MotiView>
@@ -443,12 +472,15 @@ function buildExportDateRange(
 function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   type ExportPeriod = 'today' | 'week' | 'month' | 'year' | 'custom';
+  const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [period, setPeriod]       = useState<ExportPeriod>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo]   = useState('');
   const [loading, setLoading]     = useState(false);
+  const ermStyles = useMemo(() => getErmStyles(colors), [colors]);
 
   const options: { key: ExportPeriod; label: string; desc: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
     { key: 'today',  label: t('reports.dailyReport'),   desc: t('reports.dailyReportDesc'),   icon: 'today-outline' },
@@ -525,9 +557,12 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
         <View style={ermStyles.customDates}>
           <Text style={ermStyles.dateLabel}>{t('reports.fromDate')} (YYYY-MM-DD)</Text>
           <TextInput
-            style={ermStyles.dateInput}
+            style={[
+              ermStyles.dateInput,
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customFrom }), {}),
+            ]}
             placeholder="2026-01-01"
-            placeholderTextColor={Colors.gray400}
+            placeholderTextColor={colors.gray400}
             value={customFrom}
             onChangeText={setCustomFrom}
             onFocus={scrollIntoView}
@@ -535,9 +570,12 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
           />
           <Text style={ermStyles.dateLabel}>{t('reports.toDate')} (YYYY-MM-DD)</Text>
           <TextInput
-            style={ermStyles.dateInput}
+            style={[
+              ermStyles.dateInput,
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customTo }), {}),
+            ]}
             placeholder="2026-12-31"
-            placeholderTextColor={Colors.gray400}
+            placeholderTextColor={colors.gray400}
             value={customTo}
             onChangeText={setCustomTo}
             onFocus={scrollIntoView}
@@ -569,33 +607,37 @@ function ExportReportModal({ visible, onClose }: { visible: boolean; onClose: ()
   );
 }
 
-const ermStyles = StyleSheet.create({
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: Colors.gray500,
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
-  },
-  customDates: { marginTop: 4, marginBottom: 4 },
-  dateLabel: { fontSize: 12, fontWeight: '600', color: Colors.gray600, marginBottom: 6, marginTop: 10 },
-  dateInput: {
-    borderWidth: 1, borderColor: Colors.gray200, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.black,
-  },
-  generateBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#111111', borderRadius: 14,
-    paddingVertical: 14, marginTop: 16,
-  },
-  generateBtnLoading: { backgroundColor: Colors.gray400 },
-  generateText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  hint: { fontSize: 11, color: Colors.gray400, textAlign: 'center', marginTop: 10 },
-});
+function getErmStyles(colors: AppColors) {
+  return StyleSheet.create({
+    sectionLabel: {
+      fontSize: 11, fontWeight: '700', color: colors.gray500,
+      textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
+    },
+    customDates: { marginTop: 4, marginBottom: 4 },
+    dateLabel: { fontSize: 12, fontWeight: '600', color: colors.gray600, marginBottom: 6, marginTop: 10 },
+    dateInput: {
+      borderWidth: 1, borderColor: colors.gray200, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.black,
+    },
+    // Deliberately theme-invariant "always dark, always light text" export CTA —
+    // inverting via colors.black/colors.white would flip it light in dark mode.
+    generateBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: 8, backgroundColor: '#111111', borderRadius: 14,
+      paddingVertical: 14, marginTop: 16,
+    },
+    generateBtnLoading: { backgroundColor: colors.gray400 },
+    generateText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+    hint: { fontSize: 11, color: colors.gray400, textAlign: 'center', marginTop: 10 },
+  });
+}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ReportsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const {
     dateRange, isLoading, financialCards,
@@ -608,6 +650,11 @@ export default function ReportsScreen() {
   const [isExporting, setIsExporting]         = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const scStyles = useMemo(() => getScStyles(colors), [colors]);
+  const discountTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
+  const overdueTint  = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
   // Only auto-reset to "today" the first time this screen is focused in a
   // session — once the user explicitly picks a range via the filter sheet,
@@ -731,7 +778,7 @@ export default function ReportsScreen() {
                 label={t('reports.expectedProfitDesc')}
                 amount={potProfit}
                 icon="bulb"
-                color={potProfit >= 0 ? Colors.warning : Colors.error}
+                color={potProfit >= 0 ? colors.warning : colors.error}
               />
             </PremiumCard>
           </MotiView>
@@ -750,7 +797,7 @@ export default function ReportsScreen() {
                 label={`💵 ${t('sales.cash')}`}
                 amount={salesData?.cashRevenue ?? 0}
                 icon="cash"
-                color={Colors.success}
+                color={colors.success}
                 sub={`${salesData?.cashCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
@@ -764,7 +811,7 @@ export default function ReportsScreen() {
                 label={`📋 ${t('common.debt')}`}
                 amount={salesData?.debtRevenue ?? 0}
                 icon="document-text"
-                color={Colors.warning}
+                color={colors.warning}
                 sub={`${salesData?.debtCount ?? 0} ${t('reports.salesCount')}`}
               />
               <StatChipsRow chips={[
@@ -777,9 +824,9 @@ export default function ReportsScreen() {
                 <View style={{ marginTop: 14 }}>
                   <DonutRing
                     segments={[
-                      { label: t('sales.cash'),  value: salesData?.cashRevenue ?? 0, color: Colors.success },
+                      { label: t('sales.cash'),  value: salesData?.cashRevenue ?? 0, color: colors.success },
                       { label: t('sales.fib'),   value: salesData?.fibRevenue  ?? 0, color: colors.primary },
-                      { label: t('common.debt'), value: salesData?.debtRevenue ?? 0, color: Colors.warning },
+                      { label: t('common.debt'), value: salesData?.debtRevenue ?? 0, color: colors.warning },
                     ]}
                     size={100}
                     strokeWidth={14}
@@ -790,11 +837,11 @@ export default function ReportsScreen() {
               )}
 
               {(salesData?.totalDiscounts ?? 0) > 0 && (
-                <View style={[styles.discountChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Ionicons name="pricetag" size={12} color="#D97706" />
+                <View style={[styles.discountChip, { backgroundColor: discountTint.bg, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="pricetag" size={12} color={discountTint.text} />
                   <View style={[styles.discountInner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={styles.discountText}>{t('reports.discountsGiven')}:</Text>
-                    <CompactAmount value={salesData?.totalDiscounts ?? 0} style={styles.discountText} />
+                    <Text style={[styles.discountText, { color: discountTint.text }]}>{t('reports.discountsGiven')}:</Text>
+                    <CompactAmount value={salesData?.totalDiscounts ?? 0} style={[styles.discountText, { color: discountTint.text }]} />
                   </View>
                 </View>
               )}
@@ -809,20 +856,20 @@ export default function ReportsScreen() {
                 label={t('reports.totalCost')}
                 amount={purchaseData?.totalCost ?? 0}
                 icon="cart"
-                color={Colors.gray600}
+                color={colors.gray600}
               />
               <BigMetricRow
                 label={t('common.paid')}
                 amount={purchaseData?.paidCost ?? 0}
                 icon="checkmark-circle"
-                color={Colors.success}
+                color={colors.success}
                 sub={`${purchaseData?.paidCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={t('common.debt')}
                 amount={purchaseData?.debtCost ?? 0}
                 icon="time"
-                color={(purchaseData?.debtCost ?? 0) > 0 ? Colors.warning : Colors.success}
+                color={(purchaseData?.debtCost ?? 0) > 0 ? colors.warning : colors.success}
                 sub={`${purchaseData?.debtCount ?? 0} ${t('reports.salesCount')}`}
               />
               <StatChipsRow chips={[
@@ -832,7 +879,7 @@ export default function ReportsScreen() {
               ]} />
               {purchaseData?.topSupplier && (
                 <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Ionicons name="star" size={12} color={Colors.warning} />
+                  <Ionicons name="star" size={12} color={colors.warning} />
                   <Text style={[styles.topText, { textAlign }]}>
                     {t('reports.topSupplierLabel')}: {purchaseData.topSupplier} (<CompactAmount value={purchaseData.topSupplierCost} style={styles.topText} />)
                   </Text>
@@ -861,7 +908,7 @@ export default function ReportsScreen() {
                     label={t('reports.totalExpenses')}
                     amount={totalExp}
                     icon="wallet"
-                    color={Colors.error}
+                    color={colors.error}
                   />
                   {(plData?.expenseBreakdown ?? []).map((e) => (
                     <View key={e.category} style={{ marginTop: 10 }}>
@@ -869,7 +916,7 @@ export default function ReportsScreen() {
                         <Text style={[styles.catLabel, { textAlign }]}>{tCat(e.category)}</Text>
                         <CompactAmount value={e.total} style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]} />
                       </View>
-                      <ProgressBar value={e.total} total={totalExp} color={Colors.error} />
+                      <ProgressBar value={e.total} total={totalExp} color={colors.error} />
                     </View>
                   ))}
                 </>
@@ -885,14 +932,14 @@ export default function ReportsScreen() {
                 label={t('reports.customerDebt')}
                 amount={custDebt}
                 icon="person"
-                color={custDebt > 0 ? Colors.warning : Colors.success}
+                color={custDebt > 0 ? colors.warning : colors.success}
                 sub={`${debtData?.activeSalesCount ?? 0} ${t('reports.salesCount')}`}
               />
               <BigMetricRow
                 label={t('reports.supplierDebt')}
                 amount={suppDebt}
                 icon="business"
-                color={suppDebt > 0 ? Colors.error : Colors.success}
+                color={suppDebt > 0 ? colors.error : colors.success}
                 sub={`${debtData?.activePurchaseCount ?? 0} ${t('reports.salesCount')}`}
               />
               <View style={styles.dividerLine} />
@@ -900,13 +947,13 @@ export default function ReportsScreen() {
                 <Text style={[styles.debtTotalLabel, { textAlign }]}>{t('reports.combinedDebt')}</Text>
                 <CompactAmount
                   value={combinedDebt}
-                  style={[styles.debtTotalValue, { color: combinedDebt > 0 ? Colors.error : Colors.success, textAlign: isRTL ? 'left' : 'right' }]}
+                  style={[styles.debtTotalValue, { color: combinedDebt > 0 ? colors.error : colors.success, textAlign: isRTL ? 'left' : 'right' }]}
                 />
               </View>
               {(debtData?.overdueCount ?? 0) > 0 && (
-                <View style={[styles.overdueChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Ionicons name="time" size={13} color={Colors.error} />
-                  <Text style={[styles.overdueText, { textAlign }]}>
+                <View style={[styles.overdueChip, { backgroundColor: overdueTint.bg, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="time" size={13} color={overdueTint.text} />
+                  <Text style={[styles.overdueText, { color: overdueTint.text, textAlign }]}>
                     {t('reports.alertOverdueTitle', { count: debtData?.overdueCount })}
                   </Text>
                 </View>
@@ -917,7 +964,7 @@ export default function ReportsScreen() {
                     <Text style={[styles.catLabel, { textAlign }]}>{t('reports.grossMargin')} (Collection Rate)</Text>
                     <Text style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]}>{(debtData?.collectionRate ?? 0).toFixed(0)}%</Text>
                   </View>
-                  <ProgressBar value={debtData?.salesDebtCollected ?? 0} total={debtData?.salesDebtOriginal ?? 1} color={Colors.success} />
+                  <ProgressBar value={debtData?.salesDebtCollected ?? 0} total={debtData?.salesDebtOriginal ?? 1} color={colors.success} />
                 </View>
               )}
             </PremiumCard>
@@ -938,13 +985,13 @@ export default function ReportsScreen() {
                 label={t('reports.potentialProfit')}
                 amount={potProfit}
                 icon="cash"
-                color={potProfit >= 0 ? Colors.success : Colors.error}
+                color={potProfit >= 0 ? colors.success : colors.error}
               />
               <BigMetricRow
                 label={t('reports.stockCostValue')}
                 amount={inventoryData?.stockValueCost ?? 0}
                 icon="cart"
-                color={Colors.gray600}
+                color={colors.gray600}
               />
               <StatChipsRow chips={[
                 { value: String(inventoryData?.activeProducts ?? 0), label: t('inventory.products') },
@@ -952,7 +999,7 @@ export default function ReportsScreen() {
                 {
                   value: String(inventoryData?.lowStockCount ?? 0),
                   label: t('inventory.lowStock'),
-                  color: (inventoryData?.lowStockCount ?? 0) > 0 ? Colors.warning : undefined,
+                  color: (inventoryData?.lowStockCount ?? 0) > 0 ? colors.warning : undefined,
                 },
               ]} />
               {(inventoryData?.categoryCounts ?? []).slice(0, 4).map((cat) => (
@@ -976,7 +1023,7 @@ export default function ReportsScreen() {
                 label={t('reports.netProfit')}
                 amount={netProfit}
                 icon="cash"
-                color={netProfit >= 0 ? Colors.success : Colors.error}
+                color={netProfit >= 0 ? colors.success : colors.error}
               />
             </PremiumCard>
           </MotiView>
@@ -999,7 +1046,7 @@ export default function ReportsScreen() {
                     </View>
                     <CompactAmount
                       value={p.grossProfit}
-                      style={[styles.rankValue, { color: p.grossProfit >= 0 ? Colors.success : Colors.error, textAlign: isRTL ? 'left' : 'right' }]}
+                      style={[styles.rankValue, { color: p.grossProfit >= 0 ? colors.success : colors.error, textAlign: isRTL ? 'left' : 'right' }]}
                     />
                   </View>
                 ))
@@ -1031,7 +1078,9 @@ export default function ReportsScreen() {
 function TopCustomersSection() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [customers, setCustomers] = useState<{
     name: string; phone: string | null; totalPurchases: number; saleCount: number;
   }[]>([]);
@@ -1072,7 +1121,9 @@ function TopCustomersSection() {
 function TopSuppliersSection() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [suppliers, setSuppliers] = useState<{
     name: string; phone: string | null; totalSpent: number; purchaseCount: number;
   }[]>([]);
@@ -1101,7 +1152,7 @@ function TopSuppliersSection() {
               {t('reports.purchaseCount', { count: s.purchaseCount })}{s.phone ? ` · ${s.phone}` : ''}
             </Text>
           </View>
-          <CompactAmount value={s.totalSpent} style={[styles.rankValue, { color: Colors.warning, textAlign: isRTL ? 'left' : 'right' }]} />
+          <CompactAmount value={s.totalSpent} style={[styles.rankValue, { color: colors.warning, textAlign: isRTL ? 'left' : 'right' }]} />
         </TouchableOpacity>
       ))}
     </>
@@ -1110,60 +1161,62 @@ function TopSuppliersSection() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1 },
 
-  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText: { fontSize: 14, color: Colors.gray400 },
+    loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+    loadingText: { fontSize: 14, color: colors.gray400 },
 
-  scrollBody: { paddingBottom: 20 },
-  card: { marginHorizontal: 16, marginBottom: 4 },
-  cashBalanceCard: { marginHorizontal: 16, marginBottom: 4, marginTop: 20 },
+    scrollBody: { paddingBottom: 20 },
+    card: { marginHorizontal: 16, marginBottom: 4 },
+    cashBalanceCard: { marginHorizontal: 16, marginBottom: 4, marginTop: 20 },
 
-  // ── Discount chip ──────────────────────────────────────────────────────────
-  discountChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12,
-    backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-  },
-  discountInner: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
-  discountText: { fontSize: 12, color: '#92400E', fontWeight: '600' },
+    // ── Discount chip ──────────────────────────────────────────────────────────
+    discountChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12,
+      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    },
+    discountInner: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
+    discountText: { fontSize: 12, fontWeight: '600' },
 
-  // ── Top supplier highlight ─────────────────────────────────────────────────
-  topRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10,
-    paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.gray100,
-  },
-  topText: { fontSize: 12, color: Colors.gray500, fontWeight: '600', flex: 1 },
+    // ── Top supplier highlight ─────────────────────────────────────────────────
+    topRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10,
+      paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.gray100,
+    },
+    topText: { fontSize: 12, color: colors.gray500, fontWeight: '600', flex: 1 },
 
-  // ── Debt overview ──────────────────────────────────────────────────────────
-  dividerLine: { height: 1, backgroundColor: Colors.gray100, marginVertical: 10 },
-  debtTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  debtTotalLabel: { fontSize: 14, fontWeight: '700', color: Colors.black },
-  debtTotalValue: { fontSize: 15, fontWeight: '800' },
-  overdueChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
-    backgroundColor: '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-  },
-  overdueText: { fontSize: 12, color: Colors.error, fontWeight: '600' },
+    // ── Debt overview ──────────────────────────────────────────────────────────
+    dividerLine: { height: 1, backgroundColor: colors.gray100, marginVertical: 10 },
+    debtTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+    debtTotalLabel: { fontSize: 14, fontWeight: '700', color: colors.black },
+    debtTotalValue: { fontSize: 15, fontWeight: '800' },
+    overdueChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
+      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    },
+    overdueText: { fontSize: 12, fontWeight: '600' },
 
-  // ── Category progress ──────────────────────────────────────────────────────
-  catHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  catLabel: { fontSize: 12, color: Colors.gray500 },
-  catValue: { fontSize: 12, fontWeight: '700', color: Colors.black },
+    // ── Category progress ──────────────────────────────────────────────────────
+    catHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    catLabel: { fontSize: 12, color: colors.gray500 },
+    catValue: { fontSize: 12, fontWeight: '700', color: colors.black },
 
-  // ── Rank rows ──────────────────────────────────────────────────────────────
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.gray100 },
-  rankInfo: { flex: 1 },
-  rankName: { fontSize: 14, fontWeight: '600', color: Colors.black },
-  rankSub: { fontSize: 11, color: Colors.gray400, marginTop: 1 },
-  rankValue: { fontSize: 14, fontWeight: '800', color: Colors.success, maxWidth: '45%' },
+    // ── Rank rows ──────────────────────────────────────────────────────────────
+    rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+    rankInfo: { flex: 1 },
+    rankName: { fontSize: 14, fontWeight: '600', color: colors.black },
+    rankSub: { fontSize: 11, color: colors.gray400, marginTop: 1 },
+    rankValue: { fontSize: 14, fontWeight: '800', color: colors.success, maxWidth: '45%' },
 
-  emptyCard: { fontSize: 13, color: Colors.gray400, textAlign: 'center', paddingVertical: 12 },
-  subSectionTitle: { fontSize: 12, fontWeight: '700', color: Colors.gray500, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
-  subSectionDivider: { height: 1, backgroundColor: Colors.gray100, marginVertical: 14 },
+    emptyCard: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 12 },
+    subSectionTitle: { fontSize: 12, fontWeight: '700', color: colors.gray500, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
+    subSectionDivider: { height: 1, backgroundColor: colors.gray100, marginVertical: 14 },
 
-  // ── Expenses add CTA ───────────────────────────────────────────────────────
-  addExpenseCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  addExpenseText: { fontSize: 14, fontWeight: '600' },
+    // ── Expenses add CTA ───────────────────────────────────────────────────────
+    addExpenseCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+    addExpenseText: { fontSize: 14, fontWeight: '600' },
 
-});
+  });
+}

@@ -71,7 +71,7 @@ export function PrimaryButton({
             style={[
               styles.label,
               isOutline && [styles.outlineLabel, { color: colors.primary }],
-              isGhost   && styles.ghostLabel,
+              isGhost   && [styles.ghostLabel, { color: colors.gray500 }],
               labelStyle,
             ]}
           >
@@ -108,7 +108,6 @@ const styles = StyleSheet.create({
   },
   outlineLabel: {},
   ghostLabel: {
-    color:    '#64748B',
     fontSize: 14,
   },
 });

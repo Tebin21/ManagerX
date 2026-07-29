@@ -21,8 +21,18 @@ export function LogoUploader({ uri, onSelect }: Props) {
     // components/ui/ProductImagePicker.tsx), which would crash app startup instead of
     // just this action if the native module isn't linked in a given build.
     try {
-      const { launchImageLibraryAsync } = await import('expo-image-picker');
-      const result = await launchImageLibraryAsync({
+      const ImagePicker = await import('expo-image-picker');
+
+      // allowsEditing:true below routes iOS to the legacy UIImagePickerController
+      // (not the permission-less PHPickerViewController), which has no built-in
+      // authorization check — the request below is required, not optional.
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('inventory.galleryPermDenied'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],

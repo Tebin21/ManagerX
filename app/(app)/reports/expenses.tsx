@@ -17,8 +17,8 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useReportStore } from '@/store/reportStore';
-import { Colors } from '@/constants/colors';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint, getBlueTint } from '@/constants/statusTints';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
@@ -28,6 +28,8 @@ import { toDateOnly } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,12 +39,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   Utilities: '💡',
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Transport: '#DBEAFE',
-  Food:      '#DCFCE7',
-  Utilities: '#FEF9C3',
-  Other:     '#F1F5F9',
-};
+function getCategoryTint(category: string, colors: AppColors, isDark: boolean): string {
+  switch (category) {
+    case 'Transport': return getBlueTint(isDark).bg;
+    case 'Food':       return getStatusTint('success', colors, isDark).bg;
+    case 'Utilities':  return getStatusTint('warning', colors, isDark).bg;
+    default:           return colors.gray100;
+  }
+}
 
 // Quick-fill example reasons (Kurdish). Tapping one pre-fills the reason field.
 const EXPENSE_EXAMPLES: { text: string; category: string }[] = [
@@ -135,7 +139,7 @@ function ExpenseFilterBar({
                 key={key}
                 style={[
                   efbStyles.pill,
-                  { backgroundColor: active ? Colors.error : colors.gray100, borderColor: active ? Colors.error : colors.gray200 },
+                  { backgroundColor: active ? colors.error : colors.gray100, borderColor: active ? colors.error : colors.gray200 },
                 ]}
                 onPress={() => {
                   if (key === 'custom') { setFromVal(''); setToVal(''); setCustomOpen(true); }
@@ -168,7 +172,7 @@ function ExpenseFilterBar({
             <TextInput
               style={[efbStyles.dateInput, { borderColor: colors.gray200, color: colors.black }]}
               placeholder="2026-01-01"
-              placeholderTextColor={Colors.gray400}
+              placeholderTextColor={colors.gray400}
               value={fromVal}
               onChangeText={setFromVal}
               onFocus={scrollIntoView}
@@ -179,7 +183,7 @@ function ExpenseFilterBar({
             <TextInput
               style={[efbStyles.dateInput, { borderColor: colors.gray200, color: colors.black }]}
               placeholder="2026-12-31"
-              placeholderTextColor={Colors.gray400}
+              placeholderTextColor={colors.gray400}
               value={toVal}
               onChangeText={setToVal}
               onFocus={scrollIntoView}
@@ -192,7 +196,7 @@ function ExpenseFilterBar({
                 <Text style={[efbStyles.cancelText, { color: colors.gray500 }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[efbStyles.applyBtn, { backgroundColor: Colors.error }]}
+                style={[efbStyles.applyBtn, { backgroundColor: colors.error }]}
                 onPress={() => {
                   if (!fromVal || !toVal) {
                     Alert.alert(t('common.required'), t('purchases.validationDate'));
@@ -250,6 +254,7 @@ function ExpenseFormModal({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [amount, setAmount]           = useState(() => initial ? String(initial.amount) : '');
   const [rounded, setRounded]         = useState<number | null>(() => initial ? initial.amount : null);
@@ -391,6 +396,7 @@ function ExpenseFormModal({
                 style={[
                   styles.reasonInput,
                   { borderColor: errors.reason ? colors.error : colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: reason }), {}),
                 ]}
                 placeholder={t('reports.expenseReasonPlaceholder')}
                 placeholderTextColor={colors.gray400}
@@ -448,6 +454,7 @@ function ExpenseFormModal({
                 style={[
                   styles.reasonInput,
                   { borderColor: colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: note }), {}),
                 ]}
                 placeholder={t('reports.notePlaceholder')}
                 placeholderTextColor={colors.gray400}
@@ -492,10 +499,12 @@ function ExpenseCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
 
-  const iconBg = CATEGORY_COLORS[expense.category] ?? '#F1F5F9';
+  const iconBg = useMemo(() => getCategoryTint(expense.category, colors, isDark), [expense.category, colors, isDark]);
+  const editTint = useMemo(() => getBlueTint(isDark), [isDark]);
+  const deleteTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
   return (
     <MotiView
@@ -519,7 +528,7 @@ function ExpenseCard({
               </Text>
             ) : null}
           </View>
-          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: Colors.error }]} />
+          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: colors.error }]} />
         </View>
 
         {/* Bottom row: date/time + action buttons */}
@@ -530,18 +539,18 @@ function ExpenseCard({
           </Text>
           <View style={[styles.cardActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#EFF6FF' }]}
+              style={[styles.actionBtn, { backgroundColor: editTint.bg }]}
               onPress={onEdit}
               hitSlop={6}
             >
               <Ionicons name="create-outline" size={15} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#FEF2F2', marginStart: 6 }]}
+              style={[styles.actionBtn, { backgroundColor: deleteTint.bg, marginStart: 6 }]}
               onPress={onDelete}
               hitSlop={6}
             >
-              <Ionicons name="trash-outline" size={15} color={Colors.error} />
+              <Ionicons name="trash-outline" size={15} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -653,7 +662,7 @@ export default function ExpensesScreen() {
                   <Text style={[styles.summaryLabel, { color: colors.gray400, textAlign }]}>
                     {t('reports.totalExpenses')}
                   </Text>
-                  <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { textAlign }]} />
+                  <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { color: colors.error, textAlign }]} />
 
                   <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
                   <View style={[styles.summaryCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -682,8 +691,8 @@ export default function ExpensesScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="wallet-outline" size={40} color={Colors.gray400} />
+            <View style={[styles.emptyIconWrap, { backgroundColor: colors.gray100 }]}>
+              <Ionicons name="wallet-outline" size={40} color={colors.gray400} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.gray600 }]}>
               {t('reports.noExpenses')}
@@ -723,7 +732,7 @@ const styles = StyleSheet.create({
   // Summary card
   summaryCard: { marginBottom: 16 },
   summaryLabel: { fontSize: 12, marginBottom: 4 },
-  summaryTotal: { fontSize: 26, fontWeight: '800', color: Colors.error, marginBottom: 12 },
+  summaryTotal: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
   divider: { height: 1, marginBottom: 12 },
   summaryCountRow: { alignItems: 'center', justifyContent: 'space-between' },
   summaryCountLabel: { fontSize: 13 },
@@ -766,7 +775,6 @@ const styles = StyleSheet.create({
   empty: { paddingTop: 60, alignItems: 'center', gap: 8 },
   emptyIconWrap: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.gray100,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },

@@ -33,6 +33,8 @@ import { useRTL, useDirectionalChevron, RTL_SPACING } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { isDateWithinRange } from '@/utils/dateRanges';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 
 function daysAgo(dateStr: string): number {
@@ -164,7 +166,7 @@ function SalesDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.originalAmount) })}</Text>
+          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.remainingAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -248,7 +250,7 @@ function PurchaseDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.originalAmount) })}</Text>
+          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.remainingAmount) })}</Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -362,6 +364,7 @@ export default function DebtScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const {
     summary, isLoading,
     loadAll, paySalesDebt, payPurchaseDebt,
@@ -526,7 +529,11 @@ export default function DebtScreen() {
         <View style={[styles.searchRow, { backgroundColor: colors.white, flexDirection }]}>
           <Ionicons name="search" size={16} color={colors.gray400} />
           <TextInput
-            style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+            style={[
+              styles.searchInput,
+              { color: colors.black, textAlign, writingDirection },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+            ]}
             placeholder={
               tab === 'sales'
                 ? t('debt.searchSales')
@@ -760,7 +767,7 @@ function getStyles(colors: AppColors) {
   },
   cardAvatarText: { fontSize: 15, fontWeight: '700' },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 2 },
+  cardName: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
   cardSub: { fontSize: 12, color: colors.gray400 },
   cardSub2: { fontSize: 11, color: colors.gray400, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 4 },

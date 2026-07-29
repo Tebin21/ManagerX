@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, ScrollView, StyleSheet, Text as RNText } from 'react-native';
+import { View, Image, ScrollView, StyleSheet, TextStyle } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useTranslation } from 'react-i18next';
 
@@ -7,46 +7,27 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingSection } from '@/components/settings/SettingSection';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
-import { SYSTEM_FONT_OVERRIDE } from '@/lib/settingsFont';
+import { withSystemFontLatin } from '@/lib/settingsFont';
 
 // RN's `writingDirection` style is iOS-only (no Android view manager honors
 // it), so per-paragraph RTL/LTR correctness can't rely on style props alone —
-// it has to be encoded in the text itself via real Unicode bidi controls,
-// which both platforms' native text shapers (ICU/CoreText) resolve the same
-// way. RLM is a strong, invisible RTL character: prefixing the paragraph with
-// it anchors the paragraph's bidi base direction to RTL even when the first
+// it has to be encoded in the text itself via real Unicode bidi controls.
+// RLM is a strong, invisible RTL character: prefixing the paragraph with it
+// anchors the paragraph's bidi base direction to RTL even when the first
 // visible word is a Latin term (e.g. a sentence starting with "BexDre"),
 // which is what was pushing the justified last line to align left instead of
-// right. LRI/PDI isolate each embedded Latin run (BexDre, ERP, POS, API,
-// UI/UX, ...) so it can never get reordered or have
-// its characters split by the surrounding RTL paragraph; the nested Text's
-// own font/writingDirection overrides are kept as an iOS-side belt-and-
-// suspenders and to render the run in a font that actually has Latin glyphs
-// (Rudaw doesn't). English paragraphs are returned untouched.
+// right — this is paragraph-direction handling specific to this screen's
+// justified text and stays local. Per-run Latin isolation (font selection +
+// LRI/PDI bidi isolates for embedded terms like ERP/POS/API/UI-UX) is
+// delegated to the shared `withSystemFontLatin`, the same splitter every
+// other Kurdish-mode Text in the app uses, so these terms render in Inter —
+// consistent with the rest of the app — instead of a one-off system font.
+// English paragraphs are returned untouched.
 const RLM = String.fromCharCode(0x200f); // Right-to-Left Mark — invisible, strong RTL
-const LRI = String.fromCharCode(0x2066); // Left-to-Right Isolate
-const PDI = String.fromCharCode(0x2069); // Pop Directional Isolate (closes LRI)
-const LATIN_TERM = /[A-Za-z0-9][A-Za-z0-9/]*/g;
 
-function withBidiLatinTerms(text: string, isRTL: boolean): React.ReactNode {
+function withBidiLatinTerms(text: string, isRTL: boolean, parentStyle?: TextStyle): React.ReactNode {
   if (!isRTL) return text;
-
-  const source = RLM + text;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let key = 0;
-  for (const match of source.matchAll(LATIN_TERM)) {
-    const start = match.index ?? 0;
-    if (start > lastIndex) parts.push(source.slice(lastIndex, start));
-    parts.push(
-      <RNText key={key++} style={{ fontFamily: SYSTEM_FONT_OVERRIDE, writingDirection: 'ltr' }}>
-        {LRI}{match[0]}{PDI}
-      </RNText>
-    );
-    lastIndex = start + match[0].length;
-  }
-  if (lastIndex < source.length) parts.push(source.slice(lastIndex));
-  return parts;
+  return withSystemFontLatin(RLM + text, parentStyle);
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -117,7 +98,7 @@ export default function AboutScreen() {
                   },
                 ]}
               >
-                {withBidiLatinTerms(t(`settings.aboutScreen.${key}`), isRTL)}
+                {withBidiLatinTerms(t(`settings.aboutScreen.${key}`), isRTL, styles.descBody)}
               </Text>
             ))}
           </View>

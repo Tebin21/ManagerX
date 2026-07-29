@@ -13,6 +13,8 @@ import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { fmtIQD, fmtUSD, fmtExchangeRate } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import type { CartItem, DiscountType } from '@/types/sales';
 
 interface Props {
@@ -39,6 +41,7 @@ export function CartItemRow({
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [iqdPriceText, setIqdPriceText] = useState(String(item.sellingPrice));
   const [usdPrice, setUsdPrice] = useState(
@@ -156,7 +159,7 @@ export function CartItemRow({
               <Text style={[styles.currencyCode, { color: colors.primary }]}>IQD</Text>
             </View>
             <TextInput
-              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
+              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: iqdDisplay, keyboardType: 'decimal-pad' }), {})]}
               value={iqdDisplay}
               onChangeText={onIqdChange}
               onFocus={(e) => { setIqdFocused(true); scrollIntoView(e); }}
@@ -172,7 +175,7 @@ export function CartItemRow({
               <Text style={[styles.currencyCode, { color: colors.primary }]}>USD</Text>
             </View>
             <TextInput
-              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
+              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: usdDisplay, keyboardType: 'decimal-pad' }), {})]}
               value={usdDisplay}
               onChangeText={onUsdChange}
               onFocus={(e) => { setUsdFocused(true); scrollIntoView(e); }}
@@ -216,7 +219,11 @@ export function CartItemRow({
           </View>
         </View>
         <TextInput
-          style={[styles.discountInput, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
+          style={[
+            styles.discountInput,
+            { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
+            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: discountText, keyboardType: 'decimal-pad' }), {}),
+          ]}
           value={discountText}
           onChangeText={onDiscountChange}
           onFocus={scrollIntoView}

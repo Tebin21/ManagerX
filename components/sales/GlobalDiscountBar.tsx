@@ -9,6 +9,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import type { GlobalDiscountType } from '@/types/sales';
 
 interface Props {
@@ -31,6 +33,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [inputText, setInputText] = React.useState('');
 
@@ -74,7 +77,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
       {type !== 'none' && (
         <View style={styles.inputSection}>
           <TextInput
-            style={[styles.input, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
+            style={[styles.input, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: inputText, keyboardType: 'decimal-pad' }), {})]}
             value={inputText}
             onChangeText={handleValueChange}
             keyboardType="decimal-pad"

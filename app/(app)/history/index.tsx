@@ -30,6 +30,8 @@ import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { isDateWithinRange } from '@/utils/dateRanges';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 type Tab = 'customers' | 'suppliers';
 
@@ -40,22 +42,22 @@ function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; 
   const { t } = useTranslation();
   return (
     <TouchableOpacity
-      style={[styles.supplierCard, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
+      style={[styles.supplierCard, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
       onPress={() => onPress(supplier.id)}
       activeOpacity={0.85}
     >
-      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapLg : 12 }]}>
+      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? 0 : 12, marginStart: isRTL ? RTL_SPACING.gapXl : 0 }]}>
         <Ionicons name="business-outline" size={22} color={colors.primary} />
       </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.cardName, { color: colors.black, textAlign }]} numberOfLines={1}>{supplier.name}</Text>
+      <View style={[styles.cardBody, { gap: isRTL ? RTL_SPACING.stackGap : 0 }]}>
+        <Text style={[styles.cardName, { color: colors.black, textAlign, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>{supplier.name}</Text>
         {supplier.phone ? (
-          <View style={[styles.cardPhoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+          <View style={[styles.cardPhoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginBottom: isRTL ? 0 : 2 }]}>
             <Ionicons name="call-outline" size={12} color={colors.gray400} />
             <Text style={[styles.cardPhone, { color: colors.gray400, textAlign }]}>{supplier.phone}</Text>
           </View>
         ) : null}
-        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap' }]}>
+        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap', marginBottom: isRTL ? 0 : 2 }]}>
           <Text style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
             {supplier.purchaseCount} {t('suppliers.purchases')}
           </Text>
@@ -63,7 +65,7 @@ function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; 
           <AmountText value={supplier.totalSpent} currency="IQD" variant="small" style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]} />
         </View>
         {supplier.lastPurchaseDate ? (
-          <View style={[styles.cardDateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+          <View style={[styles.cardDateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginTop: isRTL ? 0 : 2 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
             <Text style={[styles.cardDate, { color: colors.gray400, textAlign }]}>
               {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" />
@@ -71,7 +73,7 @@ function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; 
           </View>
         ) : null}
       </View>
-      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
 }
@@ -83,6 +85,7 @@ export default function HistoryScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const { customers, isLoading: custLoading, loadCustomers, searchCustomers } = useCustomerStore();
   const { suppliers, isLoading: supLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
@@ -337,7 +340,11 @@ export default function HistoryScreen() {
           <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
             <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+              style={[
+                styles.searchInput,
+                { color: colors.black, textAlign, writingDirection },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: custQuery }), {}),
+              ]}
               value={custQuery}
               onChangeText={setCustQuery}
               placeholder={t('customers.search')}
@@ -355,7 +362,11 @@ export default function HistoryScreen() {
           <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
             <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+              style={[
+                styles.searchInput,
+                { color: colors.black, textAlign, writingDirection },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: supQuery }), {}),
+              ]}
               value={supQuery}
               onChangeText={setSupQuery}
               placeholder={t('suppliers.search')}

@@ -10,6 +10,7 @@ import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/custo
 import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary } from '@/types/debt';
 import type { SoldProductRecord } from '@/types/soldProducts';
 import type { Supplier, SupplierWithStats } from '@/types/suppliers';
+import { newUuid } from '@/lib/uuid';
 
 export const DEFAULT_CATEGORY = 'General';
 
@@ -396,9 +397,44 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Online Store — short storefront-only product description (separate from the
     // generic `description` column, which is edit-screen-only and never synced/shown).
     `ALTER TABLE products ADD COLUMN website_description TEXT`,
+    // Stable cross-device identity for merge-restore duplicate detection (see
+    // lib/backup.ts). Autoincrement `id` collides across devices; `item_id` is
+    // explicitly non-unique by design (repeatable id_mode). Nullable + partial
+    // unique index so the column can exist before backfillUuids() populates it.
+    ...UUID_TABLES.map((table) => `ALTER TABLE ${table} ADD COLUMN uuid TEXT`),
+    ...UUID_TABLES.map(
+      (table) => `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_uuid ON ${table}(uuid) WHERE uuid IS NOT NULL`
+    ),
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
+  }
+  await backfillUuids(database);
+}
+
+// Tables that need a stable `uuid` identity for merge-restore. Excludes the
+// singleton counter tables (invoice_counter, purchase_counter) — those are
+// merged by value (max-wins), not matched row-by-row (see lib/backup.ts).
+const UUID_TABLES = [
+  'businesses', 'categories', 'products', 'inventory_history',
+  'customers', 'suppliers', 'sales', 'sale_items', 'debts',
+  'purchases', 'purchase_items', 'purchase_debts', 'debt_payments',
+  'expenses', 'exchange_rates', 'purchase_audit_log',
+] as const;
+
+// One-time-per-row backfill: any row inserted before the uuid column existed
+// (or by a version of the app that predates it) gets a generated uuid. Cheap
+// no-op on subsequent app starts once every row has one, since the WHERE
+// clause returns nothing left to do.
+async function backfillUuids(database: SQLite.SQLiteDatabase): Promise<void> {
+  const { newUuid } = await import('@/lib/uuid');
+  for (const table of UUID_TABLES) {
+    const rows = await database.getAllAsync<{ id: number }>(
+      `SELECT id FROM ${table} WHERE uuid IS NULL`
+    );
+    for (const row of rows) {
+      await database.runAsync(`UPDATE ${table} SET uuid = ? WHERE id = ?`, [await newUuid(), row.id]);
+    }
   }
 }
 
@@ -548,8 +584,8 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
 export async function addManagedCategory(name: string): Promise<void> {
   const database = await getDatabase();
   const result = await database.runAsync(
-    'INSERT OR IGNORE INTO categories (name) VALUES (?)',
-    [name.trim()]
+    'INSERT OR IGNORE INTO categories (name, uuid) VALUES (?, ?)',
+    [name.trim(), await newUuid()]
   );
   if (result.changes === 0) throw new Error('CATEGORY_ALREADY_EXISTS');
 }
@@ -647,8 +683,8 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       purchase_price, selling_price, quantity, unit, description, is_active,
       purchase_id, supplier_name, supplier_phone, supplier_address, purchase_date,
       payment_status, warranty, image_uri, buy_price_usd, sell_price_usd,
-      website_description, store_visible
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      website_description, store_visible, uuid
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.name,
       data.category,
@@ -672,6 +708,7 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.sellPriceUsd,
       data.websiteDescription ?? null,
       bulkPublishEnabled ? 1 : 0,
+      await newUuid(),
     ]
   );
 
@@ -988,8 +1025,8 @@ export async function restoreProductFromHistory(historyId: number): Promise<numb
   await assertItemLimitNotExceeded(qty);
 
   const result = await database.runAsync(
-    `INSERT INTO products (name, category, item_id, purchase_price, selling_price, quantity, image_uri, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+    `INSERT INTO products (name, category, item_id, purchase_price, selling_price, quantity, image_uri, is_active, uuid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
     [
       row.product_name as string,
       row.category as string,
@@ -998,6 +1035,7 @@ export async function restoreProductFromHistory(historyId: number): Promise<numb
       row.selling_price as number,
       qty,
       (row.image_uri as string | null) ?? null,
+      await newUuid(),
     ]
   );
   await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);
@@ -1181,8 +1219,8 @@ export async function upsertCustomer(input: {
   if (byName) throw new Error('DUPLICATE_NAME');
 
   const result = await database.runAsync(
-    'INSERT INTO customers (name, phone, address) VALUES (?, ?, ?)',
-    [trimName, trimPhone || null, input.address?.trim() || null]
+    'INSERT INTO customers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
+    [trimName, trimPhone || null, input.address?.trim() || null, await newUuid()]
   );
   return result.lastInsertRowId;
 }
@@ -1389,9 +1427,9 @@ export async function addPaymentToDebt(debtId: number, amount: number, paymentDa
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at)
-       VALUES (?, 'sales', ?, ?, ?)`,
-      [debtId, clamped, newRemaining, ts]
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at, uuid)
+       VALUES (?, 'sales', ?, ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts, await newUuid()]
     );
   });
 }
@@ -1522,8 +1560,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
       await database.runAsync(
         `INSERT INTO sale_items (
           sale_id, product_id, product_name, item_id, id_mode,
-          purchase_price, selling_price, quantity, discount, line_total
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          purchase_price, selling_price, quantity, discount, line_total, uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           item.productId,
@@ -1535,6 +1573,7 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
           item.quantity,
           item.discount,
           item.lineTotal,
+          await newUuid(),
         ]
       );
 
@@ -1622,8 +1661,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
         await database.runAsync(
           `INSERT INTO debts (
             sale_id, customer_name, customer_phone,
-            original_amount, paid_amount, remaining_amount, status
-          ) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+            original_amount, paid_amount, remaining_amount, status, uuid
+          ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
           [
             saleId,
             input.customerName,
@@ -1631,6 +1670,7 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
             input.grandTotal,
             input.paidAmount,
             input.remainingDebt,
+            await newUuid(),
           ]
         );
       }
@@ -1734,8 +1774,8 @@ export async function insertSale(
         invoice_number, customer_id, customer_name, customer_phone,
         customer_address, warranty, notes, payment_method,
         subtotal, discount_total, global_discount_type, global_discount,
-        grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -1756,6 +1796,7 @@ export async function insertSale(
         saleData.exchangeRateUsed,
         saleData.date ?? new Date().toISOString(),
         saleData.date ?? new Date().toISOString(),
+        await newUuid(),
       ]
     );
 
@@ -1765,8 +1806,8 @@ export async function insertSale(
       await database.runAsync(
         `INSERT INTO sale_items (
           sale_id, product_id, product_name, item_id, id_mode,
-          purchase_price, selling_price, quantity, discount, line_total
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          purchase_price, selling_price, quantity, discount, line_total, uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           item.productId,
@@ -1778,6 +1819,7 @@ export async function insertSale(
           item.quantity,
           item.discount,
           item.lineTotal,
+          await newUuid(),
         ]
       );
 
@@ -1807,8 +1849,8 @@ export async function insertSale(
       await database.runAsync(
         `INSERT INTO debts (
           sale_id, customer_name, customer_phone,
-          original_amount, paid_amount, remaining_amount, status
-        ) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+          original_amount, paid_amount, remaining_amount, status, uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
         [
           saleId,
           saleData.customerName ?? 'Unknown',
@@ -1816,6 +1858,7 @@ export async function insertSale(
           saleData.grandTotal,
           saleData.paidAmount,
           saleData.remainingDebt,
+          await newUuid(),
         ]
       );
     }
@@ -1942,8 +1985,8 @@ export async function upsertSupplier(input: {
   if (byName) throw new Error('DUPLICATE_NAME');
 
   const result = await database.runAsync(
-    'INSERT INTO suppliers (name, phone, address) VALUES (?, ?, ?)',
-    [trimName, trimPhone, input.address?.trim() ?? null]
+    'INSERT INTO suppliers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
+    [trimName, trimPhone, input.address?.trim() ?? null, await newUuid()]
   );
   return result.lastInsertRowId;
 }
@@ -2143,8 +2186,8 @@ export async function insertPurchase(
       product_name, category, quantity,
       buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd,
       total_iqd, profit_iqd, exchange_rate, id_type, item_ids,
-      warranty, description, notes, payment_status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      warranty, description, notes, payment_status, uuid
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.purchaseNumber,
       data.date,
@@ -2167,6 +2210,7 @@ export async function insertPurchase(
       data.description ?? null,
       data.notes ?? null,
       data.paymentStatus,
+      await newUuid(),
     ]
   );
   return result.lastInsertRowId;
@@ -2258,9 +2302,9 @@ export async function archivePurchase(id: number, actor: PurchaseActor): Promise
     );
 
     await database.runAsync(
-      `INSERT INTO purchase_audit_log (purchase_id, action, changed_fields, old_values, new_values, actor_id, actor_name)
-       VALUES (?, 'archive', '[]', '{}', '{}', ?, ?)`,
-      [id, actor.id, actor.name]
+      `INSERT INTO purchase_audit_log (purchase_id, action, changed_fields, old_values, new_values, actor_id, actor_name, uuid)
+       VALUES (?, 'archive', '[]', '{}', '{}', ?, ?, ?)`,
+      [id, actor.id, actor.name, await newUuid()]
     );
   });
 }
@@ -2491,9 +2535,9 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
           const suppName = (existing.supplier_name as string | null) ?? '';
           const suppPhone = (existing.supplier_phone as string | null) ?? null;
           await database.runAsync(
-            `INSERT INTO purchase_debts (purchase_id, supplier_name, supplier_phone, original_amount, paid_amount, remaining_amount, status)
-             VALUES (?, ?, ?, ?, 0, ?, 'active')`,
-            [id, suppName, suppPhone, newTotal, newTotal]
+            `INSERT INTO purchase_debts (purchase_id, supplier_name, supplier_phone, original_amount, paid_amount, remaining_amount, status, uuid)
+             VALUES (?, ?, ?, ?, 0, ?, 'active', ?)`,
+            [id, suppName, suppPhone, newTotal, newTotal, await newUuid()]
           );
         } else {
           await database.runAsync(
@@ -2539,9 +2583,9 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
 
     if (changedFields.length > 0) {
       await database.runAsync(
-        `INSERT INTO purchase_audit_log (purchase_id, action, changed_fields, old_values, new_values, actor_id, actor_name)
-         VALUES (?, 'update', ?, ?, ?, ?, ?)`,
-        [id, JSON.stringify(changedFields), JSON.stringify(oldValues), JSON.stringify(newValues), actor.id, actor.name]
+        `INSERT INTO purchase_audit_log (purchase_id, action, changed_fields, old_values, new_values, actor_id, actor_name, uuid)
+         VALUES (?, 'update', ?, ?, ?, ?, ?, ?)`,
+        [id, JSON.stringify(changedFields), JSON.stringify(oldValues), JSON.stringify(newValues), actor.id, actor.name, await newUuid()]
       );
     }
   });
@@ -2656,8 +2700,8 @@ export async function createPurchaseDebt(
   const result = await database.runAsync(
     `INSERT INTO purchase_debts
        (purchase_id, supplier_name, supplier_phone, supplier_address, purchase_number,
-        original_amount, paid_amount, remaining_amount, status, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        original_amount, paid_amount, remaining_amount, status, notes, uuid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseId,
       data.supplierName,
@@ -2669,14 +2713,15 @@ export async function createPurchaseDebt(
       remaining,
       status,
       data.notes,
+      await newUuid(),
     ]
   );
 
   if (actualPaid > 0) {
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, note, created_at)
-       VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP)`,
-      [result.lastInsertRowId, actualPaid, remaining]
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, note, created_at, uuid)
+       VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?)`,
+      [result.lastInsertRowId, actualPaid, remaining, await newUuid()]
     );
   }
 
@@ -2742,9 +2787,9 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at)
-       VALUES (?, 'purchase', ?, ?, ?)`,
-      [id, clamped, newRemaining, ts]
+      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at, uuid)
+       VALUES (?, 'purchase', ?, ?, ?, ?)`,
+      [id, clamped, newRemaining, ts, await newUuid()]
     );
 
     if (newRemaining <= 0 && debt.purchase_id != null) {
@@ -3320,13 +3365,14 @@ export async function createExpense(data: {
 }): Promise<number> {
   const database = await getDatabase();
   const result = await database.runAsync(
-    `INSERT INTO expenses (amount, category, reason, note, date) VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (amount, category, reason, note, date, uuid) VALUES (?, ?, ?, ?, ?, ?)`,
     [
       data.amount,
       data.category,
       data.reason,
       data.note ?? null,
       data.date ?? new Date().toISOString().slice(0, 10),
+      await newUuid(),
     ]
   );
   return result.lastInsertRowId;
@@ -3383,8 +3429,8 @@ export async function saveExchangeRateHistory(
 ): Promise<void> {
   const database = await getDatabase();
   await database.runAsync(
-    `INSERT INTO exchange_rates (rate, note) VALUES (?, ?)`,
-    [rate, note ?? null]
+    `INSERT INTO exchange_rates (rate, note, uuid) VALUES (?, ?, ?)`,
+    [rate, note ?? null, await newUuid()]
   );
 }
 
@@ -3448,8 +3494,8 @@ export async function insertPurchaseItem(
   const result = await database.runAsync(
     `INSERT INTO purchase_items
        (purchase_id, product_name, category, quantity, buy_price_iqd, buy_price_usd,
-        sell_price_iqd, sell_price_usd, line_total_iqd, id_type, item_ids)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sell_price_iqd, sell_price_usd, line_total_iqd, id_type, item_ids, uuid)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseId,
       item.productName,
@@ -3462,6 +3508,7 @@ export async function insertPurchaseItem(
       item.lineTotalIQD,
       item.idType ?? null,
       JSON.stringify(item.itemIds),
+      await newUuid(),
     ]
   );
   return result.lastInsertRowId;

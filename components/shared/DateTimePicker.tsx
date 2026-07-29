@@ -19,6 +19,8 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { formatDateTimeUI, toDateOnly } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export interface Props {
   value: Date;
@@ -68,6 +70,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
   const { colors } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
   const { t } = useTranslation();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   // ── Animations ──────────────────────────────────────────────────────────────
 
@@ -194,7 +197,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
                   <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="calendar-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
-                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }]}
+                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: dateStr, keyboardType: 'numbers-and-punctuation' }), {})]}
                       value={dateStr}
                       onChangeText={setDateStr}
                       placeholder="2026-06-03"
@@ -216,7 +219,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
                   <View style={[styles.inputBox, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
                     <Ionicons name="time-outline" size={15} color={colors.gray400} style={styles.inputIcon} />
                     <TextInput
-                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }]}
+                      style={[styles.inputField, { color: colors.black, writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: timeStr, keyboardType: 'numbers-and-punctuation' }), {})]}
                       value={timeStr}
                       onChangeText={setTimeStr}
                       placeholder="14:30"

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import Svg, { Circle } from 'react-native-svg';
-import { Colors } from '@/constants/colors';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 
 interface Segment {
   label: string;
@@ -25,6 +25,9 @@ export function DonutRing({
   centerLabel,
   centerSub,
 }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   if (total <= 0) return null;
 
@@ -52,7 +55,7 @@ export function DonutRing({
           {/* Background track */}
           <Circle
             cx={cx} cy={cy} r={radius}
-            stroke={Colors.gray100}
+            stroke={colors.gray100}
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -103,14 +106,16 @@ export function DonutRing({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  centerLabels: { justifyContent: 'center', alignItems: 'center' },
-  centerValue: { fontSize: 14, fontWeight: '800', color: Colors.black, textAlign: 'center' },
-  centerSub:   { fontSize: 10, color: Colors.gray400, textAlign: 'center', marginTop: 2 },
-  legend: { flex: 1, gap: 6 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
-  legendText: { fontSize: 12, color: Colors.gray600, flex: 1 },
-  legendPct:  { color: Colors.gray400, fontWeight: '600' },
-});
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    centerLabels: { justifyContent: 'center', alignItems: 'center' },
+    centerValue: { fontSize: 14, fontWeight: '800', color: colors.black, textAlign: 'center' },
+    centerSub:   { fontSize: 10, color: colors.gray400, textAlign: 'center', marginTop: 2 },
+    legend: { flex: 1, gap: 6 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+    legendText: { fontSize: 12, color: colors.gray600, flex: 1 },
+    legendPct:  { color: colors.gray400, fontWeight: '600' },
+  });
+}

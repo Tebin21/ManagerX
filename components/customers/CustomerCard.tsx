@@ -27,20 +27,20 @@ function CustomerCardImpl({ customer, onPress }: Props) {
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}
+      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
       onPress={() => onPress(customer.id)}
       activeOpacity={0.82}
     >
       {/* Avatar */}
-      <View style={[styles.avatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapLg : 12 }]}>
+      <View style={[styles.avatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? 0 : 12, marginStart: isRTL ? RTL_SPACING.gapXl : 0 }]}>
         <Text style={[styles.avatarText, { color: colors.primary }]}>
           {customer.name.charAt(0).toUpperCase()}
         </Text>
       </View>
 
       {/* Body */}
-      <View style={styles.body}>
-        <View style={[styles.nameRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+      <View style={[styles.body, { gap: isRTL ? RTL_SPACING.stackGap : 0 }]}>
+        <View style={[styles.nameRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, marginBottom: isRTL ? 0 : 2 }]}>
           <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>
             {customer.name}
           </Text>
@@ -51,12 +51,12 @@ function CustomerCardImpl({ customer, onPress }: Props) {
           )}
         </View>
         {customer.phone ? (
-          <View style={[styles.phoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+          <View style={[styles.phoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginBottom: isRTL ? 0 : 2 }]}>
             <Ionicons name="call-outline" size={12} color={colors.gray400} />
             <Text style={[styles.phone, { color: colors.gray400, textAlign }]}>{customer.phone}</Text>
           </View>
         ) : null}
-        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap' }]}>
+        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap', marginBottom: isRTL ? 0 : 2 }]}>
           <Text style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
             {customer.saleCount} {t('suppliers.purchases')}
           </Text>
@@ -64,7 +64,7 @@ function CustomerCardImpl({ customer, onPress }: Props) {
           <AmountText value={customer.totalPurchases} currency="IQD" variant="small" style={[styles.sub, { color: colors.gray400, textAlign, marginBottom: 0 }]} />
         </View>
         {hasDebt && (
-          <View style={[styles.debtRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+          <View style={[styles.debtRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginTop: isRTL ? 0 : 2 }]}>
             <Text style={[styles.debtRowLabel, { color: colors.gray400, textAlign }]}>
               {t('debt.remainingLabel')}
             </Text>
@@ -72,7 +72,7 @@ function CustomerCardImpl({ customer, onPress }: Props) {
           </View>
         )}
         {customer.lastPurchaseDate ? (
-          <View style={[styles.dateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
+          <View style={[styles.dateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginTop: isRTL ? 0 : 2 }]}>
             <Ionicons name="time-outline" size={11} color={colors.gray300} />
             <Text style={[styles.dateText, { color: colors.gray400, textAlign }]}>
               {t('suppliers.lastPurchase')}: <DateText value={customer.lastPurchaseDate} size="small" />
@@ -81,7 +81,7 @@ function CustomerCardImpl({ customer, onPress }: Props) {
         ) : null}
       </View>
 
-      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
 }

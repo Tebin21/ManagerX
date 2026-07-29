@@ -9,6 +9,8 @@ import { useRTL } from '@/lib/rtl';
 import { useTranslation } from 'react-i18next';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 interface Props {
   /** Current quantity, as text — same contract as a plain TextInput's `value`. */
@@ -105,6 +107,7 @@ export function QuantityStepper({
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [focused, setFocused] = useState(false);
   // Local buffer so the displayed text always reflects what the user is
   // typing, even if the parent ignores/clamps the value it receives (e.g. a
@@ -163,7 +166,7 @@ export function QuantityStepper({
         />
         <TextInput
           testID={testID}
-          style={[compact ? styles.inputCompact : styles.input, { color: colors.black }]}
+          style={[compact ? styles.inputCompact : styles.input, { color: colors.black }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, keyboardType: 'number-pad' }), {})]}
           value={text}
           onChangeText={(t2) => { setText(t2); onChangeText(t2); }}
           onFocus={(e) => { setFocused(true); scrollIntoView(e); }}

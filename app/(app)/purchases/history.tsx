@@ -18,12 +18,15 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase, searchPurchases } =
     usePurchaseStore();
 
@@ -127,7 +130,11 @@ export default function PurchaseHistoryScreen() {
       <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}>
         <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
-          style={[styles.searchInput, { color: colors.black }]}
+          style={[
+            styles.searchInput,
+            { color: colors.black },
+            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+          ]}
           value={query}
           onChangeText={setQuery}
           placeholder={t('purchases.searchPlaceholder')}

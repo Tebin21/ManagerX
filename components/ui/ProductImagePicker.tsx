@@ -66,10 +66,18 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
   const pickFromGallery = useCallback(async () => {
     setShowModal(false);
     try {
-      // Use the picker directly — expo-image-picker handles permissions internally
-      const { launchImageLibraryAsync } = await import('expo-image-picker');
+      const ImagePicker = await import('expo-image-picker');
 
-      const result = await launchImageLibraryAsync({
+      // allowsEditing:true below routes iOS to the legacy UIImagePickerController
+      // (not the permission-less PHPickerViewController), which has no built-in
+      // authorization check — the request below is required, not optional.
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('inventory.galleryPermDenied'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],

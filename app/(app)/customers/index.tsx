@@ -22,6 +22,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function CustomersScreen() {
 
   const { colors, isDark } = useAppTheme();
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -130,7 +133,11 @@ export default function CustomersScreen() {
         <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
           <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
-            style={[styles.searchInput, { color: colors.black }]}
+            style={[
+              styles.searchInput,
+              { color: colors.black },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+            ]}
             value={query}
             onChangeText={setQuery}
             placeholder={t('customers.search')}

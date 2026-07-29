@@ -6,6 +6,8 @@ import i18n from '@/lib/i18n';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import type { PeriodKey } from '@/utils/dateRanges';
 
@@ -23,6 +25,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect, current, labels 
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showCustom, setShowCustom] = useState(false);
@@ -89,7 +92,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect, current, labels 
             {i18n.t('reports.fromDate')} (YYYY-MM-DD)
           </Text>
           <TextInput
-            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }]}
+            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customFrom }), {})]}
             placeholder="2026-01-01"
             placeholderTextColor={colors.gray400}
             value={customFrom}
@@ -100,7 +103,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect, current, labels 
             {i18n.t('reports.toDate')} (YYYY-MM-DD)
           </Text>
           <TextInput
-            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }]}
+            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customTo }), {})]}
             placeholder="2026-12-31"
             placeholderTextColor={colors.gray400}
             value={customTo}

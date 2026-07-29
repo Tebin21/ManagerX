@@ -31,6 +31,8 @@ import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 
 type FieldKey =
@@ -48,6 +50,7 @@ export default function EditProductScreen() {
   const { flexDirection, textAlign } = useRTL();
   const insets = useSafeAreaInsets();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,7 +218,11 @@ export default function EditProductScreen() {
           <MotiView animate={{ backgroundColor: fieldBg('name') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
             <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.productName')}</Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              style={[
+                styles.input,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name }), {}),
+              ]}
               value={name}
               onChangeText={setName}
               placeholder={t('inventory.productName')}
@@ -343,7 +350,11 @@ export default function EditProductScreen() {
           <MotiView animate={{ backgroundColor: fieldBg('warranty') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
             <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.warranty')}</Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              style={[
+                styles.input,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: warranty }), {}),
+              ]}
               value={warranty}
               onChangeText={setWarranty}
               placeholder={t('sales.warrantyPlaceholder')}
@@ -355,7 +366,12 @@ export default function EditProductScreen() {
           <MotiView animate={{ backgroundColor: fieldBg('description') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
             <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.description')}</Text>
             <TextInput
-              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              style={[
+                styles.input,
+                styles.textarea,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: description }), {}),
+              ]}
               value={description}
               onChangeText={setDescription}
               placeholder={t('inventory.description')}
@@ -369,7 +385,12 @@ export default function EditProductScreen() {
           <MotiView animate={{ backgroundColor: fieldBg('notes') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
             <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.notes')}</Text>
             <TextInput
-              style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              style={[
+                styles.input,
+                styles.textarea,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes }), {}),
+              ]}
               value={notes}
               onChangeText={setNotes}
               placeholder={t('inventory.notes')}
@@ -383,7 +404,11 @@ export default function EditProductScreen() {
           <MotiView animate={{ backgroundColor: fieldBg('websiteDescription') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
             <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.websiteDescription')}</Text>
             <TextInput
-              style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+              style={[
+                styles.input,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: websiteDescription }), {}),
+              ]}
               value={websiteDescription}
               onChangeText={setWebsiteDescription}
               placeholder={t('inventory.websiteDescriptionPlaceholder')}

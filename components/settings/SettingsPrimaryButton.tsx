@@ -1,13 +1,12 @@
 import React from 'react';
 import type { ComponentProps } from 'react';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont } from '@/lib/settingsFont';
 
 // Drop-in replacement for PrimaryButton, used only by Settings screens.
-// Forwards everything unchanged except the label font, which switches to
-// the Kurdish typeface when the app language is Kurdish.
+// PrimaryButton already renders its label through AppText's `Text`, which
+// applies the Kurdish typeface itself whenever the app language is Kurdish
+// (and always wins over any font this wrapper could set, since AppText's
+// own override is applied last) — so this is a pure pass-through.
 export function SettingsPrimaryButton(props: ComponentProps<typeof PrimaryButton>) {
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
-  return <PrimaryButton {...props} labelStyle={applyKurdishFont(isKurdish, props.labelStyle)} />;
+  return <PrimaryButton {...props} />;
 }

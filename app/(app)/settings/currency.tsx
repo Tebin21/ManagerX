@@ -17,6 +17,8 @@ import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
 import { fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export default function CurrencyScreen() {
   const { t } = useTranslation();
@@ -24,6 +26,7 @@ export default function CurrencyScreen() {
   const { isRTL } = useRTL();
   const textAlign = isRTL ? 'right' : 'left';
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const exchangeRate   = useSettingsStore((s) => s.exchangeRate);
   const rateUpdatedAt  = useSettingsStore((s) => s.rateUpdatedAt);
@@ -119,7 +122,11 @@ export default function CurrencyScreen() {
                 {t('settings.currencyScreen.inputPrefix')}
               </Text>
               <TextInput
-                style={[styles.inputField, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}
+                style={[
+                  styles.inputField,
+                  { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: input, keyboardType: 'number-pad' }), {}),
+                ]}
                 value={input}
                 onChangeText={(text) => {
                   const raw = text.replace(/[^0-9]/g, '');

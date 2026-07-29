@@ -32,7 +32,7 @@ import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { applyKurdishFont } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
 import {
   exportBackup,
@@ -40,13 +40,13 @@ import {
   assertBackupWithinItemLimit,
   performRestore,
   type FroshiarBackup,
+  type RestoreSummary,
 } from '@/lib/backup';
 import { useAuthStore }     from '@/store/authStore';
 import { useBusinessStore }  from '@/store/businessStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useSettingsStore }  from '@/store/settingsStore';
 import { useLanguageStore }  from '@/store/languageStore';
-import { useModuleStore }    from '@/store/moduleStore';
 
 // Expo Go bundles a fixed set of native modules. Custom modules added to
 // package.json (like expo-document-picker) are NOT available there.
@@ -60,7 +60,7 @@ export default function DataScreen() {
   const { flexDirection }  = useRTL();
   const router             = useRouter();
   const signOut            = useAuthStore((s) => s.signOut);
-  const isKurdish          = useLanguageStore((s) => s.language === 'ku');
+  const isKuLanguage       = useLanguageStore((s) => s.language === 'ku');
 
   const [backing,          setBacking]          = useState(false);
   const [restoring,        setRestoring]        = useState(false);
@@ -70,6 +70,8 @@ export default function DataScreen() {
   const [resetInput,       setResetInput]       = useState('');
   const [pendingBackup,    setPendingBackup]    = useState<FroshiarBackup | null>(null);
   const [dbRecords,        setDbRecords]        = useState<number | null>(null);
+  const [restoreProgress,  setRestoreProgress]  = useState<{ table: string; index: number; total: number } | null>(null);
+  const [restoreSummary,   setRestoreSummary]   = useState<RestoreSummary | null>(null);
 
   useEffect(() => { void loadDbStats(); }, []);
 
@@ -212,23 +214,25 @@ export default function DataScreen() {
   async function handleConfirmRestore() {
     if (!pendingBackup) return;
     setRestoring(true);
+    setRestoreProgress(null);
     try {
-      await performRestore(pendingBackup);
+      const summary = await performRestore(pendingBackup, (event) => {
+        if (event.phase === 'table-start') {
+          setRestoreProgress({ table: event.table, index: event.tableIndex, total: event.totalTables });
+        }
+      });
 
-      // Sync all persisted Zustand stores with the newly restored AsyncStorage values.
+      // Sync the two stores restore actually touched with their freshly merged
+      // AsyncStorage values. Theme/language/module layout are never part of a
+      // restore, so their stores are left alone.
       await Promise.all([
         useBusinessStore.persist.rehydrate(),
         useSettingsStore.persist.rehydrate(),
-        useLanguageStore.persist.rehydrate(),
-        useModuleStore.persist.rehydrate(),
       ]);
 
-      setShowRestoreModal(false);
       setPendingBackup(null);
-
-      // Replace the entire navigation stack so every screen remounts and reloads
-      // its data from the freshly restored SQLite database.
-      router.replace('/');
+      setRestoreProgress(null);
+      setRestoreSummary(summary);
     } catch {
       Alert.alert(
         t('settings.dataScreen.restoreError'),
@@ -241,8 +245,17 @@ export default function DataScreen() {
 
   function handleDismissRestore() {
     if (restoring) return;
+    if (restoreSummary) { handleFinishRestore(); return; }
     setShowRestoreModal(false);
     setPendingBackup(null);
+  }
+
+  function handleFinishRestore() {
+    setShowRestoreModal(false);
+    setRestoreSummary(null);
+    // Replace the entire navigation stack so every screen remounts and reloads
+    // its data from the newly merged SQLite database.
+    router.replace('/');
   }
 
   // ── Reset app ─────────────────────────────────────────────────────────────
@@ -395,16 +408,19 @@ export default function DataScreen() {
             </Text>
 
             <TextInput
-              style={applyKurdishFont(isKurdish, [
-                styles.resetInput,
-                {
-                  borderColor: resetInput.trim().toUpperCase() === 'RESET'
-                    ? colors.error
-                    : colors.gray200,
-                  color: colors.black,
-                  backgroundColor: isDark ? colors.gray50 : colors.gray50,
-                },
-              ])}
+              style={applyKurdishFont(
+                resolveInputIsKurdish({ isKuLanguage, value: resetInput }),
+                [
+                  styles.resetInput,
+                  {
+                    borderColor: resetInput.trim().toUpperCase() === 'RESET'
+                      ? colors.error
+                      : colors.gray200,
+                    color: colors.black,
+                    backgroundColor: isDark ? colors.gray50 : colors.gray50,
+                  },
+                ]
+              )}
               placeholder={t('settings.dataScreen.resetInputPlaceholder')}
               placeholderTextColor={colors.gray400}
               value={resetInput}
@@ -466,42 +482,93 @@ export default function DataScreen() {
               borderWidth:     isDark ? 1 : 0,
             },
           ]}>
-            <View style={[styles.dialogIconWrap, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="warning" size={28} color="#D97706" />
-            </View>
+            {restoreSummary ? (
+              <>
+                <View style={[styles.dialogIconWrap, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="checkmark-circle" size={28} color="#16A34A" />
+                </View>
 
-            <Text style={[styles.dialogTitle, { color: colors.black }]}>
-              {t('settings.dataScreen.restoreTitle')}
-            </Text>
-
-            <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
-              {t('settings.dataScreen.restoreMsg')}
-            </Text>
-
-            <View style={[styles.dialogBtns, { flexDirection }]}>
-              <TouchableOpacity
-                style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
-                onPress={handleDismissRestore}
-                disabled={restoring}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
-                  {t('common.cancel')}
+                <Text style={[styles.dialogTitle, { color: colors.black }]}>
+                  {t('settings.dataScreen.restoreSummaryTitle')}
                 </Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.btnRestore, { backgroundColor: '#D97706' }]}
-                onPress={handleConfirmRestore}
-                disabled={restoring}
-                activeOpacity={0.8}
-              >
-                {restoring
-                  ? <ActivityIndicator color="#FFFFFF" size="small" />
-                  : <Text style={styles.btnRestoreText}>{t('settings.dataScreen.restoreConfirm')}</Text>
-                }
-              </TouchableOpacity>
-            </View>
+                <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
+                  {t('settings.dataScreen.restoreSummaryBody', {
+                    inserted: restoreSummary.inserted,
+                    updated:  restoreSummary.updated,
+                    skipped:  restoreSummary.skipped,
+                  })}
+                </Text>
+
+                {restoreSummary.warnings.length > 0 && (
+                  <View style={styles.warningsBox}>
+                    <Text style={[styles.warningsTitle, { color: colors.gray600 }]}>
+                      {t('settings.dataScreen.restoreSummaryWarningsTitle')}
+                    </Text>
+                    {restoreSummary.warnings.map((warning, i) => (
+                      <Text key={i} style={[styles.warningsItem, { color: colors.gray500 }]}>
+                        {'• '}{warning}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                <View style={[styles.dialogBtns, { flexDirection }]}>
+                  <TouchableOpacity
+                    style={[styles.btnRestore, { backgroundColor: colors.primary, flex: 1 }]}
+                    onPress={handleFinishRestore}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnRestoreText}>{t('settings.dataScreen.restoreDone')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={[styles.dialogIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="warning" size={28} color="#D97706" />
+                </View>
+
+                <Text style={[styles.dialogTitle, { color: colors.black }]}>
+                  {t('settings.dataScreen.restoreTitle')}
+                </Text>
+
+                <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
+                  {restoring && restoreProgress
+                    ? t('settings.dataScreen.restoreProgressLabel', {
+                        table: restoreProgress.table.replace(/_/g, ' '),
+                        index: restoreProgress.index,
+                        total: restoreProgress.total,
+                      })
+                    : t('settings.dataScreen.restoreMsg')}
+                </Text>
+
+                <View style={[styles.dialogBtns, { flexDirection }]}>
+                  <TouchableOpacity
+                    style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
+                    onPress={handleDismissRestore}
+                    disabled={restoring}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
+                      {t('common.cancel')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.btnRestore, { backgroundColor: '#D97706' }]}
+                    onPress={handleConfirmRestore}
+                    disabled={restoring}
+                    activeOpacity={0.8}
+                  >
+                    {restoring
+                      ? <ActivityIndicator color="#FFFFFF" size="small" />
+                      : <Text style={styles.btnRestoreText}>{t('settings.dataScreen.restoreConfirm')}</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -572,6 +639,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnRestoreText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  warningsBox: {
+    width:         '100%',
+    marginBottom:  20,
+    gap:           4,
+  },
+  warningsTitle: {
+    fontSize:     13,
+    fontWeight:   '700',
+    marginBottom: 4,
+  },
+  warningsItem: {
+    fontSize:   13,
+    lineHeight: 18,
+  },
   resetInput: {
     width:         '100%',
     height:        48,

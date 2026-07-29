@@ -4,7 +4,7 @@ import {
   fmtIQD, fmtUSD, fmtPct, formatDate, formatTime,
   getPaymentStatus,
 } from '@/utils/formatters';
-import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText } from '@/lib/pdfFont';
+import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
@@ -23,20 +23,16 @@ function escHtml(str: string): string {
 }
 
 // PDF language follows the app's current language automatically. `t()`
-// reads from the invoicePdf i18n namespace; `ku()` wraps already-translated
-// label text in an RTL-shaped, Rudaw-fonted span without ever touching the
-// position/width/alignment of the element it sits inside -- numbers, IDs,
-// dates, and user-entered data (names/addresses/etc.) never pass through
-// `ku()`, so they always keep rendering as plain LTR/Latin-digit text.
-function isKurdishActive(): boolean {
-  return i18n.language === 'ku';
-}
+// reads from the invoicePdf i18n namespace; `ku()` (shared from lib/pdfFont)
+// wraps already-translated label text in an RTL-shaped, Rudaw-fonted span
+// without ever touching the position/width/alignment of the element it sits
+// inside -- numbers, IDs, dates, and user-entered data (names/addresses/etc.)
+// never pass through `ku()`, so they always keep rendering as plain
+// LTR/Latin-digit text.
 function t(key: string, opts?: Record<string, unknown>): string {
   return i18n.t(`invoicePdf.${key}`, opts) as string;
 }
-function ku(html: string): string {
-  return isKurdishActive() ? `<span class="ku-text" dir="rtl">${html}</span>` : html;
-}
+const ku = kuSpan;
 
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
 // Mirrors buildPurchaseCSS's design system (monochrome, 3-column header, card
@@ -145,6 +141,13 @@ function buildSalesCSS(isKurdish: boolean): string {
   .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
   .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
+  .row-value-ltr { direction: ltr; unicode-bidi: isolate; }
+
+  /* ── Header meta rows: label/value as separate boxes so RTL order is CSS-driven, not bidi-reordered ── */
+  .inv-meta-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+  .inv-meta-row-title { margin-bottom: 6px; }
+  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12.5px; font-weight: 400; }
+  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; }
 
   /* ── Table ── */
   .table-card {
@@ -258,7 +261,7 @@ export function buildInvoiceHTML(
   exchangeRate: number = 1310
 ): string {
   const items = sale.items ?? [];
-  const isKurdish = isKurdishActive();
+  const isKurdish = isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
   const kuAlign = isKurdish ? 'right' : 'left';
 
@@ -385,9 +388,18 @@ export function buildInvoiceHTML(
     </div>
     <div class="col-invoice">
       <div class="inv-label">${ku(t('salesInvoiceLabel'))}</div>
-      <div class="inv-meta-title">${ku(t('invoiceNumberLabel'))} #${escHtml(sale.invoiceNumber)}</div>
-      <div class="inv-meta-line">${ku(t('date'))}: ${escHtml(formatDate(dateTimeValue))}</div>
-      <div class="inv-meta-line">${ku(t('time'))}: ${escHtml(formatTime(dateTimeValue))}</div>
+      <div class="inv-meta-row inv-meta-row-title">
+        <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
+        <span class="row-value row-value-ltr">#${escHtml(sale.invoiceNumber)}</span>
+      </div>
+      <div class="inv-meta-row">
+        <span class="row-label">${ku(t('date'))}:</span>
+        <span class="row-value row-value-ltr">${escHtml(formatDate(dateTimeValue))}</span>
+      </div>
+      <div class="inv-meta-row">
+        <span class="row-label">${ku(t('time'))}:</span>
+        <span class="row-value row-value-ltr">${escHtml(formatTime(dateTimeValue))}</span>
+      </div>
       <div class="inv-status-row">
         <span class="inv-meta-line">${ku(t('status'))}:</span>
         ${statusBadge}
@@ -545,6 +557,13 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
   .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
+  .row-value-ltr { direction: ltr; unicode-bidi: isolate; }
+
+  /* ── Header meta rows: label/value as separate boxes so RTL order is CSS-driven, not bidi-reordered ── */
+  .inv-meta-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+  .inv-meta-row-title { margin-bottom: 6px; }
+  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12.5px; font-weight: 400; }
+  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; }
 
   /* ── Table ── */
   .table-card {
@@ -579,7 +598,10 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
   .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
   .item-id {
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+    align-items: baseline;
+    gap: 4px;
     margin-top: 3px;
     font-size: 9.5px;
     color: #000000;
@@ -587,9 +609,8 @@ function buildPurchaseCSS(isKurdish: boolean): string {
     border-radius: 6px;
     padding: 1px 6px;
     font-weight: 600;
-    unicode-bidi: isolate;
-    direction: ltr;
   }
+  .item-id-value { direction: ltr; unicode-bidi: isolate; }
   .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
 
   /* ── Financial ── */
@@ -681,7 +702,7 @@ export function buildPurchaseInvoiceHTML(
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'ltr'
 ): string {
-  const isKurdish = isKurdishActive();
+  const isKurdish = isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
   const kuAlign = isKurdish ? 'right' : 'left';
 
@@ -711,7 +732,7 @@ export function buildPurchaseInvoiceHTML(
           <td class="num-col">${i + 1}</td>
           <td style="text-align:${kuAlign};">
             <span class="item-name">${escHtml(row.name)}</span>
-            ${row.idChip ? `<span class="item-id">${ku(t('itemIdLabel'))}: ${escHtml(row.idChip)}</span>` : ''}
+            ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel'))}:</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
           </td>
           <td class="center">${row.qty}</td>
           <td class="right">${fmtIQD(row.unitPriceIQD)} IQD</td>
@@ -818,9 +839,18 @@ export function buildPurchaseInvoiceHTML(
     </div>
     <div class="col-invoice">
       <div class="inv-label">${ku(t('purchaseInvoiceLabel'))}</div>
-      <div class="inv-meta-title">${ku(t('invoiceNumberLabel'))} #${escHtml(purchase.purchaseNumber)}</div>
-      <div class="inv-meta-line">${ku(t('date'))}: ${escHtml(formatDate(purchaseDateTime))}</div>
-      <div class="inv-meta-line">${ku(t('time'))}: ${escHtml(formatTime(purchaseDateTime))}</div>
+      <div class="inv-meta-row inv-meta-row-title">
+        <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
+        <span class="row-value row-value-ltr">#${escHtml(purchase.purchaseNumber)}</span>
+      </div>
+      <div class="inv-meta-row">
+        <span class="row-label">${ku(t('date'))}:</span>
+        <span class="row-value row-value-ltr">${escHtml(formatDate(purchaseDateTime))}</span>
+      </div>
+      <div class="inv-meta-row">
+        <span class="row-label">${ku(t('time'))}:</span>
+        <span class="row-value row-value-ltr">${escHtml(formatTime(purchaseDateTime))}</span>
+      </div>
       <div class="inv-status-row">
         <span class="inv-meta-line">${ku(t('status'))}:</span>
         ${statusBadge}

@@ -33,7 +33,7 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
       transition={{ type: 'spring', damping: 20, stiffness: 220, delay }}
       style={[
         styles.card,
-        accent && { backgroundColor: warningTint.bg, borderWidth: 1, borderColor: colors.warning },
+        accent && { backgroundColor: warningTint.bg, borderWidth: 1, borderColor: warningTint.border },
         { paddingVertical: isRTL ? 12 : 10, paddingHorizontal: isRTL ? RTL_SPACING.gap : 12 },
       ]}
     >

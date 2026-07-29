@@ -36,6 +36,8 @@ import { Typography } from '@/constants/typography';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 import { roundToNearest250 } from '@/utils/rounding';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -65,6 +67,7 @@ export default function EditInvoiceScreen() {
   const { updateSale } = useSalesStore();
   const inventory = useInventoryStore();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [sale, setSale]     = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
@@ -464,7 +467,11 @@ export default function EditInvoiceScreen() {
               transition={{ type: 'timing', duration: 200 }}
             >
               <TextInput
-                style={[styles.productSearch, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign, writingDirection: 'ltr' }]}
+                style={[
+                  styles.productSearch,
+                  { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign, writingDirection: 'ltr' },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: productQuery }), {}),
+                ]}
                 placeholder={t('sales.searchProducts')}
                 placeholderTextColor={colors.gray400}
                 value={productQuery}

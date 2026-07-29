@@ -14,6 +14,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 interface Props {
   value: string;
@@ -38,6 +40,7 @@ export function CategoryAutocompleteInput({
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const trimmedLower = value.trim().toLowerCase();
   const filtered = trimmedLower
@@ -84,7 +87,12 @@ export function CategoryAutocompleteInput({
         ]}
       >
         <TextInput
-          style={[styles.input, { color: colors.black, textAlign }, inputStyle]}
+          style={[
+            styles.input,
+            { color: colors.black, textAlign },
+            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value }), {}),
+            inputStyle,
+          ]}
           value={value}
           onChangeText={onChange}
           onFocus={handleFocus}

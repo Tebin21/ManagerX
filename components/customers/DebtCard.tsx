@@ -12,6 +12,8 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import type { Debt } from '@/types/sales';
 import { fmtIQD } from '@/utils/formatters';
 
@@ -32,6 +34,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const [payAmount, setPayAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const isSettled = debt.status === 'settled' || debt.remainingAmount <= 0;
   const percent = debt.originalAmount > 0
@@ -119,7 +122,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           style={styles.payForm}
         >
           <TextInput
-            style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
+            style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payAmount, keyboardType: 'decimal-pad' }), {})]}
             value={payAmount}
             onChangeText={setPayAmount}
             placeholder={t('suppliers.payAmountHint')}

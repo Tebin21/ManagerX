@@ -25,6 +25,8 @@ import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryProduct } from '@/types/inventory';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 const THRESHOLD_OPTIONS = [1, 2, 3, 5, 10, 20, 50];
 
@@ -204,6 +206,7 @@ export default function StockAlertsScreen() {
   const bellTint = getStatusTint('warning', colors, isDark);
   const scrollIntoView = useKeyboardAwareFocus();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const { products, editProduct } = useInventoryStore();
   const {
@@ -354,7 +357,11 @@ export default function StockAlertsScreen() {
             <View style={[styles.searchWrap, { backgroundColor: colors.white, borderColor: colors.gray200, flexDirection }]}>
               <Ionicons name="search" size={14} color={colors.gray400} />
               <TextInput
-                style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+                style={[
+                  styles.searchInput,
+                  { color: colors.black, textAlign, writingDirection },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search }), {}),
+                ]}
                 value={search}
                 onChangeText={setSearch}
                 onFocus={scrollIntoView}

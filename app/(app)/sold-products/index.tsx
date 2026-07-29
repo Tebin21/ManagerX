@@ -23,26 +23,33 @@ import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useSoldProductsStore } from '@/store/soldProductsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { getStatusTint, getBlueTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { SoldProductRecord, SoldSortBy, SoldPaymentFilter } from '@/types/soldProducts';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 const SORT_KEYS: SoldSortBy[] = ['date', 'customer', 'product', 'profit'];
 const FILTER_KEYS: SoldPaymentFilter[] = ['all', 'cash', 'fib', 'debt'];
 
-const PAYMENT_COLORS: Record<string, { bg: string; text: string }> = {
-  cash: { bg: '#D1FAE5', text: '#065F46' },
-  fib:  { bg: '#DBEAFE', text: '#1E40AF' },
-  debt: { bg: '#FEE2E2', text: '#991B1B' },
-};
+function getPaymentTint(method: string, colors: ReturnType<typeof useAppTheme>['colors'], isDark: boolean): { bg: string; text: string } {
+  switch (method) {
+    case 'fib':  return getBlueTint(isDark);
+    case 'debt': return getStatusTint('error', colors, isDark);
+    default:     return getStatusTint('success', colors, isDark); // cash
+  }
+}
 
 interface CardProps {
   item: SoldProductRecord;
   colors: ReturnType<typeof useAppTheme>['colors'];
+  isDark: boolean;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
-function SoldProductCardImpl({ item, colors, t }: CardProps) {
-  const badge = PAYMENT_COLORS[item.paymentMethod] ?? PAYMENT_COLORS.cash;
+function SoldProductCardImpl({ item, colors, isDark, t }: CardProps) {
+  const badge = getPaymentTint(item.paymentMethod, colors, isDark);
+  const profitTint = getStatusTint(item.profit >= 0 ? 'success' : 'error', colors, isDark);
   const profitPct = item.purchasePrice > 0
     ? Math.round(((item.sellingPrice - item.purchasePrice) / item.purchasePrice) * 100)
     : 0;
@@ -97,16 +104,16 @@ function SoldProductCardImpl({ item, colors, t }: CardProps) {
 
         <View style={[
           styles.profitBadge,
-          { backgroundColor: isProfit ? '#D1FAE5' : '#FEE2E2' }
+          { backgroundColor: profitTint.bg }
         ]}>
           <AmountText
             value={item.profit}
             currency="IQD"
             prefix={isProfit ? '+' : ''}
             variant="small"
-            style={[styles.profitText, { color: isProfit ? '#065F46' : '#991B1B' }]}
+            style={[styles.profitText, { color: profitTint.text }]}
           />
-          <Text style={[styles.profitPct, { color: isProfit ? '#059669' : '#DC2626' }]}>
+          <Text style={[styles.profitPct, { color: isProfit ? colors.success : colors.error }]}>
             {profitPct}%
           </Text>
         </View>
@@ -118,7 +125,7 @@ function SoldProductCardImpl({ item, colors, t }: CardProps) {
         </View>
 
         {item.remainingDebt > 0 ? (
-          <AmountText value={item.remainingDebt} currency="IQD" prefix="-" variant="small" style={[styles.debtHint, { color: '#DC2626' }]} />
+          <AmountText value={item.remainingDebt} currency="IQD" prefix="-" variant="small" style={[styles.debtHint, { color: colors.error }]} />
         ) : null}
       </View>
     </View>
@@ -130,7 +137,8 @@ const SoldProductCard = React.memo(SoldProductCardImpl);
 export default function SoldProductsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const {
     records, isLoading,
@@ -190,9 +198,9 @@ export default function SoldProductsScreen() {
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 30 : 0 }}
     >
-      <SoldProductCard item={item} colors={colors} t={t} />
+      <SoldProductCard item={item} colors={colors} isDark={isDark} t={t} />
     </MotiView>
-  ), [colors, t]);
+  ), [colors, isDark, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -226,7 +234,7 @@ export default function SoldProductsScreen() {
             <AmountText
               value={totalProfit}
               prefix={totalProfit >= 0 ? '+' : ''}
-              style={[styles.statValue, { color: totalProfit >= 0 ? '#059669' : '#DC2626' }]}
+              style={[styles.statValue, { color: totalProfit >= 0 ? colors.success : colors.error }]}
             />
             <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalProfit')} IQD</Text>
           </View>
@@ -242,7 +250,11 @@ export default function SoldProductsScreen() {
           >
             <Ionicons name="search" size={16} color={colors.gray400} style={{ marginStart: 12 }} />
             <TextInput
-              style={[styles.searchInput, { color: colors.black }]}
+              style={[
+                styles.searchInput,
+                { color: colors.black },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search }), {}),
+              ]}
               value={search}
               onChangeText={setSearch}
               placeholder={t('soldProducts.search')}

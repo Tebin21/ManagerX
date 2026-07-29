@@ -21,31 +21,34 @@ import { useSupplierStore } from '@/store/supplierStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import type { SupplierWithStats } from '@/types/suppliers';
-import { useDirectionalChevron } from '@/lib/rtl';
+import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.white }]}
+      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue }]}>
+      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? 0 : 12, marginStart: isRTL ? RTL_SPACING.gapXl : 0 }]}>
         <Ionicons name="business-outline" size={22} color={colors.primary} />
       </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.cardName, { color: colors.black }]} numberOfLines={1}>{supplier.name}</Text>
+      <View style={[styles.cardBody, { gap: isRTL ? RTL_SPACING.stackGap : 0 }]}>
+        <Text style={[styles.cardName, { color: colors.black, textAlign, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>{supplier.name}</Text>
         {supplier.phone ? (
-          <Text style={[styles.cardPhone, { color: colors.gray400 }]}>{supplier.phone}</Text>
+          <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, marginBottom: isRTL ? 0 : 2 }]}>{supplier.phone}</Text>
         ) : null}
-        <Text style={[styles.cardSub, { color: colors.gray400 }]}>
+        <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
           {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant="small" />
         </Text>
       </View>
-      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
 }
@@ -55,6 +58,7 @@ export default function SuppliersScreen() {
   const { t } = useTranslation();
   const { suppliers, isLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
   const { colors } = useAppTheme();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -122,7 +126,11 @@ export default function SuppliersScreen() {
         <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
           <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
-            style={[styles.searchInput, { color: colors.black }]}
+            style={[
+              styles.searchInput,
+              { color: colors.black },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+            ]}
             value={query}
             onChangeText={setQuery}
             placeholder={t('suppliers.search')}

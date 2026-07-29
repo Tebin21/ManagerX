@@ -5,7 +5,7 @@ import { MotiView } from 'moti';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 interface Props extends TextInputProps {
@@ -35,19 +35,28 @@ interface Props extends TextInputProps {
   forceLatin?: boolean;
 }
 
-// A single TextInput can't mix fonts per-character the way AppText can for
-// display text, so a numeric-only field (phone, price, rate, ...) must skip
-// the Kurdish font entirely rather than render its digits in Rudaw.
-const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
-  'numeric', 'phone-pad', 'decimal-pad', 'number-pad', 'numbers-and-punctuation',
-]);
-
 export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, kurdishPlaceholderFont, forceLatin, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const isKurdish = isKuLanguage && !NUMERIC_KEYBOARD_TYPES.has(rest.keyboardType) && !forceLatin;
+  // A single TextInput can't mix fonts per-character the way AppText can for
+  // display text, so a value-aware decision picks ONE font for the whole
+  // field: numeric-keyboard/forceLatin fields always skip the Kurdish font,
+  // and any non-empty value containing zero Kurdish-script characters (a
+  // typed barcode/SKU/email) also renders in Latin, even though the app
+  // language is Kurdish — this is what makes e.g. "Hshs28373" render in one
+  // consistent font instead of the Kurdish typeface's inconsistent Latin
+  // glyph coverage. A value that mixes Kurdish words with an embedded Latin
+  // substring still renders the whole field in Rudaw — a single native
+  // TextInput can't render two fonts within one string, so that case is an
+  // unavoidable limitation, not a regression.
+  const isKurdish = resolveInputIsKurdish({
+    isKuLanguage,
+    value: typeof rest.value === 'string' ? rest.value : undefined,
+    keyboardType: rest.keyboardType,
+    forceLatin,
+  });
   const scrollIntoView = useKeyboardAwareFocus();
   const showKuPlaceholderOverlay = !!kurdishPlaceholderFont && isKuLanguage && !rest.value;
   return (

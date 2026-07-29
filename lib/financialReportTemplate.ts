@@ -5,7 +5,7 @@ import type {
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
 import { fmtIQD, fmtPct, formatDate as fmtDate, formatTime } from '@/utils/formatters';
-import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText } from '@/lib/pdfFont';
+import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 
 interface BusinessInfo {
@@ -72,12 +72,19 @@ export function buildFinancialReportHTML(
   // never-heavy span -- never changes the position/width of the surrounding
   // element it sits inside. `heading` swaps in a slightly larger size so
   // section titles stay visually distinct without relying on bold weight.
-  const ku = (html: string, heading = false): string =>
-    isKurdish ? `<span class="ku-text${heading ? ' ku-heading' : ''}" dir="rtl">${html}</span>` : html;
+  // Shared with invoiceTemplate.ts/inventoryPDFReports.ts (lib/pdfFont.ts).
+  const ku = kuSpan;
   // Text/label columns read right-to-left; number/date/amount columns stay
   // left-aligned even in Kurdish, per the report's RTL convention.
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
+  // Metadata rows (Report ID/Date/Time/From/To): label and value are built
+  // as two separate elements so Kurdish ordering comes from flexbox, never
+  // from Unicode bidi reordering a single concatenated text run. English
+  // keeps rendering the original one-line "Label: value" markup untouched.
+  const metaRow = (labelHtml: string, valueHtml: string): string => isKurdish
+    ? `<div class="inv-meta-row"><span class="meta-label">${labelHtml}:</span><span class="meta-value">${valueHtml}</span></div>`
+    : `<div class="inv-meta-line">${labelHtml}: ${valueHtml}</div>`;
 
   const {
     financialCards, salesData, purchaseData, plData,
@@ -237,6 +244,14 @@ export function buildFinancialReportHTML(
     .inv-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; color: #000000; margin-bottom: 8px; }
     .inv-meta-title { font-size: 17px; font-weight: 800; color: #000000; margin-bottom: 6px; }
     .inv-meta-line { font-size: 12.5px; color: #000000; margin-bottom: 2px; }
+    /* Kurdish metadata rows: label/value as separate flex children so RTL
+       order is CSS-driven, not left to Unicode bidi reordering -- label
+       docks right, value docks left and stays LTR-isolated (IDs/dates/
+       times are always Latin/numeric). English keeps the original
+       single-line "Label: value" markup (.inv-meta-line) untouched. */
+    .inv-meta-row { display: flex; flex-direction: row-reverse; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+    .meta-label { font-size: 12.5px; color: #000000; }
+    .meta-value { font-size: 12.5px; color: #000000; direction: ltr; unicode-bidi: isolate; }
 
     /* ── Body / Cards ── */
     .body { padding: 18px 32px 24px; }
@@ -371,11 +386,11 @@ export function buildFinancialReportHTML(
       </div>
       <div class="col-meta">
         <div class="inv-label">${ku(t('reportInfo'), true)}</div>
-        <div class="inv-meta-line">${ku(t('reportId'))}: ${id}</div>
-        <div class="inv-meta-line">${ku(t('date'))}: ${generatedDate}</div>
-        <div class="inv-meta-line">${ku(t('time'))}: ${generatedTime}</div>
-        ${dateRange.key === 'custom' ? `<div class="inv-meta-line">${ku(t('from'))}: ${fmtDate(dateRange.from)}</div>` : ''}
-        ${dateRange.key === 'custom' ? `<div class="inv-meta-line">${ku(t('to'))}: ${fmtDate(dateRange.to)}</div>` : ''}
+        ${metaRow(ku(t('reportId')), id)}
+        ${metaRow(ku(t('date')), generatedDate)}
+        ${metaRow(ku(t('time')), generatedTime)}
+        ${dateRange.key === 'custom' ? metaRow(ku(t('from')), fmtDate(dateRange.from)) : ''}
+        ${dateRange.key === 'custom' ? metaRow(ku(t('to')), fmtDate(dateRange.to)) : ''}
       </div>
     </div>
   </div>

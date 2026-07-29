@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import type { Sale } from '@/types/sales';
 
@@ -17,14 +17,18 @@ interface Props {
 }
 
 export function SaleHistoryItem({ sale, onPress }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
 
+  const cashTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
+  const debtTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
+
   const paymentColors: Record<string, { bg: string; text: string; label: string }> = {
-    cash: { bg: '#D1FAE5', text: '#065F46', label: 'Cash' },
+    cash: { bg: cashTint.bg, text: cashTint.text, label: 'Cash' },
     fib:  { bg: colors.lightBlue, text: colors.darkBlue, label: 'FIB' },
-    debt: { bg: '#FEE2E2', text: '#991B1B', label: 'Debt' },
+    debt: { bg: debtTint.bg, text: debtTint.text, label: 'Debt' },
   };
 
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;
@@ -55,33 +59,35 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
         ) : null}
       </View>
 
-      <Ionicons name={chevronForward as never} size={16} color={Colors.gray300} style={[styles.arrow, { marginStart: isRTL ? RTL_SPACING.gapSm : 4 }]} />
+      <Ionicons name={chevronForward as never} size={16} color={colors.gray300} style={[styles.arrow, { marginStart: isRTL ? RTL_SPACING.gapSm : 4 }]} />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.card,
-    padding: 14,
-    marginBottom: 8,
-    ...Theme.shadow.card,
-  },
-  left: { flex: 1 },
-  invoice: { fontSize: 13, fontWeight: '700', color: Colors.black, marginBottom: 2 },
-  customer: { fontSize: 13, color: Colors.gray600, marginBottom: 2 },
-  date: { color: Colors.gray400 },
-  right: { alignItems: 'flex-end', marginEnd: 8 },
-  total: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  debt: { fontSize: 11, color: Colors.error, marginTop: 2, fontWeight: '500' },
-  arrow: { marginStart: 4 },
-});
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.white,
+      borderRadius: Theme.radius.card,
+      padding: 14,
+      marginBottom: 8,
+      ...Theme.shadow.card,
+    },
+    left: { flex: 1 },
+    invoice: { fontSize: 13, fontWeight: '700', color: colors.black, marginBottom: 2 },
+    customer: { fontSize: 13, color: colors.gray600, marginBottom: 2 },
+    date: { color: colors.gray400 },
+    right: { alignItems: 'flex-end', marginEnd: 8 },
+    total: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    badgeText: { fontSize: 11, fontWeight: '600' },
+    debt: { fontSize: 11, color: colors.error, marginTop: 2, fontWeight: '500' },
+    arrow: { marginStart: 4 },
+  });
+}

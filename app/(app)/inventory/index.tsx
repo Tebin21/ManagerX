@@ -37,6 +37,8 @@ import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 type ActiveTab = 'all' | 'categories';
 
@@ -70,6 +72,7 @@ export default function InventoryScreen() {
 
   const { colors } = useAppTheme();
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const scrollIntoView = useKeyboardAwareFocus();
   const [query, setQuery]                     = useState('');
   const [refreshing, setRefreshing]           = useState(false);
@@ -398,7 +401,11 @@ export default function InventoryScreen() {
         <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
           <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
-            style={[styles.searchInput, { color: colors.black, textAlign, writingDirection }]}
+            style={[
+              styles.searchInput,
+              { color: colors.black, textAlign, writingDirection },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+            ]}
             value={query}
             onChangeText={setQuery}
             placeholder={t('inventory.search')}
@@ -632,7 +639,11 @@ export default function InventoryScreen() {
 
             <View style={[styles.addCatRow, { borderColor: colors.gray200, flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
               <TextInput
-                style={[styles.addCatInput, { color: colors.black, borderColor: colors.gray200, textAlign, writingDirection }]}
+                style={[
+                  styles.addCatInput,
+                  { color: colors.black, borderColor: colors.gray200, textAlign, writingDirection },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: newCatName }), {}),
+                ]}
                 placeholder={t('inventory.addCategory')}
                 placeholderTextColor={colors.gray400}
                 value={newCatName}
@@ -657,7 +668,11 @@ export default function InventoryScreen() {
                   return (
                     <View key={cat.name} style={[styles.catCard, { backgroundColor: colors.gray50, flexDirection, padding: isRTL ? RTL_SPACING.gap : 12 }]}>
                       <TextInput
-                        style={[styles.editCatInput, { color: colors.black, borderColor: colors.primary, textAlign, writingDirection }]}
+                        style={[
+                          styles.editCatInput,
+                          { color: colors.black, borderColor: colors.primary, textAlign, writingDirection },
+                          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: editCatName }), {}),
+                        ]}
                         value={editCatName}
                         onChangeText={setEditCatName}
                         onSubmitEditing={handleConfirmRename}

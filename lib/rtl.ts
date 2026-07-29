@@ -30,12 +30,17 @@ export const RTL_SPACING = {
   gapSm:   8,   // small inline icon + label gap (phone/date/footer rows)
   gap:     14,  // icon/content gap inside list rows, cards, top rows
   gapLg:   16,  // icon-wrap -> content block gap (settings rows, avatars)
-  gapXl:   20,  // icon-wrap -> content block gap for Settings list rows only
-                // (SettingRow/SettingSwitch/SettingSection) — extra room so the
-                // icon never reads as "attached" to Kurdish script labels.
+  gapXl:   20,  // icon-wrap -> content block gap for Settings list rows
+                // (SettingRow/SettingSwitch/SettingSection) and for avatar/
+                // company-icon -> content in history/list cards — extra room
+                // so the icon never reads as "attached" to Kurdish script labels.
   title:   5,   // vertical gap between a title and its subtitle line
   rowPadV: 14,  // vertical padding for list/option rows
   cardPad: 18,  // padding inside cards
+  stackGap: 6,  // vertical gap between stacked info rows inside a list/history
+                // card body (name/phone/purchases/debt/date)
+  cardGap:  12, // vertical space between cards in a Kurdish list (replaces a
+                // flat marginBottom so list rhythm matches the taller RTL rows)
 };
 
 // Use for navigation icons that should mirror in RTL (chevrons, arrows).

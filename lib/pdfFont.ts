@@ -45,3 +45,23 @@ export function pdfDevelopedByText(): string {
 // For the English-only templates (no Kurdish/RTL infrastructure) — a plain
 // literal, so a future rebrand only touches this file.
 export const PDF_DEVELOPED_BY_EN = `Developed by ${PDF_BRAND_NAME}`;
+
+// Shared by every PDF template that wraps already-translated Kurdish label/
+// heading HTML in a `.ku-text` span (font-family: Rudaw, dir="rtl") — this
+// was previously a copy-pasted `isKurdishActive`/`ku` pair duplicated across
+// invoiceTemplate.ts and inventoryPDFReports.ts (financialReportTemplate.ts
+// kept its own `isKurdish` boolean for other uses — kuAlign/numAlign/lang —
+// but delegates this span-wrapping to `kuSpan` too). Raw data (IDs,
+// quantities, formatted amounts, names, dates) must NEVER be passed through
+// this — it's only for translated label/heading text — since CSS font-family
+// fallback in the WebView already does correct per-glyph switching for
+// mixed Latin/Kurdish content.
+export function isKurdishPdfActive(): boolean {
+  return i18n.language === 'ku';
+}
+
+export function kuSpan(html: string, heading = false): string {
+  return isKurdishPdfActive()
+    ? `<span class="ku-text${heading ? ' ku-heading' : ''}" dir="rtl">${html}</span>`
+    : html;
+}

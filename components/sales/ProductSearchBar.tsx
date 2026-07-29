@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 interface Props {
   query: string;
@@ -24,6 +26,8 @@ export function ProductSearchBar({
   const { t } = useTranslation();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const { colors } = useAppTheme();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isKurdish = resolveInputIsKurdish({ isKuLanguage, value: query });
   const styles = useMemo(() => getStyles(colors), [colors]);
   const allCategories = ['all', ...categories];
 
@@ -32,7 +36,7 @@ export function ProductSearchBar({
       <View style={[styles.searchBox, { flexDirection }]}>
         <Ionicons name="search" size={18} color={colors.gray400} style={styles.icon} />
         <TextInput
-          style={[styles.input, { textAlign, writingDirection }]}
+          style={[styles.input, { textAlign, writingDirection }, isKuLanguage && applyKurdishFont(isKurdish, {})]}
           value={query}
           onChangeText={onQueryChange}
           placeholder={t('sales.searchProducts')}

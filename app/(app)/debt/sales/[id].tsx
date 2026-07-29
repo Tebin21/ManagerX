@@ -34,6 +34,8 @@ import type { Sale } from '@/types/sales';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
@@ -131,6 +133,7 @@ export default function SalesDebtDetailScreen() {
   const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const scrollIntoView = useKeyboardAwareFocus();
   const { textAlign, flexDirection, valueAlign } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [debt, setDebt]         = useState<SalesDebtDetail | null>(null);
   const [sale, setSale]         = useState<Sale | null>(null);
@@ -144,8 +147,8 @@ export default function SalesDebtDetailScreen() {
 
   const debtId = Number(id);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [d, p] = await Promise.all([
         getSalesDebtById(debtId),
@@ -160,7 +163,7 @@ export default function SalesDebtDetailScreen() {
     } catch (err) {
       console.error('Failed to load debt detail:', err);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [debtId]);
 
@@ -180,7 +183,7 @@ export default function SalesDebtDetailScreen() {
       setPayValue('');
       setPaymentDate(new Date());
       setShowPayForm(false);
-      await load();
+      await load({ silent: true });
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     } finally {
@@ -367,7 +370,11 @@ export default function SalesDebtDetailScreen() {
                   {t('debt.remainingLabel')}: <AmountText value={debt.remainingAmount} currency="IQD" variant="small" style={[styles.payRemaining, { color: colors.primary }]} />
                 </Text>
                 <TextInput
-                  style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }]}
+                  style={[
+                    styles.payInput,
+                    { textAlign: 'right', writingDirection: 'ltr' },
+                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payValue, keyboardType: 'decimal-pad' }), {}),
+                  ]}
                   placeholder={t('debt.amountPlaceholder')}
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"

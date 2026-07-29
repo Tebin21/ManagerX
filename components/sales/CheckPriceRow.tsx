@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
-import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { useAppTheme } from '@/contexts/ThemeContext';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import type { Product } from '@/types/sales';
 
@@ -15,6 +14,7 @@ interface Props {
 
 export function CheckPriceRow({ product }: Props) {
   const { colors } = useAppTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { textAlign, flexDirection, alignEnd } = useRTL();
   const isLowStock = product.quantity > 0 && product.quantity <= 5;
   const isOutOfStock = product.quantity === 0 || !product.isActive;
@@ -56,41 +56,43 @@ export function CheckPriceRow({ product }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Theme.radius.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-    ...Theme.shadow.soft,
-  },
-  left: { flex: 1 },
-  name: { fontSize: 14, fontWeight: '600', color: Colors.black, marginBottom: 4 },
-  badges: { flexDirection: 'row', gap: 6 },
-  idBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  idText: { fontSize: 11, fontWeight: '500' },
-  unit: { fontSize: 11, color: Colors.gray500 },
-  prices: { alignItems: 'flex-end', marginHorizontal: 12 },
-  buyPrice: { fontSize: 11, color: Colors.gray400, marginBottom: 2 },
-  sellPrice: { fontSize: 15, fontWeight: '700' },
-  stockBadge: {
-    minWidth: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: Colors.gray100,
-  },
-  stockText: { fontSize: 13, fontWeight: '700' },
-  stockOk: { color: Colors.success },
-  stockLow: { color: Colors.warning },
-  stockOut: { color: Colors.error },
-});
+function getStyles(colors: AppColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.white,
+      borderRadius: Theme.radius.card,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 8,
+      ...Theme.shadow.soft,
+    },
+    left: { flex: 1 },
+    name: { fontSize: 14, fontWeight: '600', color: colors.black, marginBottom: 4 },
+    badges: { flexDirection: 'row', gap: 6 },
+    idBadge: {
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    idText: { fontSize: 11, fontWeight: '500' },
+    unit: { fontSize: 11, color: colors.gray500 },
+    prices: { alignItems: 'flex-end', marginHorizontal: 12 },
+    buyPrice: { fontSize: 11, color: colors.gray400, marginBottom: 2 },
+    sellPrice: { fontSize: 15, fontWeight: '700' },
+    stockBadge: {
+      minWidth: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: colors.gray100,
+    },
+    stockText: { fontSize: 13, fontWeight: '700' },
+    stockOk: { color: colors.success },
+    stockLow: { color: colors.warning },
+    stockOut: { color: colors.error },
+  });
+}

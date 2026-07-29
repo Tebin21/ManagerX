@@ -36,7 +36,8 @@ import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
-import { SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { SETTINGS_KURDISH_FONT, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useLanguageStore } from '@/store/languageStore';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -53,6 +54,7 @@ export default function NewPurchaseScreen() {
   const { colors } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   // ─── Required fields ────────────────────────────────────────────────────────
   const [supplierName, setSupplierName]     = useState('');
@@ -394,7 +396,11 @@ export default function NewPurchaseScreen() {
                       <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
                     </View>
                     <TextInput
-                      style={[styles.customIdInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign: 'left', writingDirection: 'ltr' }]}
+                      style={[
+                        styles.customIdInput,
+                        { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign: 'left', writingDirection: 'ltr' },
+                        isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
+                      ]}
                       value={customIds[i] ?? ''}
                       onChangeText={(val) => updateCustomId(i, val)}
                       placeholder={`ID for item ${i + 1}`}

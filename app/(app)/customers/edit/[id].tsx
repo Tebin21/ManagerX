@@ -15,6 +15,8 @@ import { useCustomerStore } from '@/store/customerStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export default function EditCustomerScreen() {
   const router  = useRouter();
@@ -24,6 +26,7 @@ export default function EditCustomerScreen() {
   const { colors } = useAppTheme();
   const { customers, editCustomer } = useCustomerStore();
   const scrollIntoView = useKeyboardAwareFocus();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const customer = customers.find((c) => c.id === Number(id));
 
@@ -94,7 +97,11 @@ export default function EditCustomerScreen() {
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.name')}</Text>
           <TextInput
-            style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+            style={[
+              styles.input,
+              { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name }), {}),
+            ]}
             value={name} onChangeText={setName}
             placeholder={t('customers.name')} placeholderTextColor={colors.gray300}
             onFocus={scrollIntoView}
@@ -111,7 +118,11 @@ export default function EditCustomerScreen() {
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.address')}</Text>
           <TextInput
-            style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+            style={[
+              styles.input,
+              { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: address }), {}),
+            ]}
             value={address} onChangeText={setAddress}
             placeholder={t('sales.customerAddress')} placeholderTextColor={colors.gray300}
             onFocus={scrollIntoView}
@@ -119,7 +130,12 @@ export default function EditCustomerScreen() {
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.notesLabel')}</Text>
           <TextInput
-            style={[styles.input, styles.textarea, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign }]}
+            style={[
+              styles.input,
+              styles.textarea,
+              { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes }), {}),
+            ]}
             value={notes} onChangeText={setNotes}
             placeholder={t('purchases.notes')} placeholderTextColor={colors.gray300}
             multiline numberOfLines={4}
