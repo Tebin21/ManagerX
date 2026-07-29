@@ -258,11 +258,17 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   searchPurchases: (query: string) => {
     const q = query.toLowerCase().trim();
     if (!q) return get().purchases;
-    return get().purchases.filter(
-      (p) =>
-        p.productName.toLowerCase().includes(q) ||
-        (p.supplierName?.toLowerCase().includes(q) ?? false) ||
-        p.purchaseNumber.toLowerCase().includes(q)
-    );
+    const qDigits = q.replace(/\D/g, '');
+    return get().purchases.filter((p) => {
+      if (p.productName.toLowerCase().includes(q)) return true;
+      if (p.supplierName?.toLowerCase().includes(q)) return true;
+      if (p.purchaseNumber.toLowerCase().includes(q)) return true;
+      if (p.supplierPhone) {
+        if (p.supplierPhone.toLowerCase().includes(q)) return true;
+        if (qDigits && p.supplierPhone.replace(/\D/g, '').includes(qDigits)) return true;
+      }
+      if (p.itemIds.some((id) => id.toLowerCase().includes(q))) return true;
+      return false;
+    });
   },
 }));

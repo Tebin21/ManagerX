@@ -278,9 +278,9 @@ export function buildInvoiceHTML(
   // ── Customer (rendered inside the header's middle column) ──
   const customerColumn = (sale.customerName || sale.customerPhone || sale.customerAddress) ? `
       <div class="card-label">${ku(t('customer'))}</div>
-      ${sale.customerName    ? `<div class="info-row"><span class="row-label">${ku(t('name'))}:</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
-      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone'))}:</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
-      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">${ku(t('address'))}:</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
+      ${sale.customerName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
+      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
+      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
 
   // ── Items table — Product ID is always its own column, never hidden ──
   const itemRows = items.length > 0 ? items.map((item, i) => `
@@ -393,15 +393,15 @@ export function buildInvoiceHTML(
         <span class="row-value row-value-ltr">#${escHtml(sale.invoiceNumber)}</span>
       </div>
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('date'))}:</span>
+        <span class="row-label">${ku(t('date') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatDate(dateTimeValue))}</span>
       </div>
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('time'))}:</span>
+        <span class="row-label">${ku(t('time') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatTime(dateTimeValue))}</span>
       </div>
       <div class="inv-status-row">
-        <span class="inv-meta-line">${ku(t('status'))}:</span>
+        <span class="inv-meta-line">${ku(t('status') + ':')}</span>
         ${statusBadge}
       </div>
     </div>
@@ -718,9 +718,9 @@ export function buildPurchaseInvoiceHTML(
   // ── Supplier (rendered inside the header's middle column) ──
   const supplierColumn = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
       <div class="card-label">${ku(t('supplier'))}</div>
-      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">${ku(t('name'))}:</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
-      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone'))}:</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
-      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address'))}:</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
+      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
+      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
+      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
   const displayRows: PurchaseDisplayRow[] = purchaseItems.length > 0
@@ -732,7 +732,7 @@ export function buildPurchaseInvoiceHTML(
           <td class="num-col">${i + 1}</td>
           <td style="text-align:${kuAlign};">
             <span class="item-name">${escHtml(row.name)}</span>
-            ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel'))}:</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
+            ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel') + ':')}</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
           </td>
           <td class="center">${row.qty}</td>
           <td class="right">${fmtIQD(row.unitPriceIQD)} IQD</td>
@@ -844,15 +844,15 @@ export function buildPurchaseInvoiceHTML(
         <span class="row-value row-value-ltr">#${escHtml(purchase.purchaseNumber)}</span>
       </div>
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('date'))}:</span>
+        <span class="row-label">${ku(t('date') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatDate(purchaseDateTime))}</span>
       </div>
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('time'))}:</span>
+        <span class="row-label">${ku(t('time') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatTime(purchaseDateTime))}</span>
       </div>
       <div class="inv-status-row">
-        <span class="inv-meta-line">${ku(t('status'))}:</span>
+        <span class="inv-meta-line">${ku(t('status') + ':')}</span>
         ${statusBadge}
       </div>
     </div>

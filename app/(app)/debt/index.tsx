@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
+import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -166,7 +167,9 @@ function SalesDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedByCustomer', { amount: fmtIQD(debt.remainingAmount) })}</Text>
+          <Text style={[styles.amountSub, { textAlign }]}>
+            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedByCustomer')}
+          </Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -250,7 +253,9 @@ function PurchaseDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>{i18n.t('debt.owedToSupplier', { amount: fmtIQD(debt.remainingAmount) })}</Text>
+          <Text style={[styles.amountSub, { textAlign }]}>
+            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedToSupplier')}
+          </Text>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -366,7 +371,7 @@ export default function DebtScreen() {
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const {
-    summary, isLoading,
+    summary, isLoading, salesDebts, purchaseDebts,
     loadAll, paySalesDebt, payPurchaseDebt,
     searchSalesDebts, searchPurchaseDebts,
   } = useDebtStore();
@@ -384,11 +389,11 @@ export default function DebtScreen() {
 
   const visibleSales = useMemo(
     () => searchSalesDebts(query).filter((d) => isDateWithinRange(d.createdAt, bounds.from, bounds.to)),
-    [query, searchSalesDebts, bounds]
+    [query, searchSalesDebts, bounds, salesDebts]
   );
   const visiblePurchase = useMemo(
     () => searchPurchaseDebts(query).filter((d) => isDateWithinRange(d.createdAt, bounds.from, bounds.to)),
-    [query, searchPurchaseDebts, bounds]
+    [query, searchPurchaseDebts, bounds, purchaseDebts]
   );
 
   const handlePay = useCallback(async (amount: number) => {

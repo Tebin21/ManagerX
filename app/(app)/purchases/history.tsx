@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, FlatList, TextInput, TouchableOpacity,
   RefreshControl, Keyboard, StyleSheet, Alert,
@@ -25,7 +25,7 @@ export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign, writingDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase, searchPurchases } =
     usePurchaseStore();
@@ -67,7 +67,10 @@ export default function PurchaseHistoryScreen() {
     );
   }
 
-  const visible = query.trim() ? searchPurchases(query) : purchases;
+  const visible = useMemo(
+    () => (query.trim() ? searchPurchases(query) : purchases),
+    [query, purchases, searchPurchases]
+  );
 
   const renderEmpty = () => (
     <MotiView
@@ -132,7 +135,7 @@ export default function PurchaseHistoryScreen() {
         <TextInput
           style={[
             styles.searchInput,
-            { color: colors.black },
+            { color: colors.black, textAlign, writingDirection },
             isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
           ]}
           value={query}
@@ -197,6 +200,7 @@ const styles = StyleSheet.create({
     borderRadius:     Theme.radius.lg,
     marginHorizontal: 16,
     marginTop:        8,
+    marginBottom:     Theme.spacing.sm,
     paddingHorizontal:12,
     height:           44,
     gap:              8,

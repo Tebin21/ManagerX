@@ -1898,6 +1898,22 @@ export async function getSaleById(id: number): Promise<Sale | null> {
   return sale;
 }
 
+// Lightweight product-name/item-ID lookup for sales-history search, kept
+// separate from getAllSales() so the main list load never pays for a join
+// across every invoice's line items.
+export async function getSaleItemsSearchIndex(): Promise<Record<number, string>> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<{ sale_id: number; product_name: string; item_id: string | null }>(
+    'SELECT sale_id, product_name, item_id FROM sale_items'
+  );
+  const index: Record<number, string> = {};
+  for (const row of rows) {
+    const part = row.item_id ? `${row.product_name} ${row.item_id}` : row.product_name;
+    index[row.sale_id] = index[row.sale_id] ? `${index[row.sale_id]} ${part}` : part;
+  }
+  return index;
+}
+
 export async function deleteSale(id: number): Promise<void> {
   const database = await getDatabase();
 

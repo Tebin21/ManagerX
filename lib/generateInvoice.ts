@@ -68,6 +68,14 @@ let _generating = false;
 let _generatingSince = 0;
 const GENERATION_LOCK_STALE_MS = 45_000;
 
+// `Sharing.shareAsync`'s promise only settles when the OS share sheet's
+// completion callback fires -- on real devices that callback can simply
+// never arrive (e.g. handing the file off to another app, or backgrounding
+// before returning to dismiss the sheet). Bounding the wait here guarantees
+// generateAndShare() -- and therefore every share*() caller's `finally` --
+// always runs promptly instead of leaving `_generating` stuck forever.
+const SHARE_TIMEOUT_MS = 10_000;
+
 function tryAcquireGenerationLock(): boolean {
   if (_generating && Date.now() - _generatingSince > GENERATION_LOCK_STALE_MS) {
     _generating = false;
@@ -247,12 +255,31 @@ async function generateAndShare(
     return false;
   }
 
+  let timedOut = false;
   try {
-    await Sharing.shareAsync(uri, {
+    const sharePromise = Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       dialogTitle,
       UTI: 'com.adobe.pdf',
+    }).catch((err) => {
+      // If we already timed out below, the share sheet's outcome no longer
+      // matters to this call -- swallow it so it doesn't surface as an
+      // unhandled rejection or a second, misleading Alert.
+      if (!timedOut) throw err;
+      console.warn('[PDF] shareAsync settled after timeout:', err);
     });
+
+    const timeoutPromise = new Promise<'timeout'>((resolve) => {
+      setTimeout(() => {
+        timedOut = true;
+        resolve('timeout');
+      }, SHARE_TIMEOUT_MS);
+    });
+
+    const result = await Promise.race([sharePromise, timeoutPromise]);
+    if (result === 'timeout') {
+      console.warn('[PDF] shareAsync did not settle within', SHARE_TIMEOUT_MS, 'ms; treating as handed off');
+    }
   } catch (shareErr) {
     console.error('[PDF] shareAsync failed:', shareErr);
     Alert.alert('Error', errorMessage);

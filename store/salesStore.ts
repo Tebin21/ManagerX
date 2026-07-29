@@ -6,6 +6,7 @@ import {
   updateSaleComplete,
   generateInvoiceNumber,
   upsertCustomer,
+  getSaleItemsSearchIndex,
 } from '@/lib/sqlite';
 import { useInventoryStore } from './inventoryStore';
 import { useSettingsStore } from './settingsStore';
@@ -30,6 +31,8 @@ interface CartStateArg {
 interface SalesState {
   sales: Sale[];
   isLoading: boolean;
+  /** saleId -> "productName itemId productName itemId …", used only by searchSales. */
+  saleItemsIndex: Record<number, string>;
   loadSales: () => Promise<void>;
   createSale: (cart: CartStateArg) => Promise<Sale>;
   updateSale: (saleId: number, input: UpdateSaleCompleteInput) => Promise<void>;
@@ -41,12 +44,13 @@ interface SalesState {
 export const useSalesStore = create<SalesState>((set, get) => ({
   sales: [],
   isLoading: false,
+  saleItemsIndex: {},
 
   loadSales: async () => {
     set({ isLoading: true });
     try {
-      const sales = await getAllSales();
-      set({ sales, isLoading: false });
+      const [sales, saleItemsIndex] = await Promise.all([getAllSales(), getSaleItemsSearchIndex()]);
+      set({ sales, saleItemsIndex, isLoading: false });
     } catch (err) {
       console.error('Failed to load sales:', err);
       set({ isLoading: false });
@@ -138,14 +142,21 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       items: saleItems.map((item, i) => ({ ...item, id: i, saleId })),
     };
 
-    set((state) => ({ sales: [newSale, ...state.sales] }));
+    const itemsText = saleItems
+      .map((item) => (item.itemId ? `${item.productName} ${item.itemId}` : item.productName))
+      .join(' ');
+
+    set((state) => ({
+      sales: [newSale, ...state.sales],
+      saleItemsIndex: { ...state.saleItemsIndex, [saleId]: itemsText },
+    }));
     return newSale;
   },
 
   updateSale: async (saleId: number, input: UpdateSaleCompleteInput) => {
     await updateSaleComplete(saleId, input);
-    const sales = await getAllSales();
-    set({ sales });
+    const [sales, saleItemsIndex] = await Promise.all([getAllSales(), getSaleItemsSearchIndex()]);
+    set({ sales, saleItemsIndex });
     await useInventoryStore.getState().reloadAfterSale();
     try {
       const { useCustomerStore } = await import('@/store/customerStore');
@@ -164,7 +175,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   deleteSale: async (id: number) => {
     await dbDeleteSale(id);
     await useInventoryStore.getState().reloadAfterSale();
-    set((state) => ({ sales: state.sales.filter((s) => s.id !== id) }));
+    set((state) => {
+      const saleItemsIndex = { ...state.saleItemsIndex };
+      delete saleItemsIndex[id];
+      return { sales: state.sales.filter((s) => s.id !== id), saleItemsIndex };
+    });
     try {
       const { useCustomerStore } = await import('@/store/customerStore');
       await useCustomerStore.getState().reloadAfterSale();
@@ -180,17 +195,26 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   refreshSales: async () => {
-    const sales = await getAllSales();
-    set({ sales });
+    const [sales, saleItemsIndex] = await Promise.all([getAllSales(), getSaleItemsSearchIndex()]);
+    set({ sales, saleItemsIndex });
   },
 
   searchSales: (query: string) => {
     const q = query.toLowerCase().trim();
     if (!q) return get().sales;
-    return get().sales.filter(
-      (s) =>
-        s.invoiceNumber.toLowerCase().includes(q) ||
-        (s.customerName?.toLowerCase().includes(q) ?? false)
-    );
+    const qDigits = q.replace(/\D/g, '');
+    const itemsIndex = get().saleItemsIndex;
+    return get().sales.filter((s) => {
+      if (s.invoiceNumber.toLowerCase().includes(q)) return true;
+      if (qDigits && s.invoiceNumber.replace(/\D/g, '').includes(qDigits)) return true;
+      if (s.customerName?.toLowerCase().includes(q)) return true;
+      if (s.customerPhone) {
+        if (s.customerPhone.toLowerCase().includes(q)) return true;
+        if (qDigits && s.customerPhone.replace(/\D/g, '').includes(qDigits)) return true;
+      }
+      const itemsText = itemsIndex[s.id];
+      if (itemsText && itemsText.toLowerCase().includes(q)) return true;
+      return false;
+    });
   },
 }));

@@ -14,6 +14,7 @@ import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { TimeText } from '@/components/ui/TimeText';
+import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -23,7 +24,7 @@ import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { getPurchaseDebtById, getDebtPayments, addPaymentToPurchaseDebt, getPurchaseById } from '@/lib/sqlite';
+import { getPurchaseDebtById, getDebtPayments, getPurchaseById } from '@/lib/sqlite';
 import { useDebtStore } from '@/store/debtStore';
 import { Colors } from '@/constants/colors';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
@@ -128,7 +129,7 @@ export default function PurchaseDebtDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
-  const { reloadAfterSale } = useDebtStore();
+  const { payPurchaseDebt } = useDebtStore();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
@@ -180,16 +181,21 @@ export default function PurchaseDebtDetailScreen() {
     if (!debt) return;
     setIsPaying(true);
     try {
-      await addPaymentToPurchaseDebt(debtId, amt, paymentDate.toISOString());
-      await reloadAfterSale();
-      try {
-        const { useInventoryStore } = await import('@/store/inventoryStore');
-        await useInventoryStore.getState().loadInventory();
-      } catch {}
-      try {
-        const { usePurchaseStore } = await import('@/store/purchaseStore');
-        await usePurchaseStore.getState().loadPurchases();
-      } catch {}
+      const ts = paymentDate.toISOString();
+      await payPurchaseDebt(debtId, amt, ts);
+
+      // Instant, optimistic patch so the screen reflects the payment in this
+      // same tick — the silent reload below then reconciles payment history.
+      const clamped = Math.min(amt, debt.remainingAmount);
+      const newRemaining = Math.max(0, debt.remainingAmount - clamped);
+      setDebt({
+        ...debt,
+        paidAmount: debt.paidAmount + clamped,
+        remainingAmount: newRemaining,
+        status: newRemaining <= 0 ? 'settled' : 'active',
+        lastPaymentAt: ts,
+      });
+
       setPayValue('');
       setPaymentDate(new Date());
       setShowPayForm(false);
@@ -277,7 +283,9 @@ export default function PurchaseDebtDetailScreen() {
 
             <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
 
-            <Text style={[styles.progressPct, { textAlign }]}>{t('debt.pctPaidSupplier', { pct: pctPaid })}</Text>
+            <Text style={[styles.progressPct, { textAlign }]}>
+              <LTRNumber style={styles.progressPct}>{pctPaid}%</LTRNumber> {t('debt.pctPaidSupplier')}
+            </Text>
 
             <View style={[styles.amountRow, { flexDirection }]}>
               <View style={styles.amountCell}>

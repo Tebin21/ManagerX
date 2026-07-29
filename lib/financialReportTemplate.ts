@@ -83,8 +83,8 @@ export function buildFinancialReportHTML(
   // from Unicode bidi reordering a single concatenated text run. English
   // keeps rendering the original one-line "Label: value" markup untouched.
   const metaRow = (labelHtml: string, valueHtml: string): string => isKurdish
-    ? `<div class="inv-meta-row"><span class="meta-label">${labelHtml}:</span><span class="meta-value">${valueHtml}</span></div>`
-    : `<div class="inv-meta-line">${labelHtml}: ${valueHtml}</div>`;
+    ? `<div class="inv-meta-row"><span class="meta-label">${labelHtml}</span><span class="meta-value">${valueHtml}</span></div>`
+    : `<div class="inv-meta-line">${labelHtml} ${valueHtml}</div>`;
 
   const {
     financialCards, salesData, purchaseData, plData,
@@ -386,11 +386,11 @@ export function buildFinancialReportHTML(
       </div>
       <div class="col-meta">
         <div class="inv-label">${ku(t('reportInfo'), true)}</div>
-        ${metaRow(ku(t('reportId')), id)}
-        ${metaRow(ku(t('date')), generatedDate)}
-        ${metaRow(ku(t('time')), generatedTime)}
-        ${dateRange.key === 'custom' ? metaRow(ku(t('from')), fmtDate(dateRange.from)) : ''}
-        ${dateRange.key === 'custom' ? metaRow(ku(t('to')), fmtDate(dateRange.to)) : ''}
+        ${metaRow(ku(t('reportId') + ':'), id)}
+        ${metaRow(ku(t('date') + ':'), generatedDate)}
+        ${metaRow(ku(t('time') + ':'), generatedTime)}
+        ${dateRange.key === 'custom' ? metaRow(ku(t('from') + ':'), fmtDate(dateRange.from)) : ''}
+        ${dateRange.key === 'custom' ? metaRow(ku(t('to') + ':'), fmtDate(dateRange.to)) : ''}
       </div>
     </div>
   </div>
