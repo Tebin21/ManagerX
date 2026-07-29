@@ -124,7 +124,7 @@ function SalesDebtCardImpl({
   const router = useRouter();
   const { colors } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
-  const { flexDirection, alignEnd, textAlign } = useRTL();
+  const { flexDirection, alignEnd, textAlign, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -168,7 +168,11 @@ function SalesDebtCardImpl({
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
           <Text style={[styles.amountSub, { textAlign }]}>
-            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedByCustomer')}
+            {isRTL ? (
+              <>{i18n.t('debt.owedByCustomer')} <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber></>
+            ) : (
+              <><LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedByCustomer')}</>
+            )}
           </Text>
         </View>
 
@@ -210,7 +214,7 @@ function PurchaseDebtCardImpl({
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
-  const { flexDirection, alignEnd, textAlign } = useRTL();
+  const { flexDirection, alignEnd, textAlign, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -254,7 +258,11 @@ function PurchaseDebtCardImpl({
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
           <Text style={[styles.amountSub, { textAlign }]}>
-            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedToSupplier')}
+            {isRTL ? (
+              <>{i18n.t('debt.owedToSupplier')} <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber></>
+            ) : (
+              <><LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedToSupplier')}</>
+            )}
           </Text>
         </View>
 

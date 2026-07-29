@@ -334,7 +334,7 @@ export default function EditPurchaseScreen() {
               label={t('purchases.description')}
               value={description}
               onChangeText={setDescription}
-              placeholder={t('common.optional')}
+              placeholder={t('purchases.descriptionPlaceholder')}
               multiline
               returnKeyType="next"
             />

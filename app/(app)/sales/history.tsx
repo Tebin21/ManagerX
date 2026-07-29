@@ -12,6 +12,7 @@ import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useLanguageStore } from '@/store/languageStore';
 import { containsKurdishScript, applyKurdishFont } from '@/lib/settingsFont';
 import type { Sale } from '@/types/sales';
 
@@ -20,6 +21,7 @@ export default function SalesHistoryScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { sales, searchSales, loadSales, isLoading } = useSalesStore();
 
   const [query, setQuery] = useState('');
@@ -33,6 +35,10 @@ export default function SalesHistoryScreen() {
   // app language so the bar itself doesn't jump around while typing.
   const queryIsKurdish = useMemo(() => containsKurdishScript(query), [query]);
   const searchIsRTL = query.length > 0 ? queryIsKurdish : isRTL;
+  // Font follows the typed content once there's a query; with an empty
+  // field it follows the app language instead, so the (Kurdish) placeholder
+  // renders in the app's standard Kurdish font like every other label.
+  const inputFontIsKurdish = query.length > 0 ? queryIsKurdish : isKuLanguage;
 
   const results = useMemo(
     () => (query.trim() ? searchSales(query) : sales),
@@ -62,7 +68,7 @@ export default function SalesHistoryScreen() {
               textAlign: searchIsRTL ? 'right' : 'left',
               writingDirection: searchIsRTL ? 'rtl' : 'ltr',
             },
-            applyKurdishFont(queryIsKurdish, {}),
+            applyKurdishFont(inputFontIsKurdish, {}),
           ]}
           value={query}
           onChangeText={setQuery}
