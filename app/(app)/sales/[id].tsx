@@ -19,13 +19,13 @@ import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
 import { Typography } from '@/constants/typography';
 import type { Sale } from '@/types/sales';
-import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
 export default function SaleDetailScreen() {
-  const { id, new: isNew } = useLocalSearchParams<{ id: string; new?: string }>();
+  const { id, new: isNew, currency } = useLocalSearchParams<{ id: string; new?: string; currency?: string }>();
+  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : 'iqd';
   const router   = useRouter();
   const { t } = useTranslation();
   const { textAlign } = useRTL();
@@ -35,7 +35,6 @@ export default function SaleDetailScreen() {
   const [sale, setSale]         = useState<Sale | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
-  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   useEffect(() => { loadSale(); }, [id]);
 
@@ -119,8 +118,6 @@ export default function SaleDetailScreen() {
             <InvoiceView sale={sale} />
           </PremiumCard>
         </MotiView>
-
-        <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
 
         <View style={styles.actions}>
           <PrimaryButton label={isSharing ? t('sales.preparingPdf') : t('sales.shareInvoice')} onPress={handleShare} loading={isSharing} />

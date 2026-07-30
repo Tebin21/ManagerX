@@ -34,10 +34,12 @@ import { generateUniqueProductId } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useLanguageStore } from '@/store/languageStore';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -88,6 +90,7 @@ export default function NewPurchaseScreen() {
   const [imageUri, setImageUri]             = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   useEffect(() => {
     getProductCategories().then(setAvailableCategories).catch(() => {});
@@ -263,7 +266,7 @@ export default function NewPurchaseScreen() {
         } catch { /* non-critical */ }
       }
 
-      router.replace(`/(app)/purchases/${purchase.id}?new=1` as never);
+      router.replace(`/(app)/purchases/${purchase.id}?new=1&currency=${receiptCurrency}` as never);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.startsWith('DUPLICATE_ITEM_ID|')) {
@@ -621,6 +624,8 @@ export default function NewPurchaseScreen() {
             )}
           </PremiumCard>
 
+          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+
           {/* ── Actions ───────────────────────────────────────── */}
           <View style={styles.actions}>
             <PrimaryButton
@@ -639,6 +644,7 @@ export default function NewPurchaseScreen() {
                 setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
                 setAmountPaid('');
                 setImageUri(null);
+                setReceiptCurrency('iqd');
               }}
               variant="ghost"
             />

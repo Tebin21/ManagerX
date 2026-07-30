@@ -21,15 +21,15 @@ import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { getPurchaseById, getPurchaseItemsByPurchaseId } from '@/lib/sqlite';
+import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId } from '@/lib/sqlite';
 import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
+import type { PurchaseDebt } from '@/types/debt';
 import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
-import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
@@ -59,7 +59,8 @@ const infoRow = StyleSheet.create({
 });
 
 export default function PurchaseDetailScreen() {
-  const { id, new: isNew } = useLocalSearchParams<{ id: string; new?: string }>();
+  const { id, new: isNew, currency } = useLocalSearchParams<{ id: string; new?: string; currency?: string }>();
+  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : 'iqd';
   const router   = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -69,10 +70,10 @@ export default function PurchaseDetailScreen() {
 
   const [purchase, setPurchase]       = useState<Purchase | null>(null);
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  const [purchaseDebt, setPurchaseDebt] = useState<PurchaseDebt | null>(null);
   const [isLoading, setIsLoading]     = useState(true);
   const [isSharing, setIsSharing]     = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
-  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   useEffect(() => { loadPurchase(); }, [id]);
 
@@ -92,6 +93,7 @@ export default function PurchaseDetailScreen() {
       ]);
       setPurchase(data);
       setPurchaseItems(items);
+      setPurchaseDebt(data && data.paymentStatus === 'debt' ? await getPurchaseDebtByPurchaseId(purchaseId) : null);
     } catch (err) {
       console.error('Failed to load purchase:', err);
     } finally {
@@ -106,7 +108,7 @@ export default function PurchaseDetailScreen() {
       await sharePurchaseInvoice(purchase, purchaseItems, {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
-      }, receiptCurrency);
+      }, receiptCurrency, purchaseDebt);
     } catch (err) {
       console.error('[PDF] handleShare unexpected error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -220,6 +222,18 @@ export default function PurchaseDetailScreen() {
               <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
               <AmountText value={purchase.totalIQD} currency="IQD" variant="large" style={styles.invoiceTotalValue} />
             </View>
+            {!isPaid && purchaseDebt && (
+              <View style={styles.debtBreakdown}>
+                <View style={[styles.debtRow, { flexDirection }]}>
+                  <Text style={styles.debtRowLabel}>{t('invoicePdf.amountPaid')}</Text>
+                  <AmountText value={purchaseDebt.paidAmount} currency="IQD" style={styles.debtRowValue} />
+                </View>
+                <View style={[styles.debtRow, { flexDirection }]}>
+                  <Text style={styles.debtRowLabel}>{t('invoicePdf.remainingDebt')}</Text>
+                  <AmountText value={purchaseDebt.remainingAmount} currency="IQD" style={[styles.debtRowValue, styles.debtRowValueHighlight]} />
+                </View>
+              </View>
+            )}
           </LinearGradient>
         </MotiView>
 
@@ -228,6 +242,9 @@ export default function PurchaseDetailScreen() {
           <PremiumCard style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productSection')}</Text>
             <InfoRow label={t('purchases.productName')} value={purchase.productName} />
+            {purchase.itemDescription ? (
+              <Text style={[styles.itemDescription, { color: colors.gray500 }]} numberOfLines={1}>{purchase.itemDescription}</Text>
+            ) : null}
             {purchase.category ? <InfoRow label={t('purchases.category')} value={purchase.category} /> : null}
             <InfoRow label={t('purchases.qty')} value={String(purchase.quantity)} />
             <InfoRow label={`${t('purchases.buyPrice')} (IQD)`} value={`${fmtIQD(purchase.buyPriceIQD)} IQD`} />
@@ -322,11 +339,6 @@ export default function PurchaseDetailScreen() {
           </MotiView>
         )}
 
-        {/* Receipt currency */}
-        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 200 }}>
-          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-        </MotiView>
-
         {/* Actions */}
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
           <PrimaryButton
@@ -371,6 +383,14 @@ const styles = StyleSheet.create({
   invoiceTotalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: Theme.radius.md, padding: 14 },
   invoiceTotalLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   invoiceTotalValue: { fontSize: 20, fontWeight: '800', color: '#fff' },
+
+  debtBreakdown:     { marginTop: 10, gap: 6 },
+  debtRow:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 2 },
+  debtRowLabel:      { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+  debtRowValue:      { fontSize: 14, fontWeight: '700', color: '#fff' },
+  debtRowValueHighlight: { color: '#FEF3C7' },
+
+  itemDescription:   { fontSize: 12, fontWeight: '400', marginTop: -4, marginBottom: 6, textAlign: 'right' },
 
   section:      { marginBottom: 14 },
   sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },

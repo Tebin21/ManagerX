@@ -32,6 +32,7 @@ import { GlobalDiscountBar } from '@/components/sales/GlobalDiscountBar';
 import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector';
 import { CustomerInputForm } from '@/components/sales/CustomerInputForm';
 import { InvoiceView } from '@/components/sales/InvoiceView';
+import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 
 import { useTranslation } from 'react-i18next';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -44,6 +45,7 @@ import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
 import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 type Step = 1 | 2 | 3;
 
@@ -70,6 +72,7 @@ export default function NewSaleScreen() {
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [saleDate, setSaleDate] = useState(() => new Date());
+  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   // Derived
   const visibleProducts = inventory.searchProducts(query, selectedCategory);
@@ -138,7 +141,7 @@ export default function NewSaleScreen() {
       });
 
       cart.clearCart();
-      router.replace(`/(app)/sales/${sale.id}?new=1` as never);
+      router.replace(`/(app)/sales/${sale.id}?new=1&currency=${receiptCurrency}` as never);
     } catch (err: unknown) {
       console.error('Failed to create sale:', err);
       const msg = err instanceof Error ? err.message : '';
@@ -424,6 +427,10 @@ export default function NewSaleScreen() {
               compact={false}
             />
           </PremiumCard>
+        </MotiView>
+
+        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
         </MotiView>
 
         <PrimaryButton

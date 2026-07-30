@@ -59,6 +59,8 @@ export interface SaleItem {
   quantity: number;
   discount: number;
   lineTotal: number;
+  /** Live-joined from products.item_description at query time; not persisted in sale_items. */
+  itemDescription?: string | null;
 }
 
 export interface Sale {

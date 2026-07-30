@@ -318,12 +318,13 @@ export async function sharePurchaseInvoice(
   purchase: Purchase,
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo,
-  currencyMode: ReceiptCurrencyMode = 'iqd'
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  purchaseDebt?: PurchaseDebt | null
 ): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode);
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, purchaseDebt);
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,

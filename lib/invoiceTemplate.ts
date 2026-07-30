@@ -1,5 +1,6 @@
 import type { Sale } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
+import type { PurchaseDebt } from '@/types/debt';
 import {
   fmtIQD, fmtUSD, fmtPct, formatDate, formatTime,
   getPaymentStatus,
@@ -198,6 +199,7 @@ function buildSalesCSS(isKurdish: boolean): string {
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
   .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #94a3b8; margin-top: 2px; unicode-bidi: plaintext; }
   .id-chip {
     display: inline-block;
     font-size: 9.5px;
@@ -304,7 +306,7 @@ export function buildInvoiceHTML(
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col">${i + 1}</td>
-      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span></td>
+      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
       <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${fmtIQD(item.sellingPrice)} IQD</td>
@@ -602,6 +604,7 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
   .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #94a3b8; margin-top: 2px; unicode-bidi: plaintext; }
   .item-id {
     display: inline-flex;
     flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
@@ -706,7 +709,8 @@ export function buildPurchaseInvoiceHTML(
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'ltr',
-  currencyMode: ReceiptCurrencyMode = 'iqd'
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  purchaseDebt?: PurchaseDebt | null
 ): string {
   const isKurdish = isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
@@ -738,6 +742,7 @@ export function buildPurchaseInvoiceHTML(
           <td class="num-col">${i + 1}</td>
           <td style="text-align:${kuAlign};">
             <span class="item-name">${escHtml(row.name)}</span>
+            ${purchase.itemDescription ? `<span class="item-desc">${escHtml(purchase.itemDescription)}</span>` : ''}
             ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel') + ':')}</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
           </td>
           <td class="center">${row.qty}</td>
@@ -765,11 +770,13 @@ export function buildPurchaseInvoiceHTML(
   const exchangeRate = purchase.exchangeRate > 0 ? purchase.exchangeRate : 1310;
   const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, exchangeRate);
 
+  const paidAmount = purchaseDebt?.paidAmount ?? 0;
+  const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
+
   const paidRows = purchase.paymentStatus === 'paid'
-    ? `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
-       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount">0 IQD</span></div>`
-    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount muted">—</span></div>
-       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount muted">—</span></div>`;
+    ? ''
+    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtIQD(paidAmount)} IQD</span></div>
+       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount" style="font-weight:700;">${fmtIQD(remainingAmount)} IQD</span></div>`;
 
   const financialCard = `
     <div class="card">

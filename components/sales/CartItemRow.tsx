@@ -114,12 +114,19 @@ export function CartItemRow({
     <View style={[styles.card, { backgroundColor: colors.white }, item.hasLossWarning && { borderStartWidth: 3, borderStartColor: colors.warning }]}>
       {/* Header */}
       <View style={[styles.header, { flexDirection }]}>
-        <View style={[styles.titleRow, { flexDirection }]}>
-          <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>{item.product.name}</Text>
-          {item.product.itemId ? (
-            <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
-              <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{item.product.itemId}</IdText>
-            </View>
+        <View style={styles.titleCol}>
+          <View style={[styles.titleRow, { flexDirection }]}>
+            <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>{item.product.name}</Text>
+            {item.product.itemId ? (
+              <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
+                <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{item.product.itemId}</IdText>
+              </View>
+            ) : null}
+          </View>
+          {item.product.itemDescription ? (
+            <Text style={[styles.description, { color: colors.gray500, textAlign }]} numberOfLines={1}>
+              {item.product.itemDescription}
+            </Text>
           ) : null}
         </View>
         <TouchableOpacity onPress={onRemove} hitSlop={8} style={styles.deleteBtn}>
@@ -271,8 +278,10 @@ const styles = StyleSheet.create({
     ...Theme.shadow.card,
   },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  titleCol: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  description: { fontSize: 12, fontWeight: '400', marginTop: 2 },
   idBadge: { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   idText: {},
   deleteBtn: { padding: 4, marginStart: 8 },

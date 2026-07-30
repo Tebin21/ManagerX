@@ -26,6 +26,8 @@ export interface Purchase {
   paymentStatus: PurchasePaymentStatus;
   /** Derived from the linked product's image, not a column on `purchases` — only populated by getPurchaseById. */
   imageUri?: string | null;
+  /** Derived from the linked product's item_description, not a column on `purchases` — only populated by getPurchaseById. */
+  itemDescription?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1383,7 +1383,10 @@ export async function getSalesByCustomerId(customerId: number): Promise<Sale[]> 
   const sales = rows.map(rowToSale);
   for (const sale of sales) {
     const itemRows = await database.getAllAsync<Record<string, unknown>>(
-      'SELECT * FROM sale_items WHERE sale_id = ?', [sale.id]
+      `SELECT si.*, p.item_description AS item_description
+       FROM sale_items si
+       LEFT JOIN products p ON p.id = si.product_id
+       WHERE si.sale_id = ?`, [sale.id]
     );
     sale.items = itemRows.map(rowToSaleItem);
   }
@@ -1786,6 +1789,7 @@ function rowToSaleItem(row: Record<string, unknown>): SaleItem {
     quantity: row.quantity as number,
     discount: row.discount as number,
     lineTotal: row.line_total as number,
+    itemDescription: (row.item_description as string | null | undefined) ?? null,
   };
 }
 
@@ -1950,7 +1954,10 @@ export async function getSaleById(id: number): Promise<Sale | null> {
 
   const sale = rowToSale(row);
   const itemRows = await database.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM sale_items WHERE sale_id = ?', [id]
+    `SELECT si.*, p.item_description AS item_description
+     FROM sale_items si
+     LEFT JOIN products p ON p.id = si.product_id
+     WHERE si.sale_id = ?`, [id]
   );
   sale.items = itemRows.map(rowToSaleItem);
   return sale;
@@ -2306,10 +2313,11 @@ export async function getPurchaseById(id: number): Promise<Purchase | null> {
   if (!row) return null;
 
   const purchase = rowToPurchase(row);
-  const productRow = await database.getFirstAsync<{ image_uri: string | null }>(
-    'SELECT image_uri FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
+  const productRow = await database.getFirstAsync<{ image_uri: string | null; item_description: string | null }>(
+    'SELECT image_uri, item_description FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
   );
   purchase.imageUri = productRow?.image_uri ?? null;
+  purchase.itemDescription = productRow?.item_description ?? null;
   return purchase;
 }
 
@@ -2843,6 +2851,14 @@ export async function getPurchaseDebtById(id: number): Promise<PurchaseDebt | nu
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
     `SELECT * FROM purchase_debts WHERE id = ?`, [id]
+  );
+  return row ? rowToPurchaseDebt(row) : null;
+}
+
+export async function getPurchaseDebtByPurchaseId(purchaseId: number): Promise<PurchaseDebt | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM purchase_debts WHERE purchase_id = ? ORDER BY created_at DESC LIMIT 1`, [purchaseId]
   );
   return row ? rowToPurchaseDebt(row) : null;
 }
