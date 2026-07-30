@@ -47,6 +47,7 @@ export interface NewProductData {
   quantity: number;
   unit: string;
   description: string | null;
+  itemDescription: string | null;
   isActive: boolean;
   purchaseId: number | null;
   supplierName: string | null;

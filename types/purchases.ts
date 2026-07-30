@@ -49,6 +49,7 @@ export interface NewPurchaseInput {
   description: string;
   notes: string;
   websiteDescription: string;
+  itemDescription: string;
   paymentStatus: PurchasePaymentStatus;
   initialAmountPaid?: number;
   imageUri?: string | null;

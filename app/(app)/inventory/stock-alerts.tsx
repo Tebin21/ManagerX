@@ -1,13 +1,21 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, {
+  useState, useMemo, useCallback, useRef, useEffect, createContext, useContext,
+} from 'react';
 import {
   View,
+  FlatList,
   ScrollView,
   TouchableOpacity,
   Switch,
   TextInput,
+  TextInputProps,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Dimensions,
+  Keyboard,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -16,7 +24,6 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
-import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -27,8 +34,36 @@ import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryProduct } from '@/types/inventory';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import i18n from '@/lib/i18n';
 
 const THRESHOLD_OPTIONS = [1, 2, 3, 5, 10, 20, 50];
+
+// ─────────────────────────────────────────────────────────
+// Local keyboard-avoidance (mirrors components/common/KeyboardAwareScrollView's
+// focus contract, but targets a FlatList via scrollToOffset instead of a
+// ScrollView's scrollTo — kept file-local since this screen's rows are
+// virtualized, unlike that shared wrapper's plain-ScrollView children model).
+// ─────────────────────────────────────────────────────────
+type FocusHandler = NonNullable<TextInputProps['onFocus']>;
+type FocusedTarget = Parameters<FocusHandler>[0]['target'];
+
+const StockAlertsFocusContext = createContext<FocusHandler | null>(null);
+
+function useStockAlertsFocus(): FocusHandler {
+  const notify = useContext(StockAlertsFocusContext);
+  return useCallback<FocusHandler>((e) => { notify?.(e); }, [notify]);
+}
+
+const EXTRA_SPACE_ABOVE_KEYBOARD = 16;
+const EXTRA_SCROLL_SPACE = 80;
+
+// ─────────────────────────────────────────────────────────
+// List item shape (search bar is item 0, virtualized alongside rows so it
+// can be targeted precisely via stickyHeaderIndices)
+// ─────────────────────────────────────────────────────────
+type ListItem =
+  | { kind: 'search' }
+  | { kind: 'row'; product: InventoryProduct };
 
 // ─────────────────────────────────────────────────────────
 // Product row
@@ -42,13 +77,12 @@ interface RowProps {
   onPress: (id: number) => void;
 }
 
-function StockAlertRow({
+const StockAlertRow = React.memo(function StockAlertRow({
   product, globalEnabled, globalThreshold,
   onStatusChange, onSaveThreshold, onPress,
 }: RowProps) {
   const { colors, isDark } = useAppTheme();
-  const { t } = useTranslation();
-  const scrollIntoView = useKeyboardAwareFocus();
+  const scrollIntoView = useStockAlertsFocus();
   const { textAlign, flexDirection } = useRTL();
 
   const isProductActive = product.lowStockEnabled !== 0;
@@ -82,119 +116,113 @@ function StockAlertRow({
   };
 
   return (
-    <MotiView
-      from={{ opacity: 0, translateY: 4 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+    <TouchableOpacity
+      style={[
+        styles.row,
+        { backgroundColor: colors.white },
+        !isProductActive && { opacity: 0.6 },
+      ]}
+      onPress={() => onPress(product.id)}
+      activeOpacity={0.82}
     >
-      <TouchableOpacity
-        style={[
-          styles.row,
-          { backgroundColor: colors.white },
-          !isProductActive && { opacity: 0.6 },
-        ]}
-        onPress={() => onPress(product.id)}
-        activeOpacity={0.82}
-      >
-        {/* ── Top line: name · qty · threshold ── */}
-        <View style={[styles.rowTop, { flexDirection }]}>
-          <Text style={[styles.rowName, { color: colors.black, textAlign }]} numberOfLines={1}>
-            {product.name}
-          </Text>
+      {/* ── Top line: name · qty · threshold ── */}
+      <View style={[styles.rowTop, { flexDirection }]}>
+        <Text style={[styles.rowName, { color: colors.black, textAlign }]} numberOfLines={1}>
+          {product.name}
+        </Text>
 
-          <View style={[styles.rowTopRight, { flexDirection }]}>
-            {/* Qty badge */}
-            <View style={[
-              styles.qtyBadge,
-              { backgroundColor: qtyTint.bg },
+        <View style={[styles.rowTopRight, { flexDirection }]}>
+          {/* Qty badge */}
+          <View style={[
+            styles.qtyBadge,
+            { backgroundColor: qtyTint.bg },
+          ]}>
+            <Text style={[
+              styles.qtyText,
+              { color: qtyTint.text },
             ]}>
-              <Text style={[
-                styles.qtyText,
-                { color: qtyTint.text },
-              ]}>
-                {product.quantity}
-              </Text>
-            </View>
-
-            {/* Threshold override input */}
-            <View style={[styles.threshWrap, { flexDirection }]}>
-              <TextInput
-                style={[
-                  styles.threshInput,
-                  {
-                    borderColor: localValue.trim() ? colors.warning : colors.gray200,
-                    color: colors.black,
-                    backgroundColor: colors.white,
-                  },
-                ]}
-                value={localValue}
-                onChangeText={setLocalValue}
-                onEndEditing={handleEndEditing}
-                onFocus={scrollIntoView}
-                keyboardType="number-pad"
-                placeholder={String(globalThreshold)}
-                placeholderTextColor={colors.gray300}
-              />
-              {localValue.trim().length > 0 && (
-                <TouchableOpacity
-                  onPress={handleClear}
-                  style={[styles.clearBtn, { backgroundColor: colors.gray100 }]}
-                  hitSlop={8}
-                >
-                  <Ionicons name="close" size={10} color={colors.gray500} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* ── Bottom line: category · Active/Disabled ── */}
-        <View style={[styles.rowBottom, { flexDirection }]}>
-          <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
-            <Text style={[styles.catText, { color: colors.primaryDark }]}>
-              {product.category}
+              {product.quantity}
             </Text>
           </View>
 
-          {/* Active / Disabled segmented control */}
-          <View style={[styles.statusControl, { borderColor: colors.gray200, flexDirection }]}>
-            <TouchableOpacity
-              onPress={(e) => stopAndCall(e, () => onStatusChange(product.id, true))}
+          {/* Threshold override input */}
+          <View style={[styles.threshWrap, { flexDirection }]}>
+            <TextInput
               style={[
-                styles.statusBtn,
-                isProductActive && { backgroundColor: colors.primary },
+                styles.threshInput,
+                {
+                  borderColor: localValue.trim() ? colors.warning : colors.gray200,
+                  color: colors.black,
+                  backgroundColor: colors.white,
+                },
               ]}
-              activeOpacity={0.75}
-            >
-              <Text style={[
-                styles.statusBtnText,
-                { color: isProductActive ? colors.white : colors.gray500 },
-              ]}>
-                {t('inventory.productActive')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={(e) => stopAndCall(e, () => onStatusChange(product.id, false))}
-              style={[
-                styles.statusBtn,
-                !isProductActive && { backgroundColor: colors.gray200 },
-              ]}
-              activeOpacity={0.75}
-            >
-              <Text style={[
-                styles.statusBtnText,
-                { color: !isProductActive ? colors.gray600 : colors.gray400 },
-              ]}>
-                {t('inventory.productDisabled')}
-              </Text>
-            </TouchableOpacity>
+              value={localValue}
+              onChangeText={setLocalValue}
+              onEndEditing={handleEndEditing}
+              onFocus={scrollIntoView}
+              keyboardType="number-pad"
+              placeholder={String(globalThreshold)}
+              placeholderTextColor={colors.gray300}
+            />
+            {localValue.trim().length > 0 && (
+              <TouchableOpacity
+                onPress={handleClear}
+                style={[styles.clearBtn, { backgroundColor: colors.gray100 }]}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={10} color={colors.gray500} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-      </TouchableOpacity>
-    </MotiView>
+      </View>
+
+      {/* ── Bottom line: category · Active/Disabled ── */}
+      <View style={[styles.rowBottom, { flexDirection }]}>
+        <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
+          <Text style={[styles.catText, { color: colors.primaryDark }]}>
+            {product.category}
+          </Text>
+        </View>
+
+        {/* Active / Disabled segmented control */}
+        <View style={[styles.statusControl, { borderColor: colors.gray200, flexDirection }]}>
+          <TouchableOpacity
+            onPress={(e) => stopAndCall(e, () => onStatusChange(product.id, true))}
+            style={[
+              styles.statusBtn,
+              isProductActive && { backgroundColor: colors.primary },
+            ]}
+            activeOpacity={0.75}
+          >
+            <Text style={[
+              styles.statusBtnText,
+              { color: isProductActive ? colors.white : colors.gray500 },
+            ]}>
+              {i18n.t('inventory.productActive')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={(e) => stopAndCall(e, () => onStatusChange(product.id, false))}
+            style={[
+              styles.statusBtn,
+              !isProductActive && { backgroundColor: colors.gray200 },
+            ]}
+            activeOpacity={0.75}
+          >
+            <Text style={[
+              styles.statusBtnText,
+              { color: !isProductActive ? colors.gray600 : colors.gray400 },
+            ]}>
+              {i18n.t('inventory.productDisabled')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────
 // Screen
@@ -204,7 +232,6 @@ export default function StockAlertsScreen() {
   const { t }    = useTranslation();
   const { colors, isDark } = useAppTheme();
   const bellTint = getStatusTint('warning', colors, isDark);
-  const scrollIntoView = useKeyboardAwareFocus();
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
@@ -246,112 +273,74 @@ export default function StockAlertsScreen() {
     router.push(`/(app)/inventory/${id}` as never);
   }, [router]);
 
-  return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <AppHeader
-        title={t('inventory.stockAlertsTitle')}
-        showBack
-        onBack={() => router.back()}
-      />
+  // ── Keyboard-aware scrolling (search box + every row's threshold input) ──
+  const listRef = useRef<FlatList<ListItem>>(null);
+  const scrollOffsetY = useRef(0);
+  const keyboardHeight = useRef(0);
+  const focusedTarget = useRef<FocusedTarget | null>(null);
 
-      <KeyboardAwareScrollView
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        wrapForTapDismiss={false}
-      >
-        {/* ── Global ON/OFF card ── */}
-        <MotiView
-          from={{ opacity: 0, translateY: 8 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 240 }}
-        >
-          <View style={[styles.globalCard, { backgroundColor: colors.white }]}>
-            {/* Toggle row */}
-            <View style={[styles.globalRow, { flexDirection }]}>
-              <View style={[styles.globalLeft, { flexDirection }]}>
-                <View style={[
-                  styles.bellWrap,
-                  { backgroundColor: globalLowStockEnabled ? bellTint.bg : colors.gray100 },
-                ]}>
-                  <Ionicons
-                    name="notifications-outline"
-                    size={16}
-                    color={globalLowStockEnabled ? bellTint.text : colors.gray400}
-                  />
-                </View>
-                <Text style={[styles.globalTitle, { color: colors.black, textAlign }]}>
-                  {t('inventory.inventoryAlerts')}
-                </Text>
-              </View>
-              <Switch
-                value={globalLowStockEnabled}
-                onValueChange={setGlobalLowStockEnabled}
-                trackColor={{ false: colors.gray200, true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
+  const measureAndScroll = useCallback(() => {
+    const target = focusedTarget.current;
+    if (target == null || keyboardHeight.current <= 0) return;
+    requestAnimationFrame(() => {
+      if (focusedTarget.current !== target) return;
+      target.measureInWindow((_x, y, width, height) => {
+        if (height === 0 && width === 0 && y === 0) return; // measurement failed
+        const screenHeight = Dimensions.get('window').height;
+        const visibleBottom = screenHeight - keyboardHeight.current;
+        const overlap = y + height - visibleBottom + EXTRA_SPACE_ABOVE_KEYBOARD;
+        if (overlap > 0) {
+          listRef.current?.scrollToOffset({
+            offset: Math.max(0, scrollOffsetY.current + overlap),
+            animated: true,
+          });
+        }
+      });
+    });
+  }, []);
 
-            {/* Threshold chips — only when ON */}
-            {globalLowStockEnabled && (
-              <MotiView
-                from={{ opacity: 0, translateY: -4 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 180 }}
-              >
-                <View style={[styles.thresholdSection, { borderTopColor: colors.gray100 }]}>
-                  <Text style={[styles.thresholdLabel, { color: colors.gray500, textAlign, writingDirection }]}>
-                    {t('inventory.globalAlertQuantity')}
-                  </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={[styles.chips, { flexDirection }]}>
-                      {THRESHOLD_OPTIONS.map((val) => (
-                        <TouchableOpacity
-                          key={val}
-                          onPress={() => setGlobalLowStockThreshold(val)}
-                          style={[
-                            styles.chip,
-                            { borderColor: colors.gray200 },
-                            globalLowStockThreshold === val && {
-                              backgroundColor: colors.primary,
-                              borderColor: colors.primary,
-                            },
-                          ]}
-                          activeOpacity={0.75}
-                        >
-                          <Text style={[
-                            styles.chipText,
-                            { color: globalLowStockThreshold === val ? colors.white : colors.gray600 },
-                          ]}>
-                            {val}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              </MotiView>
-            )}
-          </View>
-        </MotiView>
+  const handleFocus = useCallback<FocusHandler>((e) => {
+    focusedTarget.current = e.target;
+    measureAndScroll();
+  }, [measureAndScroll]);
 
-        {/* ── Summary banner ── */}
-        {globalLowStockEnabled && alertCount > 0 && (
-          <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ type: 'timing', duration: 200, delay: 60 }}
-          >
-            <View style={[styles.summaryBanner, { backgroundColor: bellTint.bg, flexDirection }]}>
-              <Ionicons name="warning-outline" size={13} color={bellTint.text} />
-              <Text style={[styles.summaryText, { color: bellTint.text, textAlign, writingDirection }]}>
-                {t('inventory.alertSummary', { count: alertCount })}
-              </Text>
-            </View>
-          </MotiView>
-        )}
+  useEffect(() => {
+    const onShow = (e: { endCoordinates?: { height: number } }) => {
+      keyboardHeight.current = e.endCoordinates?.height ?? 0;
+      measureAndScroll();
+    };
+    const onHide = () => { keyboardHeight.current = 0; };
+    const subs = [
+      Keyboard.addListener('keyboardWillShow', onShow),
+      Keyboard.addListener('keyboardDidShow', onShow),
+      Keyboard.addListener('keyboardWillHide', onHide),
+      Keyboard.addListener('keyboardDidHide', onHide),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, [measureAndScroll]);
 
-        {/* ── Search + count (sticky) ── */}
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    Keyboard.dismiss();
+  }, []);
+
+  // ── Virtualized list data: the sticky search bar is item 0 ──
+  const listData = useMemo<ListItem[]>(
+    () => [{ kind: 'search' }, ...filtered.map((product) => ({ kind: 'row' as const, product }))],
+    [filtered]
+  );
+
+  const keyExtractor = useCallback(
+    (item: ListItem) => (item.kind === 'search' ? 'search' : String(item.product.id)),
+    []
+  );
+
+  const renderItem = useCallback(({ item, index }: { item: ListItem; index: number }) => {
+    if (item.kind === 'search') {
+      return (
         <View style={[styles.searchSection, { backgroundColor: colors.gray50 }]}>
           <View style={[styles.searchRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
             <View style={[styles.searchWrap, { backgroundColor: colors.white, borderColor: colors.gray200, flexDirection }]}>
@@ -364,7 +353,7 @@ export default function StockAlertsScreen() {
                 ]}
                 value={search}
                 onChangeText={setSearch}
-                onFocus={scrollIntoView}
+                onFocus={handleFocus}
                 placeholder={t('inventory.search')}
                 placeholderTextColor={colors.gray400}
                 returnKeyType="search"
@@ -381,31 +370,173 @@ export default function StockAlertsScreen() {
             </Text>
           </View>
         </View>
+      );
+    }
 
-        {/* ── Product list ── */}
-        {filtered.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <Ionicons name="checkmark-circle-outline" size={38} color={colors.gray300} />
-            <Text style={[styles.emptyText, { color: colors.gray400 }]}>
-              {t('inventory.noResults')}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {filtered.map((product) => (
-              <StockAlertRow
-                key={product.id}
-                product={product}
-                globalEnabled={globalLowStockEnabled}
-                globalThreshold={globalLowStockThreshold}
-                onStatusChange={handleStatusChange}
-                onSaveThreshold={handleSaveThreshold}
-                onPress={handleProductPress}
-              />
-            ))}
-          </View>
-        )}
-      </KeyboardAwareScrollView>
+    const productIndex = index - 1;
+    return (
+      <View style={[styles.rowWrap, { marginTop: productIndex === 0 ? 6 : 8 }]}>
+        <MotiView
+          from={{ opacity: 0, translateY: 4 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          // Stagger only the first screenful — rows that scroll into view later
+          // (or reappear after an unrelated re-render) shouldn't replay a fade-in.
+          transition={{ type: 'spring', damping: 22, stiffness: 260, delay: productIndex < 10 ? productIndex * 35 : 0 }}
+        >
+          <StockAlertRow
+            product={item.product}
+            globalEnabled={globalLowStockEnabled}
+            globalThreshold={globalLowStockThreshold}
+            onStatusChange={handleStatusChange}
+            onSaveThreshold={handleSaveThreshold}
+            onPress={handleProductPress}
+          />
+        </MotiView>
+      </View>
+    );
+  }, [
+    colors, flexDirection, isRTL, textAlign, writingDirection, isKuLanguage,
+    search, handleFocus, t, filtered.length,
+    globalLowStockEnabled, globalLowStockThreshold,
+    handleStatusChange, handleSaveThreshold, handleProductPress,
+  ]);
+
+  const listFooter = useMemo(() => (
+    <>
+      {filtered.length === 0 && (
+        <View style={styles.emptyWrap}>
+          <Ionicons name="checkmark-circle-outline" size={38} color={colors.gray300} />
+          <Text style={[styles.emptyText, { color: colors.gray400 }]}>
+            {t('inventory.noResults')}
+          </Text>
+        </View>
+      )}
+      <View style={{ height: EXTRA_SCROLL_SPACE }} />
+    </>
+  ), [filtered.length, colors.gray300, colors.gray400, t]);
+
+  return (
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <AppHeader
+        title={t('inventory.stockAlertsTitle')}
+        showBack
+        onBack={() => router.back()}
+      />
+
+      <StockAlertsFocusContext.Provider value={handleFocus}>
+        <FlatList
+          ref={listRef}
+          data={listData}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          stickyHeaderIndices={[1]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          onScroll={handleScroll}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          removeClippedSubviews
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={11}
+          ListHeaderComponent={
+            <>
+              {/* ── Global ON/OFF card ── */}
+              <MotiView
+                from={{ opacity: 0, translateY: 8 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 240 }}
+              >
+                <View style={[styles.globalCard, { backgroundColor: colors.white }]}>
+                  {/* Toggle row */}
+                  <View style={[styles.globalRow, { flexDirection }]}>
+                    <View style={[styles.globalLeft, { flexDirection }]}>
+                      <View style={[
+                        styles.bellWrap,
+                        { backgroundColor: globalLowStockEnabled ? bellTint.bg : colors.gray100 },
+                      ]}>
+                        <Ionicons
+                          name="notifications-outline"
+                          size={16}
+                          color={globalLowStockEnabled ? bellTint.text : colors.gray400}
+                        />
+                      </View>
+                      <Text style={[styles.globalTitle, { color: colors.black, textAlign }]}>
+                        {t('inventory.inventoryAlerts')}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={globalLowStockEnabled}
+                      onValueChange={setGlobalLowStockEnabled}
+                      trackColor={{ false: colors.gray200, true: colors.primary }}
+                      thumbColor={colors.white}
+                    />
+                  </View>
+
+                  {/* Threshold chips — only when ON */}
+                  {globalLowStockEnabled && (
+                    <MotiView
+                      from={{ opacity: 0, translateY: -4 }}
+                      animate={{ opacity: 1, translateY: 0 }}
+                      transition={{ type: 'timing', duration: 180 }}
+                    >
+                      <View style={[styles.thresholdSection, { borderTopColor: colors.gray100 }]}>
+                        <Text style={[styles.thresholdLabel, { color: colors.gray500, textAlign, writingDirection }]}>
+                          {t('inventory.globalAlertQuantity')}
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          <View style={[styles.chips, { flexDirection }]}>
+                            {THRESHOLD_OPTIONS.map((val) => (
+                              <TouchableOpacity
+                                key={val}
+                                onPress={() => setGlobalLowStockThreshold(val)}
+                                style={[
+                                  styles.chip,
+                                  { borderColor: colors.gray200 },
+                                  globalLowStockThreshold === val && {
+                                    backgroundColor: colors.primary,
+                                    borderColor: colors.primary,
+                                  },
+                                ]}
+                                activeOpacity={0.75}
+                              >
+                                <Text style={[
+                                  styles.chipText,
+                                  { color: globalLowStockThreshold === val ? colors.white : colors.gray600 },
+                                ]}>
+                                  {val}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    </MotiView>
+                  )}
+                </View>
+              </MotiView>
+
+              {/* ── Summary banner ── */}
+              {globalLowStockEnabled && alertCount > 0 && (
+                <MotiView
+                  from={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ type: 'timing', duration: 200, delay: 60 }}
+                >
+                  <View style={[styles.summaryBanner, { backgroundColor: bellTint.bg, flexDirection }]}>
+                    <Ionicons name="warning-outline" size={13} color={bellTint.text} />
+                    <Text style={[styles.summaryText, { color: bellTint.text, textAlign, writingDirection }]}>
+                      {t('inventory.alertSummary', { count: alertCount })}
+                    </Text>
+                  </View>
+                </MotiView>
+              )}
+            </>
+          }
+          ListFooterComponent={listFooter}
+        />
+      </StockAlertsFocusContext.Provider>
     </KeyboardAvoidingView>
   );
 }
@@ -508,7 +639,7 @@ const styles = StyleSheet.create({
   countLabel:  { fontSize: 11, fontWeight: '500', flexShrink: 0 },
 
   // ── Product rows ──
-  list: { paddingHorizontal: 16, paddingTop: 6, gap: 8 },
+  rowWrap: { paddingHorizontal: 16 },
 
   row: {
     borderRadius: Theme.radius.card,

@@ -14,6 +14,10 @@ export interface Product {
   quantity: number;
   unit: string;
   description: string | null;
+  /** Short optional in-app note (max 30 chars) shown under the item name across
+   *  Inventory/Sales/Edit — distinct from `description` (unbounded, purchase-mirrored)
+   *  and `websiteDescription` (storefront-only, never shown in-app). */
+  itemDescription: string | null;
   isActive: boolean;
   imageUri?: string | null;
   createdAt: string;

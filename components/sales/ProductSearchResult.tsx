@@ -57,6 +57,10 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
           ) : null}
         </View>
 
+        {product.itemDescription ? (
+          <Text style={[styles.itemDescription, { textAlign }]} numberOfLines={1}>{product.itemDescription}</Text>
+        ) : null}
+
         <View style={[styles.meta, { flexDirection }]}>
           <AmountText value={product.sellingPrice} variant="small" style={[styles.price, { color: colors.primary }]} />
           <Text style={styles.dot}>·</Text>
@@ -132,6 +136,7 @@ function getStyles(colors: AppColors) {
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
     name: { fontSize: 14, fontWeight: '600', color: colors.black },
     nameDisabled: { color: colors.gray400 },
+    itemDescription: { fontSize: 12, color: colors.gray500, marginBottom: 4 },
     idBadge: {
       borderRadius: 4,
       paddingHorizontal: 5,

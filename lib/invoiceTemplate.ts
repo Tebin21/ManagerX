@@ -34,6 +34,23 @@ function t(key: string, opts?: Record<string, unknown>): string {
 }
 const ku = kuSpan;
 
+// Presentation-only choice made on the Purchase/Sales Receipt screen for the
+// PDF currently being generated -- never persisted, never affects any
+// calculation. Governs only the grand-total block via buildGrandTotal()
+// below; item rows and every other financial row always stay in IQD.
+export type ReceiptCurrencyMode = 'iqd' | 'usd' | 'both';
+
+function buildGrandTotal(mode: ReceiptCurrencyMode, amountIQD: number, exchangeRate: number) {
+  const totalUSD = fmtUSD(amountIQD / exchangeRate);
+  const totalBlock = mode === 'usd'
+    ? `<div class="total-block"><span class="total-label">${ku(t('totalUsd'))}</span><span class="total-amount">$${totalUSD}</span></div>`
+    : `<div class="total-block"><span class="total-label">${ku(t('totalIqd'))}</span><span class="total-amount">${fmtIQD(amountIQD)} IQD</span></div>`;
+  const usdCard = mode === 'both'
+    ? `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku(t('totalUsd'))}</div><div class="usd-amount">$${totalUSD}</div></div></div></div>`
+    : '';
+  return { totalBlock, usdCard };
+}
+
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
 // Mirrors buildPurchaseCSS's design system (monochrome, 3-column header, card
 // layout) exactly — kept as a separate function so the two templates can
@@ -258,7 +275,8 @@ export function buildInvoiceHTML(
   sale: Sale,
   business: BusinessInfo,
   dir: 'ltr' | 'rtl' = 'ltr',
-  exchangeRate: number = 1310
+  exchangeRate: number = 1310,
+  currencyMode: ReceiptCurrencyMode = 'iqd'
 ): string {
   const items = sale.items ?? [];
   const isKurdish = isKurdishPdfActive();
@@ -314,7 +332,7 @@ export function buildInvoiceHTML(
 
   const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
 
-  const totalUSD = fmtUSD(sale.grandTotal / exchangeRate);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, exchangeRate);
 
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row">
@@ -345,22 +363,9 @@ export function buildInvoiceHTML(
         <span>${ku(t('cartDiscountTotal'))}</span>
         <span class="fin-amount">− ${fmtIQD(sale.globalDiscount)} IQD</span>
       </div>` : ''}
-      <div class="total-block">
-        <span class="total-label">${ku(t('totalIqd'))}</span>
-        <span class="total-amount">${fmtIQD(sale.grandTotal)} IQD</span>
-      </div>
+      ${totalBlock}
       ${paidRow}
       ${debtRow}
-    </div>`;
-
-  const usdCard = `
-    <div class="card card-tint">
-      <div class="usd-row">
-        <div class="usd-stack">
-          <div class="usd-label">${ku(t('totalUsd'))}</div>
-          <div class="usd-amount">$${totalUSD}</div>
-        </div>
-      </div>
     </div>`;
 
   return `<!DOCTYPE html>
@@ -700,7 +705,8 @@ export function buildPurchaseInvoiceHTML(
   purchase: Purchase,
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo,
-  dir: 'ltr' | 'rtl' = 'ltr'
+  dir: 'ltr' | 'rtl' = 'ltr',
+  currencyMode: ReceiptCurrencyMode = 'iqd'
 ): string {
   const isKurdish = isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
@@ -757,7 +763,7 @@ export function buildPurchaseInvoiceHTML(
 
   // ── Financial ──
   const exchangeRate = purchase.exchangeRate > 0 ? purchase.exchangeRate : 1310;
-  const totalUSD = fmtUSD(purchase.totalIQD / exchangeRate);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, exchangeRate);
 
   const paidRows = purchase.paymentStatus === 'paid'
     ? `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtIQD(purchase.totalIQD)} IQD</span></div>
@@ -768,24 +774,11 @@ export function buildPurchaseInvoiceHTML(
   const financialCard = `
     <div class="card">
       <div class="card-label">${ku(t('paymentSummary'))}</div>
-      <div class="total-block">
-        <span class="total-label">${ku(t('totalIqd'))}</span>
-        <span class="total-amount">${fmtIQD(purchase.totalIQD)} IQD</span>
-      </div>
+      ${totalBlock}
       ${paidRows}
       <div class="fin-row">
         <span>${ku(t('paymentStatusLabel'))}</span>
         <span>${statusBadge}</span>
-      </div>
-    </div>`;
-
-  const usdCard = `
-    <div class="card card-tint">
-      <div class="usd-row">
-        <div class="usd-stack">
-          <div class="usd-label">${ku(t('totalUsd'))}</div>
-          <div class="usd-amount">$${totalUSD}</div>
-        </div>
       </div>
     </div>`;
 

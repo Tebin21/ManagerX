@@ -27,10 +27,11 @@ import { useDebtStore } from '@/store/debtStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
-import { getPurchasesBySupplierName } from '@/lib/sqlite';
+import { getPurchasesBySupplierName, getSupplierFinancialTimeline } from '@/lib/sqlite';
+import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
-import type { PurchaseDebt } from '@/types/debt';
+import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
@@ -173,6 +174,7 @@ export default function SupplierDetailScreen() {
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [timeline, setTimeline] = useState<FinancialLedgerEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -187,8 +189,12 @@ export default function SupplierDetailScreen() {
     if (!supplier) return;
     setLoading(true);
     try {
-      const p = await getPurchasesBySupplierName(supplier.name);
+      const [p, tl] = await Promise.all([
+        getPurchasesBySupplierName(supplier.name),
+        getSupplierFinancialTimeline(supplier.name),
+      ]);
       setPurchases(p);
+      setTimeline(tl);
     } catch (err) {
       console.error('Failed to load supplier purchases:', err);
     } finally {
@@ -214,10 +220,6 @@ export default function SupplierDetailScreen() {
   const activeDebts = purchaseDebts.filter(
     (d) => d.supplierName.toLowerCase() === (supplier?.name ?? '').toLowerCase() &&
       d.status === 'active' && d.remainingAmount > 0,
-  );
-  const settledDebts = purchaseDebts.filter(
-    (d) => d.supplierName.toLowerCase() === (supplier?.name ?? '').toLowerCase() &&
-      (d.status === 'settled' || d.remainingAmount <= 0),
   );
   const totalRemaining = activeDebts.reduce((s, d) => s + d.remainingAmount, 0);
   const totalPaid = purchaseDebts
@@ -465,8 +467,8 @@ export default function SupplierDetailScreen() {
           </MotiView>
         )}
 
-        {/* Settled Debts */}
-        {settledDebts.length > 0 && (
+        {/* Financial timeline — permanent debt lifecycle history (created → payments → fully paid) */}
+        {timeline.length > 0 && (
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -474,20 +476,18 @@ export default function SupplierDetailScreen() {
             style={[styles.section, { backgroundColor: colors.white }]}
           >
             <Text style={sectionTitleStyle}>
-              {t('suppliers.settledDebts')} ({settledDebts.length})
+              {t('suppliers.financialTimeline')}
             </Text>
-            {settledDebts.map((debt) => (
-              <View key={debt.id} style={[styles.settledRow, { borderBottomColor: colors.gray100 }]}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                <View style={{ flex: 1, marginStart: 8 }}>
-                  <IdText style={[styles.settledInvoice, { color: colors.black }]}>{debt.purchaseNumber ?? '—'}</IdText>
-                  <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledAmount, { color: colors.gray400 }]} />
-                </View>
-                <View style={[styles.settledBadge, { backgroundColor: successTint.bg }]}>
-                  <Text style={[styles.settledBadgeText, { color: successTint.text }]}>{t('common.settled')}</Text>
-                </View>
-              </View>
-            ))}
+            {timeline.map((event, i) => {
+              const prev = timeline[i - 1];
+              const showDivider = prev && prev.debtId !== event.debtId;
+              return (
+                <React.Fragment key={`${event.debtId}-${event.paymentId ?? 'settled'}-${event.type}`}>
+                  {showDivider && <View style={[styles.timelineDivider, { backgroundColor: colors.gray100 }]} />}
+                  <FinancialTimelineItem event={event} isLast={i === timeline.length - 1} />
+                </React.Fragment>
+              );
+            })}
           </MotiView>
         )}
 
@@ -631,11 +631,7 @@ function getStyles(colors: AppColors) {
   statusBadge:             { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   statusText:              { fontSize: 11, fontWeight: '700' },
   // Settled debts (inside section card)
-  settledRow:              { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  settledInvoice:          { fontSize: 13, fontWeight: '600' },
-  settledAmount:           { fontSize: 11, marginTop: 1 },
-  settledBadge:            { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  settledBadgeText:        { fontSize: 11, fontWeight: '700' },
+  timelineDivider:         { height: 1, marginVertical: 10 },
   // Danger zone — matches customer screen exactly
   deleteWarningBox:        { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
   deleteWarningText:       { flex: 1, fontSize: 13, lineHeight: 18 },

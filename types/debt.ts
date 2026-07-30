@@ -46,6 +46,21 @@ export interface DebtPayment {
   createdAt: string;
 }
 
+export type LedgerEventType = 'debt_created' | 'payment' | 'debt_fully_paid';
+
+export interface FinancialLedgerEvent {
+  type: LedgerEventType;
+  paymentId: number | null;
+  debtId: number;
+  debtType: DebtType;
+  referenceNumber: string | null;
+  amount: number;
+  remainingAfter: number;
+  paymentMethod: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
 export interface DebtOverviewSummary {
   totalSalesDebt: number;
   totalPurchaseDebt: number;

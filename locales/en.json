@@ -283,6 +283,7 @@
     "websiteDescription":            "Website Product Description",
     "websiteDescriptionPlaceholder": "Short description shown on your online store",
     "websiteDescriptionHint":        "Optional. Shown only on your online store, not in the app.",
+    "itemDescriptionPlaceholder": "Item description (optional)",
     "paymentStatus":       "Payment Status",
     "paid":                "Paid",
     "debt":                "Debt",
@@ -351,6 +352,12 @@
     "buyPriceLockedNote":      "Recorded from supplier — cannot be edited",
     "quantityLockedNote":     "Change only via a new Purchase, Sale, or Return",
     "paymentStatusLockedNote": "Settles automatically once fully repaid"
+  },
+  "receiptCurrency": {
+    "title":   "Receipt Currency",
+    "iqdOnly": "IQD Only",
+    "usdOnly": "USD Only",
+    "both":    "IQD + USD"
   },
   "sales": {
     "title":              "Sales",
@@ -475,6 +482,7 @@
     "websiteDescription":            "Website Product Description",
     "websiteDescriptionPlaceholder": "Short description shown on your online store",
     "websiteDescriptionHint":        "Optional. Shown only on your online store, not in the app.",
+    "itemDescriptionPlaceholder": "Item description (optional)",
     "buyPriceLockedNote": "Set when purchased — cannot be edited",
     "quantityLockedNote": "Change only via Purchase, Sale, or Return",
     "itemIdUnique":       "Item ID (Unique)",
@@ -584,7 +592,7 @@
     "payConfirm":         "Confirm Payment",
     "totalPaid":          "Total Paid",
     "purchaseCount":      "Purchases",
-    "settledDebts":       "Settled Debts",
+    "financialTimeline":  "Financial Timeline",
     "duplicateName":      "This supplier already exists.",
     "duplicatePhone":     "An account with this phone number already exists.",
     "useExisting":        "Please use the existing account instead of creating a new one."
@@ -626,7 +634,7 @@
     "deleteBlockedDebtsHint": "Settle all outstanding debts first to enable account deletion.",
     "totalPaid":              "Total Paid (IQD)",
     "lastActivity":           "Last Activity",
-    "settledDebts":           "Settled Debts",
+    "financialTimeline":      "Financial Timeline",
     "duplicateName":          "This customer already exists.",
     "duplicatePhone":         "An account with this phone number already exists.",
     "useExisting":            "Please use the existing account instead of creating a new one."
@@ -679,7 +687,9 @@
     "pctPaidCustomer":    "paid by customer",
     "fullyPaidSupplier":  "Fully paid to supplier",
     "fullyPaidCustomer":  "Fully paid by customer",
-    "paymentDate":        "Payment Date & Time"
+    "paymentDate":        "Payment Date & Time",
+    "debtCreated":        "Debt Created",
+    "fullyPaid":          "Debt Fully Paid"
   },
   "periodFilter": {
     "today":       "Today",

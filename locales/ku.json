@@ -283,6 +283,7 @@
     "websiteDescription":            "وەسفی ئایتم بۆ وێب",
     "websiteDescriptionPlaceholder": "وەسفی بەرهەمەکە بکە بە کورتی",
     "websiteDescriptionHint":        "ئارەزوومەندانەیە. تەنها لە فرۆشگای ئۆنلاینت پیشان دەدرێت، نەک لە ئەپەکەدا.",
+    "itemDescriptionPlaceholder": "وەسفی ئایتمەکە (ئیختیاری)",
     "paymentStatus":       "دۆخی پارەدان",
     "paid":                "پارەدراوە",
     "debt":                "قەرزە",
@@ -350,6 +351,12 @@
     "buyPriceLockedNote":      "لە دابینکەرەوە تۆمارکراوە — ناتوانرێ دەستکاری بکرێت",
     "quantityLockedNote":     "تەنها لە ڕێگەی کڕینێکی نوێ، فرۆشتن، یان گەڕاندنەوە دەگۆڕدرێت",
     "paymentStatusLockedNote": "بە شێوەیەکی ئۆتۆماتیکی دەگۆڕدرێت کاتێک بە تەواوی دەدرێتەوە"
+  },
+  "receiptCurrency": {
+    "title":   "پیشاندانی دراو لە وەسل",
+    "iqdOnly": "تەنها دینار",
+    "usdOnly": "تەنها دۆلار",
+    "both":    "دینار + دۆلار"
   },
   "sales": {
     "title":              "فرۆشتنی بەرهەمەکان",
@@ -474,6 +481,7 @@
     "websiteDescription":            "وەسفی ئایتم بۆ وێب",
     "websiteDescriptionPlaceholder": "وەسفێکی کورت کە لە فرۆشگای ئۆنلاینت پیشان دەدرێت",
     "websiteDescriptionHint":        "ئارەزوومەندانەیە. تەنها لە فرۆشگای ئۆنلاینت پیشان دەدرێت، نەک لە ئەپەکەدا.",
+    "itemDescriptionPlaceholder": "وەسفی ئایتمەکە (ئیختیاری)",
     "buyPriceLockedNote": "لە کاتی کڕیندا دیاریکراوە — ناتوانرێ دەستکاری بکرێت",
     "quantityLockedNote": "تەنها لە ڕێگەی کڕین، فرۆشتن، یان گەڕاندنەوە دەگۆڕدرێت",
     "itemIdUnique":       "ئایدی تایبەت (یەکتا)",
@@ -583,7 +591,7 @@
     "payConfirm":         "پشتڕاستکردنەوەی پارەدان",
     "totalPaid":          "کۆی پارەدراو",
     "purchaseCount":      "کڕینەکان",
-    "settledDebts":       "قەرزە تەواوکراوەکان",
+    "financialTimeline":  "مێژووی دارایی",
     "duplicateName":      "ئەم دابینکەرە پێشتر تۆمار کراوە.",
     "duplicatePhone":     "ئەکاونتێک بەم ژمارە تەلەفۆنە پێشتر هەیە.",
     "useExisting":        "تکایە لە ئەکاونتی هەبووی بەکار بێنە لەجیاتی دروستکردنی نوێ."
@@ -625,7 +633,7 @@
     "deleteBlockedDebtsHint": "پێشتر هەموو قەرزە ماوەکان دابمەزرێنە بۆ چالاككردنی سڕینەوەی ئەکاونت.",
     "totalPaid":              "کۆی پارەدراو (د.ع)",
     "lastActivity":           "دوایین چالاکی",
-    "settledDebts":           "قەرزە تەواوکراوەکان",
+    "financialTimeline":      "مێژووی دارایی",
     "duplicateName":          "ئەم کڕیارە پێشتر تۆمار کراوە.",
     "duplicatePhone":         "ئەکاونتێک بەم ژمارە تەلەفۆنە پێشتر هەیە.",
     "useExisting":            "تکایە لە ئەکاونتی هەبووی بەکار بێنە لەجیاتی دروستکردنی نوێ."
@@ -678,7 +686,9 @@
     "pctPaidCustomer":    "پارەدراوە",
     "fullyPaidSupplier":  "بە تەواوی پارەدراوە",
     "fullyPaidCustomer":  "بە تەواوی پارەدراوە",
-    "paymentDate":        "بەروار و کاتی پارەدان"
+    "paymentDate":        "بەروار و کاتی پارەدان",
+    "debtCreated":        "قەرز دروستکرا",
+    "fullyPaid":          "قەرز بە تەواوی دراوەتەوە"
   },
   "periodFilter": {
     "today":       "ئەمڕۆ",

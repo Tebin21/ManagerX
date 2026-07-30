@@ -29,6 +29,8 @@ import type { Purchase } from '@/types/purchases';
 import type { PurchaseItem } from '@/lib/sqlite';
 import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -70,6 +72,7 @@ export default function PurchaseDetailScreen() {
   const [isLoading, setIsLoading]     = useState(true);
   const [isSharing, setIsSharing]     = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
+  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   useEffect(() => { loadPurchase(); }, [id]);
 
@@ -103,7 +106,7 @@ export default function PurchaseDetailScreen() {
       await sharePurchaseInvoice(purchase, purchaseItems, {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
-      });
+      }, receiptCurrency);
     } catch (err) {
       console.error('[PDF] handleShare unexpected error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -318,6 +321,11 @@ export default function PurchaseDetailScreen() {
             </PremiumCard>
           </MotiView>
         )}
+
+        {/* Receipt currency */}
+        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 200 }}>
+          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+        </MotiView>
 
         {/* Actions */}
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>

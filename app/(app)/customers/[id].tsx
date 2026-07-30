@@ -9,8 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { IdText } from '@/components/ui/IdText';
-import { AmountText } from '@/components/ui/AmountText';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -23,13 +21,15 @@ import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScroll
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DebtCard } from '@/components/customers/DebtCard';
 import { SaleTimelineItem } from '@/components/customers/SaleTimelineItem';
-import { useCustomerStore, fetchCustomerSales, fetchCustomerDebts } from '@/store/customerStore';
+import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
+import { useCustomerStore, fetchCustomerSales, fetchCustomerDebts, fetchCustomerFinancialTimeline } from '@/store/customerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
+import type { FinancialLedgerEvent } from '@/types/debt';
 import { useRTL } from '@/lib/rtl';
 
 export default function CustomerProfileScreen() {
@@ -41,13 +41,13 @@ export default function CustomerProfileScreen() {
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [timeline, setTimeline] = useState<FinancialLedgerEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
-  const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection } = useRTL();
   const customer: CustomerWithStats | undefined = customers.find((c) => c.id === Number(id));
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
@@ -56,12 +56,14 @@ export default function CustomerProfileScreen() {
     if (!id) return;
     setLoading(true);
     try {
-      const [s, d] = await Promise.all([
+      const [s, d, tl] = await Promise.all([
         fetchCustomerSales(Number(id)),
         fetchCustomerDebts(Number(id)),
+        fetchCustomerFinancialTimeline(Number(id)),
       ]);
       setSales(s);
       setDebts(d);
+      setTimeline(tl);
     } catch (err) {
       console.error('Failed to load customer data:', err);
     } finally {
@@ -184,7 +186,6 @@ export default function CustomerProfileScreen() {
   }
 
   const activeDebts = debts.filter((d) => d.status === 'active' && d.remainingAmount > 0);
-  const settledDebts = debts.filter((d) => d.status === 'settled' || d.remainingAmount <= 0);
   const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
   const canDeleteAccount = sales.length === 0 && activeDebts.length === 0;
 
@@ -301,30 +302,23 @@ export default function CustomerProfileScreen() {
             </MotiView>
           )}
 
-          {/* Settled debts */}
-          {settledDebts.length > 0 && (
+          {/* Financial timeline — permanent debt lifecycle history (created → payments → fully paid) */}
+          {timeline.length > 0 && (
             <MotiView
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
               style={[styles.section, { backgroundColor: colors.white }]}
             >
-              <Text style={sectionTitleStyle}>{t('customers.settledDebts')} ({settledDebts.length})</Text>
-              {settledDebts.map((debt) => {
-                const matchedSale = sales.find((s) => s.id === debt.saleId);
+              <Text style={sectionTitleStyle}>{t('customers.financialTimeline')}</Text>
+              {timeline.map((event, i) => {
+                const prev = timeline[i - 1];
+                const showDivider = prev && prev.debtId !== event.debtId;
                 return (
-                  <View key={debt.id} style={[styles.settledDebtRow, { borderBottomColor: colors.gray100, flexDirection }]}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                    <View style={{ flex: 1, marginStart: 8 }}>
-                      <IdText style={[styles.settledDebtInvoice, { color: colors.black }]}>
-                        {matchedSale?.invoiceNumber ?? '—'}
-                      </IdText>
-                      <AmountText value={debt.originalAmount} currency="IQD" variant="small" style={[styles.settledDebtAmount, { color: colors.gray400 }]} />
-                    </View>
-                    <View style={[styles.settledBadge, { backgroundColor: successTint.bg }]}>
-                      <Text style={[styles.settledBadgeText, { color: successTint.text }]}>{t('common.settled')}</Text>
-                    </View>
-                  </View>
+                  <React.Fragment key={`${event.debtId}-${event.paymentId ?? 'settled'}-${event.type}`}>
+                    {showDivider && <View style={[styles.timelineDivider, { backgroundColor: colors.gray100 }]} />}
+                    <FinancialTimelineItem event={event} isLast={i === timeline.length - 1} />
+                  </React.Fragment>
                 );
               })}
             </MotiView>
@@ -448,11 +442,7 @@ function getStyles(colors: AppColors) {
   notesText:              { fontSize: 14, lineHeight: 20 },
   activityRow:            { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Theme.radius.card, paddingHorizontal: 14, paddingVertical: 10, ...Theme.shadow.soft },
   activityText:           { fontSize: 12, fontWeight: '500' },
-  settledDebtRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
-  settledDebtInvoice:     { fontSize: 13, fontWeight: '600' },
-  settledDebtAmount:      { fontSize: 11, marginTop: 1 },
-  settledBadge:           { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  settledBadgeText:       { fontSize: 11, fontWeight: '700' },
+  timelineDivider:        { height: 1, marginVertical: 10 },
   // Danger Zone
   deleteWarningBox:       { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: Theme.radius.md, padding: 12, marginBottom: 12 },
   deleteWarningText:      { flex: 1, fontSize: 13, lineHeight: 18 },

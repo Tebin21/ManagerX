@@ -19,6 +19,8 @@ import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
 import { Typography } from '@/constants/typography';
 import type { Sale } from '@/types/sales';
+import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -33,6 +35,7 @@ export default function SaleDetailScreen() {
   const [sale, setSale]         = useState<Sale | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
 
   useEffect(() => { loadSale(); }, [id]);
 
@@ -61,7 +64,7 @@ export default function SaleDetailScreen() {
       await shareInvoice(sale, {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
-      });
+      }, receiptCurrency);
     } catch (err) {
       console.error('[PDF] handleShare unexpected error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -116,6 +119,8 @@ export default function SaleDetailScreen() {
             <InvoiceView sale={sale} />
           </PremiumCard>
         </MotiView>
+
+        <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
 
         <View style={styles.actions}>
           <PrimaryButton label={isSharing ? t('sales.preparingPdf') : t('sales.shareInvoice')} onPress={handleShare} loading={isSharing} />

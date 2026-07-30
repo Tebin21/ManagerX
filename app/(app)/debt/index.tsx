@@ -124,7 +124,7 @@ function SalesDebtCardImpl({
   const router = useRouter();
   const { colors } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
-  const { flexDirection, alignEnd, textAlign, isRTL } = useRTL();
+  const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -167,13 +167,11 @@ function SalesDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>
-            {isRTL ? (
-              <>{i18n.t('debt.owedByCustomer')} <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber></>
-            ) : (
-              <><LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedByCustomer')}</>
-            )}
-          </Text>
+          <View style={{ flexDirection, flexWrap: 'wrap' }}>
+            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber>
+            <Text style={styles.amountSub}> </Text>
+            <Text style={styles.amountSub}>{i18n.t('debt.owedByCustomer')}</Text>
+          </View>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />
@@ -214,7 +212,7 @@ function PurchaseDebtCardImpl({
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
-  const { flexDirection, alignEnd, textAlign, isRTL } = useRTL();
+  const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
@@ -257,13 +255,11 @@ function PurchaseDebtCardImpl({
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
-          <Text style={[styles.amountSub, { textAlign }]}>
-            {isRTL ? (
-              <>{i18n.t('debt.owedToSupplier')} <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber></>
-            ) : (
-              <><LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber> {i18n.t('debt.owedToSupplier')}</>
-            )}
-          </Text>
+          <View style={{ flexDirection, flexWrap: 'wrap' }}>
+            <LTRNumber style={styles.amountSub}>{fmtIQD(debt.remainingAmount)}</LTRNumber>
+            <Text style={styles.amountSub}> </Text>
+            <Text style={styles.amountSub}>{i18n.t('debt.owedToSupplier')}</Text>
+          </View>
         </View>
 
         <ProgressBar paid={debt.paidAmount} total={debt.originalAmount} />

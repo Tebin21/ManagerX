@@ -216,6 +216,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
           (p.itemId?.toLowerCase().includes(q) ?? false) ||
           (p.supplierName?.toLowerCase().includes(q) ?? false) ||
           (p.purchaseDate?.includes(q) ?? false) ||
+          (p.itemDescription?.toLowerCase().includes(q) ?? false) ||
           p.category.toLowerCase().includes(q);
         if (!matchesQuery) return false;
       }
@@ -334,7 +335,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       const matchesQuery =
         q === '' ||
         p.name.toLowerCase().includes(q) ||
-        (p.itemId?.toLowerCase().includes(q) ?? false);
+        (p.itemId?.toLowerCase().includes(q) ?? false) ||
+        (p.itemDescription?.toLowerCase().includes(q) ?? false);
 
       const matchesCategory =
         !category || category === 'all' || p.category === category;

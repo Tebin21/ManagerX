@@ -60,6 +60,9 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
 
         <View style={styles.nameWrap}>
           <Text style={[styles.name, { textAlign, marginBottom: isRTL ? 8 : 5 }]} numberOfLines={1}>{product.name}</Text>
+          {product.itemDescription ? (
+            <Text style={[styles.itemDescription, { textAlign }]} numberOfLines={1}>{product.itemDescription}</Text>
+          ) : null}
           <View style={[styles.meta, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
             <View style={[styles.catChip, { backgroundColor: colors.softBlue }]}>
               <Text style={[styles.catText, { color: colors.primaryDark }]}>{categoryName}</Text>
@@ -177,6 +180,11 @@ function getStyles(colors: AppColors) {
       fontWeight: '700',
       color: colors.black,
       marginBottom: 5,
+    },
+    itemDescription: {
+      fontSize: 12,
+      color: colors.gray500,
+      marginBottom: 4,
     },
     meta: {
       flexDirection: 'row',

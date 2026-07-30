@@ -9,10 +9,12 @@ import {
   addPaymentToDebt,
   updateSaleInfo,
   getSaleById,
+  getCustomerFinancialTimeline,
 } from '@/lib/sqlite';
 import type { CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { Sale } from '@/types/sales';
 import type { Debt } from '@/types/sales';
+import type { FinancialLedgerEvent } from '@/types/debt';
 
 interface CustomerState {
   customers: CustomerWithStats[];
@@ -115,4 +117,8 @@ export async function fetchCustomerSales(customerId: number): Promise<Sale[]> {
 
 export async function fetchCustomerDebts(customerId: number): Promise<Debt[]> {
   return getDebtsByCustomerId(customerId);
+}
+
+export async function fetchCustomerFinancialTimeline(customerId: number): Promise<FinancialLedgerEvent[]> {
+  return getCustomerFinancialTimeline(customerId);
 }

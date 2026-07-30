@@ -7,7 +7,7 @@ import type {
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats, NewProductData } from '@/types/inventory';
 import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/customers';
-import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary } from '@/types/debt';
+import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary, FinancialLedgerEvent, LedgerEventType, DebtType } from '@/types/debt';
 import type { SoldProductRecord } from '@/types/soldProducts';
 import type { Supplier, SupplierWithStats } from '@/types/suppliers';
 import { newUuid } from '@/lib/uuid';
@@ -397,6 +397,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Online Store — short storefront-only product description (separate from the
     // generic `description` column, which is edit-screen-only and never synced/shown).
     `ALTER TABLE products ADD COLUMN website_description TEXT`,
+    // Short optional in-app note shown under the item name across Inventory/Sales/Edit
+    // — distinct from `description` (purchase-mirrored) and `website_description`
+    // (storefront-only). Never synced to the Online Store, never mirrored to purchases.
+    `ALTER TABLE products ADD COLUMN item_description TEXT`,
     // Stable cross-device identity for merge-restore duplicate detection (see
     // lib/backup.ts). Autoincrement `id` collides across devices; `item_id` is
     // explicitly non-unique by design (repeatable id_mode). Nullable + partial
@@ -405,6 +409,17 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     ...UUID_TABLES.map(
       (table) => `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_uuid ON ${table}(uuid) WHERE uuid IS NOT NULL`
     ),
+    // Debt Payment History — denormalize event context directly onto debt_payments
+    // so a customer/supplier's financial timeline survives even if the parent
+    // debt/sale/purchase row is later deleted or the supplier is renamed.
+    `ALTER TABLE debt_payments ADD COLUMN event_type TEXT NOT NULL DEFAULT 'payment'`,
+    `ALTER TABLE debt_payments ADD COLUMN payment_method TEXT`,
+    `ALTER TABLE debt_payments ADD COLUMN customer_id INTEGER`,
+    `ALTER TABLE debt_payments ADD COLUMN supplier_name TEXT`,
+    `ALTER TABLE debt_payments ADD COLUMN reference_number TEXT`,
+    `ALTER TABLE debt_payments ADD COLUMN original_amount REAL`,
+    `CREATE INDEX IF NOT EXISTS idx_debt_payments_customer_id ON debt_payments(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_debt_payments_supplier_name ON debt_payments(supplier_name)`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -544,6 +559,7 @@ function rowToProduct(row: Record<string, unknown>): Product {
     quantity: row.quantity as number,
     unit: row.unit as string,
     description: row.description as string | null,
+    itemDescription: (row.item_description as string | null) ?? null,
     isActive: (row.is_active as number) === 1,
     imageUri: (row.image_uri as string | null) ?? null,
     createdAt: row.created_at as string,
@@ -659,6 +675,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     lowStockEnabled: (row.low_stock_enabled as 1 | 0 | null) ?? null,
     storeVisible: (row.store_visible as number) === 1,
     websiteDescription: (row.website_description as string | null) ?? null,
+    itemDescription: (row.item_description as string | null) ?? null,
   };
 }
 
@@ -683,8 +700,8 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       purchase_price, selling_price, quantity, unit, description, is_active,
       purchase_id, supplier_name, supplier_phone, supplier_address, purchase_date,
       payment_status, warranty, image_uri, buy_price_usd, sell_price_usd,
-      website_description, store_visible, uuid
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      website_description, item_description, store_visible, uuid
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.name,
       data.category,
@@ -707,6 +724,7 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.buyPriceUsd,
       data.sellPriceUsd,
       data.websiteDescription ?? null,
+      data.itemDescription ?? null,
       bulkPublishEnabled ? 1 : 0,
       await newUuid(),
     ]
@@ -743,6 +761,7 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.lowStockThreshold !== undefined) { fields.push('low_stock_threshold = ?'); values.push(data.lowStockThreshold ?? null); }
   if (data.lowStockEnabled !== undefined)  { fields.push('low_stock_enabled = ?');  values.push(data.lowStockEnabled ?? null); }
   if (data.websiteDescription !== undefined) { fields.push('website_description = ?'); values.push(data.websiteDescription); }
+  if (data.itemDescription !== undefined)    { fields.push('item_description = ?');    values.push(data.itemDescription); }
 
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -1398,10 +1417,14 @@ export async function addPaymentToDebt(debtId: number, amount: number, paymentDa
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
-    const debt = await database.getFirstAsync<{ sale_id: number; remaining_amount: number }>(
-      'SELECT sale_id, remaining_amount FROM debts WHERE id = ?', [debtId]
+    const debt = await database.getFirstAsync<{ sale_id: number; remaining_amount: number; original_amount: number }>(
+      'SELECT sale_id, remaining_amount, original_amount FROM debts WHERE id = ?', [debtId]
     );
     if (!debt) return;
+
+    const sale = await database.getFirstAsync<{ customer_id: number | null; invoice_number: string | null }>(
+      'SELECT customer_id, invoice_number FROM sales WHERE id = ?', [debt.sale_id]
+    );
 
     const clamped = Math.min(amount, debt.remaining_amount);
     const newRemaining = Math.max(0, debt.remaining_amount - clamped);
@@ -1427,9 +1450,11 @@ export async function addPaymentToDebt(debtId: number, amount: number, paymentDa
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at, uuid)
-       VALUES (?, 'sales', ?, ?, ?, ?)`,
-      [debtId, clamped, newRemaining, ts, await newUuid()]
+      `INSERT INTO debt_payments (
+         debt_id, debt_type, amount, remaining_after, created_at, uuid,
+         event_type, customer_id, reference_number, original_amount
+       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount]
     );
   });
 }
@@ -1527,7 +1552,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
     const origSale = await database.getFirstAsync<{
       customer_id: number | null;
       grand_total: number;
-    }>('SELECT customer_id, grand_total FROM sales WHERE id = ?', [saleId]);
+      invoice_number: string | null;
+    }>('SELECT customer_id, grand_total, invoice_number FROM sales WHERE id = ?', [saleId]);
     if (!origSale) return;
 
     // 2. Fetch original sale items to restore inventory
@@ -1658,7 +1684,7 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
           ]
         );
       } else {
-        await database.runAsync(
+        const newDebtResult = await database.runAsync(
           `INSERT INTO debts (
             sale_id, customer_name, customer_phone,
             original_amount, paid_amount, remaining_amount, status, uuid
@@ -1671,6 +1697,22 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
             input.paidAmount,
             input.remainingDebt,
             await newUuid(),
+          ]
+        );
+
+        await database.runAsync(
+          `INSERT INTO debt_payments (
+             debt_id, debt_type, amount, remaining_after, created_at, uuid,
+             event_type, customer_id, reference_number, original_amount
+           ) VALUES (?, 'sales', ?, ?, CURRENT_TIMESTAMP, ?, 'debt_created', ?, ?, ?)`,
+          [
+            newDebtResult.lastInsertRowId,
+            input.grandTotal,
+            input.remainingDebt,
+            await newUuid(),
+            input.customerId ?? origSale.customer_id ?? null,
+            origSale.invoice_number,
+            input.grandTotal,
           ]
         );
       }
@@ -1846,7 +1888,7 @@ export async function insertSale(
     }
 
     if (saleData.remainingDebt > 0) {
-      await database.runAsync(
+      const debtResult = await database.runAsync(
         `INSERT INTO debts (
           sale_id, customer_name, customer_phone,
           original_amount, paid_amount, remaining_amount, status, uuid
@@ -1859,6 +1901,22 @@ export async function insertSale(
           saleData.paidAmount,
           saleData.remainingDebt,
           await newUuid(),
+        ]
+      );
+
+      await database.runAsync(
+        `INSERT INTO debt_payments (
+           debt_id, debt_type, amount, remaining_after, created_at, uuid,
+           event_type, customer_id, reference_number, original_amount
+         ) VALUES (?, 'sales', ?, ?, CURRENT_TIMESTAMP, ?, 'debt_created', ?, ?, ?)`,
+        [
+          debtResult.lastInsertRowId,
+          saleData.grandTotal,
+          saleData.remainingDebt,
+          await newUuid(),
+          saleData.customerId ?? null,
+          saleData.invoiceNumber,
+          saleData.grandTotal,
         ]
       );
     }
@@ -2733,11 +2791,21 @@ export async function createPurchaseDebt(
     ]
   );
 
+  await database.runAsync(
+    `INSERT INTO debt_payments (
+       debt_id, debt_type, amount, remaining_after, created_at, uuid,
+       event_type, supplier_name, reference_number, original_amount
+     ) VALUES (?, 'purchase', ?, ?, CURRENT_TIMESTAMP, ?, 'debt_created', ?, ?, ?)`,
+    [result.lastInsertRowId, data.originalAmount, remaining, await newUuid(), data.supplierName, data.purchaseNumber, data.originalAmount]
+  );
+
   if (actualPaid > 0) {
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, note, created_at, uuid)
-       VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?)`,
-      [result.lastInsertRowId, actualPaid, remaining, await newUuid()]
+      `INSERT INTO debt_payments (
+         debt_id, debt_type, amount, remaining_after, note, created_at, uuid,
+         event_type, supplier_name, reference_number, original_amount
+       ) VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?, 'payment', ?, ?, ?)`,
+      [result.lastInsertRowId, actualPaid, remaining, await newUuid(), data.supplierName, data.purchaseNumber, data.originalAmount]
     );
   }
 
@@ -2783,8 +2851,15 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
-    const debt = await database.getFirstAsync<{ remaining_amount: number; purchase_id: number | null }>(
-      'SELECT remaining_amount, purchase_id FROM purchase_debts WHERE id = ?', [id]
+    const debt = await database.getFirstAsync<{
+      remaining_amount: number;
+      purchase_id: number | null;
+      supplier_name: string;
+      purchase_number: string | null;
+      original_amount: number;
+    }>(
+      'SELECT remaining_amount, purchase_id, supplier_name, purchase_number, original_amount FROM purchase_debts WHERE id = ?',
+      [id]
     );
     if (!debt) return;
 
@@ -2803,9 +2878,11 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
     );
 
     await database.runAsync(
-      `INSERT INTO debt_payments (debt_id, debt_type, amount, remaining_after, created_at, uuid)
-       VALUES (?, 'purchase', ?, ?, ?, ?)`,
-      [id, clamped, newRemaining, ts, await newUuid()]
+      `INSERT INTO debt_payments (
+         debt_id, debt_type, amount, remaining_after, created_at, uuid,
+         event_type, supplier_name, reference_number, original_amount
+       ) VALUES (?, 'purchase', ?, ?, ?, ?, 'payment', ?, ?, ?)`,
+      [id, clamped, newRemaining, ts, await newUuid(), debt.supplier_name, debt.purchase_number, debt.original_amount]
     );
 
     if (newRemaining <= 0 && debt.purchase_id != null) {
@@ -2878,7 +2955,7 @@ export async function getDebtPayments(
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(
     `SELECT * FROM debt_payments
-     WHERE debt_id = ? AND debt_type = ?
+     WHERE debt_id = ? AND debt_type = ? AND event_type = 'payment'
      ORDER BY created_at DESC`,
     [debtId, debtType]
   );
@@ -2891,6 +2968,92 @@ export async function getDebtPayments(
     note:           (row.note as string | null) ?? null,
     createdAt:      row.created_at as string,
   }));
+}
+
+// ─── Financial Timeline (Debt Payment History) ────────────────────────────────
+// Permanent, per-customer/per-supplier ledger of debt lifecycle events, built
+// from debt_payments rows (which are never deleted when a debt is settled).
+// Unlike getDebtPayments (used by the active-debt detail screens), this reads
+// 'debt_created' and 'payment' rows for ALL debts — active and settled — and
+// derives a 'debt_fully_paid' marker client-side, so it survives even after a
+// debt disappears from the active Debt screen.
+
+function rowToLedgerEvent(row: Record<string, unknown>): FinancialLedgerEvent {
+  return {
+    type:            row.event_type as LedgerEventType,
+    paymentId:       row.id as number,
+    debtId:          row.debt_id as number,
+    debtType:        row.debt_type as DebtType,
+    referenceNumber: (row.reference_number as string | null) ?? null,
+    amount:          row.amount as number,
+    remainingAfter:  row.remaining_after as number,
+    paymentMethod:   (row.payment_method as string | null) ?? null,
+    note:            (row.note as string | null) ?? null,
+    createdAt:       row.created_at as string,
+  };
+}
+
+function deriveFullyPaidEvents(events: FinancialLedgerEvent[]): FinancialLedgerEvent[] {
+  const byDebt = new Map<number, FinancialLedgerEvent[]>();
+  for (const event of events) {
+    const group = byDebt.get(event.debtId);
+    if (group) group.push(event); else byDebt.set(event.debtId, [event]);
+  }
+
+  const settledMarkers: FinancialLedgerEvent[] = [];
+  for (const group of byDebt.values()) {
+    const last = group[group.length - 1];
+    if (last.remainingAfter <= 0) {
+      settledMarkers.push({
+        type: 'debt_fully_paid',
+        paymentId: null,
+        debtId: last.debtId,
+        debtType: last.debtType,
+        referenceNumber: last.referenceNumber,
+        amount: 0,
+        remainingAfter: 0,
+        paymentMethod: null,
+        note: null,
+        createdAt: last.createdAt,
+      });
+    }
+  }
+
+  return [...events, ...settledMarkers].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
+export async function getCustomerFinancialTimeline(customerId: number): Promise<FinancialLedgerEvent[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM debt_payments
+     WHERE debt_type = 'sales' AND (
+       customer_id = ?
+       OR (customer_id IS NULL AND debt_id IN (
+         SELECT d.id FROM debts d JOIN sales s ON d.sale_id = s.id WHERE s.customer_id = ?
+       ))
+     )
+     ORDER BY created_at ASC`,
+    [customerId, customerId]
+  );
+  return deriveFullyPaidEvents(rows.map(rowToLedgerEvent));
+}
+
+export async function getSupplierFinancialTimeline(supplierName: string): Promise<FinancialLedgerEvent[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM debt_payments
+     WHERE debt_type = 'purchase' AND (
+       LOWER(TRIM(supplier_name)) = LOWER(TRIM(?))
+       OR (supplier_name IS NULL AND debt_id IN (
+         SELECT id FROM purchase_debts WHERE LOWER(TRIM(supplier_name)) = LOWER(TRIM(?))
+       ))
+     )
+     ORDER BY created_at ASC`,
+    [supplierName, supplierName]
+  );
+  return deriveFullyPaidEvents(rows.map(rowToLedgerEvent));
 }
 
 // ─── Debt Overview Summary ────────────────────────────────────────────────────

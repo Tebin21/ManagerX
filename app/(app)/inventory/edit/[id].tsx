@@ -38,7 +38,7 @@ import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 type FieldKey =
   | 'name' | 'category'
   | 'sellPriceIQD' | 'sellPriceUSD' | 'lowStockThreshold'
-  | 'warranty' | 'description' | 'notes' | 'imageUri' | 'websiteDescription';
+  | 'warranty' | 'description' | 'notes' | 'imageUri' | 'websiteDescription' | 'itemDescription';
 
 export default function EditProductScreen() {
   const { t } = useTranslation();
@@ -58,6 +58,7 @@ export default function EditProductScreen() {
 
   // Form state
   const [name, setName]               = useState('');
+  const [itemDescription, setItemDescription] = useState('');
   const [category, setCategory]       = useState('');
   const [sellIQD, setSellIQD]         = useState('');
   const [sellUSD, setSellUSD]         = useState('');
@@ -79,6 +80,7 @@ export default function EditProductScreen() {
       if (p) {
         setProduct(p);
         setName(p.name);
+        setItemDescription(p.itemDescription ?? '');
         setCategory(p.category);
         setSellIQD(String(p.sellingPrice));
         setSellUSD(String(p.sellPriceUsd));
@@ -115,6 +117,7 @@ export default function EditProductScreen() {
     // Detect which fields changed
     const changed = new Set<FieldKey>();
     if (name.trim() !== product.name)            changed.add('name');
+    if (itemDescription.trim() !== (product.itemDescription ?? '')) changed.add('itemDescription');
     if (category !== product.category)           changed.add('category');
     if (sellPrice !== product.sellingPrice)      changed.add('sellPriceIQD');
     if (warranty.trim() !== (product.warranty ?? ''))       changed.add('warranty');
@@ -129,6 +132,7 @@ export default function EditProductScreen() {
     try {
       const data: Partial<NewProductData> = {
         name:               name.trim(),
+        itemDescription:    itemDescription.trim() || null,
         category,
         sellingPrice:       sellPrice,
         sellPriceUsd:       parseFloat(sellUSD) || 0,
@@ -156,7 +160,7 @@ export default function EditProductScreen() {
     } finally {
       setSaving(false);
     }
-  }, [product, name, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, websiteDescription, editProduct]);
+  }, [product, name, itemDescription, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, websiteDescription, editProduct]);
 
   const fieldBg = (key: FieldKey) =>
     changedFields.has(key) ? colors.softBlue : 'transparent';
@@ -227,6 +231,23 @@ export default function EditProductScreen() {
               onChangeText={setName}
               placeholder={t('inventory.productName')}
               placeholderTextColor={colors.gray300}
+              onFocus={scrollIntoView}
+            />
+          </MotiView>
+
+          {/* Item Description */}
+          <MotiView animate={{ backgroundColor: fieldBg('itemDescription') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
+            <TextInput
+              style={[
+                styles.input,
+                { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: itemDescription }), {}),
+              ]}
+              value={itemDescription}
+              onChangeText={setItemDescription}
+              placeholder={t('inventory.itemDescriptionPlaceholder')}
+              placeholderTextColor={colors.gray300}
+              maxLength={30}
               onFocus={scrollIntoView}
             />
           </MotiView>

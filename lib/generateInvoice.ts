@@ -21,7 +21,7 @@
 import { Alert, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow } from './invoiceTemplate';
+import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow, type ReceiptCurrencyMode } from './invoiceTemplate';
 import { useSettingsStore } from '@/store/settingsStore';
 import { PURCHASE_RATE } from '@/types/purchases';
 import { buildInventoryReportHTML } from './inventoryReportTemplate';
@@ -291,12 +291,16 @@ async function generateAndShare(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<void> {
+export async function shareInvoice(
+  sale: Sale,
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'iqd'
+): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
     const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
-    const html = buildInvoiceHTML(sale, biz, getDir(), rate);
+    const html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
     await generateAndShare(
       html,
       `Invoice ${sale.invoiceNumber}`,
@@ -313,12 +317,13 @@ export async function shareInvoice(sale: Sale, business: BusinessInfo): Promise<
 export async function sharePurchaseInvoice(
   purchase: Purchase,
   purchaseItems: PurchaseItemRow[],
-  business: BusinessInfo
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'iqd'
 ): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir());
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode);
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,

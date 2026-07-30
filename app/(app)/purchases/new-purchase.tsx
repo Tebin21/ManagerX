@@ -60,6 +60,7 @@ export default function NewPurchaseScreen() {
   const [supplierName, setSupplierName]     = useState('');
   const [purchaseDate, setPurchaseDate]     = useState(() => new Date());
   const [productName, setProductName]       = useState('');
+  const [itemDescription, setItemDescription] = useState('');
   const [qty, setQty]                       = useState('1');
   const [buyIQD, setBuyIQD]                 = useState('');
   const [buyUSD, setBuyUSD]                 = useState('');
@@ -248,6 +249,7 @@ export default function NewPurchaseScreen() {
         description: '',
         notes,
         websiteDescription,
+        itemDescription,
         paymentStatus,
         initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
         imageUri,
@@ -318,6 +320,14 @@ export default function NewPurchaseScreen() {
               value={productName}
               onChangeText={setProductName}
               placeholder={t('purchases.productNameNewPlaceholder')}
+              returnKeyType="next"
+            />
+
+            <AppTextInput
+              value={itemDescription}
+              onChangeText={setItemDescription}
+              placeholder={t('purchases.itemDescriptionPlaceholder')}
+              maxLength={30}
               returnKeyType="next"
             />
 
