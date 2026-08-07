@@ -9,10 +9,10 @@ export function HelpCallout() {
       </p>
       <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <a
-          href="mailto:support@froshiar.store"
+          href="mailto:tebin.faruq@gmail.com"
           className="font-medium text-ink underline decoration-gold-500/60 underline-offset-2 transition-colors hover:text-gold-600 dark:hover:text-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-sm"
         >
-          support@froshiar.store
+          tebin.faruq@gmail.com
         </a>
         <Link
           href="/#contact"
