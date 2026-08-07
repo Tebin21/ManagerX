@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
+import { InfoModal } from '@/components/ui/InfoModal';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
@@ -42,9 +44,17 @@ export default function SettingsScreen() {
   const signOut      = useAuthStore((s) => s.signOut);
   const itemLimit    = useLicenseStore((s) => s.limit);
 
-  const { flexDirection } = useRTL();
+  const { flexDirection, textAlign } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut,    setIsLoggingOut]    = useState(false);
+
+  const [showDeleteModal,   setShowDeleteModal]   = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [cloudDataPending,  setCloudDataPending]  = useState(false);
+  // Synchronous re-entrancy guard — React state is applied async, so two taps
+  // in the same tick could both pass an `isDeletingAccount` state check.
+  const isDeletingRef = useRef(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -55,6 +65,45 @@ export default function SettingsScreen() {
     // Replace the entire stack — user cannot navigate back into the app
     router.replace('/(onboarding)/login' as never);
   };
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount || isDeletingRef.current) return;
+    isDeletingRef.current = true;
+    try {
+      setIsDeletingAccount(true);
+      // Suppresses (app)/_layout.tsx's auth-redirect guard for the duration —
+      // Firebase's deleteUser() flips the store's `user` to null before this
+      // screen finishes its own local cleanup + success dialog.
+      useAuthStore.getState().setDeletingAccount(true);
+      const { deleteAccount } = await import('@/lib/accountDeletion');
+      const result = await deleteAccount();
+      setIsDeletingAccount(false);
+      if (result.error) {
+        useAuthStore.getState().setDeletingAccount(false);
+        setShowDeleteModal(false);
+        Alert.alert(t('common.error'), result.error);
+        return;
+      }
+      setShowDeleteModal(false);
+      setCloudDataPending(!!result.cloudDataPending);
+      setShowDeleteSuccess(true);
+      // isDeletingAccount stays true in the store until the success dialog is
+      // dismissed (handleDeleteSuccessDone), so the layout guard can't redirect
+      // out from under it before the user sees the result.
+    } finally {
+      isDeletingRef.current = false;
+    }
+  };
+
+  const handleDeleteSuccessDone = () => {
+    setShowDeleteSuccess(false);
+    useAuthStore.getState().setDeletingAccount(false);
+    router.replace('/(onboarding)/login' as never);
+  };
+
+  const deleteAccountBullets = Array.from({ length: 12 }, (_, i) =>
+    t(`settings.deleteAccountBullet${i + 1}`)
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -182,6 +231,19 @@ export default function SettingsScreen() {
           />
         </SettingSection>
 
+        {/* Danger Zone — Delete Account, visually separated */}
+        <View style={styles.logoutSpacer} />
+        <SettingSection title={t('settings.dangerZone')}>
+          <SettingRow
+            icon="trash"
+            label={t('settings.deleteAccount')}
+            sub={t('settings.deleteAccountSub')}
+            destructive
+            chevron={false}
+            onPress={() => setShowDeleteModal(true)}
+          />
+        </SettingSection>
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -248,6 +310,104 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Delete Account confirmation / loading modal ───────────────── */}
+      <Modal
+        transparent
+        visible={showDeleteModal}
+        animationType="fade"
+        onRequestClose={() => !isDeletingAccount && setShowDeleteModal(false)}
+        statusBarTranslucent
+      >
+        <View style={styles.overlay}>
+          <View style={[
+            styles.dialog,
+            {
+              backgroundColor: isDark ? colors.gray100 : Colors.white,
+              borderColor: isDark ? colors.gray200 : 'transparent',
+              borderWidth: isDark ? 1 : 0,
+            },
+          ]}>
+            {isDeletingAccount ? (
+              <>
+                <ActivityIndicator color={Colors.error} size="large" style={styles.deletingSpinner} />
+                <Text style={[styles.dialogTitle, { color: colors.black }]}>
+                  {t('settings.deletingAccountTitle')}
+                </Text>
+                <Text style={[styles.dialogMsg, { color: colors.gray500, marginBottom: 0 }]}>
+                  {t('settings.deletingAccountMsg')}
+                </Text>
+              </>
+            ) : (
+              <>
+                {/* Icon */}
+                <View style={[styles.dialogIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="warning" size={34} color={Colors.error} />
+                </View>
+
+                {/* Title */}
+                <Text style={[styles.dialogTitle, { color: colors.black }]}>
+                  {t('settings.deleteAccountConfirmTitle')}
+                </Text>
+
+                {/* Message */}
+                <Text style={[styles.dialogMsg, { color: colors.gray500 }]}>
+                  {t('settings.deleteAccountConfirmMsg')}
+                </Text>
+
+                {/* Removed-data bullet list */}
+                <View style={styles.bulletList}>
+                  {deleteAccountBullets.map((bullet, i) => (
+                    <View key={i} style={[styles.bulletRow, { flexDirection }]}>
+                      <Text style={[styles.bulletDot, { color: Colors.error }]}>•</Text>
+                      <Text style={[styles.bulletText, { color: colors.gray600, textAlign }]}>{bullet}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Online Store note */}
+                <Text style={[styles.footerNote, { color: colors.gray400 }]}>
+                  {t('settings.deleteAccountOnlineStoreNote')}
+                </Text>
+
+                {/* Buttons */}
+                <View style={[styles.dialogBtns, { flexDirection }]}>
+                  <TouchableOpacity
+                    style={[styles.btnCancel, { backgroundColor: colors.gray200 }]}
+                    onPress={() => setShowDeleteModal(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.btnCancelText, { color: colors.gray600 }]}>
+                      {t('settings.deleteAccountCancel')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.btnLogout, { backgroundColor: Colors.error }]}
+                    onPress={handleDeleteAccount}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnLogoutText}>
+                      {t('settings.deleteAccountConfirmBtn')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Delete Account success dialog ─────────────────────────────── */}
+      <InfoModal
+        visible={showDeleteSuccess}
+        onClose={handleDeleteSuccessDone}
+        title={t('settings.deleteAccountSuccessTitle')}
+        description={t(
+          cloudDataPending ? 'settings.deleteAccountSuccessMsgPending' : 'settings.deleteAccountSuccessMsg'
+        )}
+        buttonLabel={t('settings.done')}
+      />
     </View>
   );
 }
@@ -297,6 +457,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
+  },
+  deletingSpinner: {
+    marginBottom: 16,
+  },
+
+  // Delete Account removed-data bullet list
+  bulletList: {
+    width: '100%',
+    gap: 8,
+    marginBottom: 14,
+  },
+  bulletRow: {
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  bulletDot: {
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  footerNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginBottom: 18,
+    fontStyle: 'italic',
   },
 
   // Dialog buttons

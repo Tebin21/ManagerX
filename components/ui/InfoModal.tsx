@@ -13,12 +13,13 @@ interface Props {
   description: string;
   bullets?: string[];
   footerNote?: string;
+  buttonLabel?: string;
 }
 
 // Generic informational dialog — mirrors settings/index.tsx's existing logout-
 // confirmation Modal structure (overlay + centered card) but with an info-colored
 // icon instead of the destructive one, and no second/confirm button.
-export function InfoModal({ visible, onClose, title, description, bullets, footerNote }: Props) {
+export function InfoModal({ visible, onClose, title, description, bullets, footerNote, buttonLabel = 'OK' }: Props) {
   const { colors, isDark } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
 
@@ -62,7 +63,7 @@ export function InfoModal({ visible, onClose, title, description, bullets, foote
             onPress={onClose}
             activeOpacity={0.85}
           >
-            <Text style={styles.closeBtnText}>OK</Text>
+            <Text style={styles.closeBtnText}>{buttonLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -26,6 +26,12 @@ export function Footer() {
           >
             Terms of Service
           </Link>
+          <Link
+            href="/delete-account"
+            className="transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm"
+          >
+            Delete Account
+          </Link>
         </div>
         <a
           href="https://www.bexdre.com"

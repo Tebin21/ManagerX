@@ -13,16 +13,21 @@ export default function AppLayout() {
   const { isRTL } = useRTL();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const isDeletingAccount = useAuthStore((s) => s.isDeletingAccount);
   const authHydrated = useHasHydrated(useAuthStore);
 
   // Guards every screen under (app) — dashboard, inventory, sales, purchases,
   // reports, settings, and all other business modules. If the Google session
   // is missing or expires while inside the app, bounce back to Login.
+  // Suppressed during Delete Account (isDeletingAccount) — Firebase's
+  // deleteUser() can flip `user` to null via onAuthStateChanged before the
+  // rest of that flow's local cleanup finishes; without this guard, this
+  // effect would yank the Settings screen out from under it mid-flight.
   useEffect(() => {
-    if (authHydrated && !user) {
+    if (authHydrated && !user && !isDeletingAccount) {
       router.replace('/(onboarding)/login');
     }
-  }, [authHydrated, user]);
+  }, [authHydrated, user, isDeletingAccount]);
 
   // Online Store auto-sync — starts the NetInfo/AppState listeners once and loads
   // the current store status so the dashboard card has data immediately.

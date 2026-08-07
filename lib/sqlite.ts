@@ -75,6 +75,7 @@ export async function wipeAllBusinessData(): Promise<void> {
     'invoice_counter', 'purchase_counter',
     'inventory_history', 'categories',
     'settings', 'businesses',
+    'sync_queue',
   ]) {
     await database.runAsync(`DELETE FROM ${table}`);
   }

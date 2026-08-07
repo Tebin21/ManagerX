@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { MulterError } from 'multer';
 import { JsonStoreRepository } from '../jsonStoreRepository';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
 import { requireActiveSubscription, checkSubscriptionHeaders } from '../subscriptionAuth';
-import { upload, saveUploadedImage } from '../uploads';
+import { upload, saveUploadedImage, UPLOADS_ROOT } from '../uploads';
 import { storeWriteLimiter, registrationLimiter } from '../rateLimit';
 import { config } from '../config';
 import type { SyncChangeInput } from '../storeRepository';
@@ -219,6 +221,23 @@ storesRouter.post('/:slug/images', storeWriteLimiter, requireStoreAuth, blockIfA
   const filename = saveUploadedImage(req.params.slug, req.file);
   const url = `${config.publicApiUrl}/uploads/${req.params.slug}/${filename}`;
   res.status(201).json({ url });
+}));
+
+// DELETE /api/stores/:slug — self-service permanent deletion, called by Froshiar's
+// in-app "Delete Account" flow. Mirrors adminRouter's DELETE /stores/:slug
+// (routes/admin.ts) but authenticated via the store's own API key (requireStoreAuth)
+// instead of admin auth, and needs no confirm-body gate since the app-side
+// confirmation modal already gates this.
+storesRouter.delete('/:slug', storeWriteLimiter, requireStoreAuth, asyncHandler(async (req, res) => {
+  const tombstone = await repo.deleteStore(req.params.slug);
+  if (!tombstone) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+  const uploadsDir = path.join(UPLOADS_ROOT, req.params.slug);
+  if (fs.existsSync(uploadsDir)) fs.rmSync(uploadsDir, { recursive: true, force: true });
+  void logActivity(req, 'system', 'store_deleted', { slug: req.params.slug, details: tombstone.businessName });
+  res.json(tombstone);
 }));
 
 // Multer throws synchronously on oversize/malformed multipart bodies, and

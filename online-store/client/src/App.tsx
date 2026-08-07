@@ -5,6 +5,7 @@ import { DemoStorefrontPage } from './pages/DemoStorefrontPage';
 import { ProductDetailsPage } from './pages/ProductDetailsPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
+import { DeleteAccountPage } from './pages/DeleteAccountPage';
 import { StorefrontLayout } from './components/StorefrontLayout';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
             explicit routes also make the reservation visible in the route table. */}
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
         <Route path="/demo" element={<StorefrontLayout />}>
           <Route index element={<DemoStorefrontPage />} />
         </Route>

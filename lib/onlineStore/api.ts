@@ -154,6 +154,17 @@ export async function pushSync(
   });
 }
 
+// Permanently deletes the store and its uploaded images from the backend — called
+// by the app's Delete Account flow (lib/accountDeletion.ts). Best-effort from the
+// caller's perspective: a 404 (store already gone) throws OnlineStoreApiError like
+// any other failure, and the caller treats that as non-fatal to the overall flow.
+export async function deleteStore(slug: string, apiKey: string): Promise<void> {
+  await request(`/api/stores/${slug}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
+  });
+}
+
 // Uploads a local product/logo image to the Online Store backend's own persistent
 // disk and returns its public URL. Deliberately NOT routed through request() —
 // that helper force-sets Content-Type: application/json, but React Native's

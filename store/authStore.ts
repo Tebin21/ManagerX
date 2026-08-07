@@ -46,10 +46,17 @@ export interface AppUser {
 interface AuthState {
   user: AppUser | null;
   isLoading: boolean;
+  // Transient — never persisted (see partialize below). Set while the Delete
+  // Account flow (lib/accountDeletion.ts) is running so (app)/_layout.tsx's
+  // auth guard doesn't redirect to Login the instant Firebase's deleteUser()
+  // flips `user` to null, before the rest of the local cleanup has finished.
+  isDeletingAccount: boolean;
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  deleteFirebaseAccount: () => Promise<{ error: string | null }>;
+  setDeletingAccount: (value: boolean) => void;
   initialize: () => Promise<void>;
 }
 
@@ -89,6 +96,74 @@ async function adoptSignedInUser(
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 }
 
+// Re-acquires a fresh credential for the currently signed-in user so
+// deleteFirebaseAccount() can call reauthenticateWithCredential() after Firebase
+// rejects a stale-session delete with 'auth/requires-recent-login'. Google can do
+// this silently via a fresh GoogleSignin.signIn(); Apple has no silent path and
+// must re-prompt interactively (same nonce dance as signInWithApple below).
+// Returns null (never throws) on any failure/cancellation — the caller treats
+// that as "user must sign out and back in manually".
+async function reacquireCredential(
+  user: FirebaseAuthTypes.User
+): Promise<FirebaseAuthTypes.AuthCredential | null> {
+  const providerId = user.providerData[0]?.providerId;
+
+  if (providerId === 'google.com') {
+    try {
+      const GoogleSignin = await getGoogleSignin();
+      const signInResult = await GoogleSignin.signIn();
+      if ((signInResult as any)?.type && (signInResult as any).type !== 'success') return null;
+      const idToken = (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+      if (!idToken) return null;
+      return GoogleAuthProvider.credential(idToken);
+    } catch {
+      return null;
+    }
+  }
+
+  if (providerId === 'apple.com') {
+    if (Platform.OS !== 'ios') return null;
+    try {
+      const AppleAuthentication = await import('expo-apple-authentication');
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) return null;
+
+      const Crypto = await import('expo-crypto');
+      const rawNonce = Array.from(await Crypto.getRandomBytesAsync(16))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce
+      );
+
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: hashedNonce,
+      });
+      if (!appleCredential.identityToken) return null;
+      return AppleAuthProvider.credential(appleCredential.identityToken, rawNonce);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function mapFirebaseDeleteError(e: any): string {
+  switch (e?.code) {
+    case 'auth/network-request-failed':
+      return 'No internet connection. Please check your connection and try again.';
+    case 'auth/requires-recent-login':
+    case 'auth/user-mismatch':
+    case 'auth/user-not-found':
+      return 'Please sign out and sign back in, then try deleting your account again.';
+    default:
+      return 'Failed to delete your account. Please try again.';
+  }
+}
+
 // `user` is persisted to AsyncStorage so a returning user's session is
 // restored instantly from disk on cold start, independent of how long the
 // native Firebase SDK takes to report its own restored session. Firebase's
@@ -101,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isLoading: false,
+      isDeletingAccount: false,
 
       signInWithGoogle: async () => {
         if (!isFirebaseAvailable) {
@@ -213,6 +289,36 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ user: null });
       },
+
+      deleteFirebaseAccount: async () => {
+        if (!isFirebaseAvailable) return { error: null };
+        const auth = getFirebaseAuth();
+        const user = auth.currentUser;
+        if (!user) return { error: null };
+
+        const { deleteUser, reauthenticateWithCredential } = await import('@react-native-firebase/auth');
+        try {
+          await deleteUser(user);
+          return { error: null };
+        } catch (e: any) {
+          if (e?.code !== 'auth/requires-recent-login') {
+            return { error: mapFirebaseDeleteError(e) };
+          }
+          try {
+            const credential = await reacquireCredential(user);
+            if (!credential) {
+              return { error: 'Please sign out and sign back in, then try deleting your account again.' };
+            }
+            await reauthenticateWithCredential(user, credential);
+            await deleteUser(user);
+            return { error: null };
+          } catch (reauthErr: any) {
+            return { error: mapFirebaseDeleteError(reauthErr) };
+          }
+        }
+      },
+
+      setDeletingAccount: (value: boolean) => set({ isDeletingAccount: value }),
 
       // Stays subscribed for the lifetime of the app so an expired/revoked
       // session (user becomes null) is reflected immediately and the
