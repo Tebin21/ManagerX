@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "1097351210121-jbco69jtkh5f5cqkduerks2q0abl1jko.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.froshiar.app",
+            "certificate_hash": "0a0a7ce477cfae820be3d3774b48dea370b4a90d"
+          }
+        },
+        {
           "client_id": "1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com",
           "client_type": 3
         }
