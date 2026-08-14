@@ -15,6 +15,7 @@ import { SettingsTextInput as AppTextInput } from '@/components/settings/Setting
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { IdText } from '@/components/ui/IdText';
+import { PlanLimitsComingSoon } from '@/components/settings/PlanLimitsComingSoon';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLicenseStore } from '@/store/licenseStore';
 import { getInventoryStats } from '@/lib/sqlite';
@@ -61,6 +62,17 @@ export default function PlanLimitsScreen() {
 
   useEffect(() => { loadUsed(); }, [loadUsed]);
 
+  // Temporary Apple 3.1.1 compliance measure — Plan & Limits license activation
+  // is not reachable on iOS this release, regardless of license status.
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('settings.upgradeScreen.title')} showBack />
+        <PlanLimitsComingSoon />
+      </View>
+    );
+  }
+
   const planLabel = t(PLAN_LABEL_KEYS[plan] ?? PLAN_LABEL_KEYS.basic);
   const isUnlimited = !Number.isFinite(limit);
   const usedPct = isUnlimited ? 0 : limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
@@ -105,7 +117,7 @@ export default function PlanLimitsScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.upgradeScreen.title')} showBack />
 

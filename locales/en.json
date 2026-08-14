@@ -1129,7 +1129,9 @@
       "codeExpired":       "This license code has already expired.",
       "codeExpiredOn":     "This license code expired on {{date}}.",
       "noUpgrade":         "Your account already has this limit or higher.",
-      "supportMessage":    "To increase your inventory item limit, contact:"
+      "supportMessage":    "To increase your inventory item limit, contact:",
+      "comingSoonHeading": "Coming Soon",
+      "comingSoonBody":    "License activation is not available on this platform.\nThis feature will be available in a future update."
     },
     "themeColors":    "App Theme Colors",
     "themeColorsSub": "Customize your accent color",
