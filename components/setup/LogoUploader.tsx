@@ -1,10 +1,11 @@
 import React from 'react';
-import { TouchableOpacity, Image, View, StyleSheet, Alert } from 'react-native';
+import { TouchableOpacity, Image, View, StyleSheet, Alert, Linking } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { ensureGalleryAccess } from '@/lib/mediaAccess';
 
 interface Props {
   uri: string | null;
@@ -16,22 +17,30 @@ export function LogoUploader({ uri, onSelect }: Props) {
   const { colors } = useAppTheme();
 
   const pick = async () => {
-    // Lazy import — a static top-level import of expo-image-picker calls a throwing
-    // native-module lookup at module-evaluation time (same pattern already used in
-    // components/ui/ProductImagePicker.tsx), which would crash app startup instead of
-    // just this action if the native module isn't linked in a given build.
     try {
+      const access = await ensureGalleryAccess();
+      if (access === 'denied-first-time') return; // respect "Don't Allow" silently — no nag, no Settings redirect
+      if (access === 'denied-repeat') {
+        Alert.alert(
+          t('inventory.photoAccessNeededTitle'),
+          t('inventory.photoAccessNeededMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      // Lazy import — a static top-level import of expo-image-picker calls a throwing
+      // native-module lookup at module-evaluation time (same pattern already used in
+      // components/ui/ProductImagePicker.tsx), which would crash app startup instead of
+      // just this action if the native module isn't linked in a given build.
       const ImagePicker = await import('expo-image-picker');
 
       // allowsEditing:true below routes iOS to the legacy UIImagePickerController
       // (not the permission-less PHPickerViewController), which has no built-in
       // authorization check — the request below is required, not optional.
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('inventory.galleryPermDenied'));
-        return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,

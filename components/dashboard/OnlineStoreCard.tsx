@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { Theme } from '@/constants/theme';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
+import { OnlineStoreComingSoonCard } from '@/components/dashboard/OnlineStoreComingSoonCard';
 import { InfoModal } from '@/components/ui/InfoModal';
 import { formatRelativeTime, formatDateShort } from '@/utils/formatters';
 
@@ -41,6 +42,12 @@ export function OnlineStoreCard() {
       loadSubscription();
     }, [])
   );
+
+  // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
+  // is not reachable on iOS this release, regardless of subscription status.
+  if (Platform.OS === 'ios') {
+    return <OnlineStoreComingSoonCard />;
+  }
 
   if (!subscriptionActive) {
     return <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />;

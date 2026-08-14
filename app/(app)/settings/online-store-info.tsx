@@ -17,6 +17,7 @@ import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
+import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { useBusinessStore } from '@/store/businessStore';
 
 function toLocalIraqiPhone(stored: string): string {
@@ -88,6 +89,17 @@ export default function OnlineStoreInfoScreen() {
     }
   }
 
+  // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
+  // is not reachable on iOS this release, regardless of subscription status.
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
+        <OnlineStoreComingSoon />
+      </View>
+    );
+  }
+
   // Defense-in-depth — this screen is normally unreachable when locked (the entry
   // point in online-store.tsx already hides itself), but render the read-only locked
   // view too in case the subscription lapses while this screen is already open.
@@ -104,7 +116,7 @@ export default function OnlineStoreInfoScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
 

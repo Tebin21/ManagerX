@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
+import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { formatRelativeTime } from '@/utils/formatters';
 import { Colors } from '@/constants/colors';
 
@@ -70,6 +71,17 @@ export default function OnlineStoreScreen() {
       Alert.alert(t('settings.onlineStoreScreen.title'), t('dashboard.onlineStore.subscriptionRequired'));
     }
   };
+
+  // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
+  // is not reachable on iOS this release, regardless of subscription status.
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
+        <OnlineStoreComingSoon />
+      </View>
+    );
+  }
 
   // Read-only/locked entirely when there's no active subscription — no enable/sync/
   // edit controls rendered at all, satisfying "store settings must be read-only".

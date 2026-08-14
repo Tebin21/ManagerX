@@ -30,7 +30,8 @@
     "increaseQty":"Increase quantity",
     "getStarted": "Get Started",
     "fullAmount":   "Full Amount",
-    "compactAmount":"Compact Amount"
+    "compactAmount":"Compact Amount",
+    "openSettings": "Open Settings"
   },
   "welcome": {
     "headline": "Welcome to Froshiar",
@@ -214,7 +215,9 @@
       "activateCta":            "Unlock Online Store",
       "legacyNotice":           "Your store was already active before this update — contact support to keep it running.",
       "infoButtonA11y":         "About Online Store",
-      "previewDemoStore":       "Preview Demo Store"
+      "previewDemoStore":       "Preview Demo Store",
+      "comingSoonHeading":      "Coming Soon",
+      "comingSoonBody":         "Online Store features are currently under development.\nThis feature will be available in a future update."
     },
     "onlineStoreInfoModal": {
       "title":       "Online Store",
@@ -500,8 +503,10 @@
     "takePhoto":          "Take Photo",
     "chooseFromGallery":  "Choose From Gallery",
     "imageSource":        "Select Image Source",
-    "cameraPermDenied":   "Camera access denied. Please enable it in your device settings.",
-    "galleryPermDenied":  "Photo library access denied. Please enable it in your device settings.",
+    "cameraAccessNeededTitle":   "Camera Access Needed",
+    "cameraAccessNeededMessage": "Camera access is off for Froshiar. Turn it on in Settings to take a photo.",
+    "photoAccessNeededTitle":    "Photo Access Needed",
+    "photoAccessNeededMessage":  "Photo library access is off for Froshiar. Turn it on in Settings to choose a photo.",
     "productNotFound":    "Product not found.",
     "errorSave":              "Could not save changes. Please try again.",
     "duplicateItemIdTitle":   "Duplicate Product ID",

@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { ensureCameraAccess, ensureGalleryAccess } from '@/lib/mediaAccess';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 
 interface Props {
@@ -32,13 +34,21 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
   const pickFromCamera = useCallback(async () => {
     setShowModal(false);
     try {
-      const ImagePicker = await import('expo-image-picker');
-
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('inventory.cameraPermDenied'));
+      const access = await ensureCameraAccess();
+      if (access === 'denied-first-time') return; // respect "Don't Allow" silently — no nag, no Settings redirect
+      if (access === 'denied-repeat') {
+        Alert.alert(
+          t('inventory.cameraAccessNeededTitle'),
+          t('inventory.cameraAccessNeededMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]
+        );
         return;
       }
+
+      const ImagePicker = await import('expo-image-picker');
 
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
@@ -66,16 +76,24 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
   const pickFromGallery = useCallback(async () => {
     setShowModal(false);
     try {
-      const ImagePicker = await import('expo-image-picker');
+      const access = await ensureGalleryAccess();
+      if (access === 'denied-first-time') return; // respect "Don't Allow" silently — no nag, no Settings redirect
+      if (access === 'denied-repeat') {
+        Alert.alert(
+          t('inventory.photoAccessNeededTitle'),
+          t('inventory.photoAccessNeededMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
 
       // allowsEditing:true below routes iOS to the legacy UIImagePickerController
       // (not the permission-less PHPickerViewController), which has no built-in
       // authorization check — the request below is required, not optional.
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('inventory.galleryPermDenied'));
-        return;
-      }
+      const ImagePicker = await import('expo-image-picker');
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
