@@ -104,6 +104,7 @@ export async function applyEmbeddedSaleItems(
 ): Promise<void> {
   await db.runAsync('DELETE FROM sale_items WHERE sale_id = ?', [saleLocalId]);
   for (const item of items) {
+    if (!item || typeof item !== 'object') continue; // malformed/corrupted doc — skip, not fatal
     const productLocalId = await localIdOf(db, 'products', item.product_uuid as string | null);
     if (productLocalId == null) continue; // product not present locally yet — dropped, not fatal (see module doc)
     await db.runAsync(
@@ -123,6 +124,7 @@ export async function applyEmbeddedPurchaseItems(
 ): Promise<void> {
   await db.runAsync('DELETE FROM purchase_items WHERE purchase_id = ?', [purchaseLocalId]);
   for (const item of items) {
+    if (!item || typeof item !== 'object') continue; // malformed/corrupted doc — skip, not fatal
     await db.runAsync(
       `INSERT INTO purchase_items (purchase_id, product_name, category, quantity, buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd, line_total_iqd, id_type, item_ids, created_at, uuid)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

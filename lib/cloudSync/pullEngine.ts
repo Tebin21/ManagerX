@@ -23,6 +23,7 @@ import {
   applyEmbeddedSaleItems,
   applyEmbeddedPurchaseItems,
 } from './collections';
+import { setLastSyncError } from './storage';
 
 // businesses/settings (the users/{uid} root doc) intentionally use their own
 // "fill empty fields only" merge for the local-JSON-restore path (lib/backup.ts's
@@ -97,40 +98,70 @@ export function startCloudPull(uid: string): void {
 
   const firestore = getFirebaseFirestore();
 
+  const onListenerError = (context: string) => (err: unknown) => {
+    // A listener that errors out (permission-denied during a token-refresh race,
+    // a network error that exhausts Firestore's own retry budget, etc.) just dies
+    // silently otherwise — no crash, but pull sync silently stops working until
+    // the app restarts, with no record of why. Record it the same way pushEngine
+    // already does for push failures.
+    if (__DEV__) console.warn(`[cloudSync] ${context} listener error:`, err);
+    setLastSyncError(err instanceof Error ? err.message : String(err)).catch(() => {});
+  };
+
   for (const table of CLOUD_TABLE_ORDER) {
     const col = TABLE_TO_COLLECTION[table];
     if (!col) continue;
-    const unsub = onSnapshot(collection(firestore, 'users', uid, col), (snapshot: any) => {
-      for (const change of snapshot.docChanges()) {
-        if (change.doc.metadata.hasPendingWrites) continue; // our own optimistic write echoing back — no-op via LWW anyway, skip early
-        if (change.type === 'removed') continue; // deletes propagate via the tombstones listener below
-        applyCloudDoc(table, change.doc.id, change.doc.data()).catch((err: unknown) => {
-          if (__DEV__) console.warn(`[cloudSync] failed to apply pulled ${table} doc:`, err);
-        });
-      }
-    });
+    const unsub = onSnapshot(
+      collection(firestore, 'users', uid, col),
+      async (snapshot: any) => {
+        // Sequential, not fire-and-forget: two changes for the same brand-new
+        // uuid arriving in the same tick (e.g. created then immediately updated)
+        // must not both race applyCloudDoc's read-then-insert and collide on the
+        // table's unique uuid index.
+        for (const change of snapshot.docChanges()) {
+          if (change.doc.metadata.hasPendingWrites) continue; // our own optimistic write echoing back — no-op via LWW anyway, skip early
+          if (change.type === 'removed') continue; // deletes propagate via the tombstones listener below
+          try {
+            await applyCloudDoc(table, change.doc.id, change.doc.data());
+          } catch (err) {
+            if (__DEV__) console.warn(`[cloudSync] failed to apply pulled ${table} doc:`, err);
+          }
+        }
+      },
+      onListenerError(table)
+    );
     unsubscribers.push(unsub);
   }
 
-  const unsubTombstones = onSnapshot(collection(firestore, 'users', uid, 'tombstones'), (snapshot: any) => {
-    for (const change of snapshot.docChanges()) {
-      if (change.doc.metadata.hasPendingWrites) continue;
-      if (change.type === 'removed') continue;
-      const data = change.doc.data() as { entity_type?: string; uuid?: string };
-      if (!data.entity_type || !data.uuid) continue;
-      applyTombstone(data.entity_type, data.uuid).catch((err: unknown) => {
-        if (__DEV__) console.warn('[cloudSync] failed to apply tombstone:', err);
-      });
-    }
-  });
+  const unsubTombstones = onSnapshot(
+    collection(firestore, 'users', uid, 'tombstones'),
+    async (snapshot: any) => {
+      for (const change of snapshot.docChanges()) {
+        if (change.doc.metadata.hasPendingWrites) continue;
+        if (change.type === 'removed') continue;
+        const data = change.doc.data() as { entity_type?: string; uuid?: string };
+        if (!data.entity_type || !data.uuid) continue;
+        try {
+          await applyTombstone(data.entity_type, data.uuid);
+        } catch (err) {
+          if (__DEV__) console.warn('[cloudSync] failed to apply tombstone:', err);
+        }
+      }
+    },
+    onListenerError('tombstones')
+  );
   unsubscribers.push(unsubTombstones);
 
-  const unsubRoot = onSnapshot(doc(firestore, 'users', uid), (snap: any) => {
-    if (snap.metadata.hasPendingWrites || !snap.exists) return;
-    applyRootDoc(snap.data()).catch((err: unknown) => {
-      if (__DEV__) console.warn('[cloudSync] failed to apply pulled business profile:', err);
-    });
-  });
+  const unsubRoot = onSnapshot(
+    doc(firestore, 'users', uid),
+    (snap: any) => {
+      if (snap.metadata.hasPendingWrites || !snap.exists()) return;
+      applyRootDoc(snap.data()).catch((err: unknown) => {
+        if (__DEV__) console.warn('[cloudSync] failed to apply pulled business profile:', err);
+      });
+    },
+    onListenerError('business profile')
+  );
   unsubscribers.push(unsubRoot);
 }
 

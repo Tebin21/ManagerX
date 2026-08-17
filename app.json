@@ -53,7 +53,9 @@
           "ios": {
             "useFrameworks": "static",
             "forceStaticLinking": [
-              "RNFBApp"
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBFirestore"
             ]
           },
           "android": {
@@ -66,7 +68,14 @@
           }
         }
       ],
-      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "disableSPM": true
+          }
+        }
+      ],
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
       "./plugins/withFirebaseAppDelegate",

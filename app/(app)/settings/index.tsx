@@ -91,6 +91,14 @@ export default function SettingsScreen() {
       // isDeletingAccount stays true in the store until the success dialog is
       // dismissed (handleDeleteSuccessDone), so the layout guard can't redirect
       // out from under it before the user sees the result.
+    } catch (e: any) {
+      // deleteAccount() should always resolve to {error}, never reject — this is
+      // a defensive backstop so an unexpected throw can't leave the screen stuck
+      // in its "deleting" state with the auth-redirect guard permanently suppressed.
+      setIsDeletingAccount(false);
+      useAuthStore.getState().setDeletingAccount(false);
+      setShowDeleteModal(false);
+      Alert.alert(t('common.error'), e?.message ?? t('common.tryAgain'));
     } finally {
       isDeletingRef.current = false;
     }

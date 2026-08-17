@@ -53,6 +53,10 @@ const dbPromise = (async () => {
     throw err;
   }
 })();
+// Every caller of getDatabase() below awaits dbPromise directly and still
+// receives the rejection — this handler only prevents an unhandled-rejection
+// warning if a DB-open failure races ahead of the first getDatabase() call.
+dbPromise.catch(() => {});
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
@@ -67,29 +71,34 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 // account's records to the newly signed-in user.
 export async function wipeAllBusinessData(): Promise<void> {
   const database = await getDatabase();
-  for (const table of [
-    'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
-    'sale_items', 'debts', 'sales', 'purchases',
-    'products', 'customers', 'suppliers', 'expenses',
-    'exchange_rates', 'reports_cache',
-    'invoice_counter', 'purchase_counter',
-    'inventory_history', 'categories',
-    'settings', 'businesses',
-    'sync_queue',
-  ]) {
-    await database.runAsync(`DELETE FROM ${table}`);
-  }
-  await database.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
-  await database.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
-  await database.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
+  // Transactional so an app kill mid-wipe can't leave the DB in a half-reset
+  // state (some tables cleared, others not) — it either fully commits or the
+  // whole wipe is rolled back and the next attempt starts clean.
+  await database.withTransactionAsync(async () => {
+    for (const table of [
+      'purchase_audit_log', 'purchase_items', 'purchase_debts', 'debt_payments',
+      'sale_items', 'debts', 'sales', 'purchases',
+      'products', 'customers', 'suppliers', 'expenses',
+      'exchange_rates', 'reports_cache',
+      'invoice_counter', 'purchase_counter',
+      'inventory_history', 'categories',
+      'settings', 'businesses',
+      'sync_queue',
+    ]) {
+      await database.runAsync(`DELETE FROM ${table}`);
+    }
+    await database.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+    await database.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
+    await database.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
 
-  // Every DELETE above fired one cloud-sync AFTER DELETE trigger per row, flooding
-  // cloud_sync_queue/cloud_tombstones with a tombstone-per-record. That's the wrong
-  // shape for a factory reset or account deletion — those flows delete the user's
-  // entire Firestore users/{uid} subtree in one explicit cloud call instead (see
-  // lib/cloudSync/pushEngine.ts's deleteAllCloudData) — so just discard the noise here.
-  await database.runAsync(`DELETE FROM cloud_sync_queue`);
-  await database.runAsync(`DELETE FROM cloud_tombstones`);
+    // Every DELETE above fired one cloud-sync AFTER DELETE trigger per row, flooding
+    // cloud_sync_queue/cloud_tombstones with a tombstone-per-record. That's the wrong
+    // shape for a factory reset or account deletion — those flows delete the user's
+    // entire Firestore users/{uid} subtree in one explicit cloud call instead (see
+    // lib/cloudSync/pushEngine.ts's deleteAllCloudData) — so just discard the noise here.
+    await database.runAsync(`DELETE FROM cloud_sync_queue`);
+    await database.runAsync(`DELETE FROM cloud_tombstones`);
+  });
 }
 
 // Cheap existence check for the "does this device already hold business data"
@@ -550,7 +559,15 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
      BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
   ];
   for (const sql of migrations) {
-    try { await database.execAsync(sql); } catch { /* column already exists */ }
+    // Most failures here are the expected "column/table already exists" from a
+    // re-run — but the catch is intentionally broad (idempotent statements can
+    // fail for other reasons too, e.g. a locked DB), so a genuine typo in a
+    // future migration would otherwise fail completely silently. Log it instead
+    // of swallowing it outright; still non-fatal so one bad statement can't
+    // block every migration after it or the app boot itself.
+    try { await database.execAsync(sql); } catch (e) {
+      if (__DEV__) console.warn('[Froshiar] migration statement failed (may be expected):', sql.slice(0, 80), e);
+    }
   }
   await backfillUuids(database);
 }

@@ -10,7 +10,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
-  type FirebaseAuthTypes,
+  type Auth,
 } from '@react-native-firebase/auth';
 import {
   getFirestore,
@@ -25,7 +25,7 @@ import {
   serverTimestamp,
   query,
   where,
-  type FirebaseFirestoreTypes,
+  type Firestore,
 } from '@react-native-firebase/firestore';
 
 export const isFirebaseAvailable = true;
@@ -35,7 +35,7 @@ export { firebaseSignOut as signOut };
 export { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile };
 export { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, onSnapshot, serverTimestamp, query, where };
 
-export function getFirebaseAuth(): FirebaseAuthTypes.Module {
+export function getFirebaseAuth(): Auth {
   if (getApps().length === 0) {
     throw new Error(
       'Firebase native app "[DEFAULT]" is not initialized. The native build is missing ' +
@@ -46,7 +46,7 @@ export function getFirebaseAuth(): FirebaseAuthTypes.Module {
   return getAuth(getApp());
 }
 
-export function getFirebaseFirestore(): FirebaseFirestoreTypes.Module {
+export function getFirebaseFirestore(): Firestore {
   if (getApps().length === 0) {
     throw new Error(
       'Firebase native app "[DEFAULT]" is not initialized. The native build is missing ' +

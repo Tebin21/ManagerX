@@ -274,6 +274,12 @@ export default function DataScreen() {
   async function executeReset() {
     setResetting(true);
     try {
+      // Stop any live Firestore listeners/push timers before wiping local data —
+      // otherwise a pull callback landing mid-wipe can re-insert rows into a
+      // table that's supposed to end up empty (uuid-match upsert "resurrects"
+      // data the user just asked to reset).
+      const { stopCloudSync } = await import('@/lib/cloudSync');
+      stopCloudSync();
       await wipeAllBusinessData();
       await AsyncStorage.multiRemove([
         '@froshiar_business',

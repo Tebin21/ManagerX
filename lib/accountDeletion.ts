@@ -28,6 +28,16 @@ export async function deleteAccount(): Promise<DeleteAccountResult> {
   const { useAuthStore } = await import('@/store/authStore');
   const uid = useAuthStore.getState().user?.id;
 
+  // 0: Stop live Firestore listeners/push timers before anything else. Without
+  // this, a pull listener or the 60s push interval can still fire while step 1
+  // is deleting Firestore data or step 4 is wiping SQLite — e.g. re-pushing a
+  // locally-queued row back into the very collection being deleted, or
+  // uuid-match-upserting a remote change into a table mid-wipe — partially
+  // undoing the deletion. signOut() (end of performLocalCleanup) calls this
+  // again, which is harmless (idempotent).
+  const { stopCloudSync } = await import('@/lib/cloudSync');
+  stopCloudSync();
+
   // 1: Firestore cloud data — MUST happen before Firebase Auth deletion below,
   // not after: Firestore's security rules authorize every request on
   // request.auth.uid, which stops resolving the instant the Auth account is

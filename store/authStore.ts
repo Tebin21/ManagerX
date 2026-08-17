@@ -15,7 +15,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from '@/lib/firebase';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import type { User, AuthCredential } from '@react-native-firebase/auth';
 import i18n from '@/lib/i18n';
 
 const WEB_CLIENT_ID =
@@ -107,7 +107,7 @@ let adoptingUid: string | null = null;
 let adoptingPromise: Promise<void> | null = null;
 
 async function adoptSignedInUser(
-  user: FirebaseAuthTypes.User,
+  user: User,
   set: (state: Partial<AuthState>) => void
 ) {
   if (adoptingUid === user.uid && adoptingPromise) {
@@ -122,8 +122,17 @@ async function adoptSignedInUser(
   return adoptingPromise;
 }
 
+// True while `uid` is still the store's signed-in user. Used after every await
+// point in adoptSignedInUserInner below — a concurrent signOut() (e.g. the user
+// double-tapping sign-in then sign-out, or switching accounts) must not let a
+// stale continuation re-establish cloud sync, set ownerUserId, or flag a cloud
+// conflict for an account that's no longer (or not yet) actually signed in.
+function isCurrentAuthUser(uid: string): boolean {
+  return useAuthStore.getState().user?.id === uid;
+}
+
 async function adoptSignedInUserInner(
-  user: FirebaseAuthTypes.User,
+  user: User,
   set: (state: Partial<AuthState>) => void
 ) {
   const { useBusinessStore } = await import('@/store/businessStore');
@@ -136,6 +145,7 @@ async function adoptSignedInUserInner(
 
   if (business.ownerUserId === user.uid) {
     const { startCloudSync } = await import('@/lib/cloudSync');
+    if (!isCurrentAuthUser(user.uid)) return;
     startCloudSync(user.uid);
     return;
   }
@@ -148,6 +158,7 @@ async function adoptSignedInUserInner(
       await wipeAllBusinessData();
       business.clearBusiness();
     }
+    if (!isCurrentAuthUser(user.uid)) return;
     useBusinessStore.getState().setOwnerUserId(user.uid);
     return;
   }
@@ -160,10 +171,13 @@ async function adoptSignedInUserInner(
     cloudBusinessDataExists(user.uid),
   ]);
 
+  if (!isCurrentAuthUser(user.uid)) return;
+
   if (!localHasData) {
     if (cloudHasData) {
       try { await restoreFromCloudBulk(user.uid); } catch (e) { console.error('[Froshiar] Cloud restore failed:', e); }
     }
+    if (!isCurrentAuthUser(user.uid)) return;
     useBusinessStore.getState().setOwnerUserId(user.uid);
     startCloudSync(user.uid);
     return;
@@ -172,6 +186,7 @@ async function adoptSignedInUserInner(
   if (!cloudHasData) {
     useBusinessStore.getState().setOwnerUserId(user.uid);
     try { await pushFullLocalSnapshot(user.uid); } catch (e) { console.error('[Froshiar] Initial cloud push failed:', e); }
+    if (!isCurrentAuthUser(user.uid)) return;
     startCloudSync(user.uid);
     return;
   }
@@ -191,8 +206,8 @@ async function adoptSignedInUserInner(
 // Returns null (never throws) on any failure/cancellation — the caller treats
 // that as "user must sign out and back in manually".
 async function reacquireCredential(
-  user: FirebaseAuthTypes.User
-): Promise<FirebaseAuthTypes.AuthCredential | null> {
+  user: User
+): Promise<AuthCredential | null> {
   const providerId = user.providerData[0]?.providerId;
 
   if (providerId === 'google.com') {
@@ -326,6 +341,15 @@ export const useAuthStore = create<AuthState>()(
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
+          // Only Firebase's own `auth/*` codes go through the localized mapper —
+          // e.g. signing in with Google using an email already registered via
+          // password hits `auth/account-exists-with-different-credential`, which
+          // has a dedicated friendly message below. Native Google Sign-In SDK
+          // errors (cancellation, missing Play Services, etc.) aren't Firebase
+          // codes and keep their own message instead of a generic fallback.
+          if (typeof e?.code === 'string' && e.code.startsWith('auth/')) {
+            return { error: mapFirebaseAuthError(e) };
+          }
           return { error: e?.message ?? 'Google Sign-In failed.' };
         }
       },
@@ -382,7 +406,7 @@ export const useAuthStore = create<AuthState>()(
               .join(' ')
               .trim();
             if (name) {
-              try { await user.updateProfile({ displayName: name }); } catch {}
+              try { await updateProfile(user, { displayName: name }); } catch {}
             }
           }
 
@@ -392,6 +416,10 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
           if (e?.code === 'ERR_REQUEST_CANCELED') {
             return { error: null };
+          }
+          // See signInWithGoogle's catch for why only auth/* codes are mapped.
+          if (typeof e?.code === 'string' && e.code.startsWith('auth/')) {
+            return { error: mapFirebaseAuthError(e) };
           }
           return { error: e?.message ?? 'Apple Sign-In failed.' };
         }
@@ -459,29 +487,38 @@ export const useAuthStore = create<AuthState>()(
 
       deleteFirebaseAccount: async () => {
         if (!isFirebaseAvailable) return { error: null };
-        const auth = getFirebaseAuth();
-        const user = auth.currentUser;
-        if (!user) return { error: null };
-
-        const { deleteUser, reauthenticateWithCredential } = await import('@react-native-firebase/auth');
+        // Wrapped in an outer try/catch (unlike every other Firebase call in this
+        // store, getFirebaseAuth() here previously wasn't guarded) — an uncaught
+        // throw from this method becomes an unhandled rejection in the Settings
+        // "Delete Account" flow, which has no catch of its own and permanently
+        // soft-locks the UI in its "deleting" state.
         try {
-          await deleteUser(user);
-          return { error: null };
-        } catch (e: any) {
-          if (e?.code !== 'auth/requires-recent-login') {
-            return { error: mapFirebaseDeleteError(e) };
-          }
+          const auth = getFirebaseAuth();
+          const user = auth.currentUser;
+          if (!user) return { error: null };
+
+          const { deleteUser, reauthenticateWithCredential } = await import('@react-native-firebase/auth');
           try {
-            const credential = await reacquireCredential(user);
-            if (!credential) {
-              return { error: 'Please sign out and sign back in, then try deleting your account again.' };
-            }
-            await reauthenticateWithCredential(user, credential);
             await deleteUser(user);
             return { error: null };
-          } catch (reauthErr: any) {
-            return { error: mapFirebaseDeleteError(reauthErr) };
+          } catch (e: any) {
+            if (e?.code !== 'auth/requires-recent-login') {
+              return { error: mapFirebaseDeleteError(e) };
+            }
+            try {
+              const credential = await reacquireCredential(user);
+              if (!credential) {
+                return { error: 'Please sign out and sign back in, then try deleting your account again.' };
+              }
+              await reauthenticateWithCredential(user, credential);
+              await deleteUser(user);
+              return { error: null };
+            } catch (reauthErr: any) {
+              return { error: mapFirebaseDeleteError(reauthErr) };
+            }
           }
+        } catch (e: any) {
+          return { error: e?.message ?? 'Failed to delete account. Please try again.' };
         }
       },
 

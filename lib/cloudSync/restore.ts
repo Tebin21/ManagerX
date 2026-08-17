@@ -23,7 +23,7 @@ export async function cloudBusinessDataExists(uid: string): Promise<boolean> {
   if (!isFirebaseAvailable) return false;
   const firestore = getFirebaseFirestore();
   const snap = await getDoc(doc(firestore, 'users', uid));
-  if (!snap.exists) return false;
+  if (!snap.exists()) return false;
   const data = snap.data() as { meta?: { hasData?: boolean } } | undefined;
   return !!data?.meta?.hasData;
 }
@@ -46,16 +46,28 @@ export async function restoreFromCloudBulk(uid: string): Promise<void> {
   const firestore = getFirebaseFirestore();
 
   const rootSnap = await getDoc(doc(firestore, 'users', uid));
-  if (rootSnap.exists) {
-    await applyRootDoc(rootSnap.data() as Record<string, unknown> | undefined);
+  if (rootSnap.exists()) {
+    try {
+      await applyRootDoc(rootSnap.data() as Record<string, unknown> | undefined);
+    } catch (e) {
+      console.error('[Froshiar] cloudSync: failed to apply root doc during bulk restore:', e);
+    }
   }
 
+  // One malformed/unexpected document must not abort the whole restore — a
+  // caller (e.g. the cloud-data-conflict "Keep Cloud" flow) may have already
+  // wiped local data before calling this, so throwing here would strand the
+  // user with wiped data and a restore that fails identically on every retry.
   for (const table of CLOUD_TABLE_ORDER) {
     const col = TABLE_TO_COLLECTION[table];
     if (!col) continue;
     const snap = await getDocs(collection(firestore, 'users', uid, col));
     for (const docSnap of snap.docs) {
-      await applyCloudDoc(table, docSnap.id, docSnap.data());
+      try {
+        await applyCloudDoc(table, docSnap.id, docSnap.data());
+      } catch (e) {
+        console.error(`[Froshiar] cloudSync: skipping malformed ${table} doc ${docSnap.id} during bulk restore:`, e);
+      }
     }
   }
 
