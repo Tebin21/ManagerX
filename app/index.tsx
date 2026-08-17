@@ -13,7 +13,7 @@ export default function Index() {
   const router = useRouter();
   const { hasCompletedOnboarding } = useOnboardingStore();
   const { user } = useAuthStore();
-  const { isSetupComplete } = useBusinessStore();
+  const { isSetupComplete, pendingCloudConflict } = useBusinessStore();
   const authHydrated = useHasHydrated(useAuthStore);
   const onboardingHydrated = useHasHydrated(useOnboardingStore);
   const businessHydrated = useHasHydrated(useBusinessStore);
@@ -35,13 +35,21 @@ export default function Index() {
       return;
     }
 
+    // The newly signed-in account's data can't be safely auto-merged with what's
+    // already on this device — block entry to onboarding/setup and the app shell
+    // alike until the user resolves it (see store/businessStore.ts's doc comment).
+    if (pendingCloudConflict) {
+      router.replace('/(onboarding)/cloud-data-conflict' as never);
+      return;
+    }
+
     if (!isSetupComplete) {
       router.replace('/(onboarding)/setup');
       return;
     }
 
     router.replace('/(app)/dashboard');
-  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete]);
+  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, pendingCloudConflict]);
 
   // Always render visible content.  Returning null leaves a white screen
   // during the one-render gap between the effect firing and the target

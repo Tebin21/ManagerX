@@ -543,7 +543,7 @@ export async function performRestore(
 
 // ─── Restore helpers ──────────────────────────────────────────────────────────
 
-interface MergeTableOptions {
+export interface MergeTableOptions {
   /** Returns a WHERE fragment + bind params to find an existing local row when
    *  no uuid match was found (legacy backups, or a uuid absent from this device).
    *  Return null (or omit this option) if the table has no reliable natural key —
@@ -558,9 +558,21 @@ interface MergeTableOptions {
    *  Return false to drop the row entirely (its parent wasn't found — see the
    *  per-call-site comments in performRestore for which FK is required vs. nullable). */
   beforeWrite?: (row: Record<string, unknown>) => boolean;
+  /** Default true (unchanged behavior for every existing local-JSON-restore call
+   *  site below). lib/cloudSync/pullEngine.ts sets this false: `naturalKey`
+   *  fallbacks (e.g. matching `sales` by `invoice_number`) exist only to support
+   *  legacy pre-uuid backups, and are actively unsafe for cloud-sourced rows —
+   *  invoice/purchase numbers are per-device local sequence counters with no
+   *  cross-device namespacing (see lib/sqlite.ts's generateInvoiceNumber), so two
+   *  offline devices on the same account can independently produce the same
+   *  number for two different sales. A cloud row always carries a uuid (it's the
+   *  Firestore doc ID), so it never needs the natural-key fallback — and falling
+   *  back anyway on a number collision would match the wrong local row and, for
+   *  an 'immutable'-policy table, silently DROP a genuinely new incoming sale. */
+  matchByNaturalKeyIfNoUuid?: boolean;
 }
 
-async function mergeSimpleTable(
+export async function mergeSimpleTable(
   db: SQLite.SQLiteDatabase,
   table: string,
   rows: Record<string, unknown>[],
@@ -594,7 +606,7 @@ async function mergeSimpleTable(
     const uuid = row.uuid as string | undefined;
     if (uuid && uuidMap.has(uuid)) {
       localId = uuidMap.get(uuid)!;
-    } else if (opts.naturalKey) {
+    } else if (opts.naturalKey && opts.matchByNaturalKeyIfNoUuid !== false) {
       const nk = opts.naturalKey(row);
       if (nk) {
         const found = await db.getFirstAsync<{ id: number }>(

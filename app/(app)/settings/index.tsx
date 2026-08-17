@@ -42,6 +42,7 @@ export default function SettingsScreen() {
   const language     = useLanguageStore((s) => s.language);
   const setLanguage  = useLanguageStore((s) => s.setLanguage);
   const signOut      = useAuthStore((s) => s.signOut);
+  const userEmail    = useAuthStore((s) => s.user?.email);
   const itemLimit    = useLicenseStore((s) => s.limit);
 
   const { flexDirection, textAlign } = useRTL();
@@ -221,6 +222,15 @@ export default function SettingsScreen() {
         {/* Account / Logout — visually separated */}
         <View style={styles.logoutSpacer} />
         <SettingSection title={t('settings.account')}>
+          {userEmail ? (
+            <SettingRow
+              icon="person-circle"
+              label={t('settings.signedInAs')}
+              sub={userEmail}
+              chevron={false}
+              onPress={() => {}}
+            />
+          ) : null}
           <SettingRow
             icon="log-out"
             label={t('settings.logout')}

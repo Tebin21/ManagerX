@@ -7,6 +7,7 @@ import {
   Platform,
   Image,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -14,6 +15,7 @@ import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
+import { EmailPasswordForm } from '@/components/auth/EmailPasswordForm';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
@@ -23,7 +25,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { signInWithGoogle, signInWithApple, isLoading } = useAuthStore();
+  const { signInWithGoogle, signInWithApple, signInWithEmail, isLoading } = useAuthStore();
   const { colors } = useAppTheme();
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -40,6 +42,16 @@ export default function LoginScreen() {
   const handleApple = async () => {
     setAuthError(null);
     const { error } = await signInWithApple();
+    if (error) {
+      setAuthError(error);
+    } else {
+      router.replace('/');
+    }
+  };
+
+  const handleEmailSignIn = async ({ email, password }: { email: string; password: string }) => {
+    setAuthError(null);
+    const { error } = await signInWithEmail(email, password);
     if (error) {
       setAuthError(error);
     } else {
@@ -94,14 +106,38 @@ export default function LoginScreen() {
             transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 450 }}
             style={styles.buttonGroup}
           >
-            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
-            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+            <EmailPasswordForm
+              mode="signin"
+              loading={isLoading}
+              submitLabel={t('login.signInBtn')}
+              onSubmit={handleEmailSignIn}
+            />
+
+            <TouchableOpacity onPress={() => router.push('/(onboarding)/forgot-password' as never)} style={styles.forgotLink}>
+              <Text style={[styles.linkText, { color: colors.primary }]}>{t('login.forgotPassword')}</Text>
+            </TouchableOpacity>
 
             {authError && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{authError}</Text>
               </View>
             )}
+
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
+              <Text style={[styles.dividerText, { color: colors.gray400 }]}>{t('login.or')}</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
+            </View>
+
+            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
+            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+
+            <TouchableOpacity onPress={() => router.push('/(onboarding)/signup' as never)} style={styles.signUpRow}>
+              <Text style={[styles.linkText, { color: colors.gray600 }]}>
+                {t('login.noAccount')}{' '}
+                <Text style={[styles.linkTextBold, { color: colors.primary }]}>{t('login.signUpLink')}</Text>
+              </Text>
+            </TouchableOpacity>
           </MotiView>
 
           <SupportFooter />
@@ -164,5 +200,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.error,
     textAlign: 'center',
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 4,
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  linkTextBold: {
+    fontWeight: '700',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  signUpRow: {
+    alignItems: 'center',
+    marginTop: 6,
   },
 });

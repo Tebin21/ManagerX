@@ -82,6 +82,56 @@ export async function wipeAllBusinessData(): Promise<void> {
   await database.runAsync(`INSERT OR REPLACE INTO invoice_counter (id, last_number, last_date) VALUES (1, 0, '')`);
   await database.runAsync(`INSERT OR REPLACE INTO purchase_counter (id, last_number, last_date) VALUES (1, 0, '')`);
   await database.runAsync(`INSERT OR REPLACE INTO exchange_rates (id, rate, note) VALUES (1, 1310, 'Initial rate')`);
+
+  // Every DELETE above fired one cloud-sync AFTER DELETE trigger per row, flooding
+  // cloud_sync_queue/cloud_tombstones with a tombstone-per-record. That's the wrong
+  // shape for a factory reset or account deletion — those flows delete the user's
+  // entire Firestore users/{uid} subtree in one explicit cloud call instead (see
+  // lib/cloudSync/pushEngine.ts's deleteAllCloudData) — so just discard the noise here.
+  await database.runAsync(`DELETE FROM cloud_sync_queue`);
+  await database.runAsync(`DELETE FROM cloud_tombstones`);
+}
+
+// Cheap existence check for the "does this device already hold business data"
+// question the first-login/restore decision (store/authStore.ts's adoptSignedInUser)
+// needs to answer before deciding whether to push, pull, or prompt for a merge.
+export async function localBusinessDataExists(): Promise<boolean> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ cnt: number }>(
+    `SELECT (
+      (SELECT COUNT(*) FROM products) +
+      (SELECT COUNT(*) FROM customers) +
+      (SELECT COUNT(*) FROM sales) +
+      (SELECT COUNT(*) FROM purchases) +
+      (SELECT COUNT(*) FROM expenses)
+    ) AS cnt`
+  );
+  return (row?.cnt ?? 0) > 0;
+}
+
+// Queues every existing row in every cloud-synced table for push, regardless of
+// whether it already has a pending cloud_sync_queue entry. Used once, to seed a
+// brand-new cloud account from this device's pre-existing local data (see
+// lib/cloudSync/restore.ts's pushFullLocalSnapshot) — ordinary edits are already
+// captured incrementally by the AFTER INSERT/UPDATE/DELETE triggers below and never
+// need this.
+export async function enqueueFullCloudResync(): Promise<void> {
+  const database = await getDatabase();
+  for (const table of CLOUD_SYNC_MUTABLE_TABLES) {
+    await database.runAsync(
+      `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation)
+       SELECT '${table}', uuid, 'upsert' FROM ${table} WHERE uuid IS NOT NULL`
+    );
+  }
+  for (const table of CLOUD_SYNC_IMMUTABLE_TABLES) {
+    await database.runAsync(
+      `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation)
+       SELECT '${table}', uuid, 'upsert' FROM ${table} WHERE uuid IS NOT NULL`
+    );
+  }
+  await database.runAsync(
+    `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert')`
+  );
 }
 
 export async function initializeDatabase(): Promise<void> {
@@ -89,6 +139,7 @@ export async function initializeDatabase(): Promise<void> {
 
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA recursive_triggers = ON;
 
     CREATE TABLE IF NOT EXISTS businesses (
       id INTEGER PRIMARY KEY,
@@ -421,6 +472,82 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE debt_payments ADD COLUMN original_amount REAL`,
     `CREATE INDEX IF NOT EXISTS idx_debt_payments_customer_id ON debt_payments(customer_id)`,
     `CREATE INDEX IF NOT EXISTS idx_debt_payments_supplier_name ON debt_payments(supplier_name)`,
+
+    // ── Cloud sync (Firestore) ──────────────────────────────────────────────
+    // Push-side outbox: one pending row per (entity_type, uuid), populated by the
+    // triggers below rather than call-site instrumentation, so no mutation path —
+    // including bulk/raw-SQL ones like wipeAllBusinessData()'s unconditional
+    // `DELETE FROM <table>` — can silently fail to reach the cloud sync engine.
+    `CREATE TABLE IF NOT EXISTS cloud_sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      uuid TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(entity_type, uuid)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cloud_sync_queue_entity ON cloud_sync_queue(entity_type)`,
+    // Permanent local delete record so a later cloud pull can never resurrect a row
+    // this device deliberately deleted.
+    `CREATE TABLE IF NOT EXISTS cloud_tombstones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      uuid TEXT NOT NULL,
+      deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(entity_type, uuid)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cloud_tombstones_entity ON cloud_tombstones(entity_type)`,
+    // `businesses` and `categories` had no updated_at column — local JSON restore
+    // never needed one (both use "fill empty fields only"/natural-key merge, see
+    // lib/backup.ts), but continuous two-way cloud sync needs real last-write-wins
+    // on both once they can be edited from more than one device.
+    `ALTER TABLE businesses ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+    // Cloud-sync outbox triggers. AFTER INSERT/UPDATE/DELETE on every in-scope
+    // table, guarded on the row already having a uuid (so the one-time migration
+    // seed inserts for `categories` and the pre-uuid backfill pass — both of which
+    // write/patch uuid separately — don't enqueue garbage NULL-uuid entries; the
+    // backfill's own UPDATE re-fires this trigger once the uuid is actually set).
+    // NOTE: unlike `ALTER TABLE ADD COLUMN`, `CREATE TRIGGER IF NOT EXISTS` is not
+    // additive-safe — changing a trigger's body in a future migration requires an
+    // explicit `DROP TRIGGER IF EXISTS` first, or the old body silently keeps running.
+    ...CLOUD_SYNC_MUTABLE_TABLES.flatMap((table) => [
+      `CREATE TRIGGER IF NOT EXISTS trg_${table}_cloud_ins AFTER INSERT ON ${table}
+       WHEN NEW.uuid IS NOT NULL
+       BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('${table}', NEW.uuid, 'upsert'); END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_${table}_cloud_upd AFTER UPDATE ON ${table}
+       WHEN NEW.uuid IS NOT NULL
+       BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('${table}', NEW.uuid, 'upsert'); END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_${table}_cloud_del AFTER DELETE ON ${table}
+       WHEN OLD.uuid IS NOT NULL
+       BEGIN
+         INSERT OR REPLACE INTO cloud_tombstones (entity_type, uuid, deleted_at) VALUES ('${table}', OLD.uuid, CURRENT_TIMESTAMP);
+         INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('${table}', OLD.uuid, 'delete');
+       END`,
+    ]),
+    // Append-only children (never UPDATEd after insert — no `updated_at` column,
+    // no code path updates them) only need an insert + delete(-cascade) trigger.
+    ...CLOUD_SYNC_IMMUTABLE_TABLES.flatMap((table) => [
+      `CREATE TRIGGER IF NOT EXISTS trg_${table}_cloud_ins AFTER INSERT ON ${table}
+       WHEN NEW.uuid IS NOT NULL
+       BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('${table}', NEW.uuid, 'upsert'); END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_${table}_cloud_del AFTER DELETE ON ${table}
+       WHEN OLD.uuid IS NOT NULL
+       BEGIN
+         INSERT OR REPLACE INTO cloud_tombstones (entity_type, uuid, deleted_at) VALUES ('${table}', OLD.uuid, CURRENT_TIMESTAMP);
+         INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('${table}', OLD.uuid, 'delete');
+       END`,
+    ]),
+    // `businesses` is a device-local singleton row (id=1) whose own `uuid` column
+    // churns (saveBusiness's INSERT OR REPLACE never re-supplies it, so it reads
+    // NULL until the next app-start backfill) — the cloud engine doesn't key the
+    // business-profile doc by that uuid at all, it lives at the users/{uid} root
+    // doc's `business` field (see lib/cloudSync/pushEngine.ts), so these two use a
+    // fixed synthetic key instead and fire unconditionally.
+    `CREATE TRIGGER IF NOT EXISTS trg_businesses_cloud_ins AFTER INSERT ON businesses
+     BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
+    `CREATE TRIGGER IF NOT EXISTS trg_businesses_cloud_upd AFTER UPDATE ON businesses
+     BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
   ];
   for (const sql of migrations) {
     try { await database.execAsync(sql); } catch { /* column already exists */ }
@@ -437,6 +564,30 @@ const UUID_TABLES = [
   'purchases', 'purchase_items', 'purchase_debts', 'debt_payments',
   'expenses', 'exchange_rates', 'purchase_audit_log',
 ] as const;
+
+// Cloud-sync (Firestore) table scope — a deliberately narrower set than
+// UUID_TABLES/backup.ts's full local-JSON-backup scope (excludes
+// inventory_history, exchange_rates, purchase_audit_log, reports_cache, the
+// counter tables). "Mutable" here means the app actually re-edits the row after
+// creation (updateProduct, updateCustomer, updateSaleInfo/updateSaleComplete,
+// updatePurchase, updateExpense, debt payment recording, renameManagedCategory,
+// ...) and so needs real last-write-wins by `updated_at` on cloud pull — this is
+// a different, stricter classification than lib/backup.ts's mutable/immutable
+// split, which only asks "should a one-off JSON restore ever overwrite an
+// existing local row" (there, sales/purchases/expenses/debts are all treated as
+// immutable, because an old backup must never roll back today's edited record;
+// that rule doesn't hold for continuous two-way sync between two live devices,
+// where a real edit on either side must actually propagate). `businesses` is
+// handled separately (fixed synthetic key, see the trigger below) since its own
+// `uuid` column churns on every save.
+const CLOUD_SYNC_MUTABLE_TABLES = [
+  'categories', 'products', 'customers', 'suppliers',
+  'sales', 'purchases', 'expenses', 'debts', 'purchase_debts',
+] as const;
+
+// Append-only children — never UPDATEd after insert (no `updated_at` column,
+// no update code path) — so only insert/delete need to reach the outbox.
+const CLOUD_SYNC_IMMUTABLE_TABLES = ['sale_items', 'purchase_items', 'debt_payments'] as const;
 
 // One-time-per-row backfill: any row inserted before the uuid column existed
 // (or by a version of the app that predates it) gets a generated uuid. Cheap
@@ -632,7 +783,7 @@ export async function renameManagedCategory(oldName: string, newName: string): P
   );
   if ((existing?.cnt ?? 0) > 0) throw new Error('CATEGORY_ALREADY_EXISTS');
 
-  await database.runAsync('UPDATE categories SET name = ? WHERE name = ?', [trimmed, oldName]);
+  await database.runAsync('UPDATE categories SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?', [trimmed, oldName]);
   await database.runAsync(
     'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ?',
     [trimmed, oldName]

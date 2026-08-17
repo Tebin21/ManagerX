@@ -136,8 +136,76 @@
   "login": {
     "title":             "بەخێربێیت بۆ فرۆشیار",
     "subtitle":          "کاروبارەکەت بە شێوەیەکی زیرەکانە و ئاسان بەڕێوەببە.",
+    "emailLabel":        "ئیمەیل",
+    "emailPlaceholder":  "you@example.com",
+    "passwordLabel":     "وشەی نهێنی",
+    "passwordPlaceholder":"وشەی نهێنیت بنووسە",
+    "signInBtn":         "چوونەژوورەوە",
+    "forgotPassword":    "وشەی نهێنیت لەبیرکردووە؟",
+    "or":                "یان",
+    "noAccount":         "هەژمارت نییە؟",
+    "signUpLink":        "خۆت تۆمار بکە",
     "googleBtn":         "بەردەوامبوون لەگەڵ Google",
     "appleBtn":          "بەردەوامبوون لەگەڵ Apple"
+  },
+  "signup": {
+    "title":                    "هەژمارەکەت دروست بکە",
+    "subtitle":                 "تۆمار ببە بۆ هاوکاتکردنی داتای بازرگانیەکەت لەنێوان ئامێرەکان.",
+    "nameLabel":                "ناوی سیانی",
+    "namePlaceholder":          "بۆ نموونە: ئارام ئەحمەد",
+    "emailLabel":               "ئیمەیل",
+    "emailPlaceholder":         "you@example.com",
+    "passwordLabel":            "وشەی نهێنی",
+    "passwordPlaceholder":      "لانیکەم ٦ پیت",
+    "confirmPasswordLabel":     "دووبارەکردنەوەی وشەی نهێنی",
+    "confirmPasswordPlaceholder":"وشەی نهێنیەکەت دووبارە بنووسەوە",
+    "signUpBtn":                "هەژمار دروست بکە",
+    "haveAccount":              "هەژمارت هەیە؟",
+    "signInLink":                "بچۆرەژوورەوە",
+    "validation": {
+      "nameRequired":         "ناو پێویستە",
+      "emailRequired":        "ئیمەیل پێویستە",
+      "emailInvalid":         "ئیمەیلێکی دروست بنووسە",
+      "passwordRequired":     "وشەی نهێنی پێویستە",
+      "passwordTooShort":     "وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت",
+      "passwordsDontMatch":   "وشە نهێنییەکان وەک یەک نین"
+    }
+  },
+  "forgotPassword": {
+    "title":           "وشەی نهێنی نوێ بکەرەوە",
+    "subtitle":        "ئیمەیلەکەت بنووسە و بەستەرێکت بۆ دەنێرین بۆ نوێکردنەوەی وشەی نهێنیت.",
+    "emailLabel":       "ئیمەیل",
+    "emailPlaceholder": "you@example.com",
+    "sendBtn":          "بەستەری نوێکردنەوە بنێرە",
+    "backToLogin":      "گەڕانەوە بۆ چوونەژوورەوە",
+    "successTitle":     "ئیمەیلەکەت بپشکنە",
+    "successMessage":   "بەستەرێکی نوێکردنەوەی وشەی نهێنیمان بۆ {{email}} نارد."
+  },
+  "authErrors": {
+    "emailAlreadyInUse":               "هەژمارێک بەم ئیمەیلە پێشتر هەیە. تکایە بچۆرەژوورەوە.",
+    "emailAlreadyInUseDifferentMethod":"ئەم ئیمەیلە پێشتر بە شێوازێکی جیاواز تۆمارکراوە (وەک Google یان Apple). تکایە بەو شێوازە بچۆرەژوورەوە.",
+    "weakPassword":                    "وشەی نهێنی لاوازە. لانیکەم ٦ پیت بەکاربهێنە.",
+    "invalidEmail":                    "تکایە ئیمەیلێکی دروست بنووسە.",
+    "wrongPassword":                   "ئیمەیل یان وشەی نهێنی هەڵەیە.",
+    "userNotFound":                    "هیچ هەژمارێک بەم ئیمەیلە نەدۆزرایەوە.",
+    "networkError":                    "پەیوەندی ئینتەرنێت نییە. تکایە پەیوەندییەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.",
+    "tooManyRequests":                 "هەوڵدانی زۆر. تکایە کەمێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە.",
+    "generic":                         "شتێک هەڵە ڕوویدا. تکایە دووبارە هەوڵ بدەرەوە."
+  },
+  "cloudConflict": {
+    "title":               "داتای هەور دۆزرایەوە",
+    "subtitle":            "ئەم هەژمارە پێشتر داتای بازرگانی هەیە کە لە هەور پاشەکەوتکراوە، ئەم ئامێرەش داتای خۆی هەیە. هەڵبژێرە چۆن بەردەوام بیت.",
+    "mergeTitle":          "هەردووکیان تێکەڵ بکە (پێشنیارکراو)",
+    "mergeDescription":    "داتای ئەم ئامێرە لەگەڵ داتای هەور تێکەڵ بکە. هیچ شتێک ناسڕدرێتەوە.",
+    "keepLocalTitle":      "داتای ئەم ئامێرە بهێڵەرەوە",
+    "keepLocalDescription":"داتای هەور فەوت بکە و تەنها ئەوەی لەسەر ئەم ئامێرەیە بهێڵەرەوە.",
+    "keepLocalConfirm":    "ئەمە داتای هەوری ئامێرەکانی تر بۆ هەمیشە فەوت دەکات. بەردەوام بیت؟",
+    "keepCloudTitle":      "داتای هەور بهێڵەرەوە",
+    "keepCloudDescription":"داتای ئەم ئامێرە فەوت بکە و لە هەورەوە بیگەڕێنەرەوە.",
+    "keepCloudConfirm":    "ئەمە داتای ئەم ئامێرە بۆ هەمیشە فەوت دەکات. بەردەوام بیت؟",
+    "continueBtn":         "بەردەوامبوون",
+    "cancel":              "پاشگەزبوونەوە",
+    "processing":          "داتاکەت ئامادە دەکەین…"
   },
   "language": {
     "title":        "زمانەکەت هەڵبژێرە",
@@ -1087,6 +1155,7 @@
       "comingSoon": "فێرکارییەکان بە زوویی زیاد دەکرێن"
     },
     "account":            "هەژمار",
+    "signedInAs":         "چووەتەژوورەوە وەک",
     "logout":             "دەرچوون",
     "logoutSub":          "دەرچوون لە هەژمارەکەت",
     "logoutConfirmTitle": "دڵنیایت؟",
@@ -1239,6 +1308,20 @@
       "devBuildTitle":       "بیلدی گەشەپێدانی پێویستە",
       "devBuildMsg":         "گەڕاندنەوەی پاشەکەوت دەبێت بیلدی تەواوی فرۆشیار هەبێت. دەسترسی فایل لە Expo Go بەردەست نییە.",
       "devBuildRequired":    "بیلدی ئەپی تەواو پێویستە"
+    },
+    "cloudSyncScreen": {
+      "title":            "هاوکاتکردنی هەور",
+      "signedInAs":        "چووەتەژوورەوە وەک {{email}}",
+      "statusUpToDate":    "نوێترین بارودۆخ",
+      "statusPending":     "{{count}} گۆڕانکاری چاوەڕێی هاوکاتکردنە",
+      "statusPending_other":"{{count}} گۆڕانکاری چاوەڕێی هاوکاتکردنە",
+      "statusSyncing":     "هاوکات دەکرێت...",
+      "statusNeverSynced": "هێشتا هاوکات نەکراوە",
+      "lastSynced":        "دوایین هاوکاتکردن {{time}}",
+      "lastSyncedNever":   "هەرگیز هاوکات نەکراوە",
+      "syncNowBtn":        "ئێستا هاوکات بکە",
+      "syncErrorTitle":    "دوایین هاوکاتکردن سەرکەوتوو نەبوو",
+      "offlineNotice":     "تۆ ئۆفلاینیت — گۆڕانکارییەکان بەخۆکار هاوکات دەکرێن کاتێک دووبارە ئۆنلاین دەبیتەوە."
     },
     "aboutScreen": {
       "title":            "دەربارە",

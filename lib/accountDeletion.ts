@@ -5,13 +5,15 @@
 //
 // Firebase Auth deletion and the device-local wipes (SQLite/AsyncStorage/
 // SecureStore) are fatal: any failure stops the flow immediately and returns an
-// error, leaving everything before that step untouched. Online Store backend
-// deletion and local cached-file cleanup are best-effort: their failure is logged
-// and swallowed, never blocking or failing the rest of the flow.
+// error, leaving everything before that step untouched. Firestore cloud-data
+// deletion, Online Store backend deletion, and local cached-file cleanup are
+// best-effort: their failure is logged and swallowed, never blocking or failing
+// the rest of the flow.
 export interface DeleteAccountResult {
   error: string | null;
-  // True when a store was registered but its backend deletion did not
-  // complete — the caller must not claim cloud data was removed when it wasn't.
+  // True when a store was registered/cloud sync was active but its backend
+  // deletion did not complete — the caller must not claim cloud data was
+  // removed when it wasn't. Covers both the Online Store backend and Firestore.
   cloudDataPending?: boolean;
 }
 
@@ -24,16 +26,36 @@ const DELETION_PENDING_KEY = '@froshiar_deletion_pending';
 
 export async function deleteAccount(): Promise<DeleteAccountResult> {
   const { useAuthStore } = await import('@/store/authStore');
+  const uid = useAuthStore.getState().user?.id;
 
-  // 1-2: Firebase Auth account (there are no other Firebase-hosted user records —
-  // this app never uses Firestore/Realtime Database, Auth is the only store).
+  // 1: Firestore cloud data — MUST happen before Firebase Auth deletion below,
+  // not after: Firestore's security rules authorize every request on
+  // request.auth.uid, which stops resolving the instant the Auth account is
+  // gone, so a delete attempted afterward would be rejected as unauthenticated
+  // and silently leave the user's business data orphaned in the cloud forever.
+  // Best-effort — a failure here must not block Auth/local deletion, which is
+  // why this dedicated try/catch runs before the fatal steps rather than
+  // folding into performLocalCleanup()'s later best-effort section.
+  let cloudDataPending = false;
+  if (uid) {
+    try {
+      const { deleteAllCloudData } = await import('@/lib/cloudSync');
+      await deleteAllCloudData(uid);
+    } catch (e) {
+      console.error('[Froshiar] Firestore cloud data deletion failed (non-fatal):', e);
+      cloudDataPending = true;
+    }
+  }
+
+  // 2-3: Firebase Auth account.
   const { error: firebaseError } = await useAuthStore.getState().deleteFirebaseAccount();
   if (firebaseError) return { error: firebaseError };
 
   const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
   await AsyncStorage.setItem(DELETION_PENDING_KEY, '1').catch(() => {});
 
-  return performLocalCleanup();
+  const result = await performLocalCleanup();
+  return { ...result, cloudDataPending: cloudDataPending || result.cloudDataPending };
 }
 
 // Everything after Firebase Auth deletion: Online Store backend, SQLite, local

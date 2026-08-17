@@ -370,8 +370,7 @@ export default function DataScreen() {
             icon="sync"
             label={t('settings.dataScreen.syncStatus')}
             sub={t('settings.dataScreen.syncStatusSub')}
-            chevron={false}
-            onPress={() => {}}
+            onPress={() => router.push('/(app)/settings/cloud-sync' as never)}
           />
         </SettingSection>
 

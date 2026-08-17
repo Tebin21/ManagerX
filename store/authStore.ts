@@ -10,8 +10,13 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   AppleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
 } from '@/lib/firebase';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import i18n from '@/lib/i18n';
 
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
@@ -54,6 +59,9 @@ interface AuthState {
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   deleteFirebaseAccount: () => Promise<{ error: string | null }>;
   setDeletingAccount: (value: boolean) => void;
@@ -74,26 +82,105 @@ function firebaseUserToAppUser(u: {
   };
 }
 
-// This device's local business data (SQLite) isn't scoped per account. If it already
-// belongs to a *different* account than the one signing in now, wipe it first so the
-// newly signed-in user never sees the previous account's products/customers/sales/
-// financial records. A null ownerUserId means either a fresh install or an existing
-// install upgrading to this tracking — leave that data alone rather than wiping on an
-// unrelated app update. Shared by every sign-in provider (Google, Apple, ...).
+// This device's local business data (SQLite) isn't scoped per account. Historically
+// this function unconditionally wiped it the instant a different account's uid
+// signed in — simple, but capable of silently destroying real local data the moment
+// a second account (or a second device on the same account) actually needs to
+// coexist with cloud sync. Replaced with a real decision tree once Firestore became
+// the source of truth for "does this account already have data somewhere":
+//
+//   same owner already            -> nothing to decide, just (re)start sync
+//   no local data                 -> pull cloud data if any exists (nothing local to lose)
+//   local data, cloud empty       -> this device's data seeds the account (push, no wipe)
+//   local data AND cloud data     -> can't auto-resolve safely; route to a blocking
+//                                     conflict screen (app/(onboarding)/cloud-data-conflict.tsx)
+//                                     instead of guessing which side should win
+//
+// Shared by every sign-in provider (Google, Apple, email/password) AND by
+// initialize()'s onAuthStateChanged listener on every cold start with an
+// already-persisted session — which means an explicit signIn* call and the
+// listener's own follow-up firing shortly after can both invoke this for the
+// same uid nearly simultaneously. adoptingPromise collapses concurrent calls
+// into one in-flight decision so two racing calls can't both independently
+// decide to e.g. bulk-restore or push a full snapshot for the same account.
+let adoptingUid: string | null = null;
+let adoptingPromise: Promise<void> | null = null;
+
 async function adoptSignedInUser(
+  user: FirebaseAuthTypes.User,
+  set: (state: Partial<AuthState>) => void
+) {
+  if (adoptingUid === user.uid && adoptingPromise) {
+    set({ user: firebaseUserToAppUser(user), isLoading: false });
+    return adoptingPromise;
+  }
+  adoptingUid = user.uid;
+  adoptingPromise = adoptSignedInUserInner(user, set).finally(() => {
+    adoptingUid = null;
+    adoptingPromise = null;
+  });
+  return adoptingPromise;
+}
+
+async function adoptSignedInUserInner(
   user: FirebaseAuthTypes.User,
   set: (state: Partial<AuthState>) => void
 ) {
   const { useBusinessStore } = await import('@/store/businessStore');
   const business = useBusinessStore.getState();
-  if (business.isSetupComplete && business.ownerUserId && business.ownerUserId !== user.uid) {
-    const { wipeAllBusinessData } = await import('@/lib/sqlite');
-    await wipeAllBusinessData();
-    business.clearBusiness();
-  }
-  useBusinessStore.getState().setOwnerUserId(user.uid);
 
+  // Let navigation proceed immediately — the (app)/index.tsx and (app)/_layout.tsx
+  // guards route on `pendingCloudConflict`, not on this function having fully
+  // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
+
+  if (business.ownerUserId === user.uid) {
+    const { startCloudSync } = await import('@/lib/cloudSync');
+    startCloudSync(user.uid);
+    return;
+  }
+
+  if (!isFirebaseAvailable) {
+    // Web/no-Firestore build — fall back to the old wipe-on-switch behavior rather
+    // than getting stuck: there's no cloud to detect or restore from at all here.
+    if (business.isSetupComplete && business.ownerUserId) {
+      const { wipeAllBusinessData } = await import('@/lib/sqlite');
+      await wipeAllBusinessData();
+      business.clearBusiness();
+    }
+    useBusinessStore.getState().setOwnerUserId(user.uid);
+    return;
+  }
+
+  const { localBusinessDataExists } = await import('@/lib/sqlite');
+  const { cloudBusinessDataExists, pushFullLocalSnapshot, restoreFromCloudBulk, startCloudSync } = await import('@/lib/cloudSync');
+
+  const [localHasData, cloudHasData] = await Promise.all([
+    localBusinessDataExists(),
+    cloudBusinessDataExists(user.uid),
+  ]);
+
+  if (!localHasData) {
+    if (cloudHasData) {
+      try { await restoreFromCloudBulk(user.uid); } catch (e) { console.error('[Froshiar] Cloud restore failed:', e); }
+    }
+    useBusinessStore.getState().setOwnerUserId(user.uid);
+    startCloudSync(user.uid);
+    return;
+  }
+
+  if (!cloudHasData) {
+    useBusinessStore.getState().setOwnerUserId(user.uid);
+    try { await pushFullLocalSnapshot(user.uid); } catch (e) { console.error('[Froshiar] Initial cloud push failed:', e); }
+    startCloudSync(user.uid);
+    return;
+  }
+
+  // Both sides have data — can't safely auto-merge. Block entry until the user
+  // picks merge / keep-local / keep-cloud on the conflict screen; ownerUserId is
+  // deliberately NOT set yet, so a killed app before the user decides re-enters
+  // this same branch on next launch instead of silently picking a side.
+  useBusinessStore.getState().setPendingCloudConflict(user.uid);
 }
 
 // Re-acquires a fresh credential for the currently signed-in user so
@@ -149,6 +236,37 @@ async function reacquireCredential(
   }
 
   return null;
+}
+
+// Maps Firebase Auth's error codes to localized, user-friendly messages for the
+// email/password sign-up/sign-in/reset flows — deliberately routed through i18n
+// (unlike mapFirebaseDeleteError above, which predates the project's "all
+// user-facing strings must be localized" rule and still returns raw English).
+function mapFirebaseAuthError(e: any): string {
+  switch (e?.code) {
+    case 'auth/email-already-in-use':
+      return i18n.t('authErrors.emailAlreadyInUse');
+    case 'auth/weak-password':
+      return i18n.t('authErrors.weakPassword');
+    case 'auth/invalid-email':
+      return i18n.t('authErrors.invalidEmail');
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return i18n.t('authErrors.wrongPassword');
+    case 'auth/user-not-found':
+      return i18n.t('authErrors.userNotFound');
+    case 'auth/network-request-failed':
+      return i18n.t('authErrors.networkError');
+    case 'auth/too-many-requests':
+      return i18n.t('authErrors.tooManyRequests');
+    // Signing up with an email that's already registered under Google/Apple
+    // hits this — account linking (linkWithCredential) is an explicit non-goal
+    // for this release, so just point the user at the method they already used.
+    case 'auth/account-exists-with-different-credential':
+      return i18n.t('authErrors.emailAlreadyInUseDifferentMethod');
+    default:
+      return i18n.t('authErrors.generic');
+  }
 }
 
 function mapFirebaseDeleteError(e: any): string {
@@ -279,7 +397,56 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      signUpWithEmail: async (email, password, displayName) => {
+        if (!isFirebaseAvailable) {
+          return { error: 'Account creation requires the iOS/Android app — not available on web.' };
+        }
+        set({ isLoading: true });
+        try {
+          const { user } = await createUserWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+          if (displayName?.trim()) {
+            try { await updateProfile(user, { displayName: displayName.trim() }); } catch {}
+          }
+          await adoptSignedInUser(user, set);
+          return { error: null };
+        } catch (e: any) {
+          set({ isLoading: false });
+          return { error: mapFirebaseAuthError(e) };
+        }
+      },
+
+      signInWithEmail: async (email, password) => {
+        if (!isFirebaseAvailable) {
+          return { error: 'Login requires the iOS/Android app — not available on web.' };
+        }
+        set({ isLoading: true });
+        try {
+          const { user } = await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+          await adoptSignedInUser(user, set);
+          return { error: null };
+        } catch (e: any) {
+          set({ isLoading: false });
+          return { error: mapFirebaseAuthError(e) };
+        }
+      },
+
+      resetPassword: async (email) => {
+        if (!isFirebaseAvailable) {
+          return { error: 'Password reset requires the iOS/Android app — not available on web.' };
+        }
+        try {
+          await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+          return { error: null };
+        } catch (e: any) {
+          return { error: mapFirebaseAuthError(e) };
+        }
+      },
+
       signOut: async () => {
+        try {
+          const { stopCloudSync } = await import('@/lib/cloudSync');
+          stopCloudSync();
+        } catch {}
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}
           try {
@@ -337,10 +504,18 @@ export const useAuthStore = create<AuthState>()(
             const authInstance = getFirebaseAuth();
             let resolved = false;
             onAuthStateChanged(authInstance, (firebaseUser) => {
-              set({
-                user: firebaseUser ? firebaseUserToAppUser(firebaseUser) : null,
-                isLoading: false,
-              });
+              if (firebaseUser) {
+                // Runs the same decision tree as an explicit sign-in (adoptingPromise
+                // collapses this against any concurrent explicit signIn*/signUp* call
+                // for the same uid) — required so a resumed session on a device that
+                // was killed mid-decision (see the module doc above) re-detects an
+                // unresolved local-vs-cloud conflict instead of silently skipping it.
+                adoptSignedInUser(firebaseUser, set).catch((e) =>
+                  console.error('[Froshiar] adoptSignedInUser (resumed session) failed:', e)
+                );
+              } else {
+                set({ user: null, isLoading: false });
+              }
               if (!resolved) {
                 resolved = true;
                 resolve();

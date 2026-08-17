@@ -136,8 +136,76 @@
   "login": {
     "title":             "Welcome to Froshiar",
     "subtitle":          "Manage your business smarter and easier.",
+    "emailLabel":        "Email",
+    "emailPlaceholder":  "you@example.com",
+    "passwordLabel":     "Password",
+    "passwordPlaceholder":"Enter your password",
+    "signInBtn":         "Log In",
+    "forgotPassword":    "Forgot password?",
+    "or":                "or",
+    "noAccount":         "Don't have an account?",
+    "signUpLink":        "Sign up",
     "googleBtn":         "Continue with Google",
     "appleBtn":          "Continue with Apple"
+  },
+  "signup": {
+    "title":                    "Create Your Account",
+    "subtitle":                 "Sign up to sync your business data across devices.",
+    "nameLabel":                "Full Name",
+    "namePlaceholder":          "e.g. Aram Ahmad",
+    "emailLabel":               "Email",
+    "emailPlaceholder":         "you@example.com",
+    "passwordLabel":            "Password",
+    "passwordPlaceholder":      "At least 6 characters",
+    "confirmPasswordLabel":     "Confirm Password",
+    "confirmPasswordPlaceholder":"Re-enter your password",
+    "signUpBtn":                "Create Account",
+    "haveAccount":              "Already have an account?",
+    "signInLink":                "Log in",
+    "validation": {
+      "nameRequired":         "Name is required",
+      "emailRequired":        "Email is required",
+      "emailInvalid":         "Enter a valid email address",
+      "passwordRequired":     "Password is required",
+      "passwordTooShort":     "Password must be at least 6 characters",
+      "passwordsDontMatch":   "Passwords do not match"
+    }
+  },
+  "forgotPassword": {
+    "title":           "Reset Password",
+    "subtitle":        "Enter your email and we'll send you a link to reset your password.",
+    "emailLabel":       "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendBtn":          "Send Reset Link",
+    "backToLogin":      "Back to Log In",
+    "successTitle":     "Check Your Email",
+    "successMessage":   "We've sent a password reset link to {{email}}."
+  },
+  "authErrors": {
+    "emailAlreadyInUse":               "An account with this email already exists. Try logging in instead.",
+    "emailAlreadyInUseDifferentMethod":"This email is already registered using a different sign-in method (e.g. Google or Apple). Please use that method to log in instead.",
+    "weakPassword":                    "Password is too weak. Use at least 6 characters.",
+    "invalidEmail":                    "Please enter a valid email address.",
+    "wrongPassword":                   "Incorrect email or password.",
+    "userNotFound":                    "No account found with this email.",
+    "networkError":                    "No internet connection. Please check your connection and try again.",
+    "tooManyRequests":                 "Too many attempts. Please wait a moment and try again.",
+    "generic":                         "Something went wrong. Please try again."
+  },
+  "cloudConflict": {
+    "title":               "Cloud Data Found",
+    "subtitle":            "This account already has business data saved in the cloud, and this device also has local data. Choose how to continue.",
+    "mergeTitle":          "Merge Both (Recommended)",
+    "mergeDescription":    "Combine this device's data with your cloud data. Nothing is deleted.",
+    "keepLocalTitle":      "Keep This Device's Data",
+    "keepLocalDescription":"Discard the cloud data and keep only what's on this device.",
+    "keepLocalConfirm":    "This will permanently discard your other devices' cloud data. Continue?",
+    "keepCloudTitle":      "Keep Cloud Data",
+    "keepCloudDescription":"Discard this device's local data and restore from the cloud instead.",
+    "keepCloudConfirm":    "This will permanently discard this device's local data. Continue?",
+    "continueBtn":         "Continue",
+    "cancel":              "Cancel",
+    "processing":          "Setting up your data…"
   },
   "language": {
     "title":        "Choose Your Language",
@@ -1066,6 +1134,7 @@
       "comingSoon": "Tutorials coming soon"
     },
     "account":            "Account",
+    "signedInAs":         "Signed in as",
     "logout":             "Logout",
     "logoutSub":          "Sign out of your account",
     "logoutConfirmTitle": "Are you sure?",
@@ -1243,6 +1312,20 @@
       "devBuildTitle":       "Development Build Required",
       "devBuildMsg":         "Restoring a backup requires a full Froshiar build. File access is not available in Expo Go.",
       "devBuildRequired":    "Requires a full app build"
+    },
+    "cloudSyncScreen": {
+      "title":            "Cloud Sync",
+      "signedInAs":        "Signed in as {{email}}",
+      "statusUpToDate":    "Up to date",
+      "statusPending":     "{{count}} change pending sync",
+      "statusPending_other":"{{count}} changes pending sync",
+      "statusSyncing":     "Syncing…",
+      "statusNeverSynced": "Not synced yet",
+      "lastSynced":        "Last synced {{time}}",
+      "lastSyncedNever":   "Never synced",
+      "syncNowBtn":        "Sync Now",
+      "syncErrorTitle":    "Last sync failed",
+      "offlineNotice":     "You're offline — changes will sync automatically once you're back online."
     },
     "aboutScreen": {
       "title":            "About",

@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Every user's cloud data lives under users/{uid}. A signed-in user may only
+// read/write the subtree that matches their own Firebase Auth uid — this is
+// the sole authorization check for the whole database, enforced server-side
+// (client code must never be trusted for this). See lib/cloudSync/ for the
+// app code that writes here, and store/authStore.ts for how uid is derived
+// from Firebase Auth.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
