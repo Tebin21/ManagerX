@@ -5,15 +5,45 @@
 // the first-login/restore decision (lib/cloudSync/restore.ts) has fully resolved —
 // attaching pull listeners any earlier could race an in-flight bulk restore over
 // the same rows (see store/authStore.ts's adoptSignedInUser).
+import { InteractionManager } from 'react-native';
 import { startCloudPush, stopCloudPush } from './pushEngine';
 import { startCloudPull, stopCloudPull } from './pullEngine';
 
+// Deferred via InteractionManager rather than fired synchronously: on cold start
+// with an already-persisted Firebase session, this can be reached from
+// onAuthStateChanged within the very first tick of app boot, issuing ~12 native
+// Firestore onSnapshot TurboModule calls at once while the JS thread's own
+// startup burst (font loading, first paint, navigation mount) is still in
+// flight. Pushing this past that initial interaction window avoids piling that
+// native call volume onto the coldest, most contended moment of launch.
+let pendingHandle: { cancel: () => void } | null = null;
+let pendingUid: string | null = null;
+
 export function startCloudSync(uid: string): void {
-  startCloudPush(uid);
-  startCloudPull(uid);
+  if (pendingUid === uid) return; // already scheduled for this uid
+  cancelPendingCloudSync();
+  pendingUid = uid;
+  pendingHandle = InteractionManager.runAfterInteractions(() => {
+    pendingHandle = null;
+    if (pendingUid !== uid) return; // cancelled (e.g. signed out) before this ran
+    pendingUid = null;
+    try {
+      startCloudPush(uid);
+      startCloudPull(uid);
+    } catch (err) {
+      if (__DEV__) console.warn('[cloudSync] deferred startCloudSync failed:', err);
+    }
+  });
+}
+
+function cancelPendingCloudSync(): void {
+  pendingHandle?.cancel();
+  pendingHandle = null;
+  pendingUid = null;
 }
 
 export function stopCloudSync(): void {
+  cancelPendingCloudSync();
   stopCloudPush();
   stopCloudPull();
 }
