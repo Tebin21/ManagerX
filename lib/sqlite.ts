@@ -143,7 +143,19 @@ export async function enqueueFullCloudResync(): Promise<void> {
   );
 }
 
-export async function initializeDatabase(): Promise<void> {
+let dbInitPromise: Promise<void> | null = null;
+
+// Idempotent — cloud-sync code paths (store/authStore.ts's adoptSignedInUserInner,
+// lib/cloudSync/*) also await this before touching cloud_sync_queue/cloud_tombstones
+// or the cloud triggers, since those are created in runMigrations() below rather
+// than the initial synchronous CREATE TABLE block, and app/_layout.tsx fires this
+// and Firebase auth init in parallel with no ordering between them.
+export function initializeDatabase(): Promise<void> {
+  if (!dbInitPromise) dbInitPromise = runInitializeDatabase();
+  return dbInitPromise;
+}
+
+async function runInitializeDatabase(): Promise<void> {
   const database = await getDatabase();
 
   await database.execAsync(`

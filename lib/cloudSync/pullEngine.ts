@@ -5,7 +5,7 @@
 // local JSON backup/restore feature already uses — rather than a second,
 // duplicate conflict-resolution implementation (see that file's
 // matchByNaturalKeyIfNoUuid option, added specifically for this reuse).
-import { getDatabase } from '@/lib/sqlite';
+import { getDatabase, initializeDatabase } from '@/lib/sqlite';
 import { mergeSimpleTable, type MergeTableOptions } from '@/lib/backup';
 import {
   isFirebaseAvailable,
@@ -67,6 +67,7 @@ async function reconcileEmbeddedItems(
 export async function applyCloudDoc(table: string, docId: string, data: Record<string, unknown>): Promise<void> {
   const config = PULL_TABLE_CONFIG[table];
   if (!config) return;
+  await initializeDatabase();
   const db = await getDatabase();
 
   const row = await cloudDocToRow(db, table, { ...data, uuid: docId });
@@ -91,10 +92,13 @@ async function applyTombstone(entityType: string, tombstoneUuid: string): Promis
 let unsubscribers: Array<() => void> = [];
 let started: string | null = null;
 
-export function startCloudPull(uid: string): void {
+export async function startCloudPull(uid: string): Promise<void> {
   if (!isFirebaseAvailable || started === uid) return;
   stopCloudPull();
   started = uid;
+
+  await initializeDatabase();
+  if (started !== uid) return; // stopCloudPull()/a uid switch raced this await
 
   const firestore = getFirebaseFirestore();
 

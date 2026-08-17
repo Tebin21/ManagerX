@@ -19,7 +19,19 @@ import { startCloudPull, stopCloudPull } from './pullEngine';
 let pendingHandle: { cancel: () => void } | null = null;
 let pendingUid: string | null = null;
 
-export function startCloudSync(uid: string): void {
+// Root-cause-isolation kill switch (see .claude/plans cold-start SIGSEGV report):
+// flip to true to restore the previous behavior of auto-starting cloud sync from
+// onAuthStateChanged on every cold start with a persisted session. While false,
+// only explicit callers (opts.auto left at its default false — sign-in/sign-up,
+// the cloud-data-conflict merge flow, and the Settings > Cloud Sync screen) can
+// start the sync engine.
+const AUTO_START_ENABLED = false;
+
+export function startCloudSync(uid: string, opts: { auto?: boolean } = {}): void {
+  if (opts.auto && !AUTO_START_ENABLED) {
+    if (__DEV__) console.log('[cloudSync] auto-start skipped (isolation flag off)');
+    return;
+  }
   if (pendingUid === uid) return; // already scheduled for this uid
   cancelPendingCloudSync();
   pendingUid = uid;
@@ -29,7 +41,9 @@ export function startCloudSync(uid: string): void {
     pendingUid = null;
     try {
       startCloudPush(uid);
-      startCloudPull(uid);
+      startCloudPull(uid).catch((err) => {
+        if (__DEV__) console.warn('[cloudSync] startCloudPull failed:', err);
+      });
     } catch (err) {
       if (__DEV__) console.warn('[cloudSync] deferred startCloudSync failed:', err);
     }

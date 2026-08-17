@@ -36,7 +36,19 @@ export default function CloudSyncScreen() {
     setLastError(error);
   }, []);
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      // Explicit, user-initiated cloud sync start — cold-start auto-start is
+      // gated off (see lib/cloudSync/index.ts's AUTO_START_ENABLED), so opening
+      // this screen is what actually starts push/pull for a signed-in user.
+      // Safe to call every focus: startCloudPush/startCloudPull already no-op
+      // once already running for this uid.
+      if (user && isFirebaseAvailable) {
+        import('@/lib/cloudSync').then((m) => m.startCloudSync(user.id, { auto: false }));
+      }
+    }, [user, refresh])
+  );
 
   useEffect(() => {
     if (!syncing) return;

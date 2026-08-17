@@ -106,16 +106,21 @@ function firebaseUserToAppUser(u: {
 let adoptingUid: string | null = null;
 let adoptingPromise: Promise<void> | null = null;
 
+// DIAGNOSTIC ONLY (cold-start SIGSEGV isolation, see .claude/plans) — see
+// initialize() below. Set back to false to restore normal startup behavior.
+const DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER = true;
+
 async function adoptSignedInUser(
   user: User,
-  set: (state: Partial<AuthState>) => void
+  set: (state: Partial<AuthState>) => void,
+  auto: boolean = false
 ) {
   if (adoptingUid === user.uid && adoptingPromise) {
     set({ user: firebaseUserToAppUser(user), isLoading: false });
     return adoptingPromise;
   }
   adoptingUid = user.uid;
-  adoptingPromise = adoptSignedInUserInner(user, set).finally(() => {
+  adoptingPromise = adoptSignedInUserInner(user, set, auto).finally(() => {
     adoptingUid = null;
     adoptingPromise = null;
   });
@@ -133,8 +138,12 @@ function isCurrentAuthUser(uid: string): boolean {
 
 async function adoptSignedInUserInner(
   user: User,
-  set: (state: Partial<AuthState>) => void
+  set: (state: Partial<AuthState>) => void,
+  auto: boolean = false
 ) {
+  const { initializeDatabase } = await import('@/lib/sqlite');
+  await initializeDatabase();
+
   const { useBusinessStore } = await import('@/store/businessStore');
   const business = useBusinessStore.getState();
 
@@ -143,10 +152,22 @@ async function adoptSignedInUserInner(
   // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
+  // Diagnostic isolation (see .claude/plans cold-start SIGSEGV report): a TestFlight
+  // crash log shows a live Firestore gRPC thread and a TurboModule NSException-to-
+  // JSError conversion crashing the Hermes JS thread during cold start, even with
+  // cloud-sync's own AUTO_START_ENABLED flag off — because that flag only gates
+  // startCloudSync() below, not the cloudBusinessDataExists() Firestore read (or the
+  // ownerUserId branch's startCloudSync call) that runs before it on every cold start
+  // for an already-signed-in device. While isolating, a resumed session (auto=true)
+  // skips this entire block and leaves the user signed in locally only — all cloud
+  // work becomes reachable only from an explicit sign-in/sign-up or the manual
+  // Settings > Cloud Sync screen. Remove once the crash is confirmed/fixed.
+  if (auto) return;
+
   if (business.ownerUserId === user.uid) {
     const { startCloudSync } = await import('@/lib/cloudSync');
     if (!isCurrentAuthUser(user.uid)) return;
-    startCloudSync(user.uid);
+    startCloudSync(user.uid, { auto });
     return;
   }
 
@@ -179,7 +200,7 @@ async function adoptSignedInUserInner(
     }
     if (!isCurrentAuthUser(user.uid)) return;
     useBusinessStore.getState().setOwnerUserId(user.uid);
-    startCloudSync(user.uid);
+    startCloudSync(user.uid, { auto });
     return;
   }
 
@@ -187,7 +208,7 @@ async function adoptSignedInUserInner(
     useBusinessStore.getState().setOwnerUserId(user.uid);
     try { await pushFullLocalSnapshot(user.uid); } catch (e) { console.error('[Froshiar] Initial cloud push failed:', e); }
     if (!isCurrentAuthUser(user.uid)) return;
-    startCloudSync(user.uid);
+    startCloudSync(user.uid, { auto });
     return;
   }
 
@@ -539,6 +560,18 @@ export const useAuthStore = create<AuthState>()(
           }
           try {
             const authInstance = getFirebaseAuth();
+            // DIAGNOSTIC ONLY (cold-start SIGSEGV isolation, see .claude/plans) —
+            // flip to false to restore the startup onAuthStateChanged listener.
+            // Firebase Auth still initializes above via getFirebaseAuth(); only
+            // listener *registration* is skipped, so a persisted session can no
+            // longer auto-trigger adoptSignedInUser during cold start. Explicit
+            // signIn*/signUp* paths call adoptSignedInUser() directly and are
+            // unaffected. Remove this block once the crash is confirmed/ruled out.
+            if (DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER) {
+              set({ isLoading: false });
+              resolve();
+              return;
+            }
             let resolved = false;
             onAuthStateChanged(authInstance, (firebaseUser) => {
               if (firebaseUser) {
@@ -547,7 +580,7 @@ export const useAuthStore = create<AuthState>()(
                 // for the same uid) — required so a resumed session on a device that
                 // was killed mid-decision (see the module doc above) re-detects an
                 // unresolved local-vs-cloud conflict instead of silently skipping it.
-                adoptSignedInUser(firebaseUser, set).catch((e) =>
+                adoptSignedInUser(firebaseUser, set, true).catch((e) =>
                   console.error('[Froshiar] adoptSignedInUser (resumed session) failed:', e)
                 );
               } else {

@@ -4,7 +4,7 @@
 // trigger pattern as lib/onlineStore/syncEngine.ts.
 import { AppState, type AppStateStatus } from 'react-native';
 import { addConnectivityListener } from '@/lib/netInfo';
-import { getDatabase } from '@/lib/sqlite';
+import { getDatabase, initializeDatabase } from '@/lib/sqlite';
 import {
   isFirebaseAvailable,
   getFirebaseFirestore,
@@ -93,6 +93,7 @@ export async function pushPendingChanges(uid: string): Promise<void> {
   if (!isFirebaseAvailable || isSyncing) return;
   isSyncing = true;
   try {
+    await initializeDatabase();
     const db = await getDatabase();
     const queueRows = await db.getAllAsync<QueueRow>('SELECT id, entity_type, uuid, operation FROM cloud_sync_queue ORDER BY id ASC');
     if (queueRows.length === 0) {

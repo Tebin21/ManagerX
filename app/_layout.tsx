@@ -38,6 +38,19 @@ if (Platform.OS !== 'web') {
 I18nManager.allowRTL(false);
 I18nManager.forceRTL(false);
 
+// Diagnostics only — chains to (never replaces) RN's default handler, so redbox/
+// native crash reporting behavior is unchanged. Added while isolating the
+// cold-start SIGSEGV (see .claude/plans): it cannot catch that crash (it happens
+// inside Hermes' native VM below any JS handler frame), but it surfaces any
+// related non-fatal JS exception that would otherwise vanish silently.
+if (typeof ErrorUtils !== 'undefined') {
+  const previousHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    console.error('[GlobalError]', isFatal ? 'FATAL' : 'non-fatal', error);
+    previousHandler?.(error, isFatal);
+  });
+}
+
 // ─── AppStack ─────────────────────────────────────────────────────────────────
 // Keyed on `language` so the entire navigation tree remounts when the user
 // switches languages, ensuring all t() translation calls re-render immediately
