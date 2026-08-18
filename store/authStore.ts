@@ -171,15 +171,25 @@ async function adoptSignedInUserInner(
     return;
   }
 
-  if (!isFirebaseAvailable) {
-    // Web/no-Firestore build — fall back to the old wipe-on-switch behavior rather
-    // than getting stuck: there's no cloud to detect or restore from at all here.
-    if (business.isSetupComplete && business.ownerUserId) {
-      const { wipeAllBusinessData } = await import('@/lib/sqlite');
-      await wipeAllBusinessData();
-      business.clearBusiness();
-    }
+  // This device's local SQLite data is known (via ownerUserId) to belong to a
+  // different account than the one now signing in. Never let a second account
+  // inherit — or, via pushFullLocalSnapshot below, upload — a previous account's
+  // business data: wipe it up front, before deciding how to seed the newly
+  // signed-in account. A null ownerUserId (data predates this tracking, or a
+  // genuinely fresh device) is NOT a mismatch — that ambiguous case still falls
+  // through to the local/cloud-data-exists decision tree and conflict screen below.
+  if (business.ownerUserId && business.ownerUserId !== user.uid) {
+    const { wipeAllBusinessData } = await import('@/lib/sqlite');
+    await wipeAllBusinessData();
+    business.clearBusiness();
+    try {
+      const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+      await clearStoreApiKey();
+    } catch {}
     if (!isCurrentAuthUser(user.uid)) return;
+  }
+
+  if (!isFirebaseAvailable) {
     useBusinessStore.getState().setOwnerUserId(user.uid);
     return;
   }

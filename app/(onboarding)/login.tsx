@@ -8,7 +8,9 @@ import {
   Image,
   StatusBar,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
@@ -28,6 +30,10 @@ export default function LoginScreen() {
   const { signInWithGoogle, signInWithApple, signInWithEmail, isLoading } = useAuthStore();
   const { colors } = useAppTheme();
   const [authError, setAuthError] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const logoSize = Math.min(84, Math.max(60, width * 0.2));
+  const headerPaddingTop = insets.top + 16;
 
   const handleGoogle = async () => {
     setAuthError(null);
@@ -67,7 +73,7 @@ export default function LoginScreen() {
         colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: headerPaddingTop }]}
       >
         <MotiView
           from={{ opacity: 0, scale: 0.8 }}
@@ -76,7 +82,7 @@ export default function LoginScreen() {
         >
           <Image
             source={require('../../assets/images/logo.png')}
-            style={styles.logo}
+            style={[styles.logo, { width: logoSize, height: logoSize }]}
             resizeMode="contain"
           />
         </MotiView>
@@ -154,16 +160,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
     alignItems: 'center',
-    paddingTop: 72,
-    paddingBottom: 36,
+    paddingBottom: 24,
     paddingHorizontal: 28,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
   },
   logo: {
-    width: 400,
-    height: 200,
-    marginBottom: 20,
+    marginBottom: 14,
   },
   headline: {
     fontSize: 28,
