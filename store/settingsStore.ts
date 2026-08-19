@@ -19,6 +19,26 @@ interface SettingsState {
   setGlobalLowStockThreshold: (val: number) => void;
 }
 
+// These preference stores are plain AsyncStorage, never touching a SQLite row
+// or the cloud_sync_queue trigger mechanism — so a change here needs its own
+// explicit nudge to reach the cloud, piggybacked onto the same users/{uid} root
+// doc as the business profile/counters (see lib/cloudSync/pushEngine.ts's
+// pushBusinessProfile). Never throws — a device with no signed-in user, or
+// mid-startup before authStore has hydrated, just leaves the change local-only
+// until the next real sync trigger picks it up naturally.
+async function notifyPreferencesChanged(): Promise<void> {
+  try {
+    const { enqueueBusinessProfilePush } = await import('@/lib/sqlite');
+    await enqueueBusinessProfilePush();
+    const { useAuthStore } = await import('@/store/authStore');
+    const uid = useAuthStore.getState().user?.id;
+    if (uid) {
+      const { scheduleCloudPush } = await import('@/lib/cloudSync');
+      scheduleCloudPush(uid);
+    }
+  } catch { /* non-critical — the next interval-driven push cycle still picks this up */ }
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -29,10 +49,10 @@ export const useSettingsStore = create<SettingsState>()(
       globalLowStockEnabled:   true,
       globalLowStockThreshold: 5,
 
-      setDarkMode:               (val) => set({ isDarkMode: val }),
-      setAccentColor:            (color) => set({ accentColor: color }),
-      setGlobalLowStockEnabled:  (val) => set({ globalLowStockEnabled: val }),
-      setGlobalLowStockThreshold:(val) => set({ globalLowStockThreshold: val }),
+      setDarkMode:               (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
+      setAccentColor:            (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
+      setGlobalLowStockEnabled:  (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
+      setGlobalLowStockThreshold:(val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
@@ -42,6 +62,7 @@ export const useSettingsStore = create<SettingsState>()(
           const { saveExchangeRateHistory } = await import('@/lib/sqlite');
           await saveExchangeRateHistory(rate);
         } catch { /* non-critical — Zustand persist is the source of truth */ }
+        notifyPreferencesChanged();
       },
     }),
     {

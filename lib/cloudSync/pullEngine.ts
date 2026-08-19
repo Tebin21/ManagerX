@@ -6,7 +6,7 @@
 // duplicate conflict-resolution implementation (see that file's
 // matchByNaturalKeyIfNoUuid option, added specifically for this reuse).
 import { getDatabase, initializeDatabase } from '@/lib/sqlite';
-import { mergeSimpleTable, type MergeTableOptions } from '@/lib/backup';
+import { mergeSimpleTable, mergeCounter, type MergeTableOptions } from '@/lib/backup';
 import {
   isFirebaseAvailable,
   getFirebaseFirestore,
@@ -42,6 +42,9 @@ const PULL_TABLE_CONFIG: Partial<Record<string, MergeTableOptions>> = {
   debts:          { policy: 'mutable', timestampColumn: 'updated_at', matchByNaturalKeyIfNoUuid: false },
   purchase_debts: { policy: 'mutable', timestampColumn: 'updated_at', matchByNaturalKeyIfNoUuid: false },
   debt_payments:  { policy: 'immutable', matchByNaturalKeyIfNoUuid: false },
+  // No updated_at column — write-once (INSERT OR REPLACE ... UNIQUE(product_id)),
+  // so archived_at doubles as the LWW timestamp.
+  inventory_history: { policy: 'mutable', timestampColumn: 'archived_at', matchByNaturalKeyIfNoUuid: false },
 };
 
 async function reconcileEmbeddedItems(
@@ -170,24 +173,98 @@ export async function startCloudPull(uid: string): Promise<void> {
 }
 
 export async function applyRootDoc(data: Record<string, unknown> | undefined): Promise<void> {
-  const business = data?.business as Record<string, unknown> | undefined;
-  if (!business) return;
+  if (!data) return;
   const db = await getDatabase();
-  const local = await db.getFirstAsync<{ updated_at: string | null }>('SELECT updated_at FROM businesses WHERE id = 1');
-  const incomingTs = business.updated_at as string | undefined;
-  const localTs = local?.updated_at ?? undefined;
-  if (!incomingTs || (localTs && incomingTs <= localTs)) return; // plain LWW — see PULL_TABLE_CONFIG's module doc
-  await db.runAsync(
-    `INSERT OR REPLACE INTO businesses (id, name, type, phone, address, logo_path, updated_at)
-     VALUES (1, ?, ?, ?, ?, (SELECT logo_path FROM businesses WHERE id = 1), ?)`,
-    [
-      (business.name as string) ?? '',
-      (business.type as string) ?? '',
-      (business.phone as string) ?? '',
-      (business.address as string) ?? '',
-      incomingTs,
-    ]
-  );
+
+  const business = data.business as Record<string, unknown> | undefined;
+  if (business) {
+    const local = await db.getFirstAsync<{ updated_at: string | null }>('SELECT updated_at FROM businesses WHERE id = 1');
+    const incomingTs = business.updated_at as string | undefined;
+    const localTs = local?.updated_at ?? undefined;
+    // plain LWW — see PULL_TABLE_CONFIG's module doc
+    if (incomingTs && !(localTs && incomingTs <= localTs)) {
+      const name = (business.name as string) ?? '';
+      const type = (business.type as string) ?? '';
+      const phone = (business.phone as string) ?? '';
+      const address = (business.address as string) ?? '';
+      await db.runAsync(
+        `INSERT OR REPLACE INTO businesses (id, name, type, phone, address, logo_path, updated_at)
+         VALUES (1, ?, ?, ?, ?, (SELECT logo_path FROM businesses WHERE id = 1), ?)`,
+        [name, type, phone, address, incomingTs]
+      );
+
+      // Hydrates the routing flag a restore/pull of the business profile never
+      // used to touch (see store/businessStore.ts) — this is the fix for the
+      // core "returning account still sees Create Business" bug. Guarded on a
+      // non-empty name so a malformed/partial doc can never flip isSetupComplete
+      // true. Reached by the real-time listener here, by restoreFromCloudBulk()
+      // (which calls this same function), and therefore by every
+      // app/(onboarding)/cloud-data-conflict.tsx resolution path too.
+      if (name) {
+        const { useBusinessStore } = await import('@/store/businessStore');
+        useBusinessStore.getState().hydrateFromCloud({ name, type, phone, address });
+      }
+    }
+  }
+
+  // Counters are max-merged, not LWW-gated — safe to apply unconditionally on
+  // every root-doc snapshot (see lib/backup.ts's mergeCounter doc comment).
+  const counters = data.counters as Record<string, unknown> | undefined;
+  if (counters) {
+    await mergeCounter(db, 'invoice_counter', [{ last_number: counters.invoiceLastNumber }]);
+    await mergeCounter(db, 'purchase_counter', [{ last_number: counters.purchaseLastNumber }]);
+  }
+
+  // Preferences (theme/exchange-rate/low-stock defaults/language/Online-Store
+  // settings) live in AsyncStorage stores, not SQLite rows — so they get their
+  // own whole-object LWW gated by a dedicated `cloud_prefs_updated_at` marker
+  // (see lib/sqlite.ts's enqueueBusinessProfilePush), independent of the
+  // business profile's own updated_at.
+  const preferences = data.preferences as Record<string, unknown> | undefined;
+  if (preferences) {
+    const { loadSetting, saveSetting } = await import('@/lib/sqlite');
+    const incomingTs = preferences.updated_at as string | undefined;
+    const localTs = (await loadSetting('cloud_prefs_updated_at')) ?? undefined;
+    if (incomingTs && !(localTs && incomingTs <= localTs)) {
+      const { useSettingsStore } = await import('@/store/settingsStore');
+      const { useLanguageStore } = await import('@/store/languageStore');
+      const currentSettings = useSettingsStore.getState();
+      useSettingsStore.setState({
+        isDarkMode: (preferences.isDarkMode as boolean | undefined) ?? currentSettings.isDarkMode,
+        exchangeRate: (preferences.exchangeRate as number | undefined) ?? currentSettings.exchangeRate,
+        rateUpdatedAt: (preferences.rateUpdatedAt as string | null | undefined) ?? currentSettings.rateUpdatedAt,
+        accentColor: (preferences.accentColor as string | null | undefined) ?? currentSettings.accentColor,
+        globalLowStockEnabled: (preferences.globalLowStockEnabled as boolean | undefined) ?? currentSettings.globalLowStockEnabled,
+        globalLowStockThreshold: (preferences.globalLowStockThreshold as number | undefined) ?? currentSettings.globalLowStockThreshold,
+      });
+      if (preferences.language) {
+        const currentLanguage = useLanguageStore.getState();
+        useLanguageStore.setState({
+          language: preferences.language as 'en' | 'ku',
+          isRTL: (preferences.isRTL as boolean | undefined) ?? currentLanguage.isRTL,
+        });
+      }
+      const onlineStore = preferences.onlineStore as Record<string, unknown> | undefined;
+      if (onlineStore) {
+        const { setStoreEnabled, setStoreSlug } = await import('@/lib/onlineStore/storage');
+        const { saveStoreInfoFields } = await import('@/lib/onlineStore/storeInfo');
+        // silent:true — applying an incoming cloud value must not itself
+        // enqueue a fresh push of that same value back to Firestore (see
+        // setStoreEnabled's doc comment for the pull-triggers-push-triggers-
+        // pull loop this avoids).
+        await setStoreEnabled((onlineStore.enabled as boolean) ?? false, true);
+        if (onlineStore.slug) await setStoreSlug(onlineStore.slug as string, true);
+        await saveStoreInfoFields({
+          description: (onlineStore.description as string) ?? '',
+          facebookUrl: (onlineStore.facebookUrl as string) ?? '',
+          instagramUrl: (onlineStore.instagramUrl as string) ?? '',
+          tiktokUrl: (onlineStore.tiktokUrl as string) ?? '',
+          whatsappNumber: (onlineStore.whatsappNumber as string) ?? '',
+        }, true);
+      }
+      await saveSetting('cloud_prefs_updated_at', incomingTs);
+    }
+  }
 }
 
 export function stopCloudPull(): void {

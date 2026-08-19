@@ -1325,6 +1325,8 @@
       "lastSyncedNever":   "Never synced",
       "syncNowBtn":        "Sync Now",
       "syncErrorTitle":    "Last sync failed",
+      "statusRetrying":    "Retrying…",
+      "statusOffline":     "Offline",
       "offlineNotice":     "You're offline — changes will sync automatically once you're back online."
     },
     "aboutScreen": {

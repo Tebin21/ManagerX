@@ -11,6 +11,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { getDatabase } from '@/lib/sqlite';
 import { isFirebaseAvailable } from '@/lib/firebase';
+import { addConnectivityListener } from '@/lib/netInfo';
 import { getLastSyncedAt, getLastSyncError, pushPendingChanges } from '@/lib/cloudSync';
 import { formatRelativeTime } from '@/utils/formatters';
 
@@ -23,6 +24,14 @@ export default function CloudSyncScreen() {
   const [lastSyncedAt, setLastSyncedAtState] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    // Optimistic default (true) — a device without the NetInfo native module
+    // linked never fires this listener at all (see lib/netInfo.ts), so it
+    // should never get stuck falsely showing "Offline".
+    return addConnectivityListener(setIsOnline);
+  }, []);
 
   const refresh = useCallback(async () => {
     const db = await getDatabase();
@@ -67,12 +76,19 @@ export default function CloudSyncScreen() {
     }
   };
 
-  const statusLabel = syncing
+  const statusLabel = !isOnline
+    ? t('settings.cloudSyncScreen.statusOffline')
+    : syncing
     ? t('settings.cloudSyncScreen.statusSyncing')
     : pendingCount === null
     ? ''
     : pendingCount === 0
     ? t('settings.cloudSyncScreen.statusUpToDate')
+    // Pending changes plus a recorded last error most likely means the last
+    // attempt(s) failed and the automatic interval/reconnect triggers are
+    // about to retry — distinct from a fresh, not-yet-attempted pending count.
+    : lastError
+    ? t('settings.cloudSyncScreen.statusRetrying')
     : t('settings.cloudSyncScreen.statusPending', { count: pendingCount });
 
   const lastSyncedLabel = lastSyncedAt

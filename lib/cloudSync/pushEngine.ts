@@ -68,6 +68,29 @@ async function pushBusinessProfile(db: Awaited<ReturnType<typeof getDatabase>>, 
   const firestore = getFirebaseFirestore();
   const business = await db.getFirstAsync<Record<string, unknown>>('SELECT * FROM businesses WHERE id = 1');
   if (!business) return;
+
+  const invoiceCounter = await db.getFirstAsync<{ last_number: number; last_date: string }>(
+    'SELECT last_number, last_date FROM invoice_counter WHERE id = 1'
+  );
+  const purchaseCounter = await db.getFirstAsync<{ last_number: number; last_date: string }>(
+    'SELECT last_number, last_date FROM purchase_counter WHERE id = 1'
+  );
+
+  const { useSettingsStore } = await import('@/store/settingsStore');
+  const { useLanguageStore } = await import('@/store/languageStore');
+  const settings = useSettingsStore.getState();
+  const language = useLanguageStore.getState();
+  const { getStoreEnabled, getStoreSlug } = await import('@/lib/onlineStore/storage');
+  const { loadStoreInfoFields } = await import('@/lib/onlineStore/storeInfo');
+  const { loadSetting } = await import('@/lib/sqlite');
+
+  const [storeEnabled, storeSlug, storeInfo, prefsUpdatedAt] = await Promise.all([
+    getStoreEnabled(),
+    getStoreSlug(),
+    loadStoreInfoFields(),
+    loadSetting('cloud_prefs_updated_at'),
+  ]);
+
   const batch = writeBatch(firestore);
   batch.set(
     doc(firestore, 'users', uid),
@@ -82,6 +105,36 @@ async function pushBusinessProfile(db: Awaited<ReturnType<typeof getDatabase>>, 
         // — a bare property access on a missing key is `undefined`, which Firestore
         // rejects outright, so fall back to null rather than sending it raw.
         updated_at: business.updated_at ?? null,
+      },
+      // Max-merged on pull (lib/backup.ts's mergeCounter), not LWW — safe to
+      // apply unconditionally, so no timestamp is needed here.
+      counters: {
+        invoiceLastNumber: invoiceCounter?.last_number ?? 0,
+        invoiceLastDate: invoiceCounter?.last_date ?? '',
+        purchaseLastNumber: purchaseCounter?.last_number ?? 0,
+        purchaseLastDate: purchaseCounter?.last_date ?? '',
+      },
+      // Whole-object LWW on pull, gated by its own updated_at independent of
+      // `business.updated_at` (see lib/sqlite.ts's enqueueBusinessProfilePush).
+      preferences: {
+        updated_at: prefsUpdatedAt ?? null,
+        isDarkMode: settings.isDarkMode,
+        exchangeRate: settings.exchangeRate,
+        rateUpdatedAt: settings.rateUpdatedAt,
+        accentColor: settings.accentColor,
+        globalLowStockEnabled: settings.globalLowStockEnabled,
+        globalLowStockThreshold: settings.globalLowStockThreshold,
+        language: language.language,
+        isRTL: language.isRTL,
+        onlineStore: {
+          enabled: storeEnabled,
+          slug: storeSlug ?? null,
+          description: storeInfo.description,
+          facebookUrl: storeInfo.facebookUrl,
+          instagramUrl: storeInfo.instagramUrl,
+          tiktokUrl: storeInfo.tiktokUrl,
+          whatsappNumber: storeInfo.whatsappNumber,
+        },
       },
       meta: { hasData: true, schemaVersion: 1 },
       _syncedAt: serverTimestamp(),
@@ -167,6 +220,7 @@ export async function pushPendingChanges(uid: string): Promise<void> {
             [target.sourceUuid]
           );
           if (!row) continue; // deleted again since this run started — next delete trigger already queued its own entry
+
           const docData = await rowToCloudDoc(db, target.sourceTable, row);
           batch.set(ref, { ...docData, _syncedAt: serverTimestamp() });
         }
@@ -232,7 +286,10 @@ export function startCloudPush(uid: string): void {
   const appStateSub = AppState.addEventListener('change', (status: AppStateStatus) => {
     if (status === 'active') pushPendingChanges(uid);
   });
-  const interval = setInterval(() => pushPendingChanges(uid), 60_000);
+  // Shortened from 60s — pushPendingChanges() already early-returns cheaply on
+  // an empty queue, so a snappier interval costs little and gets automatic sync
+  // noticeably closer to "immediate" without touching every mutation call site.
+  const interval = setInterval(() => pushPendingChanges(uid), 20_000);
 
   unsubscribers = [unsubNet, () => appStateSub.remove(), () => clearInterval(interval)];
 

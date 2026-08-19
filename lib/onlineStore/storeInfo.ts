@@ -6,6 +6,7 @@
 // storefront. businessStore already owns name/phone/address/logoUri; this module
 // only owns the fields that are genuinely new for the Online Store feature.
 import { saveSetting, loadSetting } from '@/lib/sqlite';
+import { notifyOnlineStoreSettingChanged } from '@/lib/onlineStore/storage';
 
 export interface StoreInfoFields {
   description: string;
@@ -32,13 +33,18 @@ export async function loadStoreInfoFields(): Promise<StoreInfoFields> {
   return Object.fromEntries(entries) as unknown as StoreInfoFields;
 }
 
-export async function saveStoreInfoFields(fields: Partial<StoreInfoFields>): Promise<void> {
+// `silent` — see lib/onlineStore/storage.ts's setStoreEnabled/setStoreSlug doc
+// comment: used by lib/cloudSync/pullEngine.ts's applyRootDoc() to apply an
+// incoming cloud value without re-enqueueing a push of the same value right
+// back to Firestore.
+export async function saveStoreInfoFields(fields: Partial<StoreInfoFields>, silent = false): Promise<void> {
   await Promise.all(
     (Object.keys(fields) as (keyof StoreInfoFields)[]).map((key) =>
       saveSetting(FIELD_KEYS[key], fields[key] ?? '')
     )
   );
   await markStoreInfoDirty();
+  if (!silent) await notifyOnlineStoreSettingChanged();
 }
 
 // There's no offline outbox for info fields (unlike products' sync_queue) — instead,

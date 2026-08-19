@@ -138,6 +138,13 @@ export async function enqueueFullCloudResync(): Promise<void> {
        SELECT '${table}', uuid, 'upsert' FROM ${table} WHERE uuid IS NOT NULL`
     );
   }
+  // inventory_history isn't in either list above (see its own trigger comment),
+  // but a first-time seed of an existing device's data must still capture any
+  // sold/removed-product history that predates this device's first cloud sync.
+  await database.runAsync(
+    `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation)
+     SELECT 'inventory_history', uuid, 'upsert' FROM inventory_history WHERE uuid IS NOT NULL`
+  );
   await database.runAsync(
     `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert')`
   );
@@ -576,6 +583,28 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
      BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
     `CREATE TRIGGER IF NOT EXISTS trg_businesses_cloud_upd AFTER UPDATE ON businesses
      BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
+    // Invoice/purchase numbering and app preferences ride along on the same
+    // users/{uid} root doc as the business profile (see pushBusinessProfile), so
+    // an edit to either singleton counter just needs to enqueue the same fixed
+    // 'businesses'/'singleton' key — no separate collection/queue-key needed.
+    `CREATE TRIGGER IF NOT EXISTS trg_invoice_counter_cloud_upd AFTER UPDATE ON invoice_counter
+     BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
+    `CREATE TRIGGER IF NOT EXISTS trg_purchase_counter_cloud_upd AFTER UPDATE ON purchase_counter
+     BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert'); END`,
+    // inventory_history (sold/removed product archive) — write-once via
+    // INSERT OR REPLACE on UNIQUE(product_id), which SQLite implements as a
+    // delete-then-insert on conflict, not an UPDATE — so only insert/delete
+    // triggers are needed/correct here (no _upd trigger, unlike the
+    // CLOUD_SYNC_MUTABLE_TABLES block above).
+    `CREATE TRIGGER IF NOT EXISTS trg_inventory_history_cloud_ins AFTER INSERT ON inventory_history
+     WHEN NEW.uuid IS NOT NULL
+     BEGIN INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('inventory_history', NEW.uuid, 'upsert'); END`,
+    `CREATE TRIGGER IF NOT EXISTS trg_inventory_history_cloud_del AFTER DELETE ON inventory_history
+     WHEN OLD.uuid IS NOT NULL
+     BEGIN
+       INSERT OR REPLACE INTO cloud_tombstones (entity_type, uuid, deleted_at) VALUES ('inventory_history', OLD.uuid, CURRENT_TIMESTAMP);
+       INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('inventory_history', OLD.uuid, 'delete');
+     END`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -652,10 +681,17 @@ export async function saveBusiness(data: {
 }): Promise<void> {
   const database = await getDatabase();
 
+  // updated_at must be set here (not left to a column default) — INSERT OR REPLACE
+  // is a delete+insert under the hood, so a DEFAULT CURRENT_TIMESTAMP would only
+  // ever apply on the row's very first insert, not on subsequent saves. Without an
+  // explicit fresh value here, every local edit after the first leaves updated_at
+  // stale, and the cloud pull engine's LWW check in applyRootDoc() treats a stale/
+  // falsy local timestamp as "always lose to any incoming doc" — silently clobbering
+  // a just-made local edit with an older cloud echo before it even gets pushed.
   await database.runAsync(
-    `INSERT OR REPLACE INTO businesses (id, name, type, phone, address, logo_path)
-     VALUES (1, ?, ?, ?, ?, ?)`,
-    [data.name, data.type, data.phone, data.address, data.logoPath ?? null]
+    `INSERT OR REPLACE INTO businesses (id, name, type, phone, address, logo_path, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?)`,
+    [data.name, data.type, data.phone, data.address, data.logoPath ?? null, new Date().toISOString()]
   );
 }
 
@@ -685,6 +721,24 @@ export async function loadBusiness(): Promise<{
     address: row.address,
     logoPath: row.logo_path,
   };
+}
+
+// Queues a business-profile push for changes that never touch a SQLite row —
+// app preferences (settingsStore/languageStore, AsyncStorage-only) and Online
+// Store settings (the `settings` KV table) piggyback on the same users/{uid}
+// root doc as the business profile/counters (see pushEngine.ts's
+// pushBusinessProfile), so they reuse this same fixed synthetic queue key
+// rather than needing their own row-level trigger. Also bumps a dedicated
+// `cloud_prefs_updated_at` marker — the `preferences` sub-object on that root
+// doc needs its own LWW timestamp independent of `business.updated_at`, since
+// a settings-only edit shouldn't be starved by (or clobber) an unrelated
+// business-profile edit made around the same time.
+export async function enqueueBusinessProfilePush(): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('businesses', 'singleton', 'upsert')`
+  );
+  await saveSetting('cloud_prefs_updated_at', new Date().toISOString());
 }
 
 export async function saveSetting(key: string, value: string): Promise<void> {

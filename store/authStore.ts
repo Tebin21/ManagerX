@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, InteractionManager } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { migratedAsyncStorage } from '@/lib/migratedStorage';
@@ -110,7 +110,11 @@ let adoptingPromise: Promise<void> | null = null;
 // initialize() below. Set back to false to restore normal startup behavior.
 const DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER = true;
 
-async function adoptSignedInUser(
+// Exported for reconcileColdStart() below — the cold-start reconciliation entry
+// point deliberately reuses this exact function (dedup/decision-tree included)
+// rather than a parallel path, so the account-switch wipe guard and the
+// pendingCloudConflict routing stay correct no matter which caller triggered it.
+export async function adoptSignedInUser(
   user: User,
   set: (state: Partial<AuthState>) => void,
   auto: boolean = false
@@ -251,6 +255,48 @@ async function adoptSignedInUserInner(
   // deliberately NOT set yet, so a killed app before the user decides re-enters
   // this same branch on next launch instead of silently picking a side.
   useBusinessStore.getState().setPendingCloudConflict(user.uid);
+}
+
+let coldStartReconcileRequested = false;
+
+// Cold-start cloud reconciliation entry point — called once from app/index.tsx
+// after auth/business store hydration, for a persisted session on a fresh app
+// launch. Deliberately NOT wired through onAuthStateChanged/AUTO_START_ENABLED
+// (both stay exactly as they were left during the now-fixed native crash
+// isolation, see DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER above and
+// lib/cloudSync/index.ts) — this is a separate, explicit call that reuses the
+// same adoptSignedInUser() decision tree with `auto` left at its default
+// `false`, so the full restore/push/conflict logic actually runs (unlike the
+// disabled listener's own auto=true calls, which early-exit immediately).
+//
+// Firestore work is deferred past the first interaction frame here — not just
+// inside startCloudSync() below, since cloudBusinessDataExists()/
+// restoreFromCloudBulk() run *before* startCloudSync() is ever reached inside
+// adoptSignedInUserInner, so they are not covered by that function's own
+// internal InteractionManager deferral. This preserves the "no burst of native
+// Firestore calls on the very first tick of cold start" property the two
+// isolation flags were protecting, without touching either of them.
+export async function reconcileColdStart(): Promise<void> {
+  if (!isFirebaseAvailable || coldStartReconcileRequested) return;
+  coldStartReconcileRequested = true;
+
+  const { useBusinessStore } = await import('@/store/businessStore');
+  useBusinessStore.getState().setReconciling(true);
+
+  await new Promise<void>((resolve) => {
+    InteractionManager.runAfterInteractions(() => resolve());
+  });
+
+  try {
+    const liveUser = getFirebaseAuth().currentUser;
+    if (!liveUser) return;
+    await adoptSignedInUser(liveUser, useAuthStore.setState, false);
+  } catch (e) {
+    useBusinessStore.getState().setReconcileError(e instanceof Error ? e.message : String(e));
+    if (__DEV__) console.warn('[Froshiar] Cold-start cloud reconciliation failed:', e);
+  } finally {
+    useBusinessStore.getState().setReconciling(false);
+  }
 }
 
 // Re-acquires a fresh credential for the currently signed-in user so

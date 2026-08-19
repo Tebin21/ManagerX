@@ -24,6 +24,7 @@ export const TABLE_TO_COLLECTION: Partial<Record<string, string>> = {
   debts: 'debts',
   purchase_debts: 'purchaseDebts',
   debt_payments: 'debtPayments',
+  inventory_history: 'inventoryHistory',
 };
 
 // Push/pull order matters: a row with a foreign key (e.g. a sale's customer_id)
@@ -33,7 +34,7 @@ export const TABLE_TO_COLLECTION: Partial<Record<string, string>> = {
 export const CLOUD_TABLE_ORDER = [
   'categories', 'products', 'customers', 'suppliers',
   'sales', 'purchases', 'expenses',
-  'debts', 'purchase_debts', 'debt_payments',
+  'debts', 'purchase_debts', 'debt_payments', 'inventory_history',
 ] as const;
 
 async function uuidOf(db: SQLite.SQLiteDatabase, table: string, localId: number | null | undefined): Promise<string | null> {
@@ -153,6 +154,12 @@ export async function rowToCloudDoc(db: SQLite.SQLiteDatabase, table: string, ro
     doc.items = await embedPurchaseItems(db, row.id as number);
   } else if (table === 'products') {
     delete doc.purchase_id; // local-only linkage; supplier_name/phone/address are already denormalized on this row
+    // image_uri is a device-local file://content:// path — meaningless (and
+    // broken-looking) on another device. Images are intentionally local-only for
+    // this phase (no cloud image storage of any kind) — the rest of the product
+    // record still syncs normally. image_remote_url is the separate, Online
+    // Store subscription-gated storefront pipeline — left as-is, unrelated here.
+    delete doc.image_uri;
   } else if (table === 'debts') {
     doc.sale_uuid = await uuidOf(db, 'sales', row.sale_id as number | null);
     delete doc.sale_id;
@@ -165,6 +172,17 @@ export async function rowToCloudDoc(db: SQLite.SQLiteDatabase, table: string, ro
     delete doc.debt_id;
     doc.customer_uuid = await uuidOf(db, 'customers', row.customer_id as number | null);
     delete doc.customer_id;
+  } else if (table === 'inventory_history') {
+    // Same local-only-image rule as products — this table snapshots a product's
+    // image_uri at archive time, which is just as meaningless cross-device.
+    delete doc.image_uri;
+    // product_id has no FK constraint here either (the whole point of this table
+    // is to survive the source product's deletion) — 0-fallback, same reasoning
+    // as debt_payments.debt_id above.
+    doc.product_uuid = (await uuidOf(db, 'products', row.product_id as number | null)) ?? null;
+    delete doc.product_id;
+    doc.purchase_uuid = await uuidOf(db, 'purchases', row.purchase_id as number | null);
+    delete doc.purchase_id;
   }
 
   return doc;
@@ -187,6 +205,12 @@ export async function cloudDocToRow(
   const row: Record<string, unknown> = { ...doc };
   delete row.items; // sale_items/purchase_items are applied separately, after the parent row is merged
   delete row._syncedAt;
+  // Defensive strip on pull too — mergeSimpleTable() (lib/backup.ts) builds its
+  // UPDATE from Object.keys(row) verbatim, so a stray image_uri here (from a
+  // doc pushed by an older build before rowToCloudDoc started stripping it)
+  // would otherwise silently overwrite this device's own local file reference
+  // with another device's meaningless, broken local path.
+  if (table === 'products' || table === 'inventory_history') delete row.image_uri;
 
   if (table === 'sales') {
     const customerUuid = row.customer_uuid as string | null;
@@ -219,6 +243,16 @@ export async function cloudDocToRow(
     const customerUuid = row.customer_uuid as string | null;
     delete row.customer_uuid;
     row.customer_id = customerUuid ? await localIdOf(db, 'customers', customerUuid) : null;
+  } else if (table === 'inventory_history') {
+    const productUuid = row.product_uuid as string | null;
+    delete row.product_uuid;
+    // product_id is NOT NULL on this table (see lib/sqlite.ts) but has no FK
+    // constraint — 0-fallback when the source product isn't synced locally,
+    // same reasoning as debt_payments.debt_id above.
+    row.product_id = (await localIdOf(db, 'products', productUuid)) ?? 0;
+    const purchaseUuid = row.purchase_uuid as string | null;
+    delete row.purchase_uuid;
+    row.purchase_id = purchaseUuid ? await localIdOf(db, 'purchases', purchaseUuid) : null;
   }
 
   return row;

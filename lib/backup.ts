@@ -808,7 +808,10 @@ async function mergeBusinessSingleton(db: SQLite.SQLiteDatabase, rows: Record<st
 // invoice_counter / purchase_counter are fixed-id singletons merged by value,
 // not matched row-by-row: taking the max guarantees a merged-in sale/purchase's
 // number is never re-issued, without needing to inspect every invoice/purchase number.
-async function mergeCounter(
+// Exported for lib/cloudSync/pullEngine.ts's applyRootDoc(), which applies the
+// same max-merge policy to a cloud-pulled counter value rather than
+// re-implementing conflict resolution for it — see the comment above.
+export async function mergeCounter(
   db: SQLite.SQLiteDatabase,
   table: 'invoice_counter' | 'purchase_counter',
   rows: Record<string, unknown>[]

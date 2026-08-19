@@ -13,12 +13,40 @@ import { saveSetting, loadSetting } from '@/lib/sqlite';
 
 const API_KEY_STORE_KEY = 'online_store_api_key';
 
+// These settings are read into the Firestore root doc's preferences.onlineStore
+// object by lib/cloudSync/pushEngine.ts's pushBusinessProfile(), but nothing in
+// this file previously enqueued a push of its own — so an Online-Store-settings
+// edit had no direct trigger path to the cloud, only reaching it incidentally
+// whenever something unrelated (a business/settings/language edit) happened to
+// enqueue one. Mirrors store/settingsStore.ts's notifyPreferencesChanged() —
+// never throws, a device with no signed-in user just stays local-only until the
+// next real sync trigger picks it up.
+export async function notifyOnlineStoreSettingChanged(): Promise<void> {
+  try {
+    const { enqueueBusinessProfilePush } = await import('@/lib/sqlite');
+    await enqueueBusinessProfilePush();
+    const { useAuthStore } = await import('@/store/authStore');
+    const uid = useAuthStore.getState().user?.id;
+    if (uid) {
+      const { scheduleCloudPush } = await import('@/lib/cloudSync');
+      scheduleCloudPush(uid);
+    }
+  } catch { /* non-critical — the next interval-driven push cycle still picks this up */ }
+}
+
 export async function getStoreEnabled(): Promise<boolean> {
   return (await loadSetting('online_store_enabled')) === '1';
 }
 
-export async function setStoreEnabled(enabled: boolean): Promise<void> {
+// `silent` is used exclusively by lib/cloudSync/pullEngine.ts's applyRootDoc()
+// when applying an incoming cloud value locally — without it, applying a pulled
+// change would itself enqueue a fresh push right back to Firestore, creating a
+// pull-triggers-push-triggers-pull loop between two devices (the same reason
+// applyRootDoc writes settingsStore/languageStore via their raw zustand
+// .setState() instead of their notify-wrapped setter actions).
+export async function setStoreEnabled(enabled: boolean, silent = false): Promise<void> {
   await saveSetting('online_store_enabled', enabled ? '1' : '0');
+  if (!silent) await notifyOnlineStoreSettingChanged();
 }
 
 // "Enable Online Store For All Products" master toggle (Inventory header bulk-sync
@@ -30,14 +58,16 @@ export async function getBulkPublishEnabled(): Promise<boolean> {
 
 export async function setBulkPublishEnabled(enabled: boolean): Promise<void> {
   await saveSetting('online_store_bulk_publish_enabled', enabled ? '1' : '0');
+  await notifyOnlineStoreSettingChanged();
 }
 
 export async function getStoreSlug(): Promise<string | null> {
   return loadSetting('online_store_slug');
 }
 
-export async function setStoreSlug(slug: string): Promise<void> {
+export async function setStoreSlug(slug: string, silent = false): Promise<void> {
   await saveSetting('online_store_slug', slug);
+  if (!silent) await notifyOnlineStoreSettingChanged();
 }
 
 export async function getLastSyncAt(): Promise<string | null> {

@@ -24,6 +24,22 @@ export const useLanguageStore = create<LanguageState>()(
         i18n.changeLanguage(lang).catch(() => {});
 
         set({ language: lang, isRTL });
+
+        // Piggyback on the business-profile root doc, same as settingsStore's
+        // preferences (see lib/cloudSync/pushEngine.ts's pushBusinessProfile) —
+        // never throws, a device with no signed-in user just stays local-only.
+        (async () => {
+          try {
+            const { enqueueBusinessProfilePush } = await import('@/lib/sqlite');
+            await enqueueBusinessProfilePush();
+            const { useAuthStore } = await import('@/store/authStore');
+            const uid = useAuthStore.getState().user?.id;
+            if (uid) {
+              const { scheduleCloudPush } = await import('@/lib/cloudSync');
+              scheduleCloudPush(uid);
+            }
+          } catch { /* non-critical */ }
+        })();
       },
     }),
     {
