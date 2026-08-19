@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useBusinessStore } from '@/store/businessStore';
+import { Colors } from '@/constants/colors';
 
 // Shown when a sign-in detects that BOTH this device's local SQLite data AND the
 // signed-in account's Firestore cloud data are non-empty — the one case
@@ -115,7 +116,7 @@ export default function CloudDataConflictScreen() {
         end={{ x: 0.9, y: 1 }}
         style={styles.header}
       >
-        <Ionicons name="cloud-outline" size={40} color="#FFFFFF" style={{ marginBottom: 12 }} />
+        <Ionicons name="cloud-outline" size={40} color={Colors.white} style={{ marginBottom: 12 }} />
         <Text style={styles.headline}>{t('cloudConflict.title')}</Text>
         <Text style={styles.subtitle}>{t('cloudConflict.subtitle')}</Text>
       </LinearGradient>
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 8,
   },

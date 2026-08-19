@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, StatusBar, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, Image, StatusBar, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -7,35 +7,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { OtpCodeInput } from '@/components/auth/OtpCodeInput';
+import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
+import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 
 const RESEND_COOLDOWN_SECONDS = 60;
+
+function maskEmail(email: string | null): string {
+  if (!email) return '';
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = local.slice(0, 2);
+  return `${visible}${'*'.repeat(Math.max(local.length - visible.length, 3))}@${domain}`;
+}
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { pendingVerificationEmail, checkEmailVerification, sendVerificationEmail, cancelPendingVerification } =
-    useAuthStore();
+  const { pendingVerificationEmail, verifyEmailOtp, resendEmailOtp, cancelPendingVerification } = useAuthStore();
   const { colors } = useAppTheme();
+  const { isRTL } = useRTL();
   const insets = useSafeAreaInsets();
-  // Only set right after sign-up (see signup.tsx); absent on a relaunch straight
-  // into this screen, which falls back to the normal "we sent a link" message —
-  // the user can still tell from the Resend button whether it's arriving.
+  // Only set right after sign-up (see signup.tsx) — '0'/'1' tells us whether
+  // signUpWithEmail's own OTP request already succeeded, so this screen knows
+  // not to fire a redundant one. Absent entirely on the sign-in
+  // needsVerification path and on a cold-start relaunch straight into this
+  // screen — both cases where no code has been requested yet this session.
   const { initialSendFailed } = useLocalSearchParams<{ initialSendFailed?: string }>();
-  const didInitialSendFail = initialSendFailed === '1';
 
-  const [checking, setChecking] = useState(false);
-  const [notVerifiedYet, setNotVerifiedYet] = useState(false);
-  const [checkError, setCheckError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [inputLocked, setInputLocked] = useState(false);
 
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const didInitForEmail = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -57,32 +73,70 @@ export default function VerifyEmailScreen() {
     }, 1000);
   };
 
-  const handleCheckVerified = async () => {
-    setNotVerifiedYet(false);
-    setCheckError(null);
-    setChecking(true);
-    const { verified, error } = await checkEmailVerification();
-    setChecking(false);
+  useEffect(() => {
+    if (!pendingVerificationEmail) return;
+    if (didInitForEmail.current === pendingVerificationEmail) return;
+    didInitForEmail.current = pendingVerificationEmail;
+
+    if (initialSendFailed === '1') {
+      // signUpWithEmail's own send already failed — surface that and let the
+      // user tap Resend manually rather than immediately retrying for them.
+      setResendError(t('verifyEmail.sendFailedMessage', { email: maskEmail(pendingVerificationEmail) }));
+      return;
+    }
+    if (initialSendFailed === '0') {
+      // signUpWithEmail already sent a code successfully — just match its cooldown.
+      startCooldown();
+      return;
+    }
+    // No param at all: arrived via login.tsx's needsVerification path, or a
+    // cold-start relaunch straight into this screen — either way, no code has
+    // been requested yet this session.
+    void handleResend(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingVerificationEmail, initialSendFailed]);
+
+  const handleVerify = async (submittedCode?: string) => {
+    const value = submittedCode ?? code;
+    if (value.length !== 6) return;
+    setVerifyError(null);
+    setVerifying(true);
+    const { verified, error, locked } = await verifyEmailOtp(value);
+    setVerifying(false);
+    if (locked) {
+      setInputLocked(true);
+    }
     if (error) {
-      setCheckError(error);
+      setVerifyError(error);
     } else if (verified) {
       router.replace('/');
     } else {
-      setNotVerifiedYet(true);
+      setVerifyError(t('verifyEmail.errorInvalidCode'));
     }
   };
 
-  const handleResend = async () => {
-    setResendMessage(null);
-    setResendError(null);
-    setResending(true);
-    const { error } = await sendVerificationEmail();
-    setResending(false);
-    if (error) {
-      setResendError(error);
-    } else {
-      setResendMessage(t('verifyEmail.resendSuccess'));
+  const handleResend = async (silent = false) => {
+    if (!silent) {
+      setResendMessage(null);
+      setResendError(null);
+      setResending(true);
     }
+    setCode('');
+    setVerifyError(null);
+    setInputLocked(false);
+    const { error } = await resendEmailOtp();
+    if (!silent) {
+      setResending(false);
+      if (error) {
+        setResendError(error);
+      } else {
+        setResendMessage(t('verifyEmail.resendSuccess'));
+      }
+    } else if (error) {
+      setResendError(error);
+    }
+    // Cooldown starts even on failure — prevents rapid repeated requests
+    // regardless of whether the send itself succeeded.
     startCooldown();
   };
 
@@ -101,13 +155,31 @@ export default function VerifyEmailScreen() {
         end={{ x: 0.9, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 16 }]}
       >
+        <View style={[styles.backRow, isRTL && styles.backRowRTL]}>
+          <TouchableOpacity onPress={handleBackToLogin} style={styles.backBtn}>
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+
+        <MotiView
+          from={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15, stiffness: 110, delay: 60 }}
+        >
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </MotiView>
+
         <MotiView
           from={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', damping: 15, stiffness: 110, delay: 100 }}
         >
           <View style={styles.iconCircle}>
-            <Ionicons name="mail-unread-outline" size={36} color="#FFFFFF" />
+            <Ionicons name="mail-unread-outline" size={36} color={Colors.white} />
           </View>
         </MotiView>
 
@@ -130,31 +202,33 @@ export default function VerifyEmailScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 300 }}
         >
-          {didInitialSendFail ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>
-                {t('verifyEmail.sendFailedMessage', { email: pendingVerificationEmail ?? '' })}
-              </Text>
-            </View>
-          ) : (
-            <Text style={[styles.message, { color: colors.gray600 }]}>
-              {t('verifyEmail.message', { email: pendingVerificationEmail ?? '' })}
-            </Text>
-          )}
+          <Text style={[styles.message, { color: colors.gray600 }]}>
+            {t('verifyEmail.message', { email: maskEmail(pendingVerificationEmail) })}
+          </Text>
 
-          {notVerifiedYet && (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>{t('verifyEmail.notVerifiedYet')}</Text>
-            </View>
-          )}
+          <View style={styles.otpBlock}>
+            <OtpCodeInput
+              value={code}
+              onChange={(next) => {
+                setCode(next);
+                setVerifyError(null);
+              }}
+              onComplete={(finalCode) => handleVerify(finalCode)}
+              error={!!verifyError}
+              disabled={inputLocked || verifying}
+            />
+          </View>
 
-          {checkError && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{checkError}</Text>
-            </View>
-          )}
+          <View style={styles.buttonBlock}>
+            <PrimaryButton
+              label={t('verifyEmail.verifyButton')}
+              onPress={() => handleVerify()}
+              loading={verifying}
+              disabled={code.length !== 6 || inputLocked}
+            />
+          </View>
 
-          <PrimaryButton label={t('verifyEmail.checkButton')} onPress={handleCheckVerified} loading={checking} />
+          {verifyError && <AuthErrorBanner message={verifyError} style={styles.errorBanner} />}
 
           {resendMessage && (
             <View style={styles.successBox}>
@@ -162,24 +236,24 @@ export default function VerifyEmailScreen() {
             </View>
           )}
 
-          {resendError && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{resendError}</Text>
-            </View>
-          )}
+          {resendError && <AuthErrorBanner message={resendError} style={styles.errorBanner} />}
 
-          <PrimaryButton
-            label={cooldown > 0 ? t('verifyEmail.resendCooldown', { seconds: cooldown }) : t('verifyEmail.resendBtn')}
-            onPress={handleResend}
-            loading={resending}
-            disabled={cooldown > 0}
-            variant="outline"
-          />
+          <View style={styles.buttonBlock}>
+            <PrimaryButton
+              label={cooldown > 0 ? t('verifyEmail.resendCooldown', { seconds: cooldown }) : t('verifyEmail.resendBtn')}
+              onPress={() => handleResend()}
+              loading={resending}
+              disabled={cooldown > 0}
+              variant="outline"
+            />
+          </View>
 
           <TouchableOpacity onPress={handleBackToLogin} style={styles.backToLoginRow}>
             <Text style={[styles.linkText, { color: colors.primary }]}>{t('verifyEmail.backToLogin')}</Text>
           </TouchableOpacity>
         </MotiView>
+
+        <SupportFooter />
       </ScrollView>
     </View>
   );
@@ -194,6 +268,25 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
   },
+  backRow: {
+    flexDirection: 'row',
+    width: '100%',
+    marginBottom: 12,
+  },
+  backRowRTL: { flexDirection: 'row-reverse' },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    marginBottom: 10,
+  },
   iconCircle: {
     width: 64,
     height: 64,
@@ -206,51 +299,34 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.white,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
   scroll: {
     flexGrow: 1,
-    paddingTop: 28,
+    paddingTop: 32,
     paddingHorizontal: 24,
-    gap: 18,
+    paddingBottom: 12,
   },
   message: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 10,
+    marginBottom: 28,
   },
-  infoBox: {
-    padding: 12,
-    marginBottom: 4,
-    backgroundColor: '#FFF8E1',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+  otpBlock: {
+    marginBottom: 28,
   },
-  infoText: {
-    fontSize: 13,
-    color: '#92640A',
-    textAlign: 'center',
+  buttonBlock: {
+    marginBottom: 20,
   },
-  errorBox: {
-    padding: 12,
-    marginVertical: 2,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  errorText: {
-    fontSize: 13,
-    color: Colors.error,
-    textAlign: 'center',
+  errorBanner: {
+    marginBottom: 16,
   },
   successBox: {
     paddingVertical: 8,
-    marginTop: 2,
+    marginBottom: 16,
   },
   successText: {
     fontSize: 13,
@@ -258,7 +334,8 @@ const styles = StyleSheet.create({
   },
   backToLoginRow: {
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
+    marginBottom: 20,
   },
   linkText: {
     fontSize: 13,

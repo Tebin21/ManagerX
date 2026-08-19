@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { EmailPasswordForm } from '@/components/auth/EmailPasswordForm';
+import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
@@ -125,11 +126,7 @@ export default function LoginScreen() {
               <Text style={[styles.linkText, { color: colors.primary }]}>{t('login.forgotPassword')}</Text>
             </TouchableOpacity>
 
-            {authError && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{authError}</Text>
-              </View>
-            )}
+            {authError && <AuthErrorBanner message={authError} style={styles.errorBanner} />}
 
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
@@ -173,7 +170,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.white,
     textAlign: 'center',
     letterSpacing: 0.3,
     marginBottom: 8,
@@ -194,17 +191,8 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 14,
   },
-  errorBox: {
-    padding: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  errorText: {
-    fontSize: 13,
-    color: Colors.error,
-    textAlign: 'center',
+  errorBanner: {
+    marginBottom: 0,
   },
   forgotLink: {
     alignSelf: 'flex-end',

@@ -43,7 +43,15 @@ export function sendPasswordResetEmail(): Promise<never> {
   return Promise.reject(new Error('Firebase Auth is not available on web.'));
 }
 
+export function reload(): Promise<never> {
+  return Promise.reject(new Error('Firebase Auth is not available on web.'));
+}
+
 export function updateProfile(): Promise<never> {
+  return Promise.reject(new Error('Firebase Auth is not available on web.'));
+}
+
+export function getIdToken(): Promise<never> {
   return Promise.reject(new Error('Firebase Auth is not available on web.'));
 }
 

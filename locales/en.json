@@ -182,15 +182,21 @@
     "successMessage":   "We've sent a password reset link to {{email}}."
   },
   "verifyEmail": {
-    "title":          "Verify Your Email",
-    "message":        "We've sent a verification link to {{email}}. Verify your email to continue.",
-    "sendFailedMessage": "We couldn't send the verification email to {{email}} automatically. Tap \"Resend Email\" below to try again.",
-    "checkButton":    "I've Verified My Email",
-    "notVerifiedYet": "Not verified yet. Please check your inbox and tap the link.",
-    "resendBtn":      "Resend Email",
-    "resendCooldown": "Resend in {{seconds}}s",
-    "resendSuccess":  "Verification email sent again.",
-    "backToLogin":    "Back to Log In"
+    "title":               "Verify Your Email",
+    "message":             "Enter the 6-digit code we sent to {{email}} to continue.",
+    "sendFailedMessage":   "We couldn't send the verification code to {{email}} automatically. Tap \"Resend Code\" below to try again.",
+    "verifyButton":        "Verify Code",
+    "resendBtn":           "Resend Code",
+    "resendCooldown":      "Resend in {{seconds}}s",
+    "resendSuccess":       "A new code has been sent.",
+    "resendCooldownError": "Please wait before requesting another code.",
+    "resendRateLimited":   "Too many code requests. Please wait a while before trying again.",
+    "sendFailedGeneric":   "We couldn't send the code. Please try again.",
+    "backToLogin":         "Back to Log In",
+    "errorInvalidCode":    "That code isn't correct. Please check and try again.",
+    "errorCodeExpired":    "This code has expired. Request a new one.",
+    "errorTooManyAttempts":"Too many incorrect attempts. Request a new code to try again.",
+    "errorNoPendingCode":  "No active code found. Request a new one below."
   },
   "authErrors": {
     "emailAlreadyInUse":               "An account with this email already exists. Try logging in instead.",
@@ -201,7 +207,17 @@
     "userNotFound":                    "No account found with this email.",
     "networkError":                    "No internet connection. Please check your connection and try again.",
     "tooManyRequests":                 "Too many attempts. Please wait a moment and try again.",
-    "generic":                         "Something went wrong. Please try again."
+    "generic":                         "Something went wrong. Please try again.",
+    "deleteNetworkError":              "No internet connection. Please check your connection and try again.",
+    "deleteRequiresRecentLogin":       "Please sign out and sign back in, then try deleting your account again.",
+    "deleteGeneric":                   "Failed to delete your account. Please try again.",
+    "googleUnavailableWeb":            "Google Sign-In requires the iOS/Android app — not available on web.",
+    "googleSignInCancelled":           "Sign-in was cancelled.",
+    "googleNoIdToken":                 "Google Sign-In failed: no ID token received.",
+    "appleIOSOnly":                    "Sign in with Apple is only available on iOS.",
+    "appleUnavailableWeb":             "Apple Sign-In requires the iOS app — not available on web.",
+    "appleUnavailableDevice":          "Sign in with Apple is not available on this device.",
+    "appleNoIdentityToken":            "Apple Sign-In failed: no identity token received."
   },
   "cloudConflict": {
     "title":               "Cloud Data Found",

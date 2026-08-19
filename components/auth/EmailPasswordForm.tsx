@@ -3,8 +3,7 @@ import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_RE } from '@/lib/validation';
 
 export interface EmailPasswordValues {
   name?: string;

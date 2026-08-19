@@ -1,0 +1,8 @@
+{
+  "port": 4200,
+  "firebaseProjectId": "managerx-bac3a",
+  "firebaseServiceAccountJson": "{\"type\":\"service_account\",\"project_id\":\"managerx-bac3a\", ...paste the full JSON from Firebase Console > Project Settings > Service Accounts > Generate new private key, minified to one line...}",
+  "resendApiKey": "re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "resendFromAddress": "support@froshiar.store",
+  "otpHashPepper": "replace-with-a-long-random-string-e.g.-output-of-openssl-rand-hex-32"
+}

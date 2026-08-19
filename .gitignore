@@ -41,6 +41,10 @@ scripts/online-store-subscription-admin/subscriptions.json
 online-store/server/config.local.json
 online-store/server/data/
 
+# Auth backend (email OTP verification) — never commit the local server config
+# (holds a live Firebase service-account key, Resend API key, and OTP hash pepper)
+auth-server/config.local.json
+
 # Next.js (online-store/admin) — build output and generated files
 .next/
 *.tsbuildinfo

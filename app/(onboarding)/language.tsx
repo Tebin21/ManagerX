@@ -81,7 +81,7 @@ export default function LanguageScreen() {
                 <MotiView
                   animate={{
                     borderColor: isSelected ? colors.primary : Colors.gray200,
-                    backgroundColor: isSelected ? colors.softBlue : '#FFFFFF',
+                    backgroundColor: isSelected ? colors.softBlue : Colors.white,
                     scale: isSelected ? 1.01 : 1,
                   }}
                   transition={{ type: 'spring', damping: 18, stiffness: 200 }}
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: Colors.white,
     marginBottom: 6,
   },
   headerSub: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: Theme.radius.card,
     padding: 20,
     borderWidth: 2,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkText: {
-    color: '#FFFFFF',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

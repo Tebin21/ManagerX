@@ -1,0 +1,23 @@
+# Deployed as a SEPARATE Render service from online-store-api, on purpose — this
+# service holds a Firebase service-account key (full Admin SDK access to Firebase
+# Auth + Firestore), which must never share a deploy/secret surface with the Online
+# Store product's admin API key.
+#
+# Usage: Render dashboard -> New -> Blueprint -> point at this repo -> it reads this
+# file, OR configure manually as a Docker Web Service (same as online-store-api).
+services:
+  - type: web
+    name: froshiar-auth-api
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./auth-server/Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: FIREBASE_PROJECT_ID
+        value: managerx-bac3a
+      # FIREBASE_SERVICE_ACCOUNT_JSON, RESEND_API_KEY, RESEND_FROM_ADDRESS, and
+      # OTP_HASH_PEPPER are all secrets — set them directly in the Render
+      # dashboard's Environment tab, never here. The server refuses to start
+      # without FIREBASE_SERVICE_ACCOUNT_JSON.
+    autoDeploy: true

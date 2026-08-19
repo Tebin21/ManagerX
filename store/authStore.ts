@@ -13,9 +13,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification,
   reload,
   updateProfile,
+  getIdToken,
 } from '@/lib/firebase';
 import type { User, AuthCredential } from '@react-native-firebase/auth';
 import i18n from '@/lib/i18n';
@@ -31,6 +31,116 @@ const WEB_CLIENT_ID =
 // signInWithEmail below; every other account — including every other
 // email/password sign-up — goes through verification exactly as before.
 const APP_REVIEW_DEMO_EMAIL = 'demo@froshiar.store';
+
+// Base URL of the standalone auth-server/ backend (see that folder's README) that
+// generates/verifies the 6-digit email OTP. Never falls back to a hardcoded prod
+// URL — an unset var should fail loudly (every OTP call rejects) rather than
+// silently point at nothing.
+const AUTH_SERVER_URL = process.env.EXPO_PUBLIC_AUTH_SERVER_URL ?? '';
+
+type OtpErrorCode =
+  | 'network'
+  | 'cooldown'
+  | 'rate_limited'
+  | 'email_send_failed'
+  | 'no_pending_otp'
+  | 'expired'
+  | 'invalid_code'
+  | 'too_many_attempts'
+  | 'server_error'
+  | 'not_configured';
+
+class OtpRequestError extends Error {
+  code: OtpErrorCode;
+  constructor(code: OtpErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+// Thin fetch wrapper for auth-server/'s /api/otp/* endpoints. Every call carries
+// the caller's own fresh Firebase ID token — the backend derives uid/email from
+// that token itself, so a client can never claim to be a different account.
+async function callAuthServer(
+  path: string,
+  opts: { idToken: string; body?: Record<string, unknown> }
+): Promise<Record<string, any>> {
+  if (!AUTH_SERVER_URL) throw new OtpRequestError('not_configured');
+
+  let res: Response;
+  try {
+    res = await fetch(`${AUTH_SERVER_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${opts.idToken}`,
+      },
+      body: JSON.stringify(opts.body ?? {}),
+    });
+  } catch {
+    throw new OtpRequestError('network');
+  }
+
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    // fall through — json stays null, handled below
+  }
+
+  if (!res.ok) {
+    const code: OtpErrorCode =
+      typeof json?.error === 'string' && json.error.length > 0 ? json.error : 'server_error';
+    throw new OtpRequestError(code);
+  }
+  return json ?? {};
+}
+
+// Maps auth-server's OTP error codes to localized, user-friendly messages —
+// mirrors mapFirebaseAuthError below. Never surfaces the raw backend code/text.
+function mapOtpError(e: any): string {
+  const code: OtpErrorCode = e instanceof OtpRequestError ? e.code : 'server_error';
+  switch (code) {
+    case 'network':
+      return i18n.t('authErrors.networkError');
+    case 'cooldown':
+      return i18n.t('verifyEmail.resendCooldownError');
+    case 'rate_limited':
+      return i18n.t('verifyEmail.resendRateLimited');
+    case 'email_send_failed':
+    case 'not_configured':
+      return i18n.t('verifyEmail.sendFailedGeneric');
+    case 'no_pending_otp':
+      return i18n.t('verifyEmail.errorNoPendingCode');
+    case 'expired':
+      return i18n.t('verifyEmail.errorCodeExpired');
+    case 'invalid_code':
+      return i18n.t('verifyEmail.errorInvalidCode');
+    case 'too_many_attempts':
+      return i18n.t('verifyEmail.errorTooManyAttempts');
+    default:
+      return i18n.t('authErrors.generic');
+  }
+}
+
+// Shared by signUpWithEmail's initial send and resendEmailOtp's "Resend Code" —
+// both just need "ask auth-server to (re)issue a code for whoever this ID token
+// belongs to." The backend enforces cooldown/rate-limit itself; this layer only
+// reports success/failure back to the caller.
+async function requestOtpForUser(
+  user: User,
+  diagnosticOp: 'sendEmailVerification' | 'sendEmailVerificationResend'
+): Promise<{ ok: boolean; error: string | null }> {
+  try {
+    const idToken = await getIdToken(user);
+    await callAuthServer('/api/otp/request', { idToken });
+    logAuthEmailDiagnostic(diagnosticOp, { success: true });
+    return { ok: true, error: null };
+  } catch (e: any) {
+    logAuthEmailDiagnostic(diagnosticOp, { success: false, error: e });
+    return { ok: false, error: mapOtpError(e) };
+  }
+}
 
 // Lazily imported — @react-native-google-signin/google-signin's package entry point
 // also re-exports GoogleSigninButton, which calls TurboModuleRegistry.getEnforcing()
@@ -82,8 +192,8 @@ interface AuthState {
   ) => Promise<{ error: string | null; verificationEmailSent: boolean }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null; needsVerification?: boolean }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
-  checkEmailVerification: () => Promise<{ verified: boolean; error: string | null }>;
-  sendVerificationEmail: () => Promise<{ error: string | null }>;
+  verifyEmailOtp: (code: string) => Promise<{ verified: boolean; error: string | null; locked?: boolean }>;
+  resendEmailOtp: () => Promise<{ error: string | null }>;
   cancelPendingVerification: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteFirebaseAccount: () => Promise<{ error: string | null }>;
@@ -377,12 +487,16 @@ async function reacquireCredential(
   return null;
 }
 
-// Dev-only diagnostics for the four email-delivery-adjacent Firebase Auth calls.
+// Dev-only diagnostics for the email-delivery-adjacent Firebase Auth calls.
 // Never logs password/token/credential values or the email address itself —
 // only operation metadata — so these call sites are safe to leave in place
 // permanently. No-ops entirely outside __DEV__.
 function logAuthEmailDiagnostic(
-  operation: 'sendEmailVerification' | 'sendEmailVerificationResend' | 'sendPasswordResetEmail' | 'checkEmailVerification',
+  operation:
+    | 'sendEmailVerification'
+    | 'sendEmailVerificationResend'
+    | 'sendPasswordResetEmail'
+    | 'verifyEmailOtp',
   result: { success: boolean; error?: any }
 ) {
   if (!__DEV__) return;
@@ -398,9 +512,7 @@ function logAuthEmailDiagnostic(
 }
 
 // Maps Firebase Auth's error codes to localized, user-friendly messages for the
-// email/password sign-up/sign-in/reset flows — deliberately routed through i18n
-// (unlike mapFirebaseDeleteError above, which predates the project's "all
-// user-facing strings must be localized" rule and still returns raw English).
+// email/password sign-up/sign-in/reset flows — deliberately routed through i18n.
 function mapFirebaseAuthError(e: any): string {
   switch (e?.code) {
     case 'auth/email-already-in-use':
@@ -431,13 +543,13 @@ function mapFirebaseAuthError(e: any): string {
 function mapFirebaseDeleteError(e: any): string {
   switch (e?.code) {
     case 'auth/network-request-failed':
-      return 'No internet connection. Please check your connection and try again.';
+      return i18n.t('authErrors.deleteNetworkError');
     case 'auth/requires-recent-login':
     case 'auth/user-mismatch':
     case 'auth/user-not-found':
-      return 'Please sign out and sign back in, then try deleting your account again.';
+      return i18n.t('authErrors.deleteRequiresRecentLogin');
     default:
-      return 'Failed to delete your account. Please try again.';
+      return i18n.t('authErrors.deleteGeneric');
   }
 }
 
@@ -458,7 +570,7 @@ export const useAuthStore = create<AuthState>()(
 
       signInWithGoogle: async () => {
         if (!isFirebaseAvailable) {
-          return { error: 'Google Sign-In requires the iOS/Android app — not available on web.' };
+          return { error: i18n.t('authErrors.googleUnavailableWeb') };
         }
         set({ isLoading: true });
         try {
@@ -470,13 +582,13 @@ export const useAuthStore = create<AuthState>()(
           // Support both v13+ ({ type, data }) and v10 (direct object) APIs
           if ((signInResult as any)?.type && (signInResult as any).type !== 'success') {
             set({ isLoading: false });
-            return { error: 'Sign-in was cancelled.' };
+            return { error: i18n.t('authErrors.googleSignInCancelled') };
           }
           const idToken =
             (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
           if (!idToken) {
             set({ isLoading: false });
-            return { error: 'Google Sign-In failed: no ID token received.' };
+            return { error: i18n.t('authErrors.googleNoIdToken') };
           }
 
           const credential = GoogleAuthProvider.credential(idToken);
@@ -501,10 +613,10 @@ export const useAuthStore = create<AuthState>()(
 
       signInWithApple: async () => {
         if (Platform.OS !== 'ios') {
-          return { error: 'Sign in with Apple is only available on iOS.' };
+          return { error: i18n.t('authErrors.appleIOSOnly') };
         }
         if (!isFirebaseAvailable) {
-          return { error: 'Apple Sign-In requires the iOS app — not available on web.' };
+          return { error: i18n.t('authErrors.appleUnavailableWeb') };
         }
         set({ isLoading: true });
         try {
@@ -512,7 +624,7 @@ export const useAuthStore = create<AuthState>()(
           const isAvailable = await AppleAuthentication.isAvailableAsync();
           if (!isAvailable) {
             set({ isLoading: false });
-            return { error: 'Sign in with Apple is not available on this device.' };
+            return { error: i18n.t('authErrors.appleUnavailableDevice') };
           }
 
           // Apple's sign-in sheet must receive a SHA-256-hashed nonce; Firebase's
@@ -536,7 +648,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (!appleCredential.identityToken) {
             set({ isLoading: false });
-            return { error: 'Apple Sign-In failed: no identity token received.' };
+            return { error: i18n.t('authErrors.appleNoIdentityToken') };
           }
 
           const credential = AppleAuthProvider.credential(appleCredential.identityToken, rawNonce);
@@ -584,19 +696,13 @@ export const useAuthStore = create<AuthState>()(
             try { await updateProfile(user, { displayName: displayName.trim() }); } catch {}
           }
           // Account creation still succeeds either way — adoptSignedInUser() (cloud
-          // sync) is withheld until checkEmailVerification() confirms the address,
-          // so a brand-new account never enters the app unverified regardless of
-          // whether this initial send worked. Whether it worked is reported back
-          // to the caller (verificationEmailSent) so the UI can tell the user the
-          // truth instead of always claiming an email was sent — see verify-email.tsx.
-          let verificationEmailSent = true;
-          try {
-            await sendEmailVerification(user);
-            logAuthEmailDiagnostic('sendEmailVerification', { success: true });
-          } catch (e: any) {
-            verificationEmailSent = false;
-            logAuthEmailDiagnostic('sendEmailVerification', { success: false, error: e });
-          }
+          // sync) is withheld until verifyEmailOtp() confirms the address, so a
+          // brand-new account never enters the app unverified regardless of
+          // whether this initial OTP send worked. Whether it worked is reported
+          // back to the caller (verificationEmailSent) so the UI can tell the
+          // user the truth instead of always claiming a code was sent — see
+          // verify-email.tsx.
+          const { ok: verificationEmailSent } = await requestOtpForUser(user, 'sendEmailVerification');
           set({ isLoading: false, pendingVerificationEmail: user.email });
           return { error: null, verificationEmailSent };
         } catch (e: any) {
@@ -647,39 +753,45 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      checkEmailVerification: async () => {
+      // Verifies a 6-digit code against auth-server/'s /api/otp/verify (which
+      // holds the authoritative, hashed code — never generated or checked
+      // client-side). On success the backend has already called Firebase Admin's
+      // updateUser(uid, { emailVerified: true }); reload() here just picks that
+      // up on this client and, once verified, clears pendingVerificationEmail
+      // and adopts the now-signed-in user.
+      verifyEmailOtp: async (code) => {
         if (!isFirebaseAvailable) return { verified: false, error: null };
         const auth = getFirebaseAuth();
         const user = auth.currentUser;
-        if (!user) return { verified: false, error: null };
+        if (!user) return { verified: false, error: i18n.t('authErrors.generic') };
         try {
+          const idToken = await getIdToken(user);
+          await callAuthServer('/api/otp/verify', { idToken, body: { code } });
           await reload(user);
           const refreshed = auth.currentUser;
-          logAuthEmailDiagnostic('checkEmailVerification', { success: true });
+          logAuthEmailDiagnostic('verifyEmailOtp', { success: true });
           if (refreshed?.emailVerified) {
             set({ pendingVerificationEmail: null });
             await adoptSignedInUser(refreshed, set);
             return { verified: true, error: null };
           }
+          // Backend confirmed success but this client's reload() hasn't reflected
+          // it yet (rare token-cache lag) — let the user retry once rather than
+          // showing a false error.
           return { verified: false, error: null };
         } catch (e: any) {
-          logAuthEmailDiagnostic('checkEmailVerification', { success: false, error: e });
-          return { verified: false, error: mapFirebaseAuthError(e) };
+          logAuthEmailDiagnostic('verifyEmailOtp', { success: false, error: e });
+          const locked = e instanceof OtpRequestError && e.code === 'too_many_attempts';
+          return { verified: false, error: mapOtpError(e), locked };
         }
       },
 
-      sendVerificationEmail: async () => {
+      resendEmailOtp: async () => {
         if (!isFirebaseAvailable) return { error: null };
         const user = getFirebaseAuth().currentUser;
         if (!user) return { error: i18n.t('authErrors.generic') };
-        try {
-          await sendEmailVerification(user);
-          logAuthEmailDiagnostic('sendEmailVerificationResend', { success: true });
-          return { error: null };
-        } catch (e: any) {
-          logAuthEmailDiagnostic('sendEmailVerificationResend', { success: false, error: e });
-          return { error: mapFirebaseAuthError(e) };
-        }
+        const { error } = await requestOtpForUser(user, 'sendEmailVerificationResend');
+        return { error };
       },
 
       cancelPendingVerification: async () => {

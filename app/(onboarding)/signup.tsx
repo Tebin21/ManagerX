@@ -5,6 +5,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EmailPasswordForm, type EmailPasswordValues } from '@/components/auth/EmailPasswordForm';
+import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
@@ -56,9 +58,20 @@ export default function SignUpScreen() {
       >
         <View style={[styles.backRow, isRTL && styles.backRowRTL]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color="#FFFFFF" />
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color={Colors.white} />
           </TouchableOpacity>
         </View>
+        <MotiView
+          from={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 15, stiffness: 110, delay: 100 }}
+        >
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </MotiView>
         <MotiView
           from={{ opacity: 0, translateY: 16 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -87,11 +100,7 @@ export default function SignUpScreen() {
               onSubmit={handleSignUp}
             />
 
-            {authError && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{authError}</Text>
-              </View>
-            )}
+            {authError && <AuthErrorBanner message={authError} />}
 
             <TouchableOpacity onPress={() => router.replace('/(onboarding)/login')} style={styles.signInRow}>
               <Text style={[styles.linkText, { color: colors.gray600 }]}>
@@ -130,10 +139,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
+  logo: {
+    width: 40,
+    height: 40,
+    marginBottom: 12,
+  },
   headline: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.white,
     letterSpacing: 0.3,
     marginBottom: 6,
   },
@@ -146,19 +160,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 28,
     paddingHorizontal: 24,
-  },
-  errorBox: {
-    padding: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 14,
-  },
-  errorText: {
-    fontSize: 13,
-    color: Colors.error,
-    textAlign: 'center',
   },
   signInRow: {
     alignItems: 'center',
