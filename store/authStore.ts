@@ -23,6 +23,15 @@ import i18n from '@/lib/i18n';
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
 
+// TEST/APP-REVIEW ONLY — do not remove without also removing the check below.
+// A single, dedicated Firebase Authentication account (a real account, created
+// the same way any user's is — see fix.md) used exclusively by Apple App
+// Review/TestFlight testers, who have no inbox to receive a verification
+// link. Exempts *only* this exact email from the email-verification gate in
+// signInWithEmail below; every other account — including every other
+// email/password sign-up — goes through verification exactly as before.
+const APP_REVIEW_DEMO_EMAIL = 'demo@froshiar.store';
+
 // Lazily imported — @react-native-google-signin/google-signin's package entry point
 // also re-exports GoogleSigninButton, which calls TurboModuleRegistry.getEnforcing()
 // (a *throwing* native-module lookup) at module-evaluation time, not inside a function.
@@ -566,7 +575,10 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const { user } = await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
-          if (!user.emailVerified) {
+          // See APP_REVIEW_DEMO_EMAIL above — the one exempted account skips
+          // the verification gate; every other account is unaffected.
+          const isAppReviewDemoAccount = user.email?.toLowerCase() === APP_REVIEW_DEMO_EMAIL;
+          if (!user.emailVerified && !isAppReviewDemoAccount) {
             set({ isLoading: false, pendingVerificationEmail: user.email });
             return { error: null, needsVerification: true };
           }
