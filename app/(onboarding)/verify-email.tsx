@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, StatusBar, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +21,11 @@ export default function VerifyEmailScreen() {
     useAuthStore();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  // Only set right after sign-up (see signup.tsx); absent on a relaunch straight
+  // into this screen, which falls back to the normal "we sent a link" message —
+  // the user can still tell from the Resend button whether it's arriving.
+  const { initialSendFailed } = useLocalSearchParams<{ initialSendFailed?: string }>();
+  const didInitialSendFail = initialSendFailed === '1';
 
   const [checking, setChecking] = useState(false);
   const [notVerifiedYet, setNotVerifiedYet] = useState(false);
@@ -77,8 +82,8 @@ export default function VerifyEmailScreen() {
       setResendError(error);
     } else {
       setResendMessage(t('verifyEmail.resendSuccess'));
-      startCooldown();
     }
+    startCooldown();
   };
 
   const handleBackToLogin = async () => {
@@ -125,9 +130,17 @@ export default function VerifyEmailScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 300 }}
         >
-          <Text style={[styles.message, { color: colors.gray600 }]}>
-            {t('verifyEmail.message', { email: pendingVerificationEmail ?? '' })}
-          </Text>
+          {didInitialSendFail ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>
+                {t('verifyEmail.sendFailedMessage', { email: pendingVerificationEmail ?? '' })}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.message, { color: colors.gray600 }]}>
+              {t('verifyEmail.message', { email: pendingVerificationEmail ?? '' })}
+            </Text>
+          )}
 
           {notVerifiedYet && (
             <View style={styles.infoBox}>
@@ -201,16 +214,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 28,
     paddingHorizontal: 24,
-    gap: 14,
+    gap: 18,
   },
   message: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   infoBox: {
     padding: 12,
+    marginBottom: 4,
     backgroundColor: '#FFF8E1',
     borderRadius: 10,
     borderWidth: 1,
@@ -223,6 +237,7 @@ const styles = StyleSheet.create({
   },
   errorBox: {
     padding: 12,
+    marginVertical: 2,
     backgroundColor: '#FEF2F2',
     borderRadius: 10,
     borderWidth: 1,
@@ -234,7 +249,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   successBox: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    marginTop: 2,
   },
   successText: {
     fontSize: 13,
@@ -242,7 +258,7 @@ const styles = StyleSheet.create({
   },
   backToLoginRow: {
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 12,
   },
   linkText: {
     fontSize: 13,

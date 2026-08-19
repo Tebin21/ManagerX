@@ -75,7 +75,11 @@ interface AuthState {
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
-  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    displayName?: string
+  ) => Promise<{ error: string | null; verificationEmailSent: boolean }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null; needsVerification?: boolean }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   checkEmailVerification: () => Promise<{ verified: boolean; error: string | null }>;
@@ -373,6 +377,26 @@ async function reacquireCredential(
   return null;
 }
 
+// Dev-only diagnostics for the four email-delivery-adjacent Firebase Auth calls.
+// Never logs password/token/credential values or the email address itself —
+// only operation metadata — so these call sites are safe to leave in place
+// permanently. No-ops entirely outside __DEV__.
+function logAuthEmailDiagnostic(
+  operation: 'sendEmailVerification' | 'sendEmailVerificationResend' | 'sendPasswordResetEmail' | 'checkEmailVerification',
+  result: { success: boolean; error?: any }
+) {
+  if (!__DEV__) return;
+  const user = getFirebaseAuth().currentUser;
+  console.log('[authEmail]', {
+    operation,
+    success: result.success,
+    code: result.error?.code ?? null,
+    message: result.error?.message ?? null,
+    hasCurrentUser: !!user,
+    emailVerified: user?.emailVerified ?? null,
+  });
+}
+
 // Maps Firebase Auth's error codes to localized, user-friendly messages for the
 // email/password sign-up/sign-in/reset flows — deliberately routed through i18n
 // (unlike mapFirebaseDeleteError above, which predates the project's "all
@@ -548,7 +572,10 @@ export const useAuthStore = create<AuthState>()(
 
       signUpWithEmail: async (email, password, displayName) => {
         if (!isFirebaseAvailable) {
-          return { error: 'Account creation requires the iOS/Android app — not available on web.' };
+          return {
+            error: 'Account creation requires the iOS/Android app — not available on web.',
+            verificationEmailSent: false,
+          };
         }
         set({ isLoading: true });
         try {
@@ -556,15 +583,25 @@ export const useAuthStore = create<AuthState>()(
           if (displayName?.trim()) {
             try { await updateProfile(user, { displayName: displayName.trim() }); } catch {}
           }
-          // Sent, but deliberately not awaited-and-blocking beyond its own promise —
-          // adoptSignedInUser() (cloud sync) is withheld until checkEmailVerification()
-          // confirms the address, so a brand-new account never enters the app unverified.
-          try { await sendEmailVerification(user); } catch {}
+          // Account creation still succeeds either way — adoptSignedInUser() (cloud
+          // sync) is withheld until checkEmailVerification() confirms the address,
+          // so a brand-new account never enters the app unverified regardless of
+          // whether this initial send worked. Whether it worked is reported back
+          // to the caller (verificationEmailSent) so the UI can tell the user the
+          // truth instead of always claiming an email was sent — see verify-email.tsx.
+          let verificationEmailSent = true;
+          try {
+            await sendEmailVerification(user);
+            logAuthEmailDiagnostic('sendEmailVerification', { success: true });
+          } catch (e: any) {
+            verificationEmailSent = false;
+            logAuthEmailDiagnostic('sendEmailVerification', { success: false, error: e });
+          }
           set({ isLoading: false, pendingVerificationEmail: user.email });
-          return { error: null };
+          return { error: null, verificationEmailSent };
         } catch (e: any) {
           set({ isLoading: false });
-          return { error: mapFirebaseAuthError(e) };
+          return { error: mapFirebaseAuthError(e), verificationEmailSent: false };
         }
       },
 
@@ -597,12 +634,14 @@ export const useAuthStore = create<AuthState>()(
         }
         try {
           await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
+          logAuthEmailDiagnostic('sendPasswordResetEmail', { success: true });
           return { error: null };
         } catch (e: any) {
           // Deliberately not surfaced as an error — telling the caller "no account
           // exists for this email" would let the reset form be used to enumerate
           // registered accounts. Every other error (invalid format, network,
           // rate-limit) still surfaces normally.
+          logAuthEmailDiagnostic('sendPasswordResetEmail', { success: false, error: e });
           if (e?.code === 'auth/user-not-found') return { error: null };
           return { error: mapFirebaseAuthError(e) };
         }
@@ -616,6 +655,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await reload(user);
           const refreshed = auth.currentUser;
+          logAuthEmailDiagnostic('checkEmailVerification', { success: true });
           if (refreshed?.emailVerified) {
             set({ pendingVerificationEmail: null });
             await adoptSignedInUser(refreshed, set);
@@ -623,6 +663,7 @@ export const useAuthStore = create<AuthState>()(
           }
           return { verified: false, error: null };
         } catch (e: any) {
+          logAuthEmailDiagnostic('checkEmailVerification', { success: false, error: e });
           return { verified: false, error: mapFirebaseAuthError(e) };
         }
       },
@@ -633,8 +674,10 @@ export const useAuthStore = create<AuthState>()(
         if (!user) return { error: i18n.t('authErrors.generic') };
         try {
           await sendEmailVerification(user);
+          logAuthEmailDiagnostic('sendEmailVerificationResend', { success: true });
           return { error: null };
         } catch (e: any) {
+          logAuthEmailDiagnostic('sendEmailVerificationResend', { success: false, error: e });
           return { error: mapFirebaseAuthError(e) };
         }
       },

@@ -33,11 +33,14 @@ export default function SignUpScreen() {
 
   const handleSignUp = async ({ name, email, password }: EmailPasswordValues) => {
     setAuthError(null);
-    const { error } = await signUpWithEmail(email, password, name);
+    const { error, verificationEmailSent } = await signUpWithEmail(email, password, name);
     if (error) {
       setAuthError(error);
     } else {
-      router.replace('/(onboarding)/verify-email' as never);
+      router.replace({
+        pathname: '/(onboarding)/verify-email' as never,
+        params: { initialSendFailed: verificationEmailSent ? '0' : '1' },
+      });
     }
   };
 

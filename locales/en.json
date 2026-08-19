@@ -184,6 +184,7 @@
   "verifyEmail": {
     "title":          "Verify Your Email",
     "message":        "We've sent a verification link to {{email}}. Verify your email to continue.",
+    "sendFailedMessage": "We couldn't send the verification email to {{email}} automatically. Tap \"Resend Email\" below to try again.",
     "checkButton":    "I've Verified My Email",
     "notVerifiedYet": "Not verified yet. Please check your inbox and tap the link.",
     "resendBtn":      "Resend Email",
