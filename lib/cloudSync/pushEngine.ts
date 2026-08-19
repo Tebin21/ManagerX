@@ -77,7 +77,11 @@ async function pushBusinessProfile(db: Awaited<ReturnType<typeof getDatabase>>, 
         type: business.type,
         phone: business.phone,
         address: business.address,
-        updated_at: business.updated_at,
+        // updated_at can be genuinely absent from the row (a migration that adds
+        // this column can silently no-op on a non-empty table — see lib/sqlite.ts)
+        // — a bare property access on a missing key is `undefined`, which Firestore
+        // rejects outright, so fall back to null rather than sending it raw.
+        updated_at: business.updated_at ?? null,
       },
       meta: { hasData: true, schemaVersion: 1 },
       _syncedAt: serverTimestamp(),
@@ -103,9 +107,21 @@ export async function pushPendingChanges(uid: string): Promise<void> {
 
     // businesses uses a fixed synthetic key (see lib/sqlite.ts) and its own root-doc
     // write path — pushed once per run if any businesses queue rows are pending.
+    // Isolated in its own try/catch, mirroring the per-chunk isolation below: one
+    // bad/failing business-profile write must not abort the whole drain and strand
+    // every unrelated product/customer/sale queue row as "pending" forever.
     const businessRows = queueRows.filter((r) => r.entity_type === 'businesses');
+    let anySuccess = false;
+    const succeededQueueIds: number[] = [];
     if (businessRows.length > 0) {
-      await pushBusinessProfile(db, uid);
+      try {
+        await pushBusinessProfile(db, uid);
+        anySuccess = true;
+        succeededQueueIds.push(...businessRows.map((r) => r.id));
+      } catch (err) {
+        if (__DEV__) console.warn('[cloudSync] business profile push failed, will retry next cycle:', err);
+        await setLastSyncError(err instanceof Error ? err.message : String(err));
+      }
     }
 
     // Dedup by target doc — a sale and its just-edited sale_items both resolve to
@@ -131,8 +147,6 @@ export async function pushPendingChanges(uid: string): Promise<void> {
     const firestore = getFirebaseFirestore();
     const targetList = Array.from(targets.values());
     const BATCH_SIZE = 400; // headroom under Firestore's 500-ops-per-batch limit
-    let anySuccess = businessRows.length > 0;
-    const succeededQueueIds: number[] = [...businessRows.map((r) => r.id)];
 
     for (let i = 0; i < targetList.length; i += BATCH_SIZE) {
       const chunk = targetList.slice(i, i + BATCH_SIZE);

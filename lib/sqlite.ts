@@ -522,8 +522,15 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // never needed one (both use "fill empty fields only"/natural-key merge, see
     // lib/backup.ts), but continuous two-way cloud sync needs real last-write-wins
     // on both once they can be edited from more than one device.
-    `ALTER TABLE businesses ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-    `ALTER TABLE categories ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+    // A non-constant default (CURRENT_TIMESTAMP) on ADD COLUMN fails on any table
+    // that already has rows ("Cannot add a column with non-constant default"),
+    // which is silently swallowed below — leaving updated_at permanently missing
+    // on every device that had already set up a business before this shipped.
+    // Add the column with no default (always succeeds) and backfill separately.
+    `ALTER TABLE businesses ADD COLUMN updated_at TEXT`,
+    `UPDATE businesses SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL`,
+    `ALTER TABLE categories ADD COLUMN updated_at TEXT`,
+    `UPDATE categories SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL`,
     // Cloud-sync outbox triggers. AFTER INSERT/UPDATE/DELETE on every in-scope
     // table, guarded on the row already having a uuid (so the one-time migration
     // seed inserts for `categories` and the pre-uuid backfill pass — both of which

@@ -166,7 +166,31 @@ async function adoptSignedInUserInner(
 
   if (business.ownerUserId === user.uid) {
     const { startCloudSync } = await import('@/lib/cloudSync');
+    if (!isFirebaseAvailable) {
+      if (!isCurrentAuthUser(user.uid)) return;
+      startCloudSync(user.uid, { auto });
+      return;
+    }
+
+    // Same account as last time on this device — ordinarily there's nothing to
+    // restore, since logout never wipes local data. But this flag alone was being
+    // trusted with no re-check, so a device that ended up with empty local data
+    // (e.g. a previous sync never completed and something else cleared storage)
+    // had no path back to its cloud data. Mirror the fresh-device decision tree
+    // below: only restore if local is actually empty and the cloud actually has
+    // something, so a legitimate unsynced local copy is never overwritten.
+    const { localBusinessDataExists } = await import('@/lib/sqlite');
+    const { cloudBusinessDataExists, restoreFromCloudBulk } = await import('@/lib/cloudSync');
+    const localHasData = await localBusinessDataExists();
     if (!isCurrentAuthUser(user.uid)) return;
+    if (!localHasData) {
+      const cloudHasData = await cloudBusinessDataExists(user.uid);
+      if (!isCurrentAuthUser(user.uid)) return;
+      if (cloudHasData) {
+        try { await restoreFromCloudBulk(user.uid); } catch (e) { console.error('[Froshiar] Cloud restore failed:', e); }
+        if (!isCurrentAuthUser(user.uid)) return;
+      }
+    }
     startCloudSync(user.uid, { auto });
     return;
   }
