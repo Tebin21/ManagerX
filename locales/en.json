@@ -181,6 +181,16 @@
     "successTitle":     "Check Your Email",
     "successMessage":   "We've sent a password reset link to {{email}}."
   },
+  "verifyEmail": {
+    "title":          "Verify Your Email",
+    "message":        "We've sent a verification link to {{email}}. Verify your email to continue.",
+    "checkButton":    "I've Verified My Email",
+    "notVerifiedYet": "Not verified yet. Please check your inbox and tap the link.",
+    "resendBtn":      "Resend Email",
+    "resendCooldown": "Resend in {{seconds}}s",
+    "resendSuccess":  "Verification email sent again.",
+    "backToLogin":    "Back to Log In"
+  },
   "authErrors": {
     "emailAlreadyInUse":               "An account with this email already exists. Try logging in instead.",
     "emailAlreadyInUseDifferentMethod":"This email is already registered using a different sign-in method (e.g. Google or Apple). Please use that method to log in instead.",

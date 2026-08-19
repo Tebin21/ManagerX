@@ -8,6 +8,7 @@ import {
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ export default function SignUpScreen() {
   const { signUpWithEmail, isLoading } = useAuthStore();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
+  const insets = useSafeAreaInsets();
   const [authError, setAuthError] = useState<string | null>(null);
 
   const handleSignUp = async ({ name, email, password }: EmailPasswordValues) => {
@@ -35,7 +37,7 @@ export default function SignUpScreen() {
     if (error) {
       setAuthError(error);
     } else {
-      router.replace('/');
+      router.replace('/(onboarding)/verify-email' as never);
     }
   };
 
@@ -47,11 +49,13 @@ export default function SignUpScreen() {
         colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
       >
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isRTL && styles.backBtnRTL]}>
-          <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={[styles.backRow, isRTL && styles.backRowRTL]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
         <MotiView
           from={{ opacity: 0, translateY: 16 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -105,16 +109,17 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
   header: {
-    paddingTop: 72,
     paddingBottom: 32,
     paddingHorizontal: 28,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
   },
+  backRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  backRowRTL: { flexDirection: 'row-reverse' },
   backBtn: {
-    position: 'absolute',
-    top: 56,
-    left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -122,7 +127,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  backBtnRTL: { left: undefined, right: 20 },
   headline: {
     fontSize: 24,
     fontWeight: '800',

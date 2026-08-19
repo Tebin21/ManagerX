@@ -20,7 +20,7 @@ const RECONCILE_TIMEOUT_MS = 10_000;
 export default function Index() {
   const router = useRouter();
   const { hasCompletedOnboarding } = useOnboardingStore();
-  const { user } = useAuthStore();
+  const { user, pendingVerificationEmail } = useAuthStore();
   const { isSetupComplete, pendingCloudConflict, isReconciling } = useBusinessStore();
   const authHydrated = useHasHydrated(useAuthStore);
   const onboardingHydrated = useHasHydrated(useOnboardingStore);
@@ -62,6 +62,14 @@ export default function Index() {
       return;
     }
 
+    // A created-or-logged-in-but-unverified session: `user` stays null the whole
+    // time (adoptSignedInUser is withheld until verified), so this must be
+    // checked before the `!user` branch below or it would just bounce to Login.
+    if (pendingVerificationEmail) {
+      router.replace('/(onboarding)/verify-email' as never);
+      return;
+    }
+
     if (!user) {
       router.replace('/(onboarding)/login');
       return;
@@ -89,7 +97,7 @@ export default function Index() {
     }
 
     router.replace('/(app)/dashboard');
-  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, pendingCloudConflict, isReconciling]);
+  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, pendingVerificationEmail, isSetupComplete, pendingCloudConflict, isReconciling]);
 
   // Always render visible content.  Returning null leaves a white screen
   // during the one-render gap between the effect firing and the target

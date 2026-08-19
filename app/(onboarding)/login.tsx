@@ -57,9 +57,11 @@ export default function LoginScreen() {
 
   const handleEmailSignIn = async ({ email, password }: { email: string; password: string }) => {
     setAuthError(null);
-    const { error } = await signInWithEmail(email, password);
+    const { error, needsVerification } = await signInWithEmail(email, password);
     if (error) {
       setAuthError(error);
+    } else if (needsVerification) {
+      router.replace('/(onboarding)/verify-email' as never);
     } else {
       router.replace('/');
     }

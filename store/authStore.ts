@@ -13,6 +13,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  reload,
   updateProfile,
 } from '@/lib/firebase';
 import type { User, AuthCredential } from '@react-native-firebase/auth';
@@ -56,12 +58,20 @@ interface AuthState {
   // auth guard doesn't redirect to Login the instant Firebase's deleteUser()
   // flips `user` to null, before the rest of the local cleanup has finished.
   isDeletingAccount: boolean;
+  // Set while a just-created or just-logged-in account has not yet verified
+  // its email — adoptSignedInUser() (cloud sync) is deliberately NOT called
+  // until this clears, so a persisted value here (see partialize below) is
+  // what routes app/index.tsx to the Verify Email screen across relaunches.
+  pendingVerificationEmail: string | null;
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
   signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<{ error: string | null }>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null; needsVerification?: boolean }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  checkEmailVerification: () => Promise<{ verified: boolean; error: string | null }>;
+  sendVerificationEmail: () => Promise<{ error: string | null }>;
+  cancelPendingVerification: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteFirebaseAccount: () => Promise<{ error: string | null }>;
   setDeletingAccount: (value: boolean) => void;
@@ -411,6 +421,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: false,
       isDeletingAccount: false,
+      pendingVerificationEmail: null,
 
       signInWithGoogle: async () => {
         if (!isFirebaseAvailable) {
@@ -536,7 +547,11 @@ export const useAuthStore = create<AuthState>()(
           if (displayName?.trim()) {
             try { await updateProfile(user, { displayName: displayName.trim() }); } catch {}
           }
-          await adoptSignedInUser(user, set);
+          // Sent, but deliberately not awaited-and-blocking beyond its own promise —
+          // adoptSignedInUser() (cloud sync) is withheld until checkEmailVerification()
+          // confirms the address, so a brand-new account never enters the app unverified.
+          try { await sendEmailVerification(user); } catch {}
+          set({ isLoading: false, pendingVerificationEmail: user.email });
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
@@ -551,6 +566,11 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const { user } = await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+          if (!user.emailVerified) {
+            set({ isLoading: false, pendingVerificationEmail: user.email });
+            return { error: null, needsVerification: true };
+          }
+          set({ pendingVerificationEmail: null });
           await adoptSignedInUser(user, set);
           return { error: null };
         } catch (e: any) {
@@ -567,7 +587,52 @@ export const useAuthStore = create<AuthState>()(
           await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
           return { error: null };
         } catch (e: any) {
+          // Deliberately not surfaced as an error — telling the caller "no account
+          // exists for this email" would let the reset form be used to enumerate
+          // registered accounts. Every other error (invalid format, network,
+          // rate-limit) still surfaces normally.
+          if (e?.code === 'auth/user-not-found') return { error: null };
           return { error: mapFirebaseAuthError(e) };
+        }
+      },
+
+      checkEmailVerification: async () => {
+        if (!isFirebaseAvailable) return { verified: false, error: null };
+        const auth = getFirebaseAuth();
+        const user = auth.currentUser;
+        if (!user) return { verified: false, error: null };
+        try {
+          await reload(user);
+          const refreshed = auth.currentUser;
+          if (refreshed?.emailVerified) {
+            set({ pendingVerificationEmail: null });
+            await adoptSignedInUser(refreshed, set);
+            return { verified: true, error: null };
+          }
+          return { verified: false, error: null };
+        } catch (e: any) {
+          return { verified: false, error: mapFirebaseAuthError(e) };
+        }
+      },
+
+      sendVerificationEmail: async () => {
+        if (!isFirebaseAvailable) return { error: null };
+        const user = getFirebaseAuth().currentUser;
+        if (!user) return { error: i18n.t('authErrors.generic') };
+        try {
+          await sendEmailVerification(user);
+          return { error: null };
+        } catch (e: any) {
+          return { error: mapFirebaseAuthError(e) };
+        }
+      },
+
+      cancelPendingVerification: async () => {
+        set({ pendingVerificationEmail: null });
+        // Safe to sign out here — adoptSignedInUser() was never called for this
+        // session, so no cloud data, ownerUserId, or sync state was ever touched.
+        if (isFirebaseAvailable) {
+          try { await firebaseSignOut(getFirebaseAuth()); } catch {}
         }
       },
 
@@ -681,7 +746,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: '@froshiar_auth',
       storage: createJSONStorage(() => migratedAsyncStorage),
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, pendingVerificationEmail: state.pendingVerificationEmail }),
     }
   )
 );

@@ -9,6 +9,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  reload,
   updateProfile,
   type Auth,
 } from '@react-native-firebase/auth';
@@ -32,7 +34,7 @@ export const isFirebaseAvailable = true;
 
 export { onAuthStateChanged, signInWithCredential, GoogleAuthProvider, AppleAuthProvider };
 export { firebaseSignOut as signOut };
-export { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile };
+export { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, updateProfile };
 export { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, onSnapshot, serverTimestamp, query, where };
 
 export function getFirebaseAuth(): Auth {
