@@ -142,6 +142,99 @@ async function requestOtpForUser(
   }
 }
 
+// auth-server's password-reset flow (see auth-server/src/routes/passwordReset.ts)
+// is entirely separate from the /api/otp/* flow above — a user who forgot their
+// password isn't signed in and has no Firebase ID token, so these error codes and
+// this fetch wrapper deliberately don't share anything with OtpErrorCode/
+// callAuthServer beyond the same shape.
+type PasswordResetErrorCode =
+  | 'network'
+  | 'not_configured'
+  | 'invalid_email'
+  | 'cooldown'
+  | 'rate_limited'
+  | 'email_send_failed'
+  | 'no_pending_otp'
+  | 'expired'
+  | 'invalid_code'
+  | 'too_many_attempts'
+  | 'invalid_or_expired_token'
+  | 'weak_password'
+  | 'server_error';
+
+class PasswordResetRequestError extends Error {
+  code: PasswordResetErrorCode;
+  constructor(code: PasswordResetErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+// Unauthenticated counterpart to callAuthServer above — no Bearer token, since the
+// caller isn't signed in during this flow. The backend derives everything from the
+// email (and, for /complete, the server-issued reset token) in the body instead.
+async function callPasswordResetServer(path: string, body: Record<string, unknown>): Promise<Record<string, any>> {
+  if (!AUTH_SERVER_URL) throw new PasswordResetRequestError('not_configured');
+
+  let res: Response;
+  try {
+    res = await fetch(`${AUTH_SERVER_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new PasswordResetRequestError('network');
+  }
+
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch {
+    // fall through — json stays null, handled below
+  }
+
+  if (!res.ok) {
+    const code: PasswordResetErrorCode =
+      typeof json?.error === 'string' && json.error.length > 0 ? json.error : 'server_error';
+    throw new PasswordResetRequestError(code);
+  }
+  return json ?? {};
+}
+
+// Maps auth-server's password-reset error codes to localized, user-friendly
+// messages — mirrors mapOtpError above. Never surfaces the raw backend code/text.
+function mapPasswordResetError(e: any): string {
+  const code: PasswordResetErrorCode = e instanceof PasswordResetRequestError ? e.code : 'server_error';
+  switch (code) {
+    case 'network':
+      return i18n.t('authErrors.networkError');
+    case 'cooldown':
+      return i18n.t('verifyResetOtp.resendCooldownError');
+    case 'rate_limited':
+      return i18n.t('verifyResetOtp.resendRateLimited');
+    case 'email_send_failed':
+    case 'not_configured':
+      return i18n.t('verifyResetOtp.sendFailedGeneric');
+    case 'no_pending_otp':
+      return i18n.t('verifyResetOtp.errorNoPendingCode');
+    case 'expired':
+      return i18n.t('verifyResetOtp.errorCodeExpired');
+    case 'invalid_code':
+      return i18n.t('verifyResetOtp.errorInvalidCode');
+    case 'too_many_attempts':
+      return i18n.t('verifyResetOtp.errorTooManyAttempts');
+    case 'invalid_or_expired_token':
+      return i18n.t('newPassword.errorInvalidOrExpiredToken');
+    case 'weak_password':
+      return i18n.t('signup.validation.passwordTooShort');
+    case 'invalid_email':
+      return i18n.t('signup.validation.emailInvalid');
+    default:
+      return i18n.t('authErrors.generic');
+  }
+}
+
 // Lazily imported — @react-native-google-signin/google-signin's package entry point
 // also re-exports GoogleSigninButton, which calls TurboModuleRegistry.getEnforcing()
 // (a *throwing* native-module lookup) at module-evaluation time, not inside a function.
@@ -182,6 +275,17 @@ interface AuthState {
   // until this clears, so a persisted value here (see partialize below) is
   // what routes app/index.tsx to the Verify Email screen across relaunches.
   pendingVerificationEmail: string | null;
+  // Transient — never persisted (see partialize below). Set while the new
+  // OTP-based Forgot Password flow (app/(onboarding)/forgot-password.tsx ->
+  // verify-reset-otp.tsx -> new-password.tsx) is in progress. Unlike
+  // pendingVerificationEmail above, an app kill mid-flow just restarts at
+  // Step 1 rather than resuming — the reset-authorization token is short-lived
+  // anyway, so there's little value in surviving a relaunch.
+  pendingPasswordResetEmail: string | null;
+  // Single-use, server-issued token proving the OTP for pendingPasswordResetEmail
+  // was already verified (see verifyPasswordResetOtp below). completePasswordReset
+  // requires it — the client can never set a password just by claiming success.
+  pendingPasswordResetToken: string | null;
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
@@ -195,6 +299,11 @@ interface AuthState {
   verifyEmailOtp: (code: string) => Promise<{ verified: boolean; error: string | null; locked?: boolean }>;
   resendEmailOtp: () => Promise<{ error: string | null }>;
   cancelPendingVerification: () => Promise<void>;
+  requestPasswordResetOtp: (email: string) => Promise<{ error: string | null }>;
+  resendPasswordResetOtp: () => Promise<{ error: string | null }>;
+  verifyPasswordResetOtp: (code: string) => Promise<{ verified: boolean; error: string | null; locked?: boolean }>;
+  completePasswordReset: (newPassword: string) => Promise<{ error: string | null }>;
+  cancelPasswordReset: () => void;
   signOut: () => Promise<void>;
   deleteFirebaseAccount: () => Promise<{ error: string | null }>;
   setDeletingAccount: (value: boolean) => void;
@@ -562,11 +671,13 @@ function mapFirebaseDeleteError(e: any): string {
 // deciding where to send a returning, already-persisted user.
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isLoading: false,
       isDeletingAccount: false,
       pendingVerificationEmail: null,
+      pendingPasswordResetEmail: null,
+      pendingPasswordResetToken: null,
 
       signInWithGoogle: async () => {
         if (!isFirebaseAvailable) {
@@ -801,6 +912,66 @@ export const useAuthStore = create<AuthState>()(
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}
         }
+      },
+
+      // The OTP-based Forgot Password flow below is a separate, unauthenticated
+      // path to auth-server/'s /api/password-reset/* endpoints — it never touches
+      // the Firebase client SDK (no sign-in, no ID token), so unlike the actions
+      // above it works the same regardless of isFirebaseAvailable/platform.
+      requestPasswordResetOtp: async (email) => {
+        const trimmed = email.trim();
+        try {
+          await callPasswordResetServer('/api/password-reset/request', { email: trimmed });
+          set({ pendingPasswordResetEmail: trimmed, pendingPasswordResetToken: null });
+          return { error: null };
+        } catch (e: any) {
+          return { error: mapPasswordResetError(e) };
+        }
+      },
+
+      resendPasswordResetOtp: async () => {
+        const email = get().pendingPasswordResetEmail;
+        if (!email) return { error: i18n.t('authErrors.generic') };
+        try {
+          await callPasswordResetServer('/api/password-reset/request', { email });
+          return { error: null };
+        } catch (e: any) {
+          return { error: mapPasswordResetError(e) };
+        }
+      },
+
+      verifyPasswordResetOtp: async (code) => {
+        const email = get().pendingPasswordResetEmail;
+        if (!email) return { verified: false, error: i18n.t('authErrors.generic') };
+        try {
+          const json = await callPasswordResetServer('/api/password-reset/verify', { email, code });
+          set({ pendingPasswordResetToken: json.resetToken ?? null });
+          return { verified: true, error: null };
+        } catch (e: any) {
+          const locked = e instanceof PasswordResetRequestError && e.code === 'too_many_attempts';
+          return { verified: false, error: mapPasswordResetError(e), locked };
+        }
+      },
+
+      completePasswordReset: async (newPassword) => {
+        const { pendingPasswordResetEmail: email, pendingPasswordResetToken: token } = get();
+        if (!email || !token) return { error: i18n.t('authErrors.generic') };
+        try {
+          await callPasswordResetServer('/api/password-reset/complete', { email, token, newPassword });
+          set({ pendingPasswordResetEmail: null, pendingPasswordResetToken: null });
+          return { error: null };
+        } catch (e: any) {
+          if (e instanceof PasswordResetRequestError && e.code === 'invalid_or_expired_token') {
+            // The token/session is unrecoverable — clear it so the UI can route
+            // back to Step 1 rather than let the user retry a dead token.
+            set({ pendingPasswordResetEmail: null, pendingPasswordResetToken: null });
+          }
+          return { error: mapPasswordResetError(e) };
+        }
+      },
+
+      cancelPasswordReset: () => {
+        set({ pendingPasswordResetEmail: null, pendingPasswordResetToken: null });
       },
 
       signOut: async () => {

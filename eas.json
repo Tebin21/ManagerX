@@ -22,11 +22,17 @@
     },
     "preview": {
       "distribution": "internal",
-      "prebuildCommand": "expo prebuild --clean"
+      "prebuildCommand": "expo prebuild --clean",
+      "env": {
+        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://api.froshiar.store"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "expo prebuild --clean"
+      "prebuildCommand": "expo prebuild --clean",
+      "env": {
+        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://api.froshiar.store"
+      }
     }
   },
   "submit": {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -23,39 +23,55 @@ import { Colors } from '@/constants/colors';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { EMAIL_RE } from '@/lib/validation';
 
-export default function ForgotPasswordScreen() {
+export default function NewPasswordScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { requestPasswordResetOtp } = useAuthStore();
+  const { pendingPasswordResetToken, completePasswordReset } = useAuthStore();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | undefined>();
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [confirmError, setConfirmError] = useState<string | undefined>();
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSend = async () => {
+  useEffect(() => {
+    // Deep-link / state-loss safety net — this screen requires a reset token
+    // obtained from verify-reset-otp.tsx's successful verification.
+    if (!pendingPasswordResetToken) {
+      router.replace('/(onboarding)/forgot-password' as never);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPasswordResetToken]);
+
+  const handleSubmit = async () => {
     setAuthError(null);
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setEmailError(t('signup.validation.emailRequired'));
-      return;
+    let hasError = false;
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError(t('newPassword.validation.tooShort'));
+      hasError = true;
+    } else {
+      setPasswordError(undefined);
     }
-    if (!EMAIL_RE.test(trimmed)) {
-      setEmailError(t('signup.validation.emailInvalid'));
-      return;
+    if (newPassword !== confirmPassword) {
+      setConfirmError(t('newPassword.validation.mismatch'));
+      hasError = true;
+    } else {
+      setConfirmError(undefined);
     }
-    setEmailError(undefined);
+    if (hasError) return;
+
     setLoading(true);
-    const { error } = await requestPasswordResetOtp(trimmed);
+    const { error } = await completePasswordReset(newPassword);
     setLoading(false);
     if (error) {
       setAuthError(error);
     } else {
-      router.push('/(onboarding)/verify-reset-otp' as never);
+      router.replace('/(onboarding)/reset-success' as never);
     }
   };
 
@@ -90,8 +106,8 @@ export default function ForgotPasswordScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 150 }}
         >
-          <Text style={styles.headline}>{t('forgotPassword.title')}</Text>
-          <Text style={styles.subtitle}>{t('forgotPassword.subtitle')}</Text>
+          <Text style={styles.headline}>{t('newPassword.title')}</Text>
+          <Text style={styles.subtitle}>{t('newPassword.subtitle')}</Text>
         </MotiView>
       </LinearGradient>
 
@@ -107,22 +123,29 @@ export default function ForgotPasswordScreen() {
             transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 300 }}
           >
             <AppTextInput
-              label={t('forgotPassword.emailLabel')}
-              placeholder={t('forgotPassword.emailPlaceholder')}
-              value={email}
-              onChangeText={setEmail}
-              error={emailError}
-              keyboardType="email-address"
+              label={t('newPassword.newPasswordLabel')}
+              placeholder={t('newPassword.newPasswordPlaceholder')}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              error={passwordError}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              forceLatin
+            />
+            <AppTextInput
+              label={t('newPassword.confirmPasswordLabel')}
+              placeholder={t('newPassword.confirmPasswordPlaceholder')}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              error={confirmError}
+              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               forceLatin
             />
             {authError && <AuthErrorBanner message={authError} />}
-            <PrimaryButton label={t('forgotPassword.sendBtn')} onPress={handleSend} loading={loading} />
-
-            <TouchableOpacity onPress={() => router.replace('/(onboarding)/login')} style={styles.backToLoginRow}>
-              <Text style={[styles.linkText, { color: colors.primary }]}>{t('forgotPassword.backToLogin')}</Text>
-            </TouchableOpacity>
+            <PrimaryButton label={t('newPassword.submitBtn')} onPress={handleSubmit} loading={loading} />
           </MotiView>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -173,13 +196,5 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 28,
     paddingHorizontal: 24,
-  },
-  backToLoginRow: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  linkText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 });

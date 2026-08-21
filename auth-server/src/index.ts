@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './config';
 import { otpRouter } from './routes/otp';
+import { passwordResetRouter } from './routes/passwordReset';
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/otp', otpRouter);
+app.use('/api/password-reset', passwordResetRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(config.port, () => {

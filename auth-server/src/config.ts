@@ -20,6 +20,11 @@ export interface LocalConfig {
   // (without also leaking this env var) can't be used to precompute/rainbow-table
   // the 6-digit code space offline.
   otpHashPepper: string;
+  // Server-only secret for the password-reset OTP flow (see passwordResetCrypto.ts
+  // / passwordResetStore.ts). Deliberately separate from otpHashPepper so the two
+  // flows' secrets can be rotated independently — a leak of one never compromises
+  // the other.
+  passwordResetHashPepper: string;
 }
 
 const DEFAULTS: LocalConfig = {
@@ -29,6 +34,7 @@ const DEFAULTS: LocalConfig = {
   resendApiKey: '',
   resendFromAddress: 'support@froshiar.store',
   otpHashPepper: '',
+  passwordResetHashPepper: '',
 };
 
 function loadConfig(): LocalConfig {
@@ -53,6 +59,8 @@ function loadConfig(): LocalConfig {
     resendApiKey: process.env.RESEND_API_KEY ?? fileConfig.resendApiKey ?? DEFAULTS.resendApiKey,
     resendFromAddress: process.env.RESEND_FROM_ADDRESS ?? fileConfig.resendFromAddress ?? DEFAULTS.resendFromAddress,
     otpHashPepper: process.env.OTP_HASH_PEPPER ?? fileConfig.otpHashPepper ?? DEFAULTS.otpHashPepper,
+    passwordResetHashPepper:
+      process.env.PASSWORD_RESET_HASH_PEPPER ?? fileConfig.passwordResetHashPepper ?? DEFAULTS.passwordResetHashPepper,
   };
 }
 
@@ -69,6 +77,7 @@ function validateRequiredSecrets(cfg: LocalConfig): void {
   const missing: string[] = [];
   if (!cfg.resendApiKey) missing.push('RESEND_API_KEY');
   if (!cfg.otpHashPepper) missing.push('OTP_HASH_PEPPER');
+  if (!cfg.passwordResetHashPepper) missing.push('PASSWORD_RESET_HASH_PEPPER');
   if (missing.length > 0) {
     throw new Error(
       `Missing required config: ${missing.join(', ')}. Set as environment variables in ` +

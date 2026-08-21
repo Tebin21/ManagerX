@@ -173,13 +173,48 @@
   },
   "forgotPassword": {
     "title":           "Reset Password",
-    "subtitle":        "Enter your email and we'll send you a link to reset your password.",
+    "subtitle":        "Enter your email and we'll send you a code to reset your password.",
     "emailLabel":       "Email",
     "emailPlaceholder": "you@example.com",
-    "sendBtn":          "Send Reset Link",
+    "sendBtn":          "Send Code",
     "backToLogin":      "Back to Log In",
     "successTitle":     "Check Your Email",
     "successMessage":   "We've sent a password reset link to {{email}}."
+  },
+  "verifyResetOtp": {
+    "title":               "Verify Reset Code",
+    "message":             "Enter the 6-digit code we sent to {{email}} to reset your password.",
+    "verifyButton":        "Verify Code",
+    "resendBtn":           "Resend Code",
+    "resendCooldown":      "Resend in {{seconds}}s",
+    "resendSuccess":       "A new code has been sent.",
+    "resendCooldownError": "Please wait before requesting another code.",
+    "resendRateLimited":   "Too many code requests. Please wait a while before trying again.",
+    "sendFailedGeneric":   "We couldn't send the code. Please try again.",
+    "backToLogin":         "Back to Log In",
+    "errorInvalidCode":    "That code isn't correct. Please check and try again.",
+    "errorCodeExpired":    "This code has expired. Request a new one.",
+    "errorTooManyAttempts":"Too many incorrect attempts. Request a new code to try again.",
+    "errorNoPendingCode":  "No active code found. Request a new one below."
+  },
+  "newPassword": {
+    "title":                     "Create New Password",
+    "subtitle":                  "Choose a new password for your account.",
+    "newPasswordLabel":          "New Password",
+    "newPasswordPlaceholder":    "At least 6 characters",
+    "confirmPasswordLabel":      "Confirm Password",
+    "confirmPasswordPlaceholder":"Re-enter your new password",
+    "submitBtn":                 "Update Password",
+    "errorInvalidOrExpiredToken":"This reset session has expired. Please start over.",
+    "validation": {
+      "tooShort":  "Password must be at least 6 characters",
+      "mismatch":  "Passwords do not match"
+    }
+  },
+  "resetSuccess": {
+    "title":            "Password Updated",
+    "message":           "Your password has been updated successfully. You can now log in with your new password.",
+    "returnToLoginBtn":  "Return to Log In"
   },
   "verifyEmail": {
     "title":               "Verify Your Email",
