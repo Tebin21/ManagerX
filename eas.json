@@ -24,14 +24,14 @@
       "distribution": "internal",
       "prebuildCommand": "expo prebuild --clean",
       "env": {
-        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://api.froshiar.store"
+        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://froshiar-auth-api-prod.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "prebuildCommand": "expo prebuild --clean",
       "env": {
-        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://api.froshiar.store"
+        "EXPO_PUBLIC_AUTH_SERVER_URL": "https://froshiar-auth-api-prod.onrender.com"
       }
     }
   },
