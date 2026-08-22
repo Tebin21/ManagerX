@@ -250,6 +250,7 @@
     "googleSignInCancelled":           "Sign-in was cancelled.",
     "googleNoIdToken":                 "Google Sign-In failed: no ID token received.",
     "appleIOSOnly":                    "Sign in with Apple is only available on iOS.",
+    "googleAndroidUnavailable":        "Google Sign-In isn't available on Android.",
     "appleUnavailableWeb":             "Apple Sign-In requires the iOS app — not available on web.",
     "appleUnavailableDevice":          "Sign in with Apple is not available on this device.",
     "appleNoIdentityToken":            "Apple Sign-In failed: no identity token received."

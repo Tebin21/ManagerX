@@ -250,6 +250,7 @@
     "googleSignInCancelled":           "چوونەژوورەوە هەڵوەشێنرایەوە.",
     "googleNoIdToken":                 "چوونەژوورەوە بە Google سەرنەکەوت: هیچ ID token وەرنەگیرا.",
     "appleIOSOnly":                    "چوونەژوورەوە بە Apple تەنها لە iOS بەردەستە.",
+    "googleAndroidUnavailable":        "چوونەژوورەوە بە Google لە Android بەردەست نییە.",
     "appleUnavailableWeb":             "چوونەژوورەوە بە Apple تەنها لە ئەپی iOS بەردەستە — لە وێب بەردەست نییە.",
     "appleUnavailableDevice":          "چوونەژوورەوە بە Apple لەم ئامێرەدا بەردەست نییە.",
     "appleNoIdentityToken":            "چوونەژوورەوە بە Apple سەرنەکەوت: هیچ identity token وەرنەگیرا."

@@ -554,6 +554,7 @@ async function reacquireCredential(
   const providerId = user.providerData[0]?.providerId;
 
   if (providerId === 'google.com') {
+    if (Platform.OS === 'android') return null;
     try {
       const GoogleSignin = await getGoogleSignin();
       const signInResult = await GoogleSignin.signIn();
@@ -680,6 +681,9 @@ export const useAuthStore = create<AuthState>()(
       pendingPasswordResetToken: null,
 
       signInWithGoogle: async () => {
+        if (Platform.OS === 'android') {
+          return { error: i18n.t('authErrors.googleAndroidUnavailable') };
+        }
         if (!isFirebaseAvailable) {
           return { error: i18n.t('authErrors.googleUnavailableWeb') };
         }
@@ -981,10 +985,12 @@ export const useAuthStore = create<AuthState>()(
         } catch {}
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}
-          try {
-            const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-            await GoogleSignin.signOut();
-          } catch {}
+          if (Platform.OS !== 'android') {
+            try {
+              const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+              await GoogleSignin.signOut();
+            } catch {}
+          }
         }
         set({ user: null });
       },

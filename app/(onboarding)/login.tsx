@@ -128,14 +128,18 @@ export default function LoginScreen() {
 
             {authError && <AuthErrorBanner message={authError} style={styles.errorBanner} />}
 
-            <View style={styles.dividerRow}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
-              <Text style={[styles.dividerText, { color: colors.gray400 }]}>{t('login.or')}</Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
-            </View>
+            {Platform.OS !== 'android' && (
+              <>
+                <View style={styles.dividerRow}>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
+                  <Text style={[styles.dividerText, { color: colors.gray400 }]}>{t('login.or')}</Text>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
+                </View>
 
-            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
-            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+                <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
+                <AppleSignInButton onPress={handleApple} loading={isLoading} />
+              </>
+            )}
 
             <TouchableOpacity onPress={() => router.push('/(onboarding)/signup' as never)} style={styles.signUpRow}>
               <Text style={[styles.linkText, { color: colors.gray600 }]}>

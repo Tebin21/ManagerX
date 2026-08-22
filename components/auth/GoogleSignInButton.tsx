@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Platform, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import Animated, {
   useSharedValue,
@@ -18,10 +18,11 @@ interface Props {
 export function GoogleSignInButton({ onPress, loading }: Props) {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
-
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  if (Platform.OS === 'android') return null;
 
   return (
     <Animated.View style={animatedStyle}>
