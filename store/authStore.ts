@@ -398,6 +398,12 @@ async function adoptSignedInUserInner(
   // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
+  // Initialize and refresh StoreKit IAP entitlements for the signed-in user
+  try {
+    const { useIapStore } = await import('@/store/iapStore');
+    void useIapStore.getState().initialize(user.uid);
+  } catch {}
+
   // Diagnostic isolation (see .claude/plans cold-start SIGSEGV report): a TestFlight
   // crash log shows a live Firestore gRPC thread and a TurboModule NSException-to-
   // JSError conversion crashing the Hermes JS thread during cold start, even with
@@ -982,6 +988,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { stopCloudSync } = await import('@/lib/cloudSync');
           stopCloudSync();
+        } catch {}
+        try {
+          const { useIapStore } = await import('@/store/iapStore');
+          await useIapStore.getState().clearUserSession();
         } catch {}
         if (isFirebaseAvailable) {
           try { await firebaseSignOut(getFirebaseAuth()); } catch {}

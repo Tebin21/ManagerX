@@ -96,6 +96,8 @@ export default function RootLayout() {
     initialize().catch((e) => console.error('Auth init failed:', e));
     initializeDatabase()
       .then(() => useLicenseStore.getState().loadLicense())
+      .then(() => import('@/store/iapStore'))
+      .then((m) => m.useIapStore.getState().initialize())
       .then(() => import('@/lib/accountDeletion'))
       .then((m) => m.resumeInterruptedDeletionIfNeeded())
       .catch((e) => console.error('DB init failed:', e));

@@ -40,7 +40,13 @@ export type ActivationResult =
   | { status: 'already_activated'; plan: string; limit: number }
   | { status: 'no_upgrade'; plan: string; limit: number };
 
-function limitToPlanLabel(limit: number): string {
+function limitToPlanLabel(limit: number, isIapPro: boolean = false): string {
+  if (isIapPro) {
+    if (limit === 200) return 'pro_monthly';
+    if (limit === 400) return 'pro_6months';
+    if (limit === 1000) return 'pro_yearly';
+    return 'pro';
+  }
   const found = Object.entries(ITEM_LIMIT_PLANS).find(([, v]) => v === limit);
   return found ? found[0] : DEFAULT_ITEM_LIMIT_PLAN;
 }
@@ -82,6 +88,27 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
   }
 
   const deviceId = await getOrCreateDeviceId();
+
+  // Check Apple In-App Purchase Pro entitlement
+  try {
+    const { useIapStore } = await import('@/store/iapStore');
+    const proEntitlement = useIapStore.getState().proEntitlement;
+    if (proEntitlement.isActive && proEntitlement.itemLimit > 0) {
+      const iapInfo: LicenseInfo = {
+        plan: limitToPlanLabel(proEntitlement.itemLimit, true),
+        limit: proEntitlement.itemLimit,
+        activatedAt: proEntitlement.lastVerifiedAt ? new Date(proEntitlement.lastVerifiedAt).toISOString() : null,
+        deviceId,
+        licenseCode: 'APPLE_IAP_PRO',
+        expiresAt: proEntitlement.expirationDate ?? null,
+        expired: false,
+      };
+      cachedInfo = iapInfo;
+      cachedAt = Date.now();
+      return iapInfo;
+    }
+  } catch {}
+
   const licenseCode = await loadSetting(KEY_LICENSE_CODE);
 
   let info: LicenseInfo;

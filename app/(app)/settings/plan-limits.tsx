@@ -15,7 +15,7 @@ import { SettingsTextInput as AppTextInput } from '@/components/settings/Setting
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { IdText } from '@/components/ui/IdText';
-import { PlanLimitsComingSoon } from '@/components/settings/PlanLimitsComingSoon';
+import { AppleSubscriptionPaywall } from '@/components/settings/AppleSubscriptionPaywall';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLicenseStore } from '@/store/licenseStore';
 import { getInventoryStats } from '@/lib/sqlite';
@@ -29,6 +29,9 @@ const PLAN_LABEL_KEYS: Record<string, string> = {
   pro: 'settings.upgradeScreen.planPro',
   business: 'settings.upgradeScreen.planBusiness',
   unlimited: 'settings.upgradeScreen.planUnlimited',
+  pro_monthly: 'iap.monthly',
+  pro_6months: 'iap.sixMonths',
+  pro_yearly: 'iap.yearly',
 };
 
 type ResultState = { type: 'success' | 'error'; message: string } | null;
@@ -62,13 +65,12 @@ export default function PlanLimitsScreen() {
 
   useEffect(() => { loadUsed(); }, [loadUsed]);
 
-  // Temporary Apple 3.1.1 compliance measure — Plan & Limits license activation
-  // is not reachable on iOS this release, regardless of license status.
+  // Apple In-App Purchase Subscriptions on iOS
   if (Platform.OS === 'ios') {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.upgradeScreen.title')} showBack />
-        <PlanLimitsComingSoon />
+        <AppleSubscriptionPaywall group="pro" />
       </View>
     );
   }

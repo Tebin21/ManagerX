@@ -70,6 +70,27 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
   }
 
   const deviceId = await getOrCreateDeviceId();
+
+  // Check Apple In-App Purchase Store entitlement
+  try {
+    const { useIapStore } = await import('@/store/iapStore');
+    const storeEntitlement = useIapStore.getState().storeEntitlement;
+    if (storeEntitlement.isActive) {
+      const iapInfo: SubscriptionInfo = {
+        plan: '12m',
+        deviceId,
+        subscriptionCode: 'APPLE_IAP_STORE',
+        activatedAt: storeEntitlement.lastVerifiedAt ? new Date(storeEntitlement.lastVerifiedAt).toISOString() : null,
+        expiresAt: storeEntitlement.expirationDate ?? null,
+        isActive: true,
+        expired: false,
+      };
+      cachedInfo = iapInfo;
+      cachedAt = Date.now();
+      return iapInfo;
+    }
+  } catch {}
+
   const subscriptionCode = await loadSetting(KEY_SUBSCRIPTION_CODE);
 
   let info: SubscriptionInfo;

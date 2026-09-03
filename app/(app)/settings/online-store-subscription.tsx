@@ -15,7 +15,7 @@ import { SettingsTextInput as AppTextInput } from '@/components/settings/Setting
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { IdText } from '@/components/ui/IdText';
-import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
+import { AppleSubscriptionPaywall } from '@/components/settings/AppleSubscriptionPaywall';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { SUPPORT_PHONE } from '@/constants/config';
@@ -53,13 +53,12 @@ export default function OnlineStoreSubscriptionScreen() {
 
   useEffect(() => { loadSubscription(); }, [loadSubscription]);
 
-  // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
-  // is not reachable on iOS this release, regardless of subscription status.
+  // Apple In-App Purchase Subscriptions on iOS
   if (Platform.OS === 'ios') {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreSubscriptionScreen.title')} showBack />
-        <OnlineStoreComingSoon />
+        <AppleSubscriptionPaywall group="store" />
       </View>
     );
   }

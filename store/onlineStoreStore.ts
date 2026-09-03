@@ -106,6 +106,9 @@ interface OnlineStoreState {
     enabled: boolean,
     onProgress?: (done: number, total: number) => void
   ) => Promise<{ status: 'ok' | 'locked' }>;
+  /** Reconciles the local and backend store enabled status with active subscription status.
+   *  Called automatically when Store subscription state changes (purchase, renewal, expiry). */
+  syncWithSubscription: (hasActiveSub: boolean) => Promise<void>;
   /** Returns true if the link was actually copied — false if the clipboard is
    *  unavailable (e.g. native module not linked) or the copy itself failed, so the
    *  caller can fall back to showing the link instead of silently doing nothing. */
@@ -126,6 +129,30 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   lastSyncError: null,
   bulkPublishEnabled: false,
   isBulkPublishing: false,
+
+  syncWithSubscription: async (hasActiveSub: boolean) => {
+    const isCurrentlyEnabled = await getStoreEnabled();
+    if (!hasActiveSub && isCurrentlyEnabled) {
+      // Subscription expired or revoked: auto-disable
+      await setStoreEnabled(false);
+      const slug = await getStoreSlug();
+      const apiKey = await getStoreApiKey();
+      if (slug && apiKey) {
+        try { await setStoreStatus(slug, apiKey, false); } catch { /* best effort */ }
+      }
+      set({ enabled: false });
+    } else if (hasActiveSub && !isCurrentlyEnabled) {
+      // Subscription activated or renewed: auto-enable
+      await setStoreEnabled(true);
+      const slug = await getStoreSlug();
+      const apiKey = await getStoreApiKey();
+      if (slug && apiKey) {
+        try { await setStoreStatus(slug, apiKey, true); } catch { /* best effort */ }
+      }
+      set({ enabled: true });
+      processQueue();
+    }
+  },
 
   load: async () => {
     // The store's URL is shown immediately from the business name — entirely local, no
@@ -150,7 +177,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     set({ slug, storeUrl: buildStoreUrl(slug) });
 
     try {
-      const [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError, bulkPublishEnabled] = await Promise.all([
+      let [enabled, lastSyncAt, pendingCount, apiKey, storeInfoFields, lastSyncError, bulkPublishEnabled] = await Promise.all([
         getStoreEnabled(),
         getLastSyncAt(),
         getPendingSyncCount(),
@@ -159,6 +186,18 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
         getLastSyncError(),
         getBulkPublishEnabled(),
       ]);
+
+      // Automatic subscription status reconciliation:
+      // If store is marked enabled but subscription has lapsed, auto-disable.
+      const hasActiveSub = await hasActiveOnlineStoreSubscription();
+      if (enabled && !hasActiveSub) {
+        await setStoreEnabled(false);
+        enabled = false;
+        if (slug && apiKey) {
+          try { await setStoreStatus(slug, apiKey, false); } catch {}
+        }
+      }
+
       set({
         enabled, lastSyncAt, pendingCount, isRegistering: enabled && !apiKey, storeInfoFields,
         lastSyncError: lastSyncError || null,

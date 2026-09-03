@@ -2,7 +2,7 @@
   "expo": {
     "name": "Froshiar",
     "slug": "managerx",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo-icon.png",
     "scheme": "froshiar",
@@ -91,7 +91,8 @@
           "cameraPermission": "Froshiar needs camera access to take a business logo photo.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true
