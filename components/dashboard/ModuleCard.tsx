@@ -1,12 +1,12 @@
-import React from 'react';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { Pressable, View, StyleSheet, Animated } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
-import type { ComponentProps } from 'react';
-import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { Theme } from '@/constants/theme';
+import { useLanguageStore } from '@/store/languageStore';
+import i18n from '@/lib/i18n';
+import { darken } from '@/lib/colorUtils';
 import { ModuleDefinition } from '@/constants/config';
 
 interface Props {
@@ -15,100 +15,191 @@ interface Props {
   label: string;
 }
 
+const DEPTH = 5;
+
+function getModuleIcon(id: string): keyof typeof Ionicons.glyphMap {
+  switch (id) {
+    case 'purchases': return 'cart';
+    case 'sales':     return 'receipt';
+    case 'inventory': return 'cube';
+    case 'reports':   return 'stats-chart';
+    case 'history':   return 'time';
+    case 'debt':      return 'wallet';
+    default:          return 'grid';
+  }
+}
+
 export function ModuleCard({ module, enabled, label }: Props) {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const lang = useLanguageStore((s) => s.language);
+  const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
+
+  const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handlePress = () => {
     if (!enabled) return;
     router.push(module.route as any);
   };
 
+  const handlePressIn = () => {
+    Animated.spring(pressAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 280,
+      friction: 18,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 280,
+      friction: 18,
+    }).start();
+  };
+
+  const translateY = pressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, DEPTH - 1],
+  });
+
+  // Dynamically uses the exact active theme/accent color of the app
+  const surfaceBg = colors.primary;
+  const baseBg = colors.primaryDark ?? darken(colors.primary, 0.14);
+  const iconName = getModuleIcon(module.id);
+
   return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.85}
-      disabled={!enabled}
-      style={styles.touchable}
-    >
-      <MotiView
-        animate={{ opacity: enabled ? 1 : 0.45, scale: 1 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 200 }}
-        style={[
-          styles.card,
-          {
-            backgroundColor: enabled ? colors.white : colors.gray100,
-            borderColor:     enabled ? colors.lightBlue : colors.gray200,
-          },
-          Theme.shadow.card,
-        ]}
+    <View style={[styles.container, { opacity: enabled ? 1 : 0.5 }]}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={enabled ? handlePressIn : undefined}
+        onPressOut={enabled ? handlePressOut : undefined}
+        disabled={!enabled}
+        style={styles.pressable}
       >
+        {/* 3D Base Card (the visible bottom edge is the 3D bevel/shadow) */}
         <View
           style={[
-            styles.iconWrapper,
-            { backgroundColor: enabled ? colors.softBlue : colors.gray100 },
+            styles.baseCard,
+            {
+              backgroundColor: baseBg,
+              shadowColor: baseBg,
+            },
           ]}
         >
-          <Ionicons
-            name={module.icon as ComponentProps<typeof Ionicons>['name']}
-            size={32}
-            color={enabled ? colors.primary : colors.gray400}
-          />
+          {/* Top Surface that sinks down on press */}
+          <Animated.View
+            style={[
+              styles.surface,
+              {
+                backgroundColor: surfaceBg,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <View style={styles.contentRow}>
+              {isKurdish ? (
+                <>
+                  <Text
+                    style={styles.label}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                  >
+                    {label}
+                  </Text>
+                  <Ionicons
+                    name={iconName}
+                    size={22}
+                    color="#FFFFFF"
+                    style={styles.iconKurdish}
+                  />
+                </>
+              ) : (
+                <>
+                  <Ionicons
+                    name={iconName}
+                    size={22}
+                    color="#FFFFFF"
+                    style={styles.iconEnglish}
+                  />
+                  <Text
+                    style={styles.label}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.72}
+                  >
+                    {label}
+                  </Text>
+                </>
+              )}
+            </View>
+
+            {!enabled && (
+              <View style={styles.lockBadge}>
+                <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
+              </View>
+            )}
+          </Animated.View>
         </View>
-
-        <Text
-          style={[
-            styles.label,
-            { color: enabled ? colors.darkBlue : colors.gray400 },
-          ]}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-
-        {!enabled && (
-          <View style={[styles.lockBadge, { backgroundColor: colors.gray100 }]}>
-            <Ionicons name="lock-closed" size={10} color={colors.gray400} />
-          </View>
-        )}
-      </MotiView>
-    </TouchableOpacity>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  touchable: { flex: 1, margin: 6 },
-  card: {
-    borderRadius:    Theme.radius.card,
-    padding:         20,
-    alignItems:      'center',
-    justifyContent:  'center',
-    minHeight:       140,
-    borderWidth:     1,
-    position:        'relative',
+  container: {
+    flex: 1,
+    margin: 7,
   },
-  iconWrapper: {
-    width:          64,
-    height:         64,
-    borderRadius:   18,
-    alignItems:     'center',
+  pressable: {
+    width: '100%',
+  },
+  baseCard: {
+    borderRadius: 22,
+    paddingBottom: DEPTH,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  surface: {
+    minHeight: 102,
+    borderRadius: 20,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom:   12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   label: {
-    fontSize:   13,
-    fontWeight: '600',
-    textAlign:  'center',
-    lineHeight: 18,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  iconKurdish: {
+    marginLeft: 8,
+  },
+  iconEnglish: {
+    marginRight: 8,
   },
   lockBadge: {
-    position:       'absolute',
-    top:            10,
-    right:          10,
-    width:          20,
-    height:         20,
-    borderRadius:   10,
-    alignItems:     'center',
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    alignItems: 'center',
     justifyContent: 'center',
   },
 });
