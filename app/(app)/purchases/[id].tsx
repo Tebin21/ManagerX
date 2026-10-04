@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, ScrollView,
   Alert, StyleSheet, InteractionManager,
@@ -74,26 +74,34 @@ export default function PurchaseDetailScreen() {
   const [isLoading, setIsLoading]     = useState(true);
   const [isSharing, setIsSharing]     = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
+  const autoShareTriggeredRef         = useRef(false);
 
   useEffect(() => { loadPurchase(); }, [id]);
 
   useEffect(() => {
-    if (isNew === '1' && purchase) {
+    if (isNew === '1' && purchase && !autoShareTriggeredRef.current) {
+      if (purchase.paymentStatus === 'debt' && purchaseDebt === null) {
+        return; // Wait until debt is loaded so invoice PDF contains correct paid and remaining amounts
+      }
+      autoShareTriggeredRef.current = true;
       const task = InteractionManager.runAfterInteractions(() => handleShare());
       return () => task.cancel();
     }
-  }, [isNew, purchase]);
+  }, [isNew, purchase, purchaseDebt]);
 
   async function loadPurchase() {
     try {
       const purchaseId = Number(id);
-      const [data, items] = await Promise.all([
-        getPurchaseById(purchaseId),
+      const data = await getPurchaseById(purchaseId);
+      const [items, debt] = await Promise.all([
         getPurchaseItemsByPurchaseId(purchaseId),
+        data && data.paymentStatus === 'debt'
+          ? getPurchaseDebtByPurchaseId(purchaseId)
+          : Promise.resolve(null),
       ]);
       setPurchase(data);
       setPurchaseItems(items);
-      setPurchaseDebt(data && data.paymentStatus === 'debt' ? await getPurchaseDebtByPurchaseId(purchaseId) : null);
+      setPurchaseDebt(debt);
     } catch (err) {
       console.error('Failed to load purchase:', err);
     } finally {
@@ -105,10 +113,14 @@ export default function PurchaseDetailScreen() {
     if (!purchase) return;
     setIsSharing(true);
     try {
+      const currentDebt = purchase.paymentStatus === 'debt'
+        ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
+        : null;
+
       await sharePurchaseInvoice(purchase, purchaseItems, {
         name: business.name, phone: business.phone,
         address: business.address, logoUri: business.logoUri,
-      }, receiptCurrency, purchaseDebt);
+      }, receiptCurrency, currentDebt);
     } catch (err) {
       console.error('[PDF] handleShare unexpected error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));

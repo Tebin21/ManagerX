@@ -1,20 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 
-// Config sources, in priority order: process.env.PORT (most hosts — Render, Fly.io,
-// Railway, etc. — inject this and expect you to listen on it) > config.local.json
+// Config sources, in priority order: process.env.PORT (inject by host) > config.local.json
 // (optional, non-secret overrides — e.g. a different CORS origin for a staging
-// environment) > these defaults, which already point at the real production domain
-// (api.froshiar.store backend, froshiar.store frontend) so nothing has to be set to
-// deploy this as-is.
+// environment) > these defaults, which point at the production domain
+// (api.froshiar.store backend, froshiar.store frontend).
 const CONFIG_PATH = path.join(__dirname, '../config.local.json');
 
 export interface LocalConfig {
   port: number;
   allowedOrigin: string | string[];
   // The server's own public base URL, used to build absolute URLs for uploaded
-  // images (the server can't reliably infer this from a request behind Render's
-  // proxy). Override via PUBLIC_API_URL or config.local.json for local/LAN testing.
+  // images. Override via PUBLIC_API_URL or config.local.json.
   publicApiUrl: string;
   // Shared secret for the /api/admin/* routes (see src/adminAuth.ts). This is a
   // server-to-server credential, not a user password — only the Froshiar Store

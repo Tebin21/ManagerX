@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://api.froshiar.store/api/$1" },
+    { "source": "/uploads/(.*)", "destination": "https://api.froshiar.store/uploads/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

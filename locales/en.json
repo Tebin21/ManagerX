@@ -1498,6 +1498,7 @@
     "restoreError": "Failed to restore purchases. Please try again.",
     "purchaseSuccess": "Thank you! Your subscription is now active.",
     "storeComingSoonNotice": "Froshiar Store subscriptions are being finalized for the App Store. Please check back soon or restore an existing purchase.",
+    "featuresComingSoon": "These features will be available soon",
     "loadingProducts": "Loading subscription options...",
     "perMonth": "/ month"
   }

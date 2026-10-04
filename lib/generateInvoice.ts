@@ -323,8 +323,17 @@ export async function sharePurchaseInvoice(
 ): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
+    let resolvedDebt = purchaseDebt;
+    if (!resolvedDebt && purchase.paymentStatus === 'debt') {
+      try {
+        const { getPurchaseDebtByPurchaseId } = await import('@/lib/sqlite');
+        resolvedDebt = await getPurchaseDebtByPurchaseId(purchase.id);
+      } catch (e) {
+        console.warn('[PDF] Failed to load purchase debt for invoice:', e);
+      }
+    }
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, purchaseDebt);
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,

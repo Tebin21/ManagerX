@@ -3,16 +3,25 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { MulterError } from 'multer';
-import { JsonStoreRepository } from '../jsonStoreRepository';
+import { getStoreRepository } from '../repositoryFactory';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
 import { requireActiveSubscription, checkSubscriptionHeaders } from '../subscriptionAuth';
 import { upload, saveUploadedImage, UPLOADS_ROOT } from '../uploads';
+import { uploadToStorage, deleteStoreFromStorage } from '../r2Storage';
 import { storeWriteLimiter, registrationLimiter } from '../rateLimit';
 import { config } from '../config';
-import type { SyncChangeInput } from '../storeRepository';
+import type { SyncChangeInput, StoreRepository } from '../storeRepository';
 import { logActivity } from '../activityLog';
 
-const repo = new JsonStoreRepository();
+// Lazy proxy so that getStoreRepository() is only evaluated when a route is actually invoked,
+// preventing serverless cold-start / module-load crashes if environment variables are initializing.
+const repo: StoreRepository = new Proxy({} as StoreRepository, {
+  get(_target, prop) {
+    const instance = getStoreRepository();
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+});
 
 export const storesRouter = Router();
 
@@ -133,6 +142,24 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
   });
 }));
 
+// GET /api/stores/:slug/products/:productId — public single product endpoint, strictly scoped to store_id
+storesRouter.get('/:slug/products/:productId', asyncHandler(async (req, res) => {
+  const store = await repo.getBySlug(req.params.slug);
+  if (!store || !store.enabled) {
+    res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+  const targetId = parseInt(req.params.productId, 10);
+  const product = store.products.find(
+    (p) => p.productId === targetId && p.isPublished && p.quantity > 0
+  );
+  if (!product) {
+    res.status(404).json({ error: 'Product not found in this store' });
+    return;
+  }
+  res.json(product);
+}));
+
 // PATCH /api/stores/:slug/status — Enable/Disable, requires the store's API key.
 // Subscription is checked inline, only when enabled:true is requested — disabling
 // must always succeed regardless of subscription state (the system can auto-disable
@@ -218,7 +245,10 @@ storesRouter.post('/:slug/images', storeWriteLimiter, requireStoreAuth, blockIfA
     res.status(400).json({ error: 'image file is required (field name "image", jpeg/png/webp, max 5MB)' });
     return;
   }
-  const filename = saveUploadedImage(req.params.slug, req.file);
+  const ext = req.file.mimetype.split('/')[1] || 'jpg';
+  const crypto = await import('crypto');
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  await uploadToStorage(req.params.slug, filename, req.file.buffer, req.file.mimetype);
   const url = `${config.publicApiUrl}/uploads/${req.params.slug}/${filename}`;
   res.status(201).json({ url });
 }));
@@ -234,8 +264,7 @@ storesRouter.delete('/:slug', storeWriteLimiter, requireStoreAuth, asyncHandler(
     res.status(404).json({ error: 'Store not found' });
     return;
   }
-  const uploadsDir = path.join(UPLOADS_ROOT, req.params.slug);
-  if (fs.existsSync(uploadsDir)) fs.rmSync(uploadsDir, { recursive: true, force: true });
+  await deleteStoreFromStorage(req.params.slug);
   void logActivity(req, 'system', 'store_deleted', { slug: req.params.slug, details: tombstone.businessName });
   res.json(tombstone);
 }));

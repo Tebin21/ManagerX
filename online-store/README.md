@@ -3,24 +3,20 @@
 The public storefront platform behind the "Online Store" feature in the Froshiar app.
 Production domain: **froshiar.store** (frontend) / **api.froshiar.store** (backend) — two
 separate deployments on two subdomains of the same domain.
-
 ## Architecture
 
 ```
-froshiar.store           ──▶  online-store/client   (Vite + React + Tailwind, static)
-                               deployed to Vercel
+froshiar.store           ──▶  online-store/client   (Vite + React + Tailwind SPA)
+                                deployed to Vercel
 
-api.froshiar.store       ──▶  online-store/server   (Express + TypeScript API)
-                               deployed to any Docker host with persistent disk
+api.froshiar.store       ──▶  online-store/server   (Vercel Serverless Function)
+                                backed by Neon PostgreSQL + Cloudflare R2
 ```
 
-These are **two independent deployments**, not one process serving both (that was the
-local-dev-only shape before a real domain existed). The client is a static SPA — Vercel
-serves it directly and it calls the API cross-origin via `VITE_API_BASE_URL`. The server
-stores everything in a local JSON ledger (`server/data/stores.json`) via a swappable
-`StoreRepository` interface (`server/src/storeRepository.ts` + `jsonStoreRepository.ts`)
-— no database account required, but it does need a host with a **persistent disk**, which
-rules out Vercel (or any pure serverless platform) for the backend specifically.
+The frontend and backend run serverlessly on Vercel:
+- **Database:** Neon PostgreSQL (`sweet-dawn-41011171`), branch `production`. Every store is scoped by `store_id` (strict tenant isolation).
+- **Storage:** Cloudflare R2 (bucket `froshiar`), private S3-compatible media storage streamed securely via `/uploads/:slug/:filename`.
+- **Zero Server Sleeping:** Fully stateless serverless functions running on Vercel/Edge with instant invocation (<200ms) and unlimited tenant scalability.
 
 ## Local development
 
@@ -36,34 +32,21 @@ this local server from a physical device or emulator.
 
 ## Production deployment
 
-### 1. Backend → api.froshiar.store
+### 1. Backend → api.froshiar.store (Vercel Serverless)
 
-This needs a host with a **persistent volume/disk** (the ledger is a local file) — it will
-**not** work on pure serverless (Vercel functions, AWS Lambda, etc.) without first swapping
-`JsonStoreRepository` for a real DB-backed `StoreRepository`.
-
-- `online-store/server/Dockerfile` — builds and runs the API on any Docker host (Render,
-  Fly.io, Railway, DigitalOcean App Platform, a plain VPS via `docker run`). Mount your
-  host's persistent volume at `/app/data` or every redeploy wipes all registered stores.
-- `online-store/server/render.yaml` — one concrete, ready-to-go example (Render: simple,
-  free/cheap tier, has a built-in persistent disk option). Not required if you'd rather
-  use a different Docker host — the Dockerfile alone is enough anywhere.
-- The server reads `process.env.PORT` if your host sets it (most do), otherwise defaults
-  to 4100. `config.local.json` (gitignored, copy from `config.local.json.example`) lets
-  you override the CORS `allowedOrigin` for a staging environment — production already
-  defaults to `https://froshiar.store` and `https://www.froshiar.store`, no setup needed.
-- `PUBLIC_API_URL` env var (defaults to `https://api.froshiar.store`) — used to build the
-  absolute URL returned by the image upload endpoint (`POST /:slug/images`), since the
-  server can't reliably infer its own public hostname from behind a host's proxy. Already
-  set in `render.yaml`; override it (or set it in `config.local.json`) if deploying
-  elsewhere or testing against a LAN IP from a physical mobile device.
-- Uploaded product/logo images are stored on the same persistent disk as the ledger
-  (`data/uploads/{slug}/...`, served statically at `/uploads/...`) — no third-party image
-  host needed, but this means the disk mount is now required for images too, not just
-  the ledger.
-- Once deployed, point the `api` subdomain's DNS at whatever hostname your host gives you
-  (see DNS section below) — that host-provided hostname is something only your chosen
-  platform can give you after you deploy, so it can't be filled in ahead of time here.
+Deploy `online-store/server` to Vercel:
+1. **New Project** in Vercel dashboard → import this repo.
+2. **Root Directory**: set to `online-store/server` (monorepo).
+3. **Environment Variables**:
+   - `DATABASE_URL` = your Neon PostgreSQL pooled connection string
+   - `R2_ACCOUNT_ID` = Cloudflare account ID
+   - `R2_ACCESS_KEY_ID` = Cloudflare R2 token Access Key ID
+   - `R2_SECRET_ACCESS_KEY` = Cloudflare R2 token Secret Access Key
+   - `R2_BUCKET_NAME` = `froshiar`
+   - `PUBLIC_API_URL` = `https://api.froshiar.store`
+   - `ADMIN_API_KEY` = random shared secret
+4. **Domains** tab → add `api.froshiar.store`.
+5. Point DNS CNAME for `api` to `cname.vercel-dns.com`.
 
 ### 2. Frontend → froshiar.store
 
@@ -93,14 +76,11 @@ Add these at whichever registrar/DNS provider manages `froshiar.store`:
 |-------|-------------|------------------------------|---------|
 | A     | `@` (apex)  | `76.76.21.21`                | Vercel — frontend root domain |
 | CNAME | `www`       | `cname.vercel-dns.com`       | Vercel — `www` redirect/alias |
-| CNAME | `api`       | *(your backend host's hostname, e.g. `your-service.onrender.com`)* | Backend API |
+| CNAME | `api`       | `cname.vercel-dns.com`       | Vercel — backend serverless API |
 
 The Vercel values are Vercel's standard published anycast targets — **Vercel's own
-dashboard is authoritative**: after you add the domain there (production deployment step
-5 above), it will show you the exact records for your account, use those if they ever
-differ from the table above. The `api` CNAME target depends entirely on which host you
-deploy the backend to (Render, Fly.io, etc. each give you a different hostname after
-deploy) — there's no way to know it in advance of actually deploying.
+dashboard is authoritative**: after you add the domain there, it will show you the exact
+records for your account.
 
 If your registrar doesn't support an A record on the apex domain alongside other records,
 use Vercel's ALIAS/ANAME option instead (same dashboard flow — Vercel tells you which to

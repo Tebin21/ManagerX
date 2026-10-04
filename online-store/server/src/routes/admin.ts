@@ -4,13 +4,21 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { MulterError } from 'multer';
-import { JsonStoreRepository } from '../jsonStoreRepository';
+import { getStoreRepository } from '../repositoryFactory';
 import { generateApiKey, hashApiKey } from '../auth';
 import { upload, saveUploadedImage, UPLOADS_ROOT } from '../uploads';
+import { uploadToStorage, deleteStoreFromStorage } from '../r2Storage';
 import { logActivity, listActivity } from '../activityLog';
-import type { DeletedStoreRecord, StoreRecord } from '../storeRepository';
+import type { DeletedStoreRecord, StoreRecord, StoreRepository } from '../storeRepository';
 
-const repo = new JsonStoreRepository();
+// Lazy proxy so that getStoreRepository() is only evaluated when a route is actually invoked.
+const repo: StoreRepository = new Proxy({} as StoreRepository, {
+  get(_target, prop) {
+    const instance = getStoreRepository();
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+});
 
 export const adminRouter = Router();
 
@@ -113,7 +121,9 @@ adminRouter.post(
       res.status(404).json({ error: 'Store not found' });
       return;
     }
-    const filename = saveUploadedImage(req.params.slug, req.file);
+    const ext = req.file.mimetype.split('/')[1] || 'jpg';
+    const filename = `${crypto.randomUUID()}.${ext}`;
+    await uploadToStorage(req.params.slug, filename, req.file.buffer, req.file.mimetype);
     void logActivity(req, 'admin', 'image_uploaded', { slug: req.params.slug });
     res.status(201).json({ filename });
   })
@@ -140,8 +150,7 @@ adminRouter.delete('/stores/:slug', asyncHandler(async (req, res) => {
     res.status(404).json({ error: 'Store not found' });
     return;
   }
-  const uploadsDir = path.join(UPLOADS_ROOT, req.params.slug);
-  if (fs.existsSync(uploadsDir)) fs.rmSync(uploadsDir, { recursive: true, force: true });
+  await deleteStoreFromStorage(req.params.slug);
   void logActivity(req, 'admin', 'store_deleted', { slug: req.params.slug, details: tombstone.businessName });
   res.json(tombstone);
 }));

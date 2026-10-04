@@ -1,8 +1,5 @@
-# This Dockerfile expects the Docker BUILD CONTEXT to be the repository root (it COPYs
-# from both online-store/server/ and the sibling lib/ folder). On Render this is a
-# manually-configured Docker Web Service, so the dashboard's "Root Directory" and "Docker
-# Build Context Directory" fields must both be set to the repo root (blank/".") — they are
-# independent of render.yaml's dockerContext and won't pick up changes made only there.
+# This Dockerfile builds the standalone container image for online-store/server.
+# Build context should be the repository root to resolve shared monorepo lib imports.
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY online-store/server/package*.json ./

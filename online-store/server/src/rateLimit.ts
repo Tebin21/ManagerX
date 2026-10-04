@@ -18,6 +18,7 @@ export const storeWriteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: slugOrIpKey,
+  validate: { keyGeneratorIpFallback: false },
   message: { error: 'Too many requests, please slow down' },
 });
 

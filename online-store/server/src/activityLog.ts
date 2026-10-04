@@ -12,7 +12,10 @@ import type { Request } from 'express';
 // following the same "one shared Promise chain, never per-key" reasoning as
 // storeLock.ts: two concurrent appends must not read-modify-write the same
 // file and silently drop one entry.
-const LOG_PATH = path.join(__dirname, '../data/activity-log.json');
+// In Vercel Serverless Functions the filesystem is read-only, so route temporary logs to /tmp.
+const LOG_PATH = process.env.VERCEL
+  ? path.join('/tmp', 'activity-log.json')
+  : path.join(__dirname, '../data/activity-log.json');
 // Hard cap so a busy store can't grow this file without bound — old entries
 // roll off. Generous enough (10k entries) that "Daily Sync Activity" and
 // recent-activity views always have plenty of history in practice.
@@ -68,9 +71,7 @@ async function writeLog(entries: ActivityEntry[]): Promise<void> {
 }
 
 function requestIp(req: Request): string {
-  // Trusts req.ip as-is — this server sits behind Render's proxy (or plain
-  // localhost in dev), not behind an arbitrary untrusted reverse proxy chain,
-  // so there's no X-Forwarded-For spoofing concern worth handling here.
+  // Trusts req.ip as-is from Vercel / Cloudflare edge proxy (or localhost in dev).
   return req.ip ?? 'unknown';
 }
 
