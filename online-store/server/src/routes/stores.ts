@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { MulterError } from 'multer';
 import { getStoreRepository } from '../repositoryFactory';
 import { generateApiKey, hashApiKey, requireStoreAuth } from '../auth';
@@ -246,7 +247,6 @@ storesRouter.post('/:slug/images', storeWriteLimiter, requireStoreAuth, blockIfA
     return;
   }
   const ext = req.file.mimetype.split('/')[1] || 'jpg';
-  const crypto = await import('crypto');
   const filename = `${crypto.randomUUID()}.${ext}`;
   await uploadToStorage(req.params.slug, filename, req.file.buffer, req.file.mimetype);
   const url = `${config.publicApiUrl}/uploads/${req.params.slug}/${filename}`;
@@ -279,5 +279,6 @@ storesRouter.use((err: unknown, _req: Request, res: Response, _next: NextFunctio
     return;
   }
   console.error('Unhandled store route error:', err);
-  res.status(500).json({ error: 'Request failed' });
+  const message = err instanceof Error ? err.message : 'Request failed';
+  res.status(500).json({ error: message });
 });
