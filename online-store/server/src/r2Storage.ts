@@ -60,16 +60,21 @@ export async function uploadToStorage(
   const bucket = getR2Config().bucketName;
 
   if (client) {
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        ContentLength: buffer.length,
-      })
-    );
-    return key;
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          ContentLength: buffer.length,
+        })
+      );
+      return key;
+    } catch (err: any) {
+      console.error('[R2 Storage] PutObjectCommand failed:', err.message);
+      throw new Error(`Cloudflare R2 error: ${err.message}. Please check R2_SECRET_ACCESS_KEY in Vercel (expected 64 characters, currently ${getR2Config().secretAccessKey.length}).`);
+    }
   }
 
   // Local fallback
