@@ -57,7 +57,8 @@ app.use(['/api/admin', '/admin'], requireAdminAuth, adminRouter);
 
 // Health check endpoint: responds 200 without throwing even if DB is cold
 app.get(['/api/health', '/health'], (_req, res) => {
-  const { isR2Configured, R2_BUCKET_NAME } = require('./r2Storage');
+  const { isR2Configured, R2_BUCKET_NAME, getR2Config } = require('./r2Storage');
+  const r2Cfg = getR2Config();
   res.json({
     ok: true,
     status: 'healthy',
@@ -65,6 +66,10 @@ app.get(['/api/health', '/health'], (_req, res) => {
     r2: {
       configured: isR2Configured,
       bucket: R2_BUCKET_NAME,
+      accountIdLength: r2Cfg.accountId.length,
+      accessKeyIdLength: r2Cfg.accessKeyId.length,
+      secretKeyLength: r2Cfg.secretAccessKey.length,
+      hasQuotes: Boolean(process.env.R2_SECRET_ACCESS_KEY?.includes('"') || process.env.R2_SECRET_ACCESS_KEY?.includes("'")),
     },
     environment: process.env.NODE_ENV || 'production',
   });
