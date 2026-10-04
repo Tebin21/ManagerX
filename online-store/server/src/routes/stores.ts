@@ -279,6 +279,6 @@ storesRouter.use((err: unknown, _req: Request, res: Response, _next: NextFunctio
     return;
   }
   console.error('Unhandled store route error:', err);
-  const message = err instanceof Error ? err.message : 'Request failed';
-  res.status(500).json({ error: message });
+  const message = err instanceof Error ? (err.stack || err.message) : String(err) || 'Request failed';
+  res.status(500).json({ error: err instanceof Error ? err.message : message });
 });
