@@ -66,6 +66,7 @@ export async function uploadToStorage(
         Key: key,
         Body: buffer,
         ContentType: mimeType,
+        ContentLength: buffer.length,
       })
     );
     return key;
