@@ -1,8 +1,6 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { JsonStoreRepository } from './jsonStoreRepository';
-
-const repo = new JsonStoreRepository();
+import { getStoreRepository } from './repositoryFactory';
 
 export function generateApiKey(): string {
   return crypto.randomBytes(24).toString('hex');
@@ -36,7 +34,7 @@ export async function requireStoreAuth(req: Request, res: Response, next: NextFu
     return;
   }
 
-  const store = await repo.getBySlug(slug);
+  const store = await getStoreRepository().getBySlug(slug);
   // Distinguish "this store doesn't exist (anymore)" from "wrong key for a store that
   // does exist" — the client needs this distinction to tell a permanently-stale local
   // registration (re-register automatically) apart from a transient/network failure

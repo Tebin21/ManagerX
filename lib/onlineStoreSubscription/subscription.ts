@@ -91,6 +91,26 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
     }
   } catch {}
 
+  // Dedicated demo account preview entitlement (strictly demo@froshiar.store)
+  try {
+    const { useAuthStore } = await import('@/store/authStore');
+    const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
+    if (email === 'demo@froshiar.store') {
+      const demoInfo: SubscriptionInfo = {
+        plan: 'lifetime',
+        deviceId,
+        subscriptionCode: 'DEMO-STORE-PREVIEW',
+        activatedAt: '2026-01-01T00:00:00.000Z',
+        expiresAt: null,
+        isActive: true,
+        expired: false,
+      };
+      cachedInfo = demoInfo;
+      cachedAt = Date.now();
+      return demoInfo;
+    }
+  } catch {}
+
   const subscriptionCode = await loadSetting(KEY_SUBSCRIPTION_CODE);
 
   let info: SubscriptionInfo;
@@ -181,6 +201,13 @@ export async function hasActiveOnlineStoreSubscription(): Promise<boolean> {
 // when nothing is stored, so the caller can omit the headers entirely.
 export async function getOnlineStoreSubscriptionHeaders(): Promise<{ code: string; deviceId: string } | null> {
   const deviceId = await getOrCreateDeviceId();
+  try {
+    const { useAuthStore } = await import('@/store/authStore');
+    const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
+    if (email === 'demo@froshiar.store') {
+      return { code: 'DEMO-STORE-PREVIEW', deviceId };
+    }
+  } catch {}
   const code = await loadSetting(KEY_SUBSCRIPTION_CODE);
   if (!code) return null;
   return { code, deviceId };

@@ -14,6 +14,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { useAuthStore } from '@/store/authStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { formatRelativeTime } from '@/utils/formatters';
@@ -72,9 +73,13 @@ export default function OnlineStoreScreen() {
     }
   };
 
+  const user = useAuthStore((s) => s.user);
+  const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
+
   // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
   // is not reachable on iOS this release, regardless of subscription status.
-  if (Platform.OS === 'ios') {
+  // Gated strictly: only the internal demo account (demo@froshiar.store) can preview/test.
+  if (Platform.OS === 'ios' && !isDemoUser) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />

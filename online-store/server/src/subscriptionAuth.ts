@@ -32,6 +32,14 @@ export function checkSubscriptionHeaders(req: Request): SubscriptionCheckResult 
     persistSubscriptionSnapshot(req, { status: 'missing' });
     return { status: 'missing' };
   }
+  // Dedicated demo preview allowance: strictly for demo store 'froshiar'
+  if (code === 'DEMO-STORE-PREVIEW') {
+    const slug = req.params?.slug;
+    const bodyName = (req.body?.businessName || '').toString().trim().toLowerCase();
+    if (slug === 'froshiar' || bodyName === 'froshiar store' || bodyName === 'froshiar') {
+      return { status: 'valid' };
+    }
+  }
   const result = subscriptionCore.verifySubscriptionCode(code, deviceId);
   persistSubscriptionSnapshot(req, {
     status: result.status,

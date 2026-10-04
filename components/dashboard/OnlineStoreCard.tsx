@@ -10,6 +10,7 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
+import { useAuthStore } from '@/store/authStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoonCard } from '@/components/dashboard/OnlineStoreComingSoonCard';
 import { InfoModal } from '@/components/ui/InfoModal';
@@ -43,9 +44,13 @@ export function OnlineStoreCard() {
     }, [])
   );
 
+  const user = useAuthStore((s) => s.user);
+  const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
+
   // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
   // is not reachable on iOS this release, regardless of subscription status.
-  if (Platform.OS === 'ios') {
+  // Gated strictly: only the internal demo account (demo@froshiar.store) can preview/test.
+  if (Platform.OS === 'ios' && !isDemoUser) {
     return <OnlineStoreComingSoonCard />;
   }
 
