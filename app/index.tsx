@@ -51,6 +51,8 @@ export default function Index() {
         reconcileColdStart(),
         new Promise((resolve) => setTimeout(resolve, RECONCILE_TIMEOUT_MS)),
       ]);
+      const { useBusinessStore } = await import('@/store/businessStore');
+      useBusinessStore.getState().setReconciling(false);
     })();
   }, [authHydrated, businessHydrated, user]);
 

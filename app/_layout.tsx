@@ -86,8 +86,13 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_800ExtraBold,
     Inter_900Black,
-    // Kurdish-only, Settings-screen-only typeface — see lib/settingsFont.ts
-    RudawRegular: require('@/assets/fonts/rudawregular2.ttf'),
+    // Kurdish typeface (Bahij Janna) - Regular and Bold
+    'BahijJanna-Regular': require('@/assets/fonts/BahijJanna-Regular.ttf'),
+    'BahijJanna-Bold': require('@/assets/fonts/BahijJanna-Bold.ttf'),
+    'Bahij Janna': require('@/assets/fonts/BahijJanna-Regular.ttf'),
+    'Bahij Janna Bold': require('@/assets/fonts/BahijJanna-Bold.ttf'),
+    // Alias RudawRegular to BahijJanna-Regular for backward compatibility
+    RudawRegular: require('@/assets/fonts/BahijJanna-Regular.ttf'),
   });
 
   const initialize = useAuthStore((s) => s.initialize);

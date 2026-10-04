@@ -1,0 +1,69 @@
+const fs = require('fs');
+
+// Create an HTML page that displays the exact words in both fonts so we can visually see what Bahij Janna actually looks like vs Rudaw!
+const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face {
+  font-family: 'BahijJanna-Bold';
+  src: url('BahijJanna-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'BahijJanna-Regular';
+  src: url('BahijJanna-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'RudawRegular';
+  src: url('rudawregular2.ttf') format('truetype');
+}
+body {
+  background: #111;
+  color: #fff;
+  font-size: 32px;
+  padding: 40px;
+  direction: rtl;
+}
+.row {
+  margin-bottom: 30px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #222;
+}
+.label {
+  font-size: 16px;
+  color: #888;
+  margin-bottom: 10px;
+  direction: ltr;
+  text-align: left;
+}
+.bahij-bold {
+  font-family: 'BahijJanna-Bold';
+}
+.bahij-reg {
+  font-family: 'BahijJanna-Regular';
+}
+.rudaw {
+  font-family: 'RudawRegular';
+}
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="label">1. Bahij Janna Bold:</div>
+    <div class="bahij-bold">فڕۆشتن | کڕین | کۆگا | ڕاپۆرتەکان | قەرز | مێژوو</div>
+  </div>
+  <div class="row">
+    <div class="label">2. Bahij Janna Regular:</div>
+    <div class="bahij-reg">فڕۆشتن | کڕین | کۆگا | ڕاپۆرتەکان | قەرز | مێژوو</div>
+  </div>
+  <div class="row">
+    <div class="label">3. Rudaw Regular:</div>
+    <div class="rudaw">فڕۆشتن | کڕین | کۆگا | ڕاپۆرتەکان | قەرز | مێژوو</div>
+  </div>
+</body>
+</html>`;
+
+fs.writeFileSync('assets/fonts/compare.html', html);
+console.log('compare.html created');

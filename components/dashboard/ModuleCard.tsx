@@ -8,6 +8,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import i18n from '@/lib/i18n';
 import { darken } from '@/lib/colorUtils';
 import { ModuleDefinition } from '@/constants/config';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 interface Props {
   module: ModuleDefinition;
@@ -103,7 +104,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
               {isKurdish ? (
                 <>
                   <Text
-                    style={styles.label}
+                    style={[styles.label, { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' }]}
                     numberOfLines={1}
                     adjustsFontSizeToFit
                     minimumFontScale={0.72}

@@ -2,27 +2,39 @@ import React from 'react';
 import { StyleSheet, Text as RNText, TextInputProps, TextStyle } from 'react-native';
 import { resolveInterFont } from '@/constants/typography';
 
-// Loaded in app/_layout.tsx. This is the app-wide Kurdish typeface — applied
-// by components/ui/AppText.tsx (and AppTextInput's raw TextInput), so every
-// screen that renders text through the shared Text component gets it
-// automatically whenever the app language is Kurdish.
-export const SETTINGS_KURDISH_FONT = 'RudawRegular';
+// Loaded in app/_layout.tsx. These are the app-wide Kurdish typefaces (Bahij Janna):
+// - Regular (رفيع) for body/normal weights
+// - Bold (عريض) for semibold/bold weights
+export const SETTINGS_KURDISH_FONT_REGULAR = 'BahijJanna-Regular';
+export const SETTINGS_KURDISH_FONT_BOLD = 'BahijJanna-Bold';
 
-// Kurdish glyphs sit taller in their line box than Latin (Inter), so a
-// lineHeight tuned for English clips descenders/diacritics. Floor it at 1.45x
+// Kept for backward compatibility with direct callers
+export const SETTINGS_KURDISH_FONT = SETTINGS_KURDISH_FONT_REGULAR;
+
+/**
+ * Resolves the appropriate Bahij Janna font family based on the requested fontWeight.
+ * In Arabic/Kurdish typography, 600+ maps to Bold (عريض), while normal/400/500 maps to Regular (رفيع).
+ */
+export function resolveKurdishFont(weight?: TextStyle['fontWeight']): string {
+  const w = String(weight ?? '');
+  if (w === '600' || w === '700' || w === '800' || w === '900' || w === 'bold') {
+    return SETTINGS_KURDISH_FONT_BOLD;
+  }
+  return SETTINGS_KURDISH_FONT_REGULAR;
+}
+
+// Kurdish glyphs in Bahij Janna sit taller in their line box than Latin (Inter), so a
+// lineHeight tuned for English clips descenders/diacritics. Floor it at 1.50x
 // the resolved fontSize instead of hardcoding one value, since app text
 // spans many sizes (10–30). Never lowers a lineHeight the caller already set.
-const KURDISH_LINE_HEIGHT_RATIO = 1.45;
+const KURDISH_LINE_HEIGHT_RATIO = 1.50;
 
-// Applies the app-wide font for the current language to a <Text> style.
-// English: resolves the caller's own fontWeight to the matching loaded Inter
-// file instead of leaving fontFamily unset (which silently falls back to the
-// OS default — San Francisco/Roboto — and lets the OS fake-bold every
-// fontWeight value, which is what made Latin text/IDs/dates/numbers render
-// inconsistently across screens). Kurdish: same as before — RudawRegular +
-// the line-height floor. Name kept as `applyKurdishFont` since it's imported
-// directly by several Settings-screen wrappers (SettingsText, SettingsHeader,
-// SettingsTextInput, SettingsPrimaryButton, AppTextInput, settings/data.tsx).
+/**
+ * Applies the app-wide font for the current language to a <Text> style.
+ * English / Latin / Numbers: resolves the caller's own fontWeight to the matching loaded Inter
+ * file instead of leaving fontFamily unset.
+ * Kurdish: Bahij Janna (Regular or Bold depending on weight) + line-height floor.
+ */
 export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
   isKurdish: boolean,
   style?: T
@@ -39,7 +51,8 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
   return [
     style,
     {
-      fontFamily: SETTINGS_KURDISH_FONT,
+      fontFamily: resolveKurdishFont(flat.fontWeight),
+      fontWeight: 'normal',
       lineHeight: Math.max(flat.lineHeight ?? 0, minLineHeight),
     },
   ] as unknown as T;
@@ -50,23 +63,50 @@ export function applyKurdishFont<T extends TextStyle | TextStyle[] | undefined>(
 // Deliberately broad — covers plain numbers ("0005"), mixed alphanumeric IDs
 // ("A3069"), dates with month abbreviations ("23-Jun-2026"), times with
 // AM/PM ("2:19 PM"), currency with a unit suffix ("20,000 IQD"), emails
-// ("support@froshiar.store" — "@" included so the address doesn't fracture
-// around it), and English words/product names ("Sharo Pro Max") — so each
-// renders as ONE uninterrupted system-font run instead of being chopped at
-// the first letter (which used to leave e.g. "Jun"/"AM"/"IQD"/a leading ID
-// letter in Rudaw while the digits next to them switched font, producing a
-// visible mismatch within a single value). A run may start with a sign
-// (+/-/−) directly before a letter or digit, and never ends on a trailing
-// space, so it doesn't swallow a Kurdish word that follows.
+// ("support@froshiar.store"), English product names ("iPhone 15 Pro"),
+// and parenthesized expressions ("(20%)").
 const LATIN_TOKEN =
-  /[+\-−]?[A-Za-z0-9#$@](?:[A-Za-z0-9#$@ .,:%/+\-–—×_'"()&]*[A-Za-z0-9#$@.,:%/+\-–—×_'"()&])?/g;
+  /[+\-−#$€£¥(]?[A-Za-z0-9#$€£¥@](?:[A-Za-z0-9#$€£¥@ .,:%/+\-–—×_'"()&]*[A-Za-z0-9#$€£¥@.,:%/+\-–—×_'"()&])?/g;
 
 export interface TextRun {
   text: string;
   latin: boolean;
 }
 
+// Unicode range covering the Arabic script block Kurdish Sorani is written
+// in (its extra letters — ڕ ۆ ڵ ێ پ چ ژ گ ە — all live inside this block),
+// plus the Arabic Supplement/Extended-A and presentation-form blocks for
+// defensive coverage.
+const KURDISH_SCRIPT = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
+
+export function containsKurdishScript(value: string): boolean {
+  return KURDISH_SCRIPT.test(value);
+}
+
+/**
+ * Checks whether a ReactNode tree contains any Kurdish-script text at all.
+ * If false, the text is pure Latin / numbers / symbols and MUST NEVER use the Kurdish font.
+ */
+export function hasKurdishScript(node: React.ReactNode): boolean {
+  if (node == null || typeof node === 'boolean') return false;
+  if (typeof node === 'string') return containsKurdishScript(node);
+  if (typeof node === 'number') return false;
+  if (Array.isArray(node)) {
+    return node.some(hasKurdishScript);
+  }
+  if (React.isValidElement(node) && node.props && (node.props as { children?: React.ReactNode }).children) {
+    return hasKurdishScript((node.props as { children?: React.ReactNode }).children);
+  }
+  return false;
+}
+
 export function splitLatinRuns(value: string): TextRun[] {
+  // If there are no Kurdish characters at all in the string, the entire string
+  // is pure Latin / digits / symbols — never apply Kurdish font to it.
+  if (!containsKurdishScript(value)) {
+    return [{ text: value, latin: true }];
+  }
+
   const runs: TextRun[] = [];
   let lastIndex = 0;
   for (const match of value.matchAll(LATIN_TOKEN)) {
@@ -79,35 +119,17 @@ export function splitLatinRuns(value: string): TextRun[] {
   return runs;
 }
 
-// Unicode range covering the Arabic script block Kurdish Sorani is written
-// in (its extra letters — ڕ ۆ ڵ ێ — all live inside the base Arabic block),
-// plus the Arabic Supplement/Extended-A and presentation-form blocks for
-// defensive coverage. Used to decide, for a single-font editable TextInput
-// (which can't split runs the way <Text> can), whether the field's current
-// value is Kurdish-script at all.
-const KURDISH_SCRIPT = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/;
-
-export function containsKurdishScript(value: string): boolean {
-  return KURDISH_SCRIPT.test(value);
-}
-
 const LRI = '⁦'; // Left-to-Right Isolate
 const PDI = '⁩'; // Pop Directional Isolate (closes LRI)
 
-// React Native's fontFamily has no CSS-style fallback list, so a
-// Kurdish-styled <Text> would otherwise render Latin letters and digits in
-// Rudaw too. Isolate Latin runs (IDs, phone numbers, prices, dates, times,
-// English product names, ...) into a nested <Text> forced to the same Inter
-// weight the parent requested (so e.g. a bold Kurdish label's embedded date
-// stays visually bold, not reset to regular) plus `writingDirection: 'ltr'`
-// so the run's bidi direction is isolated too — everything else (Kurdish
-// words) is left untouched and keeps inheriting Rudaw. The run's text is
-// also wrapped in real Unicode bidi-isolate characters (LRI/PDI): RN's
-// `writingDirection` style is iOS-only (no Android view manager honors it),
-// so direction-isolation on Android has to be encoded in the text itself.
-// Shared by every "Text with Kurdish-mode Latin-run splitting" consumer
-// (AppText, SettingsText, about.tsx) so there is exactly one implementation
-// of this logic in the app.
+/**
+ * Isolates Latin runs (IDs, phone numbers, prices, dates, times,
+ * English product names, emails, ...) into a nested <Text> forced to the same Inter
+ * weight the parent requested (so e.g. a bold Kurdish label's embedded date
+ * stays visually bold, not reset to regular) plus `writingDirection: 'ltr'`
+ * so the run's bidi direction is isolated too — everything else (Kurdish
+ * words) is left untouched and inherits Bahij Janna.
+ */
 export function withSystemFontLatin(children: React.ReactNode, parentStyle?: TextStyle): React.ReactNode {
   const fontFamily = resolveInterFont(parentStyle?.fontWeight);
   const items = Array.isArray(children) ? children : [children];
@@ -148,20 +170,19 @@ export interface LatinAwareInputStyleOptions {
 
 // A single TextInput can't mix fonts per-character the way AppText can for
 // display text, so a numeric-only field (phone, price, rate, ...) must skip
-// the Kurdish font entirely rather than render its digits in Rudaw.
+// the Kurdish font entirely rather than render its digits in Bahij Janna.
 export const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
   'numeric', 'phone-pad', 'decimal-pad', 'number-pad', 'numbers-and-punctuation',
 ]);
 
-// Decides whether an editable TextInput should use the Kurdish font for its
-// ENTIRE value. Unlike display text, an input can't split fonts per
-// character, so this picks one font for the whole field based on what's
-// actually been typed: a non-empty value containing zero Kurdish-script
-// characters (e.g. a barcode/SKU/email typed with a full keyboard) always
-// gets the Latin font, even when the app language is Kurdish and the field
-// has no numeric keyboardType/forceLatin escape hatch. Empty values keep
-// defaulting to the Kurdish font (matches prior behavior, avoids flicker on
-// an empty field).
+/**
+ * Decides whether an editable TextInput should use the Kurdish font for its
+ * ENTIRE value. Unlike display text, an input can't split fonts per
+ * character, so this picks one font for the whole field based on what's
+ * actually been typed: a non-empty value containing zero Kurdish-script
+ * characters (e.g. a barcode/SKU/email typed with a full keyboard) always
+ * gets the Latin font, even when the app language is Kurdish.
+ */
 export function resolveInputIsKurdish(opts: LatinAwareInputStyleOptions): boolean {
   if (!opts.isKuLanguage) return false;
   if (opts.forceLatin) return false;

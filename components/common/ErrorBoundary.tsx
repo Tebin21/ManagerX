@@ -57,7 +57,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return (
       <ErrorUI
         title={this.props.fallbackTitle}
-        message={this.props.fallbackMessage}
+        message={this.state.message || this.props.fallbackMessage}
         onReset={this.reset}
       />
     );
