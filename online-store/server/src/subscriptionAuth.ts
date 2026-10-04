@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { JsonStoreRepository } from './jsonStoreRepository';
-
-const repo = new JsonStoreRepository();
+import 'tweetnacl';
+import { getStoreRepository } from './repositoryFactory';
 
 // Reuses the EXACT same module the mobile app ships with — single source of truth
 // for the Online Store Subscription code format/algorithm, completely independent
@@ -52,7 +51,7 @@ function persistSubscriptionSnapshot(
 ): void {
   const slug = req.params?.slug;
   if (!slug) return;
-  void repo.recordSubscriptionCheck(slug, result);
+  void getStoreRepository().recordSubscriptionCheck(slug, result);
 }
 
 // Express middleware for routes that are ALWAYS gated regardless of request body
