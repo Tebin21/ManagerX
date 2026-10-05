@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Pressable, View, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -66,9 +67,9 @@ export function ModuleCard({ module, enabled, label }: Props) {
     outputRange: [0, DEPTH - 1],
   });
 
-  // Dynamically uses the exact active theme/accent color of the app
-  const surfaceBg = colors.primary;
-  const baseBg = colors.primaryDark ?? darken(colors.primary, 0.14);
+  // Uses the exact navigation header gradient colors from the active theme
+  const gradColors: [string, string] = [colors.gradientStart, colors.gradientMid];
+  const baseBg = darken(colors.gradientStart, 0.16);
   const iconName = getModuleIcon(module.id);
 
   return (
@@ -93,14 +94,19 @@ export function ModuleCard({ module, enabled, label }: Props) {
           {/* Top Surface that sinks down on press */}
           <Animated.View
             style={[
-              styles.surface,
+              styles.surfaceWrapper,
               {
-                backgroundColor: surfaceBg,
                 transform: [{ translateY }],
               },
             ]}
           >
-            <View style={styles.contentRow}>
+            <LinearGradient
+              colors={gradColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.surface}
+            >
+              <View style={styles.contentRow}>
               {isKurdish ? (
                 <>
                   <Text
@@ -143,6 +149,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
                 <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
               </View>
             )}
+            </LinearGradient>
           </Animated.View>
         </View>
       </Pressable>
@@ -166,6 +173,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+  surfaceWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
   surface: {
     minHeight: 102,
     borderRadius: 20,
@@ -173,6 +184,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   contentRow: {
     flexDirection: 'row',
