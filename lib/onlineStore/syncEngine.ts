@@ -55,10 +55,9 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
     p.imageRemoteUrl = url; // mutate in place so this sync round already reflects it
     return true;
   } catch (err) {
-    // A 404 means the store is gone — propagate so processQueue()'s outer catch can
-    // clear the stale registration and re-register, instead of every pending item
-    // with a local image retrying this exact doomed upload forever.
-    if (err instanceof OnlineStoreApiError && err.status === 404) throw err;
+    // A 404/401 means the store credential is gone or invalid — propagate so
+    // processQueue()'s outer catch can clear the stale registration and re-register.
+    if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
     if (__DEV__) console.warn('[onlineStore] image upload failed, will retry next cycle:', err);
     return false;
   }
@@ -143,7 +142,7 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
     // mask the exact same bug for stores with no pending PRODUCT changes, since
     // `pending.length === 0` short-circuits processQueue() before ever reaching
     // pushSync(), which is otherwise what surfaces this for the product-sync path.
-    if (err instanceof OnlineStoreApiError && err.status === 404) throw err;
+    if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
     if (__DEV__) console.warn('[onlineStore] info push failed, will retry next cycle:', err);
   }
 }
@@ -261,18 +260,14 @@ export async function processQueue(
       await setLastSyncError(
         'Online Store subscription required or expired — activate or renew to resume syncing.'
       );
-    } else if (err instanceof OnlineStoreApiError && err.status === 404) {
-      // The backend no longer recognizes this store — most commonly because its
-      // ledger was lost (e.g. a host restart without persistent storage actually
-      // attached) after this device had already registered successfully. Retrying
-      // the exact same request would fail identically forever, so clear the stale
-      // API key now: the next processQueue() run sees `!apiKey` above and
-      // re-registers automatically (the dashboard "Enable Store" flow is also
-      // available to the user, but this makes it self-heal without that).
-      if (__DEV__) console.warn('[onlineStore] store not found on backend (404) — clearing stale registration:', err);
+    } else if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
+      // The backend no longer recognizes this store or the credential is invalid —
+      // clear the stale API key so the next processQueue() run sees `!apiKey` above
+      // and re-registers automatically.
+      if (__DEV__) console.warn('[onlineStore] store not found or credentials invalid (404/401) — clearing stale registration:', err);
       await clearStoreApiKey();
       await setLastSyncError(
-        'Store registration was lost on the server — re-registering automatically on next sync.'
+        'Store credentials were invalid or lost on the server — re-registering automatically on next sync.'
       );
     } else {
       if (__DEV__) console.warn('[onlineStore] sync failed, will retry on next trigger:', err);

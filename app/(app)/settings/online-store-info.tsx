@@ -106,7 +106,7 @@ export default function OnlineStoreInfoScreen() {
   // Defense-in-depth — this screen is normally unreachable when locked (the entry
   // point in online-store.tsx already hides itself), but render the read-only locked
   // view too in case the subscription lapses while this screen is already open.
-  if (!hasActiveSubscription) {
+  if (!hasActiveSubscription && !isDemoUser) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />

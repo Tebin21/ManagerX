@@ -88,7 +88,7 @@ export default function OnlineStoreScreen() {
 
   // Read-only/locked entirely when there's no active subscription — no enable/sync/
   // edit controls rendered at all, satisfying "store settings must be read-only".
-  if (!hasActiveSubscription) {
+  if (!hasActiveSubscription && !isDemoUser) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />

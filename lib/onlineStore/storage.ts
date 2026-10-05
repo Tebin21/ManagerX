@@ -79,22 +79,34 @@ export async function setLastSyncAt(iso: string): Promise<void> {
 }
 
 export async function getStoreApiKey(): Promise<string | null> {
-  const SecureStore = await import('expo-secure-store');
-  return SecureStore.getItemAsync(API_KEY_STORE_KEY);
+  const sqliteKey = await loadSetting('online_store_api_key');
+  try {
+    const SecureStore = await import('expo-secure-store');
+    const secureKey = await SecureStore.getItemAsync(API_KEY_STORE_KEY);
+    if (sqliteKey && sqliteKey !== secureKey) {
+      await SecureStore.setItemAsync(API_KEY_STORE_KEY, sqliteKey);
+      return sqliteKey;
+    }
+    return secureKey || sqliteKey;
+  } catch {
+    return sqliteKey;
+  }
 }
 
 export async function setStoreApiKey(key: string): Promise<void> {
-  const SecureStore = await import('expo-secure-store');
-  await SecureStore.setItemAsync(API_KEY_STORE_KEY, key);
+  try {
+    const SecureStore = await import('expo-secure-store');
+    await SecureStore.setItemAsync(API_KEY_STORE_KEY, key);
+  } catch {}
+  await saveSetting('online_store_api_key', key);
 }
 
-// Cleared when the backend reports the store no longer exists (404 — e.g. lost after
-// a backend restart without persistent storage), so the next sync cycle's
-// `if (!slug || !apiKey)` check in syncEngine.ts re-registers automatically instead
-// of retrying the same doomed request against a dead registration forever.
 export async function clearStoreApiKey(): Promise<void> {
-  const SecureStore = await import('expo-secure-store');
-  await SecureStore.deleteItemAsync(API_KEY_STORE_KEY);
+  try {
+    const SecureStore = await import('expo-secure-store');
+    await SecureStore.deleteItemAsync(API_KEY_STORE_KEY);
+  } catch {}
+  await saveSetting('online_store_api_key', '');
 }
 
 // User-visible diagnostic for the settings screen — answers "is sync actually

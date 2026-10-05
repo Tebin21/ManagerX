@@ -130,7 +130,8 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   bulkPublishEnabled: false,
   isBulkPublishing: false,
 
-  syncWithSubscription: async (hasActiveSub: boolean) => {
+  syncWithSubscription: async (_iapActive?: boolean) => {
+    const hasActiveSub = await hasActiveOnlineStoreSubscription();
     const isCurrentlyEnabled = await getStoreEnabled();
     if (!hasActiveSub && isCurrentlyEnabled) {
       // Subscription expired or revoked: auto-disable
@@ -234,7 +235,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
         try {
           await setStoreStatus(slug, apiKey, true);
         } catch (err) {
-          if (err instanceof OnlineStoreApiError && err.status === 404) {
+          if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
             await clearStoreApiKey();
             try {
               const res = await completeStoreRegistration(businessName);

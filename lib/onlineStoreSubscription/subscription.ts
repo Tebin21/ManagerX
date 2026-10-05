@@ -64,6 +64,20 @@ export function invalidateSubscriptionCache(): void {
   cachedAt = 0;
 }
 
+async function waitForAuthHydration(): Promise<void> {
+  try {
+    const { useAuthStore } = await import('@/store/authStore');
+    if (useAuthStore.persist?.hasHydrated?.()) return;
+    await new Promise<void>((resolve) => {
+      const unsub = useAuthStore.persist?.onFinishHydration?.(() => {
+        unsub?.();
+        resolve();
+      });
+      setTimeout(resolve, 300);
+    });
+  } catch {}
+}
+
 export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
   if (cachedInfo && Date.now() - cachedAt < CACHE_TTL_MS) {
     return cachedInfo;
@@ -93,8 +107,10 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
 
   // Dedicated demo account preview entitlement (strictly demo@froshiar.store)
   try {
+    await waitForAuthHydration();
     const { useAuthStore } = await import('@/store/authStore');
     const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
+    if (__DEV__) console.warn('[onlineStoreSubscription] auth email:', email, 'hydrated:', useAuthStore.persist?.hasHydrated?.());
     if (email === 'demo@froshiar.store') {
       const demoInfo: SubscriptionInfo = {
         plan: 'lifetime',
@@ -202,14 +218,21 @@ export async function hasActiveOnlineStoreSubscription(): Promise<boolean> {
 export async function getOnlineStoreSubscriptionHeaders(): Promise<{ code: string; deviceId: string } | null> {
   const deviceId = await getOrCreateDeviceId();
   try {
+    await waitForAuthHydration();
     const { useAuthStore } = await import('@/store/authStore');
     const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
     if (email === 'demo@froshiar.store') {
+      if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders: DEMO-STORE-PREVIEW attached');
       return { code: 'DEMO-STORE-PREVIEW', deviceId };
     }
-  } catch {}
+  } catch (err) {
+    if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders error:', err);
+  }
   const code = await loadSetting(KEY_SUBSCRIPTION_CODE);
-  if (!code) return null;
+  if (!code) {
+    if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders: NO subscription found, returning null');
+    return null;
+  }
   return { code, deviceId };
 }
 
