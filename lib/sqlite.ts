@@ -1269,6 +1269,22 @@ export async function setProductImageRemoteUrl(id: number, url: string): Promise
   await database.runAsync('UPDATE products SET image_remote_url = ? WHERE id = ?', [url, id]);
 }
 
+// Enqueues any active store products that have a local image but whose remote
+// URL hasn't been uploaded yet (e.g. initial upload or recovering from a transient failure).
+export async function enqueueProductsWithPendingImages(): Promise<number> {
+  const database = await getDatabase();
+  const result = await database.runAsync(`
+    INSERT INTO sync_queue (entity_type, entity_id, operation, updated_at)
+    SELECT 'product', id, 'upsert', CURRENT_TIMESTAMP FROM products
+    WHERE store_visible = 1
+      AND image_uri IS NOT NULL
+      AND image_uri != ''
+      AND (image_remote_url IS NULL OR image_remote_url = '')
+      AND id NOT IN (SELECT entity_id FROM sync_queue WHERE entity_type = 'product')
+  `);
+  return result.changes;
+}
+
 export async function permanentDeleteFromHistory(historyId: number): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM inventory_history WHERE id = ?', [historyId]);

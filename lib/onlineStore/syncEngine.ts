@@ -7,6 +7,7 @@ import {
   getPendingSyncProducts,
   clearSyncQueue,
   setProductImageRemoteUrl,
+  enqueueProductsWithPendingImages,
   type PendingSyncItem,
 } from '@/lib/sqlite';
 import {
@@ -58,9 +59,8 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
     // A 404/401 means the store credential is gone or invalid — propagate so
     // processQueue()'s outer catch can clear the stale registration and re-register.
     if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
-    if (__DEV__) console.warn('[onlineStore] image upload failed, continuing with product metadata sync:', err);
-    // Don't block product updates (price, stock, descriptions) when image storage is unavailable
-    return true;
+    if (__DEV__) console.warn('[onlineStore] image upload failed, leaving in queue to retry:', err);
+    return false;
   }
 }
 
@@ -205,6 +205,9 @@ export async function processQueue(
     // Runs regardless of whether there are pending product changes — info edits
     // have no queue of their own, so this is their only retry path.
     await pushStoreInfoOpportunistically(slug, apiKey);
+
+    // Pick up any active store products whose local image hasn't reached the server yet
+    await enqueueProductsWithPendingImages();
 
     const pending = await getPendingSyncProducts();
     if (pending.length === 0) {
