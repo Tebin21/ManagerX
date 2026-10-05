@@ -58,8 +58,9 @@ async function ensureRemoteImage(item: PendingSyncItem, slug: string, apiKey: st
     // A 404/401 means the store credential is gone or invalid — propagate so
     // processQueue()'s outer catch can clear the stale registration and re-register.
     if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) throw err;
-    if (__DEV__) console.warn('[onlineStore] image upload failed, will retry next cycle:', err);
-    return false;
+    if (__DEV__) console.warn('[onlineStore] image upload failed, continuing with product metadata sync:', err);
+    // Don't block product updates (price, stock, descriptions) when image storage is unavailable
+    return true;
   }
 }
 
