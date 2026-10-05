@@ -41,6 +41,7 @@ import { SETTINGS_KURDISH_FONT, applyKurdishFont, resolveInputIsKurdish } from '
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
+import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
 
 function round(n: number, decimals: number) {
   const f = Math.pow(10, decimals);
@@ -75,6 +76,53 @@ export default function NewPurchaseScreen() {
   const [customIds, setCustomIds]           = useState<string[]>(['']);
   const [isGeneratingShared,   setIsGeneratingShared]   = useState(false);
   const [generatingCustomIdxs, setGeneratingCustomIdxs] = useState<Set<number>>(new Set());
+
+  // ─── Barcode Scanner ────────────────────────────────────────────────────────
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [targetCustomIdx, setTargetCustomIdx] = useState<number | null>(null);
+
+  const handleOpenScanner = (customIdx?: number) => {
+    setTargetCustomIdx(customIdx !== undefined ? customIdx : null);
+    setScannerVisible(true);
+  };
+
+  const handleScanSingle = (code: string) => {
+    if (targetCustomIdx !== null) {
+      updateCustomId(targetCustomIdx, code);
+    } else {
+      if (idType === 'shared') {
+        setSharedId(code);
+      } else {
+        const firstEmpty = customIds.findIndex((val) => !val.trim());
+        const idx = firstEmpty >= 0 ? firstEmpty : 0;
+        updateCustomId(idx, code);
+      }
+    }
+  };
+
+  const handleApplyBatchIds = (codes: string[]) => {
+    if (!codes || codes.length === 0) return;
+    if (codes.length === 1 && idType === 'shared') {
+      setSharedId(codes[0]);
+      return;
+    }
+    // Multiple codes or custom ID mode
+    setIdType('custom');
+    setQty(String(codes.length));
+    setCustomIds(codes);
+  };
+
+  const removeCustomIdSlot = (idx: number) => {
+    if (qtyNum <= 1) {
+      updateCustomId(0, '');
+      return;
+    }
+    setCustomIds((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      setQty(String(next.length));
+      return next;
+    });
+  };
 
   // ─── Optional fields ────────────────────────────────────────────────────────
   const [sellIQD, setSellIQD]               = useState('');
@@ -386,6 +434,40 @@ export default function NewPurchaseScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Prominent Barcode / QR Scanner Button Banner */}
+            <TouchableOpacity
+              style={[
+                styles.scanBarcodeBanner,
+                {
+                  borderColor: colors.primary,
+                  backgroundColor: colors.primary + '12',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+              onPress={() => handleOpenScanner()}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.scanIconBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
+              </View>
+              <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                <Text style={[styles.scanBannerTitle, { color: colors.primary }]}>
+                  {isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
+                </Text>
+                <Text style={[styles.scanBannerSub, { color: colors.gray500 }]}>
+                  {isKuLanguage
+                    ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
+                    : 'Open camera to auto-fill product ID instantly'}
+                </Text>
+              </View>
+              <View style={[styles.scanActionPill, { backgroundColor: colors.primary }]}>
+                <Ionicons name="camera" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.scanActionPillText}>
+                  {isKuLanguage ? 'سکان' : 'Scan'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
             {idType === 'shared' && (
               <AppTextInput
                 label={t('purchases.sharedIdLabel')}
@@ -395,39 +477,98 @@ export default function NewPurchaseScreen() {
                 returnKeyType="done"
                 forceLatin
                 rightElement={
-                  <GenerateIdButton
-                    loading={isGeneratingShared}
-                    onPress={handleGenerateSharedId}
-                  />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => handleOpenScanner()}
+                      style={[styles.smallScanIconBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="barcode-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                    <GenerateIdButton
+                      loading={isGeneratingShared}
+                      onPress={handleGenerateSharedId}
+                    />
+                  </View>
                 }
               />
             )}
 
             {idType === 'custom' && (
               <View style={styles.customIdsContainer}>
+                <View style={[styles.customIdsHeader, { flexDirection }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="barcode" size={16} color={colors.primary} />
+                    <Text style={[styles.customIdsHeaderTitle, { color: colors.primary }]}>
+                      {isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const next = qtyNum + 1;
+                      setQty(String(next));
+                      setCustomIds((prev) => [...prev, '']);
+                    }}
+                    style={[styles.addSlotBtn, { borderColor: colors.primary }]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={14} color={colors.primary} style={{ marginRight: 2 }} />
+                    <Text style={[styles.addSlotBtnText, { color: colors.primary }]}>
+                      {isKuLanguage ? 'زیادکردنی دانەیەک' : 'Add Item'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {Array.from({ length: qtyNum }, (_, i) => (
                   <View key={i} style={[styles.customIdRow, { flexDirection }]}>
                     <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
                       <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
                     </View>
-                    <TextInput
-                      style={[
-                        styles.customIdInput,
-                        { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign: 'left', writingDirection: 'ltr' },
-                        isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
-                      ]}
-                      value={customIds[i] ?? ''}
-                      onChangeText={(val) => updateCustomId(i, val)}
-                      placeholder={`ID for item ${i + 1}`}
-                      placeholderTextColor={colors.gray400}
-                      returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
-                      maxLength={9}
-                      onFocus={scrollIntoView}
-                    />
+                    <View style={[styles.customIdInputWrap, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+                      <TextInput
+                        style={[
+                          styles.customIdInput,
+                          { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
+                          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
+                        ]}
+                        value={customIds[i] ?? ''}
+                        onChangeText={(val) => updateCustomId(i, val)}
+                        placeholder={`ID for item ${i + 1}`}
+                        placeholderTextColor={colors.gray400}
+                        returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
+                        onFocus={scrollIntoView}
+                      />
+                      {Boolean(customIds[i]) && (
+                        <TouchableOpacity
+                          onPress={() => updateCustomId(i, '')}
+                          style={styles.customIdClearIcon}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="close-circle" size={16} color={colors.gray400} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleOpenScanner(i)}
+                      style={[styles.smallScanIconBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="barcode-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
                     <GenerateIdButton
                       loading={generatingCustomIdxs.has(i)}
                       onPress={() => handleGenerateCustomId(i)}
                     />
+                    {qtyNum > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removeCustomIdSlot(i)}
+                        style={styles.customIdDeleteBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={17} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
               </View>
@@ -654,6 +795,29 @@ export default function NewPurchaseScreen() {
 
         </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
+
+      <BarcodeScannerModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        mode={targetCustomIdx !== null ? 'single' : 'batch_ids'}
+        title={isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
+        subtitle={
+          targetCustomIdx !== null
+            ? (isKuLanguage ? 'کۆد بۆ ئەم بەرهەمە سکان بکە' : 'Scan barcode for this item')
+            : (isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
+        }
+        initialCodes={
+          targetCustomIdx !== null
+            ? (customIds[targetCustomIdx] ? [customIds[targetCustomIdx]] : [])
+            : idType === 'custom'
+            ? customIds.filter(Boolean)
+            : sharedId
+            ? [sharedId]
+            : []
+        }
+        onScanSingle={handleScanSingle}
+        onApplyBatchIds={handleApplyBatchIds}
+      />
     </View>
   );
 }
@@ -790,13 +954,103 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   customIdBadgeText: { fontSize: 12, fontWeight: '700' },
+  customIdsHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 6,
+  },
+  customIdsHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  addSlotBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  addSlotBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  customIdInputWrap: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1.5,
+    borderRadius: Theme.radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
   customIdInput: {
-    flex:              1,
-    height:            44,
-    borderWidth:       1.5,
-    borderRadius:      Theme.radius.md,
+    flex: 1,
+    height: '100%',
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  customIdClearIcon: {
+    padding: 2,
+    marginLeft: 4,
+  },
+  customIdDeleteBtn: {
+    width: 36,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Theme.radius.sm,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+
+  scanBarcodeBanner: {
+    borderWidth: 1.5,
+    borderRadius: Theme.radius.md,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 12,
+  },
+  scanIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanBannerTextWrap: {
+    flex: 1,
+  },
+  scanBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  scanBannerSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  scanActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    fontSize:          14,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  scanActionPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  smallScanIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: Theme.radius.sm,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   paymentRow: { flexDirection: 'row', gap: 10 },

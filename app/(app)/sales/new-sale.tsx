@@ -43,6 +43,8 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
 import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -110,6 +112,83 @@ export default function NewSaleScreen() {
     return cart.items.find((i) => i.product.id === productId)?.quantity ?? 0;
   }
 
+  // ─── Barcode Scanner ────────────────────────────────────────────────────────
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const handleScanMulti = async (code: string) => {
+    const cleanCode = code.trim();
+    const lowerCode = cleanCode.toLowerCase();
+
+    // 1. Exact match on itemId
+    // 2. Exact match on id
+    // 3. Exact match on name
+    // 4. Partial match on itemId
+    // 5. Partial match on name
+    const found =
+      inventory.products.find(
+        (p) => p.isActive && p.itemId && p.itemId.trim().toLowerCase() === lowerCode
+      ) ||
+      inventory.products.find(
+        (p) => p.isActive && String(p.id) === cleanCode
+      ) ||
+      inventory.products.find(
+        (p) => p.isActive && p.name.trim().toLowerCase() === lowerCode
+      ) ||
+      inventory.products.find(
+        (p) => p.isActive && p.itemId && p.itemId.toLowerCase().includes(lowerCode)
+      ) ||
+      inventory.products.find(
+        (p) => p.isActive && p.name.toLowerCase().includes(lowerCode)
+      );
+
+    if (!found) {
+      return {
+        success: false,
+        message: isKuLanguage
+          ? `ئەم کۆدە لە کۆگا نەدۆزرایەوە: ${cleanCode}`
+          : `No product found for code: ${cleanCode}`,
+      };
+    }
+
+    const inCart = getCartQty(found.id);
+    if (found.quantity <= 0) {
+      return {
+        success: false,
+        message: isKuLanguage
+          ? `بەرهەمی "${found.name}" لە کۆگا نەماوە`
+          : `"${found.name}" is out of stock`,
+      };
+    }
+
+    if (inCart >= found.quantity) {
+      return {
+        success: false,
+        message: isKuLanguage
+          ? `بڕی بەردەست لە کۆگا (${found.quantity}) لە سەبەتەدایە`
+          : `Max available stock (${found.quantity}) already in cart`,
+      };
+    }
+
+    cart.addItem(found);
+
+    return {
+      success: true,
+      title: found.name,
+      message: isKuLanguage
+        ? `زیادکرا: ${found.name} (بڕ: ${inCart + 1})`
+        : `Added: ${found.name} (Qty: ${inCart + 1})`,
+    };
+  };
+
+  const handleFinishScanner = (_scannedCount: number) => {
+    setScannerOpen(false);
+    // User request: "کە لە سکانەکە هاتە دەرەوە دەبێ لە بەشی داشکاندنو نرخەکان بێت"
+    if (cart.items.length > 0) {
+      setStep(2);
+    }
+  };
+
   async function handleCompleteSale() {
     if (cart.items.length === 0) {
       Alert.alert(t('sales.cartEmpty'), t('sales.addProductsFirst'));
@@ -175,17 +254,57 @@ export default function NewSaleScreen() {
       <AppHeader
         title={t('sales.newSale')}
         rightAction={
-          itemCount > 0 ? (
-            <TouchableOpacity onPress={() => setStep(2)} style={styles.cartBtn}>
-              <Ionicons name="cart" size={22} color="#FFFFFF" />
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{itemCount}</Text>
-              </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setScannerOpen(true)}
+              style={styles.headerScanBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="barcode-outline" size={19} color="#FFFFFF" />
+              <Text style={styles.headerScanBtnText}>
+                {isKuLanguage ? 'سکان' : 'Scan'}
+              </Text>
             </TouchableOpacity>
-          ) : undefined
+
+            {itemCount > 0 && (
+              <TouchableOpacity onPress={() => setStep(2)} style={styles.cartBtn}>
+                <Ionicons name="cart" size={22} color="#FFFFFF" />
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{itemCount}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         }
       >
         <SaleStepIndicator step={1} />
+
+        {/* Large & Beautiful Barcode Scanner Banner in navigation header */}
+        <TouchableOpacity
+          style={styles.navBarScanBanner}
+          onPress={() => setScannerOpen(true)}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.navBarScanContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={styles.navBarScanIconCircle}>
+              <Ionicons name="barcode-outline" size={24} color="#725D18" />
+            </View>
+            <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <Text style={styles.navBarScanTitle}>
+                {isKuLanguage ? 'سکانەری بارکۆد و QR بۆ فرۆشتن' : 'Barcode & QR Scanner for Sales'}
+              </Text>
+              <Text style={styles.navBarScanSub}>
+                {isKuLanguage ? 'بەرهەمەکان یەک لەدوای یەک سکان بکە بۆ سەبەتە' : 'Scan multiple items rapidly into cart'}
+              </Text>
+            </View>
+            <View style={styles.navBarScanActionBadge}>
+              <Ionicons name="camera" size={16} color="#725D18" style={{ marginRight: 4 }} />
+              <Text style={styles.navBarScanActionText}>
+                {isKuLanguage ? 'سکان' : 'Scan'}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
       </AppHeader>
 
       <View style={[styles.flex, isTablet && contentContainerStyle]}>
@@ -239,7 +358,12 @@ export default function NewSaleScreen() {
       <AppHeader
         title={t('sales.step2')}
         onBack={() => setStep(1)}
-        rightAction={<HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />}
+        rightAction={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+            <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
+          </View>
+        }
       >
         <SaleStepIndicator step={2} />
       </AppHeader>
@@ -254,6 +378,31 @@ export default function NewSaleScreen() {
           </View>
         ) : (
           <>
+            {/* Quick Actions: Scan More / Add Items */}
+            <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <TouchableOpacity
+                style={[styles.step2ScanBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setScannerOpen(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="barcode-outline" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.step2ScanBtnText}>
+                  {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.step2AddBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '14' }]}
+                onPress={() => setStep(1)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.step2AddBtnText, { color: colors.primary }]}>
+                  {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {cart.items.map((item) => (
               <CartItemRow
                 key={item.product.id}
@@ -453,6 +602,16 @@ export default function NewSaleScreen() {
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
+
+      <BarcodeScannerModal
+        visible={scannerOpen}
+        onClose={() => handleFinishScanner(0)}
+        mode="multi"
+        title={isKuLanguage ? 'سکانەری بەرهەمەکانی فرۆشتن' : 'Sales Barcode Scanner'}
+        subtitle={isKuLanguage ? 'کامێرا بگرە لەسەر بارکۆدەکان بۆ زیادکردنی ڕاستەوخۆ' : 'Scan items rapidly into cart'}
+        onScanMulti={handleScanMulti}
+        onFinishMulti={handleFinishScanner}
+      />
     </View>
   );
 }
@@ -463,6 +622,113 @@ const styles = StyleSheet.create({
   cartBtn:       { position: 'relative' },
   cartBadge:     { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   cartBadgeText: { fontSize: 10, color: '#fff', fontWeight: '700' },
+  headerScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  headerScanBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  navBarScanBanner: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 8,
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  navBarScanContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  navBarScanIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBarScanTextCol: {
+    flex: 1,
+  },
+  navBarScanTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  navBarScanSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  navBarScanActionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  navBarScanActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#725D18',
+  },
+  step2ActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  step2ScanBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  step2ScanBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  step2AddBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  step2AddBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },
   emptyIcon:     { marginBottom: 12 },
