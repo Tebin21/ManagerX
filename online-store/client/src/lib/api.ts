@@ -1,9 +1,12 @@
-// Frontend (this client, deployed to Vercel at froshiar.store) and backend (deployed
-// separately at api.froshiar.store — see online-store/README.md) are different domains
-// in production, so the API needs an absolute base URL, set via VITE_API_BASE_URL
-// (see .env.example). With no env var set — the default for local dev — this falls back
-// to a relative path, which Vite's dev proxy (vite.config.ts) forwards to :4100.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// In development, leave empty so Vite's dev proxy forwards /api to localhost:4100.
+// In production, use VITE_API_BASE_URL or fallback to https://api.froshiar.store.
+// Any stale reference to managerx.store is safely overridden.
+const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+const isStaleDomain = rawBaseUrl.includes('managerx.store');
+
+export const API_BASE_URL = import.meta.env.DEV
+  ? (rawBaseUrl && !isStaleDomain ? rawBaseUrl : '')
+  : (!rawBaseUrl || isStaleDomain ? 'https://api.froshiar.store' : rawBaseUrl);
 
 // Read-only catalog shape — the server already filters out unpublished and
 // out-of-stock products, so every product returned here is available to view.
