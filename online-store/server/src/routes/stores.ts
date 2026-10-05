@@ -117,11 +117,20 @@ storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHand
 // client to render the product grid.
 storesRouter.get('/:slug', asyncHandler(async (req, res) => {
   const store = await repo.getBySlug(req.params.slug);
-  // Disabled stores respond identically to nonexistent ones (same status + message)
-  // so the public endpoint never distinguishes "exists but disabled" from "no such
-  // store" — no products/settings/images are built or returned in either case.
-  if (!store || !store.enabled) {
+  if (!store) {
     res.status(404).json({ error: 'Store not found' });
+    return;
+  }
+
+  // When store is disabled, return store identity with enabled: false and empty products
+  // so the public storefront can display that the store is temporarily inactive.
+  if (!store.enabled) {
+    res.json({
+      businessName: store.businessName,
+      enabled: false,
+      products: [],
+      info: store.info ?? {},
+    });
     return;
   }
 
