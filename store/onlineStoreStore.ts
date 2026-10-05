@@ -162,13 +162,20 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     // perfectly good, already-computed URL.
     let slug: string | null = null;
     try {
-      slug = await getStoreSlug();
-      if (!slug) {
-        await waitForBusinessHydration();
-        const businessName = useBusinessStore.getState().name?.trim();
-        if (businessName) {
-          slug = slugify(businessName);
-          await setStoreSlug(slug);
+      const { useAuthStore } = await import('@/store/authStore');
+      const isDemo = useAuthStore.getState().user?.email === 'demo@froshiar.store';
+      if (isDemo) {
+        slug = 'froshiar';
+        await setStoreSlug(slug);
+      } else {
+        slug = await getStoreSlug();
+        if (!slug) {
+          await waitForBusinessHydration();
+          const businessName = useBusinessStore.getState().name?.trim();
+          if (businessName) {
+            slug = slugify(businessName);
+            await setStoreSlug(slug);
+          }
         }
       }
     } catch (err) {

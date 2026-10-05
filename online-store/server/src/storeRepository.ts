@@ -113,7 +113,12 @@ export interface StoreRepository {
   // leaves a wider window for another concurrent request to interleave between
   // steps. Always prefer this over calling getByDeviceId/claimLegacyStore/
   // isSlugTaken/create yourself for a registration attempt.
-  registerOrRecover(input: { businessName: string; deviceId?: string; apiKeyHash: string }): Promise<{ record: StoreRecord; recovered: boolean }>;
+  registerOrRecover(input: {
+    businessName: string;
+    deviceId?: string;
+    apiKeyHash: string;
+    isDemoPreview?: boolean;
+  }): Promise<{ record: StoreRecord; recovered: boolean }>;
   // Issues a fresh credential for an already-existing store (recovery path). Touches
   // ONLY apiKeyHash — never slug/products/info/enabled/createdAt — deliberately kept
   // separate from updateInfo() so a credential rotation can never be reached through

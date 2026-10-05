@@ -26,6 +26,22 @@ const repo: StoreRepository = new Proxy({} as StoreRepository, {
 
 export const storesRouter = Router();
 
+// Canonical demo store slug and aliases (e.g. /apple for Apple App Review)
+export const DEMO_CANONICAL_SLUG = 'froshiar';
+export const DEMO_ALIASES = new Set(['apple']);
+
+export function resolveStoreSlug(rawSlug?: string): string {
+  if (!rawSlug) return '';
+  const lower = rawSlug.trim().toLowerCase();
+  return DEMO_ALIASES.has(lower) ? DEMO_CANONICAL_SLUG : rawSlug;
+}
+
+// Param middleware: automatically map slug aliases (e.g. apple -> froshiar)
+storesRouter.param('slug', (req, _res, next, slug) => {
+  req.params.slug = resolveStoreSlug(slug);
+  next();
+});
+
 // Express 4 does not catch a rejected promise thrown from an async route
 // handler — it would otherwise hang the request forever or, on an unhandled
 // rejection, crash the whole process (taking down every store, not just the
@@ -70,6 +86,8 @@ storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHand
   }
   const deviceIdHeader = req.headers['x-device-id'];
   const deviceId = typeof deviceIdHeader === 'string' && deviceIdHeader ? deviceIdHeader : undefined;
+  const subCode = req.headers['x-oss-subscription'];
+  const isDemoPreview = subCode === 'DEMO-STORE-PREVIEW';
 
   // A device that already owns a store, or owns a pre-deviceId legacy store
   // matching this businessName's slug, is always a RECOVERY, never a fresh
@@ -86,6 +104,7 @@ storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHand
       businessName: businessName.trim(),
       deviceId,
       apiKeyHash: hashApiKey(apiKey),
+      isDemoPreview,
     }));
   } catch (e) {
     // A pre-existing device/legacy recovery is never rejected here — only a

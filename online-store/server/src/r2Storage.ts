@@ -106,7 +106,12 @@ export async function getFromStorage(
         contentType: response.ContentType || 'image/jpeg',
       };
     } catch (err: any) {
-      if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      if (
+        err.name === 'NoSuchKey' ||
+        err.name === 'NotFound' ||
+        err.Code === 'NoSuchKey' ||
+        err.$metadata?.httpStatusCode === 404
+      ) {
         return null;
       }
       throw err;

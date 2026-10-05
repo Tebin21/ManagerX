@@ -104,7 +104,8 @@ function uniqueSlugAgainst(records: StoreRecord[], base: string): string {
 
 export class JsonStoreRepository implements StoreRepository {
   async getBySlug(slug: string): Promise<StoreRecord | null> {
-    return readLedger().find((s) => s.slug === slug) ?? null;
+    const resolvedSlug = (slug || '').toLowerCase() === 'apple' ? 'froshiar' : slug;
+    return readLedger().find((s) => s.slug === resolvedSlug) ?? null;
   }
 
   async getByDeviceId(deviceId: string): Promise<StoreRecord | null> {
@@ -260,10 +261,30 @@ export class JsonStoreRepository implements StoreRepository {
   // a pre-deviceId legacy store by slug match (only within the fixed 30-day
   // window, only once, never reassigning an already-owned/migrated record) ->
   // otherwise create a fresh store under a guaranteed-unique slug.
-  async registerOrRecover(input: { businessName: string; deviceId?: string; apiKeyHash: string }): Promise<{ record: StoreRecord; recovered: boolean }> {
-    const { businessName, deviceId, apiKeyHash } = input;
+  async registerOrRecover(input: {
+    businessName: string;
+    deviceId?: string;
+    apiKeyHash: string;
+    isDemoPreview?: boolean;
+  }): Promise<{ record: StoreRecord; recovered: boolean }> {
+    const { businessName, deviceId, apiKeyHash, isDemoPreview } = input;
     return withStoreLock(async () => {
       const records = readLedger();
+
+      // 0. Dedicated Demo Store recovery for demo@froshiar.store
+      if (isDemoPreview) {
+        const idx = records.findIndex((s) => s.slug === 'froshiar');
+        if (idx !== -1) {
+          records[idx] = {
+            ...records[idx],
+            apiKeyHash,
+            enabled: true,
+            ...(deviceId ? { deviceId } : {}),
+          };
+          await writeLedger(records);
+          return { record: records[idx], recovered: true };
+        }
+      }
 
       if (deviceId) {
         const idx = records.findIndex((s) => s.deviceId === deviceId);
