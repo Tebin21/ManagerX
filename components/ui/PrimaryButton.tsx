@@ -61,7 +61,7 @@ export function PrimaryButton({
           isOutline && [styles.outline, { borderColor: colors.primary, backgroundColor: 'transparent' }],
           isGhost   && styles.ghost,
           (disabled || loading) && styles.disabled,
-          variant === 'primary' && Theme.shadow.button,
+          variant === 'primary' && [Theme.shadow.button, { shadowColor: colors.primaryDark ?? colors.primary }],
         ]}
       >
         {loading ? (

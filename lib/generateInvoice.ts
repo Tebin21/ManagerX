@@ -598,3 +598,29 @@ export async function shareFinancialReport(
     releaseGenerationLock();
   }
 }
+
+export async function shareSalesAuditReport(
+  sales: Sale[],
+  periodLabel: string,
+  business: BusinessInfo
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildSalesAuditReportHTML } = await import('./salesAuditReportTemplate');
+    const html = buildSalesAuditReportHTML(sales, periodLabel, biz, getDir());
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    return await generateAndShare(
+      html,
+      isKu ? `جەردی فرۆشتن — ${periodLabel}` : `Sales Audit Report — ${periodLabel}`,
+      isKu ? 'نەتوانرا جەردی فرۆشتن بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the sales audit report PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareSalesAuditReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the sales audit report. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+

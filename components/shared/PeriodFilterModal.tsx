@@ -19,9 +19,10 @@ interface Props {
   current?: PeriodKey;
   /** Optional label overrides, e.g. for callers that need exact wording independent of the shared common/reports keys. */
   labels?: Partial<Record<PeriodKey, string>>;
+  includeAll?: boolean;
 }
 
-export function PeriodFilterModal({ visible, onClose, onSelect, current, labels }: Props) {
+export function PeriodFilterModal({ visible, onClose, onSelect, current, labels, includeAll }: Props) {
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -37,6 +38,7 @@ export function PeriodFilterModal({ visible, onClose, onSelect, current, labels 
     { key: 'month', label: labels?.month ?? i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
     { key: 'year', label: labels?.year ?? i18n.t('reports.year'), icon: 'stats-chart-outline' },
     { key: 'custom', label: labels?.custom ?? i18n.t('reports.custom'), icon: 'options-outline' },
+    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
   ];
 
   function handleClose() {

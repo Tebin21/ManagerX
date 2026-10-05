@@ -1,4 +1,3 @@
-import { Colors } from './colors';
 
 export const Theme = {
   radius: {
@@ -21,11 +20,11 @@ export const Theme = {
 
   shadow: {
     card: {
-      shadowColor: Colors.primary,
+      shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.10,
+      shadowOpacity: 0.08,
       shadowRadius: 16,
-      elevation: 6,
+      elevation: 4,
     },
     soft: {
       shadowColor: '#000',
@@ -35,11 +34,11 @@ export const Theme = {
       elevation: 3,
     },
     button: {
-      shadowColor: Colors.primary,
+      shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.30,
+      shadowOpacity: 0.22,
       shadowRadius: 8,
-      elevation: 5,
+      elevation: 4,
     },
   },
 

@@ -2221,6 +2221,36 @@ export async function getSaleById(id: number): Promise<Sale | null> {
   return sale;
 }
 
+export async function attachItemsToSales(sales: Sale[]): Promise<Sale[]> {
+  const needsItems = sales.filter((s) => !s.items || s.items.length === 0);
+  if (needsItems.length === 0) return sales;
+  const database = await getDatabase();
+  const ids = needsItems.map((s) => s.id);
+  const CHUNK = 500;
+  const itemsBySaleId = new Map<number, SaleItem[]>();
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => '?').join(', ');
+    const rows = await database.getAllAsync<Record<string, unknown>>(
+      `SELECT si.*, p.item_description AS item_description
+       FROM sale_items si
+       LEFT JOIN products p ON p.id = si.product_id
+       WHERE si.sale_id IN (${placeholders})`,
+      chunk
+    );
+    for (const row of rows) {
+      const item = rowToSaleItem(row);
+      const list = itemsBySaleId.get(item.saleId) ?? [];
+      list.push(item);
+      itemsBySaleId.set(item.saleId, list);
+    }
+  }
+  return sales.map((s) => ({
+    ...s,
+    items: s.items && s.items.length > 0 ? s.items : (itemsBySaleId.get(s.id) ?? []),
+  }));
+}
+
 // Lightweight product-name/item-ID lookup for sales-history search, kept
 // separate from getAllSales() so the main list load never pays for a join
 // across every invoice's line items.

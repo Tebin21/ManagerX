@@ -1,7 +1,8 @@
 import type { InventoryProduct } from '@/types/inventory';
 import { formatDateShort } from '@/utils/formatters';
+export { formatDateShort };
 
-export type PeriodKey = 'today' | 'week' | 'month' | 'year' | 'custom';
+export type PeriodKey = 'today' | 'week' | 'month' | 'year' | 'custom' | 'all';
 
 export interface PeriodBounds {
   from: Date;
@@ -65,6 +66,8 @@ export function getPeriodBounds(
       return { from: startOfMonth(now), to: endOfMonth(now) };
     case 'year':
       return { from: startOfYear(now), to: endOfYear(now) };
+    case 'all':
+      return { from: new Date(0), to: new Date(253402300799000) };
     case 'custom': {
       const from = customFrom ? startOfDay(new Date(customFrom)) : startOfDay(now);
       const to = customTo ? endOfDay(new Date(customTo)) : endOfDay(now);
@@ -79,6 +82,7 @@ export function formatPeriodLabel(key: PeriodKey, from: Date, to: Date): string 
     case 'week': return 'This Week';
     case 'month': return 'This Month';
     case 'year': return 'This Year';
+    case 'all': return 'All Time';
     case 'custom': return `${formatDateShort(from)} → ${formatDateShort(to)}`;
   }
 }
