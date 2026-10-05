@@ -26,19 +26,9 @@ const repo: StoreRepository = new Proxy({} as StoreRepository, {
 
 export const storesRouter = Router();
 
-// Canonical demo store slug and aliases (e.g. /apple for Apple App Review)
-export const DEMO_CANONICAL_SLUG = 'froshiar';
-export const DEMO_ALIASES = new Set(['apple']);
-
-export function resolveStoreSlug(rawSlug?: string): string {
-  if (!rawSlug) return '';
-  const lower = rawSlug.trim().toLowerCase();
-  return DEMO_ALIASES.has(lower) ? DEMO_CANONICAL_SLUG : rawSlug;
-}
-
-// Param middleware: automatically map slug aliases (e.g. apple -> froshiar)
+// Param middleware: normalize slug to lowercase
 storesRouter.param('slug', (req, _res, next, slug) => {
-  req.params.slug = resolveStoreSlug(slug);
+  req.params.slug = (slug || '').trim().toLowerCase();
   next();
 });
 

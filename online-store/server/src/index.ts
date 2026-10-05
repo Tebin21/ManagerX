@@ -31,7 +31,7 @@ app.get('/', (_req, res) => {
 // with high-performance caching headers. Keeps Cloudflare R2 bucket completely private.
 app.get(['/uploads/:slug/:filename', '/api/uploads/:slug/:filename'], async (req, res) => {
   try {
-    const slug = (req.params.slug || '').toLowerCase() === 'apple' ? 'froshiar' : req.params.slug;
+    const slug = (req.params.slug || '').trim().toLowerCase();
     const { getFromStorage } = await import('./r2Storage');
     const result = await getFromStorage(slug, req.params.filename);
     if (!result) {

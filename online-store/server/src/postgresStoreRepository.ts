@@ -90,10 +90,10 @@ function mapStore(row: DbStoreRow, products: StoreProduct[] = []): StoreRecord {
 
 export class PostgresStoreRepository implements StoreRepository {
   async getBySlug(slug: string): Promise<StoreRecord | null> {
-    const resolvedSlug = (slug || '').toLowerCase() === 'apple' ? 'froshiar' : slug;
+    const cleanSlug = (slug || '').trim().toLowerCase();
     const storeRes = await pool.query<DbStoreRow>(
       'SELECT * FROM stores WHERE slug = $1 LIMIT 1',
-      [resolvedSlug]
+      [cleanSlug]
     );
     if (storeRes.rows.length === 0) return null;
 
@@ -167,33 +167,6 @@ export class PostgresStoreRepository implements StoreRepository {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-
-      // 0. Dedicated Demo Store recovery for demo@froshiar.store
-      if (input.isDemoPreview) {
-        const demoRes = await client.query<DbStoreRow>(
-          'SELECT * FROM stores WHERE slug = $1 LIMIT 1 FOR UPDATE',
-          ['froshiar']
-        );
-        if (demoRes.rows.length > 0) {
-          const row = demoRes.rows[0];
-          await client.query(
-            'UPDATE stores SET api_key_hash = $1, device_id = COALESCE($2, device_id), enabled = true, updated_at = NOW() WHERE id = $3',
-            [input.apiKeyHash, input.deviceId ?? null, row.id]
-          );
-          const productsRes = await client.query<DbProductRow>(
-            'SELECT * FROM products WHERE store_id = $1 ORDER BY product_id ASC',
-            [row.id]
-          );
-          await client.query('COMMIT');
-          return {
-            record: mapStore(
-              { ...row, api_key_hash: input.apiKeyHash, enabled: true },
-              productsRes.rows.map(mapProduct)
-            ),
-            recovered: true,
-          };
-        }
-      }
 
       // 1. Check recovery by deviceId
       if (input.deviceId) {

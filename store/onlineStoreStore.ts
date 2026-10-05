@@ -162,20 +162,13 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     // perfectly good, already-computed URL.
     let slug: string | null = null;
     try {
-      const { useAuthStore } = await import('@/store/authStore');
-      const isDemo = useAuthStore.getState().user?.email === 'demo@froshiar.store';
-      if (isDemo) {
-        slug = 'froshiar';
-        await setStoreSlug(slug);
-      } else {
-        slug = await getStoreSlug();
-        if (!slug) {
-          await waitForBusinessHydration();
-          const businessName = useBusinessStore.getState().name?.trim();
-          if (businessName) {
-            slug = slugify(businessName);
-            await setStoreSlug(slug);
-          }
+      slug = await getStoreSlug();
+      if (!slug) {
+        await waitForBusinessHydration();
+        const businessName = useBusinessStore.getState().name?.trim();
+        if (businessName) {
+          slug = slugify(businessName);
+          await setStoreSlug(slug);
         }
       }
     } catch (err) {
@@ -225,27 +218,38 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     try {
       await setStoreEnabled(true);
       await get().load(); // ensures a local slug exists even on the very first enable
-      const { slug } = get();
-      const apiKey = await getStoreApiKey();
+      let { slug } = get();
+      let apiKey = await getStoreApiKey();
       const businessName = useBusinessStore.getState().name || 'My Store';
-      if (slug && !apiKey) {
+      if (!slug || !apiKey) {
         // Never successfully registered with the backend yet — try now.
         try {
-          await completeStoreRegistration(businessName);
+          const res = await completeStoreRegistration(businessName);
+          slug = res.slug;
+          apiKey = await getStoreApiKey();
         } catch (err) {
           if (__DEV__) console.warn('[onlineStore] registration deferred (offline?):', err);
         }
-      } else if (slug && apiKey) {
+      } else {
         try {
           await setStoreStatus(slug, apiKey, true);
         } catch (err) {
-          // Same stale-registration case as syncEngine.ts: the backend no longer
-          // has this store (e.g. lost after a restart without persistent storage).
-          // Clear the dead key now so the processQueue() call below re-registers
-          // immediately instead of the toggle just silently doing nothing.
-          if (err instanceof OnlineStoreApiError && err.status === 404) await clearStoreApiKey();
+          if (err instanceof OnlineStoreApiError && err.status === 404) {
+            await clearStoreApiKey();
+            try {
+              const res = await completeStoreRegistration(businessName);
+              slug = res.slug;
+              apiKey = await getStoreApiKey();
+            } catch {}
+          }
         }
       }
+
+      // Automatically publish existing inventory products and mark info dirty for immediate sync
+      await persistBulkPublishEnabled(true);
+      await bulkSetStoreVisibility(true);
+      markStoreInfoDirty();
+
       await get().load();
       processQueue();
       return { status: 'ok' };

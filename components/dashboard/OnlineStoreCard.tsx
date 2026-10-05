@@ -47,10 +47,8 @@ export function OnlineStoreCard() {
   const user = useAuthStore((s) => s.user);
   const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
 
-  // Temporary Apple 3.1.1 compliance measure — Online Store subscription purchase/activation
-  // is not reachable on iOS this release, regardless of subscription status.
-  // Gated strictly: only the internal demo account (demo@froshiar.store) can preview/test.
-  if (Platform.OS === 'ios' && !isDemoUser) {
+  // Gated: Show Coming Soon for users without an active Online Store subscription
+  if (!subscriptionActive && !isDemoUser) {
     return <OnlineStoreComingSoonCard />;
   }
 

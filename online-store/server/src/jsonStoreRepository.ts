@@ -104,8 +104,8 @@ function uniqueSlugAgainst(records: StoreRecord[], base: string): string {
 
 export class JsonStoreRepository implements StoreRepository {
   async getBySlug(slug: string): Promise<StoreRecord | null> {
-    const resolvedSlug = (slug || '').toLowerCase() === 'apple' ? 'froshiar' : slug;
-    return readLedger().find((s) => s.slug === resolvedSlug) ?? null;
+    const cleanSlug = (slug || '').trim().toLowerCase();
+    return readLedger().find((s) => s.slug === cleanSlug) ?? null;
   }
 
   async getByDeviceId(deviceId: string): Promise<StoreRecord | null> {
@@ -267,24 +267,9 @@ export class JsonStoreRepository implements StoreRepository {
     apiKeyHash: string;
     isDemoPreview?: boolean;
   }): Promise<{ record: StoreRecord; recovered: boolean }> {
-    const { businessName, deviceId, apiKeyHash, isDemoPreview } = input;
+    const { businessName, deviceId, apiKeyHash } = input;
     return withStoreLock(async () => {
       const records = readLedger();
-
-      // 0. Dedicated Demo Store recovery for demo@froshiar.store
-      if (isDemoPreview) {
-        const idx = records.findIndex((s) => s.slug === 'froshiar');
-        if (idx !== -1) {
-          records[idx] = {
-            ...records[idx],
-            apiKeyHash,
-            enabled: true,
-            ...(deviceId ? { deviceId } : {}),
-          };
-          await writeLedger(records);
-          return { record: records[idx], recovered: true };
-        }
-      }
 
       if (deviceId) {
         const idx = records.findIndex((s) => s.deviceId === deviceId);
