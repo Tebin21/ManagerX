@@ -7,6 +7,8 @@ import {
 } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import path from 'path';
+import { Readable } from 'stream';
+import { pool } from './db/pool';
 
 export function getR2Config() {
   const accountId = (process.env.R2_ACCOUNT_ID || '').trim().replace(/^["']|["']$/g, '');
@@ -72,16 +74,33 @@ export async function uploadToStorage(
       );
       return key;
     } catch (err: any) {
-      console.error('[R2 Storage] PutObjectCommand failed:', err.message);
-      throw new Error(`Cloudflare R2 error: ${err.message}. Please check R2_SECRET_ACCESS_KEY in Vercel (expected 64 characters, currently ${getR2Config().secretAccessKey.length}).`);
+      console.warn('[R2 Storage] PutObjectCommand failed, falling back to database storage:', err.message);
     }
   }
 
+  // Persistent Database fallback (Neon Postgres store_images table)
+  try {
+    await pool.query(
+      `INSERT INTO store_images (slug, filename, mime_type, data)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (filename) DO UPDATE SET data = $4, mime_type = $3`,
+      [slug, filename, mimeType, buffer]
+    );
+    return key;
+  } catch (dbErr: any) {
+    console.warn('[Storage] DB fallback upload failed, falling back to local disk:', dbErr?.message);
+  }
+
   // Local fallback
-  const dir = path.join(LOCAL_UPLOADS_ROOT, slug);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, filename), buffer);
-  return key;
+  try {
+    const dir = path.join(LOCAL_UPLOADS_ROOT, slug);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), buffer);
+    return key;
+  } catch (fsErr: any) {
+    console.error('[Storage] All storage backends failed:', fsErr?.message);
+    throw new Error('Failed to save uploaded image across all storage providers.');
+  }
 }
 
 export async function getFromStorage(
@@ -100,22 +119,39 @@ export async function getFromStorage(
           Key: key,
         })
       );
-      if (!response.Body) return null;
-      return {
-        stream: response.Body as unknown as NodeJS.ReadableStream,
-        contentType: response.ContentType || 'image/jpeg',
-      };
+      if (response.Body) {
+        return {
+          stream: response.Body as unknown as NodeJS.ReadableStream,
+          contentType: response.ContentType || 'image/jpeg',
+        };
+      }
     } catch (err: any) {
       if (
-        err.name === 'NoSuchKey' ||
-        err.name === 'NotFound' ||
-        err.Code === 'NoSuchKey' ||
-        err.$metadata?.httpStatusCode === 404
+        err.name !== 'NoSuchKey' &&
+        err.name !== 'NotFound' &&
+        err.Code !== 'NoSuchKey' &&
+        err.$metadata?.httpStatusCode !== 404
       ) {
-        return null;
+        console.warn('[R2 Storage] R2 GetObjectCommand error, checking database fallback:', err.message);
       }
-      throw err;
     }
+  }
+
+  // Persistent Database fallback
+  try {
+    const res = await pool.query(
+      `SELECT mime_type, data FROM store_images WHERE slug = $1 AND filename = $2`,
+      [slug, filename]
+    );
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      return {
+        stream: Readable.from(row.data),
+        contentType: row.mime_type || 'image/jpeg',
+      };
+    }
+  } catch (dbErr: any) {
+    console.warn('[Storage] DB fallback retrieval error:', dbErr?.message);
   }
 
   // Local fallback
@@ -162,8 +198,12 @@ export async function deleteStoreFromStorage(slug: string): Promise<void> {
     } catch (err) {
       console.error(`Failed to delete R2 objects for slug ${slug}:`, err);
     }
-    return;
   }
+
+  // Also clean up from DB
+  try {
+    await pool.query(`DELETE FROM store_images WHERE slug = $1`, [slug]);
+  } catch {}
 
   // Local fallback
   const dir = path.join(LOCAL_UPLOADS_ROOT, slug);

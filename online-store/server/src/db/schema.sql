@@ -59,9 +59,20 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     ip VARCHAR(45)
 );
 
+-- Persistent store image uploads fallback
+CREATE TABLE IF NOT EXISTS store_images (
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(120) NOT NULL,
+    filename VARCHAR(255) NOT NULL UNIQUE,
+    mime_type VARCHAR(100) NOT NULL,
+    data BYTEA NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance and isolation
 CREATE INDEX IF NOT EXISTS idx_stores_slug ON stores(slug);
 CREATE INDEX IF NOT EXISTS idx_stores_device_id ON stores(device_id);
 CREATE INDEX IF NOT EXISTS idx_products_store_id ON products(store_id);
 CREATE INDEX IF NOT EXISTS idx_products_store_published_stock ON products(store_id, is_published, quantity);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(store_id, category);
+CREATE INDEX IF NOT EXISTS idx_store_images_slug_filename ON store_images(slug, filename);
