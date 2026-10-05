@@ -15,7 +15,7 @@ import { usePurchaseStore } from '@/store/purchaseStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-
+import { useResponsive } from '@/hooks/useResponsive';
 
 function getTodayStats(purchases: ReturnType<typeof usePurchaseStore.getState>['purchases']) {
   const today = new Date().toDateString();
@@ -35,6 +35,7 @@ export default function PurchasesScreen() {
   const { chevronForward, arrowForward } = useDirectionalChevron();
   const { colors } = useAppTheme();
   const { purchases, loadPurchases } = usePurchaseStore();
+  const { isTablet, contentContainerStyle } = useResponsive();
 
   useEffect(() => { loadPurchases(); }, []);
 
@@ -54,7 +55,7 @@ export default function PurchasesScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}>
 
         {/* Main CTA */}
         <MotiView

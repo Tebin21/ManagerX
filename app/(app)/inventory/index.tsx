@@ -39,6 +39,7 @@ import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppShe
 import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 type ActiveTab = 'all' | 'categories';
 
@@ -89,6 +90,7 @@ export default function InventoryScreen() {
   const [periodModalVisible, setPeriodModalVisible] = useState(false);
   const [pendingReport, setPendingReport]           = useState<PendingReport | null>(null);
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
 
   useEffect(() => {
     loadInventory();
@@ -353,6 +355,7 @@ export default function InventoryScreen() {
         // Stagger only the first screenful — rows that scroll into view later
         // (or reappear after an unrelated re-render) shouldn't replay a fade-in.
         transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+        style={isTablet ? { flex: 1 } : undefined}
       >
         <ProductCard
           product={item}
@@ -361,7 +364,7 @@ export default function InventoryScreen() {
         />
       </MotiView>
     );
-  }, [globalLowStockEnabled, globalLowStockThreshold, handleProductPress]);
+  }, [globalLowStockEnabled, globalLowStockThreshold, handleProductPress, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -386,14 +389,25 @@ export default function InventoryScreen() {
       >
         {stats && (
           <View style={styles.statsGrid}>
-            <View style={styles.statsRow}>
-              <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={0} />
-            </View>
-            <View style={styles.statsRow}>
-              <InventoryStatsCard label={t('inventory.products')}  value={String(stats.totalProducts)}  icon="cube"    delay={60} />
-              <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={120} />
-              <InventoryStatsCard label={t('inventory.lowStock')}  value={String(stats.lowStockCount)} icon="warning" accent={stats.lowStockCount > 0} delay={180} />
-            </View>
+            {isTablet ? (
+              <View style={[styles.statsRow, { gap: 10 }]}>
+                <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={0} />
+                <InventoryStatsCard label={t('inventory.products')}  value={String(stats.totalProducts)}  icon="cube"    delay={60} />
+                <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={120} />
+                <InventoryStatsCard label={t('inventory.lowStock')}  value={String(stats.lowStockCount)} icon="warning" accent={stats.lowStockCount > 0} delay={180} />
+              </View>
+            ) : (
+              <>
+                <View style={styles.statsRow}>
+                  <InventoryStatsCard label={t('inventory.totalValue')} amount={stats.totalValueIQD} icon="wallet" delay={0} />
+                </View>
+                <View style={styles.statsRow}>
+                  <InventoryStatsCard label={t('inventory.products')}  value={String(stats.totalProducts)}  icon="cube"    delay={60} />
+                  <InventoryStatsCard label={t('inventory.totalQty')}  value={String(stats.totalQuantity)}  icon="layers"  delay={120} />
+                  <InventoryStatsCard label={t('inventory.lowStock')}  value={String(stats.lowStockCount)} icon="warning" accent={stats.lowStockCount > 0} delay={180} />
+                </View>
+              </>
+            )}
           </View>
         )}
 
@@ -538,10 +552,13 @@ export default function InventoryScreen() {
 
       {/* ── Product list ── */}
       <FlatList
+        key={`inv-list-${cardColumns}`}
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, visible.length === 0 && styles.listEmpty]}
+        numColumns={cardColumns}
+        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+        contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews
         initialNumToRender={15}

@@ -29,6 +29,7 @@ import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function InventoryDetailScreen() {
   const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const idAvailTint = getStatusTint('success', colors, isDark);
   const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, valueAlign, flexDirection, alignEnd } = useRTL();
@@ -154,7 +156,7 @@ export default function InventoryDetailScreen() {
       </AppHeader>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, isTablet && contentContainerStyle]}
         showsVerticalScrollIndicator={false}
       >
         {/* Key stats */}

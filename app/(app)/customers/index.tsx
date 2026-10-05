@@ -24,6 +24,7 @@ import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function CustomersScreen() {
   const { customers, isLoading, loadCustomers, searchCustomers } = useCustomerStore();
 
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
@@ -155,7 +157,7 @@ export default function CustomersScreen() {
 
       {/* Count strip */}
       {customers.length > 0 && (
-        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }, isTablet && contentContainerStyle]}>
           <Text style={[styles.countText, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'customer' : 'customers'}
           </Text>
@@ -172,7 +174,7 @@ export default function CustomersScreen() {
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, visible.length === 0 && styles.listEmpty]}
+        contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews
         initialNumToRender={15}

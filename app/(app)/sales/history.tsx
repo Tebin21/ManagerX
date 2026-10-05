@@ -32,6 +32,7 @@ import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
 import { attachItemsToSales } from '@/lib/sqlite';
 import { shareSalesAuditReport } from '@/lib/generateInvoice';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
 
 export default function SalesHistoryScreen() {
@@ -39,6 +40,7 @@ export default function SalesHistoryScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { sales, searchSales, loadSales, isLoading } = useSalesStore();
 
@@ -142,7 +144,7 @@ export default function SalesHistoryScreen() {
       />
 
       {/* Search Bar */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }, isTablet && contentContainerStyle]}>
         <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
           style={[
@@ -174,7 +176,7 @@ export default function SalesHistoryScreen() {
         data={results}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, results.length === 0 && styles.listEmpty]}
+        contentContainerStyle={[styles.list, isTablet && contentContainerStyle, results.length === 0 && styles.listEmpty]}
         removeClippedSubviews
         initialNumToRender={15}
         maxToRenderPerBatch={10}

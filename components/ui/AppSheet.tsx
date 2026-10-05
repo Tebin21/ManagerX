@@ -33,7 +33,8 @@ interface AppSheetProps {
 // mount exactly once so forms with autoFocus/TextInput never double-render.
 export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: AppSheetProps) {
   const { colors } = useAppTheme();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const isTablet = screenWidth >= 768;
   const [phase, setPhase] = useState<'sheet' | 'center'>('sheet');
   const [revealed, setRevealed] = useState(false);
   const measuredRef = useRef(false);
@@ -48,11 +49,11 @@ export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: A
     if (measuredRef.current) return;
     measuredRef.current = true;
     const h = e.nativeEvent.layout.height;
-    setPhase(h < screenHeight * CENTER_THRESHOLD ? 'center' : 'sheet');
+    setPhase(isTablet || h < screenHeight * CENTER_THRESHOLD ? 'center' : 'sheet');
     setRevealed(true);
   }
 
-  const isCenter = phase === 'center';
+  const isCenter = isTablet || phase === 'center';
   const Wrapper = avoidKeyboard ? KeyboardAvoidingView : View;
 
   return (
@@ -65,7 +66,7 @@ export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: A
       >
         <ScrollView
           style={isCenter ? styles.centerScroll : [styles.bottomScroll, { maxHeight: screenHeight * SHEET_MAX_HEIGHT_RATIO }]}
-          contentContainerStyle={isCenter ? styles.centerContent : undefined}
+          contentContainerStyle={isCenter ? styles.centerContent : (isTablet ? styles.tabletBottomContent : undefined)}
           scrollEnabled={revealed}
           bounces={false}
           keyboardShouldPersistTaps="handled"
@@ -77,6 +78,7 @@ export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: A
               styles.card,
               { backgroundColor: colors.white },
               isCenter ? styles.cardCenter : styles.cardSheet,
+              isTablet && styles.cardTablet,
               !revealed && styles.invisible,
             ]}
           >
@@ -181,6 +183,15 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 440,
+  },
+  cardTablet: {
+    maxWidth: 560,
+    alignSelf: 'center',
+    borderRadius: Theme.radius.xl,
+  },
+  tabletBottomContent: {
+    alignItems: 'center',
+    paddingBottom: 24,
   },
   invisible: { opacity: 0 },
 

@@ -45,6 +45,7 @@ import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
 import { fmtUSD } from '@/utils/formatters';
 import { roundUSD } from '@/utils/rounding';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 type Step = 1 | 2 | 3;
@@ -57,6 +58,7 @@ export default function NewSaleScreen() {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
@@ -186,45 +188,47 @@ export default function NewSaleScreen() {
         <SaleStepIndicator step={1} />
       </AppHeader>
 
-      <ProductSearchBar
-        query={query}
-        onQueryChange={setQuery}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        categories={inventory.categories}
-      />
+      <View style={[styles.flex, isTablet && contentContainerStyle]}>
+        <ProductSearchBar
+          query={query}
+          onQueryChange={setQuery}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          categories={inventory.categories}
+        />
 
-      <FlatList
-        data={visibleProducts}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ProductSearchResult
-            product={item}
-            inCartQty={getCartQty(item.id)}
-            onAdd={() => cart.addItem(item)}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="cube-outline" size={48} color={colors.gray300} style={styles.emptyIcon} />
-            <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>
-              {inventory.isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('sales.noProducts')}
-            </Text>
-            {!inventory.isLoading && !query && (
-              <Text style={[styles.emptySub, { color: colors.gray400, textAlign }]}>{t('sales.noInventoryMsg')}</Text>
-            )}
-          </View>
-        }
-      />
+        <FlatList
+          data={visibleProducts}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <ProductSearchResult
+              product={item}
+              inCartQty={getCartQty(item.id)}
+              onAdd={() => cart.addItem(item)}
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="cube-outline" size={48} color={colors.gray300} style={styles.emptyIcon} />
+              <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>
+                {inventory.isLoading ? t('common.loading') : query ? t('inventory.noResults') : t('sales.noProducts')}
+              </Text>
+              {!inventory.isLoading && !query && (
+                <Text style={[styles.emptySub, { color: colors.gray400, textAlign }]}>{t('sales.noInventoryMsg')}</Text>
+              )}
+            </View>
+          }
+        />
 
-      <CartSummaryBar
-        itemCount={itemCount}
-        grandTotal={grandTotal}
-        onPress={() => setStep(2)}
-      />
+        <CartSummaryBar
+          itemCount={itemCount}
+          grandTotal={grandTotal}
+          onPress={() => setStep(2)}
+        />
+      </View>
     </View>
   );
 
@@ -242,7 +246,7 @@ export default function NewSaleScreen() {
 
       {hasWarning && <LossWarningBanner />}
 
-      <KeyboardAwareScrollView contentContainerStyle={styles.step2Body}>
+      <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
         {cart.items.length === 0 ? (
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>{t('sales.cartEmpty')}</Text>
@@ -326,7 +330,7 @@ export default function NewSaleScreen() {
         <SaleStepIndicator step={3} />
       </AppHeader>
 
-      <KeyboardAwareScrollView contentContainerStyle={styles.step3Body}>
+      <KeyboardAwareScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]}>
 
         <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
           <PremiumCard style={styles.sectionCard}>

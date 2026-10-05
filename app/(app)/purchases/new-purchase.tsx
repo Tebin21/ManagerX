@@ -39,6 +39,7 @@ import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useLanguageStore } from '@/store/languageStore';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 function round(n: number, decimals: number) {
@@ -51,6 +52,7 @@ export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign, flexDirection, isRTL } = useRTL();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { colors } = useAppTheme();
@@ -310,7 +312,7 @@ export default function NewPurchaseScreen() {
       >
         <KeyboardAwareScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.body}
+          contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}
           showsVerticalScrollIndicator={false}
         >
 

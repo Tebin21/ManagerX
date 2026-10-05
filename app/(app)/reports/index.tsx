@@ -29,6 +29,7 @@ import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
+import { useResponsive } from '@/hooks/useResponsive';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -639,6 +640,7 @@ export default function ReportsScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const {
     dateRange, isLoading, financialCards,
     salesData, purchaseData, plData, inventoryData,
@@ -737,7 +739,7 @@ export default function ReportsScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollBody}
+          contentContainerStyle={[styles.scrollBody, isTablet && contentContainerStyle]}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={reload} tintColor={colors.primary} />}
         >
 

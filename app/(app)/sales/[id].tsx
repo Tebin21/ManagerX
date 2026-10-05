@@ -18,6 +18,7 @@ import { useRTL } from '@/lib/rtl';
 import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
 import { Typography } from '@/constants/typography';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
@@ -30,6 +31,7 @@ export default function SaleDetailScreen() {
   const { t } = useTranslation();
   const { textAlign } = useRTL();
   const { colors } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const business = useBusinessStore();
 
   const [sale, setSale]         = useState<Sale | null>(null);
@@ -108,7 +110,7 @@ export default function SaleDetailScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}>
         <MotiView
           from={{ opacity: 0, translateY: 12 }}
           animate={{ opacity: 1, translateY: 0 }}

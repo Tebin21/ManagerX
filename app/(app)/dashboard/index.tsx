@@ -10,10 +10,12 @@ import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
 import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
@@ -25,40 +27,42 @@ export default function DashboardScreen() {
       >
         <BusinessHeader />
 
-        <MotiView
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, delay: 200 }}
-          style={styles.sectionHeader}
-        >
-          <BexDreLogoButton />
-
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/settings' as never)}
-            style={[styles.settingsBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '1F' }]}
-            hitSlop={8}
+        <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, delay: 200 }}
+            style={styles.sectionHeader}
           >
-            <Ionicons name="settings-outline" size={22} color={colors.primary} />
-          </TouchableOpacity>
-        </MotiView>
+            <BexDreLogoButton />
 
-        <MotiView
-          from={{ opacity: 0, translateY: 24 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, delay: 300 }}
-        >
-          <ModuleGrid />
-        </MotiView>
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/settings' as never)}
+              style={[styles.settingsBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '1F' }]}
+              hitSlop={8}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+          </MotiView>
 
-        <MotiView
-          from={{ opacity: 0, translateY: 24 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, delay: 380 }}
-        >
-          <OnlineStoreCard />
-        </MotiView>
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, delay: 300 }}
+          >
+            <ModuleGrid />
+          </MotiView>
 
-        <SupportFooter compact />
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, delay: 380 }}
+          >
+            <OnlineStoreCard />
+          </MotiView>
+
+          <SupportFooter compact />
+        </View>
       </ScrollView>
     </View>
   );
@@ -67,6 +71,9 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   screen:  { flex: 1 },
   scroll:  { flexGrow: 1 },
+  bodyWrapper: {
+    width: '100%',
+  },
   sectionHeader: {
     flexDirection:  'row',
     alignItems:     'center',

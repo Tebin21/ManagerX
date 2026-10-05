@@ -30,6 +30,7 @@ import type { PurchaseItem } from '@/lib/sqlite';
 import type { PurchaseDebt } from '@/types/debt';
 import { fmtIQD, fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
@@ -64,6 +65,7 @@ export default function PurchaseDetailScreen() {
   const router   = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const { isRTL, flexDirection, alignEnd } = useRTL();
   const { deletePurchase } = usePurchaseStore();
   const business = useBusinessStore();
@@ -209,7 +211,7 @@ export default function PurchaseDetailScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
 
         {/* Invoice header */}
         <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200 }}>

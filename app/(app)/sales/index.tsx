@@ -14,7 +14,7 @@ import { useSalesStore } from '@/store/salesStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
-
+import { useResponsive } from '@/hooks/useResponsive';
 
 function getTodayStats(sales: ReturnType<typeof useSalesStore.getState>['sales']) {
   const today = new Date().toDateString();
@@ -32,6 +32,7 @@ export default function SalesScreen() {
   const { chevronForward, arrowForward } = useDirectionalChevron();
   const { colors } = useAppTheme();
   const { sales, loadSales } = useSalesStore();
+  const { isTablet, contentContainerStyle } = useResponsive();
 
   useEffect(() => { loadSales(); }, []);
 
@@ -45,7 +46,7 @@ export default function SalesScreen() {
         onBack={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}>
 
         <MotiView
           from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }}

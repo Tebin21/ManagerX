@@ -20,11 +20,13 @@ import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const { flexDirection, textAlign, writingDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase, searchPurchases } =
@@ -130,7 +132,7 @@ export default function PurchaseHistoryScreen() {
         }
       />
 
-      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }, isTablet && contentContainerStyle]}>
         <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
           style={[
@@ -153,7 +155,7 @@ export default function PurchaseHistoryScreen() {
       </View>
 
       {purchases.length > 0 && (
-        <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }]}>
+        <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection }, isTablet && contentContainerStyle]}>
           <Text style={[styles.summaryText, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'purchase' : 'purchases'}
           </Text>
@@ -170,7 +172,7 @@ export default function PurchaseHistoryScreen() {
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, visible.length === 0 && styles.listEmpty]}
+        contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews
         initialNumToRender={15}

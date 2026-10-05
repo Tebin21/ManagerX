@@ -24,6 +24,7 @@ import type { SupplierWithStats } from '@/types/suppliers';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
   const { colors } = useAppTheme();
@@ -58,6 +59,7 @@ export default function SuppliersScreen() {
   const { t } = useTranslation();
   const { suppliers, isLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
   const { colors } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -150,7 +152,7 @@ export default function SuppliersScreen() {
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, visible.length === 0 && styles.listEmpty]}
+        contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews
         initialNumToRender={15}

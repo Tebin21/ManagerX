@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { ModuleCard } from './ModuleCard';
 import { useModuleStore } from '@/store/moduleStore';
 import { MODULES, ModuleDefinition } from '@/constants/config';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export function ModuleGrid() {
   const { t } = useTranslation();
   const { modules } = useModuleStore();
+  const { moduleColumns } = useResponsive();
 
   const sortedModules = [...MODULES].sort((a, b) => {
     const orderA = modules[a.id]?.order ?? MODULES.findIndex((m) => m.id === a.id);
@@ -31,10 +33,11 @@ export function ModuleGrid() {
 
   return (
     <FlatList
+      key={`grid-${moduleColumns}`}
       data={sortedModules}
       renderItem={renderItem}
       keyExtractor={(item) => item.id}
-      numColumns={2}
+      numColumns={moduleColumns}
       scrollEnabled={false}
       contentContainerStyle={styles.grid}
     />

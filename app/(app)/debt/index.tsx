@@ -36,6 +36,7 @@ import { isDateWithinRange } from '@/utils/dateRanges';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 
 function daysAgo(dateStr: string): number {
@@ -370,6 +371,7 @@ export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
@@ -559,16 +561,27 @@ export default function DebtScreen() {
           )}
         </View>
 
-        {/* Summary cards — 2×2 grid, inside the blue header */}
+        {/* Summary cards — 4 in 1 row on tablet, 2×2 grid on phone */}
         <View style={styles.summaryGrid}>
-          <View style={styles.summaryRow}>
-            {renderOverviewCell(overviewCards[0])}
-            {renderOverviewCell(overviewCards[1])}
-          </View>
-          <View style={styles.summaryRow}>
-            {renderOverviewCell(overviewCards[2])}
-            {renderOverviewCell(overviewCards[3])}
-          </View>
+          {isTablet ? (
+            <View style={[styles.summaryRow, { gap: 10 }]}>
+              {renderOverviewCell(overviewCards[0])}
+              {renderOverviewCell(overviewCards[1])}
+              {renderOverviewCell(overviewCards[2])}
+              {renderOverviewCell(overviewCards[3])}
+            </View>
+          ) : (
+            <>
+              <View style={styles.summaryRow}>
+                {renderOverviewCell(overviewCards[0])}
+                {renderOverviewCell(overviewCards[1])}
+              </View>
+              <View style={styles.summaryRow}>
+                {renderOverviewCell(overviewCards[2])}
+                {renderOverviewCell(overviewCards[3])}
+              </View>
+            </>
+          )}
         </View>
       </AppHeader>
 
@@ -578,7 +591,7 @@ export default function DebtScreen() {
           data={visibleSales}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderSalesItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
@@ -604,7 +617,7 @@ export default function DebtScreen() {
           data={visiblePurchase}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderPurchaseItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}

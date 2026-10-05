@@ -29,11 +29,13 @@ import { Colors } from '@/constants/colors';
 import { PRIVACY_POLICY_URL } from '@/constants/config';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function SettingsScreen() {
   const router  = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const business   = useBusinessStore();
   const isDarkMode   = useSettingsStore((s) => s.isDarkMode);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
@@ -118,7 +120,7 @@ export default function SettingsScreen() {
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader title={t('settings.title')} />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
 
         {/* Tutorials — premium featured entry */}
         <TutorialsCard />

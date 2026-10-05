@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { BUSINESS_TYPES } from '@/constants/config';
+import { useResponsive } from '@/hooks/useResponsive';
 
 function resolveType(type: string): { emoji: string; label: string } | null {
   if (!type?.trim()) return null;
@@ -20,6 +21,7 @@ export function BusinessHeader() {
   const { t } = useTranslation();
   const { name, type, phone, address, logoUri } = useBusinessStore();
   const { colors: themeColors } = useAppTheme();
+  const { isTablet, headerMaxWidth } = useResponsive();
 
   const resolved = resolveType(type);
   // Logo placeholder shows the predefined emoji when available, otherwise a generic building.
@@ -32,7 +34,7 @@ export function BusinessHeader() {
       end={{ x: 1, y: 1 }}
       style={styles.gradient}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, isTablet && { maxWidth: headerMaxWidth, alignSelf: 'center', width: '100%' }]}>
         <View style={styles.row}>
           <View style={styles.logoContainer}>
             {logoUri ? (

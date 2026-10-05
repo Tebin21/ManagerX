@@ -8,6 +8,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Typography } from '@/constants/typography';
 
+import { useResponsive } from '@/hooks/useResponsive';
+
 interface Props {
   title: React.ReactNode;
   showBack?: boolean;
@@ -46,6 +48,7 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
+  const { isTablet, headerMaxWidth } = useResponsive();
   const gradColors = gradient ?? [colors.gradientStart, colors.gradientMid];
 
   return (
@@ -53,25 +56,27 @@ export function AppHeader({
       colors={gradColors}
       style={[styles.gradient, { paddingTop: insets.top }]}
     >
-      <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
-        <View style={styles.side}>
-          {showBack ? <BackButton onPress={onBack} /> : null}
+      <View style={[styles.innerWrap, isTablet && { maxWidth: headerMaxWidth, alignSelf: 'center', width: '100%' }]}>
+        <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
+          <View style={styles.side}>
+            {showBack ? <BackButton onPress={onBack} /> : null}
+          </View>
+
+          {/* Center — title always centered between the two equal-width sides */}
+          <Text style={[styles.title, titleStyle]} numberOfLines={1}>
+            {title}
+          </Text>
+
+          {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
+          <View style={styles.side}>
+            {rightAction ?? null}
+          </View>
         </View>
 
-        {/* Center — title always centered between the two equal-width sides */}
-        <Text style={[styles.title, titleStyle]} numberOfLines={1}>
-          {title}
-        </Text>
-
-        {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
-        <View style={styles.side}>
-          {rightAction ?? null}
-        </View>
+        {/* Extra gradient content (e.g. step indicators, search bars) */}
+        {children}
       </View>
-
-      {/* Extra gradient content (e.g. step indicators, search bars) */}
-      {children}
     </LinearGradient>
   );
 }
@@ -80,6 +85,9 @@ const styles = StyleSheet.create({
   gradient: {
     borderBottomLeftRadius:  24,
     borderBottomRightRadius: 24,
+  },
+  innerWrap: {
+    width: '100%',
   },
   row: {
     flexDirection:     'row',

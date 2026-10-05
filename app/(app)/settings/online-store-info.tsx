@@ -20,6 +20,7 @@ import { useAuthStore } from '@/store/authStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { useBusinessStore } from '@/store/businessStore';
+import { useResponsive } from '@/hooks/useResponsive';
 
 function toLocalIraqiPhone(stored: string): string {
   const digits = stored.replace(/\D/g, '');
@@ -39,6 +40,7 @@ function toInternationalIraqiPhone(input: string): string {
 export default function OnlineStoreInfoScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isTablet, contentContainerStyle } = useResponsive();
   const { textAlign } = useRTL();
   const router = useRouter();
 
@@ -110,7 +112,7 @@ export default function OnlineStoreInfoScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
           <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -123,7 +125,7 @@ export default function OnlineStoreInfoScreen() {
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
 
-        <KeyboardAwareScrollView contentContainerStyle={styles.body}>
+        <KeyboardAwareScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}>
           <PremiumCard style={styles.card}>
             <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>
               {t('settings.onlineStoreInfoScreen.section')}

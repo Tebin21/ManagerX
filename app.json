@@ -14,7 +14,7 @@
       "backgroundColor": "#181917"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.froshiar.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
@@ -91,6 +91,12 @@
           "photosPermission": "Froshiar needs access to your photos to upload a business logo.",
           "cameraPermission": "Froshiar needs camera access to take a business logo photo.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Froshiar needs camera access to scan barcodes and QR codes."
         }
       ],
       "expo-iap"
