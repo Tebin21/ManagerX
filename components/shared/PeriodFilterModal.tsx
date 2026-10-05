@@ -1,5 +1,5 @@
 import React, { useState, type ComponentProps } from 'react';
-import { View, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/lib/i18n';
@@ -20,9 +20,20 @@ interface Props {
   /** Optional label overrides, e.g. for callers that need exact wording independent of the shared common/reports keys. */
   labels?: Partial<Record<PeriodKey, string>>;
   includeAll?: boolean;
+  onExportPdf?: () => void;
+  isExportingPdf?: boolean;
 }
 
-export function PeriodFilterModal({ visible, onClose, onSelect, current, labels, includeAll }: Props) {
+export function PeriodFilterModal({
+  visible,
+  onClose,
+  onSelect,
+  current,
+  labels,
+  includeAll,
+  onExportPdf,
+  isExportingPdf = false,
+}: Props) {
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -117,6 +128,32 @@ export function PeriodFilterModal({ visible, onClose, onSelect, current, labels,
           </TouchableOpacity>
         </View>
       )}
+
+      {onExportPdf && (
+        <View style={styles.exportSection}>
+          <View style={[styles.exportDivider, { backgroundColor: colors.gray200 }]} />
+          <TouchableOpacity
+            style={[styles.exportBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '35' }]}
+            onPress={() => {
+              handleClose();
+              onExportPdf();
+            }}
+            disabled={isExportingPdf}
+            activeOpacity={0.85}
+          >
+            {isExportingPdf ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                <Text style={[styles.exportBtnText, { color: colors.primary }]}>
+                  {isKuLanguage ? 'دەرکردنی جەردی فرۆشتن بە PDF' : 'Export Sales Audit (PDF)'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </AppSheet>
   );
 }
@@ -127,4 +164,27 @@ const styles = StyleSheet.create({
   dateInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 4 },
   applyBtn: { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
   applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  exportSection: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  exportDivider: {
+    height: 1,
+    marginBottom: 12,
+  },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  exportBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

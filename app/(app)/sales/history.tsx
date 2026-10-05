@@ -34,20 +34,6 @@ import { attachItemsToSales } from '@/lib/sqlite';
 import { shareSalesAuditReport } from '@/lib/generateInvoice';
 import type { Sale } from '@/types/sales';
 
-interface FilterPill {
-  key: PeriodKey;
-  labelKey: string;
-}
-
-const FILTER_PILLS: FilterPill[] = [
-  { key: 'today',  labelKey: 'common.today' },
-  { key: 'week',   labelKey: 'common.thisWeek' },
-  { key: 'month',  labelKey: 'common.thisMonth' },
-  { key: 'year',   labelKey: 'reports.year' },
-  { key: 'custom', labelKey: 'reports.custom' },
-  { key: 'all',    labelKey: 'sales.allPeriods' },
-];
-
 export default function SalesHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -91,18 +77,6 @@ export default function SalesHistoryScreen() {
   }, [query, periodFilteredSales]);
 
   // Aggregate stats for the current view
-  const summary = useMemo(() => {
-    const totalRev = results.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
-    const totalDebt = results.reduce((sum, s) => sum + (s.remainingDebt || 0), 0);
-    const totalPaid = results.reduce((sum, s) => sum + (s.paidAmount || 0), 0);
-    return {
-      count: results.length,
-      totalRevenue: totalRev,
-      totalDebt,
-      totalPaid,
-    };
-  }, [results]);
-
   // Readable label for the current active period
   const periodDisplayLabel = useMemo(() => {
     if (period === 'today') return isKuLanguage ? 'ئەمڕۆ' : 'Today';
@@ -160,17 +134,10 @@ export default function SalesHistoryScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <View style={[styles.headerActions, { flexDirection }]}>
-            <HeaderActionButton
-              icon="calendar-outline"
-              onPress={() => setPeriodSheetVisible(true)}
-            />
-            <HeaderActionButton
-              icon="share-outline"
-              onPress={handleExportPdf}
-              loading={isExporting}
-            />
-          </View>
+          <HeaderActionButton
+            icon="funnel-outline"
+            onPress={() => setPeriodSheetVisible(true)}
+          />
         }
       />
 
@@ -200,113 +167,6 @@ export default function SalesHistoryScreen() {
             <Ionicons name="close-circle" size={16} color={colors.gray400} />
           </TouchableOpacity>
         )}
-      </View>
-
-      {/* Period Filter Quick Pills */}
-      <View style={styles.pillsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.pillsScroll, { flexDirection }]}
-        >
-          {FILTER_PILLS.map((pill) => {
-            const isActive = period === pill.key;
-            return (
-              <TouchableOpacity
-                key={pill.key}
-                onPress={() => {
-                  if (pill.key === 'custom') {
-                    setPeriodSheetVisible(true);
-                  } else {
-                    handlePeriodSelect(pill.key);
-                  }
-                }}
-                activeOpacity={0.8}
-                style={[
-                  styles.pill,
-                  {
-                    backgroundColor: isActive ? colors.primary : (isDark ? colors.gray100 : colors.white),
-                    borderColor: isActive ? colors.primary : colors.gray200,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.pillText,
-                    {
-                      color: isActive ? '#FFFFFF' : (isDark ? colors.gray600 : colors.gray700),
-                      fontWeight: isActive ? '700' : '500',
-                    },
-                  ]}
-                >
-                  {t(pill.labelKey)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Summary KPI Strip */}
-      <View
-        style={[
-          styles.summaryCard,
-          {
-            backgroundColor: isDark ? colors.gray100 : colors.white,
-            borderColor: colors.gray200,
-            flexDirection,
-          },
-        ]}
-      >
-        <View style={styles.summaryLeft}>
-          <View style={[styles.summaryTitleRow, { flexDirection }]}>
-            <Text style={[styles.summaryTitle, { color: colors.gray500 }]}>
-              {periodDisplayLabel}:
-            </Text>
-            <Text style={[styles.summaryCount, { color: colors.gray400 }]}>
-              ({summary.count} {t('sales.invoicesCount')})
-            </Text>
-          </View>
-          <View style={[styles.summaryAmountRow, { flexDirection }]}>
-            <AmountText
-              value={summary.totalRevenue}
-              currency="IQD"
-              style={[styles.summaryTotal, { color: colors.primary }]}
-            />
-            {summary.totalDebt > 0 && (
-              <View style={[styles.debtBadge, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEF2F2' }]}>
-                <Text style={styles.debtBadgeText}>
-                  - {t('sales.remainingDebt')}: <AmountText value={summary.totalDebt} variant="small" style={{ color: colors.error }} />
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onPress={handleExportPdf}
-          disabled={isExporting || results.length === 0}
-          activeOpacity={0.85}
-          style={[
-            styles.pdfBtn,
-            {
-              backgroundColor: colors.softBlue,
-              borderColor: colors.primary + '30',
-              opacity: results.length === 0 ? 0.5 : 1,
-            },
-          ]}
-        >
-          {isExporting ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <>
-              <Ionicons name="document-text-outline" size={17} color={colors.primary} />
-              <Text style={[styles.pdfBtnText, { color: colors.primary }]}>
-                {t('sales.salesAudit')}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
       </View>
 
       {/* Sales Invoices List */}
@@ -369,6 +229,8 @@ export default function SalesHistoryScreen() {
         onSelect={handlePeriodSelect}
         current={period}
         includeAll
+        onExportPdf={handleExportPdf}
+        isExportingPdf={isExporting}
       />
     </View>
   );
@@ -376,11 +238,6 @@ export default function SalesHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  headerActions: {
-    alignItems: 'center',
-    gap: 8,
-  },
 
   searchWrap: {
     alignItems:        'center',
@@ -395,85 +252,6 @@ const styles = StyleSheet.create({
   },
   searchIcon:  { flexShrink: 0 },
   searchInput: { flex: 1, fontSize: 14, height: '100%' },
-
-  pillsContainer: {
-    marginBottom: 8,
-  },
-  pillsScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillText: {
-    fontSize: 12.5,
-  },
-
-  summaryCard: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: Theme.radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    ...Theme.shadow.soft,
-  },
-  summaryLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  summaryTitleRow: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  summaryTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  summaryCount: {
-    fontSize: 11.5,
-  },
-  summaryAmountRow: {
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  summaryTotal: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  debtBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  debtBadgeText: {
-    fontSize: 11,
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-
-  pdfBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  pdfBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
 
   list:      { padding: 16, paddingTop: 4, paddingBottom: 24 },
   listEmpty: { flex: 1 },
