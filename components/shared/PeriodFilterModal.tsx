@@ -22,6 +22,7 @@ interface Props {
   includeAll?: boolean;
   onExportPdf?: () => void;
   isExportingPdf?: boolean;
+  exportPdfLabel?: string;
 }
 
 export function PeriodFilterModal({
@@ -33,6 +34,7 @@ export function PeriodFilterModal({
   includeAll,
   onExportPdf,
   isExportingPdf = false,
+  exportPdfLabel,
 }: Props) {
   const { colors } = useAppTheme();
   const { textAlign } = useRTL();
@@ -147,7 +149,7 @@ export function PeriodFilterModal({
               <>
                 <Ionicons name="document-text-outline" size={18} color={colors.primary} />
                 <Text style={[styles.exportBtnText, { color: colors.primary }]}>
-                  {isKuLanguage ? 'دەرکردنی جەردی فرۆشتن بە PDF' : 'Export Sales Audit (PDF)'}
+                  {exportPdfLabel ?? (isKuLanguage ? 'دەرکردنی جەردی فرۆشتن بە PDF' : 'Export Sales Audit (PDF)')}
                 </Text>
               </>
             )}

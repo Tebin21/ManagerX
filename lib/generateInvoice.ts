@@ -44,6 +44,7 @@ import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment } from '@/types/debt';
 import i18n from '@/lib/i18n';
+import { useLanguageStore } from '@/store/languageStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,8 @@ function releaseGenerationLock(): void {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getDir(): 'ltr' | 'rtl' {
-  return 'ltr';
+  const lang = useLanguageStore.getState().language || i18n.language;
+  return lang === 'ku' ? 'rtl' : 'ltr';
 }
 
 const LOGO_MIME_BY_EXT: Record<string, string> = {
@@ -623,4 +625,30 @@ export async function shareSalesAuditReport(
     releaseGenerationLock();
   }
 }
+
+export async function sharePurchasesAuditReport(
+  purchases: Purchase[],
+  periodLabel: string,
+  business: BusinessInfo
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildPurchasesAuditReportHTML } = await import('./purchasesAuditReportTemplate');
+    const html = buildPurchasesAuditReportHTML(purchases, periodLabel, biz, getDir());
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    return await generateAndShare(
+      html,
+      isKu ? `جەردی کڕینەکان — ${periodLabel}` : `Purchases Audit Report — ${periodLabel}`,
+      isKu ? 'نەتوانرا جەردی کڕینەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the purchases audit report PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] sharePurchasesAuditReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the purchases audit report. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
 

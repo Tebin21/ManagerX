@@ -81,16 +81,18 @@ export function ModuleCard({ module, enabled, label }: Props) {
         disabled={!enabled}
         style={styles.pressable}
       >
-        {/* 3D Base Card (the visible bottom edge is the 3D bevel/shadow) */}
-        <View
-          style={[
-            styles.baseCard,
-            {
-              backgroundColor: baseBg,
-              shadowColor: baseBg,
-            },
-          ]}
-        >
+        <View style={styles.cardWrapper}>
+          {/* 3D Base Card (the visible bottom edge is the 3D bevel/shadow; positioned below top so it never shows at the top on press) */}
+          <View
+            style={[
+              styles.baseCard,
+              {
+                backgroundColor: baseBg,
+                shadowColor: baseBg,
+              },
+            ]}
+          />
+
           {/* Top Surface that sinks down on press */}
           <Animated.View
             style={[
@@ -165,9 +167,17 @@ const styles = StyleSheet.create({
   pressable: {
     width: '100%',
   },
-  baseCard: {
-    borderRadius: 22,
+  cardWrapper: {
+    position: 'relative',
     paddingBottom: DEPTH,
+  },
+  baseCard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 14,
+    borderRadius: 20,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
