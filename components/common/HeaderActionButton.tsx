@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function HeaderActionButton({ icon, onPress, disabled = false, loading = false }: Props) {
+  const { isTablet, headerButtonSize, headerIconSize } = useResponsive();
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
 
@@ -34,14 +36,21 @@ export function HeaderActionButton({ icon, onPress, disabled = false, loading = 
         onPressOut={() => {
           scale.value = withSpring(1, { damping: 18, stiffness: 380 });
         }}
-        style={styles.btn}
+        style={[
+          styles.btn,
+          isTablet && {
+            width: headerButtonSize,
+            height: headerButtonSize,
+            borderRadius: 14,
+          },
+        ]}
         hitSlop={10}
         activeOpacity={0.85}
         disabled={isDisabled}
       >
         {loading
           ? <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Ionicons name={icon} size={20} color="#FFFFFF" />
+          : <Ionicons name={icon} size={isTablet ? headerIconSize : 20} color="#FFFFFF" />
         }
       </TouchableOpacity>
     </Animated.View>

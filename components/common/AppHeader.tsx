@@ -54,22 +54,39 @@ export function AppHeader({
   return (
     <LinearGradient
       colors={gradColors}
-      style={[styles.gradient, { paddingTop: insets.top }]}
+      style={[
+        styles.gradient,
+        isTablet && { borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+        { paddingTop: insets.top },
+      ]}
     >
       <View style={[styles.innerWrap, isTablet && { maxWidth: headerMaxWidth, alignSelf: 'center', width: '100%' }]}>
-        <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View
+          style={[
+            styles.row,
+            isTablet && { minHeight: 70, paddingHorizontal: 20, paddingVertical: 18 },
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
+          ]}
+        >
           {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
-          <View style={styles.side}>
+          <View style={[styles.side, isTablet && { minWidth: 54 }]}>
             {showBack ? <BackButton onPress={onBack} /> : null}
           </View>
 
           {/* Center — title always centered between the two equal-width sides */}
-          <Text style={[styles.title, titleStyle]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.title,
+              isTablet && { fontSize: 23, fontWeight: '700', lineHeight: 28 },
+              titleStyle,
+            ]}
+            numberOfLines={1}
+          >
             {title}
           </Text>
 
           {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
-          <View style={styles.side}>
+          <View style={[styles.side, isTablet && { minWidth: 54 }]}>
             {rightAction ?? null}
           </View>
         </View>

@@ -30,6 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
@@ -317,8 +318,11 @@ export default function DataScreen() {
     ? t('settings.dataScreen.devBuildRequired')
     : t('settings.dataScreen.restoreBackupSub');
 
+  const IS_IOS = Platform.OS === 'ios';
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.dataScreen.title')} showBack />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -394,10 +398,15 @@ export default function DataScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
           <View style={[
             styles.dialog,
+            IS_IOS && styles.glassDialog,
             {
-              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderColor:     isDark ? colors.gray200  : 'transparent',
-              borderWidth:     isDark ? 1 : 0,
+              backgroundColor: IS_IOS
+                ? (isDark ? 'rgba(30, 41, 59, 0.88)' : 'rgba(255, 255, 255, 0.90)')
+                : (isDark ? colors.gray100 : '#FFFFFF'),
+              borderColor: IS_IOS
+                ? (isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.85)')
+                : (isDark ? colors.gray200 : 'transparent'),
+              borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
             },
           ]}>
             <View style={[styles.dialogIconWrap, { backgroundColor: '#FEE2E2' }]}>
@@ -481,10 +490,15 @@ export default function DataScreen() {
         <View style={styles.overlay}>
           <View style={[
             styles.dialog,
+            IS_IOS && styles.glassDialog,
             {
-              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderColor:     isDark ? colors.gray200  : 'transparent',
-              borderWidth:     isDark ? 1 : 0,
+              backgroundColor: IS_IOS
+                ? (isDark ? 'rgba(30, 41, 59, 0.88)' : 'rgba(255, 255, 255, 0.90)')
+                : (isDark ? colors.gray100 : '#FFFFFF'),
+              borderColor: IS_IOS
+                ? (isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.85)')
+                : (isDark ? colors.gray200 : 'transparent'),
+              borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
             },
           ]}>
             {restoreSummary ? (
@@ -602,6 +616,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius:  20,
     elevation:     12,
+  },
+  glassDialog: {
+    borderWidth: 1.2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
   },
   dialogIconWrap: {
     width:          64,

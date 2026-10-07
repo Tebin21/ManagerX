@@ -9,6 +9,7 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
 
 interface Props {
@@ -18,7 +19,8 @@ interface Props {
 
 export function SaleHistoryItem({ sale, onPress }: Props) {
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
 
@@ -33,14 +35,16 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
 
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;
 
+  const cardPadding = isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14);
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection, padding: cardPadding }]}>
       <View style={styles.left}>
         <IdText style={[styles.invoice, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{sale.invoiceNumber}</IdText>
         {sale.customerName ? (
           <Text style={[styles.customer, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]} numberOfLines={1}>{sale.customerName}</Text>
         ) : null}
-        <DateText value={sale.date ?? sale.createdAt} size="small" style={[styles.date, { textAlign }]} />
+        <DateText value={sale.date ?? sale.createdAt} size={isTablet ? 'default' : 'small'} style={[styles.date, { textAlign }]} />
       </View>
 
       <View style={[styles.right, { alignItems: alignEnd, marginEnd: isRTL ? RTL_SPACING.gap : 8 }]}>
@@ -59,35 +63,36 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
         ) : null}
       </View>
 
-      <Ionicons name={chevronForward as never} size={16} color={colors.gray300} style={[styles.arrow, { marginStart: isRTL ? RTL_SPACING.gapSm : 4 }]} />
+      <Ionicons name={chevronForward as never} size={isTablet ? 20 : 16} color={colors.gray300} style={[styles.arrow, { marginStart: isRTL ? RTL_SPACING.gapSm : 4 }]} />
     </TouchableOpacity>
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     card: {
+      flex: isTablet ? 1 : undefined,
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.white,
-      borderRadius: Theme.radius.card,
-      padding: 14,
+      borderRadius: isTablet ? 16 : Theme.radius.card,
+      padding: isTablet ? 18 : 14,
       marginBottom: 8,
       ...Theme.shadow.card,
     },
     left: { flex: 1 },
-    invoice: { fontSize: 13, fontWeight: '700', color: colors.black, marginBottom: 2 },
-    customer: { fontSize: 13, color: colors.gray600, marginBottom: 2 },
+    invoice: { fontSize: isTablet ? 16 : 13, fontWeight: '700', color: colors.black, marginBottom: 2 },
+    customer: { fontSize: isTablet ? 15 : 13, color: colors.gray600, marginBottom: 2 },
     date: { color: colors.gray400 },
     right: { alignItems: 'flex-end', marginEnd: 8 },
-    total: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+    total: { fontSize: isTablet ? 19 : 16, fontWeight: '700', marginBottom: 4 },
     badge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 8,
+      paddingHorizontal: isTablet ? 10 : 8,
+      paddingVertical: isTablet ? 4 : 2,
+      borderRadius: isTablet ? 9 : 8,
     },
-    badgeText: { fontSize: 11, fontWeight: '600' },
-    debt: { fontSize: 11, color: colors.error, marginTop: 2, fontWeight: '500' },
+    badgeText: { fontSize: isTablet ? 13 : 11, fontWeight: '600' },
+    debt: { fontSize: isTablet ? 13 : 11, color: colors.error, marginTop: 2, fontWeight: '500' },
     arrow: { marginStart: 4 },
   });
 }

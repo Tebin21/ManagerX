@@ -11,7 +11,8 @@ import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScroll
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { LogoUploader } from '@/components/setup/LogoUploader';
 import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
 import { useBusiness } from '@/hooks/useBusiness';
@@ -61,6 +62,7 @@ export default function BusinessProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.profileScreen.title')} showBack />
 
         <KeyboardAwareScrollView contentContainerStyle={styles.body}>
@@ -71,7 +73,7 @@ export default function BusinessProfileScreen() {
             <Text style={styles.logoHint}>{t('settings.profileScreen.logoHint')}</Text>
           </View>
 
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.sectionTitle, { textAlign }]}>{t('settings.profileScreen.businessInfo')}</Text>
             <AppTextInput
               label={t('settings.profileScreen.nameStar')}
@@ -96,7 +98,7 @@ export default function BusinessProfileScreen() {
               value={address}
               onChangeText={setAddress}
             />
-          </PremiumCard>
+          </SettingsCard>
 
           <PrimaryButton
             label={t('settings.profileScreen.saveChanges')}

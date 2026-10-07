@@ -25,7 +25,6 @@ import type { DateRangeKey } from '@/types/reports';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
-import { ExpensesCard } from '@/components/dashboard/ExpensesCard';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
@@ -54,13 +53,14 @@ function SectionHeader({
   const router = useRouter();
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const secStyles = useMemo(() => getSecStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const secStyles = useMemo(() => getSecStyles(colors, isTablet), [colors, isTablet]);
   return (
     <View style={[secStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <View style={[secStyles.left, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {icon && (
           <View style={[secStyles.iconWrap, { backgroundColor: `${colors.primary}18` }]}>
-            <Ionicons name={icon} size={14} color={colors.primary} />
+            <Ionicons name={icon} size={isTablet ? 17 : 14} color={colors.primary} />
           </View>
         )}
         <Text style={[secStyles.title, { textAlign }]}>{title}</Text>
@@ -68,21 +68,21 @@ function SectionHeader({
       {action && route && (
         <TouchableOpacity onPress={() => router.push(route as never)} style={[secStyles.actionBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Text style={[secStyles.actionText, { color: colors.primary }]}>{action}</Text>
-          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={13} color={colors.primary} />
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={isTablet ? 16 : 13} color={colors.primary} />
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function getSecStyles(colors: AppColors) {
+function getSecStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 22, marginBottom: 8 },
-    left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-    iconWrap: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-    title: { fontSize: 15, fontWeight: '800', color: colors.black },
-    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-    actionText: { fontSize: 13, fontWeight: '600' },
+    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: isTablet ? 28 : 22, marginBottom: isTablet ? 12 : 8 },
+    left: { flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8, flex: 1 },
+    iconWrap: { width: isTablet ? 30 : 24, height: isTablet ? 30 : 24, borderRadius: isTablet ? 9 : 7, alignItems: 'center', justifyContent: 'center' },
+    title: { fontSize: isTablet ? 18 : 15, fontWeight: '800', color: colors.black },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    actionText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
   });
 }
 
@@ -96,16 +96,17 @@ function BigMetricRow({
 }) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const bmStyles = useMemo(() => getBmStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const bmStyles = useMemo(() => getBmStyles(colors, isTablet), [colors, isTablet]);
   const resolvedColor = color ?? colors.primary;
   return (
     <View style={[bmStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <View style={[
         bmStyles.iconBox,
         { backgroundColor: `${resolvedColor}15` },
-        isRTL ? { marginStart: 12 } : { marginEnd: 12 },
+        isRTL ? { marginStart: isTablet ? 16 : 12 } : { marginEnd: isTablet ? 16 : 12 },
       ]}>
-        <Ionicons name={icon} size={20} color={resolvedColor} />
+        <Ionicons name={icon} size={isTablet ? 24 : 20} color={resolvedColor} />
       </View>
       <View style={bmStyles.info}>
         <Text style={[bmStyles.label, { textAlign }]}>{label}</Text>
@@ -122,14 +123,14 @@ function BigMetricRow({
   );
 }
 
-function getBmStyles(colors: AppColors) {
+function getBmStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
-    iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: isTablet ? 14 : 10, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+    iconBox: { width: isTablet ? 48 : 40, height: isTablet ? 48 : 40, borderRadius: isTablet ? 14 : 12, alignItems: 'center', justifyContent: 'center' },
     info: { flex: 1 },
-    label: { fontSize: 13, fontWeight: '600', color: colors.black },
-    sub: { fontSize: 11, color: colors.gray400, marginTop: 1 },
-    value: { fontSize: 15, fontWeight: '800', maxWidth: '52%' },
+    label: { fontSize: isTablet ? 16 : 13, fontWeight: '600', color: colors.black },
+    sub: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
+    value: { fontSize: isTablet ? 18 : 15, fontWeight: '800', maxWidth: '52%' },
   });
 }
 
@@ -137,7 +138,8 @@ function getBmStyles(colors: AppColors) {
 
 function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: string; color?: string }[] }) {
   const { colors } = useAppTheme();
-  const scStyles = useMemo(() => getScStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const scStyles = useMemo(() => getScStyles(colors, isTablet), [colors, isTablet]);
   return (
     <View style={scStyles.row}>
       {chips.map((c, i) => (
@@ -158,13 +160,13 @@ function StatChipsRow({ chips }: { chips: { value: React.ReactNode; label: strin
   );
 }
 
-function getScStyles(colors: AppColors) {
+function getScStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', marginTop: 14, borderTopWidth: 1, borderTopColor: colors.gray100, paddingTop: 12 },
+    row: { flexDirection: 'row', marginTop: isTablet ? 18 : 14, borderTopWidth: 1, borderTopColor: colors.gray100, paddingTop: isTablet ? 16 : 12 },
     chip: { flex: 1, alignItems: 'center' },
-    value: { fontSize: 16, fontWeight: '800', color: colors.black, marginBottom: 2 },
+    value: { fontSize: isTablet ? 20 : 16, fontWeight: '800', color: colors.black, marginBottom: 2 },
     ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
-    label: { fontSize: 10, color: colors.gray400, textAlign: 'center' },
+    label: { fontSize: isTablet ? 13 : 10, color: colors.gray400, textAlign: 'center' },
   });
 }
 
@@ -325,21 +327,17 @@ function FinancialCard({
 }) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
-  const fcStyles = useMemo(() => getFcStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const fcStyles = useMemo(() => getFcStyles(colors, isTablet), [colors, isTablet]);
   return (
     <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
       <View style={[fcStyles.iconBox, { backgroundColor: `${color}1A`, alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
-        <Ionicons name={icon} size={18} color={color} />
+        <Ionicons name={icon} size={isTablet ? 24 : 18} color={color} />
       </View>
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
       <AmountText
         value={amount}
-        // fcStyles.value's fontSize (20) is taller than AmountText's inherited
-        // preset lineHeight (18), which crops the top/bottom of the digits in
-        // LTR — bump the line box just for English so the glyphs have room.
-        // Kurdish already renders fine, so its line-height is left untouched.
-        style={[fcStyles.value, { color, textAlign }, !isKurdish && fcStyles.valueLtrLineHeight]}
+        style={[fcStyles.value, { color, textAlign }]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.5}
@@ -349,39 +347,35 @@ function FinancialCard({
   );
 }
 
-function getFcStyles(colors: AppColors) {
+function getFcStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
     card: {
       flex: 1,
-      borderRadius: 16,
-      padding: 14,
+      borderRadius: isTablet ? 20 : 16,
+      padding: isTablet ? 18 : 14,
     },
     iconBox: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
+      width: isTablet ? 42 : 34,
+      height: isTablet ? 42 : 34,
+      borderRadius: isTablet ? 12 : 10,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 10,
+      marginBottom: isTablet ? 12 : 10,
     },
     label: {
-      fontSize: 11,
+      fontSize: isTablet ? 13 : 11,
       fontWeight: '600',
       color: colors.gray500,
       marginBottom: 4,
     },
     value: {
-      fontSize: 20,
+      fontSize: isTablet ? 24 : 20,
       fontWeight: '800',
+      lineHeight: isTablet ? 32 : 28,
       marginBottom: 2,
     },
-    // English-only line-height bump (see usage) so the 20px digits aren't
-    // cropped by the 18px line-height inherited from AmountText's preset.
-    valueLtrLineHeight: {
-      lineHeight: 26,
-    },
     currency: {
-      fontSize: 11,
+      fontSize: isTablet ? 13 : 11,
       color: colors.gray400,
       fontWeight: '600',
     },
@@ -653,8 +647,8 @@ export default function ReportsScreen() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  const styles = useMemo(() => getStyles(colors), [colors]);
-  const scStyles = useMemo(() => getScStyles(colors), [colors]);
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const scStyles = useMemo(() => getScStyles(colors, isTablet), [colors, isTablet]);
   const discountTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const overdueTint  = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
@@ -701,7 +695,6 @@ export default function ReportsScreen() {
   // Existing P&L / section values (unchanged)
   const revenue      = salesData?.totalRevenue  ?? 0;
   const netProfit    = plData?.netProfit         ?? 0;
-  const totalExp     = plData?.totalExpenses     ?? 0;
   const custDebt     = debtData?.totalSalesDebt    ?? 0;
   const suppDebt     = debtData?.totalPurchaseDebt ?? 0;
   const combinedDebt = custDebt + suppDebt;
@@ -890,42 +883,6 @@ export default function ReportsScreen() {
             </PremiumCard>
           </MotiView>
 
-          {/* ─── 6. Expenses ─── */}
-          {dashboardExpenseTotals && (
-            <View style={styles.card}>
-              <ExpensesCard totals={dashboardExpenseTotals} showLink={false} />
-            </View>
-          )}
-          <SectionHeader title={t('reports.expensesTitle')} icon="wallet" action={t('common.edit')} route="/(app)/reports/expenses" />
-          <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 120 }}>
-            <PremiumCard style={styles.card}>
-              {expenses.length === 0 ? (
-                <TouchableOpacity style={[styles.addExpenseCta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(app)/reports/expenses' as never)}>
-                  <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                  <Text style={[styles.addExpenseText, { color: colors.primary }]}>{t('reports.addFirstExpense')}</Text>
-                </TouchableOpacity>
-              ) : (
-                <>
-                  <BigMetricRow
-                    label={t('reports.totalExpenses')}
-                    amount={totalExp}
-                    icon="wallet"
-                    color={colors.error}
-                  />
-                  {(plData?.expenseBreakdown ?? []).map((e) => (
-                    <View key={e.category} style={{ marginTop: 10 }}>
-                      <View style={[styles.catHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.catLabel, { textAlign }]}>{tCat(e.category)}</Text>
-                        <CompactAmount value={e.total} style={[styles.catValue, { textAlign: isRTL ? 'left' : 'right' }]} />
-                      </View>
-                      <ProgressBar value={e.total} total={totalExp} color={colors.error} />
-                    </View>
-                  ))}
-                </>
-              )}
-            </PremiumCard>
-          </MotiView>
-
           {/* ─── 7. Debt Overview ─── */}
           <SectionHeader title={t('reports.debtOverview')} icon="warning" action={t('reports.alertActionView')} route="/(app)/debt" />
           <MotiView from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 140 }}>
@@ -1082,7 +1039,8 @@ function TopCustomersSection() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const [customers, setCustomers] = useState<{
     name: string; phone: string | null; totalPurchases: number; saleCount: number;
   }[]>([]);
@@ -1125,7 +1083,8 @@ function TopSuppliersSection() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const [suppliers, setSuppliers] = useState<{
     name: string; phone: string | null; totalSpent: number; purchaseCount: number;
   }[]>([]);
@@ -1163,62 +1122,58 @@ function TopSuppliersSection() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
     container: { flex: 1 },
 
     loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-    loadingText: { fontSize: 14, color: colors.gray400 },
+    loadingText: { fontSize: isTablet ? 16 : 14, color: colors.gray400 },
 
     scrollBody: { paddingBottom: 20 },
-    card: { marginHorizontal: 16, marginBottom: 4 },
-    cashBalanceCard: { marginHorizontal: 16, marginBottom: 4, marginTop: 20 },
+    card: { marginHorizontal: 16, marginBottom: isTablet ? 8 : 4 },
+    cashBalanceCard: { marginHorizontal: 16, marginBottom: isTablet ? 8 : 4, marginTop: 20 },
 
     // ── Discount chip ──────────────────────────────────────────────────────────
     discountChip: {
       flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12,
-      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+      borderRadius: 8, paddingHorizontal: isTablet ? 14 : 10, paddingVertical: isTablet ? 8 : 6,
     },
     discountInner: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
-    discountText: { fontSize: 12, fontWeight: '600' },
+    discountText: { fontSize: isTablet ? 14 : 12, fontWeight: '600' },
 
     // ── Top supplier highlight ─────────────────────────────────────────────────
     topRow: {
       flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10,
       paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.gray100,
     },
-    topText: { fontSize: 12, color: colors.gray500, fontWeight: '600', flex: 1 },
+    topText: { fontSize: isTablet ? 14 : 12, color: colors.gray500, fontWeight: '600', flex: 1 },
 
     // ── Debt overview ──────────────────────────────────────────────────────────
-    dividerLine: { height: 1, backgroundColor: colors.gray100, marginVertical: 10 },
-    debtTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-    debtTotalLabel: { fontSize: 14, fontWeight: '700', color: colors.black },
-    debtTotalValue: { fontSize: 15, fontWeight: '800' },
+    dividerLine: { height: 1, backgroundColor: colors.gray100, marginVertical: isTablet ? 14 : 10 },
+    debtTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: isTablet ? 8 : 6 },
+    debtTotalLabel: { fontSize: isTablet ? 16 : 14, fontWeight: '700', color: colors.black },
+    debtTotalValue: { fontSize: isTablet ? 18 : 15, fontWeight: '800' },
     overdueChip: {
       flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
-      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+      borderRadius: 8, paddingHorizontal: isTablet ? 14 : 10, paddingVertical: isTablet ? 8 : 6,
     },
-    overdueText: { fontSize: 12, fontWeight: '600' },
+    overdueText: { fontSize: isTablet ? 14 : 12, fontWeight: '600' },
 
     // ── Category progress ──────────────────────────────────────────────────────
     catHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    catLabel: { fontSize: 12, color: colors.gray500 },
-    catValue: { fontSize: 12, fontWeight: '700', color: colors.black },
+    catLabel: { fontSize: isTablet ? 14 : 12, color: colors.gray500 },
+    catValue: { fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.black },
 
     // ── Rank rows ──────────────────────────────────────────────────────────────
-    rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+    rankRow: { flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 10, paddingVertical: isTablet ? 10 : 8, borderBottomWidth: 1, borderBottomColor: colors.gray100 },
     rankInfo: { flex: 1 },
-    rankName: { fontSize: 14, fontWeight: '600', color: colors.black },
-    rankSub: { fontSize: 11, color: colors.gray400, marginTop: 1 },
-    rankValue: { fontSize: 14, fontWeight: '800', color: colors.success, maxWidth: '45%' },
+    rankName: { fontSize: isTablet ? 16 : 14, fontWeight: '600', color: colors.black },
+    rankSub: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginTop: 1 },
+    rankValue: { fontSize: isTablet ? 16 : 14, fontWeight: '800', color: colors.success, maxWidth: '45%' },
 
-    emptyCard: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 12 },
-    subSectionTitle: { fontSize: 12, fontWeight: '700', color: colors.gray500, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
+    emptyCard: { fontSize: isTablet ? 15 : 13, color: colors.gray400, textAlign: 'center', paddingVertical: 12 },
+    subSectionTitle: { fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.gray500, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
     subSectionDivider: { height: 1, backgroundColor: colors.gray100, marginVertical: 14 },
-
-    // ── Expenses add CTA ───────────────────────────────────────────────────────
-    addExpenseCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-    addExpenseText: { fontSize: 14, fontWeight: '600' },
 
   });
 }

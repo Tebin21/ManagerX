@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingSwitch } from '@/components/settings/SettingSwitch';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 
 export default function AppearanceScreen() {
@@ -13,6 +14,7 @@ export default function AppearanceScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.appearanceScreen.title')} showBack />
 
       <View style={styles.body}>

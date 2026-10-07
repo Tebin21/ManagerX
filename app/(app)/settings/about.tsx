@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { withSystemFontLatin } from '@/lib/settingsFont';
@@ -49,6 +50,7 @@ export default function AboutScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.aboutScreen.title')} showBack />
 
       <ScrollView

@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { PaymentMethod } from '@/types/sales';
 
 interface Option {
@@ -26,6 +27,7 @@ interface Props {
 export function PaymentMethodSelector({ selected, onChange }: Props) {
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
+  const { isTablet } = useResponsive();
 
   return (
     <View style={[styles.row, { flexDirection }]}>
@@ -38,6 +40,7 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
             activeOpacity={0.8}
             style={[
               styles.option,
+              isTablet && { paddingVertical: 20, borderRadius: 16 },
               active
                 ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
                 : { borderColor: colors.gray200, backgroundColor: colors.gray50 },
@@ -45,10 +48,10 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
           >
             <Ionicons
               name={opt.icon}
-              size={20}
+              size={isTablet ? 26 : 20}
               color={active ? colors.primary : colors.gray400}
             />
-            <Text style={[styles.label, { color: active ? colors.primary : colors.gray500 }]}>
+            <Text style={[styles.label, isTablet && { fontSize: 16 }, { color: active ? colors.primary : colors.gray500 }]}>
               {opt.label}
             </Text>
           </TouchableOpacity>

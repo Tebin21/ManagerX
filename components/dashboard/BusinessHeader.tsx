@@ -27,6 +27,8 @@ export function BusinessHeader() {
   // Logo placeholder shows the predefined emoji when available, otherwise a generic building.
   const typeEmoji = resolved?.emoji || '🏢';
 
+  const styles = React.useMemo(() => getStyles(isTablet), [isTablet]);
+
   return (
     <LinearGradient
       colors={[themeColors.gradientStart, themeColors.gradientMid]}
@@ -41,7 +43,7 @@ export function BusinessHeader() {
               <Image source={{ uri: logoUri }} style={styles.logo} />
             ) : (
               <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoEmoji}>{typeEmoji}</Text>
+                <Text style={[styles.logoEmoji, isTablet && { fontSize: 58 }]}>{typeEmoji}</Text>
               </View>
             )}
           </View>
@@ -59,13 +61,13 @@ export function BusinessHeader() {
             <View style={styles.contactGroup}>
               {phone ? (
                 <View style={styles.detailRow}>
-                  <Ionicons name="call-outline" size={12} color="rgba(255,255,255,0.7)" />
+                  <Ionicons name="call-outline" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.7)" />
                   <Text style={styles.detailText}>{phone}</Text>
                 </View>
               ) : null}
               {address ? (
                 <View style={styles.detailRow}>
-                  <Feather name="map-pin" size={12} color="rgba(255,255,255,0.7)" />
+                  <Feather name="map-pin" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.7)" />
                   <Text style={[styles.detailText, styles.addressText]} numberOfLines={1}>{address}</Text>
                 </View>
               ) : null}
@@ -81,95 +83,94 @@ export function BusinessHeader() {
   );
 }
 
-const styles = StyleSheet.create({
-  gradient: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    marginBottom: 4,
-  },
-  container: {
-    paddingTop: 56,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 2.5,
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
-  },
-  logoPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoEmoji: {
-    fontSize: 50,
-  },
-  info: {
-    flex: 1,
-    gap: 4,
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  nameGroup: {
-    gap: 2,
-  },
-  contactGroup: {
-    gap: 4,
-  },
-  businessName: {
-    fontSize: 17,
-    lineHeight: 19,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  typeText: {
-    fontSize: 13,
-    lineHeight: 14,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailText: {
-    fontSize: 12,
-    lineHeight: 13,
-    color: 'rgba(255,255,255,0.7)',
-    flex: 1,
-  },
-  addressText: {
-    // The map-pin glyph's visual weight (circle) sits above its own bounding-box
-    // center, same as every pin-shaped icon — nudge the text down to optically
-    // meet it. translateY is paint-only so it can't affect row height/spacing.
-    transform: [{ translateY: 1 }],
-  },
-  brandRow: {
-    marginTop: 16,
-    alignItems: 'flex-end',
-  },
-  brandText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-});
+function getStyles(isTablet: boolean) {
+  return StyleSheet.create({
+    gradient: {
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28,
+      marginBottom: 4,
+    },
+    container: {
+      paddingTop: isTablet ? 36 : 56,
+      paddingBottom: isTablet ? 26 : 24,
+      paddingHorizontal: isTablet ? 28 : 20,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: isTablet ? 20 : 16,
+    },
+    logoContainer: {
+      width: isTablet ? 132 : 120,
+      height: isTablet ? 132 : 120,
+      borderRadius: isTablet ? 28 : 24,
+      overflow: 'hidden',
+      borderWidth: 2.5,
+      borderColor: 'rgba(255,255,255,0.4)',
+    },
+    logo: {
+      width: '100%',
+      height: '100%',
+    },
+    logoPlaceholder: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logoEmoji: {
+      fontSize: 50,
+    },
+    info: {
+      flex: 1,
+      gap: isTablet ? 6 : 4,
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    nameGroup: {
+      gap: 2,
+    },
+    contactGroup: {
+      gap: isTablet ? 6 : 4,
+    },
+    businessName: {
+      fontSize: isTablet ? 23 : 17,
+      lineHeight: isTablet ? 27 : 19,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      letterSpacing: 0.3,
+    },
+    typeText: {
+      fontSize: isTablet ? 15 : 13,
+      lineHeight: isTablet ? 18 : 14,
+      color: 'rgba(255,255,255,0.9)',
+      fontWeight: '600',
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: isTablet ? 6 : 4,
+    },
+    detailText: {
+      fontSize: isTablet ? 14 : 12,
+      lineHeight: isTablet ? 16 : 13,
+      color: 'rgba(255,255,255,0.7)',
+      flex: 1,
+    },
+    addressText: {
+      transform: [{ translateY: 1 }],
+    },
+    brandRow: {
+      marginTop: isTablet ? 20 : 16,
+      alignItems: 'flex-end',
+    },
+    brandText: {
+      fontSize: isTablet ? 13 : 11,
+      color: 'rgba(255,255,255,0.45)',
+      fontWeight: '600',
+      letterSpacing: 1.5,
+      textTransform: 'uppercase',
+    },
+  });
+}

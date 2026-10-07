@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   label: string;
@@ -30,6 +31,7 @@ export function PrimaryButton({
   labelStyle,
 }: Props) {
   const { colors } = useAppTheme();
+  const { isTablet, buttonHeight, buttonFontSize } = useResponsive();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -57,6 +59,7 @@ export function PrimaryButton({
         activeOpacity={0.9}
         style={[
           styles.button,
+          isTablet && { height: buttonHeight, borderRadius: 16, paddingHorizontal: 32 },
           { backgroundColor: colors.primary },
           isOutline && [styles.outline, { borderColor: colors.primary, backgroundColor: 'transparent' }],
           isGhost   && styles.ghost,
@@ -70,8 +73,9 @@ export function PrimaryButton({
           <Text
             style={[
               styles.label,
+              isTablet && { fontSize: buttonFontSize },
               isOutline && [styles.outlineLabel, { color: colors.primary }],
-              isGhost   && [styles.ghostLabel, { color: colors.gray500 }],
+              isGhost   && [styles.ghostLabel, { color: colors.gray500, fontSize: isTablet ? 16 : 14 }],
               labelStyle,
             ]}
           >

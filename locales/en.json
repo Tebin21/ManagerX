@@ -310,6 +310,8 @@
     "totalLoss":         "Total Loss",
     "customerDebt":      "Customer Debt",
     "expensesCard":      "Expenses",
+    "expensesSubtitle":  "Track and manage expenses",
+    "addExpenseAction":  "Add Expense",
     "netCashBalance":    "Net Cash Balance",
     "negativeBalance":   "Negative Balance",
     "cashReceived":      "Cash Received",

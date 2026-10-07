@@ -46,7 +46,7 @@ export default function SalesScreen() {
         onBack={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}>
+      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle, isTablet && { padding: 28 }]}>
 
         <MotiView
           from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }}
@@ -60,19 +60,19 @@ export default function SalesScreen() {
           >
             <LinearGradient
               colors={[colors.primaryDark, colors.primary]}
-              style={[styles.newSaleBtnGradient, { flexDirection }]}
+              style={[styles.newSaleBtnGradient, isTablet && { padding: 28 }, { flexDirection }]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
-              <View style={[styles.newSaleBtnInner, { flexDirection }]}>
-                <View style={styles.newSaleIconBox}>
-                  <Ionicons name="add" size={28} color={colors.white} />
+              <View style={[styles.newSaleBtnInner, isTablet && { gap: 18 }, { flexDirection }]}>
+                <View style={[styles.newSaleIconBox, isTablet && { width: 60, height: 60, borderRadius: 18 }]}>
+                  <Ionicons name="add" size={isTablet ? 34 : 28} color={colors.white} />
                 </View>
                 <View>
-                  <Text style={[styles.newSaleTitle, { textAlign }]}>{t('sales.startNewSale')}</Text>
-                  <Text style={[styles.newSaleSub, { textAlign }]}>{t('sales.startNewSaleSub')}</Text>
+                  <Text style={[styles.newSaleTitle, isTablet && { fontSize: 21, marginBottom: 4 }, { textAlign }]}>{t('sales.startNewSale')}</Text>
+                  <Text style={[styles.newSaleSub, isTablet && { fontSize: 14, lineHeight: 18 }, { textAlign }]}>{t('sales.startNewSaleSub')}</Text>
                 </View>
               </View>
-              <Ionicons name={arrowForward as never} size={20} color="rgba(255,255,255,0.7)" />
+              <Ionicons name={arrowForward as never} size={isTablet ? 24 : 20} color="rgba(255,255,255,0.7)" />
             </LinearGradient>
           </TouchableOpacity>
         </MotiView>
@@ -80,29 +80,29 @@ export default function SalesScreen() {
         <MotiView
           from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 80 }}
-          style={styles.statsRow}
+          style={[styles.statsRow, isTablet && { gap: 16, marginBottom: 20 }]}
         >
-          <PremiumCard style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: colors.softBlue }]}>
-              <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+          <PremiumCard style={[styles.statCard, isTablet && { paddingVertical: 24 }]}>
+            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: colors.softBlue }]}>
+              <Ionicons name="receipt-outline" size={isTablet ? 25 : 20} color={colors.primary} />
             </View>
-            <Text style={[styles.statValue, { color: colors.black }]}>{count}</Text>
-            <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('sales.todaySales')}</Text>
+            <Text style={[styles.statValue, isTablet && { fontSize: 28 }, { color: colors.black }]}>{count}</Text>
+            <Text style={[styles.statLabel, isTablet && { fontSize: 14 }, { color: colors.gray400 }]}>{t('sales.todaySales')}</Text>
           </PremiumCard>
 
-          <PremiumCard style={styles.statCard}>
-            <View style={[styles.statIconBox, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="trending-up" size={20} color={colors.success} />
+          <PremiumCard style={[styles.statCard, isTablet && { paddingVertical: 24 }]}>
+            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="trending-up" size={isTablet ? 25 : 20} color={colors.success} />
             </View>
             <AmountText
               value={revenue}
               currency="IQD"
-              style={[styles.statValue, { color: colors.success, lineHeight: 28 }]}
+              style={[styles.statValue, isTablet && { fontSize: 28 }, { color: colors.success, lineHeight: isTablet ? 34 : 28 }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.5}
             />
-            <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('sales.todayRevenue')}</Text>
+            <Text style={[styles.statLabel, isTablet && { fontSize: 14 }, { color: colors.gray400 }]}>{t('sales.todayRevenue')}</Text>
           </PremiumCard>
         </MotiView>
 
@@ -113,41 +113,41 @@ export default function SalesScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(app)/sales/check-price' as never)}
             activeOpacity={0.85}
-            style={[styles.secondaryBtn, { backgroundColor: colors.white, flexDirection }]}
+            style={[styles.secondaryBtn, isTablet && { padding: 22, borderRadius: 18 }, { backgroundColor: colors.white, flexDirection }]}
           >
-            <View style={[styles.secondaryLeft, { flexDirection }]}>
-              <View style={[styles.secondaryIcon, { backgroundColor: colors.softBlue }]}>
-                <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+            <View style={[styles.secondaryLeft, isTablet && { gap: 16 }, { flexDirection }]}>
+              <View style={[styles.secondaryIcon, isTablet && { width: 54, height: 54, borderRadius: 16 }, { backgroundColor: colors.softBlue }]}>
+                <Ionicons name="pricetag-outline" size={isTablet ? 25 : 20} color={colors.primary} />
               </View>
               <View>
-                <Text style={[styles.secondaryTitle, { color: colors.black, textAlign }]}>{t('sales.checkPrice')}</Text>
-                <Text style={[styles.secondarySub, { color: colors.gray400, textAlign }]}>{t('sales.checkPriceSub')}</Text>
+                <Text style={[styles.secondaryTitle, isTablet && { fontSize: 18, marginBottom: 4 }, { color: colors.black, textAlign }]}>{t('sales.checkPrice')}</Text>
+                <Text style={[styles.secondarySub, isTablet && { fontSize: 14 }, { color: colors.gray400, textAlign }]}>{t('sales.checkPriceSub')}</Text>
               </View>
             </View>
-            <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+            <Ionicons name={chevronForward as never} size={isTablet ? 22 : 18} color={colors.gray300} />
           </TouchableOpacity>
         </MotiView>
 
         <MotiView
           from={{ opacity: 0, translateY: 16 }} animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 240 }}
-          style={styles.secondaryBtnSpacing}
+          style={[styles.secondaryBtnSpacing, isTablet && { marginTop: 16 }]}
         >
           <TouchableOpacity
             onPress={() => router.push('/(app)/sales/history' as never)}
             activeOpacity={0.85}
-            style={[styles.secondaryBtn, { backgroundColor: colors.white, flexDirection }]}
+            style={[styles.secondaryBtn, isTablet && { padding: 22, borderRadius: 18 }, { backgroundColor: colors.white, flexDirection }]}
           >
-            <View style={[styles.secondaryLeft, { flexDirection }]}>
-              <View style={[styles.secondaryIcon, { backgroundColor: colors.softBlue }]}>
-                <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <View style={[styles.secondaryLeft, isTablet && { gap: 16 }, { flexDirection }]}>
+              <View style={[styles.secondaryIcon, isTablet && { width: 54, height: 54, borderRadius: 16 }, { backgroundColor: colors.softBlue }]}>
+                <Ionicons name="time-outline" size={isTablet ? 25 : 20} color={colors.primary} />
               </View>
               <View>
-                <Text style={[styles.secondaryTitle, { color: colors.black, textAlign }]}>{t('sales.viewHistory')}</Text>
-                <Text style={[styles.secondarySub, { color: colors.gray400, textAlign }]}>{t('sales.viewHistorySub')}</Text>
+                <Text style={[styles.secondaryTitle, isTablet && { fontSize: 18, marginBottom: 4 }, { color: colors.black, textAlign }]}>{t('sales.viewHistory')}</Text>
+                <Text style={[styles.secondarySub, isTablet && { fontSize: 14 }, { color: colors.gray400, textAlign }]}>{t('sales.viewHistorySub')}</Text>
               </View>
             </View>
-            <Ionicons name={chevronForward as never} size={18} color={colors.gray300} />
+            <Ionicons name={chevronForward as never} size={isTablet ? 22 : 18} color={colors.gray300} />
           </TouchableOpacity>
         </MotiView>
 

@@ -10,7 +10,8 @@ import { useTranslation } from 'react-i18next';
 
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
@@ -22,7 +23,7 @@ import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 export default function CurrencyScreen() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
   const textAlign = isRTL ? 'right' : 'left';
   const scrollIntoView = useKeyboardAwareFocus();
@@ -79,6 +80,7 @@ export default function CurrencyScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.currencyScreen.title')} showBack />
 
         <KeyboardAwareScrollView
@@ -89,9 +91,18 @@ export default function CurrencyScreen() {
           {/* ── Current rate display ── */}
           <LinearGradient
             colors={[colors.primaryDark, colors.primary]}
-            style={styles.rateCard}
+            style={Platform.OS === 'ios' ? [styles.rateCard, styles.rateCardGlass] : styles.rateCard}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           >
+            {Platform.OS === 'ios' && (
+              <LinearGradient
+                colors={['rgba(255,255,255,0.32)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
+            )}
             <Text style={styles.rateLabel}>{t('settings.currencyScreen.currentRate')}</Text>
             <Text
               style={styles.rateValue}
@@ -111,13 +122,22 @@ export default function CurrencyScreen() {
           </LinearGradient>
 
           {/* ── Edit rate ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>{t('settings.currencyScreen.updateRate')}</Text>
             <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
               {t('settings.currencyScreen.updateSub')}
             </Text>
 
-            <View style={[styles.inputRow, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={[
+              styles.inputRow,
+              Platform.OS === 'ios'
+                ? {
+                    borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.60)',
+                  }
+                : { borderColor: colors.gray200, backgroundColor: colors.gray50 },
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}>
               <Text style={[styles.inputPrefix, { color: colors.primary, backgroundColor: colors.softBlue }]}>
                 {t('settings.currencyScreen.inputPrefix')}
               </Text>
@@ -162,10 +182,10 @@ export default function CurrencyScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Rate history ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>{t('settings.currencyScreen.rateHistory')}</Text>
 
             {loadingHistory ? (
@@ -200,10 +220,19 @@ export default function CurrencyScreen() {
                 </View>
               ))
             )}
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Info note ── */}
-          <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[
+            styles.infoBox,
+            Platform.OS === 'ios'
+              ? {
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.10)',
+                  borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : 'rgba(212, 175, 55, 0.35)',
+                }
+              : { backgroundColor: colors.softBlue, borderColor: colors.lightBlue },
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
+          ]}>
             <Ionicons name="information-circle" size={16} color={colors.primary} />
             <Text style={[styles.infoText, { color: colors.gray600, textAlign }]}>
               {t('settings.currencyScreen.infoNote')}
@@ -227,6 +256,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
+  },
+  rateCardGlass: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   rateLabel:   { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: 0.5 },
   rateValue:   { fontSize: 28, fontWeight: '800', color: '#fff' },

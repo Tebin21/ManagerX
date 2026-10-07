@@ -412,11 +412,12 @@ export default function InventoryScreen() {
         )}
 
         {/* Search */}
-        <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
-          <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
+        <View style={[styles.searchWrap, isTablet && { height: 54, marginHorizontal: 24, borderRadius: 16 }, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+          <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[
               styles.searchInput,
+              isTablet && { fontSize: 17 },
               { color: colors.black, textAlign, writingDirection },
               isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
             ]}
@@ -429,7 +430,7 @@ export default function InventoryScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={colors.gray400} />
+              <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
             </TouchableOpacity>
           )}
         </View>
@@ -451,6 +452,7 @@ export default function InventoryScreen() {
                 onPress={() => handleTabChange(key as ActiveTab | 'history')}
                 style={[
                   styles.tab,
+                  isTablet && { paddingHorizontal: 18, paddingVertical: 10 },
                   isActive
                     ? { backgroundColor: colors.primary }
                     : { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.gray200 },
@@ -459,9 +461,9 @@ export default function InventoryScreen() {
                 activeOpacity={0.75}
               >
                 {key === 'history' && (
-                  <Ionicons name="time-outline" size={12} color={isActive ? colors.white : colors.gray500} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }} />
+                  <Ionicons name="time-outline" size={isTablet ? 16 : 12} color={isActive ? colors.white : colors.gray500} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }} />
                 )}
-                <Text style={[styles.tabText, { color: isActive ? colors.white : colors.gray600 }]}>
+                <Text style={[styles.tabText, isTablet && { fontSize: 15 }, { color: isActive ? colors.white : colors.gray600 }]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -472,12 +474,12 @@ export default function InventoryScreen() {
         {/* Bell icon — opens stock alerts */}
         <TouchableOpacity
           onPress={() => router.push('/(app)/inventory/stock-alerts' as never)}
-          style={[styles.iconBtn, { borderStartColor: colors.gray100 }]}
+          style={[styles.iconBtn, isTablet && { paddingHorizontal: 18, paddingVertical: 15 }, { borderStartColor: colors.gray100 }]}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
           <Ionicons
             name="notifications-outline"
-            size={18}
+            size={isTablet ? 22 : 18}
             color={stats?.lowStockCount ? colors.warning : colors.gray500}
           />
           {!!stats?.lowStockCount && (
@@ -492,10 +494,10 @@ export default function InventoryScreen() {
         {/* Settings icon — always visible, right-aligned */}
         <TouchableOpacity
           onPress={() => setCatModalVisible(true)}
-          style={[styles.iconBtn, { borderStartColor: colors.gray100 }]}
+          style={[styles.iconBtn, isTablet && { paddingHorizontal: 18, paddingVertical: 15 }, { borderStartColor: colors.gray100 }]}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          <Ionicons name="settings-outline" size={18} color={colors.gray500} />
+          <Ionicons name="settings-outline" size={isTablet ? 22 : 18} color={colors.gray500} />
         </TouchableOpacity>
       </View>
 
@@ -515,11 +517,12 @@ export default function InventoryScreen() {
       )}
 
       {/* ── Filter button + Summary strip ── */}
-      <View style={[styles.controlRow, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
+      <View style={[styles.controlRow, isTablet && { paddingHorizontal: 24, paddingVertical: 14 }, { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <TouchableOpacity
           onPress={() => setFilterSheetVisible(true)}
           style={[
             styles.filterBtn,
+            isTablet && { paddingHorizontal: 16, paddingVertical: 9 },
             filter !== 'all'
               ? { backgroundColor: colors.primary, borderColor: colors.primary }
               : { backgroundColor: 'transparent', borderColor: colors.gray200 },
@@ -529,24 +532,24 @@ export default function InventoryScreen() {
         >
           <Ionicons
             name="options-outline"
-            size={13}
+            size={isTablet ? 16 : 13}
             color={filter !== 'all' ? colors.white : colors.gray500}
           />
-          <Text style={[styles.filterBtnText, { color: filter !== 'all' ? colors.white : colors.gray600 }]}>
+          <Text style={[styles.filterBtnText, isTablet && { fontSize: 15 }, { color: filter !== 'all' ? colors.white : colors.gray600 }]}>
             {filterLabel}
           </Text>
           <Ionicons
             name="chevron-down"
-            size={12}
+            size={isTablet ? 15 : 12}
             color={filter !== 'all' ? colors.white : colors.gray400}
           />
         </TouchableOpacity>
 
         <View style={[styles.summaryBlock, { gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
-          <Text style={[styles.summaryCount, { color: colors.gray500, textAlign }]}>
+          <Text style={[styles.summaryCount, isTablet && { fontSize: 15 }, { color: colors.gray500, textAlign }]}>
             {visible.length} {t('inventory.products')}
           </Text>
-          <CompactAmount value={totalVisible} style={[styles.summaryValue, { color: colors.primary, textAlign }]} />
+          <CompactAmount value={totalVisible} style={[styles.summaryValue, isTablet && { fontSize: 16 }, { color: colors.primary, textAlign }]} />
         </View>
       </View>
 

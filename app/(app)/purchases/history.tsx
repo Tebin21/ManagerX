@@ -38,7 +38,7 @@ export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase } = usePurchaseStore();
@@ -220,6 +220,7 @@ export default function PurchaseHistoryScreen() {
       from={{ opacity: 0, translateY: 12 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 40, 400) }}
+      style={{ flex: isTablet ? 1 : undefined }}
     >
       <PurchaseHistoryItem
         purchase={item}
@@ -250,12 +251,20 @@ export default function PurchaseHistoryScreen() {
       />
 
       {/* Search Input */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }, isTablet && contentContainerStyle]}>
-        <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchWrap,
+          { backgroundColor: colors.white, flexDirection },
+          isTablet && contentContainerStyle,
+          isTablet && { height: 54, paddingHorizontal: 16 },
+        ]}
+      >
+        <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
           style={[
             styles.searchInput,
             { color: colors.black, textAlign, writingDirection },
+            isTablet && { fontSize: 17 },
             isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
           ]}
           value={query}
@@ -268,7 +277,7 @@ export default function PurchaseHistoryScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={16} color={colors.gray400} />
+            <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
           </TouchableOpacity>
         )}
       </View>
@@ -280,20 +289,25 @@ export default function PurchaseHistoryScreen() {
             styles.summaryStrip,
             { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection },
             isTablet && contentContainerStyle,
+            isTablet && { paddingVertical: 14 },
           ]}
         >
           <View style={[styles.summaryLeft, { flexDirection }]}>
-            <Text style={[styles.summaryText, { color: colors.gray500 }]}>
+            <Text style={[styles.summaryText, { color: colors.gray500 }, isTablet && { fontSize: 15 }]}>
               {visible.length} {visible.length === 1 ? 'purchase' : 'purchases'}
             </Text>
             {period !== 'all' && (
               <TouchableOpacity
                 onPress={() => setPeriodSheetVisible(true)}
-                style={[styles.periodBadge, { backgroundColor: colors.softBlue, flexDirection }]}
+                style={[
+                  styles.periodBadge,
+                  { backgroundColor: colors.softBlue, flexDirection },
+                  isTablet && { paddingHorizontal: 10, paddingVertical: 5 },
+                ]}
                 activeOpacity={0.7}
               >
-                <Ionicons name="funnel-outline" size={11} color={colors.primary} />
-                <Text style={[styles.periodBadgeText, { color: colors.primary }]}>
+                <Ionicons name="funnel-outline" size={isTablet ? 14 : 11} color={colors.primary} />
+                <Text style={[styles.periodBadgeText, { color: colors.primary }, isTablet && { fontSize: 14 }]}>
                   {periodDisplayLabel}
                 </Text>
               </TouchableOpacity>
@@ -303,7 +317,7 @@ export default function PurchaseHistoryScreen() {
           <AmountText
             value={visible.reduce((s, p) => s + p.totalIQD, 0)}
             currency="IQD total"
-            variant="small"
+            variant={isTablet ? "default" : "small"}
             style={[styles.summaryTotal, { color: colors.primary }]}
           />
         </View>
@@ -311,9 +325,12 @@ export default function PurchaseHistoryScreen() {
 
       {/* Purchases List */}
       <FlatList
+        key={`purch-hist-${cardColumns}`}
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        numColumns={cardColumns}
+        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
         contentContainerStyle={[
           styles.list,
           isTablet && contentContainerStyle,

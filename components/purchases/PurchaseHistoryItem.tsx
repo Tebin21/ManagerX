@@ -10,6 +10,7 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Purchase } from '@/types/purchases';
 
 interface Props {
@@ -21,13 +22,16 @@ interface Props {
 export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const isPaid = purchase.paymentStatus === 'paid';
   const statusTint = useMemo(
     () => getStatusTint(isPaid ? 'success' : 'warning', colors, isDark),
     [colors, isDark, isPaid]
   );
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
+
+  const headerPad = isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14);
 
   return (
     <TouchableOpacity
@@ -36,7 +40,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       activeOpacity={0.85}
     >
       {/* Header row */}
-      <View style={[styles.header, { flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+      <View style={[styles.header, { flexDirection, padding: headerPad }]}>
         <View style={[styles.headerLeft, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
           <View style={[styles.numBadge, { backgroundColor: colors.primary }]}>
             <IdText style={styles.numText}>{purchase.purchaseNumber}</IdText>
@@ -49,7 +53,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
           </View>
         </View>
         <View style={[styles.headerRight, { alignItems: alignEnd, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
-          <DateText value={purchase.createdAt} size="small" style={[styles.date, { textAlign }]} />
+          <DateText value={purchase.createdAt} size={isTablet ? 'default' : 'small'} style={[styles.date, { textAlign }]} />
           <View style={[styles.statusBadge, { backgroundColor: statusTint.bg }]}>
             <Text style={[styles.statusText, { color: statusTint.text }]}>
               {isPaid ? t('common.paid') : t('common.debt')}
@@ -59,7 +63,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       </View>
 
       {/* Detail row */}
-      <View style={[styles.details, { paddingVertical: isRTL ? RTL_SPACING.gap : 12 }]}>
+      <View style={[styles.details, { paddingVertical: isTablet ? 16 : (isRTL ? RTL_SPACING.gap : 12) }]}>
         <View style={styles.detailItem}>
           <Text style={[styles.detailLabel, { marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{t('purchases.qty')}</Text>
           <Text style={styles.detailValue}>{purchase.quantity}</Text>
@@ -77,24 +81,25 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
       </View>
 
       {/* Actions row */}
-      <View style={[styles.actions, { flexDirection, paddingHorizontal: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+      <View style={[styles.actions, { flexDirection, paddingHorizontal: headerPad }]}>
         <View style={[styles.purchaseNum, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4 }]}>
-          <Ionicons name="receipt-outline" size={13} color={colors.gray400} />
-          <IdText size="small" style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</IdText>
+          <Ionicons name="receipt-outline" size={isTablet ? 16 : 13} color={colors.gray400} />
+          <IdText size={isTablet ? 'default' : 'small'} style={[styles.purchaseNumText, { textAlign }]}>{purchase.purchaseNumber}</IdText>
         </View>
         <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} hitSlop={8}>
-          <Ionicons name="trash-outline" size={16} color={colors.error} />
+          <Ionicons name="trash-outline" size={isTablet ? 20 : 16} color={colors.error} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     card: {
+      flex: isTablet ? 1 : undefined,
       backgroundColor: colors.white,
-      borderRadius: Theme.radius.card,
+      borderRadius: isTablet ? 16 : Theme.radius.card,
       marginBottom: 12,
       ...Theme.shadow.soft,
       overflow: 'hidden',
@@ -111,29 +116,33 @@ function getStyles(colors: AppColors) {
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
     numBadge: {
       borderRadius: 8,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      minWidth: 32,
+      paddingHorizontal: isTablet ? 10 : 8,
+      paddingVertical: isTablet ? 5 : 3,
+      minWidth: isTablet ? 40 : 32,
       alignItems: 'center',
     },
-    numText: { fontSize: 12, fontWeight: '700', color: colors.white },
+    numText: { fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.white },
     headerInfo: { flex: 1 },
-    productName: { fontSize: 15, fontWeight: '700', color: colors.black },
-    supplierName: { fontSize: 12, color: colors.gray500, marginTop: 1 },
+    productName: { fontSize: isTablet ? 18 : 15, fontWeight: '700', color: colors.black },
+    supplierName: { fontSize: isTablet ? 14 : 12, color: colors.gray500, marginTop: 1 },
 
     headerRight: { alignItems: 'flex-end', gap: 4 },
-    date: { fontSize: 11, color: colors.gray400 },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-    statusText: { fontSize: 11, fontWeight: '700' },
+    date: { fontSize: isTablet ? 13 : 11, color: colors.gray400 },
+    statusBadge: {
+      paddingHorizontal: isTablet ? 10 : 8,
+      paddingVertical: isTablet ? 4 : 2,
+      borderRadius: isTablet ? 12 : 10,
+    },
+    statusText: { fontSize: isTablet ? 13 : 11, fontWeight: '700' },
 
     details: {
       flexDirection: 'row',
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingHorizontal: isTablet ? 18 : 14,
+      paddingVertical: isTablet ? 16 : 12,
     },
     detailItem: { flex: 1, alignItems: 'center' },
-    detailLabel: { fontSize: 11, color: colors.gray400, marginBottom: 2 },
-    detailValue: { fontSize: 13, fontWeight: '600', color: colors.black },
+    detailLabel: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginBottom: 2 },
+    detailValue: { fontSize: isTablet ? 16 : 13, fontWeight: '600', color: colors.black },
     divider: { width: 1, backgroundColor: colors.gray100, marginVertical: 2 },
 
     actions: {
@@ -141,10 +150,10 @@ function getStyles(colors: AppColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 14,
-      paddingBottom: 12,
+      paddingBottom: isTablet ? 14 : 12,
     },
     purchaseNum: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    purchaseNumText: { fontSize: 11, color: colors.gray400 },
+    purchaseNumText: { fontSize: isTablet ? 13 : 11, color: colors.gray400 },
     deleteBtn: { padding: 6 },
   });
 }

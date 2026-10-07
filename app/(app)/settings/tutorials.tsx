@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { TUTORIAL_CATEGORIES } from '@/lib/tutorials';
 
@@ -14,6 +15,7 @@ export default function TutorialsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.tutorialsScreen.title')} showBack />
 
       {TUTORIAL_CATEGORIES.length === 0 ? (

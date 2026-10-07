@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Switch, StyleSheet } from 'react-native';
+import { View, Switch, StyleSheet, Platform } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   icon:    ComponentProps<typeof Ionicons>['name'];
@@ -15,19 +16,55 @@ interface Props {
   disabled?: boolean;
 }
 
+const IS_IOS = Platform.OS === 'ios';
+
 export function SettingSwitch({ icon, label, sub, value, onToggle, disabled }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
+  const { isTablet } = useResponsive();
+
+  const iconBg = IS_IOS
+    ? (isDark ? 'rgba(212, 175, 55, 0.20)' : 'rgba(212, 175, 55, 0.14)')
+    : colors.softBlue;
+
+  const tabletIconSize = isTablet ? 44 : 34;
+  const tabletIconRadius = isTablet ? 13 : 10;
+
+  const iconWrapStyle = IS_IOS
+    ? [
+        styles.iconWrap,
+        styles.glassIconWrap,
+        {
+          width: tabletIconSize,
+          height: tabletIconSize,
+          borderRadius: tabletIconRadius,
+          backgroundColor: iconBg,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.85)',
+          marginEnd: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : (isTablet ? 16 : 12),
+        },
+      ]
+    : [
+        styles.iconWrap,
+        {
+          width: tabletIconSize,
+          height: tabletIconSize,
+          borderRadius: tabletIconRadius,
+          backgroundColor: iconBg,
+          marginEnd: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : (isTablet ? 16 : 12),
+        },
+      ];
+
+  const rowPadding = isTablet ? 18 : (isRTL ? RTL_SPACING.rowPadV + 2 : 12);
 
   return (
-    <View style={[styles.row, { paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 12 }]}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.softBlue, marginEnd: isRTL ? RTL_SPACING.gapXl : 12 }]}>
-        <Ionicons name={icon} size={18} color={colors.primary} />
+    <View style={[styles.row, { paddingVertical: rowPadding }]}>
+      <View style={iconWrapStyle}>
+        <Ionicons name={icon} size={isTablet ? 22 : 18} color={colors.primary} />
       </View>
       <View style={[styles.content, { marginEnd: isRTL ? RTL_SPACING.gap : 8 }]}>
-        <Text style={[styles.label, { color: colors.black, textAlign }]}>{label}</Text>
+        <Text style={[styles.label, isTablet && styles.labelTablet, { color: colors.black, textAlign }]}>{label}</Text>
         {sub ? (
-          <Text style={[styles.sub, { color: colors.gray400, textAlign, marginTop: isRTL ? RTL_SPACING.title + 1 : 1 }]} numberOfLines={1}>
+          <Text style={[styles.sub, isTablet && styles.subTablet, { color: colors.gray400, textAlign, marginTop: isRTL ? RTL_SPACING.title + 1 : 1 }]} numberOfLines={1}>
             {sub}
           </Text>
         ) : null}
@@ -36,8 +73,12 @@ export function SettingSwitch({ icon, label, sub, value, onToggle, disabled }: P
         value={value}
         onValueChange={onToggle}
         disabled={disabled}
-        trackColor={{ false: colors.gray200, true: colors.primary + '55' }}
-        thumbColor={value ? colors.primary : colors.gray300}
+        trackColor={{
+          false: IS_IOS ? (isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)') : colors.gray200,
+          true: colors.primary,
+        }}
+        thumbColor={IS_IOS ? '#FFFFFF' : (value ? colors.primary : colors.gray300)}
+        ios_backgroundColor={isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)'}
       />
     </View>
   );
@@ -55,7 +96,16 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
+  glassIconWrap: {
+    borderWidth:    1,
+    shadowColor:    '#000',
+    shadowOffset:   { width: 0, height: 1.5 },
+    shadowOpacity:  0.06,
+    shadowRadius:   3,
+  },
   content: { flex: 1 },
   label:   { fontSize: 15, fontWeight: '600' },
+  labelTablet: { fontSize: 17 },
   sub:     { fontSize: 12 },
+  subTablet: { fontSize: 14 },
 });

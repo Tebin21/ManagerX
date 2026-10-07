@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/AppText';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import i18n from '@/lib/i18n';
 
 interface Props {
@@ -15,12 +16,16 @@ interface Props {
 export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
+  const { isTablet } = useResponsive();
   const all = ['all', ...categories];
 
   function categoryLabel(cat: string): string {
     if (cat === 'all') return i18n.t('inventory.filterAll');
     return i18n.t(`purchases.categories.${cat}`, { defaultValue: cat });
   }
+
+  const chipPadH = isTablet ? 18 : (isRTL ? RTL_SPACING.gap : 14);
+  const chipPadV = isTablet ? 10 : (isRTL ? 9 : 7);
 
   return (
     <ScrollView
@@ -39,11 +44,11 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
               active
                 ? { backgroundColor: colors.primary, borderColor: colors.primary }
                 : { backgroundColor: colors.white, borderColor: colors.gray200 },
-              { paddingHorizontal: isRTL ? RTL_SPACING.gap : 14, paddingVertical: isRTL ? 9 : 7 },
+              { paddingHorizontal: chipPadH, paddingVertical: chipPadV },
             ]}
             activeOpacity={0.75}
           >
-            <Text style={[styles.chipText, { color: active ? colors.white : colors.gray600 }]}>
+            <Text style={[styles.chipText, isTablet && styles.chipTextTablet, { color: active ? colors.white : colors.gray600 }]}>
               {categoryLabel(cat)}
             </Text>
           </TouchableOpacity>
@@ -68,5 +73,8 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize:   13,
     fontWeight: '600',
+  },
+  chipTextTablet: {
+    fontSize:   15,
   },
 });

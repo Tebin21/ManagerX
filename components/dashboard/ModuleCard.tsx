@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Pressable, View, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
@@ -10,14 +10,13 @@ import i18n from '@/lib/i18n';
 import { darken } from '@/lib/colorUtils';
 import { ModuleDefinition } from '@/constants/config';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   module: ModuleDefinition;
   enabled: boolean;
   label: string;
 }
-
-const DEPTH = 5;
 
 function getModuleIcon(id: string): keyof typeof Ionicons.glyphMap {
   switch (id) {
@@ -34,8 +33,12 @@ function getModuleIcon(id: string): keyof typeof Ionicons.glyphMap {
 export function ModuleCard({ module, enabled, label }: Props) {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const { isTablet, moduleCardHeight } = useResponsive();
   const lang = useLanguageStore((s) => s.language);
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
+
+  const DEPTH = isTablet ? 7 : 5;
+  const iconSize = isTablet ? 28 : 22;
 
   const pressAnim = useRef(new Animated.Value(0)).current;
 
@@ -72,6 +75,8 @@ export function ModuleCard({ module, enabled, label }: Props) {
   const baseBg = darken(colors.gradientStart, 0.16);
   const iconName = getModuleIcon(module.id);
 
+  const styles = useMemo(() => getStyles(isTablet, DEPTH, moduleCardHeight), [isTablet, DEPTH, moduleCardHeight]);
+
   return (
     <View style={[styles.container, { opacity: enabled ? 1 : 0.5 }]}>
       <Pressable
@@ -82,7 +87,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
         style={styles.pressable}
       >
         <View style={styles.cardWrapper}>
-          {/* 3D Base Card (the visible bottom edge is the 3D bevel/shadow; positioned below top so it never shows at the top on press) */}
+          {/* 3D Base Card */}
           <View
             style={[
               styles.baseCard,
@@ -121,7 +126,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
                   </Text>
                   <Ionicons
                     name={iconName}
-                    size={22}
+                    size={iconSize}
                     color="#FFFFFF"
                     style={styles.iconKurdish}
                   />
@@ -130,7 +135,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
                 <>
                   <Ionicons
                     name={iconName}
-                    size={22}
+                    size={iconSize}
                     color="#FFFFFF"
                     style={styles.iconEnglish}
                   />
@@ -148,7 +153,7 @@ export function ModuleCard({ module, enabled, label }: Props) {
 
             {!enabled && (
               <View style={styles.lockBadge}>
-                <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
+                <Ionicons name="lock-closed" size={isTablet ? 14 : 11} color="#FFFFFF" />
               </View>
             )}
             </LinearGradient>
@@ -159,71 +164,73 @@ export function ModuleCard({ module, enabled, label }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: 7,
-  },
-  pressable: {
-    width: '100%',
-  },
-  cardWrapper: {
-    position: 'relative',
-    paddingBottom: DEPTH,
-  },
-  baseCard: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 14,
-    borderRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  surfaceWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  surface: {
-    minHeight: 102,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-  },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  label: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  iconKurdish: {
-    marginLeft: 8,
-  },
-  iconEnglish: {
-    marginRight: 8,
-  },
-  lockBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function getStyles(isTablet: boolean, depth: number, moduleCardHeight: number) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      margin: isTablet ? 9 : 7,
+    },
+    pressable: {
+      width: '100%',
+    },
+    cardWrapper: {
+      position: 'relative',
+      paddingBottom: depth,
+    },
+    baseCard: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      top: isTablet ? 18 : 14,
+      borderRadius: isTablet ? 24 : 20,
+      shadowOffset: { width: 0, height: isTablet ? 6 : 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: isTablet ? 8 : 6,
+      elevation: 5,
+    },
+    surfaceWrapper: {
+      borderRadius: isTablet ? 24 : 20,
+      overflow: 'hidden',
+    },
+    surface: {
+      minHeight: moduleCardHeight,
+      borderRadius: isTablet ? 24 : 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: isTablet ? 16 : 12,
+      paddingVertical: isTablet ? 20 : 16,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.16)',
+    },
+    contentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+    },
+    label: {
+      fontSize: isTablet ? 26 : 22,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      textAlign: 'center',
+    },
+    iconKurdish: {
+      marginLeft: isTablet ? 12 : 8,
+    },
+    iconEnglish: {
+      marginRight: isTablet ? 12 : 8,
+    },
+    lockBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: isTablet ? 24 : 20,
+      height: isTablet ? 24 : 20,
+      borderRadius: isTablet ? 12 : 10,
+      backgroundColor: 'rgba(0,0,0,0.25)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

@@ -60,7 +60,7 @@ export default function NewSaleScreen() {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, cardColumns, contentContainerStyle } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
@@ -317,8 +317,11 @@ export default function NewSaleScreen() {
         />
 
         <FlatList
+          key={`sale-grid-${cardColumns}`}
           data={visibleProducts}
           keyExtractor={(item) => String(item.id)}
+          numColumns={cardColumns}
+          columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
           renderItem={({ item }) => (
             <ProductSearchResult
               product={item}
@@ -326,7 +329,7 @@ export default function NewSaleScreen() {
               onAdd={() => cart.addItem(item)}
             />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => Keyboard.dismiss()}
           ListEmptyComponent={
@@ -381,23 +384,31 @@ export default function NewSaleScreen() {
             {/* Quick Actions: Scan More / Add Items */}
             <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <TouchableOpacity
-                style={[styles.step2ScanBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.step2ScanBtn,
+                  { backgroundColor: colors.primary },
+                  isTablet && { paddingVertical: 16, borderRadius: 16 },
+                ]}
                 onPress={() => setScannerOpen(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="barcode-outline" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.step2ScanBtnText}>
+                <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={[styles.step2ScanBtnText, isTablet && { fontSize: 16 }]}>
                   {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.step2AddBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '14' }]}
+                style={[
+                  styles.step2AddBtn,
+                  { borderColor: colors.primary, backgroundColor: colors.primary + '14' },
+                  isTablet && { paddingVertical: 16, borderRadius: 16 },
+                ]}
                 onPress={() => setStep(1)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add-circle-outline" size={20} color={colors.primary} style={{ marginRight: 6 }} />
-                <Text style={[styles.step2AddBtnText, { color: colors.primary }]}>
+                <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.step2AddBtnText, { color: colors.primary }, isTablet && { fontSize: 16 }]}>
                   {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
                 </Text>
               </TouchableOpacity>

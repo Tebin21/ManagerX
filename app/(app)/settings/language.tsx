@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
@@ -16,9 +18,11 @@ const LANGUAGES: { code: Lang; label: string; native: string; flag: string; rtl:
   { code: 'ku', label: 'Kurdish', native: 'کوردی',   flag: '🇮🇶', rtl: true  },
 ];
 
+const IS_IOS = Platform.OS === 'ios';
+
 export default function LanguageScreen() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { language, setLanguage } = useLanguageStore();
   const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
 
@@ -27,8 +31,29 @@ export default function LanguageScreen() {
     setLanguage(code);
   }
 
+  const cardStyle = IS_IOS
+    ? [
+        styles.glassCard,
+        {
+          backgroundColor: isDark ? 'rgba(30, 41, 59, 0.68)' : 'rgba(255, 255, 255, 0.72)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.85)',
+          shadowColor: isDark ? '#000000' : '#0F172A',
+        },
+      ]
+    : [
+        styles.card,
+        {
+          backgroundColor: colors.white,
+        },
+      ];
+
+  const dividerColor = IS_IOS
+    ? (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)')
+    : colors.gray100;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.languageScreen.title')} showBack />
 
       <View style={styles.body}>
@@ -36,7 +61,21 @@ export default function LanguageScreen() {
           {t('settings.languageScreen.hint')}
         </Text>
 
-        <View style={[styles.card, { backgroundColor: colors.white }]}>
+        <View style={cardStyle}>
+          {IS_IOS && (
+            <LinearGradient
+              colors={
+                isDark
+                  ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.01)', 'rgba(255, 255, 255, 0.04)']
+                  : ['rgba(255, 255, 255, 0.60)', 'rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.22)']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
+          )}
+
           {LANGUAGES.map((lang, i) => {
             const isActive = language === lang.code;
             const isLast   = i === LANGUAGES.length - 1;
@@ -47,7 +86,7 @@ export default function LanguageScreen() {
                 activeOpacity={0.7}
                 style={[
                   styles.row,
-                  !isLast && { borderBottomWidth: 1, borderBottomColor: colors.gray100 },
+                  !isLast && { borderBottomWidth: 1, borderBottomColor: dividerColor },
                   { flexDirection, paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 14, gap: isRTL ? RTL_SPACING.gapLg : 12 },
                 ]}
               >
@@ -61,7 +100,7 @@ export default function LanguageScreen() {
                     <Ionicons name="checkmark" size={14} color="#fff" />
                   </View>
                 ) : (
-                  <View style={[styles.checkEmpty, { borderColor: colors.gray200 }]} />
+                  <View style={[styles.checkEmpty, { borderColor: isDark ? colors.gray300 : colors.gray200 }]} />
                 )}
               </TouchableOpacity>
             );
@@ -116,5 +155,29 @@ const styles = StyleSheet.create({
     height:       26,
     borderRadius: 13,
     borderWidth:  2,
+  },
+  glassCard: {
+    borderRadius:  20,
+    borderWidth:   1.2,
+    overflow:      'hidden',
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.09,
+    shadowRadius:  16,
+  },
+  ambientOrbTop: {
+    position:     'absolute',
+    top:          50,
+    left:         -50,
+    width:        320,
+    height:       320,
+    borderRadius: 160,
+  },
+  ambientOrbMid: {
+    position:     'absolute',
+    top:          250,
+    right:        -40,
+    width:        300,
+    height:       300,
+    borderRadius: 150,
   },
 });

@@ -34,7 +34,10 @@ interface AppSheetProps {
 export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: AppSheetProps) {
   const { colors } = useAppTheme();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const isTablet = screenWidth >= 768;
+  const isTablet =
+    Platform.OS === 'ios'
+      ? Boolean(Platform.isPad) || screenWidth >= 700
+      : screenWidth >= 640;
   const [phase, setPhase] = useState<'sheet' | 'center'>('sheet');
   const [revealed, setRevealed] = useState(false);
   const measuredRef = useRef(false);
@@ -122,34 +125,47 @@ interface AppSheetOptionProps {
   onPress: () => void;
 }
 
-// Icon is the first child, the indicator is the last — flexDirection: row-reverse
-// in RTL puts the icon on the right and the indicator on the left automatically.
 export function AppSheetOption({ icon, label, subtitle, active, indicator = 'chevron', onPress }: AppSheetOptionProps) {
   const { colors } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const { width: screenWidth } = useWindowDimensions();
+  const isTablet =
+    Platform.OS === 'ios'
+      ? Boolean(Platform.isPad) || screenWidth >= 700
+      : screenWidth >= 640;
 
   return (
     <TouchableOpacity
-      style={[optionStyles.row, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 12 }]}
+      style={[
+        optionStyles.row,
+        isTablet && { paddingVertical: 18 },
+        { flexDirection, gap: isRTL ? RTL_SPACING.gap : 12 }
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       {icon && (
-        <View style={[optionStyles.iconWrap, { backgroundColor: active ? `${colors.primary}20` : colors.gray100 }]}>
-          <Ionicons name={icon} size={18} color={active ? colors.primary : colors.gray600} />
+        <View
+          style={[
+            optionStyles.iconWrap,
+            isTablet && { width: 44, height: 44, borderRadius: 12 },
+            { backgroundColor: active ? `${colors.primary}20` : colors.gray100 }
+          ]}
+        >
+          <Ionicons name={icon} size={isTablet ? 22 : 18} color={active ? colors.primary : colors.gray600} />
         </View>
       )}
       <View style={optionStyles.textWrap}>
-        <Text style={[optionStyles.label, { color: active ? colors.primary : colors.black, textAlign }, active && optionStyles.labelActive]}>
+        <Text style={[optionStyles.label, isTablet && { fontSize: 16 }, { color: active ? colors.primary : colors.black, textAlign }, active && optionStyles.labelActive]}>
           {label}
         </Text>
         {!!subtitle && (
-          <Text style={[optionStyles.subtitle, { color: colors.gray400, textAlign }]}>{subtitle}</Text>
+          <Text style={[optionStyles.subtitle, isTablet && { fontSize: 13 }, { color: colors.gray400, textAlign }]}>{subtitle}</Text>
         )}
       </View>
-      {indicator === 'chevron' && <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />}
-      {indicator === 'check' && active && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+      {indicator === 'chevron' && <Ionicons name={chevronForward as never} size={isTablet ? 20 : 16} color={colors.gray300} />}
+      {indicator === 'check' && active && <Ionicons name="checkmark" size={isTablet ? 22 : 18} color={colors.primary} />}
     </TouchableOpacity>
   );
 }

@@ -10,6 +10,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDirectionalChevron } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   onPress?: () => void;
@@ -19,6 +20,7 @@ interface Props {
 export function BackButton({ onPress, style }: Props) {
   const router = useRouter();
   const { chevronBack } = useDirectionalChevron();
+  const { isTablet, headerButtonSize, headerIconSize } = useResponsive();
   const scale   = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -43,14 +45,21 @@ export function BackButton({ onPress, style }: Props) {
         onPress={onPress ?? (() => router.back())}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={styles.btn}
+        style={[
+          styles.btn,
+          isTablet && {
+            width: headerButtonSize,
+            height: headerButtonSize,
+            borderRadius: 14,
+          },
+        ]}
         hitSlop={12}
         activeOpacity={1}
       >
         {/* Points left in English, mirrors to point right in Kurdish */}
         <Ionicons
           name={chevronBack as never}
-          size={22}
+          size={isTablet ? headerIconSize : 22}
           color="#FFFFFF"
           style={styles.icon}
         />

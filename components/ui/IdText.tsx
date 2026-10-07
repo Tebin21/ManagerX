@@ -1,10 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text as RNText, TextProps, TextStyle } from 'react-native';
 import { Typography, resolveInterFont } from '@/constants/typography';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props extends TextProps {
   size?: 'default' | 'small';
 }
+
+const TABLET_ID_PRESET = {
+  small: { fontSize: 13, fontWeight: '600', lineHeight: 16 } as TextStyle,
+  default: { fontSize: 14, fontWeight: '600', lineHeight: 18 } as TextStyle,
+};
 
 /**
  * For IDs / codes / SKUs / invoice numbers (e.g. "A3069", "INV-0042") —
@@ -16,7 +22,11 @@ interface Props extends TextProps {
  * the app language.
  */
 export function IdText({ style, size = 'default', ...props }: Props) {
-  const preset = size === 'small' ? Typography.idSmall : Typography.id;
+  const { isTablet } = useResponsive();
+  const phonePreset = size === 'small' ? Typography.idSmall : Typography.id;
+  const preset = isTablet
+    ? (size === 'small' ? TABLET_ID_PRESET.small : TABLET_ID_PRESET.default)
+    : phonePreset;
   const flat = StyleSheet.flatten([preset, style]) as TextStyle;
   const fontFamily = resolveInterFont(flat.fontWeight);
   return <RNText style={[preset, styles.ltrTabular, style, { fontFamily }]} {...props} />;

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { getDatabase } from '@/lib/sqlite';
@@ -97,6 +98,7 @@ export default function CloudSyncScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.cloudSyncScreen.title')} showBack />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>

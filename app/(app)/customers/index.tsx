@@ -32,7 +32,7 @@ export default function CustomersScreen() {
   const { customers, isLoading, loadCustomers, searchCustomers } = useCustomerStore();
 
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
@@ -112,31 +112,32 @@ export default function CustomersScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStats}
+            style={[styles.headerStats, isTablet && { paddingVertical: 18, marginHorizontal: 28 }]}
           >
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{customers.length}</Text>
-              <Text style={styles.headerStatLabel}>{t('customers.title')}</Text>
+              <Text style={[styles.headerStatVal, isTablet && { fontSize: 24 }]}>{customers.length}</Text>
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13 }]}>{t('customers.title')}</Text>
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{totalDebtors}</Text>
-              <Text style={styles.headerStatLabel}>{t('customers.activeDebts')}</Text>
+              <Text style={[styles.headerStatVal, isTablet && { fontSize: 24 }]}>{totalDebtors}</Text>
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13 }]}>{t('customers.activeDebts')}</Text>
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <CompactAmount value={totalValue} showCurrency={false} style={styles.headerStatVal} />
-              <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
+              <CompactAmount value={totalValue} showCurrency={false} style={[styles.headerStatVal, isTablet && { fontSize: 24 }]} />
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13 }]}>{t('customers.totalSpent')}</Text>
             </View>
           </MotiView>
         )}
 
         {/* Search */}
-        <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
-          <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
+        <View style={[styles.searchWrap, isTablet && { height: 54, marginHorizontal: 24, borderRadius: 16 }, { backgroundColor: colors.white }]}>
+          <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[
               styles.searchInput,
+              isTablet && { fontSize: 17 },
               { color: colors.black },
               isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
             ]}
@@ -149,7 +150,7 @@ export default function CustomersScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={colors.gray400} />
+              <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
             </TouchableOpacity>
           )}
         </View>
@@ -157,23 +158,26 @@ export default function CustomersScreen() {
 
       {/* Count strip */}
       {customers.length > 0 && (
-        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }, isTablet && contentContainerStyle]}>
-          <Text style={[styles.countText, { color: colors.gray500 }]}>
+        <View style={[styles.countStrip, isTablet && { paddingVertical: 14 }, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }, isTablet && contentContainerStyle]}>
+          <Text style={[styles.countText, isTablet && { fontSize: 15 }, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'customer' : 'customers'}
           </Text>
           {totalDebtors > 0 && (
             <View style={styles.debtAlert}>
-              <Ionicons name="warning" size={12} color={warningTint.text} />
-              <Text style={[styles.debtAlertText, { color: warningTint.text }]}>{totalDebtors} {t('customers.withDebt')}</Text>
+              <Ionicons name="warning" size={isTablet ? 15 : 12} color={warningTint.text} />
+              <Text style={[styles.debtAlertText, isTablet && { fontSize: 14 }, { color: warningTint.text }]}>{totalDebtors} {t('customers.withDebt')}</Text>
             </View>
           )}
         </View>
       )}
 
       <FlatList
+        key={`cust-list-${cardColumns}`}
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        numColumns={cardColumns}
+        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews

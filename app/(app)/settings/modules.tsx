@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingSwitch } from '@/components/settings/SettingSwitch';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useModuleStore } from '@/store/moduleStore';
 import { MODULES } from '@/constants/config';
@@ -18,6 +19,7 @@ export default function ModulesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.modulesScreen.title')} showBack />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>

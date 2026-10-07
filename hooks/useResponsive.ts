@@ -1,6 +1,6 @@
-import { useWindowDimensions, StyleSheet, ViewStyle } from 'react-native';
+import { useWindowDimensions, Platform, StyleSheet, ViewStyle } from 'react-native';
 
-export const TABLET_BREAKPOINT = 768;
+export const TABLET_BREAKPOINT = 700;
 export const LARGE_TABLET_BREAKPOINT = 1024;
 
 export interface ResponsiveInfo {
@@ -25,17 +25,32 @@ export interface ResponsiveInfo {
   sheetMaxWidth: number;
   /** Responsive horizontal padding */
   horizontalPadding: number;
+  /** Tablet touch & button height tokens */
+  buttonHeight: number;
+  buttonFontSize: number;
+  inputHeight: number;
+  headerButtonSize: number;
+  headerIconSize: number;
+  moduleCardHeight: number;
 }
 
 export function useResponsive(): ResponsiveInfo {
   const { width, height } = useWindowDimensions();
 
-  const isTablet = width >= TABLET_BREAKPOINT;
-  const isLargeTablet = width >= LARGE_TABLET_BREAKPOINT;
+  // On iOS, check Platform.isPad first to reliably catch all iPad models
+  // (iPad Mini 744pt, iPad 10.2", iPad Air, iPad Pro) and iPad Split View.
+  // On Android, width >= 640 identifies 7"-10" tablets.
+  const isTablet =
+    Platform.OS === 'ios'
+      ? Boolean(Platform.isPad) || width >= TABLET_BREAKPOINT
+      : width >= 640;
+
+  const maxDimension = Math.max(width, height);
+  const isLargeTablet = isTablet && maxDimension >= LARGE_TABLET_BREAKPOINT;
   const isLandscape = width > height;
 
-  const contentMaxWidth = isLargeTablet ? 1100 : (isTablet ? 920 : undefined);
-  const headerMaxWidth = isLargeTablet ? 1140 : (isTablet ? 960 : undefined);
+  const contentMaxWidth = isLargeTablet ? 1160 : (isTablet ? 980 : undefined);
+  const headerMaxWidth = isLargeTablet ? 1200 : (isTablet ? 1020 : undefined);
 
   return {
     width,
@@ -61,8 +76,14 @@ export function useResponsive(): ResponsiveInfo {
       : { width: '100%' },
     moduleColumns: isTablet ? 3 : 2,
     cardColumns: isTablet ? 2 : 1,
-    sheetMaxWidth: isTablet ? 560 : 440,
+    sheetMaxWidth: isTablet ? 600 : 440,
     horizontalPadding: isLargeTablet ? 32 : (isTablet ? 24 : 16),
+    buttonHeight: isTablet ? 60 : 52,
+    buttonFontSize: isTablet ? 18 : 16,
+    inputHeight: isTablet ? 58 : 52,
+    headerButtonSize: isTablet ? 44 : 36,
+    headerIconSize: isTablet ? 24 : 20,
+    moduleCardHeight: isLargeTablet ? 150 : (isTablet ? 138 : 102),
   };
 }
 
@@ -71,10 +92,10 @@ export function useResponsive(): ResponsiveInfo {
  */
 export function getResponsiveContainerStyle(width: number): ViewStyle {
   if (width >= LARGE_TABLET_BREAKPOINT) {
-    return { width: '100%', maxWidth: 1100, alignSelf: 'center' };
+    return { width: '100%', maxWidth: 1160, alignSelf: 'center' };
   }
   if (width >= TABLET_BREAKPOINT) {
-    return { width: '100%', maxWidth: 920, alignSelf: 'center' };
+    return { width: '100%', maxWidth: 980, alignSelf: 'center' };
   }
   return { width: '100%' };
 }

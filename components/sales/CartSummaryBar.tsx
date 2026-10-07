@@ -5,6 +5,7 @@ import { AmountText } from '@/components/ui/AmountText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   itemCount: number;
@@ -16,6 +17,7 @@ export function CartSummaryBar({ itemCount, grandTotal, onPress }: Props) {
   const { colors } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
   const { arrowForward } = useDirectionalChevron();
+  const { isTablet } = useResponsive();
 
   if (itemCount === 0) return null;
 
@@ -23,19 +25,23 @@ export function CartSummaryBar({ itemCount, grandTotal, onPress }: Props) {
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
-      style={[styles.bar, { backgroundColor: colors.primary, shadowColor: colors.primary, flexDirection }]}
+      style={[
+        styles.bar,
+        isTablet && { maxWidth: 720, width: '92%', alignSelf: 'center', padding: 20, borderRadius: 20 },
+        { backgroundColor: colors.primary, shadowColor: colors.primary, flexDirection }
+      ]}
     >
       <View style={[styles.left, { flexDirection }]}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{itemCount}</Text>
+        <View style={[styles.badge, isTablet && { minWidth: 32, height: 32, borderRadius: 12 }]}>
+          <Text style={[styles.badgeText, isTablet && { fontSize: 15 }]}>{itemCount}</Text>
         </View>
-        <Text style={[styles.label, { textAlign }]}>
+        <Text style={[styles.label, isTablet && { fontSize: 16 }, { textAlign }]}>
           {itemCount === 1 ? '1 item' : `${itemCount} items`}
         </Text>
       </View>
       <View style={[styles.right, { flexDirection }]}>
-        <AmountText value={grandTotal} variant="large" style={styles.total} />
-        <Ionicons name={arrowForward as never} size={20} color="#FFFFFF" />
+        <AmountText value={grandTotal} variant="large" style={[styles.total, isTablet && { fontSize: 22 }]} />
+        <Ionicons name={arrowForward as never} size={isTablet ? 24 : 20} color="#FFFFFF" />
       </View>
     </TouchableOpacity>
   );

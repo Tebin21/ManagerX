@@ -8,6 +8,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
+import { useResponsive } from '@/hooks/useResponsive';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
@@ -38,6 +39,7 @@ interface Props extends TextInputProps {
 export function AppTextInput({ label, error, style, rightElement, labelStyle, errorStyle, kurdishPlaceholderFont, forceLatin, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const { colors } = useAppTheme();
+  const { isTablet, inputHeight } = useResponsive();
   const { textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   // A single TextInput can't mix fonts per-character the way AppText can for
@@ -62,7 +64,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.gray600, textAlign }, labelStyle]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.gray600, textAlign }, isTablet && { fontSize: 15 }, labelStyle]}>{label}</Text>
       )}
       <MotiView
         animate={{
@@ -76,6 +78,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
         transition={{ type: 'timing', duration: 200 }}
         style={[
           styles.inputWrapper,
+          isTablet && { borderRadius: 16 },
           {
             borderColor:     colors.gray200,
             backgroundColor: colors.gray50,
@@ -90,6 +93,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
               placeholder={showKuPlaceholderOverlay ? undefined : rest.placeholder}
               style={applyKurdishFont(isKurdish, [
                 styles.input,
+                isTablet && { height: inputHeight, fontSize: 17 },
                 { flex: 1, color: colors.black, textAlign },
                 forceLatin && { textAlign: 'left', writingDirection: 'ltr' },
                 style,
@@ -106,7 +110,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
               }}
             />
             {showKuPlaceholderOverlay && (
-              <Text pointerEvents="none" style={[styles.kuPlaceholderOverlay, { textAlign, color: colors.gray400 }]}>
+              <Text pointerEvents="none" style={[styles.kuPlaceholderOverlay, isTablet && { lineHeight: inputHeight, fontSize: 17 }, { textAlign, color: colors.gray400 }]}>
                 {rest.placeholder}
               </Text>
             )}

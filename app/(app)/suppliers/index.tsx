@@ -31,25 +31,51 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const { isTablet } = useResponsive();
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.white,
+          flexDirection,
+          padding: isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14),
+          marginBottom: isTablet ? 12 : (isRTL ? RTL_SPACING.cardGap : 8),
+          flex: isTablet ? 1 : undefined,
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? 0 : 12, marginStart: isRTL ? RTL_SPACING.gapXl : 0 }]}>
-        <Ionicons name="business-outline" size={22} color={colors.primary} />
+      <View
+        style={[
+          styles.cardAvatar,
+          {
+            backgroundColor: colors.softBlue,
+            width: isTablet ? 52 : 44,
+            height: isTablet ? 52 : 44,
+            borderRadius: isTablet ? 16 : 12,
+            marginEnd: isRTL ? 0 : (isTablet ? 16 : 12),
+            marginStart: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : 0,
+          },
+        ]}
+      >
+        <Ionicons name="business-outline" size={isTablet ? 26 : 22} color={colors.primary} />
       </View>
-      <View style={[styles.cardBody, { gap: isRTL ? RTL_SPACING.stackGap : 0 }]}>
-        <Text style={[styles.cardName, { color: colors.black, textAlign, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>{supplier.name}</Text>
+      <View style={[styles.cardBody, { gap: isRTL ? (isTablet ? 6 : RTL_SPACING.stackGap) : (isTablet ? 4 : 0) }]}>
+        <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
+          {supplier.name}
+        </Text>
         {supplier.phone ? (
-          <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, marginBottom: isRTL ? 0 : 2 }]}>{supplier.phone}</Text>
+          <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, fontSize: isTablet ? 14 : 12, marginBottom: isRTL ? 0 : 2 }]}>
+            {supplier.phone}
+          </Text>
         ) : null}
-        <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
-          {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant="small" />
+        <Text style={[styles.cardSub, { color: colors.gray400, textAlign, fontSize: isTablet ? 14 : 12 }]}>
+          {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant={isTablet ? "default" : "small"} />
         </Text>
       </View>
-      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
+      <Ionicons name={chevronForward as never} size={isTablet ? 22 : 18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
 }
@@ -59,7 +85,7 @@ export default function SuppliersScreen() {
   const { t } = useTranslation();
   const { suppliers, isLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
   const { colors } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -83,10 +109,10 @@ export default function SuppliersScreen() {
       style={styles.emptyContainer}
     >
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
-        <Ionicons name="business-outline" size={48} color={colors.gray300} />
+        <Ionicons name="business-outline" size={isTablet ? 60 : 48} color={colors.gray300} />
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('suppliers.noSuppliers')}</Text>
-      <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('suppliers.noSuppliersDetail')}</Text>
+      <Text style={[styles.emptyTitle, { color: colors.black, fontSize: isTablet ? 20 : 17 }]}>{t('suppliers.noSuppliers')}</Text>
+      <Text style={[styles.emptySub, { color: colors.gray400, fontSize: isTablet ? 16 : 14 }]}>{t('suppliers.noSuppliersDetail')}</Text>
     </MotiView>
   );
 
@@ -95,6 +121,7 @@ export default function SuppliersScreen() {
       from={{ opacity: 0, translateY: 10 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
+      style={{ flex: isTablet ? 1 : undefined }}
     >
       <SupplierCard
         supplier={item}
@@ -111,26 +138,27 @@ export default function SuppliersScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStats}
+            style={[styles.headerStats, isTablet && { paddingVertical: 18, borderRadius: 18 }]}
           >
             <View style={styles.headerStat}>
-              <Text style={styles.headerStatVal}>{suppliers.length}</Text>
-              <Text style={styles.headerStatLabel}>{t('suppliers.title')}</Text>
+              <Text style={[styles.headerStatVal, isTablet && { fontSize: 24 }]}>{suppliers.length}</Text>
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13, marginTop: 4 }]}>{t('suppliers.title')}</Text>
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <CompactAmount value={totalSpent} showCurrency={false} style={styles.headerStatVal} />
-              <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')} IQD</Text>
+              <CompactAmount value={totalSpent} showCurrency={false} style={[styles.headerStatVal, isTablet && { fontSize: 24 }]} />
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13, marginTop: 4 }]}>{t('suppliers.totalSpent')} IQD</Text>
             </View>
           </MotiView>
         )}
 
-        <View style={[styles.searchWrap, { backgroundColor: colors.white }]}>
-          <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
+        <View style={[styles.searchWrap, { backgroundColor: colors.white }, isTablet && { height: 54, paddingHorizontal: 16 }]}>
+          <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[
               styles.searchInput,
               { color: colors.black },
+              isTablet && { fontSize: 17 },
               isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
             ]}
             value={query}
@@ -142,16 +170,19 @@ export default function SuppliersScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={colors.gray400} />
+              <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
             </TouchableOpacity>
           )}
         </View>
       </AppHeader>
 
       <FlatList
+        key={`sup-list-${cardColumns}`}
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        numColumns={cardColumns}
+        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews

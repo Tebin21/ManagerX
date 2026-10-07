@@ -10,7 +10,8 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
@@ -57,6 +58,7 @@ export default function OnlineStoreSubscriptionScreen() {
   if (Platform.OS === 'ios') {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.onlineStoreSubscriptionScreen.title')} showBack />
         <AppleSubscriptionPaywall group="store" />
       </View>
@@ -105,6 +107,7 @@ export default function OnlineStoreSubscriptionScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.onlineStoreSubscriptionScreen.title')} showBack />
 
         <ScrollView
@@ -157,7 +160,7 @@ export default function OnlineStoreSubscriptionScreen() {
           )}
 
           {/* ── Device ID ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
               {t('settings.onlineStoreSubscriptionScreen.deviceIdTitle')}
             </Text>
@@ -167,10 +170,10 @@ export default function OnlineStoreSubscriptionScreen() {
             <IdText selectable style={[styles.deviceIdText, { color: colors.black, backgroundColor: colors.gray50, lineHeight: undefined }]}>
               {deviceId ?? '...'}
             </IdText>
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Activation ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
               {t('settings.onlineStoreSubscriptionScreen.activateTitle')}
             </Text>
@@ -227,7 +230,7 @@ export default function OnlineStoreSubscriptionScreen() {
                 disabled={!code.trim()}
               />
             </View>
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Support ── */}
           <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
@@ -263,6 +266,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
+  },
+  heroCardGlass: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   heroStatus: {
     fontSize: 14, fontWeight: '800', color: '#fff',

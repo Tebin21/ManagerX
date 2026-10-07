@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +20,7 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { InfoModal } from '@/components/ui/InfoModal';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
@@ -116,8 +119,11 @@ export default function SettingsScreen() {
     t(`settings.deleteAccountBullet${i + 1}`)
   );
 
+  const IS_IOS = Platform.OS === 'ios';
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.title')} />
 
       <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
@@ -278,10 +284,15 @@ export default function SettingsScreen() {
         <View style={styles.overlay}>
           <View style={[
             styles.dialog,
+            IS_IOS && styles.glassDialog,
             {
-              backgroundColor: isDark ? colors.gray100 : Colors.white,
-              borderColor: isDark ? colors.gray200 : 'transparent',
-              borderWidth: isDark ? 1 : 0,
+              backgroundColor: IS_IOS
+                ? (isDark ? 'rgba(30, 41, 59, 0.88)' : 'rgba(255, 255, 255, 0.90)')
+                : (isDark ? colors.gray100 : Colors.white),
+              borderColor: IS_IOS
+                ? (isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.85)')
+                : (isDark ? colors.gray200 : 'transparent'),
+              borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
             },
           ]}>
             {/* Icon */}
@@ -342,10 +353,15 @@ export default function SettingsScreen() {
         <View style={styles.overlay}>
           <View style={[
             styles.dialog,
+            IS_IOS && styles.glassDialog,
             {
-              backgroundColor: isDark ? colors.gray100 : Colors.white,
-              borderColor: isDark ? colors.gray200 : 'transparent',
-              borderWidth: isDark ? 1 : 0,
+              backgroundColor: IS_IOS
+                ? (isDark ? 'rgba(30, 41, 59, 0.88)' : 'rgba(255, 255, 255, 0.90)')
+                : (isDark ? colors.gray100 : Colors.white),
+              borderColor: IS_IOS
+                ? (isDark ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.85)')
+                : (isDark ? colors.gray200 : 'transparent'),
+              borderWidth: IS_IOS ? 1.2 : (isDark ? 1 : 0),
             },
           ]}>
             {isDeletingAccount ? (
@@ -437,6 +453,31 @@ const styles = StyleSheet.create({
   body:         { padding: 16, paddingTop: 8 },
   logoutSpacer: { height: 8 },
 
+  ambientOrbTop: {
+    position: 'absolute',
+    top: 50,
+    left: -60,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+  },
+  ambientOrbMid: {
+    position: 'absolute',
+    top: 380,
+    right: -60,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+  },
+  ambientOrbBottom: {
+    position: 'absolute',
+    bottom: 20,
+    left: -40,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+  },
+
   // Modal overlay
   overlay: {
     flex: 1,
@@ -457,6 +498,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 20,
     elevation: 12,
+  },
+  glassDialog: {
+    borderWidth: 1.2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
   },
   dialogIconWrap: {
     width: 64,

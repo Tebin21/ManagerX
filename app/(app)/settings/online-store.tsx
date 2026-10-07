@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -91,6 +92,7 @@ export default function OnlineStoreScreen() {
   if (!hasActiveSubscription && !isDemoUser) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
@@ -102,14 +104,24 @@ export default function OnlineStoreScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <LinearGradient
           colors={[colors.primaryDark, colors.primary]}
-          style={styles.heroCard}
+          style={Platform.OS === 'ios' ? [styles.heroCard, styles.heroCardGlass] : styles.heroCard}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         >
+          {Platform.OS === 'ios' && (
+            <LinearGradient
+              colors={['rgba(255,255,255,0.32)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
+            />
+          )}
           <Text style={styles.heroStatus}>
             {enabled ? t('settings.onlineStoreScreen.active') : t('settings.onlineStoreScreen.disabled')}
           </Text>
@@ -118,7 +130,7 @@ export default function OnlineStoreScreen() {
           </LTRNumber>
         </LinearGradient>
 
-        <PremiumCard style={styles.card}>
+        <SettingsCard style={styles.card}>
           <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
             {t('settings.onlineStoreScreen.section')}
           </Text>
@@ -190,7 +202,7 @@ export default function OnlineStoreScreen() {
               variant={enabled ? 'outline' : 'primary'}
             />
           </View>
-        </PremiumCard>
+        </SettingsCard>
 
         {!!lastSyncError && (
           <View style={[styles.errorBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
@@ -205,7 +217,7 @@ export default function OnlineStoreScreen() {
           onPress={() => router.push('/(app)/settings/online-store-info' as never)}
           activeOpacity={0.8}
         >
-          <PremiumCard style={{ marginBottom: 12, flexDirection, alignItems: 'center', justifyContent: 'space-between' }}>
+          <SettingsCard style={{ marginBottom: 12, flexDirection, alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 2 }]}>
                 {t('settings.onlineStoreScreen.editStoreInfo')}
@@ -219,7 +231,7 @@ export default function OnlineStoreScreen() {
               size={18}
               color={colors.gray300}
             />
-          </PremiumCard>
+          </SettingsCard>
         </TouchableOpacity>
 
         <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
@@ -245,6 +257,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
+  },
+  heroCardGlass: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   heroStatus: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.8)',

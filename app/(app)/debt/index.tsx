@@ -124,7 +124,8 @@ function SalesDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
@@ -211,7 +212,8 @@ function PurchaseDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
@@ -304,7 +306,8 @@ function QuickPayModal({
   onConfirm: (amount: number) => void;
 }) {
   const { colors } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { flexDirection, textAlign, isRTL } = useRTL();
   const [value, setValue] = useState('');
 
@@ -371,8 +374,8 @@ export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -588,9 +591,12 @@ export default function DebtScreen() {
       {/* Debt list */}
       {tab === 'sales' ? (
         <FlatList
+          key={`debt-sales-${cardColumns}`}
           data={visibleSales}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderSalesItem}
+          numColumns={cardColumns}
+          columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
           contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
           refreshControl={
             <RefreshControl
@@ -614,9 +620,12 @@ export default function DebtScreen() {
         />
       ) : (
         <FlatList
+          key={`debt-purchase-${cardColumns}`}
           data={visiblePurchase}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderPurchaseItem}
+          numColumns={cardColumns}
+          columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
           contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
           refreshControl={
             <RefreshControl
@@ -666,13 +675,12 @@ export default function DebtScreen() {
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
   container: { flex: 1 },
 
-
   summaryGrid: {
-    paddingHorizontal: 16,
+    paddingHorizontal: isTablet ? 24 : 16,
     paddingTop: 4,
     paddingBottom: 16,
     gap: 8,
@@ -691,9 +699,9 @@ function getStyles(colors: AppColors) {
     flexDirection: 'column',
     gap: 6,
     backgroundColor: colors.white,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: isTablet ? 16 : 12,
+    paddingVertical: isTablet ? 14 : 10,
+    paddingHorizontal: isTablet ? 14 : 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -701,59 +709,56 @@ function getStyles(colors: AppColors) {
     elevation: 4,
   },
   summaryIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: isTablet ? 38 : 32,
+    height: isTablet ? 38 : 32,
+    borderRadius: isTablet ? 11 : 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryValue: { fontSize: 18, fontWeight: '800', marginBottom: 1 },
-  summaryLabel: { fontSize: 11, color: colors.gray500 },
+  summaryValue: { fontSize: isTablet ? 20 : 18, fontWeight: '800', marginBottom: 1 },
+  summaryLabel: { fontSize: isTablet ? 13 : 11, color: colors.gray500 },
 
-  // Tab bar — directly under the title, on the blue gradient. The gradient
-  // itself never changes with theme, so this whole "frosted glass on
-  // gradient" chrome (translucent overlays, white pill, white text) stays
-  // fixed in both modes — same treatment as SaleStepIndicator's dots.
+  // Tab bar — directly under the title, on the blue gradient.
   tabBar: {
     flexDirection: 'row',
     alignSelf: 'stretch',
-    marginHorizontal: 24,
+    marginHorizontal: isTablet ? 32 : 24,
     marginTop: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    padding: 3,
+    borderRadius: isTablet ? 16 : 12,
+    padding: isTablet ? 5 : 3,
   },
   tabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: isTablet ? 13 : 8,
     paddingHorizontal: 4,
-    borderRadius: 10,
+    borderRadius: isTablet ? 13 : 10,
     gap: 6,
   },
   tabBtnActive: { backgroundColor: '#fff' },
-  tabLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)', flexShrink: 1 },
+  tabLabel: { fontSize: isTablet ? 16 : 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)', flexShrink: 1 },
   tabBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: isTablet ? 8 : 6,
+    paddingVertical: isTablet ? 2 : 1,
   },
-  tabBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  tabBadgeText: { fontSize: isTablet ? 13 : 11, fontWeight: '700', color: '#fff' },
 
   // Search — floats on the blue gradient, directly under the segmented control
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    marginHorizontal: 16,
+    marginHorizontal: isTablet ? 24 : 16,
     marginTop: 10,
     marginBottom: 14,
-    borderRadius: 12,
+    borderRadius: isTablet ? 16 : 12,
     paddingHorizontal: 12,
-    height: 44,
+    height: isTablet ? 54 : 44,
     gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -761,15 +766,16 @@ function getStyles(colors: AppColors) {
     shadowRadius: 4,
     elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 14, color: colors.black },
+  searchInput: { flex: 1, fontSize: isTablet ? 17 : 14, color: colors.black },
 
   listContent: { padding: 16, paddingTop: 8, paddingBottom: 32 },
 
   // Card
   card: {
+    flex: isTablet ? 1 : undefined,
     backgroundColor: colors.white,
-    borderRadius: Theme.radius.card,
-    padding: 14,
+    borderRadius: isTablet ? 18 : Theme.radius.card,
+    padding: isTablet ? 18 : 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -780,23 +786,23 @@ function getStyles(colors: AppColors) {
   cardPurchase: { borderStartWidth: 3, borderStartColor: colors.error },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   cardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: isTablet ? 52 : 40,
+    height: isTablet ? 52 : 40,
+    borderRadius: isTablet ? 26 : 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginEnd: 10,
   },
-  cardAvatarText: { fontSize: 15, fontWeight: '700' },
+  cardAvatarText: { fontSize: isTablet ? 18 : 15, fontWeight: '700' },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
-  cardSub: { fontSize: 12, color: colors.gray400 },
-  cardSub2: { fontSize: 11, color: colors.gray400, marginTop: 2 },
+  cardName: { fontSize: isTablet ? 18 : 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
+  cardSub: { fontSize: isTablet ? 14 : 12, color: colors.gray400 },
+  cardSub2: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
   cardRight: { alignItems: 'flex-end', gap: 4 },
 
   cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: 8 },
-  amountRemaining: { fontSize: 17, fontWeight: '800' },
-  amountSub: { fontSize: 12, color: colors.gray400 },
+  amountRemaining: { fontSize: isTablet ? 20 : 17, fontWeight: '800' },
+  amountSub: { fontSize: isTablet ? 14 : 12, color: colors.gray400 },
 
   progressTrack: {
     height: 6,
@@ -813,22 +819,22 @@ function getStyles(colors: AppColors) {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: isTablet ? 14 : 10,
     gap: 6,
   },
-  quickPayText: { fontSize: 13, fontWeight: '600' },
+  quickPayText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
   detailBtnRow: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
-  detailBtnText: { fontSize: 13, fontWeight: '600' },
+  detailBtnText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
 
-  statusPill: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  statusPillText: { fontSize: 11, fontWeight: '700' },
+  statusPill: { borderRadius: 6, paddingHorizontal: isTablet ? 10 : 7, paddingVertical: isTablet ? 4 : 2 },
+  statusPillText: { fontSize: isTablet ? 13 : 11, fontWeight: '700' },
 
-  overdueBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 3 },
-  overdueBadgeText: { fontSize: 10, fontWeight: '700' },
+  overdueBadge: { borderRadius: 6, paddingHorizontal: isTablet ? 8 : 6, paddingVertical: isTablet ? 3 : 2, marginTop: 3 },
+  overdueBadgeText: { fontSize: isTablet ? 12 : 10, fontWeight: '700' },
 
   empty: { paddingTop: 60, alignItems: 'center', gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.gray500, marginTop: 8 },
@@ -848,22 +854,23 @@ function getStyles(colors: AppColors) {
     borderRadius: 20,
     padding: 24,
     width: '85%',
+    maxWidth: isTablet ? 540 : undefined,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.black, marginBottom: 4 },
-  modalSub: { fontSize: 14, color: colors.gray500, marginBottom: 2 },
-  modalRemaining: { fontSize: 14, fontWeight: '600', marginBottom: 16 },
+  modalTitle: { fontSize: isTablet ? 21 : 18, fontWeight: '800', color: colors.black, marginBottom: 4 },
+  modalSub: { fontSize: isTablet ? 16 : 14, color: colors.gray500, marginBottom: 2 },
+  modalRemaining: { fontSize: isTablet ? 16 : 14, fontWeight: '600', marginBottom: 16 },
   modalInput: {
     borderWidth: 1,
     borderColor: colors.gray200,
     borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
+    paddingVertical: isTablet ? 14 : 10,
+    fontSize: isTablet ? 17 : 15,
     color: colors.black,
     marginBottom: 16,
   },
@@ -873,16 +880,16 @@ function getStyles(colors: AppColors) {
     borderWidth: 1,
     borderColor: colors.gray200,
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: isTablet ? 15 : 12,
     alignItems: 'center',
   },
-  modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.gray500 },
+  modalCancelText: { fontSize: isTablet ? 16 : 14, fontWeight: '600', color: colors.gray500 },
   modalConfirm: {
     flex: 1,
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: isTablet ? 15 : 12,
     alignItems: 'center',
   },
-  modalConfirmText: { fontSize: 14, fontWeight: '600' },
+  modalConfirmText: { fontSize: isTablet ? 16 : 14, fontWeight: '600' },
   });
 }

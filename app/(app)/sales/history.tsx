@@ -40,7 +40,7 @@ export default function SalesHistoryScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { sales, searchSales, loadSales, isLoading } = useSalesStore();
 
@@ -122,9 +122,11 @@ export default function SalesHistoryScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Sale }) => (
-      <SaleHistoryItem sale={item} onPress={() => router.push(`/(app)/sales/${item.id}` as never)} />
+      <View style={{ flex: isTablet ? 1 : undefined }}>
+        <SaleHistoryItem sale={item} onPress={() => router.push(`/(app)/sales/${item.id}` as never)} />
+      </View>
     ),
-    [router]
+    [router, isTablet]
   );
 
   const hasQuery = query.trim().length > 0;
@@ -144,8 +146,15 @@ export default function SalesHistoryScreen() {
       />
 
       {/* Search Bar */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }, isTablet && contentContainerStyle]}>
-        <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchWrap,
+          { backgroundColor: colors.white, flexDirection },
+          isTablet && contentContainerStyle,
+          isTablet && { height: 54, paddingHorizontal: 16 },
+        ]}
+      >
+        <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
         <TextInput
           style={[
             styles.searchInput,
@@ -154,6 +163,7 @@ export default function SalesHistoryScreen() {
               textAlign: searchIsRTL ? 'right' : 'left',
               writingDirection: searchIsRTL ? 'rtl' : 'ltr',
             },
+            isTablet && { fontSize: 17 },
             applyKurdishFont(inputFontIsKurdish, {}),
           ]}
           value={query}
@@ -166,16 +176,19 @@ export default function SalesHistoryScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={16} color={colors.gray400} />
+            <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Sales Invoices List */}
       <FlatList
+        key={`sales-hist-${cardColumns}`}
         data={results}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        numColumns={cardColumns}
+        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, results.length === 0 && styles.listEmpty]}
         removeClippedSubviews
         initialNumToRender={15}

@@ -10,7 +10,8 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+import { SettingsCard } from '@/components/settings/SettingsCard';
+import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { LTRNumber } from '@/components/ui/LTRNumber';
@@ -69,6 +70,7 @@ export default function PlanLimitsScreen() {
   if (Platform.OS === 'ios') {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.upgradeScreen.title')} showBack />
         <AppleSubscriptionPaywall group="pro" />
       </View>
@@ -121,6 +123,7 @@ export default function PlanLimitsScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <SettingsBackground />
         <AppHeader title={t('settings.upgradeScreen.title')} showBack />
 
         <ScrollView
@@ -158,7 +161,7 @@ export default function PlanLimitsScreen() {
           )}
 
           {/* ── Device ID ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
               {t('settings.upgradeScreen.deviceIdTitle')}
             </Text>
@@ -168,10 +171,10 @@ export default function PlanLimitsScreen() {
             <IdText selectable style={[styles.deviceIdText, { color: colors.black, backgroundColor: colors.gray50, lineHeight: undefined }]}>
               {deviceId ?? '...'}
             </IdText>
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Activation ── */}
-          <PremiumCard style={styles.card}>
+          <SettingsCard style={styles.card}>
             <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
               {t('settings.upgradeScreen.activateTitle')}
             </Text>
@@ -224,7 +227,7 @@ export default function PlanLimitsScreen() {
                 disabled={!code.trim()}
               />
             </View>
-          </PremiumCard>
+          </SettingsCard>
 
           {/* ── Support ── */}
           <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
@@ -260,6 +263,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
+  },
+  heroCardGlass: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   heroPlan: {
     fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.8)',

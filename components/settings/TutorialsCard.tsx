@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+
+const IS_IOS = Platform.OS === 'ios';
 
 export function TutorialsCard() {
   const router = useRouter();
@@ -26,13 +28,24 @@ export function TutorialsCard() {
         colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.card}
+        style={IS_IOS ? [styles.glassCard, { shadowColor: colors.gradientStart }] : styles.card}
       >
         <View style={styles.circleLg} />
         <View style={styles.circleSm} />
 
+        {/* Specular Liquid Glass reflection on iOS */}
+        {IS_IOS && (
+          <LinearGradient
+            colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.18)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+        )}
+
         <View style={[styles.row, { flexDirection }]}>
-          <View style={styles.iconWrap}>
+          <View style={IS_IOS ? [styles.iconWrap, styles.glassIconWrap] : styles.iconWrap}>
             <Ionicons name="play-circle" size={26} color="#fff" />
           </View>
           <View style={styles.content}>
@@ -52,6 +65,17 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 16,
     overflow: 'hidden',
+  },
+  glassCard: {
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255,255,255,0.40)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
   },
   circleLg: {
     position: 'absolute',
@@ -83,6 +107,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glassIconWrap: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
   },
   content: { flex: 1 },
   title: { fontSize: 15, fontWeight: '700', color: '#fff' },

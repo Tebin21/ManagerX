@@ -8,6 +8,7 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { AmountText } from '@/components/ui/AmountText';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   label: string;
@@ -22,7 +23,8 @@ interface Props {
 
 export function InventoryStatsCard({ label, value, amount, icon, accent = false, delay = 0 }: Props) {
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, valueAlign, flexDirection } = useRTL();
   const valueStyle = [styles.value, accent && { color: warningTint.text }, { flex: 1, textAlign: valueAlign }];
@@ -34,12 +36,12 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
       style={[
         styles.card,
         accent && { backgroundColor: warningTint.bg, borderWidth: 1, borderColor: warningTint.border },
-        { paddingVertical: isRTL ? 12 : 10, paddingHorizontal: isRTL ? RTL_SPACING.gap : 12 },
+        { paddingVertical: isTablet ? 14 : (isRTL ? 12 : 10), paddingHorizontal: isTablet ? 14 : (isRTL ? RTL_SPACING.gap : 12) },
       ]}
     >
       <View style={[styles.topRow, { flexDirection }]}>
         <View style={[styles.iconWrap, { backgroundColor: accent ? warningTint.bg : colors.softBlue }]}>
-          <Ionicons name={icon} size={14} color={accent ? warningTint.text : colors.primary} />
+          <Ionicons name={icon} size={isTablet ? 18 : 14} color={accent ? warningTint.text : colors.primary} />
         </View>
         {amount !== undefined ? (
           <AmountText value={amount} style={valueStyle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} />
@@ -52,37 +54,37 @@ export function InventoryStatsCard({ label, value, amount, icon, accent = false,
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     card: {
       flex: 1,
       flexDirection: 'column',
       backgroundColor: colors.white,
-      borderRadius: Theme.radius.md,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
+      borderRadius: isTablet ? 14 : Theme.radius.md,
+      paddingVertical: isTablet ? 14 : 10,
+      paddingHorizontal: isTablet ? 14 : 12,
       ...Theme.shadow.soft,
     },
     topRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: isTablet ? 8 : 6,
     },
     iconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
+      width: isTablet ? 36 : 28,
+      height: isTablet ? 36 : 28,
+      borderRadius: isTablet ? 10 : 8,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     value: {
-      fontSize: 15,
+      fontSize: isTablet ? 18 : 15,
       fontWeight: '700',
       color: colors.black,
     },
     label: {
-      fontSize: 10,
+      fontSize: isTablet ? 13 : 10,
       color: colors.gray500,
       fontWeight: '500',
     },

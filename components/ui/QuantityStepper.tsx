@@ -11,6 +11,7 @@ import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   /** Current quantity, as text — same contract as a plain TextInput's `value`. */
@@ -53,6 +54,7 @@ function StepButton({
   testID?: string;
 }) {
   const { colors } = useAppTheme();
+  const { isTablet } = useResponsive();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -71,11 +73,16 @@ function StepButton({
         accessibilityState={{ disabled }}
         style={[
           compact ? styles.stepBtnCompact : styles.stepBtn,
+          isTablet && !compact && { width: 46, height: 46, borderRadius: 23 },
           { backgroundColor: colors.softBlue },
           disabled && { backgroundColor: colors.gray100 },
         ]}
       >
-        <Ionicons name={icon} size={compact ? 14 : 18} color={disabled ? colors.gray300 : colors.primary} />
+        <Ionicons
+          name={icon}
+          size={compact ? 14 : (isTablet ? 22 : 18)}
+          color={disabled ? colors.gray300 : colors.primary}
+        />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -104,6 +111,7 @@ export function QuantityStepper({
   testID,
 }: Props) {
   const { colors } = useAppTheme();
+  const { isTablet } = useResponsive();
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -137,7 +145,7 @@ export function QuantityStepper({
   return (
     <View style={containerStyle}>
       {label && (
-        <Text style={[styles.label, { color: colors.gray600, textAlign }]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.gray600, textAlign }, isTablet && { fontSize: 15 }]}>{label}</Text>
       )}
       <MotiView
         animate={{
@@ -147,6 +155,7 @@ export function QuantityStepper({
         transition={{ type: 'timing', duration: 200 }}
         style={[
           compact ? styles.wrapperCompact : styles.wrapper,
+          isTablet && !compact && { height: 56, borderRadius: 16 },
           {
             borderColor:     colors.gray200,
             backgroundColor: colors.gray50,
@@ -166,7 +175,12 @@ export function QuantityStepper({
         />
         <TextInput
           testID={testID}
-          style={[compact ? styles.inputCompact : styles.input, { color: colors.black }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, keyboardType: 'number-pad' }), {})]}
+          style={[
+            compact ? styles.inputCompact : styles.input,
+            isTablet && !compact && { fontSize: 20 },
+            { color: colors.black },
+            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, keyboardType: 'number-pad' }), {})
+          ]}
           value={text}
           onChangeText={(t2) => { setText(t2); onChangeText(t2); }}
           onFocus={(e) => { setFocused(true); scrollIntoView(e); }}

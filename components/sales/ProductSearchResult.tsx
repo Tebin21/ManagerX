@@ -8,6 +8,7 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Product } from '@/types/sales';
 
 interface Props {
@@ -18,7 +19,8 @@ interface Props {
 
 export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { isTablet } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const soldTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isUniqueAndSold = product.idMode === 'unique' && (!product.isActive || product.quantity === 0);
@@ -101,31 +103,32 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     row: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'flex-start',
       backgroundColor: colors.white,
-      borderRadius: Theme.radius.card,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      marginBottom: 6,
+      borderRadius: isTablet ? 16 : Theme.radius.card,
+      paddingHorizontal: isTablet ? 18 : 16,
+      paddingVertical: isTablet ? 16 : 14,
+      marginBottom: isTablet ? 10 : 6,
       ...Theme.shadow.soft,
     },
     rowDisabled: { opacity: 0.6 },
     thumb: {
-      width: 72,
-      height: 72,
-      borderRadius: 12,
+      width: isTablet ? 80 : 72,
+      height: isTablet ? 80 : 72,
+      borderRadius: isTablet ? 14 : 12,
       marginRight: 12,
       flexShrink: 0,
       backgroundColor: colors.gray100,
     },
     thumbPlaceholder: {
-      width: 72,
-      height: 72,
-      borderRadius: 12,
+      width: isTablet ? 80 : 72,
+      height: isTablet ? 80 : 72,
+      borderRadius: isTablet ? 14 : 12,
       marginRight: 12,
       flexShrink: 0,
       backgroundColor: colors.gray100,
@@ -134,19 +137,19 @@ function getStyles(colors: AppColors) {
     },
     left: { flex: 1, paddingTop: 2 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
-    name: { fontSize: 14, fontWeight: '600', color: colors.black },
+    name: { fontSize: isTablet ? 16 : 14, fontWeight: '600', color: colors.black },
     nameDisabled: { color: colors.gray400 },
-    itemDescription: { fontSize: 12, color: colors.gray500, marginBottom: 4 },
+    itemDescription: { fontSize: isTablet ? 13 : 12, color: colors.gray500, marginBottom: 4 },
     idBadge: {
       borderRadius: 4,
       paddingHorizontal: 5,
       paddingVertical: 1,
     },
-    idText: { fontSize: 10, fontWeight: '500' },
+    idText: { fontSize: isTablet ? 11 : 10, fontWeight: '500' },
     meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    price: { fontSize: 13, fontWeight: '700' },
+    price: { fontSize: isTablet ? 15 : 13, fontWeight: '700' },
     dot: { color: colors.gray300 },
-    stock: { fontSize: 12, color: colors.success, fontWeight: '500' },
+    stock: { fontSize: isTablet ? 13 : 12, color: colors.success, fontWeight: '500' },
     stockLow: { color: colors.warning },
     stockOut: { color: colors.error },
     soldBadge: {
@@ -154,17 +157,17 @@ function getStyles(colors: AppColors) {
       paddingHorizontal: 6,
       paddingVertical: 1,
     },
-    soldText: { fontSize: 11, fontWeight: '600' },
+    soldText: { fontSize: isTablet ? 12 : 11, fontWeight: '600' },
     addBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: isTablet ? 44 : 36,
+      height: isTablet ? 44 : 36,
+      borderRadius: isTablet ? 22 : 18,
       alignItems: 'center',
       justifyContent: 'center',
       marginLeft: 8,
       alignSelf: 'center',
     },
     inCartBadge: { flexDirection: 'row', alignItems: 'center' },
-    inCartText: { fontSize: 13, fontWeight: '700' },
+    inCartText: { fontSize: isTablet ? 15 : 13, fontWeight: '700' },
   });
 }
