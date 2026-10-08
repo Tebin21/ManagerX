@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { BexDreLogoButton } from '@/components/dashboard/BexDreLogoButton';
 import { BusinessHeader } from '@/components/dashboard/BusinessHeader';
 import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
-import { ExpensesBannerButton } from '@/components/dashboard/ExpensesBannerButton';
+
 import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -54,13 +54,7 @@ export default function DashboardScreen() {
             <ModuleGrid />
           </MotiView>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 24 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, delay: 360 }}
-          >
-            <ExpensesBannerButton />
-          </MotiView>
+
 
           <MotiView
             from={{ opacity: 0, translateY: 24 }}

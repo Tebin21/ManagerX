@@ -16,7 +16,8 @@ export type ModuleId =
   | 'inventory'
   | 'reports'
   | 'history'
-  | 'debt';
+  | 'debt'
+  | 'expenses';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -68,6 +69,13 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'wallet',
     descriptionKey: 'modules.debt.description',
     route: '/(app)/debt',
+  },
+  {
+    id: 'expenses',
+    labelKey: 'dashboard.expensesCard',
+    icon: 'cash',
+    descriptionKey: 'modules.expenses.description',
+    route: '/(app)/reports/expenses',
   },
 ];
 

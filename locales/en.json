@@ -323,6 +323,12 @@
     "week":              "Week",
     "month":             "Month",
     "year":              "Year",
+    "customizeButtons":   "Customize Buttons Layout & Order",
+    "customizeHint":      "Hold or tap buttons to change size and position",
+    "customizeDone":      "Done",
+    "customizeReset":     "Reset",
+    "swapTapHint":        "Tap another button to swap positions",
+    "toggleSize":         "Toggle Size",
     "onlineStore": {
       "title":           "Online Store",
       "active":          "Active",
@@ -373,6 +379,7 @@
     "customers": { "title": "Customer History" },
     "history":   { "title": "History", "description": "View customer sales history and supplier purchase history" },
     "debt":         { "title": "Debt System",     "description": "Manage who owes you and what you owe others" },
+    "expenses":     { "title": "Expenses",        "description": "Record and manage operating expenses" },
     "soldProducts": { "title": "Sold Products" }
   },
   "support": {
