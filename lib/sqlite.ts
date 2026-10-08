@@ -1019,6 +1019,7 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
     // Purchase History stays fresh when these are edited from the Inventory side.
     const sharedField =
       data.name !== undefined || data.category !== undefined ||
+      data.purchasePrice !== undefined || data.buyPriceUsd !== undefined ||
       data.sellingPrice !== undefined || data.sellPriceUsd !== undefined ||
       data.warranty !== undefined || data.description !== undefined || data.notes !== undefined;
     if (sharedField) {
@@ -1029,6 +1030,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
         await propagateToPurchase(database, row.purchase_id, {
           name: data.name,
           category: data.category,
+          buyPriceIQD: data.purchasePrice,
+          buyPriceUSD: data.buyPriceUsd,
           sellPriceIQD: data.sellingPrice,
           sellPriceUSD: data.sellPriceUsd,
           warranty: data.warranty,
@@ -1036,6 +1039,13 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
           notes: data.notes,
         });
       }
+    }
+
+    if (data.purchasePrice !== undefined) {
+      await database.runAsync(
+        'UPDATE sale_items SET purchase_price = ? WHERE product_id = ?',
+        [data.purchasePrice, id]
+      );
     }
   });
 
@@ -2703,6 +2713,7 @@ async function propagateToProducts(
   purchaseId: number,
   fields: {
     name?: string; category?: string | null;
+    purchasePrice?: number; buyPriceUsd?: number;
     sellingPrice?: number; sellPriceUsd?: number;
     warranty?: string | null; description?: string | null; notes?: string | null;
     imageUri?: string | null;
@@ -2710,14 +2721,16 @@ async function propagateToProducts(
 ): Promise<void> {
   const setClauses: string[] = [];
   const values: unknown[] = [];
-  if (fields.name !== undefined)         { setClauses.push('name = ?');           values.push(fields.name); }
-  if (fields.category !== undefined)     { setClauses.push('category = ?');       values.push(fields.category); }
-  if (fields.sellingPrice !== undefined) { setClauses.push('selling_price = ?');  values.push(fields.sellingPrice); }
-  if (fields.sellPriceUsd !== undefined) { setClauses.push('sell_price_usd = ?'); values.push(fields.sellPriceUsd); }
-  if (fields.warranty !== undefined)     { setClauses.push('warranty = ?');       values.push(fields.warranty); }
-  if (fields.description !== undefined) { setClauses.push('description = ?');    values.push(fields.description); }
-  if (fields.notes !== undefined)        { setClauses.push('notes = ?');          values.push(fields.notes); }
-  if (fields.imageUri !== undefined)     { setClauses.push('image_uri = ?', 'image_remote_url = NULL'); values.push(fields.imageUri); }
+  if (fields.name !== undefined)          { setClauses.push('name = ?');           values.push(fields.name); }
+  if (fields.category !== undefined)      { setClauses.push('category = ?');       values.push(fields.category); }
+  if (fields.purchasePrice !== undefined) { setClauses.push('purchase_price = ?'); values.push(fields.purchasePrice); }
+  if (fields.buyPriceUsd !== undefined)   { setClauses.push('buy_price_usd = ?');  values.push(fields.buyPriceUsd); }
+  if (fields.sellingPrice !== undefined)  { setClauses.push('selling_price = ?');  values.push(fields.sellingPrice); }
+  if (fields.sellPriceUsd !== undefined)  { setClauses.push('sell_price_usd = ?'); values.push(fields.sellPriceUsd); }
+  if (fields.warranty !== undefined)      { setClauses.push('warranty = ?');       values.push(fields.warranty); }
+  if (fields.description !== undefined)  { setClauses.push('description = ?');    values.push(fields.description); }
+  if (fields.notes !== undefined)         { setClauses.push('notes = ?');          values.push(fields.notes); }
+  if (fields.imageUri !== undefined)      { setClauses.push('image_uri = ?', 'image_remote_url = NULL'); values.push(fields.imageUri); }
   if (setClauses.length === 0) return;
   setClauses.push('updated_at = CURRENT_TIMESTAMP');
   values.push(purchaseId);
@@ -2736,19 +2749,48 @@ async function propagateToPurchase(
   purchaseId: number,
   fields: {
     name?: string; category?: string | null;
+    buyPriceIQD?: number; buyPriceUSD?: number;
     sellPriceIQD?: number; sellPriceUSD?: number;
     warranty?: string | null; description?: string | null; notes?: string | null;
   }
 ): Promise<void> {
   const pFields: string[] = [];
   const pValues: unknown[] = [];
-  if (fields.name !== undefined)         { pFields.push('product_name = ?'); pValues.push(fields.name); }
-  if (fields.category !== undefined)     { pFields.push('category = ?');     pValues.push(fields.category); }
+  if (fields.name !== undefined)         { pFields.push('product_name = ?');  pValues.push(fields.name); }
+  if (fields.category !== undefined)     { pFields.push('category = ?');      pValues.push(fields.category); }
+  if (fields.buyPriceIQD !== undefined)  { pFields.push('buy_price_iqd = ?'); pValues.push(fields.buyPriceIQD); }
+  if (fields.buyPriceUSD !== undefined)  { pFields.push('buy_price_usd = ?'); pValues.push(fields.buyPriceUSD); }
   if (fields.sellPriceIQD !== undefined) { pFields.push('sell_price_iqd = ?'); pValues.push(fields.sellPriceIQD); }
   if (fields.sellPriceUSD !== undefined) { pFields.push('sell_price_usd = ?'); pValues.push(fields.sellPriceUSD); }
-  if (fields.warranty !== undefined)     { pFields.push('warranty = ?');     pValues.push(fields.warranty); }
-  if (fields.description !== undefined) { pFields.push('description = ?');  pValues.push(fields.description); }
-  if (fields.notes !== undefined)        { pFields.push('notes = ?');        pValues.push(fields.notes); }
+  if (fields.warranty !== undefined)     { pFields.push('warranty = ?');      pValues.push(fields.warranty); }
+  if (fields.description !== undefined) { pFields.push('description = ?');   pValues.push(fields.description); }
+  if (fields.notes !== undefined)        { pFields.push('notes = ?');         pValues.push(fields.notes); }
+
+  // If buying price or selling price is being updated, recalculate total_iqd, profit_iqd, and debts
+  if (fields.buyPriceIQD !== undefined || fields.sellPriceIQD !== undefined) {
+    const existing = await database.getFirstAsync<{ quantity: number; buy_price_iqd: number; sell_price_iqd: number }>(
+      'SELECT quantity, buy_price_iqd, sell_price_iqd FROM purchases WHERE id = ?',
+      [purchaseId]
+    );
+    if (existing) {
+      const buyPrice = fields.buyPriceIQD ?? existing.buy_price_iqd;
+      const sellPrice = fields.sellPriceIQD ?? existing.sell_price_iqd;
+      const newTotal = existing.quantity * buyPrice;
+      const newProfit = (sellPrice - buyPrice) * existing.quantity;
+      pFields.push('total_iqd = ?', 'profit_iqd = ?');
+      pValues.push(newTotal, newProfit);
+
+      await database.runAsync(
+        `UPDATE purchase_debts SET
+           original_amount = ?,
+           remaining_amount = MAX(0, ? - paid_amount),
+           updated_at = CURRENT_TIMESTAMP
+         WHERE purchase_id = ?`,
+        [newTotal, newTotal, purchaseId]
+      );
+    }
+  }
+
   if (pFields.length > 0) {
     pFields.push('updated_at = CURRENT_TIMESTAMP');
     pValues.push(purchaseId);
@@ -2757,10 +2799,16 @@ async function propagateToPurchase(
 
   const piFields: string[] = [];
   const piValues: unknown[] = [];
-  if (fields.name !== undefined)         { piFields.push('product_name = ?'); piValues.push(fields.name); }
-  if (fields.category !== undefined)     { piFields.push('category = ?');     piValues.push(fields.category); }
+  if (fields.name !== undefined)         { piFields.push('product_name = ?');  piValues.push(fields.name); }
+  if (fields.category !== undefined)     { piFields.push('category = ?');      piValues.push(fields.category); }
+  if (fields.buyPriceIQD !== undefined)  { piFields.push('buy_price_iqd = ?'); piValues.push(fields.buyPriceIQD); }
+  if (fields.buyPriceUSD !== undefined)  { piFields.push('buy_price_usd = ?'); piValues.push(fields.buyPriceUSD); }
   if (fields.sellPriceIQD !== undefined) { piFields.push('sell_price_iqd = ?'); piValues.push(fields.sellPriceIQD); }
   if (fields.sellPriceUSD !== undefined) { piFields.push('sell_price_usd = ?'); piValues.push(fields.sellPriceUSD); }
+  if (fields.buyPriceIQD !== undefined) {
+    piFields.push('line_total_iqd = quantity * ?');
+    piValues.push(fields.buyPriceIQD);
+  }
   if (piFields.length > 0) {
     piValues.push(purchaseId);
     await database.runAsync(`UPDATE purchase_items SET ${piFields.join(', ')} WHERE purchase_id = ?`, piValues as SQLite.SQLiteBindValue[]);
@@ -4113,5 +4161,77 @@ export async function getDashboardExpenseTotals(): Promise<{
     weekly:  weekRow?.v   ?? 0,
     monthly: monthRow?.v  ?? 0,
     yearly:  yearRow?.v   ?? 0,
+  };
+}
+
+export interface CashDrawerStats {
+  salesCash: number;
+  customerDebtCash: number;
+  purchasesCash: number;
+  supplierDebtCash: number;
+  expensesCash: number;
+}
+
+export async function getCashDrawerStats(activatedAt?: string): Promise<CashDrawerStats> {
+  const database = await getDatabase();
+  const sActClause = activatedAt ? 'WHERE s.created_at >= ?' : '';
+  const expFilterClause = activatedAt ? 'WHERE created_at >= ? OR date >= ?' : '';
+  const actDateOnly = activatedAt ? activatedAt.slice(0, 10) : '';
+
+  const [salesRow, customerDebtRow, purchasesRow, supplierDebtRow, expensesRow] = await Promise.all([
+    // Upfront cash received at checkout for sales created since activation
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(
+        CASE
+          WHEN d.id IS NULL THEN s.paid_amount
+          ELSE MAX(0, s.paid_amount - COALESCE(p.paid_later, 0))
+        END
+      ), 0) AS v
+      FROM sales s
+      LEFT JOIN debts d ON d.sale_id = s.id
+      LEFT JOIN (
+        SELECT debt_id, SUM(amount) AS paid_later
+        FROM debt_payments
+        WHERE debt_type = 'sales' AND event_type = 'payment'
+        GROUP BY debt_id
+      ) p ON p.debt_id = d.id
+      ${sActClause}`,
+      activatedAt ? [activatedAt] : []
+    ),
+    // Customer debt collected since activation
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v
+       FROM debt_payments
+       WHERE debt_type = 'sales' AND event_type = 'payment' ${activatedAt ? 'AND created_at >= ?' : ''}`,
+      activatedAt ? [activatedAt] : []
+    ),
+    // Upfront cash purchases (no credit/debt) since activation
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(total_iqd), 0) AS v
+       FROM purchases
+       WHERE id NOT IN (SELECT purchase_id FROM purchase_debts WHERE purchase_id IS NOT NULL)
+       ${activatedAt ? 'AND created_at >= ?' : ''}`,
+      activatedAt ? [activatedAt] : []
+    ),
+    // Supplier debt payments (both initial down payment and installments) made since activation
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v
+       FROM debt_payments
+       WHERE debt_type = 'purchase' AND event_type = 'payment' ${activatedAt ? 'AND created_at >= ?' : ''}`,
+      activatedAt ? [activatedAt] : []
+    ),
+    // Operating expenses since activation
+    database.getFirstAsync<{ v: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS v FROM expenses ${expFilterClause}`,
+      activatedAt ? [activatedAt, actDateOnly] : []
+    ),
+  ]);
+
+  return {
+    salesCash: salesRow?.v ?? 0,
+    customerDebtCash: customerDebtRow?.v ?? 0,
+    purchasesCash: purchasesRow?.v ?? 0,
+    supplierDebtCash: supplierDebtRow?.v ?? 0,
+    expensesCash: expensesRow?.v ?? 0,
   };
 }

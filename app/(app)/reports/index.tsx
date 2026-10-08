@@ -25,6 +25,7 @@ import type { DateRangeKey } from '@/types/reports';
 import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
+import { CapitalDrawerReportCard } from '@/components/reports/CapitalDrawerReportCard';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
@@ -751,6 +752,9 @@ export default function ReportsScreen() {
               <CashBalanceCard data={cashBalance} />
             </View>
           )}
+
+          {/* ─── Cash Drawer & Capital (Active only) ─── */}
+          <CapitalDrawerReportCard />
 
           {/* ─── 2. Purchase Spending ─── */}
           <SectionHeader title={t('reports.purchaseSpending')} icon="bag-handle" />

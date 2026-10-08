@@ -25,6 +25,7 @@ import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useCapitalStore } from '@/store/capitalStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
@@ -37,7 +38,7 @@ import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
-import { SETTINGS_KURDISH_FONT, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
@@ -56,10 +57,21 @@ export default function NewPurchaseScreen() {
   const { isTablet, contentContainerStyle } = useResponsive();
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
   const { colors } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const [drawerBalance, setDrawerBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isCapitalEnabled) {
+      getDrawerBalance().then((bal) => {
+        setDrawerBalance(Number.isFinite(bal) ? bal : 0);
+      }).catch(() => {});
+    }
+  }, [isCapitalEnabled, getDrawerBalance]);
 
   // ─── Required fields ────────────────────────────────────────────────────────
   const [supplierName, setSupplierName]     = useState('');
@@ -154,6 +166,9 @@ export default function NewPurchaseScreen() {
   const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
   const amountPaidNum = roundToNearest250(Math.max(0, parseFloat(amountPaid) || 0));
   const remainingDebt = Math.max(0, totalIQD - amountPaidNum);
+  const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidNum : 0);
+  const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
+  const isInsufficientCash = isCapitalEnabled && drawerBalance !== null && cashNeeded > drawerBalance;
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
@@ -275,6 +290,27 @@ export default function NewPurchaseScreen() {
   // ─── Save ───────────────────────────────────────────────────────────────────
   async function handleSave() {
     if (!validate()) return;
+
+    // Cash drawer balance check when Capital system is enabled
+    const capitalStore = useCapitalStore.getState();
+    if (capitalStore.isEnabled) {
+      const needed = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidNum : 0);
+      if (needed > 0) {
+        const availableBalance = await capitalStore.getDrawerBalance();
+        if (needed > availableBalance) {
+          Alert.alert(
+            t('capital.insufficientTitle'),
+            t('capital.cannotPurchaseDueToBalance') +
+              '\n\n' +
+              t('capital.insufficientBody', {
+                needed: roundToNearest250(needed).toLocaleString(),
+                available: Math.max(0, Math.round(availableBalance)).toLocaleString(),
+              })
+          );
+          return;
+        }
+      }
+    }
 
     const finalItemIds =
       idType === 'shared'
@@ -769,6 +805,137 @@ export default function NewPurchaseScreen() {
 
           <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
 
+          {/* ── Cash Drawer Live Indicator (Capital System) ───── */}
+          {isCapitalEnabled && drawerBalance !== null && (
+            <PremiumCard
+              style={[
+                styles.card,
+                {
+                  borderColor: isInsufficientCash ? colors.error : colors.primary + '35',
+                  backgroundColor: colors.white,
+                },
+              ]}
+            >
+              <View style={[styles.drawerCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.drawerCardTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View
+                    style={[
+                      styles.drawerIconBox,
+                      { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + '18' },
+                    ]}
+                  >
+                    <Ionicons
+                      name="wallet"
+                      size={18}
+                      color={isInsufficientCash ? colors.error : colors.primary}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.drawerCardTitle,
+                      { color: colors.darkBlue, textAlign },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {t('capital.drawerStatusTitle')}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.drawerActivePill,
+                    { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + '14' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.drawerActivePillText,
+                      { color: isInsufficientCash ? colors.error : colors.primary },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {isInsufficientCash ? t('common.error') : t('capital.statusActive')}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 3 Metric Cards */}
+              <View style={[styles.drawerMetricsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {/* 1. Available Balance Now */}
+                <View style={[styles.drawerMetricItem, { backgroundColor: colors.gray100 }]}>
+                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
+                    {t('capital.drawerBalanceNow')}
+                  </Text>
+                  <AmountText
+                    value={drawerBalance}
+                    currency="IQD"
+                    style={[styles.drawerMetricVal, { color: colors.darkBlue, textAlign }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  />
+                </View>
+
+                {/* 2. Cash Needed for this purchase */}
+                <View style={[styles.drawerMetricItem, { backgroundColor: colors.gray100 }]}>
+                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
+                    {t('capital.drawerCashNeeded')}
+                  </Text>
+                  <AmountText
+                    value={cashNeeded}
+                    currency="IQD"
+                    style={[
+                      styles.drawerMetricVal,
+                      { color: isInsufficientCash ? colors.error : colors.warning, textAlign },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  />
+                </View>
+
+                {/* 3. Projected Balance After Purchase */}
+                <View
+                  style={[
+                    styles.drawerMetricItem,
+                    { backgroundColor: isInsufficientCash ? '#FEF2F2' : '#F0FDF4' },
+                  ]}
+                >
+                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
+                    {t('capital.drawerBalanceAfter')}
+                  </Text>
+                  <AmountText
+                    value={projectedBalance}
+                    currency="IQD"
+                    style={[
+                      styles.drawerMetricVal,
+                      { color: isInsufficientCash ? colors.error : colors.success, textAlign },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  />
+                </View>
+              </View>
+
+              {/* Insufficient Warning Banner */}
+              {isInsufficientCash && (
+                <View style={[styles.drawerWarningBanner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="alert-circle" size={18} color={colors.error} />
+                  <Text
+                    style={[
+                      styles.drawerWarningText,
+                      { color: colors.error, textAlign },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {t('capital.insufficientBanner')}
+                  </Text>
+                </View>
+              )}
+            </PremiumCard>
+          )}
+
           {/* ── Actions ───────────────────────────────────────── */}
           <View style={styles.actions}>
             <PrimaryButton
@@ -1070,4 +1237,68 @@ const styles = StyleSheet.create({
 
   textarea: { height: 80, textAlignVertical: 'top', paddingTop: 12 },
   actions:  { gap: 10 },
+
+  drawerCardHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  drawerCardTitleGroup: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  drawerIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  drawerActivePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  drawerActivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  drawerMetricsRow: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  drawerMetricItem: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  drawerMetricLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  drawerMetricVal: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  drawerWarningBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  drawerWarningText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

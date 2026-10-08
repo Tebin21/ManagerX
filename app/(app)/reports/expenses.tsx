@@ -12,6 +12,7 @@ import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTranslation } from 'react-i18next';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
@@ -29,7 +30,9 @@ import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
+import { CapitalView } from '@/components/capital/CapitalView';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -566,13 +569,28 @@ export default function ExpensesScreen() {
   const { expenses, reloadAfterMutation, loadExpenses } = useReportStore();
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isTablet } = useResponsive();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const params = useLocalSearchParams<{ tab?: string }>();
 
+  const [activeTab, setActiveTab]       = useState<'expenses' | 'capital'>('expenses');
   const [formOpen, setFormOpen]         = useState(false);
   const [editTarget, setEditTarget]     = useState<Expense | undefined>(undefined);
   const [expenseFilter, setExpenseFilter] = useState<ExpenseFilterKey>('today');
   const [appliedRange, setAppliedRange]   = useState<{ from: string; to: string } | null>(null);
 
   React.useEffect(() => { loadExpenses(); }, []);
+
+  // When navigated into the screen, default to expenses unless explicitly ?tab=capital
+  useFocusEffect(
+    useCallback(() => {
+      if (params.tab === 'capital') {
+        setActiveTab('capital');
+      } else {
+        setActiveTab('expenses');
+      }
+    }, [params.tab])
+  );
 
   const filteredExpenses = useMemo(
     () => applyExpenseFilter(expenses, expenseFilter, appliedRange),
@@ -627,97 +645,160 @@ export default function ExpensesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader
-        title={t('reports.expensesTitle')}
+        title={activeTab === 'capital' ? t('capital.capitalTab') : t('reports.expensesTitle')}
         showBack
-        rightAction={<HeaderActionButton icon="add-circle-outline" onPress={openAdd} />}
+        rightAction={activeTab === 'expenses' ? <HeaderActionButton icon="add-circle-outline" onPress={openAdd} /> : undefined}
       />
 
-      <ExpenseFilterBar
-        filter={expenseFilter}
-        appliedRange={appliedRange}
-        onChange={handleFilterChange}
-      />
+      {/* Segmented Tab Switcher */}
+      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
+        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Expenses Tab */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setActiveTab('expenses')}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'expenses' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
+          >
+            <Ionicons
+              name="receipt-outline"
+              size={isTablet ? 18 : 16}
+              color={activeTab === 'expenses' ? '#FFFFFF' : colors.gray500}
+              style={{ marginEnd: 6 }}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: activeTab === 'expenses' ? '#FFFFFF' : colors.gray600 },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {t('capital.expensesTab')}
+            </Text>
+          </TouchableOpacity>
 
-      <FlatList
-        data={filteredExpenses}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ExpenseCard
-            expense={item}
-            onEdit={() => openEdit(item)}
-            onDelete={() => handleDelete(item.id)}
+          {/* Capital Tab */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setActiveTab('capital')}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'capital' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+            ]}
+          >
+            <Ionicons
+              name="cash-outline"
+              size={isTablet ? 18 : 16}
+              color={activeTab === 'capital' ? '#FFFFFF' : colors.gray500}
+              style={{ marginEnd: 6 }}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: activeTab === 'capital' ? '#FFFFFF' : colors.gray600 },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {t('capital.capitalTab')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {activeTab === 'expenses' ? (
+        <>
+          <ExpenseFilterBar
+            filter={expenseFilter}
+            appliedRange={appliedRange}
+            onChange={handleFilterChange}
           />
-        )}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <>
-            {/* Summary card */}
-            {filteredExpenses.length > 0 && (
-              <MotiView
-                from={{ opacity: 0, translateY: 8 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 300 }}
-              >
-                <PremiumCard style={styles.summaryCard}>
-                  <Text style={[styles.summaryLabel, { color: colors.gray400, textAlign }]}>
-                    {t('reports.totalExpenses')}
-                  </Text>
-                  <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { color: colors.error, textAlign }]} />
 
-                  <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
-                  <View style={[styles.summaryCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={[styles.summaryCountLabel, { color: colors.gray500 }]}>
-                      {t('reports.expenses')}
+          <FlatList
+            data={filteredExpenses}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <ExpenseCard
+                expense={item}
+                onEdit={() => openEdit(item)}
+                onDelete={() => handleDelete(item.id)}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <>
+                {/* Summary card */}
+                {filteredExpenses.length > 0 && (
+                  <MotiView
+                    from={{ opacity: 0, translateY: 8 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 300 }}
+                  >
+                    <PremiumCard style={styles.summaryCard}>
+                      <Text style={[styles.summaryLabel, { color: colors.gray400, textAlign }]}>
+                        {t('reports.totalExpenses')}
+                      </Text>
+                      <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { color: colors.error, textAlign }]} />
+
+                      <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
+                      <View style={[styles.summaryCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.summaryCountLabel, { color: colors.gray500 }]}>
+                          {t('reports.expenses')}
+                        </Text>
+                        <Text style={[styles.summaryCountValue, { color: colors.gray700 }]}>
+                          {filteredExpenses.length}
+                        </Text>
+                      </View>
+                    </PremiumCard>
+                  </MotiView>
+                )}
+
+                {filteredExpenses.length > 0 && (
+                  <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text style={[styles.listTitle, { color: colors.black }]}>
+                      {t('reports.expenses')} ({filteredExpenses.length})
                     </Text>
-                    <Text style={[styles.summaryCountValue, { color: colors.gray700 }]}>
-                      {filteredExpenses.length}
+                    <Text style={[styles.listHint, { color: colors.gray400 }]}>
+                      {t('reports.tapToDelete')}
                     </Text>
                   </View>
-                </PremiumCard>
-              </MotiView>
-            )}
-
-            {filteredExpenses.length > 0 && (
-              <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={[styles.listTitle, { color: colors.black }]}>
-                  {t('reports.expenses')} ({filteredExpenses.length})
+                )}
+              </>
+            }
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <View style={[styles.emptyIconWrap, { backgroundColor: colors.gray100 }]}>
+                  <Ionicons name="wallet-outline" size={40} color={colors.gray400} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.gray600 }]}>
+                  {t('reports.noExpenses')}
                 </Text>
-                <Text style={[styles.listHint, { color: colors.gray400 }]}>
-                  {t('reports.tapToDelete')}
+                <Text style={[styles.emptySub, { color: colors.gray400 }]}>
+                  {t('reports.tapToAddExpense')}
                 </Text>
+                <TouchableOpacity
+                  style={[styles.emptyAddBtn, { backgroundColor: colors.primary, flexDirection }]}
+                  onPress={openAdd}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="add" size={18} color="#fff" style={{ marginEnd: 6 }} />
+                  <Text style={styles.emptyAddBtnLabel}>{t('reports.addExpense')}</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: colors.gray100 }]}>
-              <Ionicons name="wallet-outline" size={40} color={colors.gray400} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.gray600 }]}>
-              {t('reports.noExpenses')}
-            </Text>
-            <Text style={[styles.emptySub, { color: colors.gray400 }]}>
-              {t('reports.tapToAddExpense')}
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyAddBtn, { backgroundColor: colors.primary, flexDirection }]}
-              onPress={openAdd}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="add" size={18} color="#fff" style={{ marginEnd: 6 }} />
-              <Text style={styles.emptyAddBtnLabel}>{t('reports.addExpense')}</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+            }
+          />
 
-      <ExpenseFormModal
-        visible={formOpen}
-        initial={editTarget}
-        onClose={() => setFormOpen(false)}
-        onSave={handleSave}
-      />
+          <ExpenseFormModal
+            visible={formOpen}
+            initial={editTarget}
+            onClose={() => setFormOpen(false)}
+            onSave={handleSave}
+          />
+        </>
+      ) : (
+        <CapitalView />
+      )}
     </View>
   );
 }
@@ -726,6 +807,37 @@ export default function ExpensesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  segmentWrapper: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  segmentTrack: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 4,
+    gap: 6,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 11,
+  },
+  segmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 
   listContent: { padding: 16, paddingBottom: 40 },
 
