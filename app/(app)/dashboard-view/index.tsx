@@ -145,8 +145,8 @@ export default function DashboardViewScreen() {
   }, [loadDashboardData]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: isDark ? colors.black : colors.gray50 }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Screen Header */}
       <AppHeader

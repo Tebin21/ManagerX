@@ -183,8 +183,8 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
         </View>
 
         {activities.length > 0 && (
-          <View style={[styles.countBadge, { backgroundColor: colors.gray100 }]}>
-            <Text style={[styles.countBadgeText, { color: colors.gray500, writingDirection: 'ltr' }]}>
+          <View style={[styles.countBadge, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
+            <Text style={[styles.countBadgeText, { color: isDark ? colors.gray400 : colors.gray500, writingDirection: 'ltr' }]}>
               {toEnglishDigits(activities.length)}
             </Text>
           </View>

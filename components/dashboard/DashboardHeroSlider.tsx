@@ -187,7 +187,7 @@ export function DashboardHeroSlider() {
               <Text
                 style={[
                   styles.emptyTitle,
-                  { color: colors.white, textAlign },
+                  { color: '#FFFFFF', textAlign },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
               >
@@ -219,7 +219,7 @@ export function DashboardHeroSlider() {
       <TouchableOpacity
         activeOpacity={0.95}
         onLongPress={handleOpenManager}
-        style={styles.sliderContainer}
+        style={[styles.sliderContainer, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}
       >
         <FlatList
           ref={flatListRef}
@@ -303,7 +303,7 @@ export function DashboardHeroSlider() {
               </View>
               <TouchableOpacity
                 onPress={() => setModalOpen(false)}
-                style={[styles.closeBtn, { backgroundColor: colors.gray100 }]}
+                style={[styles.closeBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
               >
                 <Ionicons name="close" size={20} color={colors.darkBlue} />
               </TouchableOpacity>
