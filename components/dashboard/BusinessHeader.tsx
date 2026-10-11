@@ -501,14 +501,14 @@ function getStyles(isTablet: boolean) {
   return StyleSheet.create({
     pressableRoot: {
       overflow: 'hidden',
-      borderBottomLeftRadius: 28,
-      borderBottomRightRadius: 28,
-      marginBottom: 4,
+      borderBottomLeftRadius: 32,
+      borderBottomRightRadius: 32,
+      marginBottom: 6,
     },
     gradient: {
       position: 'relative',
-      borderBottomLeftRadius: 28,
-      borderBottomRightRadius: 28,
+      borderBottomLeftRadius: 32,
+      borderBottomRightRadius: 32,
       overflow: 'hidden',
     },
     bgImageContainer: {
@@ -520,9 +520,11 @@ function getStyles(isTablet: boolean) {
       height: '100%',
     },
     container: {
-      paddingTop: isTablet ? 36 : 56,
-      paddingBottom: isTablet ? 26 : 24,
-      paddingHorizontal: isTablet ? 28 : 20,
+      paddingTop: isTablet ? 50 : 70,
+      paddingBottom: isTablet ? 36 : 34,
+      paddingHorizontal: isTablet ? 28 : 22,
+      minHeight: isTablet ? 260 : 230,
+      justifyContent: 'space-between',
     },
     row: {
       flexDirection: 'row',
