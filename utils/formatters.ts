@@ -4,8 +4,23 @@ const IQD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 0, maximumFr
 const USD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 const PCT_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
 
+export function toEnglishDigits(value: string | number | null | undefined): string {
+  if (value == null) return '';
+  const easternToWestern: Record<string, string> = {
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+    '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+    '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+  };
+  return String(value).replace(/[٠-٩۰-۹]/g, (char) => easternToWestern[char] ?? char);
+}
+
 export function fmtIQD(n: number): string {
-  return n.toLocaleString('en-US', IQD_OPTS);
+  return toEnglishDigits(n.toLocaleString('en-US', IQD_OPTS));
+}
+
+export function fmtEnNumber(n: number | null | undefined): string {
+  return toEnglishDigits(Number(n ?? 0).toLocaleString('en-US'));
 }
 
 // ─── Compact Money Display (summary/stat cards only — see CompactAmount) ──────
@@ -25,28 +40,28 @@ function trimTrailingZeros(s: string): string {
 export function formatCompactIQD(n: number): { text: string; isCompact: boolean } {
   const abs = Math.abs(n);
   if (abs >= 1_000_000_000) {
-    return { text: `${trimTrailingZeros((n / 1_000_000_000).toFixed(2))}B`, isCompact: true };
+    return { text: toEnglishDigits(`${trimTrailingZeros((n / 1_000_000_000).toFixed(2))}B`), isCompact: true };
   }
   if (abs >= COMPACT_THRESHOLD) {
-    return { text: `${trimTrailingZeros((n / 1_000_000).toFixed(2))}M`, isCompact: true };
+    return { text: toEnglishDigits(`${trimTrailingZeros((n / 1_000_000).toFixed(2))}M`), isCompact: true };
   }
   return { text: fmtIQD(n), isCompact: false };
 }
 
 export function fmtUSD(n: number): string {
-  return n.toLocaleString('en-US', USD_OPTS);
+  return toEnglishDigits(n.toLocaleString('en-US', USD_OPTS));
 }
 
 export function fmtPct(n: number): string {
-  return n.toLocaleString('en-US', PCT_OPTS);
+  return toEnglishDigits(n.toLocaleString('en-US', PCT_OPTS));
 }
 
 export function fmtRate(n: number): string {
-  return n.toLocaleString('en-US', IQD_OPTS);
+  return toEnglishDigits(n.toLocaleString('en-US', IQD_OPTS));
 }
 
 export function fmtExchangeRate(rate: number): string {
-  return (rate * 100).toLocaleString('en-US', IQD_OPTS);
+  return toEnglishDigits((rate * 100).toLocaleString('en-US', IQD_OPTS));
 }
 
 // ─── Payment Status ───────────────────────────────────────────────────────────

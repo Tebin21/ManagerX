@@ -9,6 +9,7 @@ import { LicenseDetailPage } from './pages/LicenseDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { GenerateOnlineStoreSubscriptionPage } from './pages/GenerateOnlineStoreSubscriptionPage';
 import { OnlineStoreSubscriptionsPage } from './pages/OnlineStoreSubscriptionsPage';
+import { AppUsersPage } from './pages/AppUsersPage';
 
 function ProtectedShell() {
   const { status } = useAuth();
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedShell />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/app-users" element={<AppUsersPage />} />
             <Route path="/generate" element={<GenerateLicensePage />} />
             <Route path="/licenses" element={<LicensesPage />} />
             <Route path="/licenses/:id" element={<LicenseDetailPage />} />

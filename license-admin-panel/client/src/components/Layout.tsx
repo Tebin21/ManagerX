@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
+  { to: '/app-users', label: 'App Users & Installs' },
   { to: '/generate', label: 'Generate License' },
   { to: '/licenses', label: 'Licenses' },
   { to: '/customers', label: 'Customers' },

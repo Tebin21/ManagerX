@@ -398,6 +398,19 @@ async function adoptSignedInUserInner(
   // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
+  // Track real user login in telemetry
+  import('@/lib/telemetry')
+    .then((m) =>
+      m.trackUserLogin({
+        userId: user.uid,
+        email: user.email,
+        phone: user.phoneNumber,
+        displayName: user.displayName,
+        businessName: business.name,
+      })
+    )
+    .catch(() => {});
+
   // Initialize and refresh StoreKit IAP entitlements for the signed-in user
   try {
     const { useIapStore } = await import('@/store/iapStore');

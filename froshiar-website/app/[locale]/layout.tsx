@@ -4,7 +4,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ThemeProvider } from "next-themes";
 import { routing } from "@/i18n/routing";
-import { inter, rudaw } from "@/lib/fonts";
+import { inter, rudaw, bahijJanna } from "@/lib/fonts";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
 import "../globals.css";
 
@@ -72,7 +72,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${rudaw.variable} h-full`}
+      className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full`}
       suppressHydrationWarning
     >
       <body className={`min-h-full flex flex-col antialiased ${bodyFontClass}`}>

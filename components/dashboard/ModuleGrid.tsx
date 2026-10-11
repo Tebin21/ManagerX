@@ -34,8 +34,8 @@ export function ModuleGrid() {
   const {
     modules,
     toggleModuleLayout,
+    setAllLayouts,
     swapModules,
-    moveModule,
     resetToDefaultLayout,
   } = useModuleStore();
 
@@ -70,21 +70,21 @@ export function ModuleGrid() {
     } catch {}
   };
 
-  const handleHold2Seconds = (id: ModuleId) => {
-    animateLayout();
-    toggleModuleLayout(id);
-    setIsCustomizing(true);
-  };
-
-  const handleLongPress = () => {
+  const handleStartCustomize = (id: ModuleId) => {
     animateLayout();
     setIsCustomizing(true);
+    setSelectedIdForSwap(id);
   };
 
   const handleToggleLayout = (id: ModuleId) => {
-    safeImpact(Haptics.ImpactFeedbackStyle.Light);
     animateLayout();
     toggleModuleLayout(id);
+  };
+
+  const handleSetAll = (layout: 'half' | 'full') => {
+    safeImpact(Haptics.ImpactFeedbackStyle.Medium);
+    animateLayout();
+    setAllLayouts(layout);
   };
 
   const handleSelectForSwap = (id: ModuleId) => {
@@ -100,12 +100,6 @@ export function ModuleGrid() {
       swapModules(selectedIdForSwap, id);
       setSelectedIdForSwap(null);
     }
-  };
-
-  const handleMove = (id: ModuleId, dir: 'up' | 'down') => {
-    safeImpact(Haptics.ImpactFeedbackStyle.Light);
-    animateLayout();
-    moveModule(id, dir);
   };
 
   const handleDone = () => {
@@ -186,6 +180,55 @@ export function ModuleGrid() {
             </View>
           </View>
 
+          {/* Quick Shape Toggles: All Square / All Wide */}
+          <View style={[styles.shapeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <TouchableOpacity
+              onPress={() => handleSetAll('half')}
+              activeOpacity={0.7}
+              style={[
+                styles.shapeToggleBtn,
+                {
+                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                },
+              ]}
+            >
+              <Ionicons name="grid-outline" size={13} color={colors.darkBlue} />
+              <Text
+                style={[
+                  styles.shapeToggleText,
+                  { color: colors.darkBlue },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isKurdish ? 'هەمووی چوارگۆشە' : 'All Square'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleSetAll('full')}
+              activeOpacity={0.7}
+              style={[
+                styles.shapeToggleBtn,
+                {
+                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                },
+              ]}
+            >
+              <Ionicons name="reorder-two-outline" size={15} color={colors.darkBlue} />
+              <Text
+                style={[
+                  styles.shapeToggleText,
+                  { color: colors.darkBlue },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isKurdish ? 'هەمووی درێژ' : 'All Wide'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={[styles.toolbarHint, { color: colors.gray500, textAlign }]}>
             {selectedIdForSwap ? t('dashboard.swapTapHint') : t('dashboard.customizeHint')}
           </Text>
@@ -194,7 +237,7 @@ export function ModuleGrid() {
 
       {/* Grid of 7 Buttons */}
       <View style={styles.gridContainer}>
-        {displayModules.map((item, index) => {
+        {displayModules.map((item) => {
           const config = modules[item.id];
           const layout = config?.layout ?? (item.id === 'expenses' ? 'full' : 'half');
           const isSelected = selectedIdForSwap === item.id;
@@ -208,14 +251,9 @@ export function ModuleGrid() {
               layout={layout}
               isCustomizing={isCustomizing}
               isSelectedForSwap={isSelected}
-              onHold2Seconds={() => handleHold2Seconds(item.id)}
-              onLongPress={handleLongPress}
+              onStartCustomize={() => handleStartCustomize(item.id)}
               onToggleLayout={() => handleToggleLayout(item.id)}
               onSelectForSwap={() => handleSelectForSwap(item.id)}
-              onMovePrev={() => handleMove(item.id, 'up')}
-              onMoveNext={() => handleMove(item.id, 'down')}
-              canMovePrev={index > 0}
-              canMoveNext={index < displayModules.length - 1}
             />
           );
         })}
@@ -294,5 +332,24 @@ const styles = StyleSheet.create({
   toolbarHint: {
     fontSize: 11,
     marginTop: 6,
+  },
+  shapeRow: {
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  shapeToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  shapeToggleText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 });

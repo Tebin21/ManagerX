@@ -4235,3 +4235,371 @@ export async function getCashDrawerStats(activatedAt?: string): Promise<CashDraw
     expensesCash: expensesRow?.v ?? 0,
   };
 }
+
+// ─── Dashboard Overview & Recent Activity ──────────────────────────────────
+
+export interface DashboardOverviewStats {
+  totalRevenue: number;
+  totalSales: number;
+  totalInvoices: number;
+  totalPurchasesCost: number;
+  totalPurchasesCount: number;
+  expectedProfit: number;
+  totalDiscount: number;
+  totalExpenses: number;
+  totalCustomers: number;
+  totalSuppliers: number;
+  totalItems: number;
+  lowStockCount: number;
+  customerDebtTotal: number;
+  supplierDebtTotal: number;
+}
+
+export interface DashboardActivityItem {
+  id: string;
+  type:
+    | 'sale'
+    | 'purchase'
+    | 'customer_debt'
+    | 'supplier_debt'
+    | 'expense'
+    | 'capital_deposit'
+    | 'capital_withdraw'
+    | 'customer'
+    | 'supplier';
+  title: string;
+  subtitle: string;
+  amount: number;
+  discount?: number;
+  timestamp: string;
+}
+
+export async function getDashboardOverviewStats(
+  from?: string,
+  to?: string,
+): Promise<DashboardOverviewStats> {
+  const database = await getDatabase();
+
+  const saleWhere = from && to
+    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : `WHERE status != 'cancelled'`;
+
+  const itemWhere = from && to
+    ? `WHERE s.status != 'cancelled' AND datetime(s.created_at) >= datetime('${from}') AND datetime(s.created_at) <= datetime('${to}')`
+    : `WHERE s.status != 'cancelled'`;
+
+  const purchaseWhere = from && to
+    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : `WHERE archived_at IS NULL`;
+
+  const expWhere = from && to
+    ? `WHERE (datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')) OR (date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}')`
+    : '';
+
+  const [
+    salesRow,
+    cogsRow,
+    purchasesRow,
+    expRow,
+    custRow,
+    supRow,
+    prodRow,
+    lowStockRow,
+    custDebtRow,
+    supDebtRow,
+  ] = await Promise.all([
+    // Sales summary
+    database.getFirstAsync<{
+      totalSales: number;
+      totalInvoices: number;
+      totalDiscount: number;
+    }>(`
+      SELECT
+        COALESCE(SUM(grand_total), 0) AS totalSales,
+        COUNT(*) AS totalInvoices,
+        COALESCE(SUM(discount_total), 0) AS totalDiscount
+      FROM sales ${saleWhere}
+    `),
+    // Cost of goods sold for profit calculation
+    database.getFirstAsync<{ totalCOGS: number }>(`
+      SELECT COALESCE(SUM(si.purchase_price * si.quantity), 0) AS totalCOGS
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      ${itemWhere}
+    `),
+    // Purchases summary
+    database.getFirstAsync<{
+      totalCost: number;
+      totalPurchases: number;
+    }>(`
+      SELECT
+        COALESCE(SUM(total_iqd), 0) AS totalCost,
+        COUNT(*) AS totalPurchases
+      FROM purchases ${purchaseWhere}
+    `),
+    // Expenses
+    database.getFirstAsync<{ totalExpenses: number }>(`
+      SELECT COALESCE(SUM(amount), 0) AS totalExpenses
+      FROM expenses ${expWhere}
+    `),
+    // Total Customers
+    database.getFirstAsync<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM customers
+    `),
+    // Total Suppliers
+    database.getFirstAsync<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM suppliers
+    `),
+    // Total Active Products
+    database.getFirstAsync<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM products WHERE is_active = 1
+    `),
+    // Low Stock Products
+    database.getFirstAsync<{ count: number }>(`
+      SELECT COUNT(*) AS count FROM products
+      WHERE is_active = 1 AND quantity <= COALESCE(low_stock_threshold, 3)
+    `),
+    // Active Customer Receivables (Debts)
+    database.getFirstAsync<{ total: number }>(`
+      SELECT COALESCE(SUM(remaining_amount), 0) AS total
+      FROM debts WHERE status = 'active'
+    `),
+    // Active Supplier Payables (Debts)
+    database.getFirstAsync<{ total: number }>(`
+      SELECT COALESCE(SUM(remaining_amount), 0) AS total
+      FROM purchase_debts WHERE status = 'active'
+    `),
+  ]);
+
+  const totalSales = salesRow?.totalSales ?? 0;
+  const totalCOGS = cogsRow?.totalCOGS ?? 0;
+  const totalExpenses = expRow?.totalExpenses ?? 0;
+  const expectedProfit = totalSales - totalCOGS - totalExpenses;
+
+  return {
+    totalRevenue: totalSales,
+    totalSales,
+    totalInvoices: salesRow?.totalInvoices ?? 0,
+    totalPurchasesCost: purchasesRow?.totalCost ?? 0,
+    totalPurchasesCount: purchasesRow?.totalPurchases ?? 0,
+    expectedProfit,
+    totalDiscount: salesRow?.totalDiscount ?? 0,
+    totalExpenses,
+    totalCustomers: custRow?.count ?? 0,
+    totalSuppliers: supRow?.count ?? 0,
+    totalItems: prodRow?.count ?? 0,
+    lowStockCount: lowStockRow?.count ?? 0,
+    customerDebtTotal: custDebtRow?.total ?? 0,
+    supplierDebtTotal: supDebtRow?.total ?? 0,
+  };
+}
+
+export async function getDashboardRecentActivities(
+  limit: number = 40,
+  from?: string,
+  to?: string,
+): Promise<DashboardActivityItem[]> {
+  const database = await getDatabase();
+
+  const saleWhere = from && to
+    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : `WHERE status != 'cancelled'`;
+
+  const purchaseWhere = from && to
+    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : `WHERE archived_at IS NULL`;
+
+  const debtWhere = from && to
+    ? `WHERE datetime(dp.created_at) >= datetime('${from}') AND datetime(dp.created_at) <= datetime('${to}')`
+    : '';
+
+  const expWhere = from && to
+    ? `WHERE (datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')) OR (date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}')`
+    : '';
+
+  const custWhere = from && to
+    ? `WHERE datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : '';
+
+  const supWhere = from && to
+    ? `WHERE datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+    : '';
+
+  const subLimit = from && to ? Math.max(limit, 40) : 15;
+
+  const [
+    salesList,
+    purchasesList,
+    debtPaymentsList,
+    expensesList,
+    customersList,
+    suppliersList,
+  ] = await Promise.all([
+    // Sales
+    database.getAllAsync<{
+      id: number;
+      invoice_number: string;
+      customer_name: string | null;
+      grand_total: number;
+      discount_total: number;
+      created_at: string;
+    }>(`
+      SELECT id, invoice_number, customer_name, grand_total, discount_total, created_at
+      FROM sales
+      ${saleWhere}
+      ORDER BY created_at DESC
+      LIMIT ${subLimit}
+    `),
+    // Purchases
+    database.getAllAsync<{
+      id: number;
+      purchase_number: string;
+      supplier_name: string | null;
+      product_name: string | null;
+      total_iqd: number;
+      created_at: string;
+    }>(`
+      SELECT id, purchase_number, supplier_name, product_name, total_iqd, created_at
+      FROM purchases
+      ${purchaseWhere}
+      ORDER BY created_at DESC
+      LIMIT ${subLimit}
+    `),
+    // Debt Payments
+    database.getAllAsync<{
+      id: number;
+      debt_type: string;
+      amount: number;
+      note: string | null;
+      created_at: string;
+      entity_name: string | null;
+    }>(`
+      SELECT
+        dp.id,
+        dp.debt_type,
+        dp.amount,
+        dp.note,
+        dp.created_at,
+        CASE
+          WHEN dp.debt_type = 'sales' THEN (SELECT customer_name FROM debts WHERE id = dp.debt_id)
+          ELSE (SELECT supplier_name FROM purchase_debts WHERE id = dp.debt_id)
+        END AS entity_name
+      FROM debt_payments dp
+      ${debtWhere}
+      ORDER BY dp.created_at DESC
+      LIMIT ${subLimit}
+    `),
+    // Expenses
+    database.getAllAsync<{
+      id: number;
+      category: string;
+      note: string | null;
+      amount: number;
+      created_at: string;
+    }>(`
+      SELECT id, category, note, amount, created_at
+      FROM expenses
+      ${expWhere}
+      ORDER BY created_at DESC
+      LIMIT ${subLimit}
+    `),
+    // Customers
+    database.getAllAsync<{
+      id: number;
+      name: string;
+      created_at: string;
+    }>(`
+      SELECT id, name, created_at
+      FROM customers
+      ${custWhere}
+      ORDER BY created_at DESC
+      LIMIT ${from && to ? subLimit : 8}
+    `),
+    // Suppliers
+    database.getAllAsync<{
+      id: number;
+      name: string;
+      created_at: string;
+    }>(`
+      SELECT id, name, created_at
+      FROM suppliers
+      ${supWhere}
+      ORDER BY created_at DESC
+      LIMIT ${from && to ? subLimit : 8}
+    `),
+  ]);
+
+  const items: DashboardActivityItem[] = [];
+
+  for (const s of salesList) {
+    items.push({
+      id: `sale_${s.id}`,
+      type: 'sale',
+      title: `پسوولەی #${s.invoice_number}`,
+      subtitle: s.customer_name?.trim() ? s.customer_name : 'کڕیاری گشتی',
+      amount: s.grand_total,
+      discount: s.discount_total,
+      timestamp: s.created_at,
+    });
+  }
+
+  for (const p of purchasesList) {
+    items.push({
+      id: `purchase_${p.id}`,
+      type: 'purchase',
+      title: `کڕین #${p.purchase_number}`,
+      subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || 'کڕینی کاڵا'),
+      amount: p.total_iqd,
+      timestamp: p.created_at,
+    });
+  }
+
+  for (const dp of debtPaymentsList) {
+    const isSales = dp.debt_type === 'sales';
+    items.push({
+      id: `debt_${dp.id}`,
+      type: isSales ? 'customer_debt' : 'supplier_debt',
+      title: isSales ? 'وەرگرتنی قەرز' : 'دانەوەی قەرز',
+      subtitle: dp.entity_name || dp.note || (isSales ? 'کڕیار' : 'دابینکەر'),
+      amount: dp.amount,
+      timestamp: dp.created_at,
+    });
+  }
+
+  for (const e of expensesList) {
+    items.push({
+      id: `expense_${e.id}`,
+      type: 'expense',
+      title: `مەسروفات`,
+      subtitle: e.note || e.category,
+      amount: e.amount,
+      timestamp: e.created_at,
+    });
+  }
+
+  for (const c of customersList) {
+    items.push({
+      id: `cust_${c.id}`,
+      type: 'customer',
+      title: 'کڕیاری نوێ',
+      subtitle: c.name,
+      amount: 0,
+      timestamp: c.created_at,
+    });
+  }
+
+  for (const sup of suppliersList) {
+    items.push({
+      id: `sup_${sup.id}`,
+      type: 'supplier',
+      title: 'دابینکەری نوێ',
+      subtitle: sup.name,
+      amount: 0,
+      timestamp: sup.created_at,
+    });
+  }
+
+  items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return items.slice(0, limit);
+}

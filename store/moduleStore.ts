@@ -16,6 +16,7 @@ export interface ModuleState {
   toggleModule: (id: ModuleId) => void;
   reorderModules: (orderedIds: ModuleId[]) => void;
   setModuleLayout: (id: ModuleId, layout: ModuleLayout) => void;
+  setAllLayouts: (layout: ModuleLayout) => void;
   toggleModuleLayout: (id: ModuleId) => void;
   swapModules: (id1: ModuleId, id2: ModuleId) => void;
   moveModule: (id: ModuleId, direction: 'up' | 'down') => void;
@@ -29,7 +30,8 @@ const defaultModules: Record<ModuleId, ModuleConfig> = {
   inventory: { enabled: true, order: 3, layout: 'half' },
   debt:      { enabled: true, order: 4, layout: 'half' },
   history:   { enabled: true, order: 5, layout: 'half' },
-  expenses:  { enabled: true, order: 6, layout: 'full' },
+  expenses:  { enabled: true, order: 6, layout: 'half' },
+  dashboard: { enabled: true, order: 7, layout: 'half' },
 };
 
 export const useModuleStore = create<ModuleState>()(
@@ -67,6 +69,16 @@ export const useModuleStore = create<ModuleState>()(
               [id]: { ...current, layout },
             },
           };
+        }),
+
+      setAllLayouts: (layout) =>
+        set((state) => {
+          const updated = { ...state.modules };
+          for (const key of Object.keys(updated) as ModuleId[]) {
+            const current = updated[key] ?? defaultModules[key] ?? { enabled: true, order: 99, layout: 'half' };
+            updated[key] = { ...current, layout };
+          }
+          return { modules: updated };
         }),
 
       toggleModuleLayout: (id) =>

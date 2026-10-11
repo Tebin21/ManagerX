@@ -19,6 +19,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { useRouter } from 'expo-router';
@@ -48,6 +49,15 @@ import { useBusinessStore }  from '@/store/businessStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useSettingsStore }  from '@/store/settingsStore';
 import { useLanguageStore }  from '@/store/languageStore';
+import {
+  getGoogleDriveConfig,
+  connectGoogleDrive,
+  disconnectGoogleDrive,
+  uploadBackupToGoogleDrive,
+  restoreBackupFromGoogleDrive,
+  setAutoBackupEnabled,
+  type GoogleDriveConfig,
+} from '@/lib/googleDriveBackup';
 
 // Expo Go bundles a fixed set of native modules. Custom modules added to
 // package.json (like expo-document-picker) are NOT available there.
@@ -74,7 +84,128 @@ export default function DataScreen() {
   const [restoreProgress,  setRestoreProgress]  = useState<{ table: string; index: number; total: number } | null>(null);
   const [restoreSummary,   setRestoreSummary]   = useState<RestoreSummary | null>(null);
 
-  useEffect(() => { void loadDbStats(); }, []);
+  // Google Drive state
+  const [gdriveConfig,     setGdriveConfig]     = useState<GoogleDriveConfig | null>(null);
+  const [gdriveLoading,    setGdriveLoading]    = useState(false);
+  const [gdriveSyncing,    setGdriveSyncing]    = useState(false);
+  const [gdriveRestoring,  setGdriveRestoring]  = useState(false);
+
+  useEffect(() => {
+    void loadDbStats();
+    void loadGdriveConfig();
+  }, []);
+
+  async function loadGdriveConfig() {
+    try {
+      const cfg = await getGoogleDriveConfig();
+      setGdriveConfig(cfg);
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  async function handleConnectGDrive() {
+    setGdriveLoading(true);
+    try {
+      const cfg = await connectGoogleDrive();
+      setGdriveConfig(cfg);
+      Alert.alert(
+        t('settings.dataScreen.googleDriveConnected'),
+        cfg.email ?? ''
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (!msg.includes('CANCELED') && !msg.includes('SIGN_IN_CANCELLED')) {
+        Alert.alert(t('common.error'), t('common.tryAgain'));
+      }
+    } finally {
+      setGdriveLoading(false);
+    }
+  }
+
+  async function handleDisconnectGDrive() {
+    Alert.alert(
+      t('settings.dataScreen.googleDriveDisconnectBtn'),
+      t('settings.dataScreen.googleDriveDisconnectBtn') + '?',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.dataScreen.googleDriveDisconnectBtn'),
+          style: 'destructive',
+          onPress: async () => {
+            await disconnectGoogleDrive();
+            await loadGdriveConfig();
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleGDriveBackup() {
+    setGdriveSyncing(true);
+    try {
+      await uploadBackupToGoogleDrive();
+      await loadGdriveConfig();
+      Alert.alert(
+        t('settings.dataScreen.googleDriveBackupSuccess'),
+        t('settings.dataScreen.googleDriveBackupSuccessMsg')
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'GDRIVE_AUTH_REQUIRED') {
+        Alert.alert(t('common.error'), t('settings.dataScreen.googleDriveNotConnected'));
+      } else {
+        Alert.alert(t('settings.dataScreen.backupError'), t('settings.dataScreen.backupErrorMsg'));
+      }
+    } finally {
+      setGdriveSyncing(false);
+    }
+  }
+
+  async function handleGDriveRestore() {
+    Alert.alert(
+      t('settings.dataScreen.googleDriveRestoreConfirmTitle'),
+      t('settings.dataScreen.googleDriveRestoreConfirmMsg'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.dataScreen.restoreConfirm'),
+          onPress: async () => {
+            setGdriveRestoring(true);
+            try {
+              const summary = await restoreBackupFromGoogleDrive((event) => {
+                setRestoreProgress({ table: event.table, index: event.index, total: event.total });
+              });
+              await loadDbStats();
+              await loadGdriveConfig();
+              setRestoreSummary(summary);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : '';
+              if (msg === 'NO_GDRIVE_BACKUP_FOUND') {
+                Alert.alert(t('common.error'), t('settings.dataScreen.googleDriveNoBackupFound'));
+              } else if (msg.startsWith('RESTORE_LIMIT_EXCEEDED|')) {
+                const [needed, limit] = msg.split('|')[1].split(',');
+                Alert.alert(
+                  t('settings.dataScreen.restoreLimitExceededTitle'),
+                  t('settings.dataScreen.restoreLimitExceededMsg', { needed, limit })
+                );
+              } else {
+                Alert.alert(t('settings.dataScreen.restoreError'), t('settings.dataScreen.restoreErrorMsg'));
+              }
+            } finally {
+              setGdriveRestoring(false);
+              setRestoreProgress(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleToggleGDriveAuto(val: boolean) {
+    await setAutoBackupEnabled(val);
+    await loadGdriveConfig();
+  }
 
   async function loadDbStats() {
     try {
@@ -326,6 +457,144 @@ export default function DataScreen() {
       <AppHeader title={t('settings.dataScreen.title')} showBack />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+
+        {/* ── Google Drive Personal Cloud Backup ─────────────────────── */}
+        <SettingSection title={t('settings.dataScreen.googleDriveSection')}>
+          <View
+            style={[
+              styles.gdriveBanner,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.30)' : '#FDE047',
+              },
+            ]}
+          >
+            <View style={{ flexDirection, alignItems: 'center', gap: 8 }}>
+              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+              <Text
+                style={[
+                  styles.gdriveBannerText,
+                  { color: isDark ? colors.primary : '#854D0E' },
+                ]}
+              >
+                {t('settings.dataScreen.googleDrivePrivacyBadge')}
+              </Text>
+            </View>
+          </View>
+
+          <SettingRow
+            icon="logo-google"
+            label={
+              gdriveConfig?.isConnected
+                ? (gdriveConfig.email ?? t('settings.dataScreen.googleDriveConnected'))
+                : t('settings.dataScreen.googleDriveNotConnected')
+            }
+            sub={
+              gdriveConfig?.isConnected
+                ? t('settings.dataScreen.googleDriveConnected')
+                : t('settings.dataScreen.googleDriveConnectBtn')
+            }
+            chevron={false}
+            onPress={
+              gdriveConfig?.isConnected
+                ? handleDisconnectGDrive
+                : handleConnectGDrive
+            }
+            rightElement={
+              gdriveLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <TouchableOpacity
+                  onPress={
+                    gdriveConfig?.isConnected
+                      ? handleDisconnectGDrive
+                      : handleConnectGDrive
+                  }
+                  style={[
+                    styles.gdriveActionBtn,
+                    {
+                      backgroundColor: gdriveConfig?.isConnected
+                        ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2')
+                        : colors.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.gdriveActionBtnText,
+                      {
+                        color: gdriveConfig?.isConnected
+                          ? '#EF4444'
+                          : '#FFFFFF',
+                      },
+                    ]}
+                  >
+                    {gdriveConfig?.isConnected
+                      ? t('settings.dataScreen.googleDriveDisconnectBtn')
+                      : t('settings.dataScreen.googleDriveConnectBtn')}
+                  </Text>
+                </TouchableOpacity>
+              )
+            }
+          />
+
+          {gdriveConfig?.isConnected && (
+            <>
+              <SettingRow
+                icon="sync"
+                label={t('settings.dataScreen.googleDriveAutoBackup')}
+                sub={t('settings.dataScreen.googleDriveAutoBackupSub')}
+                chevron={false}
+                rightElement={
+                  <Switch
+                    value={gdriveConfig.autoBackupEnabled}
+                    onValueChange={handleToggleGDriveAuto}
+                    trackColor={{ false: colors.gray200, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                }
+              />
+
+              <SettingRow
+                icon="cloud-upload"
+                label={t('settings.dataScreen.googleDriveBackupNow')}
+                sub={
+                  gdriveConfig.lastBackupAt
+                    ? t('settings.dataScreen.googleDriveLastBackup', {
+                        time: new Date(gdriveConfig.lastBackupAt).toLocaleString(),
+                      })
+                    : t('settings.dataScreen.googleDriveNeverBackedUp')
+                }
+                onPress={handleGDriveBackup}
+                disabled={gdriveSyncing || gdriveRestoring}
+                rightElement={
+                  gdriveSyncing ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : undefined
+                }
+              />
+
+              <SettingRow
+                icon="cloud-download"
+                label={t('settings.dataScreen.googleDriveRestore')}
+                sub={
+                  gdriveConfig.lastBackupSize
+                    ? `${(gdriveConfig.lastBackupSize / 1024).toFixed(1)} KB · ${t(
+                        'settings.dataScreen.googleDriveRestoreSub'
+                      )}`
+                    : t('settings.dataScreen.googleDriveRestoreSub')
+                }
+                onPress={handleGDriveRestore}
+                disabled={gdriveSyncing || gdriveRestoring}
+                rightElement={
+                  gdriveRestoring ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : undefined
+                }
+              />
+            </>
+          )}
+        </SettingSection>
 
         {/* ── Backup & Restore ─────────────────────────────────────────── */}
         <SettingSection title={t('settings.dataScreen.backupRestore')}>
@@ -689,5 +958,28 @@ const styles = StyleSheet.create({
     marginBottom:  20,
     textAlign:     'center',
     letterSpacing: 2,
+  },
+  gdriveBanner: {
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  gdriveBannerText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  gdriveActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gdriveActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

@@ -1,21 +1,18 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Pressable,
   View,
   StyleSheet,
   Animated,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
+import { useRTL } from '@/lib/rtl';
 import i18n from '@/lib/i18n';
-import { darken } from '@/lib/colorUtils';
 import { ModuleDefinition } from '@/constants/config';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -29,28 +26,125 @@ interface Props {
   isCustomizing?: boolean;
   isSelectedForSwap?: boolean;
   onPress?: () => void;
-  onLongPress?: () => void;
-  onHold2Seconds?: () => void;
+  onStartCustomize?: () => void;
   onToggleLayout?: () => void;
   onSelectForSwap?: () => void;
-  onMovePrev?: () => void;
-  onMoveNext?: () => void;
-  canMovePrev?: boolean;
-  canMoveNext?: boolean;
 }
 
-function getModuleIcon(id: string): keyof typeof Ionicons.glyphMap {
-  switch (id) {
-    case 'purchases': return 'cart';
-    case 'sales':     return 'receipt';
-    case 'inventory': return 'cube';
-    case 'reports':   return 'bar-chart';
-    case 'history':   return 'time';
-    case 'debt':      return 'wallet';
-    case 'expenses':  return 'cash';
-    default:          return 'grid';
-  }
+interface ModuleVisualTheme {
+  iconName: keyof typeof Ionicons.glyphMap;
+  tagKu: string;
+  tagEn: string;
+  subtitleKu: string;
+  subtitleEn: string;
+  iconColor: string;
+  circleBg: string;
+  circleBorder: string;
+  glowColor: string;
 }
+
+const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
+  sales: {
+    iconName: 'receipt-outline',
+    tagKu: 'فرۆشتن',
+    tagEn: 'Sales',
+    subtitleKu: 'تۆمارکردنی فرۆشتنی نوێ',
+    subtitleEn: 'Create sale invoice',
+    iconColor: '#059669',
+    circleBg: '#ECFDF5',
+    circleBorder: '#A7F3D0',
+    glowColor: 'rgba(16, 185, 129, 0.28)',
+  },
+  purchases: {
+    iconName: 'cart-outline',
+    tagKu: 'کڕین',
+    tagEn: 'Purchases',
+    subtitleKu: 'تۆمارکردنی پسوولەی کڕین',
+    subtitleEn: 'Record purchases',
+    iconColor: '#EA580C',
+    circleBg: '#FFF7ED',
+    circleBorder: '#FED7AA',
+    glowColor: 'rgba(234, 88, 12, 0.28)',
+  },
+  inventory: {
+    iconName: 'cube-outline',
+    tagKu: 'کۆگا',
+    tagEn: 'Stock',
+    subtitleKu: 'بەڕێوەبردنی کاڵا و کۆگا',
+    subtitleEn: 'Stock & catalog',
+    iconColor: '#0284C7',
+    circleBg: '#F0F9FF',
+    circleBorder: '#BAE6FD',
+    glowColor: 'rgba(2, 132, 199, 0.28)',
+  },
+  reports: {
+    iconName: 'bar-chart-outline',
+    tagKu: 'شیکاری',
+    tagEn: 'Analytics',
+    subtitleKu: 'بینینی ڕاپۆرت و شیکاری',
+    subtitleEn: 'Analytics & profit',
+    iconColor: '#6366F1',
+    circleBg: '#EEF2FF',
+    circleBorder: '#C7D2FE',
+    glowColor: 'rgba(99, 102, 241, 0.28)',
+  },
+  debt: {
+    iconName: 'wallet-outline',
+    tagKu: 'دارایی',
+    tagEn: 'Finance',
+    subtitleKu: 'قەرزی کڕیار و دابینکەر',
+    subtitleEn: 'Clients & suppliers debt',
+    iconColor: '#D97706',
+    circleBg: '#FEF3C7',
+    circleBorder: '#FDE68A',
+    glowColor: 'rgba(217, 119, 6, 0.28)',
+  },
+  history: {
+    iconName: 'time-outline',
+    tagKu: 'مێژوو',
+    tagEn: 'History',
+    subtitleKu: 'مێژووی فرۆشتن و کڕین',
+    subtitleEn: 'Timeline of sales',
+    iconColor: '#0D9488',
+    circleBg: '#F0FDFA',
+    circleBorder: '#99F6E4',
+    glowColor: 'rgba(13, 148, 136, 0.28)',
+  },
+  expenses: {
+    iconName: 'cash-outline',
+    tagKu: 'خەرجی',
+    tagEn: 'Expenses',
+    subtitleKu: 'تۆمارکردن و بەڕێوەبردن',
+    subtitleEn: 'Operating expenses',
+    iconColor: '#E11D48',
+    circleBg: '#FFF1F2',
+    circleBorder: '#FECDD3',
+    glowColor: 'rgba(225, 29, 72, 0.28)',
+  },
+  dashboard: {
+    iconName: 'grid-outline',
+    tagKu: 'داشبۆرد',
+    tagEn: 'Overview',
+    subtitleKu: 'ئاماری کار، چارت و شیکاری',
+    subtitleEn: 'Business overview & charts',
+    iconColor: '#7C3AED',
+    circleBg: '#F5F3FF',
+    circleBorder: '#DDD6FE',
+    glowColor: 'rgba(124, 58, 237, 0.28)',
+  },
+};
+
+const DEFAULT_THEME: ModuleVisualTheme = {
+  iconName: 'grid-outline',
+  tagKu: 'سیستەم',
+  tagEn: 'Module',
+  subtitleKu: 'بەڕێوەبردنی کار',
+  subtitleEn: 'Manage module',
+  iconColor: '#475569',
+  circleBg: '#F1F5F9',
+  circleBorder: '#E2E8F0',
+  glowColor: 'rgba(71, 85, 105, 0.2)',
+};
 
 export function ModuleCard({
   module,
@@ -60,48 +154,47 @@ export function ModuleCard({
   isCustomizing = false,
   isSelectedForSwap = false,
   onPress,
-  onLongPress,
-  onHold2Seconds,
+  onStartCustomize,
   onToggleLayout,
   onSelectForSwap,
-  onMovePrev,
-  onMoveNext,
-  canMovePrev = false,
-  canMoveNext = false,
 }: Props) {
   const router = useRouter();
-  const { colors } = useAppTheme();
-  const { isTablet, isLargeTablet, moduleCardHeight } = useResponsive();
+  const { colors, isDark } = useAppTheme();
+  const { isTablet, isLargeTablet } = useResponsive();
+  const { isRTL } = useRTL();
   const lang = useLanguageStore((s) => s.language);
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
 
   const isFull = layout === 'full';
-  const DEPTH = isTablet ? 7 : 5;
-  const bannerHeight = isLargeTablet ? 84 : isTablet ? 76 : 64;
-  const currentHeight = isFull ? bannerHeight : moduleCardHeight;
-  const iconSize = isFull ? (isTablet ? 30 : 24) : (isTablet ? 28 : 22);
+  const theme = MODULE_THEMES[module.id] || DEFAULT_THEME;
+
+  const [isLifted, setIsLifted] = useState(false);
 
   const pressAnim = useRef(new Animated.Value(0)).current;
+  const liftAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // 2-second hold timer and recurring interval refs
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Timers for hold detection and 2-second alternating shape cycle
+  const liftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shapeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const hasTriggeredHoldRef = useRef(false);
+  const hasToggledShapeRef = useRef(false);
 
   // Pulse animation when selected for swap
   useEffect(() => {
-    if (isSelectedForSwap) {
+    if (isSelectedForSwap && !isLifted) {
       const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.03,
-            duration: 400,
+            duration: 450,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 0.98,
-            duration: 400,
+            duration: 450,
             useNativeDriver: true,
           }),
         ])
@@ -111,16 +204,20 @@ export function ModuleCard({
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isSelectedForSwap, pulseAnim]);
+  }, [isSelectedForSwap, isLifted, pulseAnim]);
 
   const clearTimers = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
+    if (liftTimerRef.current) {
+      clearTimeout(liftTimerRef.current);
+      liftTimerRef.current = null;
     }
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
+    if (shapeTimerRef.current) {
+      clearTimeout(shapeTimerRef.current);
+      shapeTimerRef.current = null;
+    }
+    if (shapeIntervalRef.current) {
+      clearInterval(shapeIntervalRef.current);
+      shapeIntervalRef.current = null;
     }
   };
 
@@ -128,13 +225,12 @@ export function ModuleCard({
     return () => clearTimers();
   }, []);
 
-  const safeHaptic = (type: Haptics.NotificationFeedbackType = Haptics.NotificationFeedbackType.Success) => {
-    try {
-      Haptics.notificationAsync(type).catch(() => {});
-    } catch {}
-  };
-
   const handlePressIn = () => {
+    hasTriggeredHoldRef.current = false;
+    hasToggledShapeRef.current = false;
+    clearTimers();
+
+    // 1. Initial downward press feedback
     Animated.spring(pressAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -142,31 +238,69 @@ export function ModuleCard({
       friction: 18,
     }).start();
 
-    hasTriggeredHoldRef.current = false;
-    clearTimers();
-
-    // Start 2-second hold detection
-    holdTimerRef.current = setTimeout(() => {
+    // 2. Lift Elevation Timer (~350ms):
+    liftTimerRef.current = setTimeout(() => {
       hasTriggeredHoldRef.current = true;
-      safeHaptic(Haptics.NotificationFeedbackType.Success);
-      onHold2Seconds?.();
+      setIsLifted(true);
 
-      // If user continues holding, toggle every 2 seconds
-      holdIntervalRef.current = setInterval(() => {
-        safeHaptic(Haptics.NotificationFeedbackType.Success);
-        onHold2Seconds?.();
+      Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true }).start();
+      Animated.spring(liftAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 320,
+        friction: 18,
+      }).start();
+
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+
+      onStartCustomize?.();
+    }, 350);
+
+    // 3. 2-Second Alternating Shape Cycle:
+    shapeTimerRef.current = setTimeout(() => {
+      hasToggledShapeRef.current = true;
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+
+      onToggleLayout?.();
+
+      shapeIntervalRef.current = setInterval(() => {
+        hasToggledShapeRef.current = true;
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        } catch {}
+
+        onToggleLayout?.();
       }, 2000);
     }, 2000);
   };
 
   const handlePressOut = () => {
     clearTimers();
+    setIsLifted(false);
+
     Animated.spring(pressAnim, {
       toValue: 0,
       useNativeDriver: true,
       tension: 280,
       friction: 18,
     }).start();
+
+    Animated.spring(liftAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 280,
+      friction: 18,
+    }).start();
+
+    if (hasToggledShapeRef.current) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      } catch {}
+    }
   };
 
   const handlePress = () => {
@@ -188,26 +322,36 @@ export function ModuleCard({
     }
   };
 
-  const handleLongPress = () => {
-    if (hasTriggeredHoldRef.current) return;
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    } catch {}
-    onLongPress?.();
-  };
-
-  const translateY = pressAnim.interpolate({
+  const normalPressTranslate = pressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, DEPTH - 1],
+    outputRange: [0, 3.5],
   });
 
-  const gradColors: [string, string] = [colors.gradientStart, colors.gradientMid];
-  const baseBg = darken(colors.gradientStart, 0.16);
-  const iconName = getModuleIcon(module.id);
+  const liftTranslate = liftAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -8],
+  });
+
+  const translateY = Animated.add(normalPressTranslate, liftTranslate);
+
+  const pressScale = pressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.985],
+  });
+
+  const liftScale = liftAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.04],
+  });
+
+  const totalScale = Animated.multiply(
+    Animated.multiply(pulseAnim, liftScale),
+    pressScale
+  );
 
   const styles = useMemo(
-    () => getStyles(isTablet, DEPTH, currentHeight, isFull),
-    [isTablet, DEPTH, currentHeight, isFull]
+    () => getStyles(isTablet, isLargeTablet, isFull, isDark),
+    [isTablet, isLargeTablet, isFull, isDark]
   );
 
   return (
@@ -216,275 +360,332 @@ export function ModuleCard({
         styles.container,
         {
           opacity: enabled ? 1 : 0.5,
-          transform: [{ scale: pulseAnim }],
+          transform: [{ scale: totalScale }, { translateY }],
+          zIndex: isLifted || isSelectedForSwap ? 999 : 1,
         },
       ]}
     >
       <Pressable
         onPress={handlePress}
-        onLongPress={handleLongPress}
-        delayLongPress={550}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={styles.pressable}
       >
-        <View style={styles.cardWrapper}>
-          {/* 3D Base Shadow */}
-          <View
-            style={[
-              styles.baseCard,
-              {
-                backgroundColor: baseBg,
-                shadowColor: baseBg,
-              },
-            ]}
-          />
-
-          {/* Top Surface */}
-          <Animated.View
-            style={[
-              styles.surfaceWrapper,
-              {
-                transform: [{ translateY }],
-                borderColor: isSelectedForSwap
-                  ? '#38BDF8'
-                  : isCustomizing
-                  ? 'rgba(255, 255, 255, 0.45)'
-                  : 'rgba(255, 255, 255, 0.16)',
-                borderWidth: isSelectedForSwap ? 2.5 : isCustomizing ? 1.5 : 1,
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={gradColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.surface}
-            >
-              {/* Main Content */}
-              <View style={styles.contentRow}>
-                {isKurdish ? (
-                  <>
-                    <Text
-                      style={[
-                        styles.label,
-                        { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                      ]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.72}
-                    >
-                      {label}
-                    </Text>
-                    <Ionicons
-                      name={iconName}
-                      size={iconSize}
-                      color="#FFFFFF"
-                      style={styles.iconKurdish}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Ionicons
-                      name={iconName}
-                      size={iconSize}
-                      color="#FFFFFF"
-                      style={styles.iconEnglish}
-                    />
-                    <Text
-                      style={styles.label}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.72}
-                    >
-                      {label}
-                    </Text>
-                  </>
-                )}
+        <View
+          style={[
+            styles.cardSurface,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderTopWidth: isLifted || isSelectedForSwap ? 2 : 1,
+              borderLeftWidth: isLifted || isSelectedForSwap ? 2 : 1,
+              borderRightWidth: isLifted || isSelectedForSwap ? 2 : 1,
+              borderBottomWidth: isLifted || isSelectedForSwap ? 2 : 3.5,
+              borderTopColor: isLifted
+                ? colors.primary
+                : isSelectedForSwap
+                ? '#38BDF8'
+                : isDark
+                ? '#334155'
+                : '#F1F5F9',
+              borderLeftColor: isLifted
+                ? colors.primary
+                : isSelectedForSwap
+                ? '#38BDF8'
+                : isDark
+                ? '#334155'
+                : '#E2E8F0',
+              borderRightColor: isLifted
+                ? colors.primary
+                : isSelectedForSwap
+                ? '#38BDF8'
+                : isDark
+                ? '#334155'
+                : '#E2E8F0',
+              borderBottomColor: isLifted
+                ? colors.primary
+                : isSelectedForSwap
+                ? '#38BDF8'
+                : isDark
+                ? '#0F172A'
+                : '#CBD5E1',
+            },
+            isLifted && styles.cardLifted,
+          ]}
+        >
+          {isFull ? (
+            /* WIDE (DRÊZH) BANNER LAYOUT */
+            <View style={[styles.wideRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* 1. Leading Colored Glow Circle */}
+              <View
+                style={[
+                  styles.circleContainerWide,
+                  {
+                    backgroundColor: isDark ? theme.iconColor + '20' : theme.circleBg,
+                    borderColor: isDark ? theme.iconColor + '40' : theme.circleBorder,
+                    shadowColor: theme.glowColor,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={theme.iconName}
+                  size={isTablet ? 25 : 22}
+                  color={theme.iconColor}
+                />
               </View>
 
-              {/* Disabled Lock Badge */}
-              {!enabled && (
-                <View style={styles.lockBadge}>
-                  <Ionicons name="lock-closed" size={isTablet ? 14 : 11} color="#FFFFFF" />
-                </View>
-              )}
+              {/* 2. Middle Title & Subtitle */}
+              <View
+                style={[
+                  styles.wideTextGroup,
+                  { alignItems: isRTL ? 'flex-end' : 'flex-start' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.titleWide,
+                    { color: isDark ? '#F8FAFC' : '#0F172A', textAlign: isRTL ? 'right' : 'left' },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
+                <Text
+                  style={[
+                    styles.subtitleWide,
+                    { color: '#94A3B8', textAlign: isRTL ? 'right' : 'left' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isKurdish ? theme.subtitleKu : theme.subtitleEn}
+                </Text>
+              </View>
 
-              {/* Customize Mode Controls Overlay */}
-              {isCustomizing && (
-                <View style={styles.customizeBar}>
-                  {/* Left / Prev Move button */}
-                  {canMovePrev && (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onMovePrev?.();
-                      }}
-                      hitSlop={8}
-                      style={styles.miniCtrlBtn}
-                    >
-                      <Ionicons
-                        name={isKurdish ? 'arrow-forward-outline' : 'arrow-back-outline'}
-                        size={14}
-                        color="#FFFFFF"
-                      />
-                    </TouchableOpacity>
-                  )}
+              {/* 3. Trailing Navigation Arrow */}
+              <View style={[styles.wideTrailingGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name={isRTL ? 'chevron-back' : 'chevron-forward'}
+                  size={16}
+                  color={isDark ? '#64748B' : '#94A3B8'}
+                  style={{ marginHorizontal: 2 }}
+                />
+              </View>
+            </View>
+          ) : (
+            /* SQUARE (CHWARGÔSHE) CARD LAYOUT */
+            <View style={styles.squareContent}>
+              {/* Centered Glowing Pastel Circle Icon */}
+              <View
+                style={[
+                  styles.circleContainerSquare,
+                  {
+                    backgroundColor: isDark ? theme.iconColor + '20' : theme.circleBg,
+                    borderColor: isDark ? theme.iconColor + '40' : theme.circleBorder,
+                    shadowColor: theme.glowColor,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={theme.iconName}
+                  size={isTablet ? 28 : 25}
+                  color={theme.iconColor}
+                />
+              </View>
 
-                  {/* Size Toggle (Half <-> Full) button */}
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onToggleLayout?.();
-                    }}
-                    hitSlop={8}
-                    style={[styles.miniCtrlBtn, styles.sizeToggleBtn]}
-                  >
-                    <Ionicons
-                      name={isFull ? 'contract-outline' : 'expand-outline'}
-                      size={14}
-                      color="#FFFFFF"
-                    />
-                  </TouchableOpacity>
+              {/* Main Title */}
+              <Text
+                style={[
+                  styles.titleSquare,
+                  { color: isDark ? '#F8FAFC' : '#0F172A' },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
 
-                  {/* Right / Next Move button */}
-                  {canMoveNext && (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onMoveNext?.();
-                      }}
-                      hitSlop={8}
-                      style={styles.miniCtrlBtn}
-                    >
-                      <Ionicons
-                        name={isKurdish ? 'arrow-back-outline' : 'arrow-forward-outline'}
-                        size={14}
-                        color="#FFFFFF"
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
+              {/* Subtitle / Description */}
+              <Text
+                style={[
+                  styles.subtitleSquare,
+                  { color: '#94A3B8' },
+                ]}
+                numberOfLines={1}
+              >
+                {isKurdish ? theme.subtitleKu : theme.subtitleEn}
+              </Text>
+            </View>
+          )}
 
-              {/* Selection Tag when active for swap */}
-              {isSelectedForSwap && (
-                <View style={styles.selectedBadge}>
-                  <Text style={styles.selectedBadgeText}>
-                    {isKurdish ? 'هەڵبژێردراو' : 'Selected'}
-                  </Text>
-                </View>
-              )}
-            </LinearGradient>
-          </Animated.View>
+          {/* Disabled Lock Badge */}
+          {!enabled && (
+            <View style={styles.lockBadge}>
+              <Ionicons name="lock-closed" size={isTablet ? 14 : 11} color="#64748B" />
+            </View>
+          )}
+
+          {/* Customization Mini Toggle (Square <-> Wide) */}
+          {isCustomizing && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onToggleLayout?.();
+              }}
+              style={[
+                styles.customizeMiniToggle,
+                {
+                  backgroundColor: colors.primary,
+                  left: isRTL ? 10 : undefined,
+                  right: isRTL ? undefined : 10,
+                },
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={isFull ? 'grid-outline' : 'reorder-two-outline'}
+                size={14}
+                color="#FFFFFF"
+              />
+            </Pressable>
+          )}
         </View>
       </Pressable>
     </Animated.View>
   );
 }
 
-function getStyles(isTablet: boolean, depth: number, height: number, isFull: boolean) {
+function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, isDark: boolean) {
+  const squareHeight = isLargeTablet ? 172 : isTablet ? 160 : 142;
+  const wideHeight = isLargeTablet ? 94 : isTablet ? 88 : 78;
+
   return StyleSheet.create({
     container: {
       width: isFull ? '100%' : isTablet ? '31.8%' : '48.5%',
-      marginVertical: isTablet ? 6 : 4,
+      marginVertical: isTablet ? 6 : 5,
     },
     pressable: {
       width: '100%',
     },
-    cardWrapper: {
-      position: 'relative',
-      paddingBottom: depth,
-    },
-    baseCard: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      top: isTablet ? 16 : 12,
-      borderRadius: isTablet ? 24 : 20,
-      shadowOffset: { width: 0, height: isTablet ? 6 : 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: isTablet ? 8 : 6,
-      elevation: 5,
-    },
-    surfaceWrapper: {
-      borderRadius: isTablet ? 24 : 20,
-      overflow: 'hidden',
-    },
-    surface: {
-      height,
-      borderRadius: isTablet ? 24 : 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: isTablet ? 16 : 12,
-      paddingVertical: isFull ? (isTablet ? 12 : 8) : isTablet ? 18 : 14,
-      position: 'relative',
-    },
-    contentRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+    cardSurface: {
       width: '100%',
+      minHeight: isFull ? wideHeight : squareHeight,
+      borderRadius: isTablet ? 24 : 22,
+      paddingHorizontal: isFull ? (isTablet ? 18 : 14) : 10,
+      paddingVertical: isFull ? 12 : 12,
+      justifyContent: 'center',
+      // Tactile 3D Grey Shadow (crisp depth in both light & dark mode)
+      shadowColor: isDark ? '#000000' : '#475569',
+      shadowOffset: { width: 0, height: 4.5 },
+      shadowOpacity: isDark ? 0.45 : 0.16,
+      shadowRadius: isDark ? 6.5 : 5.5,
+      elevation: 5,
+      position: 'relative',
     },
-    label: {
-      fontSize: isFull ? (isTablet ? 22 : 18) : isTablet ? 26 : 22,
+    cardLifted: {
+      shadowColor: isDark ? '#000000' : '#334155',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: isDark ? 0.65 : 0.28,
+      shadowRadius: 18,
+      elevation: 16,
+    },
+
+    /* SQUARE LAYOUT STYLES */
+    squareContent: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    },
+    circleContainerSquare: {
+      width: isTablet ? 58 : 52,
+      height: isTablet ? 58 : 52,
+      borderRadius: isTablet ? 29 : 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      marginTop: 2,
+      marginBottom: 9,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.38,
+      shadowRadius: 9,
+      elevation: 4,
+    },
+    titleSquare: {
+      fontSize: isTablet ? 16.5 : 14.5,
       fontWeight: '700',
-      color: '#FFFFFF',
       textAlign: 'center',
+      letterSpacing: -0.2,
+      marginBottom: 3,
     },
-    iconKurdish: {
-      marginLeft: isTablet ? 12 : 8,
+    subtitleSquare: {
+      fontSize: isTablet ? 11 : 9.5,
+      fontWeight: '500',
+      textAlign: 'center',
+      paddingHorizontal: 4,
     },
-    iconEnglish: {
-      marginRight: isTablet ? 12 : 8,
+
+    /* WIDE LAYOUT STYLES */
+    wideRow: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
+    circleContainerWide: {
+      width: isTablet ? 50 : 46,
+      height: isTablet ? 50 : 46,
+      borderRadius: isTablet ? 25 : 23,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.32,
+      shadowRadius: 7,
+      elevation: 3,
+    },
+    wideTextGroup: {
+      flex: 1,
+      marginHorizontal: 12,
+      justifyContent: 'center',
+    },
+    titleWide: {
+      fontSize: isTablet ? 17 : 15,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      marginBottom: 2,
+    },
+    subtitleWide: {
+      fontSize: isTablet ? 11.5 : 10,
+      fontWeight: '500',
+    },
+    wideTrailingGroup: {
+      alignItems: 'center',
+    },
+    /* LOCK & TOGGLE */
     lockBadge: {
       position: 'absolute',
-      top: 8,
-      right: 8,
-      width: isTablet ? 24 : 20,
-      height: isTablet ? 24 : 20,
-      borderRadius: isTablet ? 12 : 10,
-      backgroundColor: 'rgba(0,0,0,0.25)',
+      bottom: 8,
+      left: 8,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: 'rgba(148, 163, 184, 0.15)',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    customizeBar: {
+    customizeMiniToggle: {
       position: 'absolute',
-      bottom: 4,
-      flexDirection: 'row',
+      bottom: 8,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      backgroundColor: 'rgba(0, 0, 0, 0.35)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 12,
-    },
-    miniCtrlBtn: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255, 255, 255, 0.22)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sizeToggleBtn: {
-      backgroundColor: 'rgba(212, 175, 55, 0.45)',
-    },
-    selectedBadge: {
-      position: 'absolute',
-      top: 6,
-      backgroundColor: '#0284C7',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 8,
-    },
-    selectedBadgeText: {
-      color: '#FFFFFF',
-      fontSize: 10,
-      fontWeight: '700',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
+      zIndex: 10,
     },
   });
 }

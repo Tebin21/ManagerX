@@ -12,3 +12,20 @@ export const rudaw = localFont({
   variable: "--font-rudaw",
   display: "swap",
 });
+
+export const bahijJanna = localFont({
+  src: [
+    {
+      path: "./BahijJanna-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./BahijJanna-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-bahij",
+  display: "swap",
+});

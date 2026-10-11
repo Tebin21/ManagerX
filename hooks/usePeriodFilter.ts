@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { getPeriodBounds, type PeriodKey } from '@/utils/dateRanges';
 
-export function usePeriodFilter() {
-  const [period, setPeriod] = useState<PeriodKey>('today');
+export function usePeriodFilter(initialPeriod: PeriodKey = 'today') {
+  const [period, setPeriod] = useState<PeriodKey>(initialPeriod);
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | undefined>();
   const [periodSheetVisible, setPeriodSheetVisible] = useState(false);
 

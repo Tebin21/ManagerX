@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +38,12 @@ export function CapitalDrawerReportCard() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats, deposits]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStats();
+    }, [fetchStats])
+  );
 
   if (!isEnabled || !stats) {
     return null;
@@ -182,6 +188,23 @@ export function CapitalDrawerReportCard() {
             />
           </View>
         </View>
+
+        {/* Unified till cash explanation banner */}
+        <View
+          style={[
+            styles.disclaimer,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: isDark ? colors.gray200 : colors.lightBlue,
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
+          <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
+          <Text style={[styles.disclaimerText, { color: colors.gray500, textAlign }]}>
+            {t('capital.unifiedCashDisclaimer')}
+          </Text>
+        </View>
       </PremiumCard>
     </MotiView>
   );
@@ -273,5 +296,19 @@ const styles = StyleSheet.create({
   gridValue: {
     fontSize: 13.5,
     fontWeight: '800',
+  },
+  disclaimer: {
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  disclaimerText: {
+    fontSize: 11,
+    flex: 1,
+    lineHeight: 16,
   },
 });

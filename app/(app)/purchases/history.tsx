@@ -201,13 +201,39 @@ export default function PurchaseHistoryScreen() {
           {period !== 'all' && (
             <TouchableOpacity
               onPress={() => handlePeriodSelect('all')}
-              style={[styles.emptyActionBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '35', flexDirection }]}
+              style={[
+                styles.emptyActionBtn,
+                {
+                  backgroundColor: colors.softBlue,
+                  borderColor: colors.primary + '35',
+                  flexDirection,
+                },
+              ]}
               activeOpacity={0.8}
             >
               <Ionicons name="infinite-outline" size={16} color={colors.primary} />
-              <Text style={[styles.emptyActionBtnText, { color: colors.primary }]}>
-                {t('purchases.allPeriods')} ({purchases.length})
+              <Text
+                style={[
+                  styles.emptyActionBtnText,
+                  { color: colors.primary },
+                  isKuLanguage && applyKurdishFont(true, {}),
+                ]}
+              >
+                {t('purchases.allPeriods')}
               </Text>
+              <View
+                style={[
+                  styles.emptyCountBadge,
+                  {
+                    backgroundColor: colors.primary + '18',
+                    borderColor: colors.primary + '30',
+                  },
+                ]}
+              >
+                <Text style={[styles.emptyCountText, { color: colors.primary }]}>
+                  {purchases.length}
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
         </>
@@ -446,15 +472,28 @@ const styles = StyleSheet.create({
   emptyActionText: { fontSize: 14, fontWeight: '600' },
   emptyActionBtn: {
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
   },
   emptyActionBtnText: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyCountBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 8,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  emptyCountText: {
+    fontSize: 12,
     fontWeight: '700',
   },
 });

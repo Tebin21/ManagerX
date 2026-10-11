@@ -111,7 +111,7 @@ export const useCapitalStore = create<CapitalState>()(
         }, 0);
 
         try {
-          const stats = await getCashDrawerStats(state.activatedAt || undefined);
+          const stats = await getCashDrawerStats();
           return (
             netCapital +
             stats.salesCash +
@@ -149,7 +149,7 @@ export const useCapitalStore = create<CapitalState>()(
         }
 
         try {
-          const stats = await getCashDrawerStats(state.activatedAt || undefined);
+          const stats = await getCashDrawerStats();
           const currentBalance =
             netCapital +
             stats.salesCash +

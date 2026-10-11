@@ -106,6 +106,30 @@ export default function RootLayout() {
       .then(() => import('@/lib/accountDeletion'))
       .then((m) => m.resumeInterruptedDeletionIfNeeded())
       .catch((e) => console.error('DB init failed:', e));
+
+    // Telemetry tracking & Google Drive auto-backup lifecycle triggers
+    import('@/lib/telemetry').then((m) => m.trackAppInstallOrOpen()).catch(() => {});
+    import('@/lib/googleDriveBackup').then((m) => m.triggerGoogleDriveAutoBackup('app_open')).catch(() => {});
+
+    const { AppState } = require('react-native');
+    const appStateSub = AppState.addEventListener('change', (state: string) => {
+      if (state === 'background') {
+        import('@/lib/googleDriveBackup')
+          .then((m) => m.triggerGoogleDriveAutoBackup('app_close'))
+          .catch(() => {});
+      } else if (state === 'active') {
+        import('@/lib/googleDriveBackup')
+          .then((m) => m.triggerGoogleDriveAutoBackup('app_open'))
+          .catch(() => {});
+        import('@/lib/telemetry')
+          .then((m) => m.trackAppInstallOrOpen())
+          .catch(() => {});
+      }
+    });
+
+    return () => {
+      appStateSub?.remove?.();
+    };
   }, []);
 
   useEffect(() => {

@@ -651,4 +651,30 @@ export async function sharePurchasesAuditReport(
   }
 }
 
+export async function shareDashboardReport(
+  stats: any,
+  activities: any[],
+  periodLabel: string,
+  business: BusinessInfo
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildDashboardReportHTML } = await import('./dashboardReportTemplate');
+    const html = buildDashboardReportHTML(stats, activities, periodLabel, biz, getDir());
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    return await generateAndShare(
+      html,
+      isKu ? `ڕاپۆرتی داشبۆرد — ${periodLabel}` : `Dashboard Report — ${periodLabel}`,
+      isKu ? 'نەتوانرا ڕاپۆرتی داشبۆرد بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the dashboard report PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareDashboardReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the dashboard report. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
 

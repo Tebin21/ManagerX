@@ -17,7 +17,8 @@ export type ModuleId =
   | 'reports'
   | 'history'
   | 'debt'
-  | 'expenses';
+  | 'expenses'
+  | 'dashboard';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -59,7 +60,7 @@ export const MODULES: ModuleDefinition[] = [
   {
     id: 'history',
     labelKey: 'dashboard.history',
-    icon: 'people',
+    icon: 'time',
     descriptionKey: 'modules.history.description',
     route: '/(app)/history',
   },
@@ -76,6 +77,13 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'cash',
     descriptionKey: 'modules.expenses.description',
     route: '/(app)/reports/expenses',
+  },
+  {
+    id: 'dashboard',
+    labelKey: 'dashboard.dashboardModule',
+    icon: 'grid',
+    descriptionKey: 'modules.dashboard.description',
+    route: '/(app)/dashboard-view',
   },
 ];
 

@@ -26,6 +26,7 @@ import { fmtIQD } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { CashBalanceCard } from '@/components/dashboard/CashBalanceCard';
 import { CapitalDrawerReportCard } from '@/components/reports/CapitalDrawerReportCard';
+import { useCapitalStore } from '@/store/capitalStore';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
@@ -644,6 +645,8 @@ export default function ReportsScreen() {
     setDateRange, reload,
   } = useReportStore();
 
+  const isCapitalEnabled = useCapitalStore((s) => s.isEnabled);
+
   const [isExporting, setIsExporting]         = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -746,15 +749,16 @@ export default function ReportsScreen() {
             remainingDebt={cardRemainingDebt}
           />
 
-          {/* ─── Net Cash Balance ─── */}
-          {cashBalance && (
-            <View style={styles.cashBalanceCard}>
-              <CashBalanceCard data={cashBalance} />
-            </View>
+          {/* ─── Net Cash Balance / Till Drawer (Unified when Capital is Active) ─── */}
+          {isCapitalEnabled ? (
+            <CapitalDrawerReportCard />
+          ) : (
+            cashBalance && (
+              <View style={styles.cashBalanceCard}>
+                <CashBalanceCard data={cashBalance} />
+              </View>
+            )
           )}
-
-          {/* ─── Cash Drawer & Capital (Active only) ─── */}
-          <CapitalDrawerReportCard />
 
           {/* ─── 2. Purchase Spending ─── */}
           <SectionHeader title={t('reports.purchaseSpending')} icon="bag-handle" />
