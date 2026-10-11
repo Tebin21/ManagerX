@@ -28,7 +28,9 @@ import {
   ShieldCheck,
   Check,
   ChevronDown,
+  Key,
 } from 'lucide-react';
+import LicenseManagement from '@/components/admin/LicenseManagement';
 
 interface Stats {
   totalInstalls: number;
@@ -112,11 +114,15 @@ const DICTIONARY = {
     installsTabSub: 'ئامار و ئایدی ئامێرە داگیراوەکان (iOS / Android)',
     feedTab: 'چالاکییە ڕاستەوخۆکان',
     feedTabSub: 'تۆماری چرکەبەچرکەی لۆگین و کردنەوەی ئەپ',
+    licensesTab: 'لایسێنسەکان',
+    licensesTabSub: 'دروستکردن، ژمارەی ئایتم، کۆنترۆڵی ئۆنلاین',
     exportCsv: 'دەرهێنانی داتاکان بە فایلی Excel (CSV)',
     usersTableTitle: 'تۆماری بەکارهێنەرانی چوونەژوورەوە',
     usersTableSub: 'داتای ١٠٠٪ ڕاستەقینە لە بنکەی داتای Neon PostgreSQL',
     installsTableTitle: 'ئامێرە دابەزێنراوەکان و جۆری سیستەم',
     feedTableTitle: 'تۆماری ڕاستەوخۆی چالاکییەکان',
+    licensesTableTitle: 'بەڕێوەبردنی لایسێنسەکان و سەبسکرایپشن',
+    licensesTableSub: 'دروستکردنی لایسێنسی فەرمی بە کلیلەکانی Ed25519 بۆ ئامێرەکانی فرۆشیار',
     allPlatforms: 'هەموو پلاتفۆڕمەکان',
     searchPlaceholder: 'گەڕان بەپێی ئیمەیڵ، ناو، ناوی کۆمپانیا، یان ئایدی ئامێر...',
     noUsersFound: 'هیچ بەکارهێنەرێک نەدۆزرایەوە.',
@@ -177,11 +183,15 @@ const DICTIONARY = {
     installsTabSub: 'Device hardware IDs & platforms (iOS / Android)',
     feedTab: 'Live Activity Feed',
     feedTabSub: 'Real-time stream of logins and app launches',
+    licensesTab: 'Licenses & Plans',
+    licensesTabSub: 'Generate, item limits, online control',
     exportCsv: 'Export Data to Excel (CSV)',
     usersTableTitle: 'Logged-in User Accounts',
     usersTableSub: '100% real data from Neon PostgreSQL database',
     installsTableTitle: 'Device Installations & OS',
     feedTableTitle: 'Real-Time Event Stream',
+    licensesTableTitle: 'License & Subscription Management',
+    licensesTableSub: 'Cryptographically signed Ed25519 licenses bound to hardware Device ID',
     allPlatforms: 'All Platforms',
     searchPlaceholder: 'Search by email, name, business, or device ID...',
     noUsersFound: 'No users found.',
@@ -222,7 +232,8 @@ export default function AdminDashboardPage() {
   const [authError, setAuthError] = useState(false);
 
   // ─── Dashboard Navigation & Filters ───────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'licenses'>('users');
+  const [licensesCount, setLicensesCount] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'year' | 'custom'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -287,10 +298,11 @@ export default function AdminDashboardPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, usersRes, installsRes] = await Promise.all([
+      const [statsRes, usersRes, installsRes, licRes] = await Promise.all([
         fetch('/api/telemetry/stats', { cache: 'no-store' }),
         fetch('/api/telemetry/users', { cache: 'no-store' }),
         fetch('/api/telemetry/installs', { cache: 'no-store' }),
+        fetch('/api/licenses', { cache: 'no-store' }),
       ]);
 
       if (statsRes.ok) {
@@ -304,6 +316,10 @@ export default function AdminDashboardPage() {
       if (installsRes.ok) {
         const installsData = await installsRes.json();
         setInstalls(installsData.installs || []);
+      }
+      if (licRes.ok) {
+        const licData = await licRes.json();
+        setLicensesCount(licData.licenses?.length || 0);
       }
       setLastUpdatedTime(new Date().toLocaleTimeString());
     } catch (err) {
@@ -904,6 +920,13 @@ export default function AdminDashboardPage() {
                 icon: Activity,
                 count: stats?.recentEvents?.length ?? 0,
               },
+              {
+                id: 'licenses',
+                label: t.licensesTab,
+                sub: t.licensesTabSub,
+                icon: Key,
+                count: licensesCount,
+              },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -986,58 +1009,64 @@ export default function AdminDashboardPage() {
                   {activeTab === 'users' && <Users className="w-5 h-5" />}
                   {activeTab === 'installs' && <Smartphone className="w-5 h-5" />}
                   {activeTab === 'feed' && <Activity className="w-5 h-5" />}
+                  {activeTab === 'licenses' && <Key className="w-5 h-5" />}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-sm sm:text-base font-extrabold text-inherit truncate">
                     {activeTab === 'users' && t.usersTableTitle}
                     {activeTab === 'installs' && t.installsTableTitle}
                     {activeTab === 'feed' && t.feedTableTitle}
+                    {activeTab === 'licenses' && t.licensesTableTitle}
                   </h4>
                   <p className="text-[10px] sm:text-xs text-slate-400 line-clamp-1">
-                    {t.usersTableSub}
+                    {activeTab === 'licenses' ? t.licensesTableSub : t.usersTableSub}
                   </p>
                 </div>
               </div>
 
-              {/* Platform Selector Filter */}
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <select
-                  value={platformFilter}
-                  onChange={(e) => setPlatformFilter(e.target.value as any)}
-                  className={`w-full sm:w-auto px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold outline-none border transition cursor-pointer ${
-                    isDarkMode
-                      ? 'bg-[#0E1524] border-slate-700 text-slate-200 focus:border-[#D4AF37]'
-                      : 'bg-[#F8FAFC] border-slate-200 text-slate-700 focus:border-[#D4AF37]'
-                  }`}
-                >
-                  <option value="all">{t.allPlatforms}</option>
-                  <option value="ios">Apple (iOS)</option>
-                  <option value="android">Android</option>
-                </select>
-              </div>
+              {/* Platform Selector Filter (only for users, installs, feed) */}
+              {activeTab !== 'licenses' && (
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={platformFilter}
+                    onChange={(e) => setPlatformFilter(e.target.value as any)}
+                    className={`w-full sm:w-auto px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold outline-none border transition cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-[#0E1524] border-slate-700 text-slate-200 focus:border-[#D4AF37]'
+                        : 'bg-[#F8FAFC] border-slate-200 text-slate-700 focus:border-[#D4AF37]'
+                    }`}
+                  >
+                    <option value="all">{t.allPlatforms}</option>
+                    <option value="ios">Apple (iOS)</option>
+                    <option value="android">Android</option>
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* Search Input Bar */}
-            <div className="relative">
-              <Search
-                className={`w-4 h-4 text-slate-400 absolute top-3 sm:top-3.5 ${
-                  isKu ? 'right-3.5 sm:right-4' : 'left-3.5 sm:left-4'
-                } pointer-events-none`}
-              />
-              <input
-                type="text"
-                placeholder={t.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-medium outline-none border transition ${
-                  isKu ? 'pr-10 sm:pr-11 pl-3 sm:pl-4' : 'pl-10 sm:pl-11 pr-3 sm:pr-4'
-                } ${
-                  isDarkMode
-                    ? 'bg-[#0E1524] border-slate-700 text-white placeholder-slate-500 focus:border-[#D4AF37]'
-                    : 'bg-[#F8FAFC] border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#D4AF37]'
-                }`}
-              />
-            </div>
+            {/* Search Input Bar (only for users, installs, feed) */}
+            {activeTab !== 'licenses' && (
+              <div className="relative">
+                <Search
+                  className={`w-4 h-4 text-slate-400 absolute top-3 sm:top-3.5 ${
+                    isKu ? 'right-3.5 sm:right-4' : 'left-3.5 sm:left-4'
+                  } pointer-events-none`}
+                />
+                <input
+                  type="text"
+                  placeholder={t.searchPlaceholder}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-medium outline-none border transition ${
+                    isKu ? 'pr-10 sm:pr-11 pl-3 sm:pl-4' : 'pl-10 sm:pl-11 pr-3 sm:pr-4'
+                  } ${
+                    isDarkMode
+                      ? 'bg-[#0E1524] border-slate-700 text-white placeholder-slate-500 focus:border-[#D4AF37]'
+                      : 'bg-[#F8FAFC] border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#D4AF37]'
+                  }`}
+                />
+              </div>
+            )}
 
             {/* ─── TAB 1: USERS LIST ──────────────────────────────────────── */}
             {activeTab === 'users' && (
@@ -1231,6 +1260,15 @@ export default function AdminDashboardPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* ─── TAB 4: LICENSES & SUBSCRIPTIONS ────────────────────────── */}
+            {activeTab === 'licenses' && (
+              <LicenseManagement
+                isDarkMode={isDarkMode}
+                language={language}
+                onLicensesUpdated={(cnt) => setLicensesCount(cnt)}
+              />
             )}
           </div>
         </div>
