@@ -269,7 +269,7 @@ export function InventoryReportView({
           icon="close-circle"
           color="#F59E0B"
           isAlert={outOfStockProducts.length > 0}
-          subtitle={isKuLanguage ? 'بڕی ٠' : 'Empty'}
+          subtitle={isKuLanguage ? 'سفر' : 'Zero'}
           delay={210}
         />
 

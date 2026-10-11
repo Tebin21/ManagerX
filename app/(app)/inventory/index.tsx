@@ -12,7 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
@@ -75,8 +75,27 @@ export default function InventoryScreen() {
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
-  // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT as requested!
+  // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT on open as requested!
   const [activeNavTab, setActiveNavTab] = useState<InventoryNavTab>('report');
+
+  useFocusEffect(
+    useCallback(() => {
+      setActiveNavTab('report');
+    }, [])
+  );
+
+  const activeTabTextColor = useMemo(() => {
+    try {
+      const clean = (colors.primary || '#D4AF37').replace('#', '');
+      const r = parseInt(clean.slice(0, 2), 16);
+      const g = parseInt(clean.slice(2, 4), 16);
+      const b = parseInt(clean.slice(4, 6), 16);
+      const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+      return yiq >= 150 ? '#0F172A' : '#FFFFFF';
+    } catch {
+      return '#0F172A';
+    }
+  }, [colors.primary]);
 
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -516,7 +535,15 @@ export default function InventoryScreen() {
         }
       >
         {/* ── 2 Main Navigation Buttons: Report & Products ── */}
-        <View style={[styles.segmentedNavWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View
+          style={[
+            styles.segmentedNavWrap,
+            {
+              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.16)',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
           {/* Button 1: ڕاپۆرت (Report) - ALWAYS ACTIVE INITIALLY */}
           <TouchableOpacity
             activeOpacity={0.85}
@@ -532,13 +559,16 @@ export default function InventoryScreen() {
             <Ionicons
               name="bar-chart-outline"
               size={15}
-              color={activeNavTab === 'report' ? '#0F172A' : 'rgba(255, 255, 255, 0.7)'}
+              color={activeNavTab === 'report' ? activeTabTextColor : 'rgba(255, 255, 255, 0.75)'}
             />
             <Text
               style={[
                 styles.segmentBtnText,
                 {
-                  color: activeNavTab === 'report' ? '#0F172A' : 'rgba(255, 255, 255, 0.85)',
+                  color:
+                    activeNavTab === 'report'
+                      ? activeTabTextColor
+                      : 'rgba(255, 255, 255, 0.85)',
                 },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -562,13 +592,16 @@ export default function InventoryScreen() {
             <Ionicons
               name="cube-outline"
               size={15}
-              color={activeNavTab === 'products' ? '#0F172A' : 'rgba(255, 255, 255, 0.7)'}
+              color={activeNavTab === 'products' ? activeTabTextColor : 'rgba(255, 255, 255, 0.75)'}
             />
             <Text
               style={[
                 styles.segmentBtnText,
                 {
-                  color: activeNavTab === 'products' ? '#0F172A' : 'rgba(255, 255, 255, 0.85)',
+                  color:
+                    activeNavTab === 'products'
+                      ? activeTabTextColor
+                      : 'rgba(255, 255, 255, 0.85)',
                 },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
