@@ -85,16 +85,24 @@ const SUB_PLANS: Record<string, { labelKu: string; labelEn: string }> = {
 export default function LicenseManagement({
   isDarkMode,
   language,
+  initialSubTab,
   onLicensesUpdated,
 }: {
   isDarkMode: boolean;
   language: 'ku' | 'en';
+  initialSubTab?: 'generate' | 'list' | 'subscriptions' | 'customers';
   onLicensesUpdated?: (count: number) => void;
 }) {
   const isKu = language === 'ku';
 
   // Sub-tabs
-  const [subTab, setSubTab] = useState<'generate' | 'list' | 'subscriptions' | 'customers'>('generate');
+  const [subTab, setSubTab] = useState<'generate' | 'list' | 'subscriptions' | 'customers'>(initialSubTab || 'generate');
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   // License data
   const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
@@ -387,8 +395,66 @@ export default function LicenseManagement({
     document.body.removeChild(link);
   };
 
+  const activeCount = licenses.filter((l) => l.status === 'active' && !l.isExpired).length;
+  const expiredCount = licenses.filter((l) => l.isExpired || l.status === 'expired' || l.status === 'revoked').length;
+
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* ── Top License KPI Metric Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {/* Total Licenses */}
+        <div
+          className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border text-center transition flex flex-col items-center justify-center ${
+            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-[#F8FAFC] border-slate-200'
+          }`}
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37] mb-1 sm:mb-2">
+            <Key className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium">{isKu ? 'کۆی لایسێنسەکان' : 'Total Licenses'}</span>
+          <span className="text-lg sm:text-2xl font-black mt-0.5 text-inherit">{licenses.length}</span>
+        </div>
+
+        {/* Active Licenses */}
+        <div
+          className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border text-center transition flex flex-col items-center justify-center ${
+            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-[#F8FAFC] border-slate-200'
+          }`}
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-500 mb-1 sm:mb-2">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium">{isKu ? 'لایسێنسە چالاکەکان' : 'Active Licenses'}</span>
+          <span className="text-lg sm:text-2xl font-black mt-0.5 text-emerald-500">{activeCount}</span>
+        </div>
+
+        {/* Expired / Revoked */}
+        <div
+          className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border text-center transition flex flex-col items-center justify-center ${
+            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-[#F8FAFC] border-slate-200'
+          }`}
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1 sm:mb-2">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium">{isKu ? 'بەسەرچوو / هەڵوەشاوە' : 'Expired / Revoked'}</span>
+          <span className="text-lg sm:text-2xl font-black mt-0.5 text-amber-500">{expiredCount}</span>
+        </div>
+
+        {/* Store Subscriptions */}
+        <div
+          className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl border text-center transition flex flex-col items-center justify-center ${
+            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-[#F8FAFC] border-slate-200'
+          }`}
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-400 mb-1 sm:mb-2">
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium">{isKu ? 'سەبسکرایپشنی فرۆشگا' : 'Store Subscriptions'}</span>
+          <span className="text-lg sm:text-2xl font-black mt-0.5 text-sky-400">{subscriptions.length}</span>
+        </div>
+      </div>
+
       {/* ── Sub-Navigation Pill Tabs ── */}
       <div
         className={`p-1.5 sm:p-2 rounded-2xl border transition-colors flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar ${
