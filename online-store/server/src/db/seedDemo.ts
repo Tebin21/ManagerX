@@ -41,7 +41,9 @@ export async function seedDemoStore(): Promise<void> {
     console.log(`[Seed] Demo store ready with ID: ${storeId}`);
 
     // 2. Load demo products from froshiar-demo-data.json if present
-    const demoDataPath = path.join(__dirname, '../../../../froshiar-demo-data.json');
+    const primaryDemoPath = path.join(__dirname, '../../../../data/demo/froshiar-demo-data.json');
+    const fallbackDemoPath = path.join(__dirname, '../../../../froshiar-demo-data.json');
+    const demoDataPath = fs.existsSync(primaryDemoPath) ? primaryDemoPath : fallbackDemoPath;
     let productsToSeed: any[] = [];
 
     if (fs.existsSync(demoDataPath)) {

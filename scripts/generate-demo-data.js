@@ -871,6 +871,8 @@ console.log('\n─── Internal arithmetic validation: PASS ───');
 
 // ─── 13. Write output ───────────────────────────────────────────────────────────
 
-const outPath = path.join(__dirname, '..', 'froshiar-demo-electronics-store.json');
+const outDir = path.join(__dirname, '..', 'data', 'demo');
+if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+const outPath = path.join(outDir, 'froshiar-demo-electronics-store.json');
 fs.writeFileSync(outPath, JSON.stringify(backup, null, 2));
 console.log(`\nWrote ${outPath}`);

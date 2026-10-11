@@ -16,7 +16,7 @@
   - Dark Mode: `#0F172A` (Background), `#1E293B` (Cards), `#334155` (Borders)
   - Accent / Primary: `#D4AF37` (Froshiar Gold)
 - **Localization & RTL**: `react-i18next` (`locales/ku.json` for Kurdish Sorani, `locales/en.json` for English)
-- **Typography**: Kurdish font Bahij Janna (`alfont_com_بهيج-جنة-عريض.ttf`, `alfont_com_بهيج-جنة-رفيع.ttf`)
+- **Typography**: Kurdish font Bahij Janna (`assets/fonts/BahijJanna-Bold.ttf`, `assets/fonts/BahijJanna-Regular.ttf`)
 
 ---
 

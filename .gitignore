@@ -49,3 +49,7 @@ auth-server/config.local.json
 .next/
 *.tsbuildinfo
 next-env.d.ts
+
+# OS artifacts
+desktop.ini
+.DS_Store
