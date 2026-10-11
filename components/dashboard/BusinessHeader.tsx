@@ -310,7 +310,7 @@ export function BusinessHeader() {
                   <Image source={{ uri: logoUri }} style={styles.logo} />
                 ) : (
                   <View style={styles.logoPlaceholder}>
-                    <Text style={[styles.logoEmoji, isTablet && { fontSize: 58 }]}>{typeEmoji}</Text>
+                    <Text style={[styles.logoEmoji, isTablet && { fontSize: 44 }]}>{typeEmoji}</Text>
                   </View>
                 )}
               </View>
@@ -527,14 +527,14 @@ function getStyles(isTablet: boolean) {
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: isTablet ? 20 : 16,
+      gap: isTablet ? 18 : 14,
     },
     logoContainer: {
-      width: isTablet ? 132 : 120,
-      height: isTablet ? 132 : 120,
-      borderRadius: isTablet ? 28 : 24,
+      width: isTablet ? 104 : 88,
+      height: isTablet ? 104 : 88,
+      borderRadius: isTablet ? 22 : 18,
       overflow: 'hidden',
-      borderWidth: 2.5,
+      borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.4)',
     },
     logo: {
@@ -549,7 +549,7 @@ function getStyles(isTablet: boolean) {
       justifyContent: 'center',
     },
     logoEmoji: {
-      fontSize: 50,
+      fontSize: 38,
     },
     info: {
       flex: 1,
