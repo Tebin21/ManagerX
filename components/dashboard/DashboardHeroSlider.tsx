@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Image,
@@ -11,6 +11,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -26,61 +27,144 @@ import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
 
-const STORAGE_KEY = '@froshiar_dashboard_banner_images';
-const MAX_IMAGES = 3;
-const SLIDE_INTERVAL = 5000; // 5 seconds as requested
+const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
+const CUSTOM_STORAGE_KEY = '@froshiar_dashboard_custom_banners_v2';
+const HINT_DISMISSED_KEY = '@froshiar_banner_hint_dismissed_v2';
+const MAX_CUSTOM_IMAGES = 2; // User can add up to 2 custom images (Total 3 with default)
+const SLIDE_INTERVAL = 5000; // 5 seconds sliding interval
+const HINT_INTERVAL = 10000; // 10 seconds reminder cycle
+
+interface BannerSlide {
+  id: string;
+  isDefault: boolean;
+  source: any;
+}
 
 export function DashboardHeroSlider() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
-  const [images, setImages] = useState<string[]>([]);
+  const [customImages, setCustomImages] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
 
-  const flatListRef = useRef<FlatList<string>>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Periodic reminder hint states (10-second pulse)
+  const [hintDismissed, setHintDismissed] = useState(false);
+  const [hintVisible, setHintVisible] = useState(false);
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+  const hintTranslateY = useRef(new Animated.Value(8)).current;
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flatListRef = useRef<FlatList<BannerSlide>>(null);
+  const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 32);
 
-  // Load saved images from storage
+  // 1. Slides composition: Slot 1 is ALWAYS the permanent Froshiar default banner
+  const slides = useMemo<BannerSlide[]>(() => {
+    const list: BannerSlide[] = [
+      { id: 'default_banner_fixed', isDefault: true, source: DEFAULT_BANNER_IMAGE },
+    ];
+    customImages.forEach((uri, idx) => {
+      list.push({ id: `custom_${idx}_${uri}`, isDefault: false, source: { uri } });
+    });
+    return list;
+  }, [customImages]);
+
+  // 2. Load custom images and hint dismissed status from AsyncStorage
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.getItem(CUSTOM_STORAGE_KEY)
       .then((raw) => {
         if (raw) {
           try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-              setImages(parsed.slice(0, MAX_IMAGES));
+              setCustomImages(parsed.slice(0, MAX_CUSTOM_IMAGES));
             }
-          } catch {
-            // Ignore parse error
-          }
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    AsyncStorage.getItem(HINT_DISMISSED_KEY)
+      .then((val) => {
+        if (val === 'true') {
+          setHintDismissed(true);
         }
       })
       .catch(() => {});
   }, []);
 
-  const saveImages = useCallback(async (newImages: string[]) => {
-    setImages(newImages);
+  const saveCustomImages = useCallback(async (newCustom: string[]) => {
+    setCustomImages(newCustom);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newImages));
+      await AsyncStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(newCustom));
+      if (newCustom.length > 0) {
+        // Once the user modifies/adds a custom image, never show the hint again
+        setHintDismissed(true);
+        setHintVisible(false);
+        await AsyncStorage.setItem(HINT_DISMISSED_KEY, 'true');
+      }
     } catch (e) {
-      console.warn('[DashboardHeroSlider] failed to persist images:', e);
+      console.warn('[DashboardHeroSlider] failed to persist custom banners:', e);
     }
   }, []);
 
-  // 5-second automatic sliding animation
+  // 3. Periodic reminder hint (Shows every 10 seconds while no custom images are added)
   useEffect(() => {
-    if (images.length <= 1) return;
+    if (hintDismissed || customImages.length > 0) {
+      setHintVisible(false);
+      return;
+    }
 
-    if (timerRef.current) clearInterval(timerRef.current);
+    const showTooltip = () => {
+      setHintVisible(true);
+      Animated.parallel([
+        Animated.timing(hintOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(hintTranslateY, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
 
-    timerRef.current = setInterval(() => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(hintOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+          Animated.timing(hintTranslateY, { toValue: 8, duration: 400, useNativeDriver: true }),
+        ]).start(() => {
+          setHintVisible(false);
+        });
+      }, 3800);
+    };
+
+    // First appearance shortly after opening dashboard (2.5s)
+    const initialTimer = setTimeout(showTooltip, 2500);
+
+    // Periodic reminder every 10 seconds
+    const interval = setInterval(showTooltip, HINT_INTERVAL);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [hintDismissed, customImages.length, hintOpacity, hintTranslateY]);
+
+  const dismissHintForever = () => {
+    setHintDismissed(true);
+    setHintVisible(false);
+    AsyncStorage.setItem(HINT_DISMISSED_KEY, 'true').catch(() => {});
+  };
+
+  // 4. 5-second automatic sliding animation when more than 1 image is present
+  useEffect(() => {
+    if (slides.length <= 1) return;
+
+    if (slideTimerRef.current) clearInterval(slideTimerRef.current);
+
+    slideTimerRef.current = setInterval(() => {
       setActiveIndex((prev) => {
-        const next = (prev + 1) % images.length;
+        const next = (prev + 1) % slides.length;
         flatListRef.current?.scrollToIndex({
           index: next,
           animated: true,
@@ -90,15 +174,15 @@ export function DashboardHeroSlider() {
     }, SLIDE_INTERVAL);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (slideTimerRef.current) clearInterval(slideTimerRef.current);
     };
-  }, [images.length]);
+  }, [slides.length]);
 
   const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (containerWidth <= 0) return;
     const offset = e.nativeEvent.contentOffset.x;
     const index = Math.round(offset / containerWidth);
-    if (index >= 0 && index < images.length) {
+    if (index >= 0 && index < slides.length) {
       setActiveIndex(index);
     }
   };
@@ -108,9 +192,9 @@ export function DashboardHeroSlider() {
     setModalOpen(true);
   };
 
-  const pickImageForSlot = async (slotIndex: number) => {
+  const pickImageForCustomSlot = async (customSlotIndex: number) => {
     try {
-      setLoadingSlot(slotIndex);
+      setLoadingSlot(customSlotIndex + 1);
       const access = await ensureGalleryAccess();
       if (access === 'denied-first-time' || access === 'denied-repeat') {
         Alert.alert(
@@ -135,14 +219,14 @@ export function DashboardHeroSlider() {
       const tempUri = result.assets[0].uri;
       const permUri = await copyToPermanentStorage(tempUri, 'dashboard_banners');
 
-      const updated = [...images];
-      if (slotIndex < updated.length) {
-        updated[slotIndex] = permUri;
+      const updated = [...customImages];
+      if (customSlotIndex < updated.length) {
+        updated[customSlotIndex] = permUri;
       } else {
         updated.push(permUri);
       }
 
-      await saveImages(updated.slice(0, MAX_IMAGES));
+      await saveCustomImages(updated.slice(0, MAX_CUSTOM_IMAGES));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err) {
       console.warn('[DashboardHeroSlider] image pick error:', err);
@@ -151,80 +235,33 @@ export function DashboardHeroSlider() {
     }
   };
 
-  const removeSlotImage = async (slotIndex: number) => {
-    const updated = images.filter((_, i) => i !== slotIndex);
-    await saveImages(updated);
-    if (activeIndex >= updated.length && updated.length > 0) {
-      setActiveIndex(updated.length - 1);
+  const removeCustomSlot = async (customSlotIndex: number) => {
+    const updated = customImages.filter((_, i) => i !== customSlotIndex);
+    await saveCustomImages(updated);
+    if (activeIndex >= updated.length + 1) {
+      setActiveIndex(0);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   };
 
-  const renderBanner = () => {
-    if (images.length === 0) {
-      // Default empty placeholder banner with rich gold aesthetic
-      return (
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onLongPress={handleOpenManager}
-          onPress={handleOpenManager}
-          style={[styles.emptyBanner, { backgroundColor: isDark ? colors.gray100 : '#18191C' }]}
-        >
-          <LinearGradient
-            colors={isDark ? ['#1E293B', '#0F172A'] : ['#2A2722', '#141416']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-
-          <View style={styles.emptyGlow} />
-
-          <View style={[styles.emptyContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + '20', borderColor: colors.primary + '50' }]}>
-              <Ionicons name="images-outline" size={26} color={colors.primary} />
-            </View>
-            <View style={styles.emptyTextGroup}>
-              <Text
-                style={[
-                  styles.emptyTitle,
-                  { color: '#FFFFFF', textAlign },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('dashboard.manageImages')}
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: colors.gray400, textAlign }]}>
-                {t('dashboard.bannerHoldHint')}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.emptyActionPill, { backgroundColor: colors.primary + '25', borderColor: colors.primary + '60' }]}>
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text
-              style={[
-                styles.emptyActionText,
-                { color: colors.primary },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-              ]}
-            >
-              {t('dashboard.addImage')}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      );
-    }
-
-    return (
+  return (
+    <View
+      style={styles.wrapper}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) setContainerWidth(w);
+      }}
+    >
+      {/* Banner Container with long-press management */}
       <TouchableOpacity
-        activeOpacity={0.95}
+        activeOpacity={0.96}
         onLongPress={handleOpenManager}
         style={[styles.sliderContainer, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}
       >
         <FlatList
           ref={flatListRef}
-          data={images}
-          keyExtractor={(_, idx) => `banner_${idx}`}
+          data={slides}
+          keyExtractor={(item) => item.id}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -236,20 +273,56 @@ export function DashboardHeroSlider() {
           })}
           renderItem={({ item }) => (
             <View style={[styles.slideItem, { width: containerWidth }]}>
-              <Image source={{ uri: item }} style={styles.slideImage} resizeMode="cover" />
+              <Image source={item.source} style={styles.slideImage} resizeMode="cover" />
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.45)']}
+                colors={['transparent', 'rgba(0,0,0,0.42)']}
                 style={StyleSheet.absoluteFill}
               />
             </View>
           )}
         />
 
+        {/* Periodic Reminder Hint (Floating Glassmorphism Tooltip) */}
+        {hintVisible && !hintDismissed && customImages.length === 0 && (
+          <Animated.View
+            pointerEvents="box-none"
+            style={[
+              styles.hintPillContainer,
+              {
+                opacity: hintOpacity,
+                transform: [{ translateY: hintTranslateY }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={handleOpenManager}
+              style={[styles.hintPill, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            >
+              <Ionicons name="sparkles" size={13} color={colors.primary} />
+              <Text
+                style={[
+                  styles.hintText,
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {t('dashboard.hintAddImages')}
+              </Text>
+              <TouchableOpacity
+                onPress={dismissHintForever}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.hintCloseBtn}
+              >
+                <Ionicons name="close" size={12} color="rgba(255, 255, 255, 0.65)" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
-        {/* Pagination Dots */}
-        {images.length > 1 && (
+        {/* Pagination Dots (Displayed when there are 2 or 3 images) */}
+        {slides.length > 1 && (
           <View style={styles.dotsRow}>
-            {images.map((_, i) => (
+            {slides.map((_, i) => (
               <View
                 key={`dot_${i}`}
                 style={[
@@ -263,18 +336,6 @@ export function DashboardHeroSlider() {
           </View>
         )}
       </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View
-      style={styles.wrapper}
-      onLayout={(e) => {
-        const w = e.nativeEvent.layout.width;
-        if (w > 0) setContainerWidth(w);
-      }}
-    >
-      {renderBanner()}
 
       {/* Image Manager Modal */}
       <Modal
@@ -298,7 +359,7 @@ export function DashboardHeroSlider() {
                   {t('dashboard.manageImages')}
                 </Text>
                 <Text style={[styles.modalSub, { color: colors.gray400, textAlign }]}>
-                  {t('dashboard.maxImagesHint')}
+                  {t('dashboard.manageImagesSub')}
                 </Text>
               </View>
               <TouchableOpacity
@@ -309,35 +370,71 @@ export function DashboardHeroSlider() {
               </TouchableOpacity>
             </View>
 
-            {/* Slots Grid */}
+            {/* Slots Grid: Slot 1 is Fixed Default, Slots 2 & 3 are Customizable */}
             <View style={styles.slotsContainer}>
-              {[0, 1, 2].map((slotIdx) => {
-                const imgUri = images[slotIdx];
-                const isLoadingThis = loadingSlot === slotIdx;
+              {/* Slot 1: Locked Permanent Froshiar Banner */}
+              <View
+                style={[
+                  styles.slotCard,
+                  {
+                    backgroundColor: isDark ? colors.white : colors.gray50,
+                    borderColor: colors.primary + '55',
+                  },
+                ]}
+              >
+                <View style={styles.slotImageWrap}>
+                  <Image source={DEFAULT_BANNER_IMAGE} style={styles.slotPreview} />
+                  <View style={[styles.slotBadge, styles.lockedBadge]}>
+                    <Ionicons name="lock-closed" size={10} color={colors.primary} />
+                    <Text style={[styles.slotBadgeText, { color: colors.primary }]}>
+                      {t('dashboard.defaultBannerLocked')}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.lockedBannerNotice, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.lockedBannerNoticeText,
+                        { color: '#FFFFFF' },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                    >
+                      {t('dashboard.defaultBannerFixed')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Slots 2 & 3: Custom User Images */}
+              {[0, 1].map((customIdx) => {
+                const slotNumber = customIdx + 2;
+                const customUri = customImages[customIdx];
+                const isLoadingThis = loadingSlot === customIdx + 1;
 
                 return (
                   <View
-                    key={`slot_${slotIdx}`}
+                    key={`custom_slot_${customIdx}`}
                     style={[
                       styles.slotCard,
                       {
                         backgroundColor: isDark ? colors.white : colors.gray50,
-                        borderColor: imgUri ? colors.primary + '50' : colors.gray200,
+                        borderColor: customUri ? colors.primary + '50' : colors.gray200,
                       },
                     ]}
                   >
-                    {imgUri ? (
+                    {customUri ? (
                       <View style={styles.slotImageWrap}>
-                        <Image source={{ uri: imgUri }} style={styles.slotPreview} />
+                        <Image source={{ uri: customUri }} style={styles.slotPreview} />
                         <View style={styles.slotBadge}>
                           <Text style={[styles.slotBadgeText, { writingDirection: 'ltr' }]}>
-                            {toEnglishDigits(slotIdx + 1)}
+                            {toEnglishDigits(slotNumber)}
                           </Text>
                         </View>
                         <View style={[styles.slotActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                           <TouchableOpacity
                             style={[styles.slotBtn, { backgroundColor: colors.primary }]}
-                            onPress={() => pickImageForSlot(slotIdx)}
+                            onPress={() => pickImageForCustomSlot(customIdx)}
                             disabled={isLoadingThis}
                           >
                             <Ionicons name="repeat" size={14} color="#FFF" />
@@ -345,7 +442,7 @@ export function DashboardHeroSlider() {
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[styles.slotBtn, { backgroundColor: colors.error }]}
-                            onPress={() => removeSlotImage(slotIdx)}
+                            onPress={() => removeCustomSlot(customIdx)}
                             disabled={isLoadingThis}
                           >
                             <Ionicons name="trash-outline" size={14} color="#FFF" />
@@ -356,10 +453,9 @@ export function DashboardHeroSlider() {
                     ) : (
                       <TouchableOpacity
                         style={styles.emptySlotPressable}
-                        onPress={() => pickImageForSlot(slotIdx)}
+                        onPress={() => pickImageForCustomSlot(customIdx)}
                         disabled={isLoadingThis}
                       >
-                        {/* Slot index badge matching filled slots */}
                         <View
                           style={[
                             styles.slotBadge,
@@ -371,7 +467,7 @@ export function DashboardHeroSlider() {
                           ]}
                         >
                           <Text style={[styles.slotBadgeText, { color: colors.primary, writingDirection: 'ltr' }]}>
-                            {toEnglishDigits(slotIdx + 1)}
+                            {toEnglishDigits(slotNumber)}
                           </Text>
                         </View>
 
@@ -389,7 +485,9 @@ export function DashboardHeroSlider() {
                                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                               ]}
                             >
-                              {isKurdish ? `دانانی وێنەی ${toEnglishDigits(slotIdx + 1)}` : `Add Image ${slotIdx + 1}`}
+                              {isKurdish
+                                ? `دانانی وێنەی ${toEnglishDigits(slotNumber)}`
+                                : `Add Image ${slotNumber}`}
                             </Text>
                           </>
                         )}
@@ -447,6 +545,36 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  hintPillContainer: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    zIndex: 20,
+  },
+  hintPill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    borderColor: 'rgba(212, 175, 55, 0.55)',
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 6,
+    gap: 7,
+  },
+  hintText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  hintCloseBtn: {
+    padding: 2,
+    marginLeft: 2,
+  },
   dotsRow: {
     position: 'absolute',
     bottom: 10,
@@ -456,6 +584,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
+    zIndex: 10,
   },
   dot: {
     height: 6,
@@ -467,83 +596,6 @@ const styles = StyleSheet.create({
   inactiveDot: {
     width: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
-  },
-  holdChip: {
-    position: 'absolute',
-    top: 10,
-    right: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  holdChipText: {
-    color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  emptyBanner: {
-    height: 135,
-    borderRadius: 20,
-    padding: 16,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  emptyGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-  },
-  emptyContent: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  emptyIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTextGroup: {
-    flex: 1,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 3,
-  },
-  emptySubtitle: {
-    fontSize: 11.5,
-    lineHeight: 16,
-  },
-  emptyActionPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  emptyActionText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
@@ -603,17 +655,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    width: 22,
+    minWidth: 22,
     height: 22,
+    paddingHorizontal: 6,
     borderRadius: 11,
     backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  lockedBadge: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+    borderWidth: 1,
+  },
   slotBadgeText: {
     color: '#FFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  lockedBannerNotice: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  lockedBannerNoticeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   slotActions: {
     position: 'absolute',
@@ -648,11 +725,6 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptySlotTextRow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
   },
   emptySlotText: {
     fontSize: 12.5,

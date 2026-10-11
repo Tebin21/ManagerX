@@ -42,7 +42,16 @@ export function BackButton({ onPress, style }: Props) {
   return (
     <Animated.View style={[animatedStyle, style]}>
       <TouchableOpacity
-        onPress={onPress ?? (() => router.back())}
+        onPress={
+          onPress ??
+          (() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(app)');
+            }
+          })
+        }
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[
