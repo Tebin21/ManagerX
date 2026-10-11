@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
-import { SettingSwitch } from '@/components/settings/SettingSwitch';
+import { SettingRow } from '@/components/settings/SettingRow';
+import { ThemeToggleSwitch } from '@/components/settings/ThemeToggleSwitch';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 
@@ -19,12 +20,18 @@ export default function AppearanceScreen() {
 
       <View style={styles.body}>
         <SettingSection title={t('settings.appearanceScreen.theme')}>
-          <SettingSwitch
-            icon="moon"
+          <SettingRow
+            icon={isDark ? 'moon' : 'sunny'}
             label={t('settings.appearanceScreen.darkMode')}
             sub={t('settings.appearanceScreen.darkSub')}
-            value={isDark}
-            onToggle={toggle}
+            chevron={false}
+            rightElement={
+              <ThemeToggleSwitch
+                value={isDark}
+                onToggle={toggle}
+              />
+            }
+            onPress={toggle}
           />
         </SettingSection>
       </View>

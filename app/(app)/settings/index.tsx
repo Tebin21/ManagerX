@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
+import { ThemeToggleSwitch } from '@/components/settings/ThemeToggleSwitch';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { InfoModal } from '@/components/ui/InfoModal';
@@ -37,7 +38,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 export default function SettingsScreen() {
   const router  = useRouter();
   const { t } = useTranslation();
-  const { colors, isDark } = useAppTheme();
+  const { colors, isDark, toggle } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const business   = useBusinessStore();
   const isDarkMode   = useSettingsStore((s) => s.isDarkMode);
@@ -173,10 +174,17 @@ export default function SettingsScreen() {
             onPress={() => router.push('/(app)/settings/language' as never)}
           />
           <SettingRow
-            icon="moon"
+            icon={isDark ? 'moon' : 'sunny'}
             label={t('settings.appearance')}
-            sub={t(isDarkMode ? 'settings.darkMode' : 'settings.lightMode')}
-            onPress={() => router.push('/(app)/settings/appearance' as never)}
+            sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
+            chevron={false}
+            rightElement={
+              <ThemeToggleSwitch
+                value={isDark}
+                onToggle={toggle}
+              />
+            }
+            onPress={toggle}
           />
           <SettingRow
             icon="color-palette"
