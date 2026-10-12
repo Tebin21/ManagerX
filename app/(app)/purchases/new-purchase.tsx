@@ -58,7 +58,7 @@ export default function NewPurchaseScreen() {
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -487,18 +487,54 @@ export default function NewPurchaseScreen() {
                 <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
               </View>
               <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-                <Text style={[styles.scanBannerTitle, { color: colors.primary }]}>
+                <Text
+                  style={[
+                    styles.scanBannerTitle,
+                    {
+                      color: colors.primary,
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                      alignSelf: 'stretch',
+                    },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
                   {isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
                 </Text>
-                <Text style={[styles.scanBannerSub, { color: colors.gray500 }]}>
+                <Text
+                  style={[
+                    styles.scanBannerSub,
+                    {
+                      color: colors.gray500,
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                      alignSelf: 'stretch',
+                    },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                  ]}
+                >
                   {isKuLanguage
                     ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
                     : 'Open camera to auto-fill product ID instantly'}
                 </Text>
               </View>
-              <View style={[styles.scanActionPill, { backgroundColor: colors.primary }]}>
-                <Ionicons name="camera" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.scanActionPillText}>
+              <View
+                style={[
+                  styles.scanActionPill,
+                  {
+                    backgroundColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    gap: 4,
+                  },
+                ]}
+              >
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.scanActionPillText,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
                   {isKuLanguage ? 'سکان' : 'Scan'}
                 </Text>
               </View>
@@ -859,61 +895,132 @@ export default function NewPurchaseScreen() {
                 </View>
               </View>
 
-              {/* 3 Metric Cards */}
-              <View style={[styles.drawerMetricsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* 3 Metric Rows (Long, Clear, Neat & Well-arranged) */}
+              <View style={styles.drawerMetricsContainer}>
                 {/* 1. Available Balance Now */}
-                <View style={[styles.drawerMetricItem, { backgroundColor: colors.gray100 }]}>
-                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
-                    {t('capital.drawerBalanceNow')}
-                  </Text>
+                <View
+                  style={[
+                    styles.drawerMetricRow,
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View style={[styles.drawerMetricIconCircle, { backgroundColor: colors.softBlue }]}>
+                      <Ionicons name="wallet-outline" size={16} color={colors.primary} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.drawerMetricRowLabel,
+                        { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {t('capital.drawerBalanceNow')}
+                    </Text>
+                  </View>
                   <AmountText
                     value={drawerBalance}
                     currency="IQD"
-                    style={[styles.drawerMetricVal, { color: colors.darkBlue, textAlign }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
+                    style={[styles.drawerMetricRowVal, { color: colors.darkBlue }]}
                   />
                 </View>
 
                 {/* 2. Cash Needed for this purchase */}
-                <View style={[styles.drawerMetricItem, { backgroundColor: colors.gray100 }]}>
-                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
-                    {t('capital.drawerCashNeeded')}
-                  </Text>
+                <View
+                  style={[
+                    styles.drawerMetricRow,
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View style={[styles.drawerMetricIconCircle, { backgroundColor: isInsufficientCash ? '#FEE2E2' : '#FEF3C7' }]}>
+                      <Ionicons
+                        name="cash-outline"
+                        size={16}
+                        color={isInsufficientCash ? colors.error : colors.warning}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.drawerMetricRowLabel,
+                        { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {t('capital.drawerCashNeeded')}
+                    </Text>
+                  </View>
                   <AmountText
                     value={cashNeeded}
                     currency="IQD"
                     style={[
-                      styles.drawerMetricVal,
-                      { color: isInsufficientCash ? colors.error : colors.warning, textAlign },
+                      styles.drawerMetricRowVal,
+                      { color: isInsufficientCash ? colors.error : colors.warning },
                     ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
                   />
                 </View>
 
-                {/* 3. Projected Balance After Purchase */}
+                {/* 3. Projected Balance After Purchase (Highlight) */}
                 <View
                   style={[
-                    styles.drawerMetricItem,
-                    { backgroundColor: isInsufficientCash ? '#FEF2F2' : '#F0FDF4' },
+                    styles.drawerMetricRowHighlight,
+                    {
+                      backgroundColor: isInsufficientCash
+                        ? (isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2')
+                        : (isDark ? 'rgba(16,185,129,0.15)' : '#F0FDF4'),
+                      borderColor: isInsufficientCash
+                        ? (isDark ? colors.error : '#FECACA')
+                        : (isDark ? colors.success : '#BBF7D0'),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
                   ]}
                 >
-                  <Text style={[styles.drawerMetricLabel, { color: colors.gray500, textAlign }]}>
-                    {t('capital.drawerBalanceAfter')}
-                  </Text>
+                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View
+                      style={[
+                        styles.drawerMetricIconCircle,
+                        {
+                          backgroundColor: isInsufficientCash
+                            ? (isDark ? 'rgba(239,68,68,0.25)' : '#FEE2E2')
+                            : (isDark ? 'rgba(16,185,129,0.25)' : '#DCFCE7'),
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isInsufficientCash ? 'alert-circle-outline' : 'shield-checkmark-outline'}
+                        size={17}
+                        color={isInsufficientCash ? colors.error : colors.success}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.drawerMetricRowLabel,
+                        {
+                          color: isInsufficientCash ? colors.error : colors.success,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {t('capital.drawerBalanceAfter')}
+                    </Text>
+                  </View>
                   <AmountText
                     value={projectedBalance}
                     currency="IQD"
+                    variant="default"
                     style={[
-                      styles.drawerMetricVal,
-                      { color: isInsufficientCash ? colors.error : colors.success, textAlign },
+                      styles.drawerMetricRowValBold,
+                      { color: isInsufficientCash ? colors.error : colors.success },
                     ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
                   />
                 </View>
               </View>
@@ -1267,23 +1374,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  drawerMetricsRow: {
+  drawerMetricsContainer: {
     gap: 8,
-    marginBottom: 8,
-  },
-  drawerMetricItem: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  drawerMetricLabel: {
-    fontSize: 11,
-    fontWeight: '600',
     marginBottom: 4,
   },
-  drawerMetricVal: {
+  drawerMetricRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  drawerMetricRowHighlight: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  drawerMetricLabelGroup: {
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  drawerMetricIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerMetricRowLabel: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  drawerMetricRowVal: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  drawerMetricRowValBold: {
+    fontSize: 15,
     fontWeight: '800',
   },
   drawerWarningBanner: {

@@ -132,10 +132,33 @@ const PDI = '⁩'; // Pop Directional Isolate (closes LRI)
  */
 export function withSystemFontLatin(children: React.ReactNode, parentStyle?: TextStyle): React.ReactNode {
   const fontFamily = resolveInterFont(parentStyle?.fontWeight);
-  const items = Array.isArray(children) ? children : [children];
+  const items = React.Children.toArray(children);
+
+  // Coalesce consecutive string and number children before splitting into runs.
+  // In JSX, expressions like `<Text>{title} ({count})</Text>` produce `[title, " (", count, ")"]`.
+  // If processed separately, ' (', count, and ')' become separate inline LTR/RTL Text nodes,
+  // causing RTL layout to reorder them backwards into `title ) count (`.
+  // Coalescing ensures ' (3)' is processed together as a single Latin token '(3)'.
+  const coalesced: React.ReactNode[] = [];
+  let buffer = '';
+  for (const child of items) {
+    if (typeof child === 'string' || typeof child === 'number') {
+      buffer += String(child);
+    } else {
+      if (buffer) {
+        coalesced.push(buffer);
+        buffer = '';
+      }
+      coalesced.push(child);
+    }
+  }
+  if (buffer) {
+    coalesced.push(buffer);
+  }
+
   const out: React.ReactNode[] = [];
   let key = 0;
-  for (const child of items) {
+  for (const child of coalesced) {
     if (typeof child !== 'string' && typeof child !== 'number') {
       out.push(child);
       continue;

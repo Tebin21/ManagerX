@@ -510,6 +510,7 @@ export function CapitalView() {
               <View style={[styles.balanceAmtRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <AmountText
                   value={Math.abs(stats.currentBalance)}
+                  currency={null}
                   style={[styles.balanceBigAmt, { color: balanceColor }]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
@@ -625,6 +626,7 @@ export function CapitalView() {
           <TouchableOpacity
             style={[styles.fundActionBtn, { backgroundColor: colors.primary }]}
             onPress={() => handleOpenAdjustment('deposit')}
+            activeOpacity={0.8}
           >
             <Ionicons name="add-circle" size={18} color="#FFFFFF" />
             <Text
@@ -632,6 +634,7 @@ export function CapitalView() {
                 styles.fundActionText,
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
+              numberOfLines={2}
             >
               {t('capital.addFunds')}
             </Text>
@@ -640,6 +643,7 @@ export function CapitalView() {
           <TouchableOpacity
             style={[styles.fundActionBtn, { backgroundColor: colors.gray200 }]}
             onPress={() => handleOpenAdjustment('withdrawal')}
+            activeOpacity={0.8}
           >
             <Ionicons name="remove-circle" size={18} color={colors.darkBlue} />
             <Text
@@ -648,6 +652,7 @@ export function CapitalView() {
                 { color: colors.darkBlue },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
+              numberOfLines={2}
             >
               {t('capital.withdrawFunds')}
             </Text>
@@ -1084,14 +1089,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderRadius: 14,
+    minHeight: 48,
+    overflow: 'hidden',
   },
   fundActionText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   historyCard: {
     borderRadius: 18,

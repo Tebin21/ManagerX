@@ -49,6 +49,7 @@ export function CashBalanceCard({ data, index = 0 }: Props) {
       <View style={[styles.balanceRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
         <AmountText
           value={Math.abs(data.netBalance)}
+          currency={null}
           style={[styles.balance, { color: balanceColor, lineHeight: 38 }]}
           numberOfLines={1}
           adjustsFontSizeToFit

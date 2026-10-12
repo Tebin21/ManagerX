@@ -131,7 +131,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
         getDebtReportData(),
         getMostProfitableProducts(5, from, to),
         getRevenueByMonth(6),
-        getAllExpenses(from, to),
+        getAllExpenses(),
         getNetCashBalance(),
         getDashboardExpenseTotals(),
       ]);
@@ -167,14 +167,16 @@ export const useReportStore = create<ReportState>((set, get) => ({
       const { clearReportsCache } = await import('@/lib/sqlite');
       await clearReportsCache();
     } catch { /* non-critical */ }
-    await get().reload();
+    await Promise.all([
+      get().reload(),
+      get().loadExpenses(),
+    ]);
   },
 
   loadExpenses: async () => {
-    const { from, to } = freshRange(get().dateRange);
     try {
       const { getAllExpenses } = await import('@/lib/sqlite');
-      const expenses = await getAllExpenses(from, to);
+      const expenses = await getAllExpenses();
       set({ expenses });
     } catch (err) {
       console.error('Failed to load expenses:', err);

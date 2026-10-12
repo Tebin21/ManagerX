@@ -14,12 +14,25 @@ interface Props {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  size?: number;
+  iconSize?: number;
 }
 
-export function HeaderActionButton({ icon, onPress, disabled = false, loading = false }: Props) {
+export function HeaderActionButton({
+  icon,
+  onPress,
+  disabled = false,
+  loading = false,
+  size,
+  iconSize,
+}: Props) {
   const { isTablet, headerButtonSize, headerIconSize } = useResponsive();
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
+
+  const btnSize = size ?? (isTablet ? headerButtonSize : 36);
+  const resolvedIconSize = iconSize ?? (isTablet ? headerIconSize : 20);
+  const borderRadius = size ? Math.round(size * 0.28) : (isTablet ? 14 : 11);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -38,10 +51,10 @@ export function HeaderActionButton({ icon, onPress, disabled = false, loading = 
         }}
         style={[
           styles.btn,
-          isTablet && {
-            width: headerButtonSize,
-            height: headerButtonSize,
-            borderRadius: 14,
+          {
+            width: btnSize,
+            height: btnSize,
+            borderRadius,
           },
         ]}
         hitSlop={10}
@@ -50,7 +63,7 @@ export function HeaderActionButton({ icon, onPress, disabled = false, loading = 
       >
         {loading
           ? <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Ionicons name={icon} size={isTablet ? headerIconSize : 20} color="#FFFFFF" />
+          : <Ionicons name={icon} size={resolvedIconSize} color="#FFFFFF" />
         }
       </TouchableOpacity>
     </Animated.View>

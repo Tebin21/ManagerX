@@ -96,7 +96,14 @@ function parseDateSafe(v: string | Date): Date {
 }
 
 export function toDateOnly(v: string | Date): string {
-  return parseDateSafe(v).toISOString().slice(0, 10);
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
+    return v.slice(0, 10);
+  }
+  const d = parseDateSafe(v);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function formatDate(v: string | Date): string {

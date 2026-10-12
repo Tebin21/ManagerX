@@ -48,7 +48,7 @@ export function BackButton({ onPress, style }: Props) {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.replace('/(app)');
+              router.replace('/(app)' as never);
             }
           })
         }

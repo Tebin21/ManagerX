@@ -34,7 +34,7 @@ import {
 import { computeProductLowStock } from '@/lib/lowStock';
 import { buildCustomerReportHTML } from './customerReportTemplate';
 import { buildSupplierReportHTML } from './supplierReportTemplate';
-import { buildSalesDebtReportHTML, buildPurchaseDebtReportHTML } from './debtReportTemplate';
+import { buildSalesDebtReportHTML, buildPurchaseDebtReportHTML, type DebtReportSections } from './debtReportTemplate';
 import type { FullReportData } from './reportTemplate';
 import type { FinancialExportData } from './financialReportTemplate';
 import type { Sale, Debt } from '@/types/sales';
@@ -42,7 +42,7 @@ import type { Purchase } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
-import type { SalesDebtDetail, PurchaseDebt, DebtPayment } from '@/types/debt';
+import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
 import i18n from '@/lib/i18n';
 import { useLanguageStore } from '@/store/languageStore';
 
@@ -671,6 +671,58 @@ export async function shareDashboardReport(
   } catch (err) {
     console.error('[PDF] shareDashboardReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the dashboard report. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function shareDebtsAuditReport(
+  type: 'report' | 'sales' | 'purchase' | DebtReportSections,
+  data: {
+    summary?: DebtOverviewSummary | null;
+    salesDebts?: SalesDebtDetail[];
+    purchaseDebts?: PurchaseDebt[];
+  },
+  periodLabel: string,
+  business: BusinessInfo
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildDebtsAuditReportHTML } = await import('./debtReportTemplate');
+    const html = buildDebtsAuditReportHTML(type, data, periodLabel, biz, getDir());
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    let title = isKu ? `ڕاپۆرتی قەرزەکان — ${periodLabel}` : `Debt Report — ${periodLabel}`;
+
+    if (typeof type === 'string') {
+      title = type === 'report'
+        ? (isKu ? `ڕاپۆرتی گشتی قەرزەکان — ${periodLabel}` : `General Debt Report — ${periodLabel}`)
+        : type === 'sales'
+        ? (isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`)
+        : (isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`);
+    } else {
+      if (!type.includeSales && !type.includePurchases) {
+        title = isKu ? `ڕاپۆرتی ئاماری و پوختەی قەرزەکان — ${periodLabel}` : `Debt Summary Report — ${periodLabel}`;
+      } else if (!type.includeOverview && !type.includeStats && type.includeSales && !type.includePurchases) {
+        title = isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`;
+      } else if (!type.includeOverview && !type.includeStats && !type.includeSales && type.includePurchases) {
+        title = isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`;
+      } else if (!type.includeOverview && !type.includeStats && type.includeSales && type.includePurchases) {
+        title = isKu ? `جەردی قەرزی کڕیاران و دابینکەران — ${periodLabel}` : `Customer & Supplier Debts Report — ${periodLabel}`;
+      } else {
+        title = isKu ? `ڕاپۆرتی گشتی و جەردی قەرزەکان — ${periodLabel}` : `Debt Audit Report — ${periodLabel}`;
+      }
+    }
+
+    return await generateAndShare(
+      html,
+      title,
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرزەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareDebtsAuditReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the debt report. Please try again.');
     return false;
   } finally {
     releaseGenerationLock();

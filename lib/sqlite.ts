@@ -3636,7 +3636,11 @@ export async function getFinancialSummaryCards(
     ? `WHERE s.status = 'completed' AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
     : `WHERE s.status = 'completed'`;
 
-  const [totalsRow, profitRow, debtRow] = await Promise.all([
+  const expWhere = from && to
+    ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
+    : '';
+
+  const [totalsRow, profitRow, debtRow, expRow] = await Promise.all([
     database.getFirstAsync<{ totalSales: number }>(
       `SELECT COALESCE(SUM(grand_total), 0) AS totalSales FROM sales ${saleLevelWhere}`
     ),
@@ -3657,12 +3661,19 @@ export async function getFinancialSummaryCards(
     database.getFirstAsync<{ remaining: number }>(
       `SELECT COALESCE(SUM(remaining_amount), 0) AS remaining FROM debts WHERE status = 'active'`
     ),
+    database.getFirstAsync<{ totalExpenses: number }>(
+      `SELECT COALESCE(SUM(amount), 0) AS totalExpenses FROM expenses ${expWhere}`
+    ),
   ]);
+
+  const rawProfit = profitRow?.netProfit ?? 0;
+  const expensesTotal = expRow?.totalExpenses ?? 0;
+  const netProfit = rawProfit - expensesTotal;
 
   return {
     totalSales:            totalsRow?.totalSales   ?? 0,
-    netProfit:             profitRow?.netProfit     ?? 0,
-    totalLoss:             profitRow?.totalLoss     ?? 0,
+    netProfit:             netProfit,
+    totalLoss:             profitRow?.totalLoss    ?? 0,
     remainingCustomerDebt: debtRow?.remaining       ?? 0,
   };
 }
@@ -3895,6 +3906,8 @@ export async function createExpense(data: {
   date?: string;
 }): Promise<number> {
   const database = await getDatabase();
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const result = await database.runAsync(
     `INSERT INTO expenses (amount, category, reason, note, date, uuid) VALUES (?, ?, ?, ?, ?, ?)`,
     [
@@ -3902,7 +3915,7 @@ export async function createExpense(data: {
       data.category,
       data.reason,
       data.note ?? null,
-      data.date ?? new Date().toISOString().slice(0, 10),
+      data.date ?? localDate,
       await newUuid(),
     ]
   );
@@ -4272,6 +4285,7 @@ export interface DashboardActivityItem {
   amount: number;
   discount?: number;
   timestamp: string;
+  referenceNumber?: string;
 }
 
 export async function getDashboardOverviewStats(
@@ -4398,6 +4412,7 @@ export async function getDashboardRecentActivities(
   limit: number = 40,
   from?: string,
   to?: string,
+  language: 'ku' | 'en' = 'ku',
 ): Promise<DashboardActivityItem[]> {
   const database = await getDatabase();
 
@@ -4530,16 +4545,18 @@ export async function getDashboardRecentActivities(
   ]);
 
   const items: DashboardActivityItem[] = [];
+  const isEn = language === 'en';
 
   for (const s of salesList) {
     items.push({
       id: `sale_${s.id}`,
       type: 'sale',
-      title: `پسوولەی #${s.invoice_number}`,
-      subtitle: s.customer_name?.trim() ? s.customer_name : 'کڕیاری گشتی',
+      title: isEn ? `Invoice #${s.invoice_number}` : `پسوولەی #${s.invoice_number}`,
+      subtitle: s.customer_name?.trim() ? s.customer_name : (isEn ? 'General Customer' : 'کڕیاری گشتی'),
       amount: s.grand_total,
       discount: s.discount_total,
       timestamp: s.created_at,
+      referenceNumber: s.invoice_number,
     });
   }
 
@@ -4547,10 +4564,11 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `purchase_${p.id}`,
       type: 'purchase',
-      title: `کڕین #${p.purchase_number}`,
-      subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || 'کڕینی کاڵا'),
+      title: isEn ? `Purchase #${p.purchase_number}` : `کڕین #${p.purchase_number}`,
+      subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || (isEn ? 'General Purchase' : 'کڕینی کاڵا')),
       amount: p.total_iqd,
       timestamp: p.created_at,
+      referenceNumber: p.purchase_number,
     });
   }
 
@@ -4559,8 +4577,10 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `debt_${dp.id}`,
       type: isSales ? 'customer_debt' : 'supplier_debt',
-      title: isSales ? 'وەرگرتنی قەرز' : 'دانەوەی قەرز',
-      subtitle: dp.entity_name || dp.note || (isSales ? 'کڕیار' : 'دابینکەر'),
+      title: isSales
+        ? (isEn ? 'Debt Collected' : 'وەرگرتنی قەرز')
+        : (isEn ? 'Debt Paid' : 'دانەوەی قەرز'),
+      subtitle: dp.entity_name || dp.note || (isSales ? (isEn ? 'Customer' : 'کڕیار') : (isEn ? 'Supplier' : 'دابینکەر')),
       amount: dp.amount,
       timestamp: dp.created_at,
     });
@@ -4570,7 +4590,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `expense_${e.id}`,
       type: 'expense',
-      title: `مەسروفات`,
+      title: isEn ? 'Expense' : 'مەسروفات',
       subtitle: e.note || e.category,
       amount: e.amount,
       timestamp: e.created_at,
@@ -4581,7 +4601,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `cust_${c.id}`,
       type: 'customer',
-      title: 'کڕیاری نوێ',
+      title: isEn ? 'New Customer' : 'کڕیاری نوێ',
       subtitle: c.name,
       amount: 0,
       timestamp: c.created_at,
@@ -4592,7 +4612,7 @@ export async function getDashboardRecentActivities(
     items.push({
       id: `sup_${sup.id}`,
       type: 'supplier',
-      title: 'دابینکەری نوێ',
+      title: isEn ? 'New Supplier' : 'دابینکەری نوێ',
       subtitle: sup.name,
       amount: 0,
       timestamp: sup.created_at,

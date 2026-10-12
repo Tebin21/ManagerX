@@ -40,6 +40,56 @@ function activityBadge(type: DashboardActivityItem['type'], isKurdish: boolean):
   }
 }
 
+function formatActivityTitleForReport(act: DashboardActivityItem, isKurdish: boolean): string {
+  const refMatch = (act.title || '').match(/#\s*([0-9a-zA-Z_-]+)/);
+  const ref = act.referenceNumber || (refMatch ? refMatch[1] : '');
+
+  switch (act.type) {
+    case 'sale': {
+      const num = ref || toEnglishDigits(act.title.replace(/^[^#]*#?/, '')).trim();
+      return isKurdish ? `پسوولەی #${num}` : `Invoice #${num}`;
+    }
+    case 'purchase': {
+      const num = ref || toEnglishDigits(act.title.replace(/^[^#]*#?/, '')).trim();
+      return isKurdish ? `کڕین #${num}` : `Purchase #${num}`;
+    }
+    case 'customer_debt':
+      return isKurdish ? 'وەرگرتنی قەرز' : 'Debt Collected';
+    case 'supplier_debt':
+      return isKurdish ? 'دانەوەی قەرز' : 'Debt Paid';
+    case 'expense':
+      return isKurdish ? 'مەسروفات' : 'Expense';
+    case 'customer':
+      return isKurdish ? 'کڕیاری نوێ' : 'New Customer';
+    case 'supplier':
+      return isKurdish ? 'دابینکەری نوێ' : 'New Supplier';
+    case 'capital_deposit':
+      return isKurdish ? 'پارەدانان بۆ دەخیلە' : 'Till Deposit';
+    case 'capital_withdraw':
+      return isKurdish ? 'ڕاکێشانی دەخیلە' : 'Till Withdrawal';
+    default:
+      return toEnglishDigits(act.title);
+  }
+}
+
+function formatActivitySubtitleForReport(act: DashboardActivityItem, isKurdish: boolean): string {
+  if (!act.subtitle) return '';
+  const sub = act.subtitle.trim();
+  if (sub === 'کڕیاری گشتی' || sub === 'General Customer') {
+    return isKurdish ? 'کڕیاری گشتی' : 'General Customer';
+  }
+  if (sub === 'کڕینی کاڵا' || sub === 'General Purchase') {
+    return isKurdish ? 'کڕینی کاڵا' : 'General Purchase';
+  }
+  if (sub === 'کڕیار' || sub === 'Customer') {
+    return isKurdish ? 'کڕیار' : 'Customer';
+  }
+  if (sub === 'دابینکەر' || sub === 'Supplier') {
+    return isKurdish ? 'دابینکەر' : 'Supplier';
+  }
+  return act.subtitle;
+}
+
 export function buildDashboardReportHTML(
   stats: DashboardOverviewStats,
   activities: DashboardActivityItem[],
@@ -84,8 +134,8 @@ export function buildDashboardReportHTML(
             <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
             <td style="text-align:center;">${activityBadge(act.type, isKurdish)}</td>
             <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};">
-              <div style="font-weight:700;color:#0F172A;">${escHtml(toEnglishDigits(act.title))}</div>
-              ${act.subtitle ? `<div style="font-size:11px;color:#64748B;">${escHtml(act.subtitle)}</div>` : ''}
+              <div style="font-weight:700;color:#0F172A;">${escHtml(toEnglishDigits(formatActivityTitleForReport(act, isKurdish)))}</div>
+              ${act.subtitle ? `<div style="font-size:11px;color:#64748B;">${escHtml(formatActivitySubtitleForReport(act, isKurdish))}</div>` : ''}
             </td>
             <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};white-space:nowrap;">${amountDisplay}</td>
             <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};white-space:nowrap;">${discountDisplay}</td>

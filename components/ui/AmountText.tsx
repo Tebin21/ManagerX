@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, TextProps } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Typography } from '@/constants/typography';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD } from '@/utils/formatters';
 
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -24,7 +24,7 @@ const TABLET_PRESET: Record<Variant, object> = {
 
 interface Props extends Omit<TextProps, 'children'> {
   value: number;
-  currency?: string;
+  currency?: string | null;
   variant?: Variant;
   /** Plain text glued onto the front of the displayed string (e.g. "+ ", "− "). */
   prefix?: string;
@@ -36,7 +36,15 @@ interface Props extends Omit<TextProps, 'children'> {
  * Drop-in for `{fmtIQD(value)} IQD`-style interpolations — consistent
  * weight/size + LTR + tabular digits for every currency amount in the app.
  */
-export function AmountText({ value, currency, variant = 'default', prefix, formatter = fmtIQD, style, ...props }: Props) {
+export function AmountText({
+  value,
+  currency,
+  variant = 'default',
+  prefix,
+  formatter = fmtIQD,
+  style,
+  ...props
+}: Props) {
   const { isTablet } = useResponsive();
   const preset = isTablet ? TABLET_PRESET[variant] : PRESET[variant];
   const flat = StyleSheet.flatten(style);
@@ -47,13 +55,27 @@ export function AmountText({ value, currency, variant = 'default', prefix, forma
       ? Math.ceil(customFontSize * 1.35)
       : undefined;
 
+  const baseFontSize = customFontSize ?? (preset as any)?.fontSize ?? 14;
+  const currencyFontSize = Math.max(9, Math.round(baseFontSize * 0.72));
+  const effectiveCurrency = currency === undefined ? (formatter === fmtUSD ? 'USD' : 'IQD') : currency;
+  const showCurrency = Boolean(effectiveCurrency && effectiveCurrency !== 'none');
+
   return (
     <Text style={[preset, styles.ltrTabular, style, safeLineHeight ? { lineHeight: safeLineHeight } : null]} {...props}>
-      {prefix ?? ''}{formatter(value ?? 0)}{currency ? ` ${currency}` : ''}
+      {prefix ?? ''}{formatter(value ?? 0)}
+      {showCurrency ? (
+        <Text style={[styles.currencySmall, { fontSize: currencyFontSize }]}>
+          {' '}{effectiveCurrency}
+        </Text>
+      ) : null}
     </Text>
   );
 }
 
 const styles = StyleSheet.create({
   ltrTabular: { writingDirection: 'ltr', fontVariant: ['tabular-nums'] },
+  currencySmall: {
+    fontWeight: '600',
+    opacity: 0.85,
+  },
 });

@@ -46,12 +46,12 @@ export function PeriodFilterModal({
 
   type Option = { key: PeriodKey; label: string; icon: ComponentProps<typeof Ionicons>['name'] };
   const options: Option[] = [
+    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
     { key: 'today', label: labels?.today ?? i18n.t('common.today'), icon: 'today-outline' },
     { key: 'week', label: labels?.week ?? i18n.t('common.thisWeek'), icon: 'calendar-outline' },
     { key: 'month', label: labels?.month ?? i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
     { key: 'year', label: labels?.year ?? i18n.t('reports.year'), icon: 'stats-chart-outline' },
     { key: 'custom', label: labels?.custom ?? i18n.t('reports.custom'), icon: 'options-outline' },
-    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
   ];
 
   function handleClose() {

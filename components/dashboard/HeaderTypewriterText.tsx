@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   cursor: {
-    color: '#FDE047', // Froshiar bright yellow/gold for glowing cursor
+    color: '#FFFFFF', // Pure white cursor as requested
     fontWeight: '900',
   },
 });

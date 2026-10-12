@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, FlatList, TouchableOpacity, Modal, TextInput,
   StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform,
+  Pressable, ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -30,7 +31,7 @@ import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { CapitalView } from '@/components/capital/CapitalView';
 
@@ -51,13 +52,13 @@ function getCategoryTint(category: string, colors: AppColors, isDark: boolean): 
   }
 }
 
-// Quick-fill example reasons (Kurdish). Tapping one pre-fills the reason field.
-const EXPENSE_EXAMPLES: { text: string; category: string }[] = [
-  { text: 'کرێی کارەبا',    category: 'Utilities' },
-  { text: 'خواردن',          category: 'Food'      },
-  { text: 'مووچەی کارمەند', category: 'Other'     },
-  { text: 'کرێی دووکان',    category: 'Other'     },
-  { text: 'مەسروف',         category: 'Other'     },
+// Quick-fill example reasons. Tapping one pre-fills the reason field.
+const EXPENSE_EXAMPLES: { text: string; enText: string; category: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { text: 'کرێی دووکان',    enText: 'Shop Rent',        category: 'Other',     icon: 'business-outline' },
+  { text: 'کرێی کارەبا',    enText: 'Electricity Bill', category: 'Utilities', icon: 'flash-outline' },
+  { text: 'مووچەی کارمەند', enText: 'Employee Salary',  category: 'Other',     icon: 'people-outline' },
+  { text: 'خواردن',          enText: 'Food & Meals',     category: 'Food',      icon: 'restaurant-outline' },
+  { text: 'مەسروف',         enText: 'Daily Supplies',   category: 'Other',     icon: 'cart-outline' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ const EXPENSE_EXAMPLES: { text: string; category: string }[] = [
 
 // ─── Expense Date Filter ──────────────────────────────────────────────────────
 
-type ExpenseFilterKey = 'today' | 'week' | 'month' | 'year' | 'custom';
+type ExpenseFilterKey = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
 function applyExpenseFilter(
   list: Expense[],
@@ -73,26 +74,38 @@ function applyExpenseFilter(
   range: { from: string; to: string } | null,
 ): Expense[] {
   const now = new Date();
-  const today = toDateOnly(now);
+  const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const utcToday = toDateOnly(now);
   switch (filter) {
+    case 'all':
+      return list;
     case 'today':
-      return list.filter((e) => e.date === today);
+      return list.filter((e) => {
+        const d = (e.date ?? '').slice(0, 10);
+        return d === localToday || d === utcToday;
+      });
     case 'week': {
       const d = new Date(now);
       const dow = d.getDay();
       d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
-      const weekStart = toDateOnly(d);
-      return list.filter((e) => e.date >= weekStart && e.date <= today);
+      const weekStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return list.filter((e) => {
+        const dStr = (e.date ?? '').slice(0, 10);
+        return dStr >= weekStart && dStr <= localToday;
+      });
     }
     case 'month': {
       const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      return list.filter((e) => e.date.startsWith(prefix));
+      return list.filter((e) => (e.date ?? '').startsWith(prefix));
     }
     case 'year':
-      return list.filter((e) => e.date.startsWith(String(now.getFullYear())));
+      return list.filter((e) => (e.date ?? '').startsWith(String(now.getFullYear())));
     case 'custom':
       if (!range) return list;
-      return list.filter((e) => e.date >= range.from && e.date <= range.to);
+      return list.filter((e) => {
+        const d = (e.date ?? '').slice(0, 10);
+        return d >= range.from && d <= range.to;
+      });
     default:
       return list;
   }
@@ -112,14 +125,16 @@ function ExpenseFilterBar({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const scrollIntoView = useKeyboardAwareFocus();
 
   const [customOpen, setCustomOpen] = useState(false);
   const [fromVal, setFromVal]       = useState('');
   const [toVal, setToVal]           = useState('');
 
-  const keys: ExpenseFilterKey[] = ['today', 'week', 'month', 'year', 'custom'];
+  const keys: ExpenseFilterKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
   const labels: Record<ExpenseFilterKey, string> = {
+    all:    isKurdish ? 'هەمووی' : 'All',
     today:  t('common.today'),
     week:   t('common.thisWeek'),
     month:  t('common.thisMonth'),
@@ -133,7 +148,8 @@ function ExpenseFilterBar({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[efbStyles.row, isRTL && { flexDirection: 'row-reverse' }]}
+          style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
+          contentContainerStyle={efbStyles.row}
         >
           {keys.map((key) => {
             const active = filter === key;
@@ -142,6 +158,7 @@ function ExpenseFilterBar({
                 key={key}
                 style={[
                   efbStyles.pill,
+                  isRTL && { transform: [{ scaleX: -1 }] },
                   { backgroundColor: active ? colors.error : colors.gray100, borderColor: active ? colors.error : colors.gray200 },
                 ]}
                 onPress={() => {
@@ -149,7 +166,13 @@ function ExpenseFilterBar({
                   else { onChange(key); }
                 }}
               >
-                <Text style={[efbStyles.pillText, { color: active ? '#fff' : colors.gray600 }]}>
+                <Text
+                  style={[
+                    efbStyles.pillText,
+                    { color: active ? '#fff' : colors.gray600 },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
                   {labels[key]}
                 </Text>
               </TouchableOpacity>
@@ -255,7 +278,7 @@ function ExpenseFormModal({
   onSave: (data: { amount: number; category: string; reason: string; note?: string; date?: string }) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
@@ -274,6 +297,7 @@ function ExpenseFormModal({
   const [expenseDate, setDate]        = useState(() => initial ? new Date(initial.date) : new Date());
   const [saving, setSaving]           = useState(false);
   const [errors, setErrors]           = useState<{ amount?: string; reason?: string }>({});
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Sync state when the modal is opened for a different expense
   React.useEffect(() => {
@@ -287,6 +311,7 @@ function ExpenseFormModal({
       setExample(exIdx >= 0 ? exIdx : null);
       setDate(initial ? new Date(initial.date) : new Date());
       setErrors({});
+      setDropdownOpen(false);
     }
   }, [visible, initial?.id]);
 
@@ -335,43 +360,81 @@ function ExpenseFormModal({
   const isEdit = !!initial;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={[styles.formRoot, { backgroundColor: colors.gray50 }]}>
-        {/* Gradient header */}
-        <LinearGradient
-          colors={[colors.gradientStart, colors.gradientMid] as [string, string]}
-          style={styles.formHeader}
-        >
-          <View style={[styles.formHeaderInner, { flexDirection }]}>
-            <TouchableOpacity style={styles.formHeaderBtn} onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={20} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.formHeaderTitle}>
-              {isEdit ? t('reports.editExpense') : t('reports.addExpense')}
-            </Text>
-            <View style={{ width: 38 }} />
-          </View>
-        </LinearGradient>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose}>
+          <View style={styles.modalBackdrop} />
+        </Pressable>
 
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <View
+          style={[
+            styles.dialogCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: isDark ? colors.gray200 : 'rgba(0,0,0,0.08)',
+            },
+          ]}
         >
+          {/* Header */}
+          <View style={[styles.dialogHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={[styles.dialogHeaderTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.dialogHeaderIcon, { backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : 'rgba(212,175,55,0.12)' }]}>
+                <Ionicons name="wallet-outline" size={17} color={colors.primary} />
+              </View>
+              <Text
+                style={[
+                  styles.dialogTitle,
+                  { color: colors.black },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isEdit ? t('reports.editExpense') : t('reports.addExpense')}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.dialogCloseBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+              onPress={onClose}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={16} color={colors.gray500} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.dialogDivider, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]} />
+
           <ScrollView
-            style={styles.formBody}
-            contentContainerStyle={styles.formBodyContent}
+            style={styles.dialogBody}
+            contentContainerStyle={styles.dialogBodyContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Amount */}
-            <PremiumCard style={styles.formCard}>
+            <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>
                 {t('reports.amount')}
               </Text>
-              <View style={[styles.amountInputRow, { borderColor: errors.amount ? colors.error : colors.gray200, backgroundColor: colors.white, flexDirection }]}>
+              <View
+                style={[
+                  styles.amountInputRow,
+                  {
+                    borderColor: errors.amount ? colors.error : colors.gray200,
+                    backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
                 <TextInput
-                  // numbers stay LTR regardless of app language
-                  style={[styles.amountInput, { color: colors.black, textAlign: 'left' }]}
+                  style={[styles.amountInput, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
@@ -379,8 +442,8 @@ function ExpenseFormModal({
                   onChangeText={(v) => { setAmount(v); setErrors((e) => ({ ...e, amount: undefined })); }}
                   onBlur={onAmountBlur}
                 />
-                <View style={[styles.amountBadge, { backgroundColor: colors.gray100 }]}>
-                  <Text style={[styles.amountBadgeText, { color: colors.gray500 }]}>IQD</Text>
+                <View style={[styles.amountBadge, { backgroundColor: isDark ? colors.gray300 : 'rgba(212,175,55,0.12)' }]}>
+                  <Text style={[styles.amountBadgeText, { color: colors.primary }]}>IQD</Text>
                 </View>
               </View>
               {errors.amount ? (
@@ -390,73 +453,174 @@ function ExpenseFormModal({
                   → <AmountText value={rounded} currency="IQD" variant="small" style={[styles.roundedHint, { color: colors.primary }]} />
                 </Text>
               ) : null}
+            </View>
 
-              {/* Reason */}
-              <Text style={[styles.fieldLabel, { color: colors.gray600, marginTop: 16, textAlign }]}>
+            {/* Reason */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>
                 {t('reports.expenseReason')}
               </Text>
-              <TextInput
+              <View
                 style={[
-                  styles.reasonInput,
-                  { borderColor: errors.reason ? colors.error : colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: reason }), {}),
+                  styles.reasonInputContainer,
+                  {
+                    borderColor: errors.reason
+                      ? colors.error
+                      : dropdownOpen
+                      ? colors.primary
+                      : colors.gray200,
+                    backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
                 ]}
-                placeholder={t('reports.expenseReasonPlaceholder')}
-                placeholderTextColor={colors.gray400}
-                value={reason}
-                onChangeText={(v) => { setReason(v); setExample(null); setErrors((e) => ({ ...e, reason: undefined })); }}
-                returnKeyType="done"
-              />
+              >
+                <TextInput
+                  style={[
+                    styles.reasonTextInput,
+                    {
+                      color: colors.black,
+                      textAlign,
+                    },
+                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: reason }), {}),
+                  ]}
+                  placeholder={t('reports.expenseReasonPlaceholder')}
+                  placeholderTextColor={colors.gray400}
+                  value={reason}
+                  onChangeText={(v) => {
+                    setReason(v);
+                    const matchIdx = EXPENSE_EXAMPLES.findIndex(
+                      (e) => (isKuLanguage ? e.text : e.enText) === v.trim()
+                    );
+                    setExample(matchIdx >= 0 ? matchIdx : null);
+                    setErrors((e) => ({ ...e, reason: undefined }));
+                  }}
+                  returnKeyType="done"
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.dropdownChevronBtn,
+                    dropdownOpen && { backgroundColor: isDark ? colors.gray300 : 'rgba(212,175,55,0.15)' },
+                  ]}
+                  onPress={() => setDropdownOpen((prev) => !prev)}
+                  hitSlop={8}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={dropdownOpen ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={dropdownOpen ? colors.primary : colors.gray400}
+                  />
+                </TouchableOpacity>
+              </View>
+
               {errors.reason ? (
                 <Text style={[styles.errorText, { color: colors.error, textAlign }]}>{errors.reason}</Text>
               ) : null}
 
-              {/* Helper text */}
-              <Text style={[styles.helperText, { color: colors.gray400, textAlign }]}>
-                {t('reports.expenseReasonHelper')}
-              </Text>
+              {/* Dropdown options list */}
+              {dropdownOpen && (
+                <View
+                  style={[
+                    styles.dropdownMenu,
+                    {
+                      backgroundColor: isDark ? colors.gray200 : colors.white,
+                      borderColor: isDark ? colors.gray300 : 'rgba(0,0,0,0.08)',
+                    },
+                  ]}
+                >
+                  {EXPENSE_EXAMPLES.map((ex, idx) => {
+                    const optText = isKuLanguage ? ex.text : ex.enText;
+                    const isSelected = reason.trim() === optText || selectedExample === idx;
+                    const isLast = idx === EXPENSE_EXAMPLES.length - 1;
 
-              {/* Quick-fill example chips */}
-              <Text style={[styles.examplesLabel, { color: colors.gray500, textAlign }]}>
-                {t('reports.expenseExamplesLabel')}
-              </Text>
-              <View style={[styles.examplesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {EXPENSE_EXAMPLES.map((ex, idx) => {
-                  const selected = selectedExample === idx;
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.exampleChip,
-                        {
-                          backgroundColor: selected ? colors.primary : colors.gray100,
-                          borderColor: selected ? colors.primary : colors.gray200,
-                        },
-                      ]}
-                      onPress={() => {
-                        setReason(ex.text);
-                        setExample(idx);
-                        setErrors((e) => ({ ...e, reason: undefined }));
-                      }}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.exampleChipText, { color: selected ? '#fff' : colors.gray600 }]}>
-                        {ex.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                    return (
+                      <React.Fragment key={idx}>
+                        <TouchableOpacity
+                          style={[
+                            styles.dropdownMenuItem,
+                            {
+                              flexDirection: isRTL ? 'row-reverse' : 'row',
+                              backgroundColor: isSelected
+                                ? (isDark ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.08)')
+                                : 'transparent',
+                            },
+                          ]}
+                          onPress={() => {
+                            setReason(optText);
+                            setExample(idx);
+                            setErrors((e) => ({ ...e, reason: undefined }));
+                            setDropdownOpen(false);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.dropdownItemLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                            <View
+                              style={[
+                                styles.dropdownItemIconWrap,
+                                {
+                                  backgroundColor: isSelected
+                                    ? colors.primary
+                                    : (isDark ? colors.gray300 : colors.gray100),
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={ex.icon}
+                                size={14}
+                                color={isSelected ? '#fff' : colors.gray500}
+                              />
+                            </View>
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                {
+                                  color: isSelected ? colors.primary : colors.black,
+                                  fontWeight: isSelected ? '700' : '500',
+                                },
+                                isKuLanguage && {
+                                  fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR,
+                                  fontWeight: 'normal',
+                                },
+                              ]}
+                            >
+                              {optText}
+                            </Text>
+                          </View>
 
-              {/* Optional note */}
-              <View style={[styles.noteDivider, { backgroundColor: colors.gray100 }]} />
+                          {isSelected && (
+                            <Ionicons name="checkmark-circle" size={17} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                        {!isLast && (
+                          <View
+                            style={[
+                              styles.dropdownItemDivider,
+                              { backgroundColor: isDark ? colors.gray300 : colors.gray100 },
+                            ]}
+                          />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Optional note */}
+            <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>
                 {t('reports.note')}
               </Text>
               <TextInput
                 style={[
-                  styles.reasonInput,
-                  { borderColor: colors.gray200, backgroundColor: colors.white, color: colors.black, textAlign },
+                  styles.compactInput,
+                  {
+                    borderColor: colors.gray200,
+                    backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                    color: colors.black,
+                    textAlign,
+                  },
                   isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: note }), {}),
                 ]}
                 placeholder={t('reports.notePlaceholder')}
@@ -465,28 +629,47 @@ function ExpenseFormModal({
                 onChangeText={setNote}
                 returnKeyType="done"
               />
-            </PremiumCard>
+            </View>
 
             {/* Date */}
-            <PremiumCard style={styles.formCard}>
+            <View style={styles.fieldGroup}>
               <DateTimePicker
                 value={expenseDate}
                 onChange={setDate}
                 label={t('reports.date')}
                 maxDate={new Date()}
               />
-            </PremiumCard>
+            </View>
 
-            <PrimaryButton
-              label={saving ? t('common.saving') ?? 'Saving…' : isEdit ? t('reports.save') : t('reports.addExpense')}
+            {/* Action Button */}
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
               onPress={handleSave}
-              loading={saving}
-              fullWidth
-            />
-            <View style={{ height: 32 }} />
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name={isEdit ? "checkmark" : "add"} size={18} color="#fff" style={{ marginEnd: 6 }} />
+                  <Text
+                    style={[
+                      styles.saveButtonText,
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {isEdit ? t('reports.save') : t('reports.addExpense')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -576,7 +759,7 @@ export default function ExpensesScreen() {
   const [activeTab, setActiveTab]       = useState<'expenses' | 'capital'>('expenses');
   const [formOpen, setFormOpen]         = useState(false);
   const [editTarget, setEditTarget]     = useState<Expense | undefined>(undefined);
-  const [expenseFilter, setExpenseFilter] = useState<ExpenseFilterKey>('today');
+  const [expenseFilter, setExpenseFilter] = useState<ExpenseFilterKey>('all');
   const [appliedRange, setAppliedRange]   = useState<{ from: string; to: string } | null>(null);
 
   React.useEffect(() => { loadExpenses(); }, []);
@@ -584,12 +767,13 @@ export default function ExpensesScreen() {
   // When navigated into the screen, default to expenses unless explicitly ?tab=capital
   useFocusEffect(
     useCallback(() => {
+      loadExpenses();
       if (params.tab === 'capital') {
         setActiveTab('capital');
       } else {
         setActiveTab('expenses');
       }
-    }, [params.tab])
+    }, [params.tab, loadExpenses])
   );
 
   const filteredExpenses = useMemo(
@@ -660,13 +844,13 @@ export default function ExpensesScreen() {
             style={[
               styles.segmentBtn,
               activeTab === 'expenses' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
             <Ionicons
               name="receipt-outline"
               size={isTablet ? 18 : 16}
               color={activeTab === 'expenses' ? '#FFFFFF' : colors.gray500}
-              style={{ marginEnd: 6 }}
             />
             <Text
               style={[
@@ -686,13 +870,13 @@ export default function ExpensesScreen() {
             style={[
               styles.segmentBtn,
               activeTab === 'capital' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
             <Ionicons
               name="cash-outline"
               size={isTablet ? 18 : 16}
               color={activeTab === 'capital' ? '#FFFFFF' : colors.gray500}
-              style={{ marginEnd: 6 }}
             />
             <Text
               style={[
@@ -756,8 +940,8 @@ export default function ExpensesScreen() {
 
                 {filteredExpenses.length > 0 && (
                   <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={[styles.listTitle, { color: colors.black }]}>
-                      {t('reports.expenses')} ({filteredExpenses.length})
+                    <Text style={[styles.listTitle, { color: colors.black }, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' }]}>
+                      {`${t('reports.expenses')} (${filteredExpenses.length})`}
                     </Text>
                     <Text style={[styles.listHint, { color: colors.gray400 }]}>
                       {t('reports.tapToDelete')}
@@ -826,6 +1010,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     borderRadius: 11,
+    gap: 8,
   },
   segmentBtnActive: {
     shadowColor: '#000',
@@ -899,56 +1084,188 @@ const styles = StyleSheet.create({
   },
   emptyAddBtnLabel: { fontSize: 14, fontWeight: '600', color: '#fff' },
 
-  // Form modal
-  formRoot: { flex: 1 },
-  formHeader: {
-    paddingTop: 52, paddingBottom: 16,
-    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
+  // Centered Dialog Modal styling
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 18,
   },
-  formHeaderInner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  dialogCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  dialogHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
   },
-  formHeaderBtn: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.20)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
-    alignItems: 'center', justifyContent: 'center',
+  dialogHeaderTitleGroup: {
+    alignItems: 'center',
+    gap: 10,
   },
-  formHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.15, textAlign: 'center' },
-
-  formBody: { flex: 1 },
-  formBodyContent: { padding: 16, gap: 12 },
-  formCard: { marginBottom: 0 },
-
-  fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.1 },
-
+  dialogHeaderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  dialogCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialogDivider: {
+    height: 1,
+  },
+  dialogBody: {
+    flexGrow: 0,
+  },
+  dialogBodyContent: {
+    padding: 16,
+    gap: 12,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
   amountInputRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderRadius: 12, overflow: 'hidden', height: 52,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 48,
   },
-  amountInput: { flex: 1, paddingHorizontal: 14, fontSize: 18, fontWeight: '600' },
+  amountInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    fontSize: 17,
+    fontWeight: '700',
+    height: '100%',
+  },
   amountBadge: {
-    paddingHorizontal: 14, height: '100%',
-    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 12,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  amountBadgeText: { fontSize: 13, fontWeight: '600' },
-  roundedHint: { fontSize: 13, fontWeight: '600', marginTop: 6 },
-  errorText: { fontSize: 12, marginTop: 4 },
-
-  reasonInput: {
-    borderWidth: 1.5, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, minHeight: 52,
+  amountBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
-
-  noteDivider: { height: 1, marginTop: 16, marginBottom: 14 },
-  helperText: { fontSize: 12, marginTop: 8, lineHeight: 18 },
-  examplesLabel: { fontSize: 12, fontWeight: '600', marginTop: 14, marginBottom: 8, letterSpacing: 0.1 },
-  examplesRow: { flexWrap: 'wrap', gap: 8 },
-  exampleChip: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999, borderWidth: 1,
+  compactInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    minHeight: 44,
   },
-  exampleChipText: { fontSize: 13, fontWeight: '500' },
+  roundedHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  errorText: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  reasonInputContainer: {
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    minHeight: 46,
+    paddingHorizontal: 4,
+  },
+  reasonTextInput: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  dropdownChevronBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 2,
+  },
+  dropdownMenu: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  dropdownMenuItem: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  dropdownItemLeft: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  dropdownItemIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownItemText: {
+    fontSize: 13,
+  },
+  dropdownItemDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  saveButton: {
+    height: 46,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

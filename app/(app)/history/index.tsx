@@ -96,7 +96,7 @@ export default function HistoryScreen() {
   const [supQuery, setSupQuery] = useState('');
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);
-  const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } = usePeriodFilter();
+  const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } = usePeriodFilter('all');
 
   useEffect(() => {
     loadCustomers();
@@ -119,16 +119,16 @@ export default function HistoryScreen() {
   const visibleCustomers = useMemo(
     () =>
       (custQuery.trim() ? searchCustomers(custQuery) : customers).filter((c) =>
-        isDateWithinRange(c.lastPurchaseDate ?? c.createdAt, bounds.from, bounds.to)
+        period === 'all' ? true : isDateWithinRange(c.lastPurchaseDate ?? c.createdAt, bounds.from, bounds.to)
       ),
-    [custQuery, customers, searchCustomers, bounds]
+    [custQuery, customers, searchCustomers, bounds, period]
   );
   const visibleSuppliers = useMemo(
     () =>
       (supQuery.trim() ? searchSuppliers(supQuery) : suppliers).filter((s) =>
-        isDateWithinRange(s.lastPurchaseDate ?? s.createdAt, bounds.from, bounds.to)
+        period === 'all' ? true : isDateWithinRange(s.lastPurchaseDate ?? s.createdAt, bounds.from, bounds.to)
       ),
-    [supQuery, suppliers, searchSuppliers, bounds]
+    [supQuery, suppliers, searchSuppliers, bounds, period]
   );
 
   const totalDebtors = useMemo(
@@ -159,7 +159,7 @@ export default function HistoryScreen() {
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
         <Ionicons name="people-outline" size={48} color={colors.gray300} />
       </View>
-      {custQuery.trim() || period !== 'today' ? (
+      {custQuery.trim() || period !== 'all' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
@@ -188,7 +188,7 @@ export default function HistoryScreen() {
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
         <Ionicons name="business-outline" size={48} color={colors.gray300} />
       </View>
-      {supQuery.trim() || period !== 'today' ? (
+      {supQuery.trim() || period !== 'all' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
@@ -437,7 +437,9 @@ export default function HistoryScreen() {
       <PeriodFilterModal
         visible={periodSheetVisible}
         current={period}
+        includeAll
         labels={{
+          all: isKuLanguage ? 'هەمووی' : 'All',
           today: t('periodFilter.today'),
           week: t('periodFilter.thisWeek'),
           month: t('periodFilter.thisMonth'),

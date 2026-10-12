@@ -113,6 +113,7 @@ export function DashboardMetricSquare({
             <>
               <AmountText
                 value={Math.abs(value)}
+                currency={null}
                 style={[
                   styles.valueText,
                   {

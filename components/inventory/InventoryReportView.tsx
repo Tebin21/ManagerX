@@ -129,39 +129,8 @@ export function InventoryReportView({
           </Text>
         </View>
 
-        {/* Action Row: Export PDF & Read-only badge */}
+        {/* Section badge: Read-only badge */}
         <View style={[styles.sectionActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <TouchableOpacity
-            onPress={onExportPdf}
-            disabled={isExporting}
-            activeOpacity={0.8}
-            style={[
-              styles.pdfActionBtn,
-              {
-                backgroundColor: colors.primary + '16',
-                borderColor: colors.primary + '40',
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-          >
-            {isExporting ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons name="document-text-outline" size={13} color={colors.primary} />
-                <Text
-                  style={[
-                    styles.pdfActionText,
-                    { color: colors.primary },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                  ]}
-                >
-                  PDF
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
           <View
             style={[
               styles.readOnlyBadge,

@@ -111,6 +111,7 @@ export function CapitalDrawerReportCard() {
           <View style={[styles.balanceRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <AmountText
               value={Math.abs(stats.currentBalance)}
+              currency={null}
               style={[styles.balanceAmt, { color: balanceColor }]}
               numberOfLines={1}
               adjustsFontSizeToFit

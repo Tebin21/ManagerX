@@ -61,6 +61,60 @@ function formatActivityTime(dateStr: string, isKurdish: boolean): string {
   return `${day}/${month} - ${timeFormatted}`;
 }
 
+function getActivityDisplayTitle(
+  item: DashboardActivityItem,
+  isKurdish: boolean,
+  t: (key: string) => string
+): string {
+  const refMatch = (item.title || '').match(/#\s*([0-9a-zA-Z_-]+)/);
+  const ref = item.referenceNumber || (refMatch ? refMatch[1] : '');
+
+  switch (item.type) {
+    case 'sale': {
+      const num = ref || toEnglishDigits(item.title.replace(/^[^#]*#?/, '')).trim();
+      return isKurdish ? `پسوولەی #${num}` : `Invoice #${num}`;
+    }
+    case 'purchase': {
+      const num = ref || toEnglishDigits(item.title.replace(/^[^#]*#?/, '')).trim();
+      return isKurdish ? `کڕین #${num}` : `Purchase #${num}`;
+    }
+    case 'customer_debt':
+      return t('dashboard.debtCollectedActivity');
+    case 'supplier_debt':
+      return t('dashboard.debtPaidActivity');
+    case 'expense':
+      return t('dashboard.expenseActivity');
+    case 'customer':
+      return t('dashboard.newCustomerActivity');
+    case 'supplier':
+      return t('dashboard.newSupplierActivity');
+    case 'capital_deposit':
+      return isKurdish ? 'پارەدانان بۆ دەخیلە' : 'Till Deposit';
+    case 'capital_withdraw':
+      return isKurdish ? 'ڕاکێشانی دەخیلە' : 'Till Withdrawal';
+    default:
+      return toEnglishDigits(item.title);
+  }
+}
+
+function getActivityDisplaySubtitle(item: DashboardActivityItem, isKurdish: boolean): string {
+  if (!item.subtitle) return '';
+  const sub = item.subtitle.trim();
+  if (sub === 'کڕیاری گشتی' || sub === 'General Customer') {
+    return isKurdish ? 'کڕیاری گشتی' : 'General Customer';
+  }
+  if (sub === 'کڕینی کاڵا' || sub === 'General Purchase') {
+    return isKurdish ? 'کڕینی کاڵا' : 'General Purchase';
+  }
+  if (sub === 'کڕیار' || sub === 'Customer') {
+    return isKurdish ? 'کڕیار' : 'Customer';
+  }
+  if (sub === 'دابینکەر' || sub === 'Supplier') {
+    return isKurdish ? 'دابینکەر' : 'Supplier';
+  }
+  return item.subtitle;
+}
+
 export function DashboardActivityFeed({ activities, isLoading = false, periodLabel }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
@@ -221,6 +275,9 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
             const config = getActivityConfig(item.type);
             const isLast = index === activities.length - 1;
             const timeStr = formatActivityTime(item.timestamp, isKurdish);
+            const displayTitle = getActivityDisplayTitle(item, isKurdish, t);
+            const displaySubtitle = getActivityDisplaySubtitle(item, isKurdish);
+            const currencyLabel = isKurdish ? 'د.ع' : 'IQD';
 
             return (
               <View key={`act_${item.id}_${index}`}>
@@ -249,7 +306,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                         ]}
                         numberOfLines={1}
                       >
-                        {toEnglishDigits(item.title)}
+                        {displayTitle}
                       </Text>
                       {item.discount && item.discount > 0 ? (
                         <View style={[styles.discountTag, { backgroundColor: '#A855F718' }]}>
@@ -267,7 +324,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                       ]}
                       numberOfLines={1}
                     >
-                      {item.subtitle}
+                      {displaySubtitle}
                     </Text>
                   </View>
 
@@ -277,6 +334,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                       <View style={[styles.amountRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
                         <AmountText
                           value={item.amount}
+                          currency={null}
                           style={[
                             styles.amountText,
                             {
@@ -304,7 +362,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                           ]}
                         >
                           {' '}
-                          د.ع
+                          {currencyLabel}
                         </Text>
                       </View>
                     ) : (

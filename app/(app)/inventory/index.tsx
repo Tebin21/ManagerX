@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -10,7 +10,14 @@ import {
   Modal,
   ScrollView,
   Keyboard,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Text } from '@/components/ui/AppText';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +27,6 @@ import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { BulkSyncModal } from '@/components/inventory/BulkSyncModal';
 import { useTranslation } from 'react-i18next';
-import { CategoryFilterBar } from '@/components/inventory/CategoryFilterBar';
 import { ProductCard } from '@/components/inventory/ProductCard';
 import { InventoryReportView } from '@/components/inventory/InventoryReportView';
 import {
@@ -100,6 +106,19 @@ export default function InventoryScreen() {
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategoryTab, setActiveCategoryTab] = useState<ActiveCategoryTab>('all');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  const handleFocusSearch = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSearchFocused(true);
+  }, []);
+
+  const handleDismissSearch = useCallback(() => {
+    Keyboard.dismiss();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSearchFocused(false);
+  }, []);
 
   // Enhanced Filter & Sort states
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -411,20 +430,48 @@ export default function InventoryScreen() {
     setQuery('');
   }, [setCategory]);
 
-  const TABS: { key: ActiveCategoryTab | 'history'; label: string; icon?: string }[] = [
-    { key: 'all', label: t('inventory.filterAll') },
-    { key: 'categories', label: t('inventory.category') },
-    { key: 'history', label: t('inventory.viewHistory') },
-  ];
+  const isFilterActive = useMemo(() => {
+    return (
+      stockStatusFilter !== 'all' ||
+      selectedCategory !== 'all' ||
+      sortBy !== 'newest' ||
+      query.trim().length > 0
+    );
+  }, [stockStatusFilter, selectedCategory, sortBy, query]);
 
-  const QUICK_CHIPS: { key: StockStatusFilter; label: string; icon: any }[] = [
-    { key: 'all', label: t('inventory.filterAll'), icon: 'apps-outline' },
-    { key: 'inStock', label: t('inventory.inStockFilter'), icon: 'checkmark-circle-outline' },
-    { key: 'lowStock', label: t('inventory.filterLow'), icon: 'warning-outline' },
-    { key: 'outOfStock', label: t('inventory.outOfStockFilter'), icon: 'close-circle-outline' },
-    { key: 'paid', label: t('inventory.filterPaid'), icon: 'cash-outline' },
-    { key: 'debt', label: t('inventory.filterDebt'), icon: 'time-outline' },
-  ];
+  const categoryChips = useMemo(() => {
+    const list: {
+      id: string;
+      label: string;
+      icon?: any;
+      isActive: boolean;
+      onPress: () => void;
+    }[] = [
+      {
+        id: 'all',
+        label: t('inventory.filterAll'),
+        icon: 'apps-outline',
+        isActive: selectedCategory === 'all',
+        onPress: () => {
+          setCategory('all');
+        },
+      },
+    ];
+
+    // Append Category chips
+    categories.forEach((catName) => {
+      list.push({
+        id: `cat_${catName}`,
+        label: catName,
+        isActive: selectedCategory === catName,
+        onPress: () => {
+          setCategory(selectedCategory === catName ? 'all' : catName);
+        },
+      });
+    });
+
+    return list;
+  }, [selectedCategory, categories, setCategory, t]);
 
   const renderEmpty = () => (
     <MotiView
@@ -510,6 +557,7 @@ export default function InventoryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       {/* ── App Header with 2 Segmented Navigation Tabs: [ڕاپۆرت] and [بەرهەمەکان] ── */}
+      {/* ── App Header ── */}
       <AppHeader
         title={t('inventory.title')}
         showBack
@@ -517,59 +565,50 @@ export default function InventoryScreen() {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace('/(app)');
+            router.replace('/(app)' as never);
           }
         }}
         rightAction={
-          <View style={{ flexDirection, gap: 8 }}>
+          <View style={{ flexDirection, gap: 8, alignItems: 'center' }}>
             <HeaderActionButton
               icon="storefront-outline"
+              size={36}
+              iconSize={19}
               onPress={() => setBulkSyncModalVisible(true)}
             />
             <HeaderActionButton
               icon="document-text-outline"
+              size={36}
+              iconSize={19}
               onPress={() => setReportModalVisible(true)}
               loading={reportGenerating}
             />
           </View>
         }
-      >
-        {/* ── 2 Main Navigation Buttons: Report & Products ── */}
-        <View
-          style={[
-            styles.segmentedNavWrap,
-            {
-              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(0, 0, 0, 0.16)',
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-            },
-          ]}
-        >
-          {/* Button 1: ڕاپۆرت (Report) - ALWAYS ACTIVE INITIALLY */}
+      />
+
+      {/* ── Segmented Tab Switcher (Report & Products) — Styled outside header exactly like Expenses ── */}
+      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
+        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Tab 1: ڕاپۆرت (Report) */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             onPress={() => setActiveNavTab('report')}
             style={[
               styles.segmentBtn,
-              activeNavTab === 'report'
-                ? [styles.segmentBtnActive, { backgroundColor: colors.primary }]
-                : { backgroundColor: 'transparent' },
+              activeNavTab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={15}
-              color={activeNavTab === 'report' ? activeTabTextColor : 'rgba(255, 255, 255, 0.75)'}
+              size={isTablet ? 18 : 16}
+              color={activeNavTab === 'report' ? activeTabTextColor : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                {
-                  color:
-                    activeNavTab === 'report'
-                      ? activeTabTextColor
-                      : 'rgba(255, 255, 255, 0.85)',
-                },
+                { color: activeNavTab === 'report' ? activeTabTextColor : colors.gray600 },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -577,32 +616,25 @@ export default function InventoryScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Button 2: بەرهەمەکان (Products) */}
+          {/* Tab 2: بەرهەمەکان (Products) */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             onPress={() => setActiveNavTab('products')}
             style={[
               styles.segmentBtn,
-              activeNavTab === 'products'
-                ? [styles.segmentBtnActive, { backgroundColor: colors.primary }]
-                : { backgroundColor: 'transparent' },
+              activeNavTab === 'products' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
             <Ionicons
               name="cube-outline"
-              size={15}
-              color={activeNavTab === 'products' ? activeTabTextColor : 'rgba(255, 255, 255, 0.75)'}
+              size={isTablet ? 18 : 16}
+              color={activeNavTab === 'products' ? activeTabTextColor : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                {
-                  color:
-                    activeNavTab === 'products'
-                      ? activeTabTextColor
-                      : 'rgba(255, 255, 255, 0.85)',
-                },
+                { color: activeNavTab === 'products' ? activeTabTextColor : colors.gray600 },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -610,7 +642,7 @@ export default function InventoryScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </AppHeader>
+      </View>
 
       {/* ── SCREEN BODY: Tab 1 = Report, Tab 2 = Products ── */}
       {activeNavTab === 'report' ? (
@@ -626,297 +658,243 @@ export default function InventoryScreen() {
       ) : (
         /* ═══════════ TAB 2: PRODUCTS VIEW (CATALOG & SEARCH) ═══════════ */
         <View style={styles.productsBody}>
-          {/* 1. Search Bar */}
-          <View
-            style={[
-              styles.searchWrap,
-              isTablet && { height: 54, marginHorizontal: 24, borderRadius: 16 },
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderColor: isDark ? colors.gray200 : colors.gray200,
-                flexDirection,
-                gap: isRTL ? RTL_SPACING.gap : 8,
-              },
-            ]}
-          >
-            <Ionicons
-              name="search"
-              size={isTablet ? 20 : 16}
-              color={colors.gray400}
-              style={styles.searchIcon}
-            />
-            <TextInput
+          {/* 1. Integrated Search & Quick Actions Bar */}
+          <View style={[styles.searchActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* Search Input Box (Expands to full width when focused) */}
+            <View
               style={[
-                styles.searchInput,
-                isTablet && { fontSize: 17 },
-                { color: colors.black, textAlign, writingDirection },
-                isKuLanguage &&
-                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                styles.searchBox,
+                isTablet && { height: 50, borderRadius: 14 },
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: isDark ? colors.gray200 : colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
               ]}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('inventory.search')}
-              placeholderTextColor={colors.gray400}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
+            >
+              <Ionicons
+                name="search"
+                size={isTablet ? 18 : 16}
+                color={colors.gray400}
+                style={styles.searchIcon}
+              />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.searchInput,
+                  isTablet && { fontSize: 16 },
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                  isKuLanguage &&
+                    applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                ]}
+                value={query}
+                onChangeText={setQuery}
+                onFocus={handleFocusSearch}
+                onBlur={() => {
+                  if (!query.trim()) handleDismissSearch();
+                }}
+                placeholder={
+                  isSearchFocused
+                    ? (isKuLanguage ? 'گەڕانی بەرهەم، دابینکەر، کۆدی تەواو...' : t('inventory.search'))
+                    : (isKuLanguage ? 'گەڕانی بەرهەم...' : t('inventory.search'))
+                }
+                placeholderTextColor={colors.gray400}
+                returnKeyType="search"
+                clearButtonMode="never"
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={isTablet ? 18 : 16} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Cancel / Dismiss button when search is expanded */}
+            {isSearchFocused && (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handleDismissSearch}
+                style={styles.searchCancelBtn}
+              >
+                <Text
+                  style={[
+                    styles.searchCancelBtnText,
+                    { color: colors.primary },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {isKuLanguage ? 'داخستن' : t('common.cancel')}
+                </Text>
               </TouchableOpacity>
+            )}
+
+            {/* When search is not focused: Show the 4 action buttons */}
+            {!isSearchFocused && (
+              <>
+                {/* Filter & Sort Modal Trigger */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setFilterModalVisible(true)}
+                  style={[
+                    styles.actionSquareBtn,
+                    isTablet && { width: 50, height: 50, borderRadius: 14 },
+                    (stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest')
+                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                      : {
+                          backgroundColor: isDark ? colors.gray100 : colors.white,
+                          borderColor: isDark ? colors.gray200 : colors.gray200,
+                        },
+                  ]}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={isTablet ? 20 : 18}
+                    color={
+                      (stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest')
+                        ? colors.white
+                        : isDark ? colors.gray600 : colors.darkBlue
+                    }
+                  />
+                  {(stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest') && (
+                    <View style={[styles.filterActiveDot, { backgroundColor: colors.white }]} />
+                  )}
+                </TouchableOpacity>
+
+                {/* Stock Alerts Bell */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/(app)/inventory/stock-alerts' as never)}
+                  style={[
+                    styles.actionSquareBtn,
+                    isTablet && { width: 50, height: 50, borderRadius: 14 },
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="notifications-outline"
+                    size={isTablet ? 20 : 18}
+                    color={stats?.lowStockCount ? colors.warning : colors.gray500}
+                  />
+                  {!!stats?.lowStockCount && (
+                    <View style={[styles.bellBadge, { backgroundColor: colors.warning }]}>
+                      <Text style={[styles.bellBadgeText, { color: colors.white }]}>
+                        {stats.lowStockCount > 9 ? '9+' : String(stats.lowStockCount)}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Stock Movements History */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/(app)/inventory/history' as never)}
+                  style={[
+                    styles.actionSquareBtn,
+                    isTablet && { width: 50, height: 50, borderRadius: 14 },
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                    },
+                  ]}
+                >
+                  <Ionicons name="time-outline" size={isTablet ? 20 : 18} color={colors.gray500} />
+                </TouchableOpacity>
+
+                {/* Category Management */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setCatModalVisible(true)}
+                  style={[
+                    styles.actionSquareBtn,
+                    isTablet && { width: 50, height: 50, borderRadius: 14 },
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                    },
+                  ]}
+                >
+                  <Ionicons name="pricetags-outline" size={isTablet ? 19 : 17} color={colors.gray500} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
 
-          {/* 2. Tool Bar Row: All | Categories | History | Stock Alerts | Settings (As in Screenshot 2) */}
-          <View
-            style={[
-              styles.tabBar,
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderBottomColor: isDark ? colors.gray200 : colors.gray100,
-                flexDirection,
-              },
-            ]}
-          >
+          {/* 2. Category Filter Chips Row (Clean, dedicated categories bar) */}
+          <View style={styles.chipsStripWrap}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={styles.tabBarScroll}
-              contentContainerStyle={[styles.tabBarContent, { flexDirection }]}
+              style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
+              contentContainerStyle={styles.chipsScrollContent}
             >
-              {TABS.map(({ key, label }) => {
-                const isActive = key !== 'history' && activeCategoryTab === key;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    onPress={() => handleTabChange(key as ActiveCategoryTab | 'history')}
-                    style={[
-                      styles.tab,
-                      isTablet && { paddingHorizontal: 18, paddingVertical: 10 },
-                      isActive
-                        ? { backgroundColor: colors.primary }
-                        : {
-                            backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            borderColor: isDark ? colors.gray200 : colors.gray200,
-                          },
-                      { flexDirection },
-                    ]}
-                    activeOpacity={0.75}
-                  >
-                    {key === 'history' && (
-                      <Ionicons
-                        name="time-outline"
-                        size={isTablet ? 16 : 12}
-                        color={isActive ? colors.white : colors.gray500}
-                        style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 3 }}
-                      />
-                    )}
-                    <Text
-                      style={[
-                        styles.tabText,
-                        isTablet && { fontSize: 15 },
-                        { color: isActive ? colors.white : isDark ? colors.gray600 : colors.gray600 },
-                        isKuLanguage && {
-                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                          fontWeight: 'normal',
+              {categoryChips.map((chip) => (
+                <TouchableOpacity
+                  key={chip.id}
+                  activeOpacity={0.8}
+                  onPress={chip.onPress}
+                  style={[
+                    styles.unifiedChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    chip.isActive
+                      ? [styles.unifiedChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
+                      : {
+                          backgroundColor: isDark ? colors.gray100 : colors.white,
+                          borderColor: isDark ? colors.gray200 : colors.gray200,
                         },
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Bell icon — stock alerts */}
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/inventory/stock-alerts' as never)}
-              style={[
-                styles.iconBtn,
-                isTablet && { paddingHorizontal: 18, paddingVertical: 15 },
-                { borderStartColor: isDark ? colors.gray200 : colors.gray100 },
-              ]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={isTablet ? 22 : 18}
-                color={stats?.lowStockCount ? colors.warning : colors.gray500}
-              />
-              {!!stats?.lowStockCount && (
-                <View style={[styles.bellBadge, { backgroundColor: colors.warning }]}>
-                  <Text style={[styles.bellBadgeText, { color: colors.white }]}>
-                    {stats.lowStockCount > 9 ? '9+' : String(stats.lowStockCount)}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Settings icon — categories management */}
-            <TouchableOpacity
-              onPress={() => setCatModalVisible(true)}
-              style={[
-                styles.iconBtn,
-                isTablet && { paddingHorizontal: 18, paddingVertical: 15 },
-                { borderStartColor: isDark ? colors.gray200 : colors.gray100 },
-              ]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="settings-outline" size={isTablet ? 22 : 18} color={colors.gray500} />
-            </TouchableOpacity>
-          </View>
-
-          {/* 3. Quick Filter Chips Bar */}
-          <View
-            style={[
-              styles.quickChipsBar,
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderBottomColor: isDark ? colors.gray200 : colors.gray100,
-              },
-            ]}
-          >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.quickChipsContent, { flexDirection }]}
-            >
-              {QUICK_CHIPS.map((chip) => {
-                const isSelected = stockStatusFilter === chip.key;
-                return (
-                  <TouchableOpacity
-                    key={chip.key}
-                    onPress={() => setStockStatusFilter(chip.key)}
-                    style={[
-                      styles.quickChip,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.primary
-                          : isDark
-                          ? colors.gray200
-                          : colors.gray100,
-                        borderColor: isSelected ? colors.primary : 'transparent',
-                        flexDirection,
-                      },
-                    ]}
-                    activeOpacity={0.8}
-                  >
+                  ]}
+                >
+                  {chip.icon && (
                     <Ionicons
                       name={chip.icon}
-                      size={12}
-                      color={isSelected ? colors.white : colors.gray500}
+                      size={13}
+                      color={chip.isActive ? colors.white : colors.gray500}
                     />
-                    <Text
-                      style={[
-                        styles.quickChipText,
-                        { color: isSelected ? colors.white : isDark ? colors.gray600 : colors.darkBlue },
-                        isKuLanguage && {
-                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                          fontWeight: 'normal',
-                        },
-                      ]}
-                    >
-                      {chip.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                  )}
+                  <Text
+                    style={[
+                      styles.unifiedChipText,
+                      {
+                        color: chip.isActive
+                          ? colors.white
+                          : isDark
+                          ? colors.gray600
+                          : colors.darkBlue,
+                      },
+                      isKuLanguage && {
+                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        fontWeight: 'normal',
+                      },
+                    ]}
+                  >
+                    {chip.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
 
-          {/* 4. Category filter bar (when categories active) */}
-          {activeCategoryTab === 'categories' && categories.length > 0 && (
-            <MotiView
-              from={{ opacity: 0, translateY: -4 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-            >
-              <CategoryFilterBar
-                categories={categories}
-                selected={selectedCategory}
-                onSelect={setCategory}
-              />
-            </MotiView>
-          )}
-
-          {/* 5. Summary Row & Enhanced Filter Dropdown Button (Screenshot 2 bottom) */}
+          {/* 3. Slim, Minimal Summary Line */}
           <View
             style={[
-              styles.controlRow,
-              isTablet && { paddingHorizontal: 24, paddingVertical: 14 },
+              styles.summaryStatusLine,
               {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
                 borderBottomColor: isDark ? colors.gray200 : colors.gray100,
-                flexDirection,
-                gap: isRTL ? RTL_SPACING.gap : 10,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
           >
-            {/* Filter & Sort Button */}
-            <TouchableOpacity
-              onPress={() => setFilterModalVisible(true)}
-              style={[
-                styles.filterBtn,
-                isTablet && { paddingHorizontal: 16, paddingVertical: 9 },
-                stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest'
-                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                  : {
-                      backgroundColor: isDark ? colors.gray200 : 'transparent',
-                      borderColor: isDark ? colors.gray300 : colors.gray200,
-                    },
-                { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 },
-              ]}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name="options-outline"
-                size={isTablet ? 16 : 13}
-                color={
-                  stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest'
-                    ? colors.white
-                    : colors.gray500
-                }
-              />
+            <View style={[styles.summaryTextGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text
                 style={[
-                  styles.filterBtnText,
-                  isTablet && { fontSize: 15 },
-                  {
-                    color:
-                      stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest'
-                        ? colors.white
-                        : isDark
-                        ? colors.gray600
-                        : colors.gray600,
-                  },
-                  isKuLanguage && {
-                    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                    fontWeight: 'normal',
-                  },
-                ]}
-              >
-                {currentFilterLabel}
-              </Text>
-              <Ionicons
-                name="chevron-down"
-                size={isTablet ? 15 : 12}
-                color={
-                  stockStatusFilter !== 'all' || selectedCategory !== 'all' || sortBy !== 'newest'
-                    ? colors.white
-                    : colors.gray400
-                }
-              />
-            </TouchableOpacity>
-
-            {/* Summary Count & Total Value */}
-            <View style={[styles.summaryBlock, { gap: isRTL ? RTL_SPACING.gapSm : 6 }]}>
-              <Text
-                style={[
-                  styles.summaryCount,
-                  isTablet && { fontSize: 15 },
-                  { color: colors.gray500, textAlign },
+                  styles.summaryCountText,
+                  { color: isDark ? colors.gray600 : colors.darkBlue },
                   isKuLanguage && {
                     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
                     fontWeight: 'normal',
@@ -925,15 +903,37 @@ export default function InventoryScreen() {
               >
                 {toEnglishDigits(visible.length)} {t('inventory.products')}
               </Text>
+              <Text style={[styles.summaryDot, { color: colors.gray400 }]}>•</Text>
+              <Text style={[styles.summaryValueLabel, { color: colors.gray400 }]}>
+                {isKuLanguage ? 'کۆی بەها:' : 'Total:'}
+              </Text>
               <CompactAmount
                 value={totalVisible}
-                style={[
-                  styles.summaryValue,
-                  isTablet && { fontSize: 16 },
-                  { color: colors.primary, textAlign },
-                ]}
+                style={[styles.summaryCountText, { color: colors.primary }]}
               />
             </View>
+
+            {isFilterActive && (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handleResetFilters}
+                style={[styles.resetFilterLink, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              >
+                <Ionicons name="refresh-outline" size={12} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.resetFilterLinkText,
+                    { color: colors.primary },
+                    isKuLanguage && {
+                      fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                      fontWeight: 'normal',
+                    },
+                  ]}
+                >
+                  {isKuLanguage ? 'سڕینەوەی فلتەر' : 'Clear Filters'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* 6. Products FlatList */}
@@ -963,7 +963,12 @@ export default function InventoryScreen() {
               />
             }
             showsVerticalScrollIndicator={false}
-            onScrollBeginDrag={() => Keyboard.dismiss()}
+            onScrollBeginDrag={handleDismissSearch}
+            onTouchStart={() => {
+              if (isSearchFocused && !query.trim()) {
+                handleDismissSearch();
+              }
+            }}
           />
         </View>
       )}
@@ -1207,148 +1212,168 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  segmentedNavWrap: {
-    marginTop: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+  segmentWrapper: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  segmentTrack: {
+    flexDirection: 'row',
     borderRadius: 14,
-    padding: 3.5,
-    gap: 4,
-    width: '100%',
+    padding: 4,
+    gap: 6,
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 7.5,
-    borderRadius: 11,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 11,
+    gap: 8,
   },
   segmentBtnActive: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 2,
   },
   segmentBtnText: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
   },
   productsBody: {
     flex: 1,
   },
-  searchWrap: {
-    height: 44,
-    borderRadius: 12,
+  searchActionsRow: {
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
-    borderWidth: 1,
-    paddingHorizontal: 12,
     alignItems: 'center',
+    gap: 6,
+  },
+  searchBox: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    alignItems: 'center',
+    gap: 6,
   },
   searchIcon: {
-    marginEnd: 4,
+    marginEnd: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
     paddingVertical: 0,
   },
-  tabBar: {
-    height: 48,
-    borderBottomWidth: 1,
-    alignItems: 'center',
-  },
-  tabBarScroll: {
-    flex: 1,
-  },
-  tabBarContent: {
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    gap: 8,
-  },
-  tab: {
-    paddingHorizontal: 13,
+  searchCancelBtn: {
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  iconBtn: {
-    paddingHorizontal: 12,
-    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  searchCancelBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  actionSquareBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
-    borderStartWidth: 1,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   bellBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: 4,
+    right: 4,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 7.5,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   bellBadgeText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '800',
   },
-  quickChipsBar: {
-    borderBottomWidth: 1,
-    paddingVertical: 8,
+  chipsStripWrap: {
+    marginBottom: 6,
   },
-  quickChipsContent: {
-    paddingHorizontal: 12,
+  chipsScrollContent: {
+    paddingHorizontal: 16,
     gap: 7,
+    alignItems: 'center',
+    paddingVertical: 2,
   },
-  quickChip: {
-    paddingHorizontal: 11,
-    paddingVertical: 5.5,
-    borderRadius: 10,
+  unifiedChip: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
   },
-  quickChipText: {
-    fontSize: 11.5,
+  unifiedChipActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  unifiedChipText: {
+    fontSize: 12,
     fontWeight: '600',
   },
-  controlRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  summaryStatusLine: {
+    marginHorizontal: 16,
+    paddingVertical: 7,
     borderBottomWidth: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  filterBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
+  summaryTextGroup: {
     alignItems: 'center',
+    gap: 6,
   },
-  filterBtnText: {
+  summaryCountText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  summaryBlock: {
-    flexDirection: 'row',
+  summaryDot: {
+    fontSize: 12,
+  },
+  summaryValueLabel: {
+    fontSize: 12,
+  },
+  resetFilterLink: {
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
   },
-  summaryCount: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  summaryValue: {
-    fontSize: 13.5,
+  resetFilterLinkText: {
+    fontSize: 11.5,
     fontWeight: '700',
   },
   list: {

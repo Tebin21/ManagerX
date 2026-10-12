@@ -76,7 +76,7 @@ export default function DashboardViewScreen() {
 
       const [overviewData, recentActs] = await Promise.all([
         getDashboardOverviewStats(fromStr, toStr),
-        getDashboardRecentActivities(40, fromStr, toStr),
+        getDashboardRecentActivities(40, fromStr, toStr, isKurdish ? 'ku' : 'en'),
       ]);
 
       setStats(overviewData);
@@ -87,7 +87,7 @@ export default function DashboardViewScreen() {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [period, bounds]);
+  }, [period, bounds, isKurdish]);
 
   // Formatted period badge label for activity feed and PDF export
   const periodLabel = useMemo(() => {
@@ -286,7 +286,18 @@ export default function DashboardViewScreen() {
               delay={60}
             />
 
-            {/* 3. Expected Net Profit / کۆی قازانجی چاوەڕوانکراو */}
+            {/* 3. Total Expenses / کۆی مەسروفات و خەرجییەکان */}
+            <DashboardMetricSquare
+              title={isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
+              value={stats.totalExpenses}
+              isCurrency
+              icon="cash-outline"
+              color="#E11D48"
+              subtitle={isKurdish ? 'مەسروفات' : 'Expenses'}
+              delay={80}
+            />
+
+            {/* 4. Expected Net Profit / کۆی قازانجی چاوەڕوانکراو */}
             <DashboardMetricSquare
               title={t('dashboard.expectedProfit')}
               value={stats.expectedProfit}
@@ -302,7 +313,7 @@ export default function DashboardViewScreen() {
                   ? 'زەرەر'
                   : 'Loss'
               }
-              delay={90}
+              delay={100}
             />
 
             {/* 4. Total Sales / کۆی فرۆشتنەکان */}
