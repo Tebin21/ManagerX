@@ -3,6 +3,8 @@ import { SITE_URL } from "@/lib/seo";
 import { PRIVACY_LAST_UPDATED } from "@/lib/legal/privacy-sections";
 import { TERMS_LAST_UPDATED } from "@/lib/legal/terms-sections";
 
+export const dynamic = "force-static";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {

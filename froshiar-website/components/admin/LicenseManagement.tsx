@@ -24,6 +24,23 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { getClientFirestore } from '@/lib/firebase';
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+import {
+  signLicense,
+  signStoreSubscription,
+  isValidDeviceId,
+  isValidPlan,
+} from '@/lib/licenseCrypto';
 
 export interface LicenseRecord {
   id: string;
@@ -141,18 +158,63 @@ export default function LicenseManagement({
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [licRes, subRes] = await Promise.all([
-        fetch('/api/licenses', { cache: 'no-store' }),
-        fetch('/api/online-store-subscriptions', { cache: 'no-store' }),
-      ]);
-      if (licRes.ok) {
-        const data = await licRes.json();
-        setLicenses(data.licenses || []);
-        if (onLicensesUpdated) onLicensesUpdated(data.licenses?.length || 0);
+      const db = getClientFirestore();
+      if (db) {
+        const [licSnap, subSnap] = await Promise.all([
+          getDocs(query(collection(db, 'licenses'), orderBy('createdAt', 'desc'))).catch(async () => {
+            return getDocs(collection(db, 'licenses')).catch(() => null);
+          }),
+          getDocs(query(collection(db, 'online_store_subscriptions'), orderBy('createdAt', 'desc'))).catch(async () => {
+            return getDocs(collection(db, 'online_store_subscriptions')).catch(() => null);
+          }),
+        ]);
+
+        const now = Date.now();
+        if (licSnap && !licSnap.empty) {
+          const lics: LicenseRecord[] = [];
+          licSnap.forEach((d) => {
+            const data = d.data() as any;
+            const isExp =
+              data.status === 'active' &&
+              !!data.expiresAt &&
+              new Date(data.expiresAt).getTime() < now;
+            lics.push({ id: d.id, ...data, isExpired: isExp });
+          });
+          lics.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setLicenses(lics);
+          if (onLicensesUpdated) onLicensesUpdated(lics.length);
+        }
+
+        if (subSnap && !subSnap.empty) {
+          const subs: OnlineStoreSubscriptionRecord[] = [];
+          subSnap.forEach((d) => {
+            const data = d.data() as any;
+            const isExp =
+              data.status === 'active' &&
+              !!data.expiresAt &&
+              new Date(data.expiresAt).getTime() < now;
+            subs.push({ id: d.id, ...data, isExpired: isExp });
+          });
+          subs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setSubscriptions(subs);
+        }
       }
-      if (subRes.ok) {
-        const data = await subRes.json();
-        setSubscriptions(data.subscriptions || []);
+
+      // If running with local API fallback
+      if (!db) {
+        const [licRes, subRes] = await Promise.all([
+          fetch('/api/licenses', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/online-store-subscriptions', { cache: 'no-store' }).catch(() => null),
+        ]);
+        if (licRes && licRes.ok) {
+          const data = await licRes.json();
+          setLicenses(data.licenses || []);
+          if (onLicensesUpdated) onLicensesUpdated(data.licenses?.length || 0);
+        }
+        if (subRes && subRes.ok) {
+          const data = await subRes.json();
+          setSubscriptions(data.subscriptions || []);
+        }
       }
     } catch (err) {
       console.error('Error fetching license data:', err);
@@ -177,31 +239,71 @@ export default function LicenseManagement({
       return;
     }
 
+    if (!isValidDeviceId(dev)) {
+      setLicError(isKu ? 'شێوازی ئایدی ئامێر هەڵەیە (دەبێت لەم شێوازە بێت: MX-DV-XXXX-XXXX)' : 'Invalid device ID format');
+      return;
+    }
+
+    if (!isValidPlan(licPlan)) {
+      setLicError(isKu ? 'پلانی دیاریکراو نەناسراوە' : 'Invalid plan');
+      return;
+    }
+
     setLicSubmitting(true);
     try {
-      const res = await fetch('/api/licenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const db = getClientFirestore();
+      if (db) {
+        const monthsNum = licHasExpiry ? Number(licMonths) : null;
+        const { licenseCode, expiresAt } = signLicense(dev, licPlan, monthsNum);
+        const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lic_${Date.now()}`;
+        const record: LicenseRecord = {
+          id: newId,
           customerName: licCustomerName.trim(),
           phone: licPhone.trim(),
           deviceId: dev,
-          plan: licPlan,
-          expiresInMonths: licHasExpiry ? Number(licMonths) : null,
+          licenseCode,
+          plan: licPlan as any,
+          createdAt: new Date().toISOString(),
+          activatedAt: null,
+          expiresAt,
+          status: 'active',
           notes: licNotes.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setLicError(data.error || (isKu ? 'هەڵەیەک ڕوویدا لە دروستکردنی لایسێنس' : 'Failed to create license'));
-      } else {
-        setLicSuccess(data.license);
+          revokedAt: null,
+          revokedReason: null,
+          isExpired: false,
+        };
+        await setDoc(doc(db, 'licenses', newId), record);
+        setLicSuccess(record);
         setLicCustomerName('');
         setLicPhone('');
         setLicDeviceId('');
         setLicNotes('');
         fetchAll();
+      } else {
+        const res = await fetch('/api/licenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: licCustomerName.trim(),
+            phone: licPhone.trim(),
+            deviceId: dev,
+            plan: licPlan,
+            expiresInMonths: licHasExpiry ? Number(licMonths) : null,
+            notes: licNotes.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setLicError(data.error || (isKu ? 'هەڵەیەک ڕوویدا لە دروستکردنی لایسێنس' : 'Failed to create license'));
+        } else {
+          setLicSuccess(data.license);
+          setLicCustomerName('');
+          setLicPhone('');
+          setLicDeviceId('');
+          setLicNotes('');
+          fetchAll();
+        }
       }
     } catch (err: any) {
       setLicError(err?.message || (isKu ? 'هەڵەی پەیوەندی بە سێرڤەر' : 'Server connection error'));
@@ -222,30 +324,63 @@ export default function LicenseManagement({
       return;
     }
 
+    if (!isValidDeviceId(dev)) {
+      setSubError(isKu ? 'شێوازی ئایدی ئامێر هەڵەیە (دەبێت لەم شێوازە بێت: MX-DV-XXXX-XXXX)' : 'Invalid device ID format');
+      return;
+    }
+
     setSubSubmitting(true);
     try {
-      const res = await fetch('/api/online-store-subscriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const db = getClientFirestore();
+      if (db) {
+        const { subscriptionCode, expiresAt } = signStoreSubscription(dev, subPlan);
+        const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `sub_${Date.now()}`;
+        const record: OnlineStoreSubscriptionRecord = {
+          id: newId,
           customerName: subCustomerName.trim(),
           phone: subPhone.trim(),
           deviceId: dev,
-          plan: subPlan,
+          subscriptionCode,
+          plan: subPlan as any,
+          createdAt: new Date().toISOString(),
+          expiresAt,
+          status: 'active',
           notes: subNotes.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setSubError(data.error || (isKu ? 'هەڵەیەک ڕوویدا لە دروستکردنی سەبسکرایپشن' : 'Failed to create subscription'));
-      } else {
-        setSubSuccess(data.subscription);
+          revokedAt: null,
+          revokedReason: null,
+          isExpired: false,
+        };
+        await setDoc(doc(db, 'online_store_subscriptions', newId), record);
+        setSubSuccess(record);
         setSubCustomerName('');
         setSubPhone('');
         setSubDeviceId('');
         setSubNotes('');
         fetchAll();
+      } else {
+        const res = await fetch('/api/online-store-subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: subCustomerName.trim(),
+            phone: subPhone.trim(),
+            deviceId: dev,
+            plan: subPlan,
+            notes: subNotes.trim(),
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setSubError(data.error || (isKu ? 'هەڵەیەک ڕوویدا لە دروستکردنی سەبسکرایپشن' : 'Failed to create subscription'));
+        } else {
+          setSubSuccess(data.subscription);
+          setSubCustomerName('');
+          setSubPhone('');
+          setSubDeviceId('');
+          setSubNotes('');
+          fetchAll();
+        }
       }
     } catch (err: any) {
       setSubError(err?.message || (isKu ? 'هەڵەی پەیوەندی بە سێرڤەر' : 'Server connection error'));
@@ -269,17 +404,27 @@ export default function LicenseManagement({
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      const res = await fetch('/api/licenses', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: item.id,
+      const db = getClientFirestore();
+      if (db) {
+        await updateDoc(doc(db, 'licenses', item.id), {
           status: nextStatus,
+          revokedAt: nextStatus === 'revoked' ? new Date().toISOString() : null,
           revokedReason: nextStatus === 'revoked' ? 'Revoked by admin' : null,
-        }),
-      });
-      if (res.ok) {
+        });
         fetchAll();
+      } else {
+        const res = await fetch('/api/licenses', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            status: nextStatus,
+            revokedReason: nextStatus === 'revoked' ? 'Revoked by admin' : null,
+          }),
+        });
+        if (res.ok) {
+          fetchAll();
+        }
       }
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -292,9 +437,15 @@ export default function LicenseManagement({
       return;
     }
     try {
-      const res = await fetch(`/api/licenses?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
+      const db = getClientFirestore();
+      if (db) {
+        await deleteDoc(doc(db, 'licenses', id));
         fetchAll();
+      } else {
+        const res = await fetch(`/api/licenses?id=${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchAll();
+        }
       }
     } catch (err) {
       console.error('Failed to delete license:', err);
@@ -307,9 +458,15 @@ export default function LicenseManagement({
       return;
     }
     try {
-      const res = await fetch(`/api/online-store-subscriptions?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
+      const db = getClientFirestore();
+      if (db) {
+        await deleteDoc(doc(db, 'online_store_subscriptions', id));
         fetchAll();
+      } else {
+        const res = await fetch(`/api/online-store-subscriptions?id=${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          fetchAll();
+        }
       }
     } catch (err) {
       console.error('Failed to delete subscription:', err);

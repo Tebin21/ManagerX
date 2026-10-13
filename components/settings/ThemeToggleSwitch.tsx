@@ -37,7 +37,7 @@ export function ThemeToggleSwitch({ value, onToggle, disabled = false }: Props) 
   const handlePress = () => {
     if (disabled) return;
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {
       // Haptics not available on some environments
     }

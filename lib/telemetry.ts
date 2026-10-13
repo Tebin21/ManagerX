@@ -2,11 +2,15 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { getOrCreateDeviceId } from '@/lib/deviceId';
-
-// Default Vercel production backend URL; can be overridden via EXPO_PUBLIC_TELEMETRY_URL
-const TELEMETRY_URL =
-  process.env.EXPO_PUBLIC_TELEMETRY_URL ||
-  'https://froshiar-website.vercel.app';
+import {
+  isFirebaseAvailable,
+  getFirebaseFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  serverTimestamp,
+} from '@/lib/firebase';
 
 const LAST_INSTALL_PING_KEY = '@froshiar_telemetry_last_install_ping';
 const LAST_LOGIN_PING_KEY = '@froshiar_telemetry_last_login_ping';
@@ -21,8 +25,8 @@ interface UserPayload {
 }
 
 /**
- * Sends a real device ping upon application launch/open.
- * Tracks installs, opens, OS version, and hardware device ID.
+ * Sends a real device ping upon application launch/open directly to Firebase Firestore.
+ * Zero connection to Vercel — 100% Google Firebase Server infrastructure.
  */
 export async function trackAppInstallOrOpen(): Promise<void> {
   try {
@@ -36,51 +40,65 @@ export async function trackAppInstallOrOpen(): Promise<void> {
       return;
     }
 
+    if (!isFirebaseAvailable) return;
+
     const appVersion =
       Constants.expoConfig?.version ??
       Constants.manifest2?.extra?.expoClient?.version ??
       '1.0.0';
 
-    const payload = {
-      deviceId,
-      platform: Platform.OS,
-      osVersion: String(Platform.Version ?? ''),
-      appVersion,
-      brand: Platform.OS === 'ios' ? 'Apple' : 'Android',
-      modelName: Platform.OS === 'ios' ? 'iOS Device' : 'Android Device',
-      timestamp: new Date().toISOString(),
-    };
+    const firestore = getFirebaseFirestore();
+    const installRef = doc(firestore, 'app_telemetry_installs', deviceId);
+    const existingSnap = await getDoc(installRef).catch(() => null);
+    const prevData = existingSnap && 'data' in existingSnap ? existingSnap.data() : null;
+    const openCount = (Number(prevData?.open_count) || 0) + 1;
 
-    const url = `${TELEMETRY_URL.replace(/\/+$/, '')}/api/telemetry/install`;
+    const nowIso = new Date().toISOString();
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    await setDoc(
+      installRef,
+      {
+        device_id: deviceId,
+        platform: Platform.OS,
+        os_version: String(Platform.Version ?? ''),
+        app_version: appVersion,
+        brand: Platform.OS === 'ios' ? 'Apple' : 'Android',
+        model_name: Platform.OS === 'ios' ? 'iOS Device' : 'Android Device',
+        open_count: openCount,
+        last_seen_at: nowIso,
+        first_installed_at: prevData?.first_installed_at || nowIso,
+        updated_at: serverTimestamp(),
       },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    }).catch(() => null);
+      { merge: true }
+    );
 
-    clearTimeout(timeout);
-
-    if (response && response.ok) {
-      await AsyncStorage.setItem(LAST_INSTALL_PING_KEY, String(now));
+    // Record live event stream in app_telemetry_events
+    try {
+      const eventRef = doc(collection(firestore, 'app_telemetry_events'));
+      await setDoc(eventRef, {
+        id: eventRef.id,
+        event_type: 'app_open',
+        device_id: deviceId,
+        platform: Platform.OS,
+        created_at: nowIso,
+        timestamp: serverTimestamp(),
+      });
+    } catch {
+      // Event stream write failure is non-fatal
     }
+
+    await AsyncStorage.setItem(LAST_INSTALL_PING_KEY, String(now));
   } catch (err) {
     // Non-blocking background telemetry: fail silently
     if (__DEV__) {
-      console.log('[Telemetry] Ping failed (silent):', err);
+      console.log('[Telemetry] Firestore install ping failed (silent):', err);
     }
   }
 }
 
 /**
- * Sends a real user authentication/login event to the telemetry backend.
- * Records the user's UID, email, business name, and device.
+ * Sends a real user authentication/login event directly to Firebase Firestore.
+ * Zero connection to Vercel — 100% Google Firebase Server infrastructure.
  */
 export async function trackUserLogin(user: UserPayload): Promise<void> {
   if (!user || !user.userId) return;
@@ -92,38 +110,55 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
       Constants.manifest2?.extra?.expoClient?.version ??
       '1.0.0';
 
-    const payload = {
-      userId: user.userId,
-      email: user.email ?? null,
-      phone: user.phone ?? null,
-      displayName: user.displayName ?? null,
-      businessName: user.businessName ?? null,
-      deviceId,
-      platform: Platform.OS,
-      appVersion,
-      timestamp: new Date().toISOString(),
-    };
+    if (!isFirebaseAvailable) return;
 
-    const url = `${TELEMETRY_URL.replace(/\/+$/, '')}/api/telemetry/login`;
+    const firestore = getFirebaseFirestore();
+    const userRef = doc(firestore, 'app_telemetry_users', user.userId);
+    const existingSnap = await getDoc(userRef).catch(() => null);
+    const prevData = existingSnap && 'data' in existingSnap ? existingSnap.data() : null;
+    const loginCount = (Number(prevData?.login_count) || 0) + 1;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const nowIso = new Date().toISOString();
 
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    await setDoc(
+      userRef,
+      {
+        user_id: user.userId,
+        email: user.email ?? prevData?.email ?? null,
+        phone: user.phone ?? prevData?.phone ?? null,
+        display_name: user.displayName ?? prevData?.display_name ?? null,
+        business_name: user.businessName ?? prevData?.business_name ?? null,
+        device_id: deviceId,
+        platform: Platform.OS,
+        app_version: appVersion,
+        login_count: loginCount,
+        last_login_at: nowIso,
+        created_at: prevData?.created_at || nowIso,
+        updated_at: serverTimestamp(),
       },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    }).catch(() => null);
+      { merge: true }
+    );
 
-    clearTimeout(timeout);
+    // Record event
+    try {
+      const eventRef = doc(collection(firestore, 'app_telemetry_events'));
+      await setDoc(eventRef, {
+        id: eventRef.id,
+        event_type: 'user_login',
+        user_id: user.userId,
+        user_email: user.email ?? null,
+        platform: Platform.OS,
+        created_at: nowIso,
+        timestamp: serverTimestamp(),
+      });
+    } catch {
+      // Event stream write failure is non-fatal
+    }
+
     await AsyncStorage.setItem(LAST_LOGIN_PING_KEY, String(Date.now()));
   } catch (err) {
-    // Non-blocking
     if (__DEV__) {
-      console.log('[Telemetry] User tracking failed (silent):', err);
+      console.log('[Telemetry] Firestore user tracking failed (silent):', err);
     }
   }
 }

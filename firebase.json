@@ -2,5 +2,53 @@
   "firestore": {
     "rules": "firebase/firestore.rules",
     "indexes": "firebase/firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "froshiar-website/out",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/ckb/admin/**",
+        "destination": "/ckb/admin.html"
+      },
+      {
+        "source": "/en/admin/**",
+        "destination": "/en/admin.html"
+      },
+      {
+        "source": "/ckb/admin",
+        "destination": "/ckb/admin.html"
+      },
+      {
+        "source": "/en/admin",
+        "destination": "/en/admin.html"
+      },
+      {
+        "source": "/admin",
+        "destination": "/ckb/admin.html"
+      },
+      {
+        "source": "/admin/**",
+        "destination": "/ckb/admin.html"
+      },
+      {
+        "source": "/ckb/**",
+        "destination": "/ckb.html"
+      },
+      {
+        "source": "/en/**",
+        "destination": "/en.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

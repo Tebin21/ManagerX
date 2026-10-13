@@ -53,3 +53,6 @@ next-env.d.ts
 # OS artifacts
 desktop.ini
 .DS_Store
+
+# Firebase CLI cache & build artifacts
+.firebase/

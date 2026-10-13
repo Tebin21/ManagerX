@@ -2,9 +2,63 @@
   "nav": {
     "home": "Home",
     "features": "Features",
+    "pricing": "Pricing",
+    "payment": "Payment",
+    "about": "About",
     "contact": "Contact",
     "switchLanguage": "Switch language",
     "menu": "Menu"
+  },
+  "pricing": {
+    "heading": "Pricing & Subscription Plans",
+    "subheading": "Choose the best plan to run and grow your business with ease",
+    "monthly": {
+      "name": "Monthly",
+      "price": "$10",
+      "currency": "/ month",
+      "desc": "Perfect for testing and small starter stores",
+      "features": [
+        "Full Inventory & POS Checkout",
+        "Debt, Customer & Supplier Tracking",
+        "Receipt Printing & Barcode Scanning",
+        "Standard Support"
+      ]
+    },
+    "yearly": {
+      "name": "Yearly",
+      "badge": "Recommended",
+      "price": "$70",
+      "currency": "/ year",
+      "desc": "Best value for established and growing businesses",
+      "features": [
+        "All features from Monthly plan",
+        "Online Storefront feature",
+        "Cloud Sync & Automatic Backups",
+        "Advanced Analytics & Audit Reports",
+        "Save 45% annually"
+      ]
+    },
+    "lifetime": {
+      "name": "Lifetime",
+      "price": "$170",
+      "currency": "one-time",
+      "desc": "Pay once and use forever on your device",
+      "features": [
+        "Permanent license for 1 device",
+        "No monthly renewal fees",
+        "All future updates included",
+        "Priority VIP Support"
+      ]
+    },
+    "methodsTitle": "Payment Methods & Activation",
+    "methodsDesc": "Send payment via FastPay, FIB, or ZainCash and send us your receipt on WhatsApp for instant activation.",
+    "fastpay": "FastPay",
+    "fib": "First Iraqi Bank (FIB)",
+    "zaincash": "ZainCash",
+    "accountNumber": "0770 822 9696",
+    "whatsappBtn": "Send Receipt via WhatsApp",
+    "requestBtn": "Request Activation",
+    "accountHolder": "Account: Tebin Faruq"
   },
   "hero": {
     "title": "Smart Business Management for Everyone",

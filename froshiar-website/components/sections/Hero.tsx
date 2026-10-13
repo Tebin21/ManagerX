@@ -9,7 +9,7 @@ export function Hero() {
   const t = useTranslations("hero");
 
   return (
-    <section id="home" className="relative overflow-hidden pt-12 pb-20 sm:pt-24 sm:pb-32">
+    <section id="home" className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-32 lg:pt-40">
       <GradientBlob className="-top-24 -start-24 h-64 w-64 sm:h-80 sm:w-80" />
       <GradientBlob className="top-40 -end-32 h-72 w-72 sm:h-96 sm:w-96" />
 

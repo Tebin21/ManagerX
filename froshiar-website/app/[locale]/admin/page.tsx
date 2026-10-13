@@ -34,8 +34,12 @@ import {
   Check,
   ChevronDown,
   Key,
+  CreditCard,
+  LogOut,
 } from 'lucide-react';
-import LicenseManagement from '@/components/admin/LicenseManagement';
+import PaymentManagement from '@/components/admin/PaymentManagement';
+import { getClientFirestore } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 interface Stats {
   totalInstalls: number;
@@ -123,7 +127,7 @@ const DICTIONARY = {
     licensesTabSub: 'دروستکردن، ژمارەی ئایتم، کۆنترۆڵی ئۆنلاین',
     exportCsv: 'دەرهێنانی داتاکان بە فایلی Excel (CSV)',
     usersTableTitle: 'تۆماری بەکارهێنەرانی چوونەژوورەوە',
-    usersTableSub: 'داتای ١٠٠٪ ڕاستەقینە لە بنکەی داتای Neon PostgreSQL',
+    usersTableSub: 'داتای ١٠٠٪ ڕاستەقینە لە سێرڤەری Firebase (Firestore)',
     installsTableTitle: 'ئامێرە دابەزێنراوەکان و جۆری سیستەم',
     feedTableTitle: 'تۆماری ڕاستەوخۆی چالاکییەکان',
     licensesTableTitle: 'بەڕێوەبردنی لایسێنسەکان و سەبسکرایپشن',
@@ -209,7 +213,7 @@ const DICTIONARY = {
     licensesTabSub: 'Generate, item limits, online control',
     exportCsv: 'Export Data to Excel (CSV)',
     usersTableTitle: 'Logged-in User Accounts',
-    usersTableSub: '100% real data from Neon PostgreSQL database',
+    usersTableSub: '100% real data from Firebase Firestore Server',
     installsTableTitle: 'Device Installations & OS',
     feedTableTitle: 'Real-Time Event Stream',
     licensesTableTitle: 'License & Subscription Management',
@@ -348,33 +352,153 @@ export default function AdminDashboardPage() {
     localStorage.removeItem('@froshiar_admin_auth');
   };
 
-  // Fetch real telemetry from API
+  // Fetch real telemetry directly from Firebase Firestore with API fallback
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, usersRes, installsRes, licRes] = await Promise.all([
-        fetch('/api/telemetry/stats', { cache: 'no-store' }),
-        fetch('/api/telemetry/users', { cache: 'no-store' }),
-        fetch('/api/telemetry/installs', { cache: 'no-store' }),
-        fetch('/api/licenses', { cache: 'no-store' }),
-      ]);
+      // 1. Fetch live telemetry from Google Firebase Firestore
+      const db = getClientFirestore();
+      const [installsSnap, usersSnap, eventsSnap, licSnap] = db
+        ? await Promise.all([
+            getDocs(collection(db, 'app_telemetry_installs')).catch(() => null),
+            getDocs(collection(db, 'app_telemetry_users')).catch(() => null),
+            getDocs(query(collection(db, 'app_telemetry_events'), orderBy('created_at', 'desc'), limit(15))).catch(() => null),
+            getDocs(collection(db, 'licenses')).catch(() => null),
+          ])
+        : [null, null, null, null];
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
+      let hasFirebaseData = false;
+
+      if (installsSnap && !installsSnap.empty) {
+        hasFirebaseData = true;
+        const instList: any[] = [];
+        let totalOpens = 0;
+        let todayCount = 0;
+        let iosCount = 0;
+        let androidCount = 0;
+        const todayIso = new Date().toISOString().slice(0, 10);
+
+        installsSnap.forEach((doc) => {
+          const d = doc.data() as any;
+          instList.push({ id: doc.id, ...d });
+          totalOpens += Number(d.open_count) || 1;
+          if (d.first_installed_at?.startsWith(todayIso)) todayCount++;
+          if (d.platform?.toLowerCase() === 'ios') iosCount++;
+          if (d.platform?.toLowerCase() === 'android') androidCount++;
+        });
+
+        const defaultStats: Stats = {
+          totalInstalls: 0,
+          installsToday: 0,
+          iosInstalls: 0,
+          androidInstalls: 0,
+          totalOpens: 0,
+          totalUsers: 0,
+          activeUsersToday: 0,
+          activeUsers7Days: 0,
+          recentEvents: [],
+        };
+
+        setInstalls(instList);
+        setStats((prev) => ({
+          ...(prev || defaultStats),
+          totalInstalls: installsSnap.size,
+          installsToday: todayCount,
+          iosInstalls: iosCount,
+          androidInstalls: androidCount,
+          totalOpens,
+        }));
       }
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
+
+      if (usersSnap && !usersSnap.empty) {
+        hasFirebaseData = true;
+        const uList: any[] = [];
+        let activeToday = 0;
+        let active7Days = 0;
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        const sevenDays = 7 * oneDay;
+
+        usersSnap.forEach((doc) => {
+          const d = doc.data() as any;
+          uList.push({ id: doc.id, ...d });
+          const lastLogin = d.last_login_at ? new Date(d.last_login_at).getTime() : 0;
+          if (now - lastLogin < oneDay) activeToday++;
+          if (now - lastLogin < sevenDays) active7Days++;
+        });
+
+        const defaultStats: Stats = {
+          totalInstalls: 0,
+          installsToday: 0,
+          iosInstalls: 0,
+          androidInstalls: 0,
+          totalOpens: 0,
+          totalUsers: 0,
+          activeUsersToday: 0,
+          activeUsers7Days: 0,
+          recentEvents: [],
+        };
+
+        setUsers(uList);
+        setStats((prev) => ({
+          ...(prev || defaultStats),
+          totalUsers: usersSnap.size,
+          activeUsersToday: activeToday,
+          activeUsers7Days: active7Days,
+        }));
       }
-      if (installsRes.ok) {
-        const installsData = await installsRes.json();
-        setInstalls(installsData.installs || []);
+
+      if (eventsSnap && !eventsSnap.empty) {
+        hasFirebaseData = true;
+        const evList: any[] = [];
+        eventsSnap.forEach((doc) => {
+          evList.push({ id: doc.id, ...doc.data() } as any);
+        });
+        const defaultStats: Stats = {
+          totalInstalls: 0,
+          installsToday: 0,
+          iosInstalls: 0,
+          androidInstalls: 0,
+          totalOpens: 0,
+          totalUsers: 0,
+          activeUsersToday: 0,
+          activeUsers7Days: 0,
+          recentEvents: [],
+        };
+        setStats((prev) => ({ ...(prev || defaultStats), recentEvents: evList }));
       }
-      if (licRes.ok) {
-        const licData = await licRes.json();
-        setLicensesCount(licData.licenses?.length || 0);
+
+      if (licSnap) {
+        setLicensesCount(licSnap.size);
       }
+
+      // 2. If running locally and Firestore had no data yet, check local API
+      if (!hasFirebaseData) {
+        const [statsRes, usersRes, installsRes, licRes] = await Promise.all([
+          fetch('/api/telemetry/stats', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/telemetry/users', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/telemetry/installs', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/licenses', { cache: 'no-store' }).catch(() => null),
+        ]);
+
+        if (statsRes && statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
+        if (usersRes && usersRes.ok) {
+          const usersData = await usersRes.json();
+          setUsers(usersData.users || []);
+        }
+        if (installsRes && installsRes.ok) {
+          const installsData = await installsRes.json();
+          setInstalls(installsData.installs || []);
+        }
+        if (licRes && licRes.ok) {
+          const licData = await licRes.json();
+          setLicensesCount(licData.licenses?.length || 0);
+        }
+      }
+
       setLastUpdatedTime(new Date().toLocaleTimeString());
     } catch (err) {
       console.error('Failed to load telemetry:', err);
@@ -814,257 +938,106 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Drawer Body (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
-          {/* Main Sections */}
-          <div className="space-y-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-              {t.mainSections}
-            </div>
-
-            {/* Item 1: Telemetry Dashboard */}
-            <button
-              onClick={() => {
-                setActiveTab('users');
-                setIsDrawerOpen(false);
-              }}
-              className={`w-full p-3 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                activeTab !== 'licenses'
-                  ? isDarkMode
-                    ? 'bg-[#1C2438] border-blue-500/40 text-white shadow-sm'
-                    : 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-sm'
-                  : isDarkMode
-                  ? 'bg-[#141C2E] border-slate-800/80 text-slate-300 hover:border-slate-700'
-                  : 'bg-slate-50 border-slate-200/80 text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+        {/* Drawer Body: Exactly 2 primary navigation buttons */}
+        <div className="flex-1 p-4 sm:p-5 space-y-3 flex flex-col justify-start">
+          {/* Button 1: Dashboard (داشبۆرد) */}
+          <button
+            onClick={() => {
+              setActiveTab('users');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
+              activeTab !== 'licenses'
+                ? isDarkMode
+                  ? 'bg-[#1C2438] border-blue-500/50 text-white shadow-md'
+                  : 'bg-blue-50 border-blue-400 text-blue-950 shadow-sm'
+                : isDarkMode
+                ? 'bg-[#141C2E] border-slate-800 text-slate-300 hover:border-slate-700'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
                   activeTab !== 'licenses'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : isDarkMode
                     ? 'bg-slate-800 text-slate-400'
                     : 'bg-slate-200 text-slate-600'
-                }`}>
-                  <LayoutDashboard className="w-4 h-4" />
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-inherit truncate">
+                  {isKu ? 'داشبۆرد' : 'Dashboard'}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold truncate">
-                    {t.dashboardOverview}
-                  </div>
-                  <div className="text-[10px] text-slate-400 truncate">
-                    {t.dashboardOverviewSub}
-                  </div>
+                <div className="text-xs text-slate-400 truncate">
+                  {isKu ? 'ئامار و بەکارهێنەران و داگرتنەکان' : 'Main stats & active users'}
                 </div>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 font-bold shrink-0">
-                Live
-              </span>
-            </button>
+            </div>
+            {isKu ? (
+              <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+          </button>
 
-            {/* Item 2: License Management (The highlighted Star of the show!) */}
-            <div className={`p-3 rounded-2xl border transition-all ${
+          {/* Button 2: Payment (پەیمێنت) */}
+          <button
+            onClick={() => {
+              setActiveTab('licenses');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
               activeTab === 'licenses'
                 ? isDarkMode
-                  ? 'bg-[#1F2739] border-[#D4AF37] shadow-md shadow-[#D4AF37]/10'
-                  : 'bg-[#FDF9ED] border-[#D4AF37] shadow-sm'
+                  ? 'bg-[#1F2739] border-[#D4AF37] text-white shadow-md shadow-[#D4AF37]/10'
+                  : 'bg-[#FDF9ED] border-[#D4AF37] text-slate-900 shadow-sm'
                 : isDarkMode
-                ? 'bg-[#141C2E] border-slate-800/80 hover:border-[#D4AF37]/40'
-                : 'bg-slate-50 border-slate-200/80 hover:border-[#D4AF37]/50'
-            }`}>
-              <button
-                onClick={() => {
-                  setActiveTab('licenses');
-                  setIsDrawerOpen(false);
-                }}
-                className="w-full text-start flex items-center justify-between gap-3 cursor-pointer"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] flex items-center justify-center text-slate-950 font-bold shadow-md shadow-[#D4AF37]/20 shrink-0">
-                    <Key className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs sm:text-sm font-bold text-inherit truncate flex items-center gap-1.5">
-                      <span>{t.licensesPortal}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-extrabold border border-[#D4AF37]/30">
-                        Ed25519
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {t.licensesPortalSub}
-                    </div>
-                  </div>
+                ? 'bg-[#141C2E] border-slate-800 text-slate-300 hover:border-[#D4AF37]/40'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#D4AF37]/50'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] flex items-center justify-center text-slate-950 font-bold shadow-md shadow-[#D4AF37]/20 shrink-0">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-inherit truncate flex items-center gap-2">
+                  <span>{isKu ? 'پەیمێنت' : 'Payment'}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-extrabold border border-[#D4AF37]/30">
+                    Live
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-black shrink-0">
-                  {licensesCount}
-                </span>
-              </button>
-
-              {/* Sub-menu shortcuts under License Management */}
-              <div className="mt-3 pt-3 border-t border-slate-200/40 dark:border-slate-800/80 grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => {
-                    setActiveTab('licenses');
-                    setLicenseSubTab('generate');
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`p-2 rounded-xl text-[11px] font-bold text-start flex items-center gap-1.5 transition cursor-pointer ${
-                    activeTab === 'licenses' && licenseSubTab === 'generate'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow-sm'
-                      : isDarkMode
-                      ? 'bg-[#0E1524] text-slate-300 hover:text-white hover:bg-slate-800'
-                      : 'bg-white text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <PlusCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{t.generateLicenseShortcut}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('licenses');
-                    setLicenseSubTab('list');
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`p-2 rounded-xl text-[11px] font-bold text-start flex items-center gap-1.5 transition cursor-pointer ${
-                    activeTab === 'licenses' && licenseSubTab === 'list'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow-sm'
-                      : isDarkMode
-                      ? 'bg-[#0E1524] text-slate-300 hover:text-white hover:bg-slate-800'
-                      : 'bg-white text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Key className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{t.licenseListShortcut}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('licenses');
-                    setLicenseSubTab('subscriptions');
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`p-2 rounded-xl text-[11px] font-bold text-start flex items-center gap-1.5 transition cursor-pointer ${
-                    activeTab === 'licenses' && licenseSubTab === 'subscriptions'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow-sm'
-                      : isDarkMode
-                      ? 'bg-[#0E1524] text-slate-300 hover:text-white hover:bg-slate-800'
-                      : 'bg-white text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{t.onlineStoreSubShortcut}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('licenses');
-                    setLicenseSubTab('customers');
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`p-2 rounded-xl text-[11px] font-bold text-start flex items-center gap-1.5 transition cursor-pointer ${
-                    activeTab === 'licenses' && licenseSubTab === 'customers'
-                      ? 'bg-[#D4AF37] text-slate-950 shadow-sm'
-                      : isDarkMode
-                      ? 'bg-[#0E1524] text-slate-300 hover:text-white hover:bg-slate-800'
-                      : 'bg-white text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <User className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{t.customersShortcut}</span>
-                </button>
+                <div className="text-xs text-slate-400 truncate">
+                  {isKu ? 'بەڕێوەبردنی پارەدان و لایسێنس' : 'Manage payments & licenses'}
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Telemetry Tabs Links */}
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-              {t.installsTab} &amp; {t.usersTab}
-            </div>
-
-            {[
-              { id: 'users', label: t.usersTab, icon: Users, count: users.length },
-              { id: 'installs', label: t.installsTab, icon: Smartphone, count: installs.length },
-              { id: 'feed', label: t.feedTab, icon: Activity, count: stats?.recentEvents?.length ?? 0 },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id as any);
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`w-full p-2.5 rounded-xl text-start flex items-center justify-between text-xs font-semibold transition cursor-pointer ${
-                    isActive
-                      ? isDarkMode
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                      : isDarkMode
-                      ? 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 text-slate-400" />
-                    <span>{item.label}</span>
-                  </div>
-                  <span className="text-[11px] font-mono opacity-80">{item.count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick Actions */}
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2">
-              {t.quickShortcuts}
-            </div>
-
-            <button
-              onClick={() => {
-                exportUsersCSV();
-                setIsDrawerOpen(false);
-              }}
-              className={`w-full p-2.5 rounded-xl text-start flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer ${
-                isDarkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
-              }`}
-            >
-              <FileSpreadsheet className="w-4 h-4 text-[#D4AF37]" />
-              <span>{t.exportCsv}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                fetchData();
-                setIsDrawerOpen(false);
-              }}
-              className={`w-full p-2.5 rounded-xl text-start flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer ${
-                isDarkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
-              }`}
-            >
-              <RefreshCw className={`w-4 h-4 text-sky-400 ${loading ? 'animate-spin' : ''}`} />
-              <span>{t.refresh}</span>
-            </button>
-          </div>
+            {isKu ? (
+              <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+          </button>
         </div>
 
-        {/* Drawer Footer */}
-        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2">
+        {/* Drawer Footer: Button 3: Logout (چوونە دەرەوە لە خوار خوارەوە) */}
+        <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
           <button
             onClick={() => {
               setIsDrawerOpen(false);
               handleLogout();
             }}
-            className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-400 text-sm font-bold transition flex items-center justify-center gap-2.5 cursor-pointer border border-red-500/20"
           >
-            <Lock className="w-4 h-4" />
-            <span>{t.logout}</span>
+            <LogOut className="w-4 h-4" />
+            <span>{isKu ? 'چوونە دەرەوە' : 'Logout'}</span>
           </button>
           <div className="text-[10px] text-center text-slate-500 font-mono">
-            Froshiar Management v2.4 · Neon PostgreSQL Live
+            Froshiar Management · Google Firebase Live
           </div>
         </div>
       </div>
@@ -1076,65 +1049,10 @@ export default function AdminDashboardPage() {
           /* ── DEDICATED FULL-SCREEN LICENSE & SUBSCRIPTION PORTAL ──           */
           /* ═══════════════════════════════════════════════════════════════════ */
           <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
-            {/* Top Dedicated Portal Bar with Back Button */}
-            <div
-              className={`p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border transition shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 ${
-                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
-                <button
-                  onClick={() => setActiveTab('users')}
-                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl border transition flex items-center gap-2 text-xs sm:text-sm font-bold cursor-pointer shrink-0 ${
-                    isDarkMode
-                      ? 'bg-[#0E1524] border-slate-700 text-slate-200 hover:bg-slate-800 hover:border-[#D4AF37]/50 active:scale-[0.98]'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-[#D4AF37]/50 active:scale-[0.98]'
-                  }`}
-                  title={t.backToDashboard}
-                >
-                  {isKu ? <ArrowRight className="w-4 h-4 text-[#D4AF37]" /> : <ArrowLeft className="w-4 h-4 text-[#D4AF37]" />}
-                  <span>{t.backToDashboard}</span>
-                </button>
-
-                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 shrink-0 hidden sm:block" />
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm sm:text-xl font-extrabold text-inherit truncate">
-                      {t.licensePortalHeader}
-                    </h2>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 shrink-0">
-                      Ed25519 Live
-                    </span>
-                  </div>
-                  <p className="text-[11px] sm:text-xs text-slate-400 line-clamp-1">
-                    {t.licensePortalDesc}
-                  </p>
-                </div>
-              </div>
-
-              {/* Status / Quick Actions */}
-              <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-                <button
-                  onClick={() => setIsDrawerOpen(true)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    isDarkMode
-                      ? 'bg-[#0E1524] border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-[#D4AF37]/40'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-[#D4AF37]/40'
-                  }`}
-                >
-                  <Menu className="w-4 h-4 text-[#D4AF37]" />
-                  <span>{t.menuTitle}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* FULL SCREEN LICENSE MANAGEMENT COMPONENT */}
-            <LicenseManagement
+            {/* FULL SCREEN PAYMENT & SUBSCRIPTION COMPONENT */}
+            <PaymentManagement
               isDarkMode={isDarkMode}
               language={language}
-              initialSubTab={licenseSubTab}
-              onLicensesUpdated={(cnt) => setLicensesCount(cnt)}
             />
           </div>
         ) : (
@@ -1373,13 +1291,6 @@ export default function AdminDashboardPage() {
                 sub: t.feedTabSub,
                 icon: Activity,
                 count: stats?.recentEvents?.length ?? 0,
-              },
-              {
-                id: 'licenses',
-                label: t.licensesTab,
-                sub: t.licensesTabSub,
-                icon: Key,
-                count: licensesCount,
               },
             ].map((tab) => {
               const Icon = tab.icon;

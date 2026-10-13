@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { getTranslations } from "next-intl/server";
 import { colors } from "@/lib/colors";
 
+export const dynamic = "force-static";
+export function generateStaticParams() {
+  return [{ locale: "en" }, { locale: "ckb" }];
+}
+
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
