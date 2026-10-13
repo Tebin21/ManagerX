@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Check, CreditCard, Sparkles, Phone, MessageCircle, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { SubscriptionRequestModal, type PlanDetails } from "./SubscriptionRequestModal";
 
 export function Pricing() {
   const t = useTranslations("pricing");
+  const [selectedPlan, setSelectedPlan] = useState<PlanDetails | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const plans = [
     {
@@ -54,6 +58,11 @@ export function Pricing() {
       isPopular: false,
     },
   ];
+
+  const handleOpenPlan = (plan: (typeof plans)[0]) => {
+    setSelectedPlan(plan);
+    setIsModalOpen(true);
+  };
 
   return (
     <section id="pricing" className="relative scroll-mt-24 py-16 sm:py-24 lg:py-32">
@@ -122,13 +131,10 @@ export function Pricing() {
               </div>
 
               <div className="mt-8 pt-4">
-                <a
-                  href={`https://wa.me/9647708229696?text=${encodeURIComponent(
-                    `سڵاو، دەمەوێت بەشداری بکەم لە پاکجی (${plan.name}) بۆ فرۆشیار`
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all ${
+                <button
+                  type="button"
+                  onClick={() => handleOpenPlan(plan)}
+                  className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all cursor-pointer ${
                     plan.isPopular
                       ? "bg-gradient-to-r from-gold-500 to-amber-500 text-ink-fixed shadow-md shadow-gold-500/20 hover:from-gold-400 hover:to-amber-400"
                       : "border border-gray-200 bg-gray-50 text-ink hover:bg-gray-100 dark:border-gold-900/50 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1]"
@@ -136,7 +142,7 @@ export function Pricing() {
                 >
                   <CreditCard size={16} />
                   <span>{t("requestBtn")}</span>
-                </a>
+                </button>
               </div>
             </div>
           ))}
@@ -205,6 +211,12 @@ export function Pricing() {
           </div>
         </div>
       </Container>
+
+      <SubscriptionRequestModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        plan={selectedPlan}
+      />
     </section>
   );
 }

@@ -125,6 +125,39 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
       cachedAt = Date.now();
       return demoInfo;
     }
+
+    // Check Cloud user subscription in Firebase Firestore (approved by admin)
+    if (email) {
+      try {
+        const { getFirebaseFirestore, doc, getDoc } = await import('@/lib/firebase');
+        const db = getFirebaseFirestore();
+        const subDocId = email.replace(/[^a-z0-9_]/gi, '_');
+        const snap = await getDoc(doc(db, 'user_subscriptions', subDocId));
+        if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
+          const data = snap.data();
+          if (data && data.status === 'active') {
+            const isLifetime = data.planId === 'lifetime' || !data.expiresAt;
+            const isNotExpired = isLifetime || new Date(data.expiresAt).getTime() > Date.now();
+            if (isNotExpired) {
+              const cloudInfo: SubscriptionInfo = {
+                plan: (data.planId as SubscriptionPlan) ?? '12m',
+                deviceId,
+                subscriptionCode: `CLOUD-${(data.planId || 'ACTIVE').toUpperCase()}`,
+                activatedAt: data.startDate || new Date().toISOString(),
+                expiresAt: data.expiresAt || null,
+                isActive: true,
+                expired: false,
+              };
+              cachedInfo = cloudInfo;
+              cachedAt = Date.now();
+              return cloudInfo;
+            }
+          }
+        }
+      } catch (cloudErr) {
+        // Fall back gracefully to local device check if offline or error
+      }
+    }
   } catch {}
 
   const subscriptionCode = await loadSetting(KEY_SUBSCRIPTION_CODE);

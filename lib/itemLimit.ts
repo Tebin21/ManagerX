@@ -109,6 +109,39 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
     }
   } catch {}
 
+  // Check Cloud user subscription in Firebase Firestore (approved by admin)
+  try {
+    const { useAuthStore } = await import('@/store/authStore');
+    const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
+    if (email) {
+      const { getFirebaseFirestore, doc, getDoc } = await import('@/lib/firebase');
+      const db = getFirebaseFirestore();
+      const subDocId = email.replace(/[^a-z0-9_]/gi, '_');
+      const snap = await getDoc(doc(db, 'user_subscriptions', subDocId));
+      if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
+        const data = snap.data();
+        if (data && data.status === 'active') {
+          const isLifetime = data.planId === 'lifetime' || !data.expiresAt;
+          const isNotExpired = isLifetime || new Date(data.expiresAt).getTime() > Date.now();
+          if (isNotExpired) {
+            const subInfo: LicenseInfo = {
+              plan: 'unlimited',
+              limit: TOKEN_TO_LIMIT.UNL,
+              activatedAt: data.startDate || new Date().toISOString(),
+              deviceId,
+              licenseCode: `CLOUD-SUB-${(data.planId || 'UNLIMITED').toUpperCase()}`,
+              expiresAt: data.expiresAt || null,
+              expired: false,
+            };
+            cachedInfo = subInfo;
+            cachedAt = Date.now();
+            return subInfo;
+          }
+        }
+      }
+    }
+  } catch {}
+
   const licenseCode = await loadSetting(KEY_LICENSE_CODE);
 
   let info: LicenseInfo;

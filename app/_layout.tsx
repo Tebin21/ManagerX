@@ -26,6 +26,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { generateThemeColors } from '@/lib/colorUtils';
 import { Colors } from '@/constants/colors';
 import { useRTL } from '@/lib/rtl';
+import { AdminNotificationBanner } from '@/components/admin/AdminNotificationBanner';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -158,6 +159,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
           <AppStack />
+          <AdminNotificationBanner />
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

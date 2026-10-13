@@ -38,6 +38,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -223,6 +224,29 @@ export default function PaymentManagement({
 
   useEffect(() => {
     fetchData();
+
+    // Real-time listener for incoming payment requests from website
+    const db = getClientFirestore();
+    if (!db) return;
+
+    try {
+      const q = query(collection(db, 'payment_requests'), orderBy('createdAt', 'desc'));
+      const unsub = onSnapshot(
+        q,
+        (snapshot) => {
+          const rList: PaymentRequestRecord[] = [];
+          snapshot.forEach((d) => {
+            rList.push({ id: d.id, ...(d.data() as any) });
+          });
+          rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setRequests(rList);
+        },
+        (err) => {
+          console.warn('Realtime payment_requests listener error:', err);
+        }
+      );
+      return () => unsub();
+    } catch {}
   }, [fetchData]);
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
