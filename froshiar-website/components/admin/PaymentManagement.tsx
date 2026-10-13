@@ -122,8 +122,8 @@ export default function PaymentManagement({
 }) {
   const isKu = language === 'ku';
 
-  // Active Tab: 'users' | 'requests' | 'subscriptions'
-  const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'subscriptions'>('users');
+  // Active Tab: 'users' | 'requests' | 'subscriptions' (default to requests so admin sees incoming submissions immediately!)
+  const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'subscriptions'>('requests');
 
   // Data states
   const [appUsers, setAppUsers] = useState<AppUserRecord[]>([]);
@@ -155,66 +155,158 @@ export default function PaymentManagement({
   const [activateNotes, setActivateNotes] = useState('');
   const [activateSubmitting, setActivateSubmitting] = useState(false);
 
-  // ─── Fetch All Data from Firebase Firestore ────────────────────────────────
+  // ─── Direct Firestore REST API Resilient Engine ────────────────────────────
+  const FIREBASE_API_KEY = 'AIzaSyAPt_45ZxiC6VZALYX65NN_igouWJ-Qpjo';
+  const FIREBASE_PROJECT_ID = 'managerx-bac3a';
+
+  const parseRestDoc = (doc: any): any => {
+    if (!doc || !doc.name) return null;
+    const id = doc.name.split('/').pop();
+    const obj: any = { id };
+    for (const [k, v] of Object.entries(doc.fields || {})) {
+      const val: any = v;
+      if (val.stringValue !== undefined) obj[k] = val.stringValue;
+      else if (val.integerValue !== undefined) obj[k] = parseInt(val.integerValue, 10);
+      else if (val.booleanValue !== undefined) obj[k] = val.booleanValue;
+      else if (val.timestampValue !== undefined) obj[k] = val.timestampValue;
+      else if (val.nullValue !== undefined) obj[k] = null;
+    }
+    return obj;
+  };
+
+  const fetchCollectionRest = async (collName: string): Promise<any[]> => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}?key=${FIREBASE_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!data.documents || !Array.isArray(data.documents)) return [];
+      return data.documents.map(parseRestDoc).filter(Boolean);
+    } catch (err) {
+      console.warn(`REST fetch error for ${collName}:`, err);
+      return [];
+    }
+  };
+
+  const updateDocRest = async (collName: string, docId: string, fields: Record<string, any>): Promise<boolean> => {
+    try {
+      const updateMask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}/${encodeURIComponent(docId)}?${updateMask}&key=${FIREBASE_API_KEY}`;
+      const restFields: Record<string, any> = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (v === null || v === undefined) restFields[k] = { nullValue: null };
+        else if (typeof v === 'boolean') restFields[k] = { booleanValue: v };
+        else if (typeof v === 'number') restFields[k] = { integerValue: String(v) };
+        else restFields[k] = { stringValue: String(v) };
+      }
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: restFields }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(`updateDocRest error for ${collName}/${docId}:`, err);
+      return false;
+    }
+  };
+
+  const setDocRest = async (collName: string, docId: string, fields: Record<string, any>): Promise<boolean> => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}/${encodeURIComponent(docId)}?key=${FIREBASE_API_KEY}`;
+      const restFields: Record<string, any> = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (v === null || v === undefined) restFields[k] = { nullValue: null };
+        else if (typeof v === 'boolean') restFields[k] = { booleanValue: v };
+        else if (typeof v === 'number') restFields[k] = { integerValue: String(v) };
+        else restFields[k] = { stringValue: String(v) };
+      }
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: restFields }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(`setDocRest error for ${collName}/${docId}:`, err);
+      return false;
+    }
+  };
+
+  const deleteDocRest = async (collName: string, docId: string): Promise<boolean> => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}/${encodeURIComponent(docId)}?key=${FIREBASE_API_KEY}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      return res.ok;
+    } catch (err) {
+      console.error(`deleteDocRest error for ${collName}/${docId}:`, err);
+      return false;
+    }
+  };
+
+  // ─── Fetch All Data (Dual SDK + REST Engine) ────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      let uList: AppUserRecord[] = [];
+      let rList: PaymentRequestRecord[] = [];
+      let sList: UserSubscriptionRecord[] = [];
+
+      // 1. Try Firebase Web SDK
       const db = getClientFirestore();
-      if (!db) {
-        setLoading(false);
-        return;
-      }
+      if (db) {
+        try {
+          const [usersSnap, reqSnap, subSnap] = await Promise.all([
+            getDocs(collection(db, 'app_telemetry_users')).catch(() => null),
+            getDocs(collection(db, 'payment_requests')).catch(() => null),
+            getDocs(collection(db, 'user_subscriptions')).catch(() => null),
+          ]);
 
-      const [usersSnap, reqSnap, subSnap] = await Promise.all([
-        getDocs(collection(db, 'app_telemetry_users')).catch(() => null),
-        getDocs(query(collection(db, 'payment_requests'), orderBy('createdAt', 'desc'))).catch(async () => {
-          return getDocs(collection(db, 'payment_requests')).catch(() => null);
-        }),
-        getDocs(collection(db, 'user_subscriptions')).catch(() => null),
-      ]);
-
-      // 1. Process App Users
-      if (usersSnap && !usersSnap.empty) {
-        const uList: AppUserRecord[] = [];
-        usersSnap.forEach((d) => {
-          uList.push({ id: d.id, ...(d.data() as any) });
-        });
-        uList.sort((a, b) => new Date(b.last_login_at || 0).getTime() - new Date(a.last_login_at || 0).getTime());
-        setAppUsers(uList);
-      }
-
-      // 2. Process Payment Requests
-      if (reqSnap && !reqSnap.empty) {
-        const rList: PaymentRequestRecord[] = [];
-        reqSnap.forEach((d) => {
-          rList.push({ id: d.id, ...(d.data() as any) });
-        });
-        rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-        setRequests(rList);
-      } else {
-        setRequests([]);
-      }
-
-      // 3. Process Subscriptions
-      if (subSnap && !subSnap.empty) {
-        const sList: UserSubscriptionRecord[] = [];
-        const now = Date.now();
-        subSnap.forEach((d) => {
-          const item = d.data() as any;
-          // Auto-calculate expired status if date has passed
-          let status = item.status || 'active';
-          if (item.expiresAt && item.planId !== 'lifetime') {
-            const expTime = new Date(item.expiresAt).getTime();
-            if (expTime < now) {
-              status = 'expired';
-            }
+          if (usersSnap && !usersSnap.empty) {
+            usersSnap.forEach((d) => uList.push({ id: d.id, ...(d.data() as any) }));
           }
-          sList.push({ id: d.id, ...item, status });
-        });
-        setSubscriptions(sList);
-      } else {
-        setSubscriptions([]);
+          if (reqSnap && !reqSnap.empty) {
+            reqSnap.forEach((d) => rList.push({ id: d.id, ...(d.data() as any) }));
+          }
+          if (subSnap && !subSnap.empty) {
+            subSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as any) }));
+          }
+        } catch (sdkErr) {
+          console.warn('SDK getDocs notice, engaging REST fallback:', sdkErr);
+        }
       }
+
+      // 2. Resilient Direct REST API Fallback
+      if (rList.length === 0) {
+        const restReqs = await fetchCollectionRest('payment_requests');
+        if (restReqs.length > 0) rList = restReqs;
+      }
+      if (uList.length === 0) {
+        const restUsers = await fetchCollectionRest('app_telemetry_users');
+        if (restUsers.length > 0) uList = restUsers;
+      }
+      if (sList.length === 0) {
+        const restSubs = await fetchCollectionRest('user_subscriptions');
+        if (restSubs.length > 0) sList = restSubs;
+      }
+
+      // Sort and update states
+      uList.sort((a, b) => new Date(b.last_login_at || 0).getTime() - new Date(a.last_login_at || 0).getTime());
+      rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+      const now = Date.now();
+      const processedSubs = sList.map((item) => {
+        let status = item.status || 'active';
+        if (item.expiresAt && item.planId !== 'lifetime') {
+          const expTime = new Date(item.expiresAt).getTime();
+          if (expTime < now) status = 'expired';
+        }
+        return { ...item, status };
+      });
+
+      setAppUsers(uList);
+      setRequests(rList);
+      setSubscriptions(processedSubs);
     } catch (err) {
       console.error('Failed to load payment data:', err);
     } finally {
@@ -225,28 +317,33 @@ export default function PaymentManagement({
   useEffect(() => {
     fetchData();
 
-    // Real-time listener for incoming payment requests from website
-    const db = getClientFirestore();
-    if (!db) return;
+    // Auto-polling interval every 8 seconds for rock-solid live syncing
+    const interval = setInterval(() => {
+      fetchData();
+    }, 8000);
 
+    // Also attempt realtime Firestore listener if client SDK is active
+    let unsub: (() => void) | undefined;
     try {
-      const q = query(collection(db, 'payment_requests'), orderBy('createdAt', 'desc'));
-      const unsub = onSnapshot(
-        q,
-        (snapshot) => {
-          const rList: PaymentRequestRecord[] = [];
-          snapshot.forEach((d) => {
-            rList.push({ id: d.id, ...(d.data() as any) });
-          });
-          rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          setRequests(rList);
-        },
-        (err) => {
-          console.warn('Realtime payment_requests listener error:', err);
-        }
-      );
-      return () => unsub();
+      const db = getClientFirestore();
+      if (db) {
+        unsub = onSnapshot(
+          collection(db, 'payment_requests'),
+          (snapshot) => {
+            const list: PaymentRequestRecord[] = [];
+            snapshot.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
+            list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+            setRequests(list);
+          },
+          (err) => console.warn('Realtime onSnapshot notice:', err)
+        );
+      }
     } catch {}
+
+    return () => {
+      clearInterval(interval);
+      if (unsub) unsub();
+    };
   }, [fetchData]);
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -278,9 +375,6 @@ export default function PaymentManagement({
     planId: '1m' | '3m' | '6m' | '12m' | 'lifetime',
     notes: string = ''
   ) => {
-    const db = getClientFirestore();
-    if (!db) return;
-
     const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[0];
     const now = new Date();
     let expiresAtIso: string | null = null;
@@ -318,7 +412,23 @@ export default function PaymentManagement({
       updatedAt: now.toISOString(),
     };
 
-    await setDoc(doc(db, 'user_subscriptions', subDocId), subRecord, { merge: true });
+    // Try SDK first
+    let saved = false;
+    try {
+      const db = getClientFirestore();
+      if (db) {
+        await setDoc(doc(db, 'user_subscriptions', subDocId), subRecord, { merge: true });
+        saved = true;
+      }
+    } catch (e) {
+      console.warn('SDK setDoc notice, using REST:', e);
+    }
+
+    // Fallback to REST
+    if (!saved) {
+      await setDocRest('user_subscriptions', subDocId, subRecord);
+    }
+
     await fetchData();
   };
 
@@ -331,14 +441,29 @@ export default function PaymentManagement({
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      const db = getClientFirestore();
-      if (!db) return;
+      const approvedAt = new Date().toISOString();
+      let updated = false;
 
       // 1. Update request status to approved
-      await updateDoc(doc(db, 'payment_requests', req.id), {
-        status: 'approved',
-        approvedAt: new Date().toISOString(),
-      });
+      try {
+        const db = getClientFirestore();
+        if (db) {
+          await updateDoc(doc(db, 'payment_requests', req.id), {
+            status: 'approved',
+            approvedAt,
+          });
+          updated = true;
+        }
+      } catch (e) {
+        console.warn('SDK updateDoc notice, using REST:', e);
+      }
+
+      if (!updated) {
+        await updateDocRest('payment_requests', req.id, {
+          status: 'approved',
+          approvedAt,
+        });
+      }
 
       // 2. Automatically grant/extend subscription for this email
       await saveSubscriptionForEmail(
@@ -367,14 +492,28 @@ export default function PaymentManagement({
     if (reason === null) return;
 
     try {
-      const db = getClientFirestore();
-      if (!db) return;
+      const rejectedAt = new Date().toISOString();
+      let updated = false;
 
-      await updateDoc(doc(db, 'payment_requests', req.id), {
-        status: 'rejected',
-        rejectionReason: reason.trim(),
-        rejectedAt: new Date().toISOString(),
-      });
+      try {
+        const db = getClientFirestore();
+        if (db) {
+          await updateDoc(doc(db, 'payment_requests', req.id), {
+            status: 'rejected',
+            rejectionReason: reason.trim(),
+            rejectedAt,
+          });
+          updated = true;
+        }
+      } catch {}
+
+      if (!updated) {
+        await updateDocRest('payment_requests', req.id, {
+          status: 'rejected',
+          rejectionReason: reason.trim(),
+          rejectedAt,
+        });
+      }
 
       fetchData();
     } catch (err: any) {
@@ -386,11 +525,19 @@ export default function PaymentManagement({
   const handleDeleteRequest = async (id: string) => {
     if (!window.confirm(isKu ? 'ئایا دڵنیایت لە سڕینەوەی ئەم داواکارییە؟' : 'Delete this payment request?')) return;
     try {
-      const db = getClientFirestore();
-      if (db) {
-        await deleteDoc(doc(db, 'payment_requests', id));
-        fetchData();
+      let deleted = false;
+      try {
+        const db = getClientFirestore();
+        if (db) {
+          await deleteDoc(doc(db, 'payment_requests', id));
+          deleted = true;
+        }
+      } catch {}
+
+      if (!deleted) {
+        await deleteDocRest('payment_requests', id);
       }
+      fetchData();
     } catch (err: any) {
       alert(err?.message || 'Failed to delete');
     }
@@ -409,13 +556,6 @@ export default function PaymentManagement({
 
     setFormSubmitting(true);
     try {
-      const db = getClientFirestore();
-      if (!db) {
-        setFormError('Firebase connection error');
-        setFormSubmitting(false);
-        return;
-      }
-
       const plan = SUBSCRIPTION_PLANS.find((p) => p.id === formPlan) || SUBSCRIPTION_PLANS[0];
       const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}`;
 
@@ -436,7 +576,18 @@ export default function PaymentManagement({
         notes: formNotes.trim(),
       };
 
-      await setDoc(doc(db, 'payment_requests', newId), newRecord);
+      let saved = false;
+      try {
+        const db = getClientFirestore();
+        if (db) {
+          await setDoc(doc(db, 'payment_requests', newId), newRecord);
+          saved = true;
+        }
+      } catch {}
+
+      if (!saved) {
+        await setDocRest('payment_requests', newId, newRecord);
+      }
 
       // Reset
       setFormName('');
@@ -547,7 +698,12 @@ export default function PaymentManagement({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Total Froshiar Users */}
         <div
-          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm ${
+          onClick={() => setActiveTab('users')}
+          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-[#D4AF37]/60 active:scale-98 ${
+            activeTab === 'users'
+              ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/30'
+              : ''
+          } ${
             isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -563,7 +719,12 @@ export default function PaymentManagement({
 
         {/* Card 2: Active Subscriptions */}
         <div
-          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm ${
+          onClick={() => setActiveTab('subscriptions')}
+          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-emerald-500/60 active:scale-98 ${
+            activeTab === 'subscriptions'
+              ? 'border-emerald-500 ring-1 ring-emerald-500/30'
+              : ''
+          } ${
             isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -579,7 +740,12 @@ export default function PaymentManagement({
 
         {/* Card 3: Pending Payment Requests (With Alert Badge) */}
         <div
-          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm ${
+          onClick={() => setActiveTab('requests')}
+          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-amber-500/60 active:scale-98 ${
+            activeTab === 'requests'
+              ? 'border-amber-500 ring-1 ring-amber-500/30'
+              : ''
+          } ${
             statsCounts.pendingReqs > 0
               ? isDarkMode
                 ? 'bg-amber-500/10 border-amber-500/30'
@@ -605,7 +771,8 @@ export default function PaymentManagement({
 
         {/* Card 4: Expired Accounts */}
         <div
-          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm ${
+          onClick={() => setActiveTab('subscriptions')}
+          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-red-500/60 active:scale-98 ${
             isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
