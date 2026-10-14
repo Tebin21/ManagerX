@@ -64,7 +64,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const discountTotal = cart.discountTotal();
     const globalDiscountAmount = cart.globalDiscountAmount();
     const grandTotal = cart.grandTotal();
-    const paid = roundToNearest250(parseFloat(cart.paidAmount) || 0);
+    const { baseCurrency, exchangeRate: rateSetting } = useSettingsStore.getState();
+    const isUSD = baseCurrency === 'USD';
+    const exchangeRateUsed = rateSetting || 1310;
+    const rawPaid = parseFloat(cart.paidAmount) || 0;
+    const paid = isUSD ? roundToNearest250(rawPaid * exchangeRateUsed) : roundToNearest250(rawPaid);
     const remaining = cart.remainingDebt();
 
     const customer = cart.customerInput;

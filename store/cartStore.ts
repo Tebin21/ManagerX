@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { roundToNearest250 } from '@/utils/rounding';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { CartItem, CustomerInput, PaymentMethod, Product, DiscountType, GlobalDiscountType } from '@/types/sales';
 
 interface CartState {
@@ -78,7 +79,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   remainingDebt: () => {
     const s = get();
     if (s.paymentMethod !== 'debt') return 0;
-    const paid = roundToNearest250(parseFloat(s.paidAmount) || 0);
+    const { baseCurrency, exchangeRate } = useSettingsStore.getState();
+    const isUSD = baseCurrency === 'USD';
+    const rate = exchangeRate || 1310;
+    const rawPaid = parseFloat(s.paidAmount) || 0;
+    const paid = isUSD ? roundToNearest250(rawPaid * rate) : roundToNearest250(rawPaid);
     return Math.max(0, s.grandTotal() - paid);
   },
 

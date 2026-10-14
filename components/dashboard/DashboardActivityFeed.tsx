@@ -9,6 +9,7 @@ import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { toEnglishDigits } from '@/utils/formatters';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { DashboardActivityItem } from '@/lib/sqlite';
 
 interface Props {
@@ -120,6 +121,8 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
 
   const getActivityConfig = (type: DashboardActivityItem['type']) => {
     switch (type) {
@@ -277,7 +280,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
             const timeStr = formatActivityTime(item.timestamp, isKurdish);
             const displayTitle = getActivityDisplayTitle(item, isKurdish, t);
             const displaySubtitle = getActivityDisplaySubtitle(item, isKurdish);
-            const currencyLabel = isKurdish ? 'د.ع' : 'IQD';
+            const currencyLabel = isUSD ? 'USD' : (isKurdish ? 'د.ع' : 'IQD');
 
             return (
               <View key={`act_${item.id}_${index}`}>

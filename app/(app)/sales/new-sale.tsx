@@ -68,6 +68,8 @@ export default function NewSaleScreen() {
   const { createSale } = useSalesStore();
   const { getCustomerById } = useCustomerStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
 
   const [step, setStep] = useState<Step>(1);
   const [query, setQuery] = useState('');
@@ -465,7 +467,15 @@ export default function NewSaleScreen() {
                 <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.subtotal')}</Text>
                 <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
                   <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]} />
-                  <AmountText value={roundUSD(subtotalUsd)} formatter={fmtUSD} variant="small" style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]} />
+                  {isUSD ? (
+                    <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                      {fmtIQD(subtotal)} IQD
+                    </Text>
+                  ) : (
+                    <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                      {fmtUSD(subtotalUsd)} USD
+                    </Text>
+                  )}
                 </View>
               </View>
               {discountTotal > 0 && (
@@ -484,7 +494,15 @@ export default function NewSaleScreen() {
                 <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
                 <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
                   <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
-                  <AmountText value={roundUSD(grandTotalUsd)} formatter={fmtUSD} variant="small" style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
+                  {isUSD ? (
+                    <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
+                      {fmtIQD(grandTotal)} IQD
+                    </Text>
+                  ) : (
+                    <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
+                      {fmtUSD(grandTotalUsd)} USD
+                    </Text>
+                  )}
                 </View>
               </View>
             </PremiumCard>
@@ -554,8 +572,8 @@ export default function NewSaleScreen() {
             {cart.paymentMethod === 'debt' && (
               <View style={styles.debtSection}>
                 <AppTextInput
-                  label={t('sales.paidNow')}
-                  placeholder="0"
+                  label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                  placeholder={isUSD ? '0.00' : '0'}
                   value={cart.paidAmount}
                   onChangeText={(t) => cart.setPaidAmount(t)}
                   keyboardType="decimal-pad"
@@ -590,7 +608,9 @@ export default function NewSaleScreen() {
                 globalDiscountType: cart.globalDiscountType,
                 globalDiscount: globalDiscountAmount,
                 grandTotal,
-                paidAmount: cart.paymentMethod === 'debt' ? (parseFloat(cart.paidAmount) || 0) : grandTotal,
+                paidAmount: cart.paymentMethod === 'debt'
+                  ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                  : grandTotal,
                 remainingDebt,
                 status: 'completed',
                 exchangeRateUsed: exchangeRate,

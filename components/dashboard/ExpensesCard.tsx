@@ -17,11 +17,14 @@ interface Props {
   showLink?: boolean;
 }
 
+import { useSettingsStore } from '@/store/settingsStore';
+
 export function ExpensesCard({ totals, index = 0, showLink = true }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const router = useRouter();
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const [filter, setFilter] = useState<Filter>('today');
 
   const filters: { key: Filter; label: string }[] = [
@@ -79,7 +82,7 @@ export function ExpensesCard({ totals, index = 0, showLink = true }: Props) {
           showCurrency={false}
           style={[styles.amount, { color: hasExpenses ? colors.error : colors.gray400 }]}
         />
-        <Text style={[styles.currency, { color: hasExpenses ? colors.error + 'AA' : colors.gray300 }]}> IQD</Text>
+        <Text style={[styles.currency, { color: hasExpenses ? colors.error + 'AA' : colors.gray300 }]}> {baseCurrency === 'USD' ? 'USD' : 'IQD'}</Text>
       </View>
 
       {/* Link to full report — only shown outside the reports screen */}

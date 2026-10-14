@@ -49,13 +49,11 @@ export function CashBalanceCard({ data, index = 0 }: Props) {
       <View style={[styles.balanceRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
         <AmountText
           value={Math.abs(data.netBalance)}
-          currency={null}
           style={[styles.balance, { color: balanceColor, lineHeight: 38 }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.5}
         />
-        <Text style={[styles.currency, { color: balanceColor + 'AA' }]}> IQD</Text>
       </View>
       {!isPositive && (
         <Text style={[styles.negativeTag, { color: colors.error, textAlign }]}>

@@ -39,7 +39,9 @@ export function CartItemRow({
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
-  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
@@ -49,9 +51,27 @@ export function CartItemRow({
   );
   const [iqdFocused, setIqdFocused] = useState(false);
   const [usdFocused, setUsdFocused] = useState(false);
+  const [discountFocused, setDiscountFocused] = useState(false);
   const [discountText, setDiscountText] = useState(
-    item.discountType === 'percentage' ? String(item.discountPct) : String(item.discount)
+    item.discountType === 'percentage'
+      ? (item.discountPct > 0 ? String(item.discountPct) : '')
+      : (isUSD
+          ? (item.discount > 0 ? String(roundUSD(item.discount / exchangeRate)) : '')
+          : (item.discount > 0 ? String(item.discount) : ''))
   );
+
+  React.useEffect(() => {
+    if (discountFocused) return;
+    if (item.discountType === 'percentage') {
+      setDiscountText(item.discountPct > 0 ? String(item.discountPct) : '');
+    } else {
+      if (isUSD) {
+        setDiscountText(item.discount > 0 ? String(roundUSD(item.discount / exchangeRate)) : '');
+      } else {
+        setDiscountText(item.discount > 0 ? String(item.discount) : '');
+      }
+    }
+  }, [item.discount, item.discountPct, item.discountType, isUSD, exchangeRate, discountFocused]);
 
   function onIqdChange(val: string) {
     setIqdPriceText(val);
@@ -82,20 +102,32 @@ export function CartItemRow({
     if (item.discountType === 'percentage') {
       onUpdateDiscountPct(n);
     } else {
-      onUpdateDiscount(n);
+      if (isUSD) {
+        onUpdateDiscount(n > 0 ? n * exchangeRate : 0);
+      } else {
+        onUpdateDiscount(n);
+      }
     }
   }
 
   function onDiscountBlur() {
+    setDiscountFocused(false);
     if (item.discountType === 'amount') {
-      const r = roundToNearest250(parseFloat(discountText) || 0);
-      setDiscountText(String(r));
-      onUpdateDiscount(r);
+      const val = parseFloat(discountText) || 0;
+      if (isUSD) {
+        const rounded = roundUSD(val);
+        setDiscountText(val > 0 ? String(rounded) : '');
+        onUpdateDiscount(rounded > 0 ? roundToNearest250(rounded * exchangeRate) : 0);
+      } else {
+        const r = roundToNearest250(val);
+        setDiscountText(val > 0 ? String(r) : '');
+        onUpdateDiscount(r);
+      }
     }
   }
 
   function switchDiscountType(type: DiscountType) {
-    setDiscountText('0');
+    setDiscountText('');
     onUpdateDiscountType(type);
   }
 
@@ -203,7 +235,7 @@ export function CartItemRow({
       <View style={styles.section}>
         <View style={[styles.discountHeader, { flexDirection }]}>
           <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>{t('sales.discount')}</Text>
-          {/* Toggle: % vs IQD */}
+          {/* Toggle: % vs USD / IQD */}
           <View style={[styles.typeToggle, { borderColor: colors.gray200 }]}>
             <TouchableOpacity
               style={[
@@ -221,7 +253,9 @@ export function CartItemRow({
               ]}
               onPress={() => switchDiscountType('amount')}
             >
-              <Text style={[styles.typePillText, { color: item.discountType === 'amount' ? colors.white : colors.gray500 }]}>IQD</Text>
+              <Text style={[styles.typePillText, { color: item.discountType === 'amount' ? colors.white : colors.gray500 }]}>
+                {isUSD ? 'USD' : 'IQD'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -233,10 +267,10 @@ export function CartItemRow({
           ]}
           value={discountText}
           onChangeText={onDiscountChange}
-          onFocus={scrollIntoView}
+          onFocus={(e) => { setDiscountFocused(true); scrollIntoView(e); }}
           onBlur={onDiscountBlur}
           keyboardType="decimal-pad"
-          placeholder={item.discountType === 'percentage' ? '0%' : '0'}
+          placeholder={item.discountType === 'percentage' ? '0%' : (isUSD ? '0.00' : '0')}
           placeholderTextColor={colors.gray400}
           selectTextOnFocus
         />
@@ -258,12 +292,15 @@ export function CartItemRow({
         <Text style={[styles.lineTotalLabel, { color: colors.gray400, textAlign }]}>{t('sales.lineTotal')}</Text>
         <View style={[styles.lineTotalStack, { alignItems: alignEnd }]}>
           <AmountText value={item.lineTotal} variant="large" style={[styles.lineTotal, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
-          <AmountText
-            value={item.lineTotal / exchangeRate}
-            formatter={fmtUSD}
-            variant="small"
-            style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}
-          />
+          {isUSD ? (
+            <Text style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+              {fmtIQD(item.lineTotal)} IQD
+            </Text>
+          ) : (
+            <Text style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+              {fmtUSD(item.lineTotal / exchangeRate)} USD
+            </Text>
+          )}
         </View>
       </View>
     </View>

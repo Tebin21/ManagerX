@@ -52,7 +52,7 @@ export function AmountText({
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
 
-  const isUSD = baseCurrency === 'USD' && (currency === undefined || currency === 'IQD' || currency === 'USD');
+  const isUSD = baseCurrency === 'USD' && (currency === undefined || currency === 'IQD' || currency === 'USD' || currency === null || currency === 'none');
   const displayVal = isUSD ? (value ?? 0) / exchangeRate : (value ?? 0);
   const effectiveFormatter = formatter && formatter !== fmtIQD ? formatter : (isUSD ? fmtUSD : fmtIQD);
   const effectiveCurrency = currency === undefined ? (isUSD ? 'USD' : 'IQD') : (currency === 'IQD' && isUSD ? 'USD' : currency);

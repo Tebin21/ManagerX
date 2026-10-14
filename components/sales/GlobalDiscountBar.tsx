@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { GlobalDiscountType } from '@/types/sales';
 
 interface Props {
@@ -22,24 +23,36 @@ interface Props {
   onValueChange: (value: number) => void;
 }
 
-const TYPES: { key: GlobalDiscountType; label: string }[] = [
-  { key: 'none', label: '—' },
-  { key: 'percentage', label: '%' },
-  { key: 'amount', label: 'IQD' },
-];
-
 export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTypeChange, onValueChange }: Props) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
+  const isUSD = baseCurrency === 'USD';
+
+  const types: { key: GlobalDiscountType; label: string }[] = [
+    { key: 'none', label: '—' },
+    { key: 'percentage', label: '%' },
+    { key: 'amount', label: isUSD ? 'USD' : 'IQD' },
+  ];
 
   const [inputText, setInputText] = React.useState('');
 
   function handleValueChange(val: string) {
     setInputText(val);
-    onValueChange(parseFloat(val) || 0);
+    const n = parseFloat(val) || 0;
+    if (type === 'percentage') {
+      onValueChange(n);
+    } else {
+      if (isUSD) {
+        onValueChange(n > 0 ? n * exchangeRate : 0);
+      } else {
+        onValueChange(n);
+      }
+    }
   }
 
   function handleTypeChange(newType: GlobalDiscountType) {
@@ -57,7 +70,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
 
       {/* Type toggle */}
       <View style={[styles.toggleRow, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
-        {TYPES.map((opt) => (
+        {types.map((opt) => (
           <TouchableOpacity
             key={opt.key}
             style={[
@@ -81,7 +94,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
             value={inputText}
             onChangeText={handleValueChange}
             keyboardType="decimal-pad"
-            placeholder={type === 'percentage' ? '0%' : '0 IQD'}
+            placeholder={type === 'percentage' ? '0%' : (isUSD ? '0.00 USD' : '0 IQD')}
             placeholderTextColor={colors.gray400}
             selectTextOnFocus
             onFocus={scrollIntoView}
@@ -89,7 +102,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
 
           {discountAmount > 0 && (
             <View style={[styles.previewBadge, { backgroundColor: colors.softBlue ?? '#EFF6FF', flexDirection }]}>
-              <AmountText value={discountAmount} currency="IQD" prefix="−" variant="small" style={[styles.previewText, { color: colors.primary, textAlign }]} />
+              <AmountText value={discountAmount} prefix="−" variant="small" style={[styles.previewText, { color: colors.primary, textAlign }]} />
               {subtotal > 0 && (
                 <Text style={[styles.previewPct, { color: colors.gray500, textAlign }]}>
                   ({((discountAmount / subtotal) * 100).toFixed(1)}% {t('sales.ofTotal')})

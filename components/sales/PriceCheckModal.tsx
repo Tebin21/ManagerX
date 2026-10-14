@@ -513,7 +513,9 @@ export function PriceCheckModal({
                   </View>
 
                   <View style={[styles.profitValueWrap, { flexDirection }]}>
-                    <Text
+                    <AmountText
+                      value={Math.abs(profit)}
+                      prefix={hasProfit ? '+ ' : (hasLoss ? '− ' : '')}
                       style={[
                         styles.profitValueText,
                         {
@@ -524,9 +526,7 @@ export function PriceCheckModal({
                             : colors.gray500,
                         },
                       ]}
-                    >
-                      {hasProfit ? '+' : ''}{fmtIQD(profit)} IQD
-                    </Text>
+                    />
                     {marginPct !== 0 && (
                       <View
                         style={[

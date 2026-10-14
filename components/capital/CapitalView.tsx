@@ -520,13 +520,11 @@ export function CapitalView() {
               <View style={[styles.balanceAmtRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <AmountText
                   value={Math.abs(stats.currentBalance)}
-                  currency={null}
                   style={[styles.balanceBigAmt, { color: balanceColor }]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.6}
                 />
-                <Text style={[styles.balanceCurrency, { color: balanceColor + 'AA' }]}> IQD</Text>
               </View>
             </View>
           </View>

@@ -110,26 +110,22 @@ export function DashboardMetricSquare({
         {/* Big Number / Value */}
         <View style={[styles.valueRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
           {isCurrency ? (
-            <>
-              <AmountText
-                value={Math.abs(value)}
-                currency={null}
-                style={[
-                  styles.valueText,
-                  {
-                    color: isAlert
-                      ? colors.error
-                      : value < 0
-                      ? colors.error
-                      : colors.darkBlue,
-                  },
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              />
-              <Text style={[styles.currencyText, { color: colors.gray400 }]}> IQD</Text>
-            </>
+            <AmountText
+              value={Math.abs(value)}
+              style={[
+                styles.valueText,
+                {
+                  color: isAlert
+                    ? colors.error
+                    : value < 0
+                    ? colors.error
+                    : colors.darkBlue,
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            />
           ) : (
             <Text
               style={[

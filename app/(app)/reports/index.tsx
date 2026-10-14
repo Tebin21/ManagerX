@@ -31,6 +31,7 @@ import { CompactAmount } from '@/components/shared/CompactAmount';
 import { AmountText } from '@/components/ui/AmountText';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useSettingsStore } from '@/store/settingsStore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -330,6 +331,7 @@ function FinancialCard({
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const { isTablet } = useResponsive();
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const fcStyles = useMemo(() => getFcStyles(colors, isTablet), [colors, isTablet]);
   return (
     <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
@@ -339,12 +341,13 @@ function FinancialCard({
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
       <AmountText
         value={amount}
+        currency={null}
         style={[fcStyles.value, { color, textAlign }]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.5}
       />
-      <Text style={[fcStyles.currency, { textAlign }]}>IQD</Text>
+      <Text style={[fcStyles.currency, { textAlign }]}>{baseCurrency === 'USD' ? 'USD' : 'IQD'}</Text>
     </View>
   );
 }
@@ -645,6 +648,7 @@ export default function ReportsScreen() {
     setDateRange, reload,
   } = useReportStore();
 
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isCapitalEnabled = useCapitalStore((s) => s.isEnabled);
 
   const [isExporting, setIsExporting]         = useState(false);
@@ -820,7 +824,7 @@ export default function ReportsScreen() {
               <StatChipsRow chips={[
                 { value: fmtIQD(salesData?.totalItemsSold ?? 0), label: t('reports.totalSoldProducts') },
                 { value: String(salesData?.totalSales ?? 0),  label: t('reports.totalInvoices') },
-                { value: <CompactAmount value={salesData?.avgOrderValue ?? 0} showCurrency={false} style={scStyles.value} />, label: `${t('reports.avgOrderValue')} IQD` },
+                { value: <CompactAmount value={salesData?.avgOrderValue ?? 0} showCurrency={false} style={scStyles.value} />, label: `${t('reports.avgOrderValue')} (${baseCurrency === 'USD' ? 'USD' : 'IQD'})` },
               ]} />
 
               {revenue > 0 && (

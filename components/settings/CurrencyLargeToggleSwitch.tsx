@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,9 +8,8 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Rect, Circle, Path, G, Text as SvgText, Defs, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Rect, Circle, Text as SvgText, Defs, RadialGradient, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme } from '@/contexts/ThemeContext';
 
 export interface CurrencyLargeToggleSwitchProps {
   value: 'IQD' | 'USD';
@@ -18,122 +17,170 @@ export interface CurrencyLargeToggleSwitchProps {
   disabled?: boolean;
 }
 
-// ─── Iraqi Dinar Note Graphic ────────────────────────────────────────────────
-export function IraqiDinarGraphic({ size = 38 }: { size?: number }) {
+// ─── Iraqi Dinar Cash Note Graphic ──────────────────────────────────────────
+export function IraqiDinarBanknote({
+  size,
+  width,
+  height,
+}: {
+  size?: number;
+  width?: number;
+  height?: number;
+}) {
+  const w = width ?? (size ? Math.round(size * 1.55) : 64);
+  const h = height ?? (size ?? 38);
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
-      <Svg width={size} height={size} viewBox="0 0 48 48">
+    <View style={[styles.banknoteWrap, { width: w, height: h }]}>
+      <Svg width={w} height={h} viewBox="0 0 68 40">
         <Defs>
-          <RadialGradient id="iqdShine" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#10B981" stopOpacity="1" />
-            <Stop offset="80%" stopColor="#047857" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#064E3B" stopOpacity="1" />
+          <SvgLinearGradient id="iqdBillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#0D9488" />
+            <Stop offset="45%" stopColor="#047857" />
+            <Stop offset="100%" stopColor="#064E3B" />
+          </SvgLinearGradient>
+          <RadialGradient id="iqdGlow" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor="#34D399" stopOpacity="0.38" />
+            <Stop offset="100%" stopColor="#064E3B" stopOpacity="0" />
           </RadialGradient>
         </Defs>
 
-        {/* Banknote circle background */}
-        <Circle cx="24" cy="24" r="23" fill="url(#iqdShine)" stroke="#F59E0B" strokeWidth="2" />
-        
-        {/* Guilloche decorative circle */}
-        <Circle cx="24" cy="24" r="19" fill="none" stroke="rgba(251, 191, 36, 0.45)" strokeWidth="1" strokeDasharray="3,2" />
+        {/* Banknote Base */}
+        <Rect x="0.5" y="0.5" width="67" height="39" rx="5" fill="url(#iqdBillGrad)" stroke="#F59E0B" strokeWidth="1.2" />
 
-        {/* Palm frond / crescent accent */}
-        <Path
-          d="M 14 32 C 16 22 24 16 34 16 C 30 22 26 28 20 32 Z"
-          fill="rgba(255, 255, 255, 0.18)"
+        {/* Sheen overlay */}
+        <Rect x="1" y="1" width="66" height="38" rx="4" fill="url(#iqdGlow)" />
+
+        {/* Guilloche border frame */}
+        <Rect
+          x="3.5"
+          y="3.5"
+          width="61"
+          height="33"
+          rx="3.5"
+          fill="none"
+          stroke="rgba(251, 191, 36, 0.45)"
+          strokeWidth="0.8"
+          strokeDasharray="2.5,1.5"
         />
 
-        {/* Central "د.ع" Arabic/Kurdish currency symbol */}
+        {/* Security watermark strip */}
+        <Rect x="12" y="1" width="3.5" height="38" fill="rgba(217, 119, 6, 0.38)" />
+
+        {/* Corner Denomination numerals */}
+        <SvgText x="5.5" y="10" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="start">
+          د.ع
+        </SvgText>
+        <SvgText x="62.5" y="35" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="end">
+          IQD
+        </SvgText>
+
+        {/* Center Medallion with decorative circle */}
+        <Circle cx="36" cy="20" r="12" fill="#064E3B" stroke="#F59E0B" strokeWidth="1.2" />
+        <Circle cx="36" cy="20" r="10" fill="none" stroke="rgba(251, 191, 36, 0.4)" strokeWidth="0.6" strokeDasharray="1.5,1" />
+
+        {/* Central Currency Symbol "د.ع" */}
         <SvgText
-          x="24"
-          y="27"
-          fontSize="17"
+          x="36"
+          y="24"
+          fontSize="11.5"
           fontWeight="bold"
           fill="#FFFFFF"
           textAnchor="middle"
         >
           د.ع
         </SvgText>
-
-        {/* Small "IQD" label */}
-        <SvgText
-          x="24"
-          y="38"
-          fontSize="7.5"
-          fontWeight="bold"
-          letterSpacing="0.8"
-          fill="#FDE68A"
-          textAnchor="middle"
-        >
-          IQD
-        </SvgText>
       </Svg>
     </View>
   );
 }
 
-// ─── US Dollar Note Graphic ──────────────────────────────────────────────────
-export function USDollarGraphic({ size = 38 }: { size?: number }) {
+// ─── US Dollar Cash Note Graphic ────────────────────────────────────────────
+export function USDollarBanknote({
+  size,
+  width,
+  height,
+}: {
+  size?: number;
+  width?: number;
+  height?: number;
+}) {
+  const w = width ?? (size ? Math.round(size * 1.55) : 64);
+  const h = height ?? (size ?? 38);
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
-      <Svg width={size} height={size} viewBox="0 0 48 48">
+    <View style={[styles.banknoteWrap, { width: w, height: h }]}>
+      <Svg width={w} height={h} viewBox="0 0 68 40">
         <Defs>
-          <RadialGradient id="usdShine" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#059669" stopOpacity="1" />
-            <Stop offset="80%" stopColor="#065F46" stopOpacity="1" />
-            <Stop offset="100%" stopColor="#022C22" stopOpacity="1" />
+          <SvgLinearGradient id="usdBillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#1E293B" />
+            <Stop offset="35%" stopColor="#0F766E" />
+            <Stop offset="100%" stopColor="#047857" />
+          </SvgLinearGradient>
+          <RadialGradient id="usdGlow" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor="#6EE7B7" stopOpacity="0.38" />
+            <Stop offset="100%" stopColor="#064E3B" stopOpacity="0" />
           </RadialGradient>
         </Defs>
 
-        {/* Banknote circle background */}
-        <Circle cx="24" cy="24" r="23" fill="url(#usdShine)" stroke="#F59E0B" strokeWidth="2" />
+        {/* Banknote Base */}
+        <Rect x="0.5" y="0.5" width="67" height="39" rx="5" fill="url(#usdBillGrad)" stroke="#F59E0B" strokeWidth="1.2" />
 
-        {/* Guilloche decorative circle */}
-        <Circle cx="24" cy="24" r="19" fill="none" stroke="rgba(251, 191, 36, 0.45)" strokeWidth="1" strokeDasharray="3,2" />
+        {/* Sheen overlay */}
+        <Rect x="1" y="1" width="66" height="38" rx="4" fill="url(#usdGlow)" />
 
-        {/* Laurel wreath accents */}
-        <Path
-          d="M 12 24 C 12 16 18 12 24 12 M 36 24 C 36 16 30 12 24 12"
+        {/* Guilloche border frame */}
+        <Rect
+          x="3.5"
+          y="3.5"
+          width="61"
+          height="33"
+          rx="3.5"
           fill="none"
-          stroke="rgba(254, 240, 138, 0.35)"
-          strokeWidth="1.2"
+          stroke="rgba(251, 191, 36, 0.45)"
+          strokeWidth="0.8"
+          strokeDasharray="2.5,1.5"
         />
 
-        {/* Central "$" Symbol */}
+        {/* Famous $100 3D Blue Security Ribbon */}
+        <Rect x="20" y="1" width="3.5" height="38" fill="#3B82F6" opacity={0.7} />
+
+        {/* Corner Denomination numerals */}
+        <SvgText x="5.5" y="10" fontSize="7" fontWeight="bold" fill="#86EFAC" textAnchor="start">
+          $
+        </SvgText>
+        <SvgText x="62.5" y="35" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="end">
+          USD
+        </SvgText>
+
+        {/* Center Federal Reserve Oval Medallion */}
+        <Circle cx="37" cy="20" r="12" fill="#022C22" stroke="#F59E0B" strokeWidth="1.2" />
+        <Circle cx="37" cy="20" r="10" fill="none" stroke="rgba(251, 191, 36, 0.4)" strokeWidth="0.6" strokeDasharray="1.5,1" />
+
+        {/* Central Currency Symbol "$" */}
         <SvgText
-          x="24"
-          y="29"
-          fontSize="22"
+          x="37"
+          y="25.5"
+          fontSize="15"
           fontWeight="bold"
           fill="#FFFFFF"
           textAnchor="middle"
         >
           $
         </SvgText>
-
-        {/* Small "USD" label */}
-        <SvgText
-          x="24"
-          y="39"
-          fontSize="7.5"
-          fontWeight="bold"
-          letterSpacing="0.8"
-          fill="#FDE68A"
-          textAnchor="middle"
-        >
-          USD
-        </SvgText>
       </Svg>
     </View>
   );
 }
 
-const TRACK_WIDTH = 196;
-const TRACK_HEIGHT = 64;
-const TRACK_PADDING = 5;
-const THUMB_WIDTH = (TRACK_WIDTH - TRACK_PADDING * 2) / 2; // 93px
-const THUMB_HEIGHT = TRACK_HEIGHT - TRACK_PADDING * 2; // 54px
-const TRAVEL_DISTANCE = THUMB_WIDTH; // 93px
+// Backward compatibility export aliases
+export const IraqiDinarGraphic = IraqiDinarBanknote;
+export const USDollarGraphic = USDollarBanknote;
+
+const TRACK_WIDTH = 176;
+const TRACK_HEIGHT = 56;
+const TRACK_PADDING = 4;
+const THUMB_WIDTH = (TRACK_WIDTH - TRACK_PADDING * 2) / 2; // 84px
+const THUMB_HEIGHT = TRACK_HEIGHT - TRACK_PADDING * 2; // 48px
+const TRAVEL_DISTANCE = THUMB_WIDTH; // 84px
 
 export function CurrencyLargeToggleSwitch({
   value,
@@ -146,10 +193,10 @@ export function CurrencyLargeToggleSwitch({
   useEffect(() => {
     progress.value = withSpring(isUSD ? 1 : 0, {
       damping: 17,
-      stiffness: 180,
+      stiffness: 185,
       mass: 0.85,
     });
-  }, [isUSD]);
+  }, [isUSD, progress]);
 
   const handlePress = (target: 'IQD' | 'USD') => {
     if (disabled) return;
@@ -176,7 +223,7 @@ export function CurrencyLargeToggleSwitch({
   return (
     <View style={styles.outerContainer}>
       <View style={styles.track}>
-        {/* Background gradient */}
+        {/* Dark Slate Background */}
         <LinearGradient
           colors={['#0F172A', '#1E293B']}
           start={{ x: 0, y: 0 }}
@@ -184,43 +231,27 @@ export function CurrencyLargeToggleSwitch({
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Left Side: Iraqi Dinar slot button */}
+        {/* Left Side: Iraqi Dinar Banknote */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => handlePress('IQD')}
           disabled={disabled}
           style={styles.slotBtn}
         >
-          <View style={[styles.badgeWrap, !isUSD && styles.activeBadgeWrap]}>
-            <IraqiDinarGraphic size={36} />
-            <View style={styles.textStack}>
-              <RNText style={[styles.slotTitle, !isUSD ? styles.activeText : styles.inactiveText]}>
-                دینار
-              </RNText>
-              <RNText style={[styles.slotSub, !isUSD ? styles.activeSubText : styles.inactiveSubText]}>
-                د.ع
-              </RNText>
-            </View>
+          <View style={[styles.badgeWrap, !isUSD ? styles.activeBadge : styles.inactiveBadge]}>
+            <IraqiDinarBanknote width={66} height={39} />
           </View>
         </TouchableOpacity>
 
-        {/* Right Side: US Dollar slot button */}
+        {/* Right Side: US Dollar Banknote */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => handlePress('USD')}
           disabled={disabled}
           style={styles.slotBtn}
         >
-          <View style={[styles.badgeWrap, isUSD && styles.activeBadgeWrap]}>
-            <USDollarGraphic size={36} />
-            <View style={styles.textStack}>
-              <RNText style={[styles.slotTitle, isUSD ? styles.activeText : styles.inactiveText]}>
-                دۆلار
-              </RNText>
-              <RNText style={[styles.slotSub, isUSD ? styles.activeSubText : styles.inactiveSubText]}>
-                USD $
-              </RNText>
-            </View>
+          <View style={[styles.badgeWrap, isUSD ? styles.activeBadge : styles.inactiveBadge]}>
+            <USDollarBanknote width={66} height={39} />
           </View>
         </TouchableOpacity>
 
@@ -240,14 +271,14 @@ const styles = StyleSheet.create({
   outerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 4,
+    marginVertical: 6,
   },
   track: {
     width: TRACK_WIDTH,
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
     borderWidth: 1.5,
-    borderColor: 'rgba(212, 175, 55, 0.55)',
+    borderColor: 'rgba(212, 175, 55, 0.65)',
     padding: TRACK_PADDING,
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,40 +299,25 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   badgeWrap: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 6,
-    opacity: 0.55,
   },
-  activeBadgeWrap: {
+  activeBadge: {
     opacity: 1,
+    transform: [{ scale: 1.05 }],
   },
-  textStack: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  inactiveBadge: {
+    opacity: 0.42,
+    transform: [{ scale: 0.94 }],
   },
-  slotTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  slotSub: {
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: -1,
-  },
-  activeText: {
-    color: '#FFFFFF',
-  },
-  inactiveText: {
-    color: '#94A3B8',
-  },
-  activeSubText: {
-    color: '#D4AF37',
-  },
-  inactiveSubText: {
-    color: '#64748B',
+  banknoteWrap: {
+    borderRadius: 6,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   thumbPill: {
     position: 'absolute',
