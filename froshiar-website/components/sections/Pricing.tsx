@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Check, CreditCard, Sparkles, Phone, MessageCircle, ShieldCheck } from "lucide-react";
+import { Check, Sparkles, ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { SubscriptionRequestModal, type PlanDetails } from "./SubscriptionRequestModal";
 
 export function Pricing() {
   const t = useTranslations("pricing");
-  const [selectedPlan, setSelectedPlan] = useState<PlanDetails | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const plans = [
     {
@@ -59,14 +54,8 @@ export function Pricing() {
     },
   ];
 
-  const handleOpenPlan = (plan: (typeof plans)[0]) => {
-    setSelectedPlan(plan);
-    setIsModalOpen(true);
-  };
-
   return (
     <section id="pricing" className="relative scroll-mt-24 py-16 sm:py-24 lg:py-32">
-      <div id="payment" className="absolute -top-24" />
       <Container>
         <div className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-300/60 bg-gold-50/80 px-3.5 py-1 text-xs font-bold text-gold-700 shadow-2xs dark:border-gold-800/40 dark:bg-gold-950/40 dark:text-gold-300">
@@ -131,92 +120,22 @@ export function Pricing() {
               </div>
 
               <div className="mt-8 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleOpenPlan(plan)}
+                <a
+                  href="#contact"
                   className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all cursor-pointer ${
                     plan.isPopular
                       ? "bg-gradient-to-r from-gold-500 to-amber-500 text-ink-fixed shadow-md shadow-gold-500/20 hover:from-gold-400 hover:to-amber-400"
                       : "border border-gray-200 bg-gray-50 text-ink hover:bg-gray-100 dark:border-gold-900/50 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1]"
                   }`}
                 >
-                  <CreditCard size={16} />
                   <span>{t("requestBtn")}</span>
-                </button>
+                  <ArrowRight size={15} className="rtl:rotate-180" />
+                </a>
               </div>
             </div>
           ))}
         </div>
-
-        {/* Payment Methods Card */}
-        <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-gold-200/80 bg-gradient-to-b from-gold-50/50 to-white p-7 shadow-sm dark:border-gold-900/40 dark:from-white/[0.03] dark:to-white/[0.01] sm:p-9">
-          <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:text-start">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gold-100 text-gold-700 shadow-xs dark:bg-gold-900/40 dark:text-gold-300">
-              <ShieldCheck size={28} />
-            </div>
-
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-ink sm:text-xl">{t("methodsTitle")}</h3>
-              <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                {t("methodsDesc")}
-              </p>
-
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs dark:border-gold-900/40 dark:bg-white/[0.03]">
-                  <p className="text-xs font-bold text-ink">{t("fastpay")}</p>
-                  <p dir="ltr" className="mt-1 font-mono text-sm font-semibold text-gold-600 dark:text-gold-400">
-                    {t("accountNumber")}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs dark:border-gold-900/40 dark:bg-white/[0.03]">
-                  <p className="text-xs font-bold text-ink">{t("fib")}</p>
-                  <p dir="ltr" className="mt-1 font-mono text-sm font-semibold text-gold-600 dark:text-gold-400">
-                    {t("accountNumber")}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-gray-200/80 bg-white p-3.5 shadow-2xs dark:border-gold-900/40 dark:bg-white/[0.03]">
-                  <p className="text-xs font-bold text-ink">{t("zaincash")}</p>
-                  <p dir="ltr" className="mt-1 font-mono text-sm font-semibold text-gold-600 dark:text-gold-400">
-                    {t("accountNumber")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <a
-                  href={`https://wa.me/9647708229696?text=${encodeURIComponent(
-                    "سڵاو، وەسڵی پارەدانم ئامادەیە بۆ فرۆشیار تکایە کارام بۆ بکەن."
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-emerald-500 transition-all"
-                >
-                  <MessageCircle size={16} />
-                  <span>{t("whatsappBtn")}</span>
-                </a>
-
-                <a
-                  href="tel:+9647708229696"
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-ink shadow-2xs hover:bg-gray-50 dark:border-gold-900/50 dark:bg-white/[0.05] dark:text-white dark:hover:bg-white/[0.1] transition-all"
-                >
-                  <Phone size={15} />
-                  <span dir="ltr">0770 822 9696</span>
-                </a>
-
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {t("accountHolder")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
       </Container>
-
-      <SubscriptionRequestModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        plan={selectedPlan}
-      />
     </section>
   );
 }
