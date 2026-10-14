@@ -1,6 +1,7 @@
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
 import { fmtIQD, fmtUSD, fmtPct, formatDate, formatDateTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN, kuSpan, isKurdishPdfActive, pdfDevelopedByText } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -154,6 +155,13 @@ export function buildSalesDebtReportHTML(
   const lang = 'en';
   const pct = pctPaid(debt.paidAmount, debt.originalAmount);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
+  const curUnit = isUsd ? 'USD' : 'IQD';
+
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
     : '';
@@ -163,8 +171,8 @@ export function buildSalesDebtReportHTML(
     : payments.map((p) => `
         <tr>
           <td>${formatDateTime(p.createdAt)}</td>
-          <td style="color:#059669;font-weight:700;">+${fmtIQD(p.amount)} IQD</td>
-          <td style="color:#5D4C14;font-weight:600;">${fmtIQD(p.remainingAfter)} IQD</td>
+          <td style="color:#059669;font-weight:700;">+${fmtMoney(p.amount)}</td>
+          <td style="color:#5D4C14;font-weight:600;">${fmtMoney(p.remainingAfter)}</td>
         </tr>
       `).join('');
 
@@ -217,15 +225,15 @@ export function buildSalesDebtReportHTML(
     <div class="status-grid">
       <div class="stat-cell">
         <div class="stat-label">Original Amount</div>
-        <div class="stat-value blue">${fmtIQD(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value blue">${fmtMoneyVal(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
         <div class="stat-label">Total Paid</div>
-        <div class="stat-value green">${fmtIQD(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value green">${fmtMoneyVal(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
         <div class="stat-label">Remaining</div>
-        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtIQD(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtMoneyVal(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
     </div>
     <div class="progress-bar-bg">
@@ -285,6 +293,13 @@ export function buildPurchaseDebtReportHTML(
   const lang = 'en';
   const pct = pctPaid(debt.paidAmount, debt.originalAmount);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
+  const curUnit = isUsd ? 'USD' : 'IQD';
+
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
     : '';
@@ -294,8 +309,8 @@ export function buildPurchaseDebtReportHTML(
     : payments.map((p) => `
         <tr>
           <td>${formatDateTime(p.createdAt)}</td>
-          <td style="color:#059669;font-weight:700;">+${fmtIQD(p.amount)} IQD</td>
-          <td style="color:#DC2626;font-weight:600;">${fmtIQD(p.remainingAfter)} IQD</td>
+          <td style="color:#059669;font-weight:700;">+${fmtMoney(p.amount)}</td>
+          <td style="color:#DC2626;font-weight:600;">${fmtMoney(p.remainingAfter)}</td>
         </tr>
       `).join('');
 
@@ -348,15 +363,15 @@ export function buildPurchaseDebtReportHTML(
     <div class="status-grid">
       <div class="stat-cell">
         <div class="stat-label">Total Owed</div>
-        <div class="stat-value" style="color:#1E293B;">${fmtIQD(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value" style="color:#1E293B;">${fmtMoneyVal(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
         <div class="stat-label">Paid to Supplier</div>
-        <div class="stat-value green">${fmtIQD(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value green">${fmtMoneyVal(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
         <div class="stat-label">Still Owe</div>
-        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtIQD(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> IQD</span></div>
+        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtMoneyVal(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
     </div>
     <div class="progress-bar-bg">
@@ -427,6 +442,11 @@ export function buildDebtsAuditReportHTML(
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
   const ku = kuSpan;
+
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
 
   let sections: DebtReportSections;
   if (typeof target === 'object') {
@@ -531,13 +551,13 @@ export function buildDebtsAuditReportHTML(
         <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:16px;">
           <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:11px;font-weight:700;color:#047857;margin-bottom:6px;">${isKurdish ? ku('دەبێت کڕیار پێمان بدات') : 'Customers Owe Us'}</div>
-            <div style="font-size:17px;font-weight:800;color:#065F46;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesDebt)} IQD</span></div>
+            <div style="font-size:17px;font-weight:800;color:#065F46;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesDebt)}</span></div>
             <div style="font-size:10.5px;color:#059669;margin-top:4px;">${isKurdish ? ku('قەرزی کڕیاران') : 'Receivables'}</div>
           </div>
 
           <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:11px;font-weight:700;color:#B91C1C;margin-bottom:6px;">${isKurdish ? ku('دەبێت بیدەین بە دابینکەر') : 'We Owe Suppliers'}</div>
-            <div style="font-size:17px;font-weight:800;color:#991B1B;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchaseDebt)} IQD</span></div>
+            <div style="font-size:17px;font-weight:800;color:#991B1B;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseDebt)}</span></div>
             <div style="font-size:10.5px;color:#DC2626;margin-top:4px;">${isKurdish ? ku('قەرزی دابینکەران') : 'Payables'}</div>
           </div>
 
@@ -561,7 +581,7 @@ export function buildDebtsAuditReportHTML(
             <div style="font-size:11.5px;color:${netColor};font-weight:600;margin-top:3px;">${netLabel}</div>
           </div>
           <div style="font-size:20px;font-weight:800;color:${netColor};">
-            <span class="en-num" dir="ltr">${fmtIQD(Math.abs(netBalance))} IQD</span>
+            <span class="en-num" dir="ltr">${fmtMoney(Math.abs(netBalance))}</span>
           </div>
         </div>
       </div>
@@ -597,9 +617,9 @@ export function buildDebtsAuditReportHTML(
                   ${isKurdish ? ku('قەرزی کڕیاران (دەبێت پێمان بدەن)') : 'Customer Debts (Receivables)'}
                 </td>
                 <td style="padding:11px 10px;text-align:center;"><span class="en-num" dir="ltr">${sales.length}</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesOriginal)} IQD</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesPaid)} IQD</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesRemaining)} IQD</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesOriginal)}</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesPaid)}</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesRemaining)}</span></td>
                 <td style="padding:11px 10px;text-align:center;font-weight:700;color:#047857;"><span class="en-num" dir="ltr">${pctPaid(totalSalesPaid, totalSalesOriginal)}%</span></td>
               </tr>
 
@@ -609,9 +629,9 @@ export function buildDebtsAuditReportHTML(
                   ${isKurdish ? ku('قەرزی دابینکەران (دەبێت بیدەین)') : 'Supplier Debts (Payables)'}
                 </td>
                 <td style="padding:11px 10px;text-align:center;"><span class="en-num" dir="ltr">${purchases.length}</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchaseOriginal)} IQD</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchasePaid)} IQD</span></td>
-                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchaseRemaining)} IQD</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseOriginal)}</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchasePaid)}</span></td>
+                <td style="padding:11px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseRemaining)}</span></td>
                 <td style="padding:11px 10px;text-align:center;font-weight:700;color:#B91C1C;"><span class="en-num" dir="ltr">${pctPaid(totalPurchasePaid, totalPurchaseOriginal)}%</span></td>
               </tr>
 
@@ -621,9 +641,9 @@ export function buildDebtsAuditReportHTML(
                   ${isKurdish ? ku('باڵانسی پوختەی قەرزەکان') : 'Net Debt Balance'}
                 </td>
                 <td style="padding:12px 10px;text-align:center;"><span class="en-num" dir="ltr">${activeDebtsCount}</span></td>
-                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0F172A;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesOriginal + totalPurchaseOriginal)} IQD</span></td>
-                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesPaid + totalPurchasePaid)} IQD</span></td>
-                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:${netBalance >= 0 ? '#059669' : '#DC2626'};"><span class="en-num" dir="ltr">${fmtIQD(Math.abs(netBalance))} IQD</span></td>
+                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesOriginal + totalPurchaseOriginal)}</span></td>
+                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesPaid + totalPurchasePaid)}</span></td>
+                <td style="padding:12px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};color:${netBalance >= 0 ? '#059669' : '#DC2626'};"><span class="en-num" dir="ltr">${fmtMoney(Math.abs(netBalance))}</span></td>
                 <td style="padding:12px 10px;text-align:center;color:${netBalance >= 0 ? '#059669' : '#DC2626'};">
                   ${netBalance >= 0 ? (isKurdish ? ku('+بە قازانج') : '+Favor') : (isKurdish ? ku('-قەرزدارین') : '-Owe')}
                 </td>
@@ -648,9 +668,9 @@ export function buildDebtsAuditReportHTML(
           </td>
           <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.invoiceNumber)}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtIQD(d.originalAmount)} IQD</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtIQD(d.paidAmount)} IQD</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(d.remainingAmount)} IQD</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(d.originalAmount)}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(d.paidAmount)}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.remainingAmount)}</span></td>
           <td style="text-align:center;">${getBadgeHTML(d.paidAmount, d.remainingAmount)}</td>
           <td style="text-align:center;font-size:11px;color:#64748B;"><span class="en-num" dir="ltr">${pctPaid(d.paidAmount, d.originalAmount)}%</span></td>
         </tr>
@@ -668,15 +688,15 @@ export function buildDebtsAuditReportHTML(
         <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:14px;">
           <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#64748B;font-weight:600;">${isKurdish ? ku('کۆی قەرزی سەرەتایی') : 'Original Debt'}</div>
-            <div style="font-size:15px;font-weight:800;color:#0F172A;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesOriginal)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#0F172A;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesOriginal)}</span></div>
           </div>
           <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#047857;font-weight:600;">${isKurdish ? ku('کۆی پارەدراو') : 'Total Paid'}</div>
-            <div style="font-size:15px;font-weight:800;color:#065F46;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesPaid)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#065F46;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesPaid)}</span></div>
           </div>
           <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#B91C1C;font-weight:600;">${isKurdish ? ku('کۆی قەرزی ماوە') : 'Total Remaining'}</div>
-            <div style="font-size:15px;font-weight:800;color:#991B1B;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalSalesRemaining)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#991B1B;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalSalesRemaining)}</span></div>
           </div>
           <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#4338CA;font-weight:600;">${isKurdish ? ku('ژمارەی قەرزەکان') : 'Debts Count'}</div>
@@ -720,9 +740,9 @@ export function buildDebtsAuditReportHTML(
           </td>
           <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber || '—')}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtIQD(d.originalAmount)} IQD</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtIQD(d.paidAmount)} IQD</span></td>
-          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtIQD(d.remainingAmount)} IQD</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(d.originalAmount)}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(d.paidAmount)}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.remainingAmount)}</span></td>
           <td style="text-align:center;">${getBadgeHTML(d.paidAmount, d.remainingAmount)}</td>
           <td style="text-align:center;font-size:11px;color:#64748B;"><span class="en-num" dir="ltr">${pctPaid(d.paidAmount, d.originalAmount)}%</span></td>
         </tr>
@@ -740,15 +760,15 @@ export function buildDebtsAuditReportHTML(
         <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:14px;">
           <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#64748B;font-weight:600;">${isKurdish ? ku('کۆی قەرزی سەرەتایی') : 'Original Debt'}</div>
-            <div style="font-size:15px;font-weight:800;color:#0F172A;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchaseOriginal)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#0F172A;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseOriginal)}</span></div>
           </div>
           <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#047857;font-weight:600;">${isKurdish ? ku('کۆی پارەدراو') : 'Total Paid'}</div>
-            <div style="font-size:15px;font-weight:800;color:#065F46;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchasePaid)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#065F46;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchasePaid)}</span></div>
           </div>
           <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#B91C1C;font-weight:600;">${isKurdish ? ku('کۆی قەرزی ماوە') : 'Total Remaining'}</div>
-            <div style="font-size:15px;font-weight:800;color:#991B1B;margin-top:3px;"><span class="en-num" dir="ltr">${fmtIQD(totalPurchaseRemaining)} IQD</span></div>
+            <div style="font-size:15px;font-weight:800;color:#991B1B;margin-top:3px;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseRemaining)}</span></div>
           </div>
           <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:11px;text-align:center;">
             <div style="font-size:10.5px;color:#4338CA;font-weight:600;">${isKurdish ? ku('ژمارەی قەرزەکان') : 'Debts Count'}</div>

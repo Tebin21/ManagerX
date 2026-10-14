@@ -17,25 +17,40 @@ import { Theme } from '@/constants/theme';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureCameraAccess, ensureGalleryAccess } from '@/lib/mediaAccess';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
+import { SavedImagesModal } from '@/components/purchases/SavedImagesModal';
+import { useSavedProductStore, SavedProductPreset } from '@/store/savedProductStore';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 interface Props {
   uri: string | null;
   onSelect: (uri: string) => void;
   onRemove: () => void;
   label?: string;
+  onSelectSavedItem?: (item: SavedProductPreset) => void;
 }
 
-export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
+export function ProductImagePicker({
+  uri,
+  onSelect,
+  onRemove,
+  label,
+  onSelectSavedItem,
+}: Props) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const { textAlign } = useRTL();
+  const { colors, isDark } = useAppTheme();
+  const { isRTL, textAlign, flexDirection } = useRTL();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const savedCount = useSavedProductStore((s) => s.savedPresets.length);
+
   const [showModal, setShowModal] = useState(false);
+  const [showSavedModal, setShowSavedModal] = useState(false);
 
   const pickFromCamera = useCallback(async () => {
     setShowModal(false);
     try {
       const access = await ensureCameraAccess();
-      if (access === 'denied-first-time') return; // respect "Don't Allow" silently — no nag, no Settings redirect
+      if (access === 'denied-first-time') return;
       if (access === 'denied-repeat') {
         Alert.alert(
           t('inventory.cameraAccessNeededTitle'),
@@ -77,7 +92,7 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
     setShowModal(false);
     try {
       const access = await ensureGalleryAccess();
-      if (access === 'denied-first-time') return; // respect "Don't Allow" silently — no nag, no Settings redirect
+      if (access === 'denied-first-time') return;
       if (access === 'denied-repeat') {
         Alert.alert(
           t('inventory.photoAccessNeededTitle'),
@@ -90,9 +105,6 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
         return;
       }
 
-      // allowsEditing:true below routes iOS to the legacy UIImagePickerController
-      // (not the permission-less PHPickerViewController), which has no built-in
-      // authorization check — the request below is required, not optional.
       const ImagePicker = await import('expo-image-picker');
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -119,13 +131,20 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
     }
   }, [onSelect, t]);
 
+  const handleSelectFromSaved = useCallback((item: SavedProductPreset) => {
+    onSelect(item.imageUri);
+    if (onSelectSavedItem) {
+      onSelectSavedItem(item);
+    }
+  }, [onSelect, onSelectSavedItem]);
+
   return (
     <View style={styles.wrapper}>
       {label ? (
         <Text style={[styles.label, { color: colors.gray600, textAlign }]}>{label}</Text>
       ) : null}
 
-      <View style={styles.pickerRow}>
+      <View style={[styles.pickerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {uri ? (
           /* ── Preview ── */
           <View style={styles.previewWrap}>
@@ -160,23 +179,82 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
           </TouchableOpacity>
         )}
 
-        {/* Remove / hint text */}
-        {uri ? (
+        {/* Action column on the side */}
+        <View style={styles.actionColumn}>
+          {/* Prominent Saved Images Button */}
           <TouchableOpacity
-            style={[styles.removeBtn, { backgroundColor: '#FEE2E2' }]}
-            onPress={onRemove}
+            style={[
+              styles.savedImagesBtn,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.softBlue,
+                borderColor: isDark ? colors.gray200 : colors.primary + '35',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+            onPress={() => setShowSavedModal(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="trash-outline" size={16} color={Colors.error} />
-            <Text style={[styles.removeBtnText, { color: Colors.error }]}>
-              {t('inventory.removePhoto')}
-            </Text>
+            <View style={[styles.savedIconBadge, { backgroundColor: colors.primary }]}>
+              <Ionicons name="images" size={18} color="#FFFFFF" />
+            </View>
+            <View style={[styles.savedTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <View style={[styles.savedHeaderLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text
+                  style={[
+                    styles.savedBtnTitle,
+                    { color: colors.primary },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
+                </Text>
+                {savedCount > 0 && (
+                  <View style={[styles.savedCountBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.savedCountText}>{savedCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.savedBtnSub,
+                  { color: colors.gray400 },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+                numberOfLines={1}
+              >
+                {isKurdish
+                  ? 'هەڵبژاردن و پڕکردنەوەی خۆکارانە'
+                  : 'Auto-fill name & photo'}
+              </Text>
+            </View>
           </TouchableOpacity>
-        ) : (
-          <Text style={[styles.hint, { color: colors.gray400, textAlign }]}>
-            {t('inventory.addPhoto')}
-          </Text>
-        )}
+
+          {/* Remove / Hint row */}
+          {uri ? (
+            <TouchableOpacity
+              style={[styles.removeBtn, { backgroundColor: '#FEE2E2', flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              onPress={onRemove}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash-outline" size={15} color={Colors.error} />
+              <Text style={[styles.removeBtnText, { color: Colors.error }]}>
+                {t('inventory.removePhoto')}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text
+              style={[
+                styles.hint,
+                { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            >
+              {isKurdish
+                ? 'وێنەی نوێ بگرە یان لە سەڤکراوەکان هەڵبژێرە'
+                : 'Take new photo or choose from saved library'}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* ── Source selection sheet ── */}
@@ -195,6 +273,15 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
           indicator="chevron"
           onPress={pickFromGallery}
         />
+        <AppSheetOption
+          icon="bookmark-outline"
+          label={isKurdish ? 'وێنە پاشەکەوتکراوەکان (سەڤکراوەکان)' : 'Saved Photos Library'}
+          indicator="chevron"
+          onPress={() => {
+            setShowModal(false);
+            setShowSavedModal(true);
+          }}
+        />
 
         <TouchableOpacity
           style={[styles.cancelBtn, { borderTopColor: colors.gray100 }]}
@@ -206,85 +293,141 @@ export function ProductImagePicker({ uri, onSelect, onRemove, label }: Props) {
           </Text>
         </TouchableOpacity>
       </AppSheet>
+
+      {/* ── Saved Images Modal ── */}
+      <SavedImagesModal
+        visible={showSavedModal}
+        onClose={() => setShowSavedModal(false)}
+        onSelect={handleSelectFromSaved}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper:     { marginBottom: 16 },
+  wrapper: { marginBottom: 16 },
   label: {
-    fontSize:     13,
-    fontWeight:   '500',
+    fontSize: 13,
+    fontWeight: '500',
     marginBottom: 8,
     letterSpacing: 0.2,
   },
 
   pickerRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           14,
+    alignItems: 'center',
+    gap: 12,
   },
 
   /* Placeholder (no image selected) */
   placeholder: {
-    width:        100,
-    height:       100,
+    width: 95,
+    height: 95,
     borderRadius: Theme.radius.lg,
-    borderWidth:  1.5,
-    borderStyle:  'dashed',
-    alignItems:   'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap:          4,
+    gap: 4,
   },
   placeholderText: { fontSize: 11, fontWeight: '500' },
 
   /* Preview (image selected) */
   previewWrap: {
-    width:        100,
-    height:       100,
+    width: 95,
+    height: 95,
     borderRadius: Theme.radius.lg,
-    overflow:     'visible',
+    overflow: 'visible',
   },
   preview: {
-    width:        100,
-    height:       100,
+    width: 95,
+    height: 95,
     borderRadius: Theme.radius.lg,
   },
   changeBtn: {
-    position:     'absolute',
-    bottom:       -6,
-    right:        -6,
-    width:        26,
-    height:       26,
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 26,
+    height: 26,
     borderRadius: 13,
-    alignItems:   'center',
+    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth:  2,
-    borderColor:  '#fff',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
+  /* Action column next to preview / placeholder */
+  actionColumn: {
+    flex: 1,
+    gap: 8,
+    justifyContent: 'center',
+  },
+
+  /* Saved Images Button */
+  savedImagesBtn: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    gap: 10,
+  },
+  savedIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  savedHeaderLine: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  savedBtnTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  savedCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  savedCountText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  savedBtnSub: {
+    fontSize: 11,
   },
 
   /* Remove button */
   removeBtn: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            6,
-    paddingHorizontal: 12,
-    paddingVertical:   8,
-    borderRadius:   Theme.radius.md,
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Theme.radius.md,
+    alignSelf: 'flex-start',
   },
-  removeBtnText: { fontSize: 13, fontWeight: '600' },
+  removeBtnText: { fontSize: 12, fontWeight: '600' },
 
-  hint: { fontSize: 12, flex: 1, flexWrap: 'wrap' },
+  hint: { fontSize: 11, lineHeight: 16 },
 
   /* Source selection sheet */
   cancelBtn: {
-    alignItems:     'center',
+    alignItems: 'center',
     paddingVertical: 14,
-    borderTopWidth:  1,
-    marginTop:       4,
+    borderTopWidth: 1,
+    marginTop: 4,
   },
   cancelText: {
-    fontSize:   15,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
+

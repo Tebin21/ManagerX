@@ -360,6 +360,14 @@
     "playWave": "Resume Animation",
     "headerBgImages": "Background Photos (Up to 3)",
     "headerBgImagesHint": "If photos are set, they automatically rotate every 4 seconds",
+    "headerBgVideo": "Background Video (Max 10s)",
+    "headerBgVideoHint": "You can set 1 video up to 10 seconds. When a video is set, photos pause and the video plays",
+    "addVideo": "Upload Video (Max 10s)",
+    "changeVideo": "Change Video",
+    "deleteVideo": "Delete Video",
+    "videoActive": "Video active (Photos paused)",
+    "videoTooLong": "Video Too Long",
+    "videoTooLongMsg": "Video duration cannot exceed 10 seconds. Please select a video of 10 seconds or less.",
     "addImage":           "Add Photo",
     "replaceImage":       "Replace Photo",
     "deleteImage":        "Delete",
@@ -508,6 +516,12 @@
     "exchangeRate":        "Exchange Rate",
     "rateNote":            "Rate: 100 USD = {{rate}} IQD",
     "productImage":        "Product Image (Optional)",
+    "savedImagesTitle":    "Saved Photos Library",
+    "savedImagesSub":      "Select a photo to auto-fill product details & description",
+    "savedImagesBtn":      "Saved Photos",
+    "searchSavedPlaceholder": "Search by product name or code...",
+    "noSavedImages":       "No saved photos found",
+    "noSavedImagesSub":    "Whenever you register an item with a photo, it will appear here for future purchases",
     "validationRequired":  "Please enter a product name.",
     "validationDate":      "Please enter a date.",
     "validationQty":       "Quantity must be between 1 and 100.",
@@ -1218,6 +1232,40 @@
     "about":              "About",
     "businessProfile":    "Business Profile",
     "businessProfileSub": "Tap to set up your business",
+    "generalCustomization": "General App Customization",
+    "generalCustomizationSub": "Dashboard UI styles, module navigation & appearance",
+    "customization": {
+      "title": "App Customization",
+      "subtitle": "Choose your preferred layout and dashboard design style",
+      "navSection": "Dashboard Navigation",
+      "showNavTitle": "Show Dashboard Modules",
+      "showNavSub": "Toggle module navigation grid on the main dashboard",
+      "stylesSection": "Dashboard UI Styles (5 Unique Designs)",
+      "stylesSub": "Select a distinct theme and layout for your home screen",
+      "active": "Active",
+      "select": "Select",
+      "previewTitle": "Live Preview",
+      "classic": {
+        "title": "Classic (Default)",
+        "desc": "Official Froshiar dual-column cards with colorful icon badges"
+      },
+      "modern": {
+        "title": "Modern Minimal",
+        "desc": "Sleek horizontal cards with vibrant accent strips and quick navigation"
+      },
+      "bento": {
+        "title": "Bento & Glass",
+        "desc": "Apple-style bento grid featuring prominent hero cards for sales and purchases"
+      },
+      "compact": {
+        "title": "App Launcher (iOS Grid)",
+        "desc": "4-column compact squircle app icons for rapid POS workflow"
+      },
+      "luxe": {
+        "title": "Froshiar Luxe Gold",
+        "desc": "High-end luxury styling with gold foil borders and royal typography"
+      }
+    },
     "subscriptions":         "Subscriptions",
     "managerXLicense":       "Froshiar License",
     "managerXLicenseSub":    "{{limit}} item limit",
@@ -1559,6 +1607,8 @@
       "address":     "Address",
       "addressPlaceholder":"e.g. Baghdad, Al-Mansour",
       "saveChanges": "Save Changes",
+      "showOnDashboard": "Show Business Card on Dashboard",
+      "showOnDashboardSub": "Hide or show business information card on the main dashboard",
       "nameRequired":"Business name is required.",
       "saveError":   "Could not save business profile. Please try again."
     }

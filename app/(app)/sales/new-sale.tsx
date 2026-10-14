@@ -43,6 +43,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
+import { hexToRgba } from '@/lib/colorUtils';
 import { useLanguageStore } from '@/store/languageStore';
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
 import { fmtUSD } from '@/utils/formatters';
@@ -281,25 +282,47 @@ export default function NewSaleScreen() {
 
         {/* Large & Beautiful Barcode Scanner Banner in navigation header */}
         <TouchableOpacity
-          style={styles.navBarScanBanner}
+          style={[
+            styles.navBarScanBanner,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderColor: isDark ? colors.gray200 : 'transparent',
+              borderWidth: isDark ? 1 : 0,
+            },
+          ]}
           onPress={() => setScannerOpen(true)}
           activeOpacity={0.85}
         >
           <View style={[styles.navBarScanContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={styles.navBarScanIconCircle}>
-              <Ionicons name="barcode-outline" size={24} color="#725D18" />
+            <View
+              style={[
+                styles.navBarScanIconCircle,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
+                },
+              ]}
+            >
+              <Ionicons name="barcode-outline" size={24} color={isDark ? colors.primary : '#725D18'} />
             </View>
             <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-              <Text style={styles.navBarScanTitle}>
+              <Text style={[styles.navBarScanTitle, { color: colors.black }]}>
                 {isKuLanguage ? 'سکانەری بارکۆد و QR بۆ فرۆشتن' : 'Barcode & QR Scanner for Sales'}
               </Text>
-              <Text style={styles.navBarScanSub}>
+              <Text style={[styles.navBarScanSub, { color: colors.gray400 }]}>
                 {isKuLanguage ? 'بەرهەمەکان یەک لەدوای یەک سکان بکە بۆ سەبەتە' : 'Scan multiple items rapidly into cart'}
               </Text>
             </View>
-            <View style={styles.navBarScanActionBadge}>
-              <Ionicons name="camera" size={16} color="#725D18" style={{ marginRight: 4 }} />
-              <Text style={styles.navBarScanActionText}>
+            <View
+              style={[
+                styles.navBarScanActionBadge,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                },
+              ]}
+            >
+              <Ionicons name="camera" size={16} color={isDark ? colors.primary : '#725D18'} style={{ marginRight: 4 }} />
+              <Text style={[styles.navBarScanActionText, { color: isDark ? colors.primary : '#725D18' }]}>
                 {isKuLanguage ? 'سکان' : 'Scan'}
               </Text>
             </View>

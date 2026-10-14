@@ -13,13 +13,16 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useSettingsStore } from '@/store/settingsStore';
+import { useSettingsStore, BaseCurrency } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
 import { fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { CurrencyLargeToggleSwitch } from '@/components/settings/CurrencyLargeToggleSwitch';
+import { CurrencySwitchConfirmModal } from '@/components/settings/CurrencySwitchConfirmModal';
+import { CurrencyInfoGuideModal } from '@/components/settings/CurrencyInfoGuideModal';
 
 export default function CurrencyScreen() {
   const { t } = useTranslation();
@@ -32,11 +35,18 @@ export default function CurrencyScreen() {
   const exchangeRate   = useSettingsStore((s) => s.exchangeRate);
   const rateUpdatedAt  = useSettingsStore((s) => s.rateUpdatedAt);
   const setExchangeRate = useSettingsStore((s) => s.setExchangeRate);
+  const baseCurrency   = useSettingsStore((s) => s.baseCurrency);
+  const setBaseCurrency= useSettingsStore((s) => s.setBaseCurrency);
 
   const [input, setInput]     = useState(String(exchangeRate * 100));
   const [saving, setSaving]   = useState(false);
   const [history, setHistory] = useState<ExchangeRateEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+
+  // Modals state
+  const [showGuideModal, setShowGuideModal]       = useState(false);
+  const [showConfirmModal, setShowConfirmModal]   = useState(false);
+  const [pendingCurrency, setPendingCurrency]     = useState<BaseCurrency>('USD');
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -72,6 +82,16 @@ export default function CurrencyScreen() {
     }
   }
 
+  const handleToggleRequest = (target: BaseCurrency) => {
+    setPendingCurrency(target);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSwitch = () => {
+    setBaseCurrency(pendingCurrency);
+    setShowConfirmModal(false);
+  };
+
   const inputChanged = parseFloat(input.replace(/,/g, '')) / 100 !== exchangeRate;
 
   return (
@@ -81,12 +101,76 @@ export default function CurrencyScreen() {
     >
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <SettingsBackground />
-        <AppHeader title={t('settings.currencyScreen.title')} showBack />
+        
+        {/* Header with info guide button on the corner */}
+        <AppHeader
+          title={t('settings.currencyScreen.title')}
+          showBack
+          rightAction={
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => setShowGuideModal(true)}
+              style={styles.headerInfoBtn}
+            >
+              <Ionicons name="information-circle" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          }
+        />
 
         <KeyboardAwareScrollView
           contentContainerStyle={styles.body}
           showsVerticalScrollIndicator={false}
         >
+
+          {/* ── Info Guide Banner Trigger Button ── */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setShowGuideModal(true)}
+            style={[
+              styles.guideBanner,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.10)',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : 'rgba(212, 175, 55, 0.40)',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <View style={styles.guideBannerIconWrap}>
+              <Ionicons name="help-buoy" size={18} color="#D4AF37" />
+            </View>
+            <Text style={[styles.guideBannerText, { color: colors.black, textAlign }]}>
+              ڕێبەری تەواوی گۆڕینی دراو و حیسابات بخوێنەرەوە
+            </Text>
+            <Ionicons
+              name={isRTL ? 'chevron-back' : 'chevron-forward'}
+              size={16}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+
+          {/* ── Base Currency Toggle Switch Card ── */}
+          <SettingsCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
+              دراوی بنەڕەتی سیستەم (Base Currency)
+            </Text>
+            <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
+              دراوی سەرەکی هەڵبژێرە بۆ پیشاندان و تەواوی حیساباتی فرۆشگا و پسوولەکان
+            </Text>
+
+            <CurrencyLargeToggleSwitch
+              value={baseCurrency}
+              onToggle={handleToggleRequest}
+            />
+
+            <View style={[styles.currencyStatusPill, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
+              <View style={[styles.statusDot, { backgroundColor: baseCurrency === 'USD' ? '#16A34A' : '#D97706' }]} />
+              <Text style={[styles.currencyStatusText, { color: colors.black }]}>
+                {baseCurrency === 'USD'
+                  ? 'سیستەم ئێستا لەسەر دۆلاری ئەمریکی ($) چالاکە'
+                  : 'سیستەم ئێستا لەسەر دیناری عێراقی (د.ع) چالاکە'}
+              </Text>
+            </View>
+          </SettingsCard>
 
           {/* ── Current rate display ── */}
           <LinearGradient
@@ -222,25 +306,23 @@ export default function CurrencyScreen() {
             )}
           </SettingsCard>
 
-          {/* ── Info note ── */}
-          <View style={[
-            styles.infoBox,
-            Platform.OS === 'ios'
-              ? {
-                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.10)',
-                  borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : 'rgba(212, 175, 55, 0.35)',
-                }
-              : { backgroundColor: colors.softBlue, borderColor: colors.lightBlue },
-            { flexDirection: isRTL ? 'row-reverse' : 'row' },
-          ]}>
-            <Ionicons name="information-circle" size={16} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.gray600, textAlign }]}>
-              {t('settings.currencyScreen.infoNote')}
-            </Text>
-          </View>
-
           <View style={{ height: 40 }} />
         </KeyboardAwareScrollView>
+
+        {/* ── Confirmation Modal when switching Base Currency ── */}
+        <CurrencySwitchConfirmModal
+          visible={showConfirmModal}
+          targetCurrency={pendingCurrency}
+          currentRate={exchangeRate}
+          onConfirm={handleConfirmSwitch}
+          onCancel={() => setShowConfirmModal(false)}
+        />
+
+        {/* ── Full Informational Guide Modal ── */}
+        <CurrencyInfoGuideModal
+          visible={showGuideModal}
+          onClose={() => setShowGuideModal(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -249,6 +331,57 @@ export default function CurrencyScreen() {
 const styles = StyleSheet.create({
   container:  { flex: 1 },
   body:       { padding: 16, paddingTop: 12 },
+
+  headerInfoBtn: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  guideBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  guideBannerIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guideBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  currencyStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignSelf: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  currencyStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
   rateCard: {
     borderRadius: 18,
@@ -335,15 +468,4 @@ const styles = StyleSheet.create({
   currentBadgeText: { fontSize: 10, fontWeight: '700' },
 
   emptyText: { fontSize: 13, textAlign: 'center', paddingVertical: 16 },
-
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
-  },
-  infoText: { flex: 1, fontSize: 12, lineHeight: 17 },
 });

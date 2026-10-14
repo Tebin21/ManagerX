@@ -13,6 +13,7 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { hexToRgba } from '@/lib/colorUtils';
 import { searchSuppliersList } from '@/lib/sqlite';
 import type { Supplier } from '@/types/suppliers';
 
@@ -28,7 +29,7 @@ interface Props {
 
 export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneChange, onAddressChange, onSupplierSelect }: Props) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
   const { arrowForwardOutline } = useDirectionalChevron();
   const [suggestions, setSuggestions] = useState<Supplier[]>([]);
@@ -109,18 +110,25 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
             style={{ maxHeight: 160 }}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.suggestionRow, { flexDirection }]}
+                style={[
+                  styles.suggestionRow,
+                  {
+                    flexDirection,
+                    borderBottomColor: colors.gray200,
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                  },
+                ]}
                 onPress={() => handleSelectSupplier(item)}
                 activeOpacity={0.75}
               >
                 <Ionicons name="business-outline" size={14} color={colors.primary} style={styles.suggestionIcon} />
                 <View style={styles.suggestionInfo}>
-                  <Text style={[styles.suggestionName, { textAlign }]}>{item.name}</Text>
+                  <Text style={[styles.suggestionName, { textAlign, color: colors.black }]}>{item.name}</Text>
                   {item.phone ? (
-                    <Text style={[styles.suggestionPhone, { textAlign }]}>{item.phone}</Text>
+                    <Text style={[styles.suggestionPhone, { textAlign, color: colors.gray400 }]}>{item.phone}</Text>
                   ) : null}
                 </View>
-                <Ionicons name={arrowForwardOutline as never} size={14} color={Colors.gray300} />
+                <Ionicons name={arrowForwardOutline as never} size={14} color={colors.gray300} />
               </TouchableOpacity>
             )}
           />
@@ -132,10 +140,16 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
           from={{ opacity: 0, translateY: -4 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 200 }}
-          style={[styles.foundBadge, { flexDirection }]}
+          style={[
+            styles.foundBadge,
+            {
+              flexDirection,
+              backgroundColor: isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4',
+            },
+          ]}
         >
-          <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-          <Text style={[styles.foundText, { textAlign }]}>{t('suppliers.returningSupplier')}</Text>
+          <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+          <Text style={[styles.foundText, { textAlign, color: colors.success }]}>{t('suppliers.returningSupplier')}</Text>
         </MotiView>
       )}
 

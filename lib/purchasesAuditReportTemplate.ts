@@ -1,6 +1,7 @@
 import type { Purchase } from '@/types/purchases';
 import { fmtIQD, fmtUSD, formatDate as fmtDate } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -39,6 +40,11 @@ export function buildPurchasesAuditReportHTML(
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -74,9 +80,11 @@ export function buildPurchasesAuditReportHTML(
           ${purchase.warranty ? `<div style="font-size:10px;color:#0284C7;">${isKurdish ? ku('گەرەنتی: ') : 'Warranty: '}<span class="en-num" dir="ltr">${escHtml(purchase.warranty)}</span></div>` : ''}
         `;
 
-        const unitPriceStr = purchase.buyPriceUSD > 0
-          ? `${fmtIQD(purchase.buyPriceIQD)} IQD <span style="font-size:10px;color:#64748B;">($${fmtUSD(purchase.buyPriceUSD)})</span>`
-          : `${fmtIQD(purchase.buyPriceIQD)} IQD`;
+        const unitPriceStr = isUsd
+          ? `$${fmtUSD(purchase.buyPriceUSD > 0 ? purchase.buyPriceUSD : purchase.buyPriceIQD / rate)}`
+          : (purchase.buyPriceUSD > 0
+              ? `${fmtIQD(purchase.buyPriceIQD)} IQD <span style="font-size:10px;color:#64748B;">($${fmtUSD(purchase.buyPriceUSD)})</span>`
+              : `${fmtIQD(purchase.buyPriceIQD)} IQD`);
 
         return `
           <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
@@ -88,7 +96,7 @@ export function buildPurchasesAuditReportHTML(
             <td style="text-align:center;font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${purchase.quantity}</span></td>
             <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-size:11.5px;color:#334155;white-space:nowrap;"><span class="en-num" dir="ltr">${unitPriceStr}</span></td>
             <td style="text-align:center;">${statusBadge(purchase.paymentStatus, isKurdish)}</td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span></td>
+            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(purchase.totalIQD)}</span></td>
           </tr>
         `;
       }).join('');
@@ -344,17 +352,17 @@ export function buildPurchasesAuditReportHTML(
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کۆی تێچووی کڕین') : 'Total Purchase Cost'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#0284C7;display:inline-block;unicode-bidi:isolate;">${fmtIQD(totalCostIQD)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#0284C7;display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalCostIQD)}</span></div>
       <div class="kpi-sub"><span class="en-num" dir="ltr">${totalPurchases}</span> ${isKurdish ? ku('پسوولەی کڕین') : 'Purchases'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کڕینی پارەدراو (نەختینە)') : 'Paid Purchases'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtIQD(paidTotalIQD)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtMoney(paidTotalIQD)}</span></div>
       <div class="kpi-sub"><span class="en-num" dir="ltr">${paidCount}</span> ${isKurdish ? ku('کڕین پارەدراوە') : 'Paid Orders'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کڕینی قەرز') : 'Debt Purchases'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${debtTotalIQD > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtIQD(debtTotalIQD)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${debtTotalIQD > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtMoney(debtTotalIQD)}</span></div>
       <div class="kpi-sub">${debtCount > 0 ? `<span class="en-num" dir="ltr">${debtCount}</span> ${isKurdish ? ku('کڕین بە قەرز') : 'Debt Orders'}` : (isKurdish ? ku('هیچ قەرزێک نییە') : 'Zero Debt')}</div>
     </div>
     <div class="kpi-card">
@@ -379,9 +387,9 @@ export function buildPurchasesAuditReportHTML(
         <th style="width:90px;text-align:center;">${isKurdish ? ku('بەروار') : 'Date'}</th>
         <th style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('بەرهەم و جۆر') : 'Product & Category'}</th>
         <th style="width:55px;text-align:center;">${isKurdish ? ku('دانە') : 'Qty'}</th>
-        <th style="width:125px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('نرخی دانە') : 'Unit Price'}</th>
+        <th style="width:125px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('نرخی دانە') : 'Unit Price'} (${isUsd ? '$' : 'IQD'})</th>
         <th style="width:85px;text-align:center;">${isKurdish ? ku('دۆخ') : 'Status'}</th>
-        <th style="width:120px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'}</th>
+        <th style="width:120px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'} (${isUsd ? '$' : 'IQD'})</th>
       </tr>
     </thead>
     <tbody>
@@ -401,13 +409,13 @@ export function buildPurchasesAuditReportHTML(
         </td>
         <td colspan="2" style="text-align:center;color:#64748B;font-size:11.5px;">
           <span style="display:inline-flex;gap:10px;align-items:center;">
-            <span>${isKurdish ? ku('دراو') : 'Paid'}: <b class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtIQD(paidTotalIQD)} IQD</b></span>
+            <span>${isKurdish ? ku('دراو') : 'Paid'}: <b class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtMoney(paidTotalIQD)}</b></span>
             <span style="color:#CBD5E1;">&bull;</span>
-            <span>${isKurdish ? ku('قەرز') : 'Debt'}: <b class="en-num" dir="ltr" style="color:${debtTotalIQD > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtIQD(debtTotalIQD)} IQD</b></span>
+            <span>${isKurdish ? ku('قەرز') : 'Debt'}: <b class="en-num" dir="ltr" style="color:${debtTotalIQD > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtMoney(debtTotalIQD)}</b></span>
           </span>
         </td>
         <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0284C7;font-weight:800;font-size:13px;white-space:nowrap;">
-          <span class="en-num" dir="ltr" style="display:inline-block;unicode-bidi:isolate;">${fmtIQD(totalCostIQD)} IQD</span>
+          <span class="en-num" dir="ltr" style="display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalCostIQD)}</span>
         </td>
       </tr>
     </tfoot>` : ''}

@@ -4,6 +4,8 @@ import { migratedAsyncStorage } from '@/lib/migratedStorage';
 
 export const DEFAULT_EXCHANGE_RATE = 1310;
 
+export type BaseCurrency = 'IQD' | 'USD';
+
 interface SettingsState {
   isDarkMode:    boolean;
   exchangeRate:  number;
@@ -11,12 +13,14 @@ interface SettingsState {
   accentColor:             string | null;
   globalLowStockEnabled:   boolean;
   globalLowStockThreshold: number;
+  baseCurrency:            BaseCurrency;
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
   setAccentColor:             (color: string | null) => void;
   setGlobalLowStockEnabled:   (val: boolean) => void;
   setGlobalLowStockThreshold: (val: number) => void;
+  setBaseCurrency:            (currency: BaseCurrency) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -48,11 +52,13 @@ export const useSettingsStore = create<SettingsState>()(
       accentColor:             null,
       globalLowStockEnabled:   true,
       globalLowStockThreshold: 5,
+      baseCurrency:            'IQD',
 
       setDarkMode:               (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:            (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
       setGlobalLowStockEnabled:  (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
       setGlobalLowStockThreshold:(val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
+      setBaseCurrency:           (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
@@ -78,6 +84,7 @@ export const useSettingsStore = create<SettingsState>()(
           accentColor:             p?.accentColor   ?? null,
           globalLowStockEnabled:   p?.globalLowStockEnabled   ?? true,
           globalLowStockThreshold: p?.globalLowStockThreshold ?? 5,
+          baseCurrency:            (p?.baseCurrency === 'USD' ? 'USD' : 'IQD') as BaseCurrency,
         };
       },
     }

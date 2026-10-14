@@ -31,6 +31,7 @@ import type { Purchase } from '@/types/purchases';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
+import { hexToRgba } from '@/lib/colorUtils';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -39,7 +40,7 @@ export default function EditPurchaseScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { updatePurchase } = usePurchaseStore();
   const { isRTL, flexDirection, writingDirection } = useRTL();
 
@@ -312,9 +313,16 @@ export default function EditPurchaseScreen() {
               caption={t('purchases.paymentStatusLockedNote')}
             />
             {purchase.paymentStatus === 'debt' && (
-              <View style={[styles.debtNote, { backgroundColor: '#FFF7ED' }]}>
-                <Text style={[styles.debtNoteText, { color: Colors.warning, writingDirection }]}>
-                  <AmountText value={purchase.totalIQD} currency="IQD" variant="small" style={[styles.debtNoteText, { color: Colors.warning }]} /> {t('common.debt')}
+              <View
+                style={[
+                  styles.debtNote,
+                  {
+                    backgroundColor: isDark ? hexToRgba(colors.warning, 0.15) : '#FFF7ED',
+                  },
+                ]}
+              >
+                <Text style={[styles.debtNoteText, { color: colors.warning, writingDirection }]}>
+                  <AmountText value={purchase.totalIQD} currency="IQD" variant="small" style={[styles.debtNoteText, { color: colors.warning }]} /> {t('common.debt')}
                 </Text>
               </View>
             )}

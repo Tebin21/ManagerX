@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { useTranslation } from 'react-i18next';
 import { useBusinessStore } from '@/store/businessStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { getSaleById } from '@/lib/sqlite';
@@ -26,7 +27,8 @@ const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacin
 
 export default function SaleDetailScreen() {
   const { id, new: isNew, currency } = useLocalSearchParams<{ id: string; new?: string; currency?: string }>();
-  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : 'iqd';
+  const baseCurrency = useSettingsStore(s => s.baseCurrency);
+  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : (baseCurrency === 'USD' ? 'usd' : 'iqd');
   const router   = useRouter();
   const { t } = useTranslation();
   const { textAlign } = useRTL();

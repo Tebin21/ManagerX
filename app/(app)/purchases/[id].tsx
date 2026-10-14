@@ -20,6 +20,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId } from '@/lib/sqlite';
 import { sharePurchaseInvoice } from '@/lib/generateInvoice';
@@ -61,7 +62,8 @@ const infoRow = StyleSheet.create({
 
 export default function PurchaseDetailScreen() {
   const { id, new: isNew, currency } = useLocalSearchParams<{ id: string; new?: string; currency?: string }>();
-  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : 'iqd';
+  const baseCurrency = useSettingsStore(s => s.baseCurrency);
+  const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : (baseCurrency === 'USD' ? 'usd' : 'iqd');
   const router   = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();

@@ -1,7 +1,8 @@
 import type { InventoryProduct } from '@/types/inventory';
-import { fmtIQD, formatDate as fmtDate, formatDateShort, formatTime as fmtTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatDate as fmtDate, formatDateShort, formatTime as fmtTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -407,10 +408,15 @@ export function buildFullInventoryReportHTML(
   const totalValueIQD = products.reduce((s, p) => s + p.purchasePrice * p.quantity, 0);
   const estProfit = products.reduce((s, p) => s + (p.sellingPrice - p.purchasePrice) * p.quantity, 0);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const rows = products.map((p) => {
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
     const isLow  = !isSold && lowStockIds.has(p.id);
-    const totalVal = fmtIQD(p.purchasePrice * p.quantity);
+    const totalVal = fmtMoney(p.purchasePrice * p.quantity);
 
     let statusCell: string;
     if (isSold) {
@@ -433,9 +439,9 @@ export function buildFullInventoryReportHTML(
         <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
         <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
         <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtIQD(p.sellingPrice)} IQD</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${totalVal} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${totalVal}</td>
         <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
         <td style="text-align:center;">${statusCell}</td>
       </tr>`;
@@ -474,11 +480,11 @@ export function buildFullInventoryReportHTML(
       </div>
       <div class="kpi-card">
         <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</div>
-        <div class="kpi-value">${fmtIQD(totalValueIQD)} IQD</div>
+        <div class="kpi-value">${fmtMoney(totalValueIQD)}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">${isKurdish ? ku(escHtml(t('estProfit'))) : 'Est. Profit'}</div>
-        <div class="kpi-value">${fmtIQD(estProfit)} IQD</div>
+        <div class="kpi-value">${fmtMoney(estProfit)}</div>
       </div>
     </div>
 
@@ -497,7 +503,7 @@ export function buildFullInventoryReportHTML(
       bodyRows: rows,
       tfootHTML: `
             <td colspan="6" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('totalInventoryValue'))) : 'Total Inventory Value:'}</td>
-            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValueIQD)} IQD</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtMoney(totalValueIQD)}</td>
             <td colspan="2"></td>`,
       headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
     })}
@@ -689,17 +695,22 @@ export function buildCategoryReportHTML(
   const totalValue = products.reduce((s, p) => s + p.purchasePrice * p.quantity, 0);
   const estProfit  = products.reduce((s, p) => s + (p.sellingPrice - p.purchasePrice) * p.quantity, 0);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const rows = products.map((p) => {
-    const val = fmtIQD(p.purchasePrice * p.quantity);
+    const val = fmtMoney(p.purchasePrice * p.quantity);
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
     return `
       <tr>
         <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
         <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
         <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtIQD(p.purchasePrice)} IQD</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtIQD(p.sellingPrice)} IQD</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${val} IQD</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
+        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${val}</td>
         <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
       </tr>`;
   });
@@ -740,11 +751,11 @@ export function buildCategoryReportHTML(
       </div>
       <div class="kpi-card">
         <div class="kpi-label">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</div>
-        <div class="kpi-value">${fmtIQD(totalValue)} IQD</div>
+        <div class="kpi-value">${fmtMoney(totalValue)}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">${isKurdish ? ku(escHtml(t('estProfit'))) : 'Est. Profit'}</div>
-        <div class="kpi-value">${fmtIQD(estProfit)} IQD</div>
+        <div class="kpi-value">${fmtMoney(estProfit)}</div>
       </div>
     </div>
 
@@ -761,7 +772,7 @@ export function buildCategoryReportHTML(
       bodyRows: rows,
       tfootHTML: `
             <td colspan="5" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('categoryTotalValue'))) : 'Category Total Value:'}</td>
-            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtIQD(totalValue)} IQD</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtMoney(totalValue)}</td>
             <td></td>`,
       headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
     })}

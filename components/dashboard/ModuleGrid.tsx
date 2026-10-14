@@ -11,6 +11,10 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ModuleCard } from './ModuleCard';
+import { ModernModuleGrid } from './styles/ModernModuleGrid';
+import { BentoModuleGrid } from './styles/BentoModuleGrid';
+import { CompactModuleGrid } from './styles/CompactModuleGrid';
+import { LuxeModuleGrid } from './styles/LuxeModuleGrid';
 import { Text } from '@/components/ui/AppText';
 import { useModuleStore } from '@/store/moduleStore';
 import { MODULES, ModuleDefinition, ModuleId } from '@/constants/config';
@@ -33,6 +37,7 @@ export function ModuleGrid() {
 
   const {
     modules,
+    dashboardStyle = 'classic',
     toggleModuleLayout,
     setAllLayouts,
     swapModules,
@@ -115,6 +120,38 @@ export function ModuleGrid() {
     resetToDefaultLayout();
     setSelectedIdForSwap(null);
   };
+
+  if (dashboardStyle === 'modern') {
+    return (
+      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
+        <ModernModuleGrid modules={displayModules} />
+      </View>
+    );
+  }
+
+  if (dashboardStyle === 'bento') {
+    return (
+      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
+        <BentoModuleGrid modules={displayModules} />
+      </View>
+    );
+  }
+
+  if (dashboardStyle === 'compact') {
+    return (
+      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
+        <CompactModuleGrid modules={displayModules} />
+      </View>
+    );
+  }
+
+  if (dashboardStyle === 'luxe') {
+    return (
+      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
+        <LuxeModuleGrid modules={displayModules} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>

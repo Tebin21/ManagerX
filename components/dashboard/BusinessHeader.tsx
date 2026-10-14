@@ -28,11 +28,33 @@ import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
 import { AppSheet, AppSheetHeader } from '@/components/ui/AppSheet';
 
 const STORAGE_KEY_BG_IMAGES = '@froshiar_business_header_bg_images';
+const STORAGE_KEY_BG_VIDEO = '@froshiar_business_header_bg_video';
 const MAX_BG_IMAGES = 3;
+const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
+const FROSHIAR_LOGO = require('@/assets/images/logo-icon.png');
+
+function HeaderBackgroundVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      style={StyleSheet.absoluteFillObject}
+      player={player}
+      contentFit="cover"
+      nativeControls={false}
+      allowsFullscreen={false}
+    />
+  );
+}
 
 function resolveType(type: string): { emoji: string; label: string } | null {
   if (!type?.trim()) return null;
@@ -43,7 +65,7 @@ function resolveType(type: string): { emoji: string; label: string } | null {
 
 export function BusinessHeader() {
   const { t } = useTranslation();
-  const { name, type, phone, address, logoUri } = useBusinessStore();
+  const { name, type, phone, address, logoUri, showOnDashboard = true } = useBusinessStore();
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, headerMaxWidth } = useResponsive();
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -51,6 +73,10 @@ export function BusinessHeader() {
 
   // Background images state (up to 3 images)
   const [bgImages, setBgImages] = useState<string[]>([]);
+
+  // Background video state (1 video, max 10 seconds)
+  const [bgVideo, setBgVideo] = useState<string | null>(null);
+  const [loadingVideo, setLoadingVideo] = useState(false);
 
   // Dual-slot buffer state for 100% flicker-free & silky-smooth transitions
   const [slotUris, setSlotUris] = useState<[string, string]>(['', '']);
@@ -66,7 +92,7 @@ export function BusinessHeader() {
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
 
-  // Load saved header background images on mount
+  // Load saved header background images and video on mount
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY_BG_IMAGES)
       .then((rawImages) => {
@@ -80,10 +106,21 @@ export function BusinessHeader() {
         }
       })
       .catch(() => {});
+
+    AsyncStorage.getItem(STORAGE_KEY_BG_VIDEO)
+      .then((savedVideo) => {
+        if (savedVideo) setBgVideo(savedVideo);
+      })
+      .catch(() => {});
   }, []);
 
   // Sync dual-slot buffer whenever bgImages array changes
   useEffect(() => {
+    slot0X.stopAnimation();
+    slot1X.stopAnimation();
+    isSlidingRef.current = false;
+    const width = cardWidthRef.current || Dimensions.get('window').width;
+
     if (bgImages.length === 0) {
       setSlotUris(['', '']);
       activeSlotRef.current = 0;
@@ -91,13 +128,13 @@ export function BusinessHeader() {
     } else if (bgImages.length === 1) {
       setSlotUris([bgImages[0], '']);
       slot0X.setValue(0);
-      slot1X.setValue(cardWidthRef.current);
+      slot1X.setValue(width);
       activeSlotRef.current = 0;
       activeImgIdxRef.current = 0;
     } else {
       setSlotUris([bgImages[0], bgImages[1]]);
       slot0X.setValue(0);
-      slot1X.setValue(cardWidthRef.current);
+      slot1X.setValue(width);
       activeSlotRef.current = 0;
       activeImgIdxRef.current = 0;
     }
@@ -105,17 +142,35 @@ export function BusinessHeader() {
 
   // Persist background images
   const saveBgImages = useCallback(async (newImages: string[]) => {
+    slot0X.stopAnimation();
+    slot1X.stopAnimation();
+    isSlidingRef.current = false;
     setBgImages(newImages);
     try {
       await AsyncStorage.setItem(STORAGE_KEY_BG_IMAGES, JSON.stringify(newImages));
     } catch (e) {
       console.warn('[BusinessHeader] Failed to save bg images:', e);
     }
+  }, [slot0X, slot1X]);
+
+  // Persist background video
+  const saveBgVideo = useCallback(async (newVideoUri: string | null) => {
+    setBgVideo(newVideoUri);
+    try {
+      if (newVideoUri) {
+        await AsyncStorage.setItem(STORAGE_KEY_BG_VIDEO, newVideoUri);
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEY_BG_VIDEO);
+      }
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to save bg video:', e);
+    }
   }, []);
 
   // Seamless 4.5-second carousel slide with zero unmount and zero flicker
+  // Pauses automatically if a background video is active, modal is open, or business card is hidden!
   useEffect(() => {
-    if (bgImages.length <= 1) return;
+    if (bgVideo || bgImages.length <= 1 || modalOpen || !showOnDashboard) return;
 
     const interval = setInterval(() => {
       if (isSlidingRef.current) return;
@@ -152,10 +207,10 @@ export function BusinessHeader() {
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
+        isSlidingRef.current = false;
         if (finished) {
           activeSlotRef.current = nextSlot;
           activeImgIdxRef.current = nextIdx;
-          isSlidingRef.current = false;
           slideDirectionRef.current = direction === 'left' ? 'right' : 'left';
 
           // Preload subsequent image in the hidden off-screen slot
@@ -169,8 +224,13 @@ export function BusinessHeader() {
       });
     }, 4500);
 
-    return () => clearInterval(interval);
-  }, [bgImages, slot0X, slot1X]);
+    return () => {
+      clearInterval(interval);
+      slot0X.stopAnimation();
+      slot1X.stopAnimation();
+      isSlidingRef.current = false;
+    };
+  }, [bgImages, bgVideo, modalOpen, showOnDashboard, slot0X, slot1X]);
 
   // Long-press opens background settings modal
   const handleLongPress = useCallback(() => {
@@ -230,6 +290,61 @@ export function BusinessHeader() {
     await saveBgImages(updated);
   };
 
+  // Pick 1 video (strictly <= 10 seconds)
+  const pickVideo = async () => {
+    try {
+      setLoadingVideo(true);
+      const hasPermission = await ensureGalleryAccess();
+      if (!hasPermission) {
+        Alert.alert(
+          isKurdish ? 'مۆڵەت پێویستە' : 'Permission Required',
+          isKurdish
+            ? 'تکایە لە ڕێکخستنەکاندا ڕێگە بدە بۆ هەڵبژاردنی ڤیدیۆ.'
+            : 'Please allow gallery access in device settings.'
+        );
+        return;
+      }
+
+      const ImagePicker = await import('expo-image-picker');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: true,
+        videoMaxDuration: 10,
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const asset = result.assets[0];
+      const rawDuration = asset.duration ?? 0;
+      const durationSec = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
+
+      if (durationSec > 10.5) {
+        Alert.alert(
+          t('dashboard.videoTooLong'),
+          t('dashboard.videoTooLongMsg')
+        );
+        return;
+      }
+
+      const tempUri = asset.uri;
+      const permUri = await copyToPermanentStorage(tempUri, 'header_videos');
+
+      await saveBgVideo(permUri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to pick video:', e);
+      Alert.alert(isKurdish ? 'هەڵە' : 'Error', isKurdish ? 'نەتوانرا ڤیدیۆکە دابنرێت' : 'Could not set video');
+    } finally {
+      setLoadingVideo(false);
+    }
+  };
+
+  const removeVideo = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    await saveBgVideo(null);
+  };
+
   const resolved = resolveType(type);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(() => getStyles(isTablet), [isTablet]);
@@ -237,7 +352,7 @@ export function BusinessHeader() {
   return (
     <>
       <Pressable
-        onLongPress={handleLongPress}
+        onLongPress={showOnDashboard ? handleLongPress : undefined}
         delayLongPress={450}
         style={styles.pressableRoot}
       >
@@ -251,8 +366,30 @@ export function BusinessHeader() {
             if (w > 0) cardWidthRef.current = w;
           }}
         >
-          {/* 1. Custom Background Images Carousel (100% Flicker-Free Dual-Buffer) */}
-          {bgImages.length > 0 ? (
+          {/* Background Display:
+              When showOnDashboard is false, display the permanent static Froshiar brand hero banner!
+              When showOnDashboard is true, display custom video or dual-slot photos carousel. */}
+          {!showOnDashboard ? (
+            <View style={styles.bgImageContainer}>
+              <Image
+                source={DEFAULT_BANNER_IMAGE}
+                style={styles.bgImage}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['rgba(15, 23, 42, 0.35)', 'rgba(15, 23, 42, 0.7)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          ) : bgVideo ? (
+            <View style={styles.bgImageContainer}>
+              <HeaderBackgroundVideo uri={bgVideo} />
+              <LinearGradient
+                colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          ) : bgImages.length > 0 ? (
             <View style={styles.bgImageContainer}>
               {/* Slot 0 */}
               {slotUris[0] ? (
@@ -296,55 +433,58 @@ export function BusinessHeader() {
             </View>
           ) : null}
 
-
-          {/* 3. Surface Content (Clean, NO text hints or badges on the surface) */}
+          {/* Surface Content (Maintains full height and spacing) */}
           <View
             style={[
               styles.container,
               isTablet && { maxWidth: headerMaxWidth, alignSelf: 'center', width: '100%' },
             ]}
           >
-            <View style={styles.row}>
-              <View style={styles.logoContainer}>
-                {logoUri ? (
-                  <Image source={{ uri: logoUri }} style={styles.logo} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Text style={[styles.logoEmoji, isTablet && { fontSize: 44 }]}>{typeEmoji}</Text>
-                  </View>
-                )}
-              </View>
+            {showOnDashboard ? (
+              <View style={styles.row}>
+                <View style={styles.logoContainer}>
+                  {logoUri ? (
+                    <Image source={{ uri: logoUri }} style={styles.logo} />
+                  ) : (
+                    <View style={styles.logoPlaceholder}>
+                      <Text style={[styles.logoEmoji, isTablet && { fontSize: 44 }]}>{typeEmoji}</Text>
+                    </View>
+                  )}
+                </View>
 
-              <View style={styles.info}>
-                <View style={styles.nameGroup}>
-                  <Text style={styles.businessName} numberOfLines={1}>
-                    {name || 'My Business'}
-                  </Text>
-                  {resolved ? (
-                    <Text style={styles.typeText} numberOfLines={1}>
-                      {resolved.label}
+                <View style={styles.info}>
+                  <View style={styles.nameGroup}>
+                    <Text style={styles.businessName} numberOfLines={1}>
+                      {name || 'My Business'}
                     </Text>
-                  ) : null}
-                </View>
-
-                <View style={styles.contactGroup}>
-                  {phone ? (
-                    <View style={styles.detailRow}>
-                      <Ionicons name="call-outline" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
-                      <Text style={styles.detailText}>{phone}</Text>
-                    </View>
-                  ) : null}
-                  {address ? (
-                    <View style={styles.detailRow}>
-                      <Feather name="map-pin" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
-                      <Text style={[styles.detailText, styles.addressText]} numberOfLines={1}>
-                        {address}
+                    {resolved ? (
+                      <Text style={styles.typeText} numberOfLines={1}>
+                        {resolved.label}
                       </Text>
-                    </View>
-                  ) : null}
+                    ) : null}
+                  </View>
+
+                  <View style={styles.contactGroup}>
+                    {phone ? (
+                      <View style={styles.detailRow}>
+                        <Ionicons name="call-outline" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
+                        <Text style={styles.detailText}>{phone}</Text>
+                      </View>
+                    ) : null}
+                    {address ? (
+                      <View style={styles.detailRow}>
+                        <Feather name="map-pin" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
+                        <Text style={[styles.detailText, styles.addressText]} numberOfLines={1}>
+                          {address}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
 
             <View style={styles.brandRow}>
               <HeaderTypewriterText isKurdish={isKurdish} />
@@ -476,6 +616,109 @@ export function BusinessHeader() {
             })}
           </View>
 
+          {/* Background Video Section (Max 1 Video, Max 10 Seconds) */}
+          <View style={[styles.sectionHeadingWrap, { marginTop: 8 }]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text
+                style={[
+                  styles.sectionHeading,
+                  { color: themeColors.darkBlue, textAlign },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {t('dashboard.headerBgVideo')}
+              </Text>
+              {bgVideo ? (
+                <View style={[styles.activePill, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7' }]}>
+                  <Text style={[styles.activePillText, { color: '#16A34A' }]}>
+                    {t('dashboard.videoActive')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.sectionHeadingSub, { color: themeColors.gray400, textAlign }]}>
+              {t('dashboard.headerBgVideoHint')}
+            </Text>
+          </View>
+
+          {/* Video Slot Card */}
+          {bgVideo ? (
+            <View
+              style={[
+                styles.videoCard,
+                {
+                  backgroundColor: isDark ? themeColors.white : themeColors.gray50,
+                  borderColor: isDark ? themeColors.gray100 : themeColors.gray200,
+                },
+              ]}
+            >
+              <View style={styles.videoPreviewWrap}>
+                <HeaderBackgroundVideo uri={bgVideo} />
+                <View style={styles.videoBadge}>
+                  <Feather name="video" size={12} color="#FFFFFF" />
+                  <Text style={styles.videoBadgeText}>10s</Text>
+                </View>
+
+                <View style={[styles.videoActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <TouchableOpacity
+                    onPress={pickVideo}
+                    disabled={loadingVideo}
+                    style={[styles.slotBtn, { backgroundColor: themeColors.primary }]}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="repeat" size={14} color="#FFF" />
+                    <Text style={styles.slotBtnText}>{t('dashboard.changeVideo')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={removeVideo}
+                    disabled={loadingVideo}
+                    style={[styles.slotBtn, { backgroundColor: themeColors.error }]}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#FFF" />
+                    <Text style={styles.slotBtnText}>{t('dashboard.deleteVideo')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={pickVideo}
+              disabled={loadingVideo}
+              style={[
+                styles.videoEmptyCard,
+                {
+                  backgroundColor: isDark ? themeColors.white : themeColors.gray50,
+                  borderColor: isDark ? themeColors.primary + '50' : themeColors.primary + '40',
+                },
+              ]}
+              activeOpacity={0.75}
+            >
+              {loadingVideo ? (
+                <ActivityIndicator size="small" color={themeColors.primary} />
+              ) : (
+                <>
+                  <View style={[styles.plusIconWrap, { backgroundColor: themeColors.primary + '18' }]}>
+                    <Ionicons name="videocam-outline" size={24} color={themeColors.primary} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.emptySlotText,
+                      { color: themeColors.primary },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {t('dashboard.addVideo')}
+                  </Text>
+                  <Text style={[styles.videoEmptySub, { color: themeColors.gray400 }]}>
+                    {isKurdish ? 'تەنها یەک ڤیدیۆ تا ١٠ چرکە (وێنەکان دەوەستێنێت)' : 'Single video up to 10s (pauses photos)'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           {/* Done Button */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -525,6 +768,44 @@ function getStyles(isTablet: boolean) {
       paddingHorizontal: isTablet ? 28 : 22,
       minHeight: isTablet ? 260 : 230,
       justifyContent: 'space-between',
+    },
+    fixedBrandContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: isTablet ? 18 : 14,
+    },
+    fixedBrandLogoWrap: {
+      width: isTablet ? 90 : 76,
+      height: isTablet ? 90 : 76,
+      borderRadius: isTablet ? 22 : 18,
+      overflow: 'hidden',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 6,
+    },
+    fixedBrandLogo: {
+      width: '100%',
+      height: '100%',
+    },
+    fixedBrandTextWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: 4,
+    },
+    fixedBrandTitle: {
+      fontSize: isTablet ? 24 : 20,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 0.5,
+    },
+    fixedBrandTagline: {
+      fontSize: isTablet ? 14 : 12,
+      lineHeight: isTablet ? 18 : 16,
+      color: 'rgba(255,255,255,0.85)',
+      fontWeight: '500',
     },
     row: {
       flexDirection: 'row',
@@ -595,6 +876,11 @@ function getStyles(isTablet: boolean) {
     brandRow: {
       marginTop: isTablet ? 20 : 16,
       alignItems: 'flex-end',
+    },
+    brandRowCompact: {
+      marginTop: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     brandText: {
       fontSize: isTablet ? 13 : 11,
@@ -701,6 +987,70 @@ function getStyles(isTablet: boolean) {
     emptySlotText: {
       fontSize: 12,
       fontWeight: '700',
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    activePill: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    activePillText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+    },
+    videoCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      overflow: 'hidden',
+      height: 120,
+      marginBottom: 16,
+    },
+    videoPreviewWrap: {
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+    },
+    videoBadge: {
+      position: 'absolute',
+      top: 8,
+      start: 8,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      zIndex: 2,
+    },
+    videoBadgeText: {
+      color: '#FFF',
+      fontSize: 10.5,
+      fontWeight: '700',
+    },
+    videoActions: {
+      position: 'absolute',
+      bottom: 8,
+      end: 8,
+      gap: 8,
+      zIndex: 2,
+    },
+    videoEmptyCard: {
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      height: 100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      marginBottom: 16,
+    },
+    videoEmptySub: {
+      fontSize: 10.5,
     },
     doneButton: {
       borderRadius: 14,

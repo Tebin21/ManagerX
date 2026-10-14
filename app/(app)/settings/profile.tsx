@@ -13,6 +13,7 @@ import { SettingsTextInput as AppTextInput } from '@/components/settings/Setting
 import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
+import { SettingSwitch } from '@/components/settings/SettingSwitch';
 import { LogoUploader } from '@/components/setup/LogoUploader';
 import { BusinessTypeSelector } from '@/components/setup/BusinessTypeSelector';
 import { useBusiness } from '@/hooks/useBusiness';
@@ -20,18 +21,23 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
 
+import { useModuleStore } from '@/store/moduleStore';
+
 export default function BusinessProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign } = useRTL();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const business = useBusiness();
+  const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
+  const setShowDashboardNavigation = useModuleStore((s) => s.setShowDashboardNavigation);
 
   const [name, setName]             = useState(business.name ?? '');
   const [businessType, setBusinessType] = useState(business.type ?? '');
   const [phone, setPhone]           = useState(business.phone ?? '');
   const [address, setAddress]       = useState(business.address ?? '');
   const [logoUri, setLogoUri]       = useState<string | null>(business.logoUri);
+  const [showOnDashboard, setShowOnDashboard] = useState(business.showOnDashboard ?? true);
   const [saving, setSaving]   = useState(false);
 
   async function handleSave() {
@@ -47,6 +53,7 @@ export default function BusinessProfileScreen() {
         phone: phone.trim(),
         address: address.trim(),
         logoUri,
+        showOnDashboard,
       });
       router.back();
     } catch {
@@ -100,6 +107,30 @@ export default function BusinessProfileScreen() {
             />
           </SettingsCard>
 
+          {/* Dashboard Visibility Toggles */}
+          <SettingsCard style={styles.card}>
+            <SettingSwitch
+              icon={showOnDashboard ? 'eye-outline' : 'eye-off-outline'}
+              label={t('settings.profileScreen.showOnDashboard')}
+              sub={t('settings.profileScreen.showOnDashboardSub')}
+              value={showOnDashboard}
+              onToggle={(val) => {
+                setShowOnDashboard(val);
+                business.setShowOnDashboard(val);
+              }}
+            />
+            <View style={[styles.switchDivider, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]} />
+            <SettingSwitch
+              icon="apps-outline"
+              label={t('settings.customization.showNavTitle')}
+              sub={t('settings.customization.showNavSub')}
+              value={showDashboardNavigation}
+              onToggle={(val) => {
+                setShowDashboardNavigation(val);
+              }}
+            />
+          </SettingsCard>
+
           <PrimaryButton
             label={t('settings.profileScreen.saveChanges')}
             onPress={handleSave}
@@ -121,5 +152,6 @@ const styles = StyleSheet.create({
   logoHint: { fontSize: 12, color: Colors.gray400, marginTop: 8 },
 
   card: { marginBottom: 16 },
+  switchDivider: { height: 1, marginVertical: 10 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.black, marginBottom: 14 },
 });

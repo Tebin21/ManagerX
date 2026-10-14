@@ -51,6 +51,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "expo-video": "~3.0.16",
     "i18next": "^23.16.8",
     "intl-pluralrules": "^2.0.1",
     "moti": "^0.30.0",

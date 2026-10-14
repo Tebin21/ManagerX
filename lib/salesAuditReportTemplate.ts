@@ -1,6 +1,7 @@
 import type { Sale } from '@/types/sales';
 import { fmtIQD, fmtUSD, formatDate as fmtDate } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -42,6 +43,11 @@ export function buildSalesAuditReportHTML(
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -71,13 +77,13 @@ export function buildSalesAuditReportHTML(
     : sales.map((sale, idx) => {
         const itemsList = (sale.items && sale.items.length > 0)
           ? sale.items.map((it) => {
-              const unitPrice = it.sellingPrice ? `<span class="en-num" dir="ltr">${fmtIQD(it.sellingPrice)}</span>` : '';
+              const unitPrice = it.sellingPrice ? `<span class="en-num" dir="ltr">${fmtMoney(it.sellingPrice)}</span>` : '';
               return `<div style="font-size:11.5px;color:#334155;line-height:1.4;">&bull; <b>${escHtml(it.productName)}</b> (<span class="en-num" dir="ltr">${it.quantity}x</span> ${unitPrice})</div>`;
             }).join('')
           : '<span style="color:#94A3B8;font-size:11px;">&mdash;</span>';
 
         const remainingDebtHTML = sale.remainingDebt > 0
-          ? `<span class="en-num" dir="ltr" style="color:#DC2626;font-weight:700;display:inline-block;unicode-bidi:isolate;">${fmtIQD(sale.remainingDebt)} IQD</span>`
+          ? `<span class="en-num" dir="ltr" style="color:#DC2626;font-weight:700;display:inline-block;unicode-bidi:isolate;">${fmtMoney(sale.remainingDebt)}</span>`
           : '<span class="en-num" dir="ltr" style="color:#94A3B8;">0</span>';
 
         const customerDisplay = sale.customerName
@@ -92,8 +98,8 @@ export function buildSalesAuditReportHTML(
             <td style="font-size:11.5px;color:#475569;white-space:nowrap;text-align:center;"><span class="en-num" dir="ltr">${fmtDate(sale.date || sale.createdAt)}</span></td>
             <td style="max-width:220px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${itemsList}</td>
             <td style="text-align:center;">${methodBadge(sale.paymentMethod, isKurdish)}</td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(sale.grandTotal)} IQD</span></td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(sale.paidAmount)} IQD</span></td>
+            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.grandTotal)}</span></td>
+            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.paidAmount)}</span></td>
             <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};white-space:nowrap;">${remainingDebtHTML}</td>
           </tr>
         `;
@@ -350,17 +356,17 @@ export function buildSalesAuditReportHTML(
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کۆی گشتی فرۆشراو') : 'Total Revenue'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#0284C7;display:inline-block;unicode-bidi:isolate;">${fmtIQD(totalRevenue)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#0284C7;display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalRevenue)}</span></div>
       <div class="kpi-sub"><span class="en-num" dir="ltr">${totalInvoices}</span> ${isKurdish ? ku('پسوولە') : 'Invoices'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کۆی پارەی وەرگیراو') : 'Total Paid Amount'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtIQD(totalPaid)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalPaid)}</span></div>
       <div class="kpi-sub">${isKurdish ? ku('کاش و FIB') : 'Cash & Online'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کۆی قەرزی ماوە') : 'Remaining Debt'}</div>
-      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${totalDebt > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtIQD(totalDebt)} <span style="font-size:12px;font-weight:600;">IQD</span></span></div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${totalDebt > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalDebt)}</span></div>
       <div class="kpi-sub">${totalDebt > 0 ? (isKurdish ? ku('قەرزی وەرنەگیراو') : 'Pending Debt') : (isKurdish ? ku('هیچ قەرزێک نییە') : 'Zero Debt')}</div>
     </div>
     <div class="kpi-card">
@@ -385,9 +391,9 @@ export function buildSalesAuditReportHTML(
         <th style="width:90px;text-align:center;">${isKurdish ? ku('بەروار') : 'Date'}</th>
         <th style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ئایتم و وردەکاری') : 'Items & Details'}</th>
         <th style="width:85px;text-align:center;">${isKurdish ? ku('جۆر') : 'Method'}</th>
-        <th style="width:115px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'}</th>
-        <th style="width:105px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('دراو') : 'Paid'}</th>
-        <th style="width:95px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('قەرز') : 'Debt'}</th>
+        <th style="width:115px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'} (${isUsd ? '$' : 'IQD'})</th>
+        <th style="width:105px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('دراو') : 'Paid'} (${isUsd ? '$' : 'IQD'})</th>
+        <th style="width:95px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('قەرز') : 'Debt'} (${isUsd ? '$' : 'IQD'})</th>
       </tr>
     </thead>
     <tbody>
@@ -397,9 +403,9 @@ export function buildSalesAuditReportHTML(
     <tfoot>
       <tr>
         <td colspan="6" style="text-align:${dir === 'rtl' ? 'right' : 'left'};color:#0F172A;font-weight:800;font-size:13px;">${isKurdish ? ku('کۆی گشتی هەموو پسوولەکان:') : 'Grand Total for All Invoices:'}</td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0284C7;font-weight:800;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(totalRevenue)} IQD</span></td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(totalPaid)} IQD</span></td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:${totalDebt > 0 ? '#DC2626' : '#64748B'};font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtIQD(totalDebt)} IQD</span></td>
+        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0284C7;font-weight:800;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalRevenue)}</span></td>
+        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalPaid)}</span></td>
+        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:${totalDebt > 0 ? '#DC2626' : '#64748B'};font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalDebt)}</span></td>
       </tr>
     </tfoot>` : ''}
   </table>

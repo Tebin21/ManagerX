@@ -31,7 +31,7 @@ interface Props {
   onSelectForSwap?: () => void;
 }
 
-interface ModuleVisualTheme {
+export interface ModuleVisualTheme {
   iconName: keyof typeof Ionicons.glyphMap;
   tagKu: string;
   tagEn: string;
@@ -43,7 +43,7 @@ interface ModuleVisualTheme {
   glowColor: string;
 }
 
-const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
+export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
   sales: {
     iconName: 'receipt-outline',
     tagKu: 'فرۆشتن',

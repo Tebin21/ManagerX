@@ -16,6 +16,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { hexToRgba } from '@/lib/colorUtils';
 
 function getTodayStats(purchases: ReturnType<typeof usePurchaseStore.getState>['purchases']) {
   const today = new Date().toDateString();
@@ -33,7 +34,7 @@ export default function PurchasesScreen() {
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const { chevronForward, arrowForward } = useDirectionalChevron();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { purchases, loadPurchases } = usePurchaseStore();
   const { isTablet, contentContainerStyle } = useResponsive();
 
@@ -105,7 +106,7 @@ export default function PurchasesScreen() {
           </PremiumCard>
 
           <PremiumCard style={[styles.statCard, isTablet && { paddingVertical: 24 }]}>
-            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: isDark ? hexToRgba(colors.warning, 0.15) : '#FEF3C7' }]}>
               <Ionicons name="cash-outline" size={isTablet ? 25 : 20} color={colors.warning} />
             </View>
             <AmountText
@@ -132,7 +133,7 @@ export default function PurchasesScreen() {
             style={[styles.secondaryBtn, isTablet && { padding: 22, borderRadius: 18 }, { backgroundColor: colors.white, flexDirection }]}
           >
             <View style={[styles.secondaryLeft, isTablet && { gap: 16 }, { flexDirection }]}>
-              <View style={[styles.secondaryIcon, isTablet && { width: 54, height: 54, borderRadius: 16 }, { backgroundColor: '#F0FDF4' }]}>
+              <View style={[styles.secondaryIcon, isTablet && { width: 54, height: 54, borderRadius: 16 }, { backgroundColor: isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4' }]}>
                 <Ionicons name="list-outline" size={isTablet ? 25 : 20} color={colors.success} />
               </View>
               <View>

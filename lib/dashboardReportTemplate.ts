@@ -1,6 +1,7 @@
 import type { DashboardOverviewStats, DashboardActivityItem } from '@/lib/sqlite';
-import { fmtIQD, fmtEnNumber, formatDate as fmtDate, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtEnNumber, formatDate as fmtDate, toEnglishDigits } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -100,6 +101,13 @@ export function buildDashboardReportHTML(
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
+  const curUnit = isUsd ? 'USD' : 'IQD';
+
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -120,11 +128,11 @@ export function buildDashboardReportHTML(
 
         const amountColor = sign === '+' ? '#059669' : sign === '-' ? '#DC2626' : '#0F172A';
         const amountDisplay = act.amount > 0
-          ? `<span class="en-num" dir="ltr" style="font-weight:800;color:${amountColor};">${sign}${fmtIQD(act.amount)} IQD</span>`
+          ? `<span class="en-num" dir="ltr" style="font-weight:800;color:${amountColor};">${sign}${fmtMoney(act.amount)}</span>`
           : '<span style="color:#94A3B8;">&mdash;</span>';
 
         const discountDisplay = act.discount && act.discount > 0
-          ? `<span class="en-num" dir="ltr" style="color:#8B5CF6;font-size:11px;font-weight:700;">${fmtIQD(act.discount)} IQD</span>`
+          ? `<span class="en-num" dir="ltr" style="color:#8B5CF6;font-size:11px;font-weight:700;">${fmtMoney(act.discount)}</span>`
           : '<span style="color:#94A3B8;">&mdash;</span>';
 
         const actDate = act.timestamp ? fmtDate(act.timestamp) : '';
@@ -402,11 +410,11 @@ export function buildDashboardReportHTML(
     <div class="card" style="border-top: 3px solid #10B981; background: #F0FDF4;">
       <div class="card-top">
         <span class="card-label">${isKurdish ? ku('کۆی داهات') : 'Total Revenue'}</span>
-        <span class="card-pill" style="background:#DCFCE7; color:#15803D;">IQD</span>
+        <span class="card-pill" style="background:#DCFCE7; color:#15803D;">${curUnit}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#059669;">${fmtIQD(stats.totalRevenue)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#059669;">${fmtMoneyVal(stats.totalRevenue)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
 
@@ -414,11 +422,11 @@ export function buildDashboardReportHTML(
     <div class="card" style="border-top: 3px solid #6366F1; background: #EEF2FF;">
       <div class="card-top">
         <span class="card-label">${isKurdish ? ku('کۆی بەهای کڕین') : 'Purchases Cost'}</span>
-        <span class="card-pill" style="background:#E0E7FF; color:#4338CA;">IQD</span>
+        <span class="card-pill" style="background:#E0E7FF; color:#4338CA;">${curUnit}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#4F46E5;">${fmtIQD(stats.totalPurchasesCost)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#4F46E5;">${fmtMoneyVal(stats.totalPurchasesCost)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
 
@@ -431,8 +439,8 @@ export function buildDashboardReportHTML(
         </span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:${profitColor};">${fmtIQD(stats.expectedProfit)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:${profitColor};">${fmtMoneyVal(stats.expectedProfit)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
 
@@ -440,11 +448,11 @@ export function buildDashboardReportHTML(
     <div class="card" style="border-top: 3px solid #06B6D4; background: #ECFEFF;">
       <div class="card-top">
         <span class="card-label">${isKurdish ? ku('کۆی فرۆشتنەکان') : 'Total Sales Turnover'}</span>
-        <span class="card-pill" style="background:#CFFAFE; color:#0E7490;">IQD</span>
+        <span class="card-pill" style="background:#CFFAFE; color:#0E7490;">${curUnit}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#0891B2;">${fmtIQD(stats.totalSales)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#0891B2;">${fmtMoneyVal(stats.totalSales)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
   </div>
@@ -508,11 +516,11 @@ export function buildDashboardReportHTML(
     <div class="card">
       <div class="card-top">
         <span class="card-label">${isKurdish ? ku('کۆی داشکاندن') : 'Total Discounts Given'}</span>
-        <span class="card-pill" style="background:#F3E8FF; color:#7E22CE;">IQD</span>
+        <span class="card-pill" style="background:#F3E8FF; color:#7E22CE;">${curUnit}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#9333EA;">${fmtIQD(stats.totalDiscount)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#9333EA;">${fmtMoneyVal(stats.totalDiscount)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
 
@@ -520,11 +528,11 @@ export function buildDashboardReportHTML(
     <div class="card">
       <div class="card-top">
         <span class="card-label">${isKurdish ? ku('کۆی خەرجییەکان') : 'Operating Expenses'}</span>
-        <span class="card-pill" style="background:#FFE4E6; color:#BE123C;">IQD</span>
+        <span class="card-pill" style="background:#FFE4E6; color:#BE123C;">${curUnit}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#E11D48;">${fmtIQD(stats.totalExpenses)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#E11D48;">${fmtMoneyVal(stats.totalExpenses)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
   </div>
@@ -542,8 +550,8 @@ export function buildDashboardReportHTML(
         <span class="card-pill" style="background:#FFEDD5; color:#C2410C;">${isKurdish ? ku('لای کڕیار') : 'Receivables'}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#C2410C; font-size:18px;">${fmtIQD(stats.customerDebtTotal)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#C2410C; font-size:18px;">${fmtMoneyVal(stats.customerDebtTotal)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
 
@@ -554,8 +562,8 @@ export function buildDashboardReportHTML(
         <span class="card-pill" style="background:#FEE2E2; color:#B91C1C;">${isKurdish ? ku('قەرزی سەرشان') : 'Payables'}</span>
       </div>
       <div>
-        <span class="card-val en-num" dir="ltr" style="color:#DC2626; font-size:18px;">${fmtIQD(stats.supplierDebtTotal)}</span>
-        <span class="card-unit">IQD</span>
+        <span class="card-val en-num" dir="ltr" style="color:#DC2626; font-size:18px;">${fmtMoneyVal(stats.supplierDebtTotal)}</span>
+        <span class="card-unit">${curUnit}</span>
       </div>
     </div>
   </div>

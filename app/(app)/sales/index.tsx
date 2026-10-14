@@ -15,6 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { hexToRgba } from '@/lib/colorUtils';
 
 function getTodayStats(sales: ReturnType<typeof useSalesStore.getState>['sales']) {
   const today = new Date().toDateString();
@@ -30,7 +31,7 @@ export default function SalesScreen() {
   const { t } = useTranslation();
   const { textAlign, flexDirection } = useRTL();
   const { chevronForward, arrowForward } = useDirectionalChevron();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { sales, loadSales } = useSalesStore();
   const { isTablet, contentContainerStyle } = useResponsive();
 
@@ -91,7 +92,7 @@ export default function SalesScreen() {
           </PremiumCard>
 
           <PremiumCard style={[styles.statCard, isTablet && { paddingVertical: 24 }]}>
-            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: '#F0FDF4' }]}>
+            <View style={[styles.statIconBox, isTablet && { width: 50, height: 50, borderRadius: 15 }, { backgroundColor: isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4' }]}>
               <Ionicons name="trending-up" size={isTablet ? 25 : 20} color={colors.success} />
             </View>
             <AmountText

@@ -4,6 +4,7 @@ import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import { ModuleId } from '@/constants/config';
 
 export type ModuleLayout = 'half' | 'full';
+export type DashboardStyle = 'classic' | 'modern' | 'bento' | 'compact' | 'luxe';
 
 export interface ModuleConfig {
   enabled: boolean;
@@ -13,6 +14,10 @@ export interface ModuleConfig {
 
 export interface ModuleState {
   modules: Record<ModuleId, ModuleConfig>;
+  showDashboardNavigation: boolean;
+  dashboardStyle: DashboardStyle;
+  setShowDashboardNavigation: (show: boolean) => void;
+  setDashboardStyle: (style: DashboardStyle) => void;
   toggleModule: (id: ModuleId) => void;
   reorderModules: (orderedIds: ModuleId[]) => void;
   setModuleLayout: (id: ModuleId, layout: ModuleLayout) => void;
@@ -38,6 +43,11 @@ export const useModuleStore = create<ModuleState>()(
   persist(
     (set) => ({
       modules: defaultModules,
+      showDashboardNavigation: true,
+      dashboardStyle: 'classic',
+
+      setShowDashboardNavigation: (show) => set({ showDashboardNavigation: show }),
+      setDashboardStyle: (style) => set({ dashboardStyle: style }),
 
       toggleModule: (id) =>
         set((state) => {
@@ -161,6 +171,8 @@ export const useModuleStore = create<ModuleState>()(
           ...currentState,
           ...p,
           modules: mergedModules,
+          showDashboardNavigation: p?.showDashboardNavigation ?? true,
+          dashboardStyle: p?.dashboardStyle ?? 'classic',
         };
       },
     }

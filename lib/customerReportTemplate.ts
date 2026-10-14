@@ -2,6 +2,7 @@ import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
 import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -36,6 +37,13 @@ export function buildCustomerReportHTML(
   const memberSince = fmtDate(customer.createdAt);
   const activeDebts = debts.filter((d) => d.status === 'active' && d.remainingAmount > 0);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
+  const curUnit = isUsd ? 'USD' : 'IQD';
+
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
     : '';
@@ -47,9 +55,9 @@ export function buildCustomerReportHTML(
         return `
           <tr>
             <td style="font-weight:600;">${sale?.invoiceNumber ? escHtml(sale.invoiceNumber) : '&mdash;'}</td>
-            <td style="text-align:right;">${fmtIQD(d.originalAmount)} IQD</td>
-            <td style="text-align:right;color:#059669;font-weight:600;">${fmtIQD(d.paidAmount)} IQD</td>
-            <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtIQD(d.remainingAmount)} IQD</td>
+            <td style="text-align:right;">${fmtMoney(d.originalAmount)}</td>
+            <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(d.paidAmount)}</td>
+            <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtMoney(d.remainingAmount)}</td>
             <td style="text-align:center;">${statusBadge(d.status)}</td>
           </tr>`;
       }).join('');
@@ -65,9 +73,9 @@ export function buildCustomerReportHTML(
             <td style="color:#64748B;">${fmtDate(s.createdAt)}</td>
             <td style="font-weight:700;color:#5D4C14;">${escHtml(s.invoiceNumber)}</td>
             <td style="color:#64748B;font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${itemNames}</td>
-            <td style="text-align:right;font-weight:600;">${fmtIQD(s.grandTotal)} IQD</td>
-            <td style="text-align:right;color:#059669;font-weight:600;">${fmtIQD(s.paidAmount)} IQD</td>
-            <td style="text-align:right;color:${remaining > 0 ? '#DC2626' : '#94A3B8'};font-weight:${remaining > 0 ? '700' : '400'};">${remaining > 0 ? fmtIQD(remaining) + ' IQD' : '&mdash;'}</td>
+            <td style="text-align:right;font-weight:600;">${fmtMoney(s.grandTotal)}</td>
+            <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(s.paidAmount)}</td>
+            <td style="text-align:right;color:${remaining > 0 ? '#DC2626' : '#94A3B8'};font-weight:${remaining > 0 ? '700' : '400'};">${remaining > 0 ? fmtMoney(remaining) : '&mdash;'}</td>
           </tr>`;
       }).join('');
 
@@ -203,16 +211,16 @@ export function buildCustomerReportHTML(
 
   <div class="stats-grid">
     <div class="stat-box">
-      <div class="stat-val">${fmtIQD(customer.totalPurchases)}</div>
-      <div class="stat-lbl">Total Spent (IQD)</div>
+      <div class="stat-val">${fmtMoneyVal(customer.totalPurchases)}</div>
+      <div class="stat-lbl">Total Spent (${curUnit})</div>
     </div>
     <div class="stat-box">
       <div class="stat-val">${customer.saleCount}</div>
       <div class="stat-lbl">Total Invoices</div>
     </div>
     <div class="stat-box">
-      <div class="stat-val ${customer.remainingDebt > 0 ? 'debt' : ''}">${fmtIQD(customer.remainingDebt)}</div>
-      <div class="stat-lbl">Remaining Debt (IQD)</div>
+      <div class="stat-val ${customer.remainingDebt > 0 ? 'debt' : ''}">${fmtMoneyVal(customer.remainingDebt)}</div>
+      <div class="stat-lbl">Remaining Debt (${curUnit})</div>
     </div>
     <div class="stat-box">
       <div class="stat-val" style="font-size:13px;">${memberSince}</div>

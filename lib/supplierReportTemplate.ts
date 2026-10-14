@@ -3,6 +3,7 @@ import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt } from '@/types/debt';
 import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -45,6 +46,13 @@ export function buildSupplierReportHTML(
   const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
   const totalRemaining = activeDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
+  const curUnit = isUsd ? 'USD' : 'IQD';
+
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
     : '';
@@ -54,9 +62,9 @@ export function buildSupplierReportHTML(
     : activeDebts.map((d) => `
         <tr>
           <td style="font-weight:600;">${d.purchaseNumber ? escHtml(d.purchaseNumber) : '&mdash;'}</td>
-          <td style="text-align:right;">${fmtIQD(d.originalAmount)} IQD</td>
-          <td style="text-align:right;color:#059669;font-weight:600;">${fmtIQD(d.paidAmount)} IQD</td>
-          <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtIQD(d.remainingAmount)} IQD</td>
+          <td style="text-align:right;">${fmtMoney(d.originalAmount)}</td>
+          <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(d.paidAmount)}</td>
+          <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtMoney(d.remainingAmount)}</td>
           <td style="text-align:center;">${statusBadge(d.status)}</td>
         </tr>`).join('');
 
@@ -68,7 +76,7 @@ export function buildSupplierReportHTML(
           <td style="font-weight:700;color:#5D4C14;">${escHtml(p.purchaseNumber)}</td>
           <td style="color:#334155;font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.productName)}</td>
           <td style="text-align:right;">${p.quantity}</td>
-          <td style="text-align:right;font-weight:600;">${fmtIQD(p.totalIQD)} IQD</td>
+          <td style="text-align:right;font-weight:600;">${fmtMoney(p.totalIQD)}</td>
           <td style="text-align:center;">${paymentBadge(p.paymentStatus)}</td>
         </tr>`).join('');
 
@@ -204,20 +212,20 @@ export function buildSupplierReportHTML(
 
   <div class="stats-grid">
     <div class="stat-box">
-      <div class="stat-val">${fmtIQD(totalSpent)}</div>
-      <div class="stat-lbl">Total Spent (IQD)</div>
+      <div class="stat-val">${fmtMoneyVal(totalSpent)}</div>
+      <div class="stat-lbl">Total Spent (${curUnit})</div>
     </div>
     <div class="stat-box">
       <div class="stat-val">${purchases.length}</div>
       <div class="stat-lbl">Total Purchases</div>
     </div>
     <div class="stat-box">
-      <div class="stat-val ${totalRemaining > 0 ? 'debt' : ''}">${fmtIQD(totalRemaining)}</div>
-      <div class="stat-lbl">Remaining Debt (IQD)</div>
+      <div class="stat-val ${totalRemaining > 0 ? 'debt' : ''}">${fmtMoneyVal(totalRemaining)}</div>
+      <div class="stat-lbl">Remaining Debt (${curUnit})</div>
     </div>
     <div class="stat-box">
-      <div class="stat-val" style="color:#059669;">${fmtIQD(totalPaid)}</div>
-      <div class="stat-lbl">Total Paid (IQD)</div>
+      <div class="stat-val" style="color:#059669;">${fmtMoneyVal(totalPaid)}</div>
+      <div class="stat-lbl">Total Paid (${curUnit})</div>
     </div>
   </div>
 

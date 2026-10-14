@@ -8,6 +8,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useRTL } from '@/lib/rtl';
 import { useBusinessStore } from '@/store/businessStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { Sale } from '@/types/sales';
 import {
   fmtIQD, fmtUSD, formatDate, formatTime,
@@ -49,12 +50,30 @@ export function InvoiceView({ sale, compact = false }: Props) {
   const [logoFailed, setLogoFailed] = useState(false);
   const tableScrollRef = useRef<ScrollView>(null);
 
+  const baseCurrency = useSettingsStore(s => s.baseCurrency) || 'IQD';
+  const isUSD = baseCurrency === 'USD';
+
   const items = sale.items ?? [];
   const status = getPaymentStatus(sale);
   const statusBg = isDark ? hexToRgba(colors[STATUS_TONE[status]], 0.18) : STATUS_BG_LIGHT[status];
   const statusText = isDark ? colors[STATUS_TONE[status]] : STATUS_TEXT_LIGHT[status];
   const exchangeRate = sale.exchangeRateUsed || 1310;
   const valueAlign = isRTL ? 'left' : 'right';
+
+  const fmtMoney = (val: number) => {
+    if (isUSD) {
+      return `$${fmtUSD(val / exchangeRate)}`;
+    }
+    return fmtIQD(val);
+  };
+
+  const fmtDiscount = (val: number) => {
+    if (val <= 0) return '—';
+    if (isUSD) {
+      return `−$${fmtUSD(val / exchangeRate)}`;
+    }
+    return `−${fmtIQD(val)}`;
+  };
 
   // Kurdish section titles read heavier in RudawRegular than the same weight does in
   // Inter, so the bold+uppercase treatment that works for English looks clenched here —
@@ -183,11 +202,11 @@ export function InvoiceView({ sale, compact = false }: Props) {
                   <Text style={[styles.colProduct, styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
                   <IdText style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</IdText>
                   <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
-                  <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtIQD(item.sellingPrice)}</Text>
+                  <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtMoney(item.sellingPrice)}</Text>
                   <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? colors.success : colors.gray300 }]}>
-                    {item.discount > 0 ? `−${fmtIQD(item.discount)}` : '—'}
+                    {fmtDiscount(item.discount)}
                   </Text>
-                  <Text style={[styles.colTotal, styles.tableCellTotal, { color: colors.black }]}>{fmtIQD(item.lineTotal)}</Text>
+                  <Text style={[styles.colTotal, styles.tableCellTotal, { color: colors.black }]}>{fmtMoney(item.lineTotal)}</Text>
                 </View>
               ))}
             </View>
@@ -200,37 +219,37 @@ export function InvoiceView({ sale, compact = false }: Props) {
         <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>{t('invoicePreview.paymentSummary')}</Text>
         <View style={[styles.totalRow, { flexDirection }]}>
           <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.subtotal')}</Text>
-          <Text style={[styles.totalValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.subtotal)}</Text>
+          <Text style={[styles.totalValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.subtotal)}</Text>
         </View>
         {sale.discountTotal > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
             <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.itemDiscount')}</Text>
-            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.discountTotal)}</Text>
+            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtMoney(sale.discountTotal)}</Text>
           </View>
         )}
         {(sale.globalDiscount ?? 0) > 0 && (
           <View style={[styles.totalRow, { flexDirection }]}>
             <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.invoiceDiscount')}</Text>
-            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtIQD(sale.globalDiscount ?? 0)}</Text>
+            <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>−{fmtMoney(sale.globalDiscount ?? 0)}</Text>
           </View>
         )}
         <View style={[styles.grandRow, { flexDirection, borderTopColor: colors.gray200 }]}>
           <Text style={[styles.grandLabel, { color: colors.black, textAlign, writingDirection }]}>{t('invoicePreview.grandTotal')}</Text>
-          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.grandTotal)}</Text>
+          <Text style={[styles.grandValue, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.grandTotal)}</Text>
         </View>
         {sale.paymentMethod === 'debt' && (
           <>
             {sale.paidAmount > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.paid')}</Text>
-                <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.paidAmount)}</Text>
+                <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.paidAmount)}</Text>
               </View>
             )}
             {sale.remainingDebt > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
                 <Text style={[styles.totalLabel, { color: colors.error, textAlign, writingDirection }]}>{t('invoicePreview.remainingDebt')}</Text>
                 <Text style={[styles.totalValue, { color: colors.error, fontWeight: '700', textAlign: valueAlign, writingDirection: 'ltr' }]}>
-                  {fmtIQD(sale.remainingDebt)}
+                  {fmtMoney(sale.remainingDebt)}
                 </Text>
               </View>
             )}
@@ -238,28 +257,53 @@ export function InvoiceView({ sale, compact = false }: Props) {
         )}
       </View>
 
-      {/* USD conversion */}
-      {isRTL ? (
-        <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
-          <View style={[styles.totalRow, { flexDirection }]}>
-            <Text style={[styles.usdRate, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.exchangeRate')}</Text>
-            <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(exchangeRate)} IQD/USD</Text>
+      {/* Currency conversion card */}
+      {isUSD ? (
+        isRTL ? (
+          <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+            <View style={[styles.totalRow, { flexDirection }]}>
+              <Text style={[styles.usdRate, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.exchangeRate', 'نرخی ئاڵوگۆڕ')}</Text>
+              <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign, writingDirection: 'ltr' }]}>100$ = {fmtIQD(exchangeRate * 100)} IQD</Text>
+            </View>
+            <View style={[styles.totalRow, { flexDirection, marginBottom: 0 }]}>
+              <Text style={[styles.usdLabel, { color: colors.gray400, textAlign, writingDirection }]}>کۆی گشتی بە دینار</Text>
+              <Text style={[styles.usdAmount, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(sale.grandTotal)} IQD</Text>
+            </View>
           </View>
-          <View style={[styles.totalRow, { flexDirection, marginBottom: 0 }]}>
-            <Text style={[styles.usdLabel, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.totalUsd')}</Text>
-            <Text style={[styles.usdAmount, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+        ) : (
+          <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
+            <View style={{ alignItems: 'flex-start' }}>
+              <Text style={[styles.usdLabel, { color: colors.gray400, textAlign: 'left' }]}>Total in IQD</Text>
+              <Text style={[styles.usdAmount, { color: colors.black, textAlign: 'left' }]}>{fmtIQD(sale.grandTotal)} IQD</Text>
+            </View>
+            <Text style={[styles.usdRate, { color: colors.gray400, textAlign: 'right' }]}>
+              Rate: 100$ = {fmtIQD(exchangeRate * 100)} IQD
+            </Text>
           </View>
-        </View>
+        )
       ) : (
-        <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
-          <View style={{ alignItems: 'flex-start' }}>
-            <Text style={[styles.usdLabel, { color: colors.gray400, textAlign: 'left' }]}>{t('invoicePreview.totalUsd')}</Text>
-            <Text style={[styles.usdAmount, { color: colors.black, textAlign: 'left' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+        isRTL ? (
+          <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+            <View style={[styles.totalRow, { flexDirection }]}>
+              <Text style={[styles.usdRate, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.exchangeRate')}</Text>
+              <Text style={[styles.usdRate, { color: colors.gray400, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtIQD(exchangeRate)} IQD/USD</Text>
+            </View>
+            <View style={[styles.totalRow, { flexDirection, marginBottom: 0 }]}>
+              <Text style={[styles.usdLabel, { color: colors.gray400, textAlign, writingDirection }]}>{t('invoicePreview.totalUsd')}</Text>
+              <Text style={[styles.usdAmount, { color: colors.black, textAlign: valueAlign, writingDirection: 'ltr' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+            </View>
           </View>
-          <Text style={[styles.usdRate, { color: colors.gray400, textAlign: 'right' }]}>
-            Rate: {fmtIQD(exchangeRate)} IQD/USD
-          </Text>
-        </View>
+        ) : (
+          <View style={[styles.card, styles.usdCard, { backgroundColor: colors.gray50, borderColor: colors.gray200, flexDirection }]}>
+            <View style={{ alignItems: 'flex-start' }}>
+              <Text style={[styles.usdLabel, { color: colors.gray400, textAlign: 'left' }]}>{t('invoicePreview.totalUsd')}</Text>
+              <Text style={[styles.usdAmount, { color: colors.black, textAlign: 'left' }]}>${fmtUSD(sale.grandTotal / exchangeRate)}</Text>
+            </View>
+            <Text style={[styles.usdRate, { color: colors.gray400, textAlign: 'right' }]}>
+              Rate: {fmtIQD(exchangeRate)} IQD/USD
+            </Text>
+          </View>
+        )
       )}
 
       {/* Notes */}

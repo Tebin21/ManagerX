@@ -6,6 +6,7 @@ import type {
 import type { DateRange } from '@/types/reports';
 import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN } from '@/lib/pdfFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -48,6 +49,11 @@ export function buildFullReportHTML(
   const { salesData, purchaseData, plData, inventoryData, debtData,
     topProfitable, monthlyRevenue, expenses, dateRange } = data;
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
     : '';
@@ -62,8 +68,8 @@ export function buildFullReportHTML(
     : monthlyRevenue.map((r) => `
         <tr>
           <td>${escHtml(r.period)}</td>
-          <td style="font-weight:600;">${fmtIQD(r.revenue)} IQD</td>
-          <td style="color:${colorVal(r.profit)};font-weight:600;">${fmtIQD(r.profit)} IQD</td>
+          <td style="font-weight:600;">${fmtMoney(r.revenue)}</td>
+          <td style="color:${colorVal(r.profit)};font-weight:600;">${fmtMoney(r.profit)}</td>
           <td style="color:#64748B;">${r.sales}</td>
         </tr>
       `).join('');
@@ -75,7 +81,7 @@ export function buildFullReportHTML(
         <tr>
           <td style="font-weight:800;color:#64748B;">#${i + 1}</td>
           <td style="font-weight:600;">${escHtml(p.productName)}</td>
-          <td style="color:${colorVal(p.grossProfit)};font-weight:700;">${fmtIQD(p.grossProfit)} IQD</td>
+          <td style="color:${colorVal(p.grossProfit)};font-weight:700;">${fmtMoney(p.grossProfit)}</td>
           <td style="color:#64748B;">${p.marginPct.toFixed(1)}%</td>
         </tr>
       `).join('');
@@ -88,7 +94,7 @@ export function buildFullReportHTML(
           <td style="color:#64748B;">${fmtDate(e.date)}</td>
           <td><span style="background:#F1F5F9;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;color:#475569;">${escHtml(e.category)}</span></td>
           <td style="color:#64748B;">${e.note ? escHtml(e.note) : '&mdash;'}</td>
-          <td style="font-weight:700;color:#DC2626;text-align:right;">${fmtIQD(e.amount)} IQD</td>
+          <td style="font-weight:700;color:#DC2626;text-align:right;">${fmtMoney(e.amount)}</td>
         </tr>
       `).join('');
 
@@ -258,11 +264,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Total Revenue</div>
-        <div class="kpi-value blue">${fmtIQD(salesData?.totalRevenue ?? 0)} IQD</div>
+        <div class="kpi-value blue">${fmtMoney(salesData?.totalRevenue ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Net Profit</div>
-        <div class="kpi-value ${(plData?.netProfit ?? 0) >= 0 ? 'green' : 'red'}">${fmtIQD(plData?.netProfit ?? 0)} IQD</div>
+        <div class="kpi-value ${(plData?.netProfit ?? 0) >= 0 ? 'green' : 'red'}">${fmtMoney(plData?.netProfit ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Total Sales</div>
@@ -270,15 +276,15 @@ export function buildFullReportHTML(
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Purchase Cost</div>
-        <div class="kpi-value">${fmtIQD(purchaseData?.totalCost ?? 0)} IQD</div>
+        <div class="kpi-value">${fmtMoney(purchaseData?.totalCost ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Outstanding Debt</div>
-        <div class="kpi-value amber">${fmtIQD(debtData?.combinedDebt ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtMoney(debtData?.combinedDebt ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Total Expenses</div>
-        <div class="kpi-value red">${fmtIQD(plData?.totalExpenses ?? 0)} IQD</div>
+        <div class="kpi-value red">${fmtMoney(plData?.totalExpenses ?? 0)}</div>
       </div>
     </div>
   </div>
@@ -295,27 +301,27 @@ export function buildFullReportHTML(
           <tr>
             <td>Cash</td>
             <td>${salesData?.cashCount ?? 0}</td>
-            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.cashRevenue ?? 0)} IQD</td>
+            <td style="text-align:right;font-weight:600;">${fmtMoney(salesData?.cashRevenue ?? 0)}</td>
           </tr>
           <tr>
             <td>FIB</td>
             <td>${salesData?.fibCount ?? 0}</td>
-            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.fibRevenue ?? 0)} IQD</td>
+            <td style="text-align:right;font-weight:600;">${fmtMoney(salesData?.fibRevenue ?? 0)}</td>
           </tr>
           <tr>
             <td>Credit / Debt</td>
             <td>${salesData?.debtCount ?? 0}</td>
-            <td style="text-align:right;font-weight:600;">${fmtIQD(salesData?.debtRevenue ?? 0)} IQD</td>
+            <td style="text-align:right;font-weight:600;">${fmtMoney(salesData?.debtRevenue ?? 0)}</td>
           </tr>
           <tr class="total-row">
             <td>Total</td>
             <td>${salesData?.totalSales ?? 0}</td>
-            <td style="text-align:right;">${fmtIQD(salesData?.totalRevenue ?? 0)} IQD</td>
+            <td style="text-align:right;">${fmtMoney(salesData?.totalRevenue ?? 0)}</td>
           </tr>
         </tbody>
       </table>
     </div>
-    ${salesData?.totalDiscounts ? `<p style="margin-top:10px;font-size:12px;color:#64748B;">Total Discounts Given: <strong style="color:#D97706;">${fmtIQD(salesData.totalDiscounts)} IQD</strong></p>` : ''}
+    ${salesData?.totalDiscounts ? `<p style="margin-top:10px;font-size:12px;color:#64748B;">Total Discounts Given: <strong style="color:#D97706;">${fmtMoney(salesData.totalDiscounts)}</strong></p>` : ''}
   </div>
 
   <!-- Monthly Revenue -->
@@ -336,29 +342,29 @@ export function buildFullReportHTML(
     <div class="section-title">Profit &amp; Loss</div>
     <div class="pl-row">
       <span class="pl-label">Gross Revenue</span>
-      <span class="pl-value" style="color:#5D4C14;">${fmtIQD(plData?.grossRevenue ?? 0)} IQD</span>
+      <span class="pl-value" style="color:#5D4C14;">${fmtMoney(plData?.grossRevenue ?? 0)}</span>
     </div>
     <div class="pl-row pl-indent">
       <span class="pl-label" style="color:#64748B;">Cost of Goods Sold (COGS)</span>
-      <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(plData?.totalCOGS ?? 0)} IQD</span>
+      <span class="pl-value" style="color:#DC2626;">&minus;${fmtMoney(plData?.totalCOGS ?? 0)}</span>
     </div>
     <div class="pl-subtotal">
       <span style="font-weight:700;color:#1E293B;">Gross Profit</span>
-      <span style="font-weight:700;color:${colorVal(plData?.grossProfit ?? 0)};">${fmtIQD(plData?.grossProfit ?? 0)} IQD (${(plData?.grossMarginPct ?? 0).toFixed(1)}%)</span>
+      <span style="font-weight:700;color:${colorVal(plData?.grossProfit ?? 0)};">${fmtMoney(plData?.grossProfit ?? 0)} (${(plData?.grossMarginPct ?? 0).toFixed(1)}%)</span>
     </div>
     ${(plData?.expenseBreakdown ?? []).map((e) => `
       <div class="pl-row pl-indent">
         <span class="pl-label" style="color:#64748B;">${escHtml(e.category)}</span>
-        <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(e.total)} IQD</span>
+        <span class="pl-value" style="color:#DC2626;">&minus;${fmtMoney(e.total)}</span>
       </div>
     `).join('')}
     <div class="pl-row">
       <span class="pl-label" style="font-weight:600;">Total Expenses</span>
-      <span class="pl-value" style="color:#DC2626;">&minus;${fmtIQD(plData?.totalExpenses ?? 0)} IQD</span>
+      <span class="pl-value" style="color:#DC2626;">&minus;${fmtMoney(plData?.totalExpenses ?? 0)}</span>
     </div>
     <div class="pl-row pl-net">
       <span style="font-size:17px;font-weight:800;color:#1E293B;">Net Profit</span>
-      <span style="font-size:17px;font-weight:800;color:${colorVal(plData?.netProfit ?? 0)};">${fmtIQD(plData?.netProfit ?? 0)} IQD</span>
+      <span style="font-size:17px;font-weight:800;color:${colorVal(plData?.netProfit ?? 0)};">${fmtMoney(plData?.netProfit ?? 0)}</span>
     </div>
   </div>
 
@@ -368,18 +374,18 @@ export function buildFullReportHTML(
     <div class="kpi-grid" style="margin-bottom:12px;">
       <div class="kpi-cell">
         <div class="kpi-label">Total Cost</div>
-        <div class="kpi-value">${fmtIQD(purchaseData?.totalCost ?? 0)} IQD</div>
+        <div class="kpi-value">${fmtMoney(purchaseData?.totalCost ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Paid</div>
-        <div class="kpi-value green">${fmtIQD(purchaseData?.paidCost ?? 0)} IQD</div>
+        <div class="kpi-value green">${fmtMoney(purchaseData?.paidCost ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">On Credit</div>
-        <div class="kpi-value amber">${fmtIQD(purchaseData?.debtCost ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtMoney(purchaseData?.debtCost ?? 0)}</div>
       </div>
     </div>
-    ${purchaseData?.topSupplier ? `<p style="font-size:12.5px;color:#64748B;">Top Supplier: <strong style="color:#1E293B;">${escHtml(purchaseData.topSupplier)}</strong> (${fmtIQD(purchaseData.topSupplierCost)} IQD)</p>` : ''}
+    ${purchaseData?.topSupplier ? `<p style="font-size:12.5px;color:#64748B;">Top Supplier: <strong style="color:#1E293B;">${escHtml(purchaseData.topSupplier)}</strong> (${fmtMoney(purchaseData.topSupplierCost)})</p>` : ''}
   </div>
 
   <!-- Debt Overview -->
@@ -388,11 +394,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Customers Owe</div>
-        <div class="kpi-value amber">${fmtIQD(debtData?.totalSalesDebt ?? 0)} IQD</div>
+        <div class="kpi-value amber">${fmtMoney(debtData?.totalSalesDebt ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">We Owe Suppliers</div>
-        <div class="kpi-value red">${fmtIQD(debtData?.totalPurchaseDebt ?? 0)} IQD</div>
+        <div class="kpi-value red">${fmtMoney(debtData?.totalPurchaseDebt ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Overdue Debts</div>
@@ -407,11 +413,11 @@ export function buildFullReportHTML(
     <div class="kpi-grid">
       <div class="kpi-cell">
         <div class="kpi-label">Stock Value</div>
-        <div class="kpi-value blue">${fmtIQD(inventoryData?.stockValueSell ?? 0)} IQD</div>
+        <div class="kpi-value blue">${fmtMoney(inventoryData?.stockValueSell ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Potential Profit</div>
-        <div class="kpi-value green">${fmtIQD(inventoryData?.potentialProfit ?? 0)} IQD</div>
+        <div class="kpi-value green">${fmtMoney(inventoryData?.potentialProfit ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">Active Products</div>
@@ -456,7 +462,7 @@ export function buildFullReportHTML(
         <tbody>${expRows}</tbody>
       </table>
     </div>
-    ${expenses.length > 0 ? `<p style="margin-top:10px;font-size:13.5px;font-weight:700;text-align:right;color:#DC2626;">Total: ${fmtIQD(expTotal)} IQD</p>` : ''}
+    ${expenses.length > 0 ? `<p style="margin-top:10px;font-size:13.5px;font-weight:700;text-align:right;color:#DC2626;">Total: ${fmtMoney(expTotal)}</p>` : ''}
   </div>
 
   <div class="footer">

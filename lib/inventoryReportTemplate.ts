@@ -2,6 +2,7 @@ import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import { fmtIQD, fmtUSD, fmtPct } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -55,6 +56,11 @@ export function buildInventoryReportHTML(
   const t = (key: string, opts?: Record<string, unknown>): string =>
     i18n.t(`inventoryReportPdf.${key}`, opts) as string;
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -66,7 +72,7 @@ export function buildInventoryReportHTML(
   const rows = products.map((p) => {
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
     const isLow  = p.isActive && p.quantity <= 3 && !isSold;
-    const value  = fmtIQD(p.purchasePrice * p.quantity);
+    const value  = fmtMoney(p.purchasePrice * p.quantity);
 
     const qtyCell = isSold
       ? (isKurdish
@@ -104,9 +110,9 @@ export function buildInventoryReportHTML(
         <td style="${nameStyle}">${escHtml(p.name)}</td>
         <td style="color:#64748B;">${escHtml(p.category)}</td>
         <td style="text-align:center;">${qtyCell}</td>
-        <td style="${buyPriceStyle}">${fmtIQD(p.purchasePrice)} IQD</td>
-        <td style="${sellPriceStyle}">${fmtIQD(p.sellingPrice)} IQD</td>
-        <td style="${valueStyle}">${value} IQD</td>
+        <td style="${buyPriceStyle}">${fmtMoney(p.purchasePrice)}</td>
+        <td style="${sellPriceStyle}">${fmtMoney(p.sellingPrice)}</td>
+        <td style="${valueStyle}">${value}</td>
         <td style="color:#64748B;">${escHtml(p.supplierName ?? '—')}</td>
         <td style="text-align:center;">${statusCell}</td>
       </tr>`;

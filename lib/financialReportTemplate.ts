@@ -4,9 +4,10 @@ import type {
   FinancialSummaryCards,
 } from '@/lib/sqlite';
 import type { DateRange } from '@/types/reports';
-import { fmtIQD, fmtPct, formatDate as fmtDate, formatTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtPct, formatDate as fmtDate, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -160,12 +161,18 @@ export function buildFinancialReportHTML(
   const collectionRate        = debtData?.collectionRate       ?? 0;
   const debtAllZero = combinedDebt === 0 && salesDebtOriginal === 0 && purchaseDebtOriginal === 0;
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const rate = useSettingsStore.getState().exchangeRate || 1310;
+  const isUsd = baseCurrency === 'USD';
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const lossMoney = (n: number) => n > 0 ? `(${fmtMoney(n)})` : fmtMoney(0);
+
   // ── Loss products rows (only ever interpolated when non-empty) ────────────
   const lossProductRows = topLossProds.map((p, i) => `
         <tr>
           <td style="font-weight:700;text-align:${kuAlign};">#${i + 1} &nbsp;${escHtml(p.productName)}</td>
           <td class="right">${fmtIQD(p.qty)}</td>
-          <td class="right" style="font-weight:700;">${lossVal(p.lossAmount)} IQD</td>
+          <td class="right" style="font-weight:700;">${lossMoney(p.lossAmount)}</td>
         </tr>
       `).join('');
 
@@ -174,7 +181,7 @@ export function buildFinancialReportHTML(
         <tr>
           <td style="text-align:left;">${fmtDate(e.date)}</td>
           <td style="text-align:${kuAlign};">${ku(escHtml(tCat(e.category)))}</td>
-          <td class="right" style="font-weight:700;">${lossVal(e.amount)} IQD</td>
+          <td class="right" style="font-weight:700;">${lossMoney(e.amount)}</td>
         </tr>
       `).join('');
 
@@ -403,19 +410,19 @@ export function buildFinancialReportHTML(
 
       <div class="metric-row">
         <span class="metric-label">${ku(t('totalSales'))}<span class="metric-note">${ku(t('invoicesNote', { count: invoiceCount }))}</span></span>
-        <span class="metric-value">${fmtIQD(totalSales)} IQD</span>
+        <span class="metric-value">${fmtMoney(totalSales)}</span>
       </div>
       <div class="metric-row">
         <span class="metric-label">${ku(t('netProfit'))}<span class="metric-note">${ku(grossRevenue > 0 ? t('netMarginNote', { pct: fmtPct(netProfitPL / grossRevenue * 100) }) : t('noRevenue'))}</span></span>
-        <span class="metric-value">${netProfit >= 0 ? fmtIQD(netProfit) : lossVal(Math.abs(netProfit))} IQD</span>
+        <span class="metric-value">${netProfit >= 0 ? fmtMoney(netProfit) : lossMoney(Math.abs(netProfit))}</span>
       </div>
       <div class="metric-row">
         <span class="metric-label">${ku(t('totalLoss'))}<span class="metric-note">${ku(lossItemCount > 0 ? t('lossItemsNote', { count: lossItemCount }) : t('noLossItems'))}</span></span>
-        <span class="metric-value">${lossVal(totalLoss)} IQD</span>
+        <span class="metric-value">${lossMoney(totalLoss)}</span>
       </div>
       <div class="metric-row">
         <span class="metric-label">${ku(t('remainingDebt'))}<span class="metric-note">${ku(t('activeDebtsNote', { count: customerCount }))}</span></span>
-        <span class="metric-value">${fmtIQD(remainingDebt)} IQD</span>
+        <span class="metric-value">${fmtMoney(remainingDebt)}</span>
       </div>
     </div>
 
@@ -423,21 +430,21 @@ export function buildFinancialReportHTML(
     <div class="card">
       <div class="card-label">${ku(t('financialDetails'))}</div>
       <table class="kv-table">
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('grossSalesRevenue'))}</td><td class="kv-val">${fmtIQD(grossRevenue)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('cogs'))}</td><td class="kv-val">${lossVal(totalCOGS)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('grossProfit'))}</td><td class="kv-val">${fmtIQD(grossProfit)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('grossSalesRevenue'))}</td><td class="kv-val">${fmtMoney(grossRevenue)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('cogs'))}</td><td class="kv-val">${lossMoney(totalCOGS)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('grossProfit'))}</td><td class="kv-val">${fmtMoney(grossProfit)}</td></tr>
 
         <tr class="kv-divider"><td colspan="2"></td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('cashPaymentsReceived'))}</td><td class="kv-val">${fmtIQD(cashRevenue)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('fibPaymentsReceived'))}</td><td class="kv-val">${fmtIQD(fibRevenue)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('totalDebtCollected'))}</td><td class="kv-val">${fmtIQD(debtCollected)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('remainingCustomerDebt'))}</td><td class="kv-val">${fmtIQD(customerDebtLeft)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('cashPaymentsReceived'))}</td><td class="kv-val">${fmtMoney(cashRevenue)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('fibPaymentsReceived'))}</td><td class="kv-val">${fmtMoney(fibRevenue)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('totalDebtCollected'))}</td><td class="kv-val">${fmtMoney(debtCollected)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('remainingCustomerDebt'))}</td><td class="kv-val">${fmtMoney(customerDebtLeft)}</td></tr>
 
         <tr class="kv-divider"><td colspan="2"></td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('totalPurchasesCost'))}</td><td class="kv-val">${lossVal(purchaseCost)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('businessExpenses'))}</td><td class="kv-val">${lossVal(totalExpenses)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('inventoryValueSell'))}</td><td class="kv-val">${fmtIQD(stockValue)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('expectedProfitStock'))}</td><td class="kv-val">${fmtIQD(potentialProfit)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('totalPurchasesCost'))}</td><td class="kv-val">${lossMoney(purchaseCost)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('businessExpenses'))}</td><td class="kv-val">${lossMoney(totalExpenses)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('inventoryValueSell'))}</td><td class="kv-val">${fmtMoney(stockValue)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('expectedProfitStock'))}</td><td class="kv-val">${fmtMoney(potentialProfit)}</td></tr>
 
         <tr class="kv-divider"><td colspan="2"></td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('numSalesInvoices'))}</td><td class="kv-val">${fmtIQD(invoiceCount)}</td></tr>
@@ -447,7 +454,7 @@ export function buildFinancialReportHTML(
 
       <div class="total-block">
         <span class="total-label">${ku(t('netProfitAfterCosts'))}</span>
-        <span class="total-amount">${netProfitPL >= 0 ? fmtIQD(netProfitPL) : lossVal(Math.abs(netProfitPL))} IQD</span>
+        <span class="total-amount">${netProfitPL >= 0 ? fmtMoney(netProfitPL) : lossMoney(Math.abs(netProfitPL))}</span>
       </div>
     </div>
 
@@ -461,7 +468,7 @@ export function buildFinancialReportHTML(
 
       <div class="total-block">
         <span class="total-label">${ku(t('totalBusinessLoss'))}</span>
-        <span class="total-amount">${lossVal(lossTotal)} IQD</span>
+        <span class="total-amount">${lossMoney(lossTotal)}</span>
       </div>
     </div>
 
@@ -483,16 +490,16 @@ export function buildFinancialReportHTML(
     <div class="card">
       <div class="card-label">${ku(t('purchaseAnalysis'))}</div>
       <table class="kv-table">
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('paidToSuppliers'))}</td><td class="kv-val">${fmtIQD(paidCost)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('onCredit'))}</td><td class="kv-val">${fmtIQD(debtCost)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('paidToSuppliers'))}</td><td class="kv-val">${fmtMoney(paidCost)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('onCredit'))}</td><td class="kv-val">${fmtMoney(debtCost)}</td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('numPurchaseTransactions'))}</td><td class="kv-val">${fmtIQD(totalPurchases)}</td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('uniqueSuppliers'))}</td><td class="kv-val">${fmtIQD(supplierCount)}</td></tr>
-        ${topSupplier ? `<tr class="kv-row"><td class="kv-lbl">${ku(t('topSupplier'))}</td><td class="kv-val">${escHtml(topSupplier)} &mdash; ${fmtIQD(topSupplierCost)} IQD</td></tr>` : ''}
+        ${topSupplier ? `<tr class="kv-row"><td class="kv-lbl">${ku(t('topSupplier'))}</td><td class="kv-val">${escHtml(topSupplier)} &mdash; ${fmtMoney(topSupplierCost)}</td></tr>` : ''}
       </table>
 
       <div class="total-block">
         <span class="total-label">${ku(t('totalInventoryPurchases'))}</span>
-        <span class="total-amount">${fmtIQD(purchaseCost)} IQD</span>
+        <span class="total-amount">${fmtMoney(purchaseCost)}</span>
       </div>
     </div>
 
@@ -505,14 +512,14 @@ export function buildFinancialReportHTML(
     <div class="card">
       <div class="card-label">${ku(t('debtAnalysis'))}</div>
       <table class="kv-table">
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('customerDebtOriginal'))}</td><td class="kv-val">${fmtIQD(salesDebtOriginal)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('customerDebtCollected'))}</td><td class="kv-val">${fmtIQD(salesDebtCollected)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('customerDebtRemaining'))}</td><td class="kv-val">${fmtIQD(totalSalesDebt)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('customerDebtOriginal'))}</td><td class="kv-val">${fmtMoney(salesDebtOriginal)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('customerDebtCollected'))}</td><td class="kv-val">${fmtMoney(salesDebtCollected)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('customerDebtRemaining'))}</td><td class="kv-val">${fmtMoney(totalSalesDebt)}</td></tr>
 
         <tr class="kv-divider"><td colspan="2"></td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('supplierDebtOriginal'))}</td><td class="kv-val">${fmtIQD(purchaseDebtOriginal)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl">${ku(t('supplierDebtPaid'))}</td><td class="kv-val">${fmtIQD(purchaseDebtPaid)} IQD</td></tr>
-        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('supplierDebtRemaining'))}</td><td class="kv-val">${fmtIQD(totalPurchaseDebt)} IQD</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('supplierDebtOriginal'))}</td><td class="kv-val">${fmtMoney(purchaseDebtOriginal)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl">${ku(t('supplierDebtPaid'))}</td><td class="kv-val">${fmtMoney(purchaseDebtPaid)}</td></tr>
+        <tr class="kv-row"><td class="kv-lbl" style="font-weight:700;">${ku(t('supplierDebtRemaining'))}</td><td class="kv-val">${fmtMoney(totalPurchaseDebt)}</td></tr>
 
         <tr class="kv-divider"><td colspan="2"></td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('overdueDebtsNote'))}</td><td class="kv-val">${fmtIQD(overdueCount)}</td></tr>
@@ -521,7 +528,7 @@ export function buildFinancialReportHTML(
 
       <div class="total-block">
         <span class="total-label">${ku(t('combinedOutstandingDebt'))}</span>
-        <span class="total-amount">${fmtIQD(combinedDebt)} IQD</span>
+        <span class="total-amount">${fmtMoney(combinedDebt)}</span>
       </div>
     </div>`}
 
@@ -544,7 +551,7 @@ export function buildFinancialReportHTML(
         <tfoot>
           <tr class="total-row">
             <td colspan="2" style="text-align:${kuAlign};">${ku(t('totalExpenses'))}</td>
-            <td class="right">${lossVal(expTotal)} IQD</td>
+            <td class="right">${lossMoney(expTotal)}</td>
           </tr>
         </tfoot>
       </table>

@@ -49,9 +49,7 @@ function buildGrandTotal(mode: ReceiptCurrencyMode, amountIQD: number, exchangeR
     const usdCard = `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku('کۆی گشتی بە دینار')}</div><div class="usd-amount">${fmtIQD(amountIQD)} IQD</div></div></div></div>`;
     return { totalBlock, usdCard };
   }
-  const totalBlock = mode === 'usd'
-    ? `<div class="total-block"><span class="total-label">${ku(t('totalUsd'))}</span><span class="total-amount">$${totalUSD}</span></div>`
-    : `<div class="total-block"><span class="total-label">${ku(t('totalIqd'))}</span><span class="total-amount">${fmtIQD(amountIQD)} IQD</span></div>`;
+  const totalBlock = `<div class="total-block"><span class="total-label">${ku(t('totalIqd'))}</span><span class="total-amount">${fmtIQD(amountIQD)} IQD</span></div>`;
   const usdCard = mode === 'both'
     ? `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku(t('totalUsd'))}</div><div class="usd-amount">$${totalUSD}</div></div></div></div>`
     : '';

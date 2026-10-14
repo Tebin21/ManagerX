@@ -20,6 +20,7 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { ThemeToggleSwitch } from '@/components/settings/ThemeToggleSwitch';
+import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { InfoModal } from '@/components/ui/InfoModal';
@@ -140,6 +141,12 @@ export default function SettingsScreen() {
             sub={business.name || t('settings.businessProfileSub')}
             onPress={() => router.push('/(app)/settings/profile' as never)}
           />
+          <SettingRow
+            icon="color-palette"
+            label={t('settings.generalCustomization')}
+            sub={t('settings.generalCustomizationSub')}
+            onPress={() => router.push('/(app)/settings/customization' as never)}
+          />
         </SettingSection>
 
         {/* Subscriptions — Froshiar License (existing Plan & Limits, relabeled/regrouped
@@ -171,7 +178,14 @@ export default function SettingsScreen() {
             icon="language"
             label={t('settings.language')}
             sub={language === 'ku' ? 'کوردی' : 'English'}
-            onPress={() => router.push('/(app)/settings/language' as never)}
+            chevron={false}
+            rightElement={
+              <LanguageToggleSwitch
+                value={language === 'ku'}
+                onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+              />
+            }
+            onPress={() => setLanguage(language === 'ku' ? 'en' : 'ku')}
           />
           <SettingRow
             icon={isDark ? 'moon' : 'sunny'}

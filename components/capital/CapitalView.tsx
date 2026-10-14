@@ -476,7 +476,17 @@ export function CapitalView() {
         transition={{ type: 'timing', duration: 280 }}
       >
         {/* Status Pill */}
-        <View style={[styles.statusBanner, { backgroundColor: '#10B98115', borderColor: '#10B98135' }]}>
+        <View
+          style={[
+            styles.statusBanner,
+            {
+              backgroundColor: '#10B98115',
+              borderColor: '#10B98135',
+              alignSelf: isRTL ? 'flex-end' : 'flex-start',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
           <Ionicons name="checkmark-circle" size={16} color="#10B981" />
           <Text
             style={[

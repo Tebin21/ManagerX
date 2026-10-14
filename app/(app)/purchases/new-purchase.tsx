@@ -14,6 +14,10 @@ import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useSavedProductStore, SavedProductPreset } from '@/store/savedProductStore';
+import { useInventoryStore } from '@/store/inventoryStore';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
@@ -29,6 +33,7 @@ import { useCapitalStore } from '@/store/capitalStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { hexToRgba } from '@/lib/colorUtils';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
 import { getProductCategories } from '@/lib/sqlite';
 import { generateUniqueProductId } from '@/lib/generateId';
@@ -63,6 +68,15 @@ export default function NewPurchaseScreen() {
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
+  const inventoryProducts = useInventoryStore((s) => s.products);
+  const { savedPresets, findByName, findByCode, savePreset, syncFromInventory } = useSavedProductStore();
+
+  useEffect(() => {
+    if (inventoryProducts && inventoryProducts.length > 0) {
+      syncFromInventory(inventoryProducts);
+    }
+  }, [inventoryProducts, syncFromInventory]);
+
   const [drawerBalance, setDrawerBalance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -81,6 +95,30 @@ export default function NewPurchaseScreen() {
   const [qty, setQty]                       = useState('1');
   const [buyIQD, setBuyIQD]                 = useState('');
   const [buyUSD, setBuyUSD]                 = useState('');
+
+  const handleSelectSavedItem = (preset: SavedProductPreset) => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch {}
+    setImageUri(preset.imageUri);
+    setProductName(preset.name);
+    if (preset.description) {
+      setItemDescription(preset.description);
+    }
+    if (preset.category && !category) {
+      setCategory(preset.category);
+    }
+    if (preset.itemId && !sharedId) {
+      setIdType('shared');
+      setSharedId(preset.itemId);
+    }
+  };
+
+  const matchingPresets = React.useMemo(() => {
+    const q = productName.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return savedPresets.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 5);
+  }, [savedPresets, productName]);
 
   // ─── ID type ────────────────────────────────────────────────────────────────
   const [idType, setIdType]                 = useState<PurchaseIdType | null>(null);
@@ -109,6 +147,15 @@ export default function NewPurchaseScreen() {
         const idx = firstEmpty >= 0 ? firstEmpty : 0;
         updateCustomId(idx, code);
       }
+    }
+
+    // Auto-match against saved presets by code/barcode
+    const matched = findByCode(code);
+    if (matched) {
+      if (!productName.trim()) setProductName(matched.name);
+      if (!itemDescription.trim() && matched.description) setItemDescription(matched.description);
+      if (!imageUri && matched.imageUri) setImageUri(matched.imageUri);
+      if (!category.trim() && matched.category) setCategory(matched.category);
     }
   };
 
@@ -345,6 +392,19 @@ export default function NewPurchaseScreen() {
         selectedSupplierId,
       });
 
+      // Auto-persist to saved presets library
+      if (productName.trim() && imageUri) {
+        try {
+          savePreset({
+            name: productName.trim(),
+            description: itemDescription.trim() || null,
+            imageUri,
+            itemId: sharedId.trim() || (customIds[0]?.trim()) || null,
+            category: category.trim() || null,
+          });
+        } catch { /* non-critical */ }
+      }
+
       if (category.trim()) {
         try {
           const { addManagedCategory } = await import('@/lib/sqlite');
@@ -408,9 +468,85 @@ export default function NewPurchaseScreen() {
               label={t('purchases.productName')}
               value={productName}
               onChangeText={setProductName}
+              onEndEditing={() => {
+                const match = findByName(productName);
+                if (match) {
+                  if (!imageUri && match.imageUri) {
+                    setImageUri(match.imageUri);
+                  }
+                  if (!itemDescription && match.description) {
+                    setItemDescription(match.description);
+                  }
+                  if (!category && match.category) {
+                    setCategory(match.category);
+                  }
+                }
+              }}
               placeholder={t('purchases.productNameNewPlaceholder')}
               returnKeyType="next"
             />
+
+            {/* Quick Auto-Fill Suggestion Chips when typing product name */}
+            {matchingPresets.length > 0 && !imageUri && (
+              <View style={styles.presetsSuggestionWrap}>
+                <View style={[styles.presetsHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="sparkles" size={13} color={colors.primary} />
+                  <Text style={[styles.presetsHeaderText, { color: colors.primary }]}>
+                    {isKuLanguage
+                      ? 'ئایتمە سەڤکراوەکان (داگرە بۆ پڕکردنەوەی وێنە و وەسف):'
+                      : 'Saved items (tap to auto-fill photo & details):'}
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={[styles.presetsScroll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                >
+                  {matchingPresets.map((preset) => (
+                    <TouchableOpacity
+                      key={preset.id}
+                      style={[
+                        styles.presetChip,
+                        {
+                          backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                          borderColor: isDark ? colors.gray200 : colors.primary + '50',
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                        },
+                      ]}
+                      onPress={() => handleSelectSavedItem(preset)}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: preset.imageUri }}
+                        style={styles.presetChipImage}
+                      />
+                      <View style={{ gap: 2 }}>
+                        <Text
+                          style={[
+                            styles.presetChipName,
+                            { color: colors.black },
+                            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {preset.name}
+                        </Text>
+                        {Boolean(preset.description) && (
+                          <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
+                            {preset.description}
+                          </Text>
+                        )}
+                      </View>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={colors.primary}
+                        style={{ marginStart: 4 }}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             <AppTextInput
               value={itemDescription}
@@ -634,7 +770,13 @@ export default function NewPurchaseScreen() {
                     {qtyNum > 1 && (
                       <TouchableOpacity
                         onPress={() => removeCustomIdSlot(i)}
-                        style={styles.customIdDeleteBtn}
+                        style={[
+                          styles.customIdDeleteBtn,
+                          isDark && {
+                            backgroundColor: hexToRgba(colors.error, 0.15),
+                            borderColor: hexToRgba(colors.error, 0.35),
+                          },
+                        ]}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         activeOpacity={0.7}
                       >
@@ -707,6 +849,7 @@ export default function NewPurchaseScreen() {
               onSelect={setImageUri}
               onRemove={() => setImageUri(null)}
               label={t('purchases.productImage')}
+              onSelectSavedItem={handleSelectSavedItem}
             />
 
             {/* Sell Price Row */}
@@ -746,7 +889,20 @@ export default function NewPurchaseScreen() {
             </View>
 
             {sellIQDNum > 0 && (
-              <View style={[styles.totalBox, { backgroundColor: profitIQD >= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: profitIQD >= 0 ? '#BBF7D0' : '#FECACA', flexDirection }]}>
+              <View
+                style={[
+                  styles.totalBox,
+                  {
+                    backgroundColor: profitIQD >= 0
+                      ? (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4')
+                      : (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2'),
+                    borderColor: profitIQD >= 0
+                      ? (isDark ? hexToRgba(colors.success, 0.35) : '#BBF7D0')
+                      : (isDark ? hexToRgba(colors.error, 0.35) : '#FECACA'),
+                    flexDirection,
+                  },
+                ]}
+              >
                 <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
                 <AmountText
                   value={profitIQD}
@@ -803,7 +959,15 @@ export default function NewPurchaseScreen() {
             <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
             <View style={[styles.paymentRow, { flexDirection }]}>
               <TouchableOpacity
-                style={[styles.payBtn, paymentStatus === 'paid' ? styles.payBtnPaid : { borderColor: colors.gray200, backgroundColor: colors.white }, { flexDirection }]}
+                style={[
+                  styles.payBtn,
+                  paymentStatus === 'paid'
+                    ? (isDark
+                        ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
+                        : styles.payBtnPaid)
+                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+                  { flexDirection },
+                ]}
                 onPress={() => setPaymentStatus('paid')}
                 activeOpacity={0.8}
               >
@@ -811,7 +975,15 @@ export default function NewPurchaseScreen() {
                 <Text style={[styles.payBtnText, { color: paymentStatus === 'paid' ? colors.success : colors.gray500 }]}>{t('purchases.paid')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.payBtn, paymentStatus === 'debt' ? styles.payBtnDebt : { borderColor: colors.gray200, backgroundColor: colors.white }, { flexDirection }]}
+                style={[
+                  styles.payBtn,
+                  paymentStatus === 'debt'
+                    ? (isDark
+                        ? { backgroundColor: hexToRgba(colors.error, 0.18), borderColor: colors.error }
+                        : styles.payBtnDebt)
+                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+                  { flexDirection },
+                ]}
                 onPress={() => setPaymentStatus('debt')}
                 activeOpacity={0.8}
               >
@@ -831,7 +1003,16 @@ export default function NewPurchaseScreen() {
                   returnKeyType="done"
                   forceLatin
                 />
-                <View style={[styles.totalBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', flexDirection }]}>
+                <View
+                  style={[
+                    styles.totalBox,
+                    {
+                      backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
+                      borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                      flexDirection,
+                    },
+                  ]}
+                >
                   <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
                   <AmountText value={remainingDebt} currency="IQD" style={[styles.totalValue, { color: colors.error }]} />
                 </View>
@@ -848,7 +1029,7 @@ export default function NewPurchaseScreen() {
                 styles.card,
                 {
                   borderColor: isInsufficientCash ? colors.error : colors.primary + '35',
-                  backgroundColor: colors.white,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
                 },
               ]}
             >
@@ -857,7 +1038,7 @@ export default function NewPurchaseScreen() {
                   <View
                     style={[
                       styles.drawerIconBox,
-                      { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + '18' },
+                      { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '18') },
                     ]}
                   >
                     <Ionicons
@@ -869,7 +1050,7 @@ export default function NewPurchaseScreen() {
                   <Text
                     style={[
                       styles.drawerCardTitle,
-                      { color: colors.darkBlue, textAlign },
+                      { color: colors.black, textAlign },
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
@@ -880,7 +1061,7 @@ export default function NewPurchaseScreen() {
                 <View
                   style={[
                     styles.drawerActivePill,
-                    { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + '14' },
+                    { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '14') },
                   ]}
                 >
                   <Text
@@ -902,8 +1083,8 @@ export default function NewPurchaseScreen() {
                   style={[
                     styles.drawerMetricRow,
                     {
-                      backgroundColor: isDark ? colors.gray100 : colors.gray50,
-                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                      backgroundColor: isDark ? colors.white : colors.gray50,
+                      borderColor: colors.gray200,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
@@ -915,7 +1096,7 @@ export default function NewPurchaseScreen() {
                     <Text
                       style={[
                         styles.drawerMetricRowLabel,
-                        { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                        { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
@@ -925,7 +1106,7 @@ export default function NewPurchaseScreen() {
                   <AmountText
                     value={drawerBalance}
                     currency="IQD"
-                    style={[styles.drawerMetricRowVal, { color: colors.darkBlue }]}
+                    style={[styles.drawerMetricRowVal, { color: colors.black }]}
                   />
                 </View>
 
@@ -934,14 +1115,23 @@ export default function NewPurchaseScreen() {
                   style={[
                     styles.drawerMetricRow,
                     {
-                      backgroundColor: isDark ? colors.gray100 : colors.gray50,
-                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                      backgroundColor: isDark ? colors.white : colors.gray50,
+                      borderColor: colors.gray200,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
                 >
                   <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View style={[styles.drawerMetricIconCircle, { backgroundColor: isInsufficientCash ? '#FEE2E2' : '#FEF3C7' }]}>
+                    <View
+                      style={[
+                        styles.drawerMetricIconCircle,
+                        {
+                          backgroundColor: isInsufficientCash
+                            ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
+                            : (isDark ? hexToRgba(colors.warning, 0.18) : '#FEF3C7'),
+                        },
+                      ]}
+                    >
                       <Ionicons
                         name="cash-outline"
                         size={16}
@@ -951,7 +1141,7 @@ export default function NewPurchaseScreen() {
                     <Text
                       style={[
                         styles.drawerMetricRowLabel,
-                        { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' },
+                        { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
@@ -974,11 +1164,11 @@ export default function NewPurchaseScreen() {
                     styles.drawerMetricRowHighlight,
                     {
                       backgroundColor: isInsufficientCash
-                        ? (isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2')
-                        : (isDark ? 'rgba(16,185,129,0.15)' : '#F0FDF4'),
+                        ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
+                        : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
                       borderColor: isInsufficientCash
-                        ? (isDark ? colors.error : '#FECACA')
-                        : (isDark ? colors.success : '#BBF7D0'),
+                        ? (isDark ? hexToRgba(colors.error, 0.5) : '#FECACA')
+                        : (isDark ? hexToRgba(colors.success, 0.5) : '#BBF7D0'),
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
@@ -989,8 +1179,8 @@ export default function NewPurchaseScreen() {
                         styles.drawerMetricIconCircle,
                         {
                           backgroundColor: isInsufficientCash
-                            ? (isDark ? 'rgba(239,68,68,0.25)' : '#FEE2E2')
-                            : (isDark ? 'rgba(16,185,129,0.25)' : '#DCFCE7'),
+                            ? (isDark ? hexToRgba(colors.error, 0.25) : '#FEE2E2')
+                            : (isDark ? hexToRgba(colors.success, 0.25) : '#DCFCE7'),
                         },
                       ]}
                     >
@@ -1027,7 +1217,16 @@ export default function NewPurchaseScreen() {
 
               {/* Insufficient Warning Banner */}
               {isInsufficientCash && (
-                <View style={[styles.drawerWarningBanner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View
+                  style={[
+                    styles.drawerWarningBanner,
+                    {
+                      backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
+                      borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
                   <Ionicons name="alert-circle" size={18} color={colors.error} />
                   <Text
                     style={[
@@ -1433,5 +1632,52 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
+  },
+  /* Presets suggestions strip */
+  presetsSuggestionWrap: {
+    marginTop: -4,
+    marginBottom: 12,
+    gap: 6,
+  },
+  presetsHeaderRow: {
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 2,
+  },
+  presetsHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  presetsScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  presetChip: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  presetChipImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
+  },
+  presetChipName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  presetChipDesc: {
+    fontSize: 10,
+    maxWidth: 110,
   },
 });

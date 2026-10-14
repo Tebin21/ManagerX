@@ -4,21 +4,31 @@ import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useRTL } from '@/lib/rtl';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { hexToRgba } from '@/lib/colorUtils';
 
 export function LossWarningBanner() {
   const { textAlign, flexDirection } = useRTL();
+  const { colors, isDark } = useAppTheme();
 
   return (
     <MotiView
       from={{ opacity: 0, translateY: -8 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 300 }}
-      style={[styles.banner, { flexDirection }]}
+      style={[
+        styles.banner,
+        {
+          flexDirection,
+          backgroundColor: isDark ? hexToRgba(colors.warning, 0.15) : '#FEF3C7',
+          borderStartColor: colors.warning,
+        },
+      ]}
     >
-      <Ionicons name="warning" size={18} color="#92400e" style={styles.icon} />
+      <Ionicons name="warning" size={18} color={isDark ? colors.warning : '#92400e'} style={styles.icon} />
       <View style={styles.textBlock}>
-        <Text style={[styles.title, { textAlign }]}>Selling below cost</Text>
-        <Text style={[styles.sub, { textAlign }]}>One or more items are priced below purchase price.</Text>
+        <Text style={[styles.title, { textAlign, color: isDark ? colors.warning : '#92400e' }]}>Selling below cost</Text>
+        <Text style={[styles.sub, { textAlign, color: isDark ? colors.gray400 : '#92400e' }]}>One or more items are priced below purchase price.</Text>
       </View>
     </MotiView>
   );

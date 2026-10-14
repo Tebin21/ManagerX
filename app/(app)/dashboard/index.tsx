@@ -12,11 +12,13 @@ import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
 import { SupportFooter } from '@/components/ui/SupportFooter';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useModuleStore } from '@/store/moduleStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
+  const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
@@ -46,13 +48,15 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </MotiView>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 24 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, delay: 300 }}
-          >
-            <ModuleGrid />
-          </MotiView>
+          {showDashboardNavigation && (
+            <MotiView
+              from={{ opacity: 0, translateY: 24 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 18, delay: 300 }}
+            >
+              <ModuleGrid />
+            </MotiView>
+          )}
 
 
 

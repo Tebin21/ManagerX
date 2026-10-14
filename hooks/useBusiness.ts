@@ -12,6 +12,7 @@ export function useBusiness() {
     phone: string;
     address: string;
     logoUri: string | null;
+    showOnDashboard?: boolean;
   }) => {
     await saveBusinessToDB({
       name: data.name,
@@ -22,6 +23,9 @@ export function useBusiness() {
     });
 
     store.setBusiness(data);
+    if (data.showOnDashboard !== undefined) {
+      store.setShowOnDashboard(data.showOnDashboard);
+    }
 
     // Business Profile is the single source of truth for the Online Store's
     // name/phone/address/logo — mark the info dirty so the next sync push (fired

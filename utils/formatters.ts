@@ -48,6 +48,20 @@ export function formatCompactIQD(n: number): { text: string; isCompact: boolean 
   return { text: fmtIQD(n), isCompact: false };
 }
 
+export function formatCompactUSD(n: number): { text: string; isCompact: boolean } {
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000_000) {
+    return { text: toEnglishDigits(`${trimTrailingZeros((n / 1_000_000_000).toFixed(2))}B`), isCompact: true };
+  }
+  if (abs >= 1_000_000) {
+    return { text: toEnglishDigits(`${trimTrailingZeros((n / 1_000_000).toFixed(2))}M`), isCompact: true };
+  }
+  if (abs >= 10_000) {
+    return { text: toEnglishDigits(`${trimTrailingZeros((n / 1_000).toFixed(1))}K`), isCompact: true };
+  }
+  return { text: fmtUSD(n), isCompact: false };
+}
+
 export function fmtUSD(n: number): string {
   return toEnglishDigits(n.toLocaleString('en-US', USD_OPTS));
 }
@@ -62,6 +76,63 @@ export function fmtRate(n: number): string {
 
 export function fmtExchangeRate(rate: number): string {
   return toEnglishDigits((rate * 100).toLocaleString('en-US', IQD_OPTS));
+}
+
+export function getBaseCurrency(): 'IQD' | 'USD' {
+  try {
+    const { useSettingsStore } = require('@/store/settingsStore');
+    return useSettingsStore.getState().baseCurrency || 'IQD';
+  } catch {
+    return 'IQD';
+  }
+}
+
+export function getExchangeRate(): number {
+  try {
+    const { useSettingsStore } = require('@/store/settingsStore');
+    return useSettingsStore.getState().exchangeRate || 1310;
+  } catch {
+    return 1310;
+  }
+}
+
+/**
+ * Universal money formatter that automatically formats and converts amounts
+ * based on baseCurrency ('IQD' or 'USD') and current exchangeRate.
+ */
+export function formatMoney(
+  amountIQD: number,
+  currencyOverride?: 'IQD' | 'USD',
+  rateOverride?: number,
+  includeSymbol: boolean = true
+): string {
+  const base = currencyOverride ?? getBaseCurrency();
+  const rate = rateOverride ?? getExchangeRate();
+  if (base === 'USD') {
+    const val = (amountIQD || 0) / (rate || 1310);
+    const str = fmtUSD(val);
+    return includeSymbol ? `$${str}` : str;
+  }
+  const str = fmtIQD(amountIQD || 0);
+  return includeSymbol ? `${str} IQD` : str;
+}
+
+export function formatMoneyValue(
+  amountIQD: number,
+  currencyOverride?: 'IQD' | 'USD',
+  rateOverride?: number
+): string {
+  const base = currencyOverride ?? getBaseCurrency();
+  const rate = rateOverride ?? getExchangeRate();
+  if (base === 'USD') {
+    return fmtUSD((amountIQD || 0) / (rate || 1310));
+  }
+  return fmtIQD(amountIQD || 0);
+}
+
+export function formatMoneySymbol(currencyOverride?: 'IQD' | 'USD'): string {
+  const base = currencyOverride ?? getBaseCurrency();
+  return base === 'USD' ? 'USD' : 'IQD';
 }
 
 // ─── Payment Status ───────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { hexToRgba } from '@/lib/colorUtils';
 import { useSalesStore } from '@/store/salesStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { getSaleById, searchCustomersList } from '@/lib/sqlite';
@@ -63,7 +64,7 @@ export default function EditInvoiceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { updateSale } = useSalesStore();
   const inventory = useInventoryStore();
   const scrollIntoView = useKeyboardAwareFocus();
@@ -334,14 +335,21 @@ export default function EditInvoiceScreen() {
               {customerSuggestions.map((c) => (
                 <TouchableOpacity
                   key={c.id}
-                  style={[styles.suggestionRow, { flexDirection }]}
+                  style={[
+                    styles.suggestionRow,
+                    {
+                      flexDirection,
+                      borderBottomColor: colors.gray200,
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                    },
+                  ]}
                   onPress={() => handleSelectCustomer(c)}
                   activeOpacity={0.75}
                 >
                   <Ionicons name="person-outline" size={14} color={colors.primary} />
                   <View style={styles.suggestionInfo}>
-                    <Text style={[styles.suggestionName, { textAlign }]}>{c.name}</Text>
-                    {c.phone ? <Text style={[styles.suggestionPhone, { textAlign }]}>{c.phone}</Text> : null}
+                    <Text style={[styles.suggestionName, { textAlign, color: colors.black }]}>{c.name}</Text>
+                    {c.phone ? <Text style={[styles.suggestionPhone, { textAlign, color: colors.gray400 }]}>{c.phone}</Text> : null}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -352,10 +360,16 @@ export default function EditInvoiceScreen() {
             <MotiView
               from={{ opacity: 0 }} animate={{ opacity: 1 }}
               transition={{ type: 'timing', duration: 200 }}
-              style={[styles.foundBadge, { flexDirection }]}
+              style={[
+                styles.foundBadge,
+                {
+                  flexDirection,
+                  backgroundColor: isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4',
+                },
+              ]}
             >
-              <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-              <Text style={[styles.foundText, { textAlign }]}>Returning customer — info filled in</Text>
+              <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+              <Text style={[styles.foundText, { textAlign, color: colors.success }]}>Returning customer — info filled in</Text>
             </MotiView>
           )}
 

@@ -8,10 +8,12 @@ interface BusinessData {
   phone: string;
   address: string;
   logoUri: string | null;
+  showOnDashboard?: boolean;
 }
 
 interface BusinessState extends BusinessData {
   isSetupComplete: boolean;
+  showOnDashboard: boolean;
   // True while a cold-start cloud reconciliation (store/authStore.ts's
   // reconcileColdStart) is in flight for a persisted-but-unconfirmed session.
   // app/index.tsx holds on its loading screen instead of routing to the
@@ -38,6 +40,7 @@ interface BusinessState extends BusinessData {
   // missing `user`, until the user picks merge/keep-local/keep-cloud.
   pendingCloudConflict: string | null;
   setBusiness: (data: BusinessData) => void;
+  setShowOnDashboard: (value: boolean) => void;
   // Hydrates business fields from a cloud restore/pull — distinct from
   // setBusiness (owned by the manual Setup screen's Save action) because it
   // must never touch logoUri, which is this-device-local and not portable
@@ -60,6 +63,7 @@ export const useBusinessStore = create<BusinessState>()(
       phone: '',
       address: '',
       logoUri: null,
+      showOnDashboard: true,
       isSetupComplete: false,
       ownerUserId: null,
       pendingCloudConflict: null,
@@ -67,7 +71,13 @@ export const useBusinessStore = create<BusinessState>()(
       reconcileError: null,
 
       setBusiness: (data) =>
-        set({ ...data, isSetupComplete: true }),
+        set((prev) => ({
+          ...data,
+          showOnDashboard: data.showOnDashboard !== undefined ? data.showOnDashboard : prev.showOnDashboard,
+          isSetupComplete: true,
+        })),
+
+      setShowOnDashboard: (value) => set({ showOnDashboard: value }),
 
       hydrateFromCloud: (data) =>
         set({
@@ -87,6 +97,7 @@ export const useBusinessStore = create<BusinessState>()(
           phone: '',
           address: '',
           logoUri: null,
+          showOnDashboard: true,
           isSetupComplete: false,
           ownerUserId: null,
         }),

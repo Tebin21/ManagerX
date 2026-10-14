@@ -15,10 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { fmtIQD, formatCompactIQD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatCompactIQD, formatCompactUSD } from '@/utils/formatters';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface CompactAmountProps extends Omit<TextProps, 'children'> {
-  /** Raw amount in IQD — formatting and compacting happen internally. */
+  /** Raw amount in IQD — formatting, conversion, and compacting happen internally. */
   value: number;
   currency?: string;
   /** Set false when the caller renders the currency label itself (e.g. on its own line). */
@@ -30,20 +31,21 @@ interface CompactAmountProps extends Omit<TextProps, 'children'> {
 
 /**
  * Drop-in replacement for `{fmtIQD(value)} IQD` in summary/stat cards. Switches
- * to compact notation (12.5M) once the value crosses the 10M threshold, and
- * makes itself tappable so the user can always see the full, exact amount —
- * never used for invoices/receipts/transaction tables, which must stay full.
- * Always single-line and auto-shrinks to fit (never truncates with "…") so a
- * card's layout never breaks, on either side of the threshold.
- *
- * Tap-to-expand is wired via Text's own onPress (not a wrapping Touchable) so
- * this component stays safe to nest inside another <Text> for inline cases
- * (e.g. a "+ 1.2M IQD" suffix glued onto a label in the same line).
+ * to compact notation (12.5M) once the value crosses the threshold, and
+ * makes itself tappable so the user can always see the full, exact amount.
+ * Automatically adapts between IQD and USD based on system baseCurrency!
  */
-export function CompactAmount({ value, currency = 'IQD', showCurrency = true, prefix, style, ...rest }: CompactAmountProps) {
+export function CompactAmount({ value, currency, showCurrency = true, prefix, style, ...rest }: CompactAmountProps) {
   const [open, setOpen] = useState(false);
-  const { text, isCompact } = formatCompactIQD(value);
-  const display = `${prefix ?? ''}${showCurrency ? `${text} ${currency}` : text}`;
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
+
+  const isUSD = baseCurrency === 'USD' && (currency === undefined || currency === 'IQD' || currency === 'USD');
+  const displayVal = isUSD ? (value ?? 0) / exchangeRate : (value ?? 0);
+  const effectiveCurrency = currency === undefined ? (isUSD ? 'USD' : 'IQD') : (currency === 'IQD' && isUSD ? 'USD' : currency);
+
+  const { text, isCompact } = isUSD ? formatCompactUSD(displayVal) : formatCompactIQD(value);
+  const display = `${prefix ?? ''}${showCurrency ? `${text} ${effectiveCurrency}` : text}`;
 
   return (
     <>
@@ -62,7 +64,9 @@ export function CompactAmount({ value, currency = 'IQD', showCurrency = true, pr
           visible={open}
           onClose={() => setOpen(false)}
           value={value}
-          currency={currency}
+          displayVal={displayVal}
+          isUSD={isUSD}
+          currency={effectiveCurrency}
           prefix={prefix}
           compactText={text}
         />
@@ -72,11 +76,13 @@ export function CompactAmount({ value, currency = 'IQD', showCurrency = true, pr
 }
 
 function AmountDetailModal({
-  visible, onClose, value, currency, prefix, compactText,
+  visible, onClose, value, displayVal, isUSD, currency, prefix, compactText,
 }: {
   visible: boolean;
   onClose: () => void;
   value: number;
+  displayVal: number;
+  isUSD: boolean;
   currency: string;
   prefix?: string;
   compactText: string;
@@ -127,7 +133,7 @@ function AmountDetailModal({
           </View>
 
           <LTRNumber style={[styles.fullValue, { color: colors.black, textAlign: 'center' }]}>
-            {prefix ?? ''}{fmtIQD(value)} {currency}
+            {prefix ?? ''}{isUSD ? `$${fmtUSD(displayVal)}` : `${fmtIQD(value)} ${currency}`}
           </LTRNumber>
 
           <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
@@ -136,7 +142,7 @@ function AmountDetailModal({
             {t('common.compactAmount')}
           </Text>
           <LTRNumber style={[styles.compactValue, { color: colors.gray500, textAlign: 'center' }]}>
-            {prefix ?? ''}{compactText} {currency}
+            {prefix ?? ''}{isUSD ? `$${compactText}` : `${compactText} ${currency}`}
           </LTRNumber>
         </Animated.View>
       </View>
