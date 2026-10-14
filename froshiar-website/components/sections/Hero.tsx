@@ -4,6 +4,7 @@ import { GradientBlob } from "@/components/ui/GradientBlob";
 import { FloatingWrapper } from "@/components/hero/FloatingWrapper";
 import { PhoneMockup } from "@/components/hero/PhoneMockup";
 import { TabletMockup } from "@/components/hero/TabletMockup";
+import { AppDownloadButtons } from "@/components/ui/AppDownloadButtons";
 
 export function Hero() {
   const t = useTranslations("hero");
@@ -21,6 +22,18 @@ export function Hero() {
           <p className="mx-auto mt-5 max-w-xl text-base text-gray-500 sm:mt-6 sm:text-lg dark:text-gray-400">
             {t("subtitle")}
           </p>
+
+          {/* ── Official Store Download Buttons (App Store & Google Play) ── */}
+          <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3">
+            <AppDownloadButtons size="lg" />
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+              <span className="flex text-amber-400 tracking-wider">★★★★★</span>
+              <span>•</span>
+              <span className="text-slate-600 dark:text-slate-300 font-bold">iOS 15+ & Android</span>
+              <span>•</span>
+              <span className="text-[#D4AF37] font-extrabold">داگرتنی بێ بەرامبەر</span>
+            </div>
+          </div>
         </div>
 
         <div className="relative mx-auto mt-14 flex max-w-4xl items-end justify-center gap-3 sm:mt-28 sm:gap-6">

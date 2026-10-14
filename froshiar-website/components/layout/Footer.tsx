@@ -2,13 +2,17 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
 import { Link } from "@/i18n/navigation";
+import { AppDownloadButtons } from "@/components/ui/AppDownloadButtons";
 
 export function Footer() {
   const t = useTranslations("footer");
 
   return (
     <footer className="border-t border-gray-100 py-10 dark:border-gold-900/40">
-      <Container className="flex flex-col items-center justify-between gap-4 text-sm text-gray-500 sm:flex-row dark:text-gray-400">
+      <Container className="flex flex-col items-center justify-between gap-6 text-sm text-gray-500 sm:flex-row dark:text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <AppDownloadButtons size="sm" />
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-start">
           <p>{t("copyright")}</p>
           {/* Hardcoded English labels, not routed through next-intl: these legal

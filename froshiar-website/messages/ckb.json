@@ -2,12 +2,22 @@
   "nav": {
     "home": "سەرەکی",
     "features": "تایبەتمەندییەکان",
-    "pricing": "بەشداریکردن",
-    "payment": "پەیمێنت",
+    "download": "داگرتنی ئەپ",
     "about": "دەربارە",
     "contact": "پەیوەندی",
     "switchLanguage": "گۆڕینی زمان",
     "menu": "پێڕست"
+  },
+  "download": {
+    "badge": "نوێترین وەشانی فەرمی بۆ هەردوو سیستەم",
+    "appStoreSubtitle": "داگرتن لە",
+    "appStoreTitle": "App Store",
+    "googlePlaySubtitle": "داگرتن لە",
+    "googlePlayTitle": "Google Play",
+    "ctaHeading": "فرۆشگاکەت بخەرە ناو گیرفانتەوە",
+    "ctaSubheading": "ئێستا ئەپی فرۆشیار بۆ ئایفۆن و ئەندرۆید دابەزێنە و فرۆشتن، کۆگا و قەرزەکانت بە ئاسانی بەڕێوەببە.",
+    "freeDownload": "داگرتنی بێ بەرامبەر",
+    "instantSetup": "دەستپێکردنی دەستبەجێ"
   },
   "pricing": {
     "heading": "پاکجەکانی بەشداریکردن و پەیمێنت",

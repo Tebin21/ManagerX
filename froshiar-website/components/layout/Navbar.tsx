@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Menu, X, Phone, Sparkles } from "lucide-react";
+import { Menu, X, Smartphone, Sparkles, Download } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,6 +12,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV_LINKS = [
   { type: "anchor", href: "#home", key: "home" },
   { type: "anchor", href: "#features", key: "features" },
+  { type: "anchor", href: "#download", key: "download" },
   { type: "anchor", href: "#contact", key: "contact" },
   { type: "route", href: "/privacy", label: "Privacy" },
   { type: "route", href: "/terms", label: "Terms" },
@@ -89,15 +90,15 @@ export function Navbar() {
           </ul>
         </nav>
 
-        {/* Right: Contact Button + Language Switcher + Theme Toggle */}
+        {/* Right: Download App CTA Button + Language Switcher + Theme Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Contact Us CTA Button */}
+          {/* Download App CTA Button */}
           <a
-            href={isHomePage ? "#contact" : "/#contact"}
-            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-gold-500 via-amber-500 to-gold-600 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-ink-fixed shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+            href={isHomePage ? "#download" : "/#download"}
+            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-gold-500 via-amber-500 to-gold-600 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-extrabold text-ink-fixed shadow-md shadow-gold-500/20 hover:shadow-lg hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer"
           >
-            <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-fixed" />
-            <span>{t("contact")}</span>
+            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-fixed" />
+            <span>{t("download")}</span>
           </a>
 
           <div className="hidden sm:flex items-center gap-1.5">

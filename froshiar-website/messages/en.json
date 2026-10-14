@@ -2,12 +2,22 @@
   "nav": {
     "home": "Home",
     "features": "Features",
-    "pricing": "Pricing",
-    "payment": "Payment",
+    "download": "Download App",
     "about": "About",
     "contact": "Contact",
     "switchLanguage": "Switch language",
     "menu": "Menu"
+  },
+  "download": {
+    "badge": "Official Release for iOS & Android",
+    "appStoreSubtitle": "Download on the",
+    "appStoreTitle": "App Store",
+    "googlePlaySubtitle": "Get it on",
+    "googlePlayTitle": "Google Play",
+    "ctaHeading": "Put Your Store in Your Pocket",
+    "ctaSubheading": "Download Froshiar on iOS and Android today to manage your inventory, sales, and debts anywhere.",
+    "freeDownload": "Free Download",
+    "instantSetup": "Instant Setup"
   },
   "pricing": {
     "heading": "Pricing & Subscription Plans",
