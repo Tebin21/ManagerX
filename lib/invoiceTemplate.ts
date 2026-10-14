@@ -7,6 +7,7 @@ import {
 } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface BusinessInfo {
   name: string;
@@ -41,8 +42,13 @@ const ku = kuSpan;
 // below; item rows and every other financial row always stay in IQD.
 export type ReceiptCurrencyMode = 'iqd' | 'usd' | 'both';
 
-function buildGrandTotal(mode: ReceiptCurrencyMode, amountIQD: number, exchangeRate: number) {
+function buildGrandTotal(mode: ReceiptCurrencyMode, amountIQD: number, exchangeRate: number, isUsdBase: boolean = false) {
   const totalUSD = fmtUSD(amountIQD / exchangeRate);
+  if (isUsdBase || mode === 'usd') {
+    const totalBlock = `<div class="total-block"><span class="total-label">${ku(t('totalUsd'))}</span><span class="total-amount">$${totalUSD}</span></div>`;
+    const usdCard = `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku('کۆی گشتی بە دینار')}</div><div class="usd-amount">${fmtIQD(amountIQD)} IQD</div></div></div></div>`;
+    return { totalBlock, usdCard };
+  }
   const totalBlock = mode === 'usd'
     ? `<div class="total-block"><span class="total-label">${ku(t('totalUsd'))}</span><span class="total-amount">$${totalUSD}</span></div>`
     : `<div class="total-block"><span class="total-label">${ku(t('totalIqd'))}</span><span class="total-amount">${fmtIQD(amountIQD)} IQD</span></div>`;
@@ -285,6 +291,11 @@ export function buildInvoiceHTML(
   const lang = isKurdish ? 'ku' : 'en';
   const kuAlign = isKurdish ? 'right' : 'left';
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const isUsdBase = baseCurrency === 'USD' || currencyMode === 'usd';
+  const rate = exchangeRate || useSettingsStore.getState().exchangeRate || 1310;
+  const fmtRow = (val: number) => isUsdBase ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
@@ -309,9 +320,9 @@ export function buildInvoiceHTML(
       <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
       <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
-      <td class="right">${fmtIQD(item.sellingPrice)} IQD</td>
-      <td class="right">${item.discount > 0 ? fmtIQD(item.discount) + ' IQD' : '<span class="muted-cell">—</span>'}</td>
-      <td class="right" style="font-weight:700;">${fmtIQD(item.lineTotal)} IQD</td>
+      <td class="right">${fmtRow(item.sellingPrice)}</td>
+      <td class="right">${item.discount > 0 ? fmtRow(item.discount) : '<span class="muted-cell">—</span>'}</td>
+      <td class="right" style="font-weight:700;">${fmtRow(item.lineTotal)}</td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
 
@@ -334,18 +345,18 @@ export function buildInvoiceHTML(
 
   const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
 
-  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, exchangeRate);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase);
 
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row">
       <span>${ku(t('amountPaid'))}</span>
-      <span class="fin-amount">${fmtIQD(sale.paidAmount)} IQD</span>
+      <span class="fin-amount">${fmtRow(sale.paidAmount)}</span>
     </div>` : '';
 
   const debtRow = sale.remainingDebt > 0 ? `
     <div class="fin-row">
       <span>${ku(t('remainingDebt'))}</span>
-      <span class="fin-amount" style="font-weight:700;">${fmtIQD(sale.remainingDebt)} IQD</span>
+      <span class="fin-amount" style="font-weight:700;">${fmtRow(sale.remainingDebt)}</span>
     </div>` : '';
 
   const financialCard = `
@@ -353,17 +364,17 @@ export function buildInvoiceHTML(
       <div class="card-label">${ku(t('paymentSummary'))}</div>
       <div class="fin-row">
         <span>${ku(t('subtotal'))}</span>
-        <span class="fin-amount">${fmtIQD(sale.subtotal)} IQD</span>
+        <span class="fin-amount">${fmtRow(sale.subtotal)}</span>
       </div>
       ${sale.discountTotal > 0 ? `
       <div class="fin-row">
         <span>${ku(t('itemDiscountTotal'))}</span>
-        <span class="fin-amount">− ${fmtIQD(sale.discountTotal)} IQD</span>
+        <span class="fin-amount">− ${fmtRow(sale.discountTotal)}</span>
       </div>` : ''}
       ${sale.globalDiscount > 0 ? `
       <div class="fin-row">
         <span>${ku(t('cartDiscountTotal'))}</span>
-        <span class="fin-amount">− ${fmtIQD(sale.globalDiscount)} IQD</span>
+        <span class="fin-amount">− ${fmtRow(sale.globalDiscount)}</span>
       </div>` : ''}
       ${totalBlock}
       ${paidRow}
@@ -733,6 +744,11 @@ export function buildPurchaseInvoiceHTML(
       ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const isUsdBase = baseCurrency === 'USD' || currencyMode === 'usd';
+  const effectiveExchangeRate = (purchase.exchangeRate > 0 ? purchase.exchangeRate : 0) || useSettingsStore.getState().exchangeRate || 1310;
+  const fmtRow = (val: number) => isUsdBase ? `$${fmtUSD(val / effectiveExchangeRate)}` : `${fmtIQD(val)} IQD`;
+
   const displayRows: PurchaseDisplayRow[] = purchaseItems.length > 0
     ? purchaseItems.flatMap((item) => expandPurchaseRow(item.productName, item.quantity, item.buyPriceIQD, item.lineTotalIQD, item.itemIds))
     : expandPurchaseRow(purchase.productName, purchase.quantity, purchase.buyPriceIQD, purchase.totalIQD, purchase.itemIds);
@@ -746,8 +762,8 @@ export function buildPurchaseInvoiceHTML(
             ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel') + ':')}</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
           </td>
           <td class="center">${row.qty}</td>
-          <td class="right">${fmtIQD(row.unitPriceIQD)} IQD</td>
-          <td class="right" style="font-weight:700;">${fmtIQD(row.totalIQD)} IQD</td>
+          <td class="right">${fmtRow(row.unitPriceIQD)}</td>
+          <td class="right" style="font-weight:700;">${fmtRow(row.totalIQD)}</td>
         </tr>`).join('');
 
   const itemsContent = `
@@ -758,8 +774,8 @@ export function buildPurchaseInvoiceHTML(
               <th class="center" style="width:36px;">#</th>
               <th style="text-align:${kuAlign};">${ku(t('colProduct'))}</th>
               <th class="center" style="width:60px;">${ku(t('colQty'))}</th>
-              <th class="right" style="width:130px;">${ku(t('colUnitPriceIqd'))}</th>
-              <th class="right" style="width:130px;">${ku(t('totalIqd'))}</th>
+              <th class="right" style="width:130px;">${isUsdBase ? 'نرخی یەکە ($)' : ku(t('colUnitPriceIqd'))}</th>
+              <th class="right" style="width:130px;">${isUsdBase ? 'کۆ ($)' : ku(t('totalIqd'))}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -767,16 +783,15 @@ export function buildPurchaseInvoiceHTML(
       </div>`;
 
   // ── Financial ──
-  const exchangeRate = purchase.exchangeRate > 0 ? purchase.exchangeRate : 1310;
-  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, exchangeRate);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, effectiveExchangeRate, isUsdBase);
 
   const paidAmount = purchaseDebt?.paidAmount ?? 0;
   const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
 
   const paidRows = purchase.paymentStatus === 'paid'
     ? ''
-    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtIQD(paidAmount)} IQD</span></div>
-       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount" style="font-weight:700;">${fmtIQD(remainingAmount)} IQD</span></div>`;
+    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtRow(paidAmount)}</span></div>
+       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount" style="font-weight:700;">${fmtRow(remainingAmount)}</span></div>`;
 
   const financialCard = `
     <div class="card">
