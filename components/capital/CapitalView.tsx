@@ -111,6 +111,12 @@ export function CapitalView() {
     setAdjModalOpen(true);
   };
 
+  const parsedAdjAmt = parseFloat(adjAmountInput.replace(/[^0-9.]/g, '')) || 0;
+  const isWithdrawalOverdraft =
+    adjType === 'withdrawal' &&
+    parsedAdjAmt > 0 &&
+    parsedAdjAmt > stats.currentBalance;
+
   const handleConfirmAdjustment = () => {
     const amt = parseFloat(adjAmountInput.replace(/[^0-9.]/g, '')) || 0;
     if (amt <= 0) {
@@ -119,10 +125,29 @@ export function CapitalView() {
     }
     if (adjType === 'deposit') {
       addDeposit(amt, adjNoteInput);
+      setAdjModalOpen(false);
     } else {
-      withdraw(amt, adjNoteInput);
+      if (amt > stats.currentBalance) {
+        Alert.alert(
+          t('capital.overdraftAlertTitle'),
+          t('capital.overdraftAlertMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('capital.confirmWithdrawalAnyway'),
+              style: 'destructive',
+              onPress: () => {
+                withdraw(amt, adjNoteInput);
+                setAdjModalOpen(false);
+              },
+            },
+          ]
+        );
+      } else {
+        withdraw(amt, adjNoteInput);
+        setAdjModalOpen(false);
+      }
     }
-    setAdjModalOpen(false);
   };
 
   // ─── Deactivation Handler ────────────────────────────────────────────────
@@ -766,12 +791,44 @@ export function CapitalView() {
               </Text>
             </View>
 
+            {/* If withdrawal: show available drawer balance */}
+            {adjType === 'withdrawal' && (
+              <View
+                style={[
+                  styles.modalAvailRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC',
+                    borderColor: isDark ? colors.gray200 : '#E2E8F0',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modalAvailLabel,
+                    { color: colors.gray500 },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                  ]}
+                >
+                  {t('capital.availableBalance')}:
+                </Text>
+                <AmountText
+                  value={stats.currentBalance}
+                  style={[
+                    styles.modalAvailAmt,
+                    { color: stats.currentBalance > 0 ? colors.success : colors.error },
+                  ]}
+                />
+              </View>
+            )}
+
             <TextInput
               style={[
                 styles.input,
                 {
                   backgroundColor: colors.gray50,
-                  borderColor: colors.gray200,
+                  borderColor: isWithdrawalOverdraft ? colors.error : colors.gray200,
+                  borderWidth: isWithdrawalOverdraft ? 1.5 : 1,
                   color: colors.darkBlue,
                   textAlign: isRTL ? 'right' : 'left',
                 },
@@ -783,6 +840,42 @@ export function CapitalView() {
               placeholderTextColor={colors.gray400}
               autoFocus
             />
+
+            {/* Overdraft Warning Notice underneath the input (لە ژێرەوە) */}
+            {isWithdrawalOverdraft && (
+              <View
+                style={[
+                  styles.overdraftBox,
+                  {
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+                    borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FCA5A5',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons name="warning" size={17} color={colors.error} style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.overdraftTitle,
+                      { color: colors.error, textAlign },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {t('capital.overdraftNoticeTitle')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.overdraftDesc,
+                      { color: isDark ? '#FCA5A5' : '#991B1B', textAlign },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                    ]}
+                  >
+                    {t('capital.overdraftNoticeDesc')}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <TextInput
               style={[
@@ -979,6 +1072,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
+  },
+  modalAvailRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  modalAvailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalAvailAmt: {
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  overdraftBox: {
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  overdraftTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  overdraftDesc: {
+    fontSize: 11.5,
+    lineHeight: 16,
   },
   modalActions: {
     gap: 10,
