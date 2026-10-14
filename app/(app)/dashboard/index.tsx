@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,9 +17,13 @@ import { useModuleStore } from '@/store/moduleStore';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
+
+  // When the business header is hidden, ensure proper breathing space below the status bar / Dynamic Island
+  const safeTopPadding = !showDashboardNavigation ? Math.max(insets.top, 16) + 12 : 10;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
@@ -26,16 +31,24 @@ export default function DashboardScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+        ]}
       >
-        <BusinessHeader />
+        {showDashboardNavigation && (
+          <BusinessHeader />
+        )}
 
         <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
           <MotiView
             from={{ opacity: 0, translateY: 16 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 18, delay: 200 }}
-            style={styles.sectionHeader}
+            style={[
+              styles.sectionHeader,
+              { paddingTop: safeTopPadding, paddingBottom: !showDashboardNavigation ? 14 : 10 },
+            ]}
           >
             <BexDreLogoButton />
 
@@ -48,15 +61,13 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </MotiView>
 
-          {showDashboardNavigation && (
-            <MotiView
-              from={{ opacity: 0, translateY: 24 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'spring', damping: 18, delay: 300 }}
-            >
-              <ModuleGrid />
-            </MotiView>
-          )}
+          <MotiView
+            from={{ opacity: 0, translateY: 24 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, delay: 300 }}
+          >
+            <ModuleGrid />
+          </MotiView>
 
 
 

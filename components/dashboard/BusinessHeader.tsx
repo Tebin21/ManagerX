@@ -5,12 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  Modal,
   Alert,
   ActivityIndicator,
   Animated,
   Easing,
-  Dimensions,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,12 +29,17 @@ import { toEnglishDigits } from '@/utils/formatters';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
 import { AppSheet, AppSheetHeader } from '@/components/ui/AppSheet';
+import { hexToRgba } from '@/lib/colorUtils';
 
-const STORAGE_KEY_BG_IMAGES = '@froshiar_business_header_bg_images';
-const STORAGE_KEY_BG_VIDEO = '@froshiar_business_header_bg_video';
+const STORAGE_KEY_BANNER_IMAGES = '@froshiar_banner_bg_images';
+const STORAGE_KEY_BANNER_VIDEO = '@froshiar_banner_bg_video';
+const STORAGE_KEY_BUSINESS_IMAGES = '@froshiar_business_bg_images';
+const STORAGE_KEY_BUSINESS_VIDEO = '@froshiar_business_bg_video';
+const LEGACY_STORAGE_KEY_IMAGES = '@froshiar_business_header_bg_images';
+const LEGACY_STORAGE_KEY_VIDEO = '@froshiar_business_header_bg_video';
+
 const MAX_BG_IMAGES = 3;
 const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
-const FROSHIAR_LOGO = require('@/assets/images/logo-icon.png');
 
 function HeaderBackgroundVideo({ uri }: { uri: string }) {
   const player = useVideoPlayer(uri, (p) => {
@@ -56,189 +59,173 @@ function HeaderBackgroundVideo({ uri }: { uri: string }) {
   );
 }
 
-function resolveType(type: string): { emoji: string; label: string } | null {
+function resolveType(type: string, isKurdish = false): { emoji: string; label: string } | null {
   if (!type?.trim()) return null;
   const match = BUSINESS_TYPES.find((t) => t.id === type);
-  if (match) return { emoji: match.emoji, label: match.label };
+  if (match) return { emoji: match.emoji, label: isKurdish ? (match.labelKu ?? match.label) : match.label };
   return { emoji: '', label: type.trim() };
 }
 
 export function BusinessHeader() {
   const { t } = useTranslation();
-  const { name, type, phone, address, logoUri, showOnDashboard = true } = useBusinessStore();
+  const { name, type, phone, address, logoUri, showOnDashboard = false } = useBusinessStore();
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, headerMaxWidth } = useResponsive();
-  const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
-  // Background images state (up to 3 images)
-  const [bgImages, setBgImages] = useState<string[]>([]);
+  // Media states for Banner Mode (when showOnDashboard is false)
+  const [bannerImages, setBannerImages] = useState<string[]>([]);
+  const [bannerVideo, setBannerVideo] = useState<string | null>(null);
 
-  // Background video state (1 video, max 10 seconds)
-  const [bgVideo, setBgVideo] = useState<string | null>(null);
+  // Media states for Business Card Mode (when showOnDashboard is true)
+  const [businessImages, setBusinessImages] = useState<string[]>([]);
+  const [businessVideo, setBusinessVideo] = useState<string | null>(null);
+
+  // Customization Sheet Modal State & Editing Tab
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'banner' | 'business'>(showOnDashboard ? 'business' : 'banner');
+  const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
   const [loadingVideo, setLoadingVideo] = useState(false);
 
-  // Dual-slot buffer state for 100% flicker-free & silky-smooth transitions
-  const [slotUris, setSlotUris] = useState<[string, string]>(['', '']);
-  const activeSlotRef = useRef<0 | 1>(0);
-  const activeImgIdxRef = useRef<number>(0);
-  const slot0X = useRef(new Animated.Value(0)).current;
-  const slot1X = useRef(new Animated.Value(Dimensions.get('window').width)).current;
-  const cardWidthRef = useRef(Dimensions.get('window').width);
-  const isSlidingRef = useRef(false);
-  const slideDirectionRef = useRef<'left' | 'right'>('left');
+  // Cross-fade opacity animated values for up to 3 images (100% glitch-free & silky smooth)
+  const fade0 = useRef(new Animated.Value(1)).current;
+  const fade1 = useRef(new Animated.Value(0)).current;
+  const fade2 = useRef(new Animated.Value(0)).current;
+  const fades = useRef([fade0, fade1, fade2]).current;
+  const activeIdxRef = useRef<number>(0);
 
-  // Modal & picking state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
-
-  // Load saved header background images and video on mount
+  // Load saved media for both modes on mount
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY_BG_IMAGES)
-      .then((rawImages) => {
-        if (rawImages) {
-          try {
-            const parsed = JSON.parse(rawImages);
-            if (Array.isArray(parsed)) {
-              setBgImages(parsed.slice(0, MAX_BG_IMAGES));
-            }
-          } catch {}
+    async function loadMedia() {
+      try {
+        // 1. Load Banner Mode media
+        const rawBannerImgs = await AsyncStorage.getItem(STORAGE_KEY_BANNER_IMAGES);
+        if (rawBannerImgs) {
+          const parsed = JSON.parse(rawBannerImgs);
+          if (Array.isArray(parsed)) setBannerImages(parsed.slice(0, MAX_BG_IMAGES));
         }
-      })
-      .catch(() => {});
+        const savedBannerVid = await AsyncStorage.getItem(STORAGE_KEY_BANNER_VIDEO);
+        if (savedBannerVid) setBannerVideo(savedBannerVid);
 
-    AsyncStorage.getItem(STORAGE_KEY_BG_VIDEO)
-      .then((savedVideo) => {
-        if (savedVideo) setBgVideo(savedVideo);
-      })
-      .catch(() => {});
-  }, []);
+        // 2. Load Business Mode media (fallback to legacy keys if present)
+        let rawBizImgs = await AsyncStorage.getItem(STORAGE_KEY_BUSINESS_IMAGES);
+        if (!rawBizImgs) rawBizImgs = await AsyncStorage.getItem(LEGACY_STORAGE_KEY_IMAGES);
+        if (rawBizImgs) {
+          const parsed = JSON.parse(rawBizImgs);
+          if (Array.isArray(parsed)) setBusinessImages(parsed.slice(0, MAX_BG_IMAGES));
+        }
 
-  // Sync dual-slot buffer whenever bgImages array changes
-  useEffect(() => {
-    slot0X.stopAnimation();
-    slot1X.stopAnimation();
-    isSlidingRef.current = false;
-    const width = cardWidthRef.current || Dimensions.get('window').width;
-
-    if (bgImages.length === 0) {
-      setSlotUris(['', '']);
-      activeSlotRef.current = 0;
-      activeImgIdxRef.current = 0;
-    } else if (bgImages.length === 1) {
-      setSlotUris([bgImages[0], '']);
-      slot0X.setValue(0);
-      slot1X.setValue(width);
-      activeSlotRef.current = 0;
-      activeImgIdxRef.current = 0;
-    } else {
-      setSlotUris([bgImages[0], bgImages[1]]);
-      slot0X.setValue(0);
-      slot1X.setValue(width);
-      activeSlotRef.current = 0;
-      activeImgIdxRef.current = 0;
-    }
-  }, [bgImages, slot0X, slot1X]);
-
-  // Persist background images
-  const saveBgImages = useCallback(async (newImages: string[]) => {
-    slot0X.stopAnimation();
-    slot1X.stopAnimation();
-    isSlidingRef.current = false;
-    setBgImages(newImages);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_BG_IMAGES, JSON.stringify(newImages));
-    } catch (e) {
-      console.warn('[BusinessHeader] Failed to save bg images:', e);
-    }
-  }, [slot0X, slot1X]);
-
-  // Persist background video
-  const saveBgVideo = useCallback(async (newVideoUri: string | null) => {
-    setBgVideo(newVideoUri);
-    try {
-      if (newVideoUri) {
-        await AsyncStorage.setItem(STORAGE_KEY_BG_VIDEO, newVideoUri);
-      } else {
-        await AsyncStorage.removeItem(STORAGE_KEY_BG_VIDEO);
+        let savedBizVid = await AsyncStorage.getItem(STORAGE_KEY_BUSINESS_VIDEO);
+        if (!savedBizVid) savedBizVid = await AsyncStorage.getItem(LEGACY_STORAGE_KEY_VIDEO);
+        if (savedBizVid) setBusinessVideo(savedBizVid);
+      } catch (err) {
+        console.warn('[BusinessHeader] Failed to load media from storage:', err);
       }
-    } catch (e) {
-      console.warn('[BusinessHeader] Failed to save bg video:', e);
     }
+    loadMedia();
   }, []);
 
-  // Seamless 4.5-second carousel slide with zero unmount and zero flicker
-  // Pauses automatically if a background video is active, modal is open, or business card is hidden!
+  // Determine currently active media based on showOnDashboard
+  const activeImages = showOnDashboard ? businessImages : bannerImages;
+  const activeVideo = showOnDashboard ? businessVideo : bannerVideo;
+
+  // Sync cross-fade opacity values whenever activeImages list changes
   useEffect(() => {
-    if (bgVideo || bgImages.length <= 1 || modalOpen || !showOnDashboard) return;
+    fades.forEach((f) => f.stopAnimation());
+    fades[0].setValue(1);
+    fades[1].setValue(0);
+    fades[2].setValue(0);
+    activeIdxRef.current = 0;
+  }, [activeImages, fades]);
+
+  // Glitch-Free Native Driver Cross-Fade Carousel:
+  // Smoothly dissolves between images every 5 seconds.
+  // Uses pure hardware-accelerated opacity animation on pre-mounted image layers!
+  useEffect(() => {
+    if (activeVideo || activeImages.length <= 1 || modalOpen) return;
 
     const interval = setInterval(() => {
-      if (isSlidingRef.current) return;
-      const width = cardWidthRef.current || Dimensions.get('window').width;
+      const count = activeImages.length;
+      const current = activeIdxRef.current;
+      const next = (current + 1) % count;
 
-      const currentSlot = activeSlotRef.current;
-      const nextSlot: 0 | 1 = currentSlot === 0 ? 1 : 0;
-      const currentIdx = activeImgIdxRef.current;
-      const nextIdx = (currentIdx + 1) % bgImages.length;
-
-      const direction = slideDirectionRef.current;
-      const incomingStartX = direction === 'left' ? width : -width;
-      const currentEndX = direction === 'left' ? -width : width;
-
-      const currentAnim = currentSlot === 0 ? slot0X : slot1X;
-      const nextAnim = nextSlot === 0 ? slot0X : slot1X;
-
-      nextAnim.setValue(incomingStartX);
-      currentAnim.setValue(0);
-
-      isSlidingRef.current = true;
+      fades[next].setValue(0);
 
       Animated.parallel([
-        Animated.timing(currentAnim, {
-          toValue: currentEndX,
-          duration: 850,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        Animated.timing(fades[next], {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(nextAnim, {
+        Animated.timing(fades[current], {
           toValue: 0,
-          duration: 850,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
-        isSlidingRef.current = false;
         if (finished) {
-          activeSlotRef.current = nextSlot;
-          activeImgIdxRef.current = nextIdx;
-          slideDirectionRef.current = direction === 'left' ? 'right' : 'left';
-
-          // Preload subsequent image in the hidden off-screen slot
-          const futureIdx = (nextIdx + 1) % bgImages.length;
-          setSlotUris((prev) => {
-            const nextUris: [string, string] = [...prev];
-            nextUris[currentSlot] = bgImages[futureIdx];
-            return nextUris;
-          });
+          activeIdxRef.current = next;
         }
       });
-    }, 4500);
+    }, 5000);
 
     return () => {
       clearInterval(interval);
-      slot0X.stopAnimation();
-      slot1X.stopAnimation();
-      isSlidingRef.current = false;
+      fades.forEach((f) => f.stopAnimation());
     };
-  }, [bgImages, bgVideo, modalOpen, showOnDashboard, slot0X, slot1X]);
+  }, [activeImages, activeVideo, modalOpen, fades]);
 
-  // Long-press opens background settings modal
-  const handleLongPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    setModalOpen(true);
+  // Save Banner media
+  const saveBannerImages = useCallback(async (newImages: string[]) => {
+    setBannerImages(newImages);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_BANNER_IMAGES, JSON.stringify(newImages));
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to save banner images:', e);
+    }
   }, []);
 
-  // Pick image for slot
+  const saveBannerVideo = useCallback(async (uri: string | null) => {
+    setBannerVideo(uri);
+    try {
+      if (uri) await AsyncStorage.setItem(STORAGE_KEY_BANNER_VIDEO, uri);
+      else await AsyncStorage.removeItem(STORAGE_KEY_BANNER_VIDEO);
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to save banner video:', e);
+    }
+  }, []);
+
+  // Save Business media
+  const saveBusinessImages = useCallback(async (newImages: string[]) => {
+    setBusinessImages(newImages);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_BUSINESS_IMAGES, JSON.stringify(newImages));
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to save business images:', e);
+    }
+  }, []);
+
+  const saveBusinessVideo = useCallback(async (uri: string | null) => {
+    setBusinessVideo(uri);
+    try {
+      if (uri) await AsyncStorage.setItem(STORAGE_KEY_BUSINESS_VIDEO, uri);
+      else await AsyncStorage.removeItem(STORAGE_KEY_BUSINESS_VIDEO);
+    } catch (e) {
+      console.warn('[BusinessHeader] Failed to save business video:', e);
+    }
+  }, []);
+
+  // Open settings sheet
+  const handleOpenSettings = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setActiveTab(showOnDashboard ? 'business' : 'banner');
+    setModalOpen(true);
+  }, [showOnDashboard]);
+
+  // Image picking
   const pickImageForSlot = async (slotIndex: number) => {
     try {
       setLoadingSlot(slotIndex);
@@ -266,14 +253,18 @@ export function BusinessHeader() {
       const tempUri = result.assets[0].uri;
       const permUri = await copyToPermanentStorage(tempUri, 'header_backgrounds');
 
-      const updated = [...bgImages];
-      if (slotIndex < updated.length) {
-        updated[slotIndex] = permUri;
+      if (activeTab === 'banner') {
+        const updated = [...bannerImages];
+        if (slotIndex < updated.length) updated[slotIndex] = permUri;
+        else updated.push(permUri);
+        await saveBannerImages(updated.slice(0, MAX_BG_IMAGES));
       } else {
-        updated.push(permUri);
+        const updated = [...businessImages];
+        if (slotIndex < updated.length) updated[slotIndex] = permUri;
+        else updated.push(permUri);
+        await saveBusinessImages(updated.slice(0, MAX_BG_IMAGES));
       }
 
-      await saveBgImages(updated.slice(0, MAX_BG_IMAGES));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
       console.warn('[BusinessHeader] Failed to pick image:', e);
@@ -283,14 +274,18 @@ export function BusinessHeader() {
     }
   };
 
-  // Remove image from slot
   const removeSlotImage = async (slotIndex: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const updated = bgImages.filter((_, idx) => idx !== slotIndex);
-    await saveBgImages(updated);
+    if (activeTab === 'banner') {
+      const updated = bannerImages.filter((_, idx) => idx !== slotIndex);
+      await saveBannerImages(updated);
+    } else {
+      const updated = businessImages.filter((_, idx) => idx !== slotIndex);
+      await saveBusinessImages(updated);
+    }
   };
 
-  // Pick 1 video (strictly <= 10 seconds)
+  // Video picking (strictly <= 10s)
   const pickVideo = async () => {
     try {
       setLoadingVideo(true);
@@ -320,17 +315,19 @@ export function BusinessHeader() {
       const durationSec = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
 
       if (durationSec > 10.5) {
-        Alert.alert(
-          t('dashboard.videoTooLong'),
-          t('dashboard.videoTooLongMsg')
-        );
+        Alert.alert(t('dashboard.videoTooLong'), t('dashboard.videoTooLongMsg'));
         return;
       }
 
       const tempUri = asset.uri;
       const permUri = await copyToPermanentStorage(tempUri, 'header_videos');
 
-      await saveBgVideo(permUri);
+      if (activeTab === 'banner') {
+        await saveBannerVideo(permUri);
+      } else {
+        await saveBusinessVideo(permUri);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
       console.warn('[BusinessHeader] Failed to pick video:', e);
@@ -342,18 +339,39 @@ export function BusinessHeader() {
 
   const removeVideo = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    await saveBgVideo(null);
+    if (activeTab === 'banner') {
+      await saveBannerVideo(null);
+    } else {
+      await saveBusinessVideo(null);
+    }
   };
 
-  const resolved = resolveType(type);
+  // Reset to default
+  const handleResetCurrentMode = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    if (activeTab === 'banner') {
+      await saveBannerImages([]);
+      await saveBannerVideo(null);
+    } else {
+      await saveBusinessImages([]);
+      await saveBusinessVideo(null);
+    }
+  };
+
+  const resolved = resolveType(type, isKurdish);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(() => getStyles(isTablet), [isTablet]);
+
+  // Tab-specific current media in sheet
+  const curTabImages = activeTab === 'banner' ? bannerImages : businessImages;
+  const curTabVideo = activeTab === 'banner' ? bannerVideo : businessVideo;
+  const hasCustomMedia = curTabImages.length > 0 || !!curTabVideo;
 
   return (
     <>
       <Pressable
-        onLongPress={showOnDashboard ? handleLongPress : undefined}
-        delayLongPress={450}
+        onLongPress={handleOpenSettings}
+        delayLongPress={400}
         style={styles.pressableRoot}
       >
         <LinearGradient
@@ -361,79 +379,78 @@ export function BusinessHeader() {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
-          onLayout={(e) => {
-            const w = e.nativeEvent.layout.width;
-            if (w > 0) cardWidthRef.current = w;
-          }}
         >
-          {/* Background Display:
-              When showOnDashboard is false, display the permanent static Froshiar brand hero banner!
-              When showOnDashboard is true, display custom video or dual-slot photos carousel. */}
-          {!showOnDashboard ? (
-            <View style={styles.bgImageContainer}>
+          {/* Background Media Engine:
+              1. Video: If a video is set, loops seamlessly.
+              2. Custom Images: If images are set, cross-fades gently without any glitch.
+              3. Default Fallback:
+                 - When showOnDashboard is false (Banner mode): displays the default Froshiar hero image.
+                 - When showOnDashboard is true (Business mode): displays simple clean gradient (سادە). */}
+          {activeVideo ? (
+            <View style={styles.bgMediaContainer}>
+              <HeaderBackgroundVideo uri={activeVideo} />
+              <LinearGradient
+                colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          ) : activeImages.length > 0 ? (
+            <View style={styles.bgMediaContainer}>
+              {activeImages.map((imgUri, idx) => (
+                <Animated.View
+                  key={`bg_img_layer_${idx}_${imgUri}`}
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { opacity: activeImages.length === 1 ? 1 : fades[idx] },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: imgUri }}
+                    style={styles.bgImage}
+                    resizeMode="cover"
+                    fadeDuration={0}
+                  />
+                  <LinearGradient
+                    colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </Animated.View>
+              ))}
+            </View>
+          ) : !showOnDashboard ? (
+            // Banner Mode Default: Froshiar Hero Image
+            <View style={styles.bgMediaContainer}>
               <Image
                 source={DEFAULT_BANNER_IMAGE}
                 style={styles.bgImage}
                 resizeMode="cover"
+                fadeDuration={0}
               />
               <LinearGradient
                 colors={['rgba(15, 23, 42, 0.35)', 'rgba(15, 23, 42, 0.7)']}
                 style={StyleSheet.absoluteFillObject}
               />
             </View>
-          ) : bgVideo ? (
-            <View style={styles.bgImageContainer}>
-              <HeaderBackgroundVideo uri={bgVideo} />
-              <LinearGradient
-                colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
-                style={StyleSheet.absoluteFillObject}
-              />
-            </View>
-          ) : bgImages.length > 0 ? (
-            <View style={styles.bgImageContainer}>
-              {/* Slot 0 */}
-              {slotUris[0] ? (
-                <Animated.View
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    { transform: [{ translateX: slot0X }] },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: slotUris[0] }}
-                    style={styles.bgImage}
-                    resizeMode="cover"
-                  />
-                  <LinearGradient
-                    colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                </Animated.View>
-              ) : null}
+          ) : (
+            // Business Mode Default: Simple clean gradient (سادە)
+            null
+          )}
 
-              {/* Slot 1 */}
-              {slotUris[1] ? (
-                <Animated.View
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    { transform: [{ translateX: slot1X }] },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: slotUris[1] }}
-                    style={styles.bgImage}
-                    resizeMode="cover"
-                  />
-                  <LinearGradient
-                    colors={['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.72)']}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                </Animated.View>
-              ) : null}
-            </View>
-          ) : null}
+          {/* Quick Customize Button (Top corner respecting RTL) */}
+          <TouchableOpacity
+            onPress={handleOpenSettings}
+            style={[
+              styles.customizeBtn,
+              { [isRTL ? 'left' : 'right']: isTablet ? 24 : 18 },
+            ]}
+            activeOpacity={0.75}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel={t('dashboard.editBackground')}
+          >
+            <Ionicons name="image-outline" size={16} color="rgba(255, 255, 255, 0.92)" />
+          </TouchableOpacity>
 
-          {/* Surface Content (Maintains full height and spacing) */}
+          {/* Surface Content */}
           <View
             style={[
               styles.container,
@@ -441,7 +458,7 @@ export function BusinessHeader() {
             ]}
           >
             {showOnDashboard ? (
-              <View style={styles.row}>
+              <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={styles.logoContainer}>
                   {logoUri ? (
                     <Image source={{ uri: logoUri }} style={styles.logo} />
@@ -454,11 +471,11 @@ export function BusinessHeader() {
 
                 <View style={styles.info}>
                   <View style={styles.nameGroup}>
-                    <Text style={styles.businessName} numberOfLines={1}>
+                    <Text style={[styles.businessName, { textAlign }]} numberOfLines={1}>
                       {name || 'My Business'}
                     </Text>
                     {resolved ? (
-                      <Text style={styles.typeText} numberOfLines={1}>
+                      <Text style={[styles.typeText, { textAlign }]} numberOfLines={1}>
                         {resolved.label}
                       </Text>
                     ) : null}
@@ -466,15 +483,15 @@ export function BusinessHeader() {
 
                   <View style={styles.contactGroup}>
                     {phone ? (
-                      <View style={styles.detailRow}>
+                      <View style={[styles.detailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <Ionicons name="call-outline" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
-                        <Text style={styles.detailText}>{phone}</Text>
+                        <Text style={[styles.detailText, { textAlign }]}>{phone}</Text>
                       </View>
                     ) : null}
                     {address ? (
-                      <View style={styles.detailRow}>
+                      <View style={[styles.detailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                         <Feather name="map-pin" size={isTablet ? 15 : 12} color="rgba(255,255,255,0.85)" />
-                        <Text style={[styles.detailText, styles.addressText]} numberOfLines={1}>
+                        <Text style={[styles.detailText, styles.addressText, { textAlign }]} numberOfLines={1}>
                           {address}
                         </Text>
                       </View>
@@ -493,7 +510,7 @@ export function BusinessHeader() {
         </LinearGradient>
       </Pressable>
 
-      {/* 4. Background Settings Sheet (Opened via Long-Press) */}
+      {/* Background Settings Modal Sheet */}
       <AppSheet
         visible={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -508,6 +525,137 @@ export function BusinessHeader() {
             {t('dashboard.headerBackgroundSub')}
           </Text>
 
+          {/* Mode Switcher Segmented Control: Froshiar Banner vs Business Card */}
+          <View style={[styles.segmentContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('banner')}
+              style={[
+                styles.segmentBtn,
+                activeTab === 'banner' && {
+                  backgroundColor: themeColors.primary,
+                  borderColor: themeColors.primary,
+                },
+              ]}
+            >
+              <Ionicons
+                name="sparkles-outline"
+                size={15}
+                color={activeTab === 'banner' ? '#FFFFFF' : themeColors.gray400}
+              />
+              <Text
+                style={[
+                  styles.segmentBtnText,
+                  { color: activeTab === 'banner' ? '#FFFFFF' : themeColors.darkBlue },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('dashboard.tabFroshiarBanner')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('business')}
+              style={[
+                styles.segmentBtn,
+                activeTab === 'business' && {
+                  backgroundColor: themeColors.primary,
+                  borderColor: themeColors.primary,
+                },
+              ]}
+            >
+              <Ionicons
+                name="card-outline"
+                size={15}
+                color={activeTab === 'business' ? '#FFFFFF' : themeColors.gray400}
+              />
+              <Text
+                style={[
+                  styles.segmentBtnText,
+                  { color: activeTab === 'business' ? '#FFFFFF' : themeColors.darkBlue },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('dashboard.tabBusinessCard')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Current Tab Status & Mode Description */}
+          <View
+            style={[
+              styles.tabInfoCard,
+              {
+                backgroundColor: isDark ? themeColors.white : themeColors.gray50,
+                borderColor: isDark ? themeColors.gray100 : themeColors.gray200,
+              },
+            ]}
+          >
+            <View style={[styles.statusRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: hasCustomMedia
+                      ? hexToRgba(themeColors.primary, 0.16)
+                      : isDark
+                      ? 'rgba(255,255,255,0.08)'
+                      : '#F1F5F9',
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: hasCustomMedia ? themeColors.primary : themeColors.gray400 },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: hasCustomMedia ? themeColors.primary : themeColors.gray400 },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {activeTab === 'banner'
+                    ? hasCustomMedia
+                      ? t('dashboard.customMediaActive')
+                      : t('dashboard.defaultBannerActive')
+                    : hasCustomMedia
+                    ? t('dashboard.customMediaActive')
+                    : t('dashboard.simpleModeActive')}
+                </Text>
+              </View>
+
+              {hasCustomMedia && (
+                <TouchableOpacity
+                  onPress={handleResetCurrentMode}
+                  style={[styles.resetBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="refresh-outline" size={13} color={themeColors.error} />
+                  <Text
+                    style={[
+                      styles.resetBtnText,
+                      { color: themeColors.error },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {activeTab === 'banner'
+                      ? t('dashboard.restoreDefaultBanner')
+                      : t('dashboard.resetToSimple')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={[styles.tabDescText, { color: themeColors.gray400, textAlign }]}>
+              {activeTab === 'banner'
+                ? t('dashboard.froshiarBannerDesc')
+                : t('dashboard.businessCardDesc')}
+            </Text>
+          </View>
 
           {/* Background Photos Section (Up to 3 Photos) */}
           <View style={styles.sectionHeadingWrap}>
@@ -528,12 +676,12 @@ export function BusinessHeader() {
           {/* 3 Image Slots */}
           <View style={styles.slotsContainer}>
             {[0, 1, 2].map((slotIdx) => {
-              const imgUri = bgImages[slotIdx];
+              const imgUri = curTabImages[slotIdx];
               const isLoadingThis = loadingSlot === slotIdx;
 
               return (
                 <View
-                  key={`header_bg_slot_${slotIdx}`}
+                  key={`bg_slot_${activeTab}_${slotIdx}`}
                   style={[
                     styles.slotCard,
                     {
@@ -575,18 +723,23 @@ export function BusinessHeader() {
                       onPress={() => pickImageForSlot(slotIdx)}
                       disabled={isLoadingThis}
                     >
-                      {/* Slot index badge matching filled slots */}
                       <View
                         style={[
                           styles.slotBadge,
                           {
-                            backgroundColor: themeColors.primary + '18',
-                            borderWidth: 1,
-                            borderColor: themeColors.primary + '40',
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
                           },
                         ]}
                       >
-                        <Text style={[styles.slotBadgeText, { color: themeColors.primary, writingDirection: 'ltr' }]}>
+                        <Text
+                          style={[
+                            styles.slotBadgeText,
+                            {
+                              color: isDark ? themeColors.gray400 : themeColors.gray500,
+                              writingDirection: 'ltr',
+                            },
+                          ]}
+                        >
                           {toEnglishDigits(slotIdx + 1)}
                         </Text>
                       </View>
@@ -596,7 +749,7 @@ export function BusinessHeader() {
                       ) : (
                         <>
                           <View style={[styles.plusIconWrap, { backgroundColor: themeColors.primary + '18' }]}>
-                            <Ionicons name="cloud-upload-outline" size={24} color={themeColors.primary} />
+                            <Feather name="plus" size={16} color={themeColors.primary} />
                           </View>
                           <Text
                             style={[
@@ -605,7 +758,7 @@ export function BusinessHeader() {
                               isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                             ]}
                           >
-                            {isKurdish ? `دانانی وێنەی ${toEnglishDigits(slotIdx + 1)}` : `Add Photo ${slotIdx + 1}`}
+                            {t('dashboard.addImage')}
                           </Text>
                         </>
                       )}
@@ -616,9 +769,9 @@ export function BusinessHeader() {
             })}
           </View>
 
-          {/* Background Video Section (Max 1 Video, Max 10 Seconds) */}
+          {/* Background Video Section (1 Video <= 10s) */}
           <View style={[styles.sectionHeadingWrap, { marginTop: 8 }]}>
-            <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text
                 style={[
                   styles.sectionHeading,
@@ -628,7 +781,7 @@ export function BusinessHeader() {
               >
                 {t('dashboard.headerBgVideo')}
               </Text>
-              {bgVideo ? (
+              {curTabVideo ? (
                 <View style={[styles.activePill, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7' }]}>
                   <Text style={[styles.activePillText, { color: '#16A34A' }]}>
                     {t('dashboard.videoActive')}
@@ -642,7 +795,7 @@ export function BusinessHeader() {
           </View>
 
           {/* Video Slot Card */}
-          {bgVideo ? (
+          {curTabVideo ? (
             <View
               style={[
                 styles.videoCard,
@@ -653,7 +806,7 @@ export function BusinessHeader() {
               ]}
             >
               <View style={styles.videoPreviewWrap}>
-                <HeaderBackgroundVideo uri={bgVideo} />
+                <HeaderBackgroundVideo uri={curTabVideo} />
                 <View style={styles.videoBadge}>
                   <Feather name="video" size={12} color="#FFFFFF" />
                   <Text style={styles.videoBadgeText}>10s</Text>
@@ -712,7 +865,7 @@ export function BusinessHeader() {
                     {t('dashboard.addVideo')}
                   </Text>
                   <Text style={[styles.videoEmptySub, { color: themeColors.gray400 }]}>
-                    {isKurdish ? 'تەنها یەک ڤیدیۆ تا ١٠ چرکە (وێنەکان دەوەستێنێت)' : 'Single video up to 10s (pauses photos)'}
+                    {isKurdish ? 'تەنها یەک ڤیدیۆ تا ١٠ چرکە' : 'Single video up to 10s'}
                   </Text>
                 </>
               )}
@@ -754,7 +907,7 @@ function getStyles(isTablet: boolean) {
       borderBottomRightRadius: 32,
       overflow: 'hidden',
     },
-    bgImageContainer: {
+    bgMediaContainer: {
       ...StyleSheet.absoluteFillObject,
       overflow: 'hidden',
     },
@@ -762,50 +915,25 @@ function getStyles(isTablet: boolean) {
       width: '100%',
       height: '100%',
     },
+    customizeBtn: {
+      position: 'absolute',
+      top: isTablet ? 48 : 64,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.25)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10,
+    },
     container: {
       paddingTop: isTablet ? 50 : 70,
       paddingBottom: isTablet ? 36 : 34,
       paddingHorizontal: isTablet ? 28 : 22,
       minHeight: isTablet ? 260 : 230,
       justifyContent: 'space-between',
-    },
-    fixedBrandContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: isTablet ? 18 : 14,
-    },
-    fixedBrandLogoWrap: {
-      width: isTablet ? 90 : 76,
-      height: isTablet ? 90 : 76,
-      borderRadius: isTablet ? 22 : 18,
-      overflow: 'hidden',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      borderWidth: 2,
-      borderColor: 'rgba(255,255,255,0.4)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 6,
-    },
-    fixedBrandLogo: {
-      width: '100%',
-      height: '100%',
-    },
-    fixedBrandTextWrap: {
-      flex: 1,
-      justifyContent: 'center',
-      gap: 4,
-    },
-    fixedBrandTitle: {
-      fontSize: isTablet ? 24 : 20,
-      fontWeight: '800',
-      color: '#FFFFFF',
-      letterSpacing: 0.5,
-    },
-    fixedBrandTagline: {
-      fontSize: isTablet ? 14 : 12,
-      lineHeight: isTablet ? 18 : 16,
-      color: 'rgba(255,255,255,0.85)',
-      fontWeight: '500',
     },
     row: {
       flexDirection: 'row',
@@ -877,18 +1005,6 @@ function getStyles(isTablet: boolean) {
       marginTop: isTablet ? 20 : 16,
       alignItems: 'flex-end',
     },
-    brandRowCompact: {
-      marginTop: 0,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    brandText: {
-      fontSize: isTablet ? 13 : 11,
-      color: 'rgba(255,255,255,0.6)',
-      fontWeight: '600',
-      letterSpacing: 1.5,
-      textTransform: 'uppercase',
-    },
 
     sheetInnerContent: {
       paddingHorizontal: 4,
@@ -899,6 +1015,76 @@ function getStyles(isTablet: boolean) {
       marginTop: 2,
     },
 
+    /* Segmented Control */
+    segmentContainer: {
+      flexDirection: 'row',
+      borderRadius: 14,
+      backgroundColor: 'rgba(150, 150, 150, 0.12)',
+      padding: 4,
+      gap: 6,
+      marginBottom: 12,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    segmentBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    /* Info card under segment */
+    tabInfoCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      padding: 12,
+      marginBottom: 16,
+      gap: 8,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    statusDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+    },
+    statusBadgeText: {
+      fontSize: 11.5,
+      fontWeight: '700',
+    },
+    resetBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
+    },
+    resetBtnText: {
+      fontSize: 11.5,
+      fontWeight: '700',
+    },
+    tabDescText: {
+      fontSize: 11.5,
+      lineHeight: 16,
+    },
 
     /* Heading in modal */
     sectionHeadingWrap: {
@@ -944,6 +1130,7 @@ function getStyles(isTablet: boolean) {
       backgroundColor: 'rgba(0,0,0,0.7)',
       alignItems: 'center',
       justifyContent: 'center',
+      zIndex: 2,
     },
     slotBadgeText: {
       color: '#FFF',
@@ -955,6 +1142,7 @@ function getStyles(isTablet: boolean) {
       bottom: 8,
       right: 8,
       gap: 8,
+      zIndex: 2,
     },
     slotBtn: {
       flexDirection: 'row',

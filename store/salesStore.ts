@@ -94,8 +94,6 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       lineTotal: ci.lineTotal,
     }));
 
-    const exchangeRateUsed = useSettingsStore.getState().exchangeRate;
-
     const saleData = {
       invoiceNumber,
       customerId,

@@ -41,6 +41,8 @@ import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompl
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
+import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
+import { useBusinessStore } from '@/store/businessStore';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
@@ -200,6 +202,7 @@ export default function NewPurchaseScreen() {
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
+  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('normal');
 
   useEffect(() => {
     getProductCategories().then(setAvailableCategories).catch(() => {});
@@ -412,7 +415,49 @@ export default function NewPurchaseScreen() {
         } catch { /* non-critical */ }
       }
 
-      router.replace(`/(app)/purchases/${purchase.id}?new=1&currency=${receiptCurrency}` as never);
+      const resetForm = () => {
+        setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
+        setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
+        setIdType(null); setSharedId(''); setCustomIds(['']);
+        setCategory(''); setWarranty(''); setNotes('');
+        setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
+        setAmountPaid('');
+        setImageUri(null);
+        setReceiptCurrency('iqd');
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+      };
+
+      if (checkoutMode === 'print') {
+        const business = useBusinessStore.getState();
+        const { directPrintPurchaseInvoice } = await import('@/lib/generateInvoice');
+        const purchaseItems = [{
+          productName: purchase.productName,
+          category: purchase.category,
+          quantity: purchase.quantity,
+          buyPriceIQD: purchase.buyPriceIQD,
+          lineTotalIQD: purchase.totalIQD,
+          idType: purchase.idType,
+          itemIds: finalItemIds,
+        }];
+        await directPrintPurchaseInvoice(
+          purchase,
+          purchaseItems,
+          {
+            name: business.name || 'My Store',
+            phone: business.phone || '',
+            address: business.address || '',
+            logoUri: business.logoUri ?? null,
+          },
+          receiptCurrency
+        );
+        resetForm();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (checkoutMode === 'normal') {
+        resetForm();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        router.replace(`/(app)/purchases/${purchase.id}?new=1&currency=${receiptCurrency}` as never);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.startsWith('DUPLICATE_ITEM_ID|')) {
@@ -1243,9 +1288,21 @@ export default function NewPurchaseScreen() {
           )}
 
           {/* ── Actions ───────────────────────────────────────── */}
+          <CheckoutActionGrid
+            mode={checkoutMode}
+            onSelectMode={setCheckoutMode}
+            type="purchase"
+          />
+
           <View style={styles.actions}>
             <PrimaryButton
-              label={isSubmitting ? t('purchases.saving') : t('purchases.savePurchase')}
+              label={
+                isSubmitting
+                  ? t('purchases.saving')
+                  : checkoutMode === 'print'
+                  ? (isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
+                  : (isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
+              }
               onPress={handleSave}
               loading={isSubmitting}
               disabled={isSubmitting}

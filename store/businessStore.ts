@@ -63,7 +63,7 @@ export const useBusinessStore = create<BusinessState>()(
       phone: '',
       address: '',
       logoUri: null,
-      showOnDashboard: true,
+      showOnDashboard: false,
       isSetupComplete: false,
       ownerUserId: null,
       pendingCloudConflict: null,
@@ -97,7 +97,7 @@ export const useBusinessStore = create<BusinessState>()(
           phone: '',
           address: '',
           logoUri: null,
-          showOnDashboard: true,
+          showOnDashboard: false,
           isSetupComplete: false,
           ownerUserId: null,
         }),
@@ -117,6 +117,14 @@ export const useBusinessStore = create<BusinessState>()(
       partialize: (state) => {
         const { pendingCloudConflict: _pendingCloudConflict, isReconciling: _isReconciling, reconcileError: _reconcileError, ...rest } = state;
         return rest;
+      },
+      merge: (persistedState: unknown, currentState: BusinessState): BusinessState => {
+        const p = persistedState as Partial<BusinessState> | null;
+        return {
+          ...currentState,
+          ...p,
+          showOnDashboard: p?.showOnDashboard ?? false,
+        };
       },
     }
   )

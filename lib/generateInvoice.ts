@@ -349,6 +349,74 @@ export async function sharePurchaseInvoice(
   }
 }
 
+export async function directPrintInvoice(
+  sale: Sale,
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'iqd'
+): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    Alert.alert('Not supported', 'Direct printing is not available on web.');
+    return false;
+  }
+  const Print = await getPrintModule();
+  if (!Print || typeof Print.printAsync !== 'function') {
+    await shareInvoice(sale, business, currencyMode);
+    return true;
+  }
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+    const html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
+    await Print.printAsync({ html });
+    return true;
+  } catch (err) {
+    console.error('[Print] directPrintInvoice unexpected error:', err);
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function directPrintPurchaseInvoice(
+  purchase: Purchase,
+  purchaseItems: PurchaseItemRow[],
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  purchaseDebt?: PurchaseDebt | null
+): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    Alert.alert('Not supported', 'Direct printing is not available on web.');
+    return false;
+  }
+  const Print = await getPrintModule();
+  if (!Print || typeof Print.printAsync !== 'function') {
+    await sharePurchaseInvoice(purchase, purchaseItems, business, currencyMode, purchaseDebt);
+    return true;
+  }
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    let resolvedDebt = purchaseDebt;
+    if (!resolvedDebt && purchase.paymentStatus === 'debt') {
+      try {
+        const { getPurchaseDebtByPurchaseId } = await import('@/lib/sqlite');
+        resolvedDebt = await getPurchaseDebtByPurchaseId(purchase.id);
+      } catch (e) {
+        console.warn('[Print] Failed to load purchase debt for invoice:', e);
+      }
+    }
+    const biz = await withResolvedLogo(business);
+    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+    await Print.printAsync({ html });
+    return true;
+  } catch (err) {
+    console.error('[Print] directPrintPurchaseInvoice unexpected error:', err);
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
 export async function shareInventoryReport(
   products: InventoryProduct[],
   stats: InventoryStats,

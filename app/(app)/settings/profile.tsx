@@ -37,7 +37,7 @@ export default function BusinessProfileScreen() {
   const [phone, setPhone]           = useState(business.phone ?? '');
   const [address, setAddress]       = useState(business.address ?? '');
   const [logoUri, setLogoUri]       = useState<string | null>(business.logoUri);
-  const [showOnDashboard, setShowOnDashboard] = useState(business.showOnDashboard ?? true);
+  const [showOnDashboard, setShowOnDashboard] = useState(business.showOnDashboard ?? false);
   const [saving, setSaving]   = useState(false);
 
   async function handleSave() {
@@ -121,7 +121,7 @@ export default function BusinessProfileScreen() {
             />
             <View style={[styles.switchDivider, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]} />
             <SettingSwitch
-              icon="apps-outline"
+              icon="compass-outline"
               label={t('settings.customization.showNavTitle')}
               sub={t('settings.customization.showNavSub')}
               value={showDashboardNavigation}

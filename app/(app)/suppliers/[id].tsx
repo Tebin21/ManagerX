@@ -366,8 +366,8 @@ export default function SupplierDetailScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.white }]}>
               <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
-              <CompactAmount value={supplier.totalSpent} showCurrency={false} style={[styles.statVal, { color: colors.primary }]} />
-              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalSpent')} IQD</Text>
+              <CompactAmount value={supplier.totalSpent} style={[styles.statVal, { color: colors.primary }]} />
+              <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalSpent')}</Text>
             </View>
           </View>
           <View style={styles.statsRow}>

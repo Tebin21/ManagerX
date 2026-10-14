@@ -146,8 +146,8 @@ export default function SuppliersScreen() {
             </View>
             <View style={styles.headerStatDivider} />
             <View style={styles.headerStat}>
-              <CompactAmount value={totalSpent} showCurrency={false} style={[styles.headerStatVal, isTablet && { fontSize: 24 }]} />
-              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13, marginTop: 4 }]}>{t('suppliers.totalSpent')} IQD</Text>
+              <CompactAmount value={totalSpent} style={[styles.headerStatVal, isTablet && { fontSize: 24 }]} />
+              <Text style={[styles.headerStatLabel, isTablet && { fontSize: 13, marginTop: 4 }]}>{t('suppliers.totalSpent')}</Text>
             </View>
           </MotiView>
         )}

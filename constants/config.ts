@@ -87,15 +87,15 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-export const BUSINESS_TYPES: { id: string; label: string; emoji: string }[] = [
-  { id: 'mobileShop',  label: 'Mobile Shop',       emoji: '📱' },
-  { id: 'electronics', label: 'Electronics',        emoji: '🖥️' },
-  { id: 'clothing',    label: 'Clothing Store',     emoji: '👕' },
-  { id: 'watches',     label: 'Watches Store',      emoji: '⌚' },
-  { id: 'cosmetics',   label: 'Cosmetics Store',    emoji: '💄' },
-  { id: 'onlinePage',  label: 'Online Page',        emoji: '🌐' },
-  { id: 'personal',    label: 'Personal Business',  emoji: '🏠' },
-  { id: 'restaurant',  label: 'Restaurant',         emoji: '🍽️' },
-  { id: 'pharmacy',    label: 'Pharmacy',           emoji: '💊' },
-  { id: 'supermarket', label: 'Supermarket',        emoji: '🛒' },
+export const BUSINESS_TYPES: { id: string; label: string; labelKu: string; emoji: string }[] = [
+  { id: 'mobileShop',  label: 'Mobile Shop',       labelKu: 'دووکانی مۆبایل',      emoji: '📱' },
+  { id: 'electronics', label: 'Electronics',        labelKu: 'ئەلیکترۆنیات',        emoji: '🖥️' },
+  { id: 'clothing',    label: 'Clothing Store',     labelKu: 'جل و بەرگ',           emoji: '👕' },
+  { id: 'watches',     label: 'Watches Store',      labelKu: 'کاتژمێر',             emoji: '⌚' },
+  { id: 'cosmetics',   label: 'Cosmetics Store',    labelKu: 'ئارایشت و جوانکاری',  emoji: '💄' },
+  { id: 'onlinePage',  label: 'Online Page',        labelKu: 'پەیجی ئۆنلاین',       emoji: '🌐' },
+  { id: 'personal',    label: 'Personal Business',  labelKu: 'کاری تایبەت',         emoji: '🏠' },
+  { id: 'restaurant',  label: 'Restaurant',         labelKu: 'چێشتخانە و کافێ',     emoji: '🍽️' },
+  { id: 'pharmacy',    label: 'Pharmacy',           labelKu: 'دەرمانخانە',          emoji: '💊' },
+  { id: 'supermarket', label: 'Supermarket',        labelKu: 'سوپەرمارکێت',         emoji: '🛒' },
 ];

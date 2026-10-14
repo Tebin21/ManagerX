@@ -33,6 +33,9 @@ import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector'
 import { CustomerInputForm } from '@/components/sales/CustomerInputForm';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
+import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
+import { useBusinessStore } from '@/store/businessStore';
+import * as Haptics from 'expo-haptics';
 
 import { useTranslation } from 'react-i18next';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -46,8 +49,8 @@ import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useLanguageStore } from '@/store/languageStore';
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
-import { fmtUSD } from '@/utils/formatters';
-import { roundUSD } from '@/utils/rounding';
+import { fmtUSD, fmtIQD } from '@/utils/formatters';
+import { roundUSD, roundToNearest250 } from '@/utils/rounding';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
@@ -56,7 +59,6 @@ type Step = 1 | 2 | 3;
 
 export default function NewSaleScreen() {
   const router = useRouter();
-  const { customerId } = useLocalSearchParams<{ customerId?: string }>();
 
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
@@ -71,6 +73,8 @@ export default function NewSaleScreen() {
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isUSD = baseCurrency === 'USD';
 
+  const { customerId } = useLocalSearchParams<{ customerId?: string }>();
+
   const [step, setStep] = useState<Step>(1);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -80,6 +84,7 @@ export default function NewSaleScreen() {
   const [phoneError, setPhoneError] = useState('');
   const [saleDate, setSaleDate] = useState(() => new Date());
   const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
+  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('normal');
 
   // Derived
   const visibleProducts = inventory.searchProducts(query, selectedCategory);
@@ -224,8 +229,30 @@ export default function NewSaleScreen() {
         remainingDebt: cart.remainingDebt,
       });
 
-      cart.clearCart();
-      router.replace(`/(app)/sales/${sale.id}?new=1&currency=${receiptCurrency}` as never);
+      if (checkoutMode === 'print') {
+        const business = useBusinessStore.getState();
+        const { directPrintInvoice } = await import('@/lib/generateInvoice');
+        await directPrintInvoice(
+          sale,
+          {
+            name: business.name || 'My Store',
+            phone: business.phone || '',
+            address: business.address || '',
+            logoUri: business.logoUri ?? null,
+          },
+          receiptCurrency
+        );
+        cart.clearCart();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setStep(1);
+      } else if (checkoutMode === 'normal') {
+        cart.clearCart();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setStep(1);
+      } else {
+        cart.clearCart();
+        router.replace(`/(app)/sales/${sale.id}?new=1&currency=${receiptCurrency}` as never);
+      }
     } catch (err: unknown) {
       console.error('Failed to create sale:', err);
       const msg = err instanceof Error ? err.message : '';
@@ -640,8 +667,18 @@ export default function NewSaleScreen() {
           <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
         </MotiView>
 
+        <CheckoutActionGrid
+          mode={checkoutMode}
+          onSelectMode={setCheckoutMode}
+          type="sale"
+        />
+
         <PrimaryButton
-          label={t('sales.completeSale')}
+          label={
+            checkoutMode === 'print'
+              ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+              : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+          }
           onPress={handleCompleteSale}
           loading={isSubmitting}
         />

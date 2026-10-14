@@ -227,7 +227,7 @@ export default function SoldProductsScreen() {
           <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
           <View style={styles.statItem}>
             <AmountText value={totalRevenue} style={[styles.statValue, { color: colors.black }]} />
-            <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalRevenue')} IQD</Text>
+            <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalRevenue')}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.gray200 }]} />
           <View style={styles.statItem}>
@@ -236,7 +236,7 @@ export default function SoldProductsScreen() {
               prefix={totalProfit >= 0 ? '+' : ''}
               style={[styles.statValue, { color: totalProfit >= 0 ? colors.success : colors.error }]}
             />
-            <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalProfit')} IQD</Text>
+            <Text style={[styles.statLabel, { color: colors.gray500 }]}>{t('soldProducts.totalProfit')}</Text>
           </View>
         </View>
 
