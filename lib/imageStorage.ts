@@ -5,7 +5,11 @@ import * as FileSystem from 'expo-file-system/legacy';
  * restarts and OS cache eviction. Falls back to the temp URI if
  * documentDirectory is unavailable (e.g. Expo Go on some platforms).
  */
-export async function copyToPermanentStorage(tempUri: string, subdir: string): Promise<string> {
+export async function copyToPermanentStorage(
+  tempUri: string,
+  subdir: string,
+  preferredExt?: string
+): Promise<string> {
   const baseDir = FileSystem.documentDirectory;
   if (!baseDir) return tempUri;
 
@@ -15,9 +19,10 @@ export async function copyToPermanentStorage(tempUri: string, subdir: string): P
   // Strip query params before extracting extension
   const rawPath = tempUri.split('?')[0];
   const lastDot = rawPath.lastIndexOf('.');
-  const ext = lastDot !== -1 && lastDot > rawPath.lastIndexOf('/') ? rawPath.slice(lastDot + 1) : 'jpg';
+  const detectedExt = lastDot !== -1 && lastDot > rawPath.lastIndexOf('/') ? rawPath.slice(lastDot + 1) : null;
+  const ext = preferredExt || detectedExt || 'jpg';
 
-  const dest = `${dir}img_${Date.now()}.${ext}`;
+  const dest = `${dir}media_${Date.now()}.${ext}`;
   await FileSystem.copyAsync({ from: tempUri, to: dest });
   return dest;
 }
