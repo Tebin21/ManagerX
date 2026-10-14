@@ -56,3 +56,5 @@ desktop.ini
 
 # Firebase CLI cache & build artifacts
 .firebase/
+.vercel
+.env*

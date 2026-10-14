@@ -12,20 +12,22 @@ import {
   Search,
   RefreshCw,
   Eye,
-  Phone,
-  Mail,
-  Building2,
-  Calendar,
+  EyeOff,
+  Copy,
   Check,
-  X,
+  Key,
+  Lock,
+  Crown,
+  Zap,
+  Sparkles,
   ShieldCheck,
   Trash2,
   Store,
-  Tag,
-  Sparkles,
-  ChevronDown,
-  Layers,
-  ArrowUpRight,
+  Mail,
+  Phone,
+  Building2,
+  Calendar,
+  X,
   FileSpreadsheet,
 } from 'lucide-react';
 import { getClientFirestore } from '@/lib/firebase';
@@ -36,28 +38,103 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  query,
-  orderBy,
   onSnapshot,
-  serverTimestamp,
 } from 'firebase/firestore';
 
 // ─── Plan Definitions ────────────────────────────────────────────────────────
 export interface SubscriptionPlan {
-  id: '1m' | '3m' | '6m' | '12m' | 'lifetime';
+  id: string; // '1m' | '3m' | '6m' | '12m' | 'premium_1y' | 'lifetime' | 'custom'
+  tier: 'pro' | 'premium' | 'lifetime' | 'custom';
+  tierLabelKu: string;
+  tierLabelEn: string;
   labelKu: string;
   labelEn: string;
   durationMonths: number | null; // null for lifetime
   priceIqd: string;
   priceUsd: string;
+  badgeBg: string;
+  badgeText: string;
 }
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  { id: '1m', labelKu: '١ مانگ (٣٠ ڕۆژ)', labelEn: '1 Month', durationMonths: 1, priceIqd: '١٥،٠٠٠ د.ع', priceUsd: '$10' },
-  { id: '3m', labelKu: '٣ مانگ (٩٠ ڕۆژ)', labelEn: '3 Months', durationMonths: 3, priceIqd: '٤٠،٠٠٠ د.ع', priceUsd: '$25' },
-  { id: '6m', labelKu: '٦ مانگ (نیو ساڵ)', labelEn: '6 Months', durationMonths: 6, priceIqd: '٧٥،٠٠٠ د.ع', priceUsd: '$50' },
-  { id: '12m', labelKu: '١ ساڵ (١٢ مانگ)', labelEn: '1 Year', durationMonths: 12, priceIqd: '١٣٠،٠٠٠ د.ع', priceUsd: '$90' },
-  { id: 'lifetime', labelKu: 'هەمیشەیی (Lifetime)', labelEn: 'Lifetime', durationMonths: null, priceIqd: '٢٥٠،٠٠٠ د.ع', priceUsd: '$170' },
+  {
+    id: '1m',
+    tier: 'pro',
+    tierLabelKu: 'پڕۆ (Pro)',
+    tierLabelEn: 'Pro Tier',
+    labelKu: '١ مانگ پڕۆ (٣٠ ڕۆژ)',
+    labelEn: '1 Month Pro (30 Days)',
+    durationMonths: 1,
+    priceIqd: '١٥،٠٠٠ د.ع',
+    priceUsd: '$10',
+    badgeBg: 'bg-blue-500/15 border-blue-500/30',
+    badgeText: 'text-blue-400',
+  },
+  {
+    id: '3m',
+    tier: 'pro',
+    tierLabelKu: 'پڕۆ (Pro)',
+    tierLabelEn: 'Pro Tier',
+    labelKu: '٣ مانگ پڕۆ (٩٠ ڕۆژ)',
+    labelEn: '3 Months Pro (90 Days)',
+    durationMonths: 3,
+    priceIqd: '٤٠،٠٠٠ د.ع',
+    priceUsd: '$25',
+    badgeBg: 'bg-blue-500/15 border-blue-500/30',
+    badgeText: 'text-blue-400',
+  },
+  {
+    id: '6m',
+    tier: 'pro',
+    tierLabelKu: 'پڕۆ (Pro)',
+    tierLabelEn: 'Pro Tier',
+    labelKu: '٦ مانگ پڕۆ (١٨٠ ڕۆژ)',
+    labelEn: '6 Months Pro (180 Days)',
+    durationMonths: 6,
+    priceIqd: '٧٥،٠٠٠ د.ع',
+    priceUsd: '$50',
+    badgeBg: 'bg-indigo-500/15 border-indigo-500/30',
+    badgeText: 'text-indigo-400',
+  },
+  {
+    id: '12m',
+    tier: 'pro',
+    tierLabelKu: 'پڕۆ (Pro)',
+    tierLabelEn: 'Pro Tier',
+    labelKu: '١ ساڵ پڕۆ (٣٦٥ ڕۆژ)',
+    labelEn: '1 Year Pro (365 Days)',
+    durationMonths: 12,
+    priceIqd: '١٣٠،٠٠٠ د.ع',
+    priceUsd: '$90',
+    badgeBg: 'bg-purple-500/15 border-purple-500/30',
+    badgeText: 'text-purple-400',
+  },
+  {
+    id: 'premium_1y',
+    tier: 'premium',
+    tierLabelKu: 'پریمیم VIP',
+    tierLabelEn: 'Premium VIP',
+    labelKu: '١ ساڵ پریمیم VIP',
+    labelEn: '1 Year Premium VIP',
+    durationMonths: 12,
+    priceIqd: '١٨٠،٠٠٠ د.ع',
+    priceUsd: '$120',
+    badgeBg: 'bg-amber-500/15 border-amber-500/30',
+    badgeText: 'text-amber-400',
+  },
+  {
+    id: 'lifetime',
+    tier: 'lifetime',
+    tierLabelKu: 'هەمیشەیی VIP',
+    tierLabelEn: 'Lifetime VIP',
+    labelKu: 'هەمیشەیی بێ سنوور',
+    labelEn: 'Lifetime Unlimited',
+    durationMonths: null,
+    priceIqd: '٢٥٠،٠٠٠ د.ع',
+    priceUsd: '$170',
+    badgeBg: 'bg-[#D4AF37]/20 border-[#D4AF37]/50',
+    badgeText: 'text-[#D4AF37]',
+  },
 ];
 
 export interface PaymentRequestRecord {
@@ -67,11 +144,11 @@ export interface PaymentRequestRecord {
   phone: string;
   businessName: string;
   businessType?: string;
-  planId: '1m' | '3m' | '6m' | '12m' | 'lifetime';
+  planId: string;
   planLabel: string;
   amount: string;
-  paymentMethod: string; // FastPay, FIB, ZainCash, Cash, AsiaHawala
-  receiptImage?: string; // base64 or URL
+  paymentMethod: string;
+  receiptImage?: string;
   status: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string | null;
   createdAt: string;
@@ -81,14 +158,16 @@ export interface PaymentRequestRecord {
 
 export interface UserSubscriptionRecord {
   id: string;
-  email: string; // Primary link key!
+  email: string; // Primary key (lowercase)
   customerName: string;
   phone: string;
   businessName: string;
   businessType: string;
   address?: string;
-  planId: '1m' | '3m' | '6m' | '12m' | 'lifetime';
+  planId: string;
+  tier?: string;
   planLabel: string;
+  account_password?: string | null;
   startDate: string;
   expiresAt: string | null; // null for lifetime
   status: 'active' | 'expired' | 'cancelled';
@@ -105,6 +184,9 @@ export interface AppUserRecord {
   business_name: string | null;
   business_type?: string | null;
   address?: string | null;
+  account_password?: string | null;
+  password_updated_at?: string | null;
+  tier?: string | null;
   device_id: string | null;
   platform: string;
   app_version: string;
@@ -122,8 +204,8 @@ export default function PaymentManagement({
 }) {
   const isKu = language === 'ku';
 
-  // Active Tab: 'users' | 'requests' | 'subscriptions' (default to requests so admin sees incoming submissions immediately!)
-  const [activeTab, setActiveTab] = useState<'users' | 'requests' | 'subscriptions'>('requests');
+  // Active Tab: 'users' (default) | 'subscriptions' | 'requests'
+  const [activeTab, setActiveTab] = useState<'users' | 'subscriptions' | 'requests'>('users');
 
   // Data states
   const [appUsers, setAppUsers] = useState<AppUserRecord[]>([]);
@@ -131,29 +213,36 @@ export default function PaymentManagement({
   const [subscriptions, setSubscriptions] = useState<UserSubscriptionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [planFilter, setPlanFilter] = useState<'all' | 'pro' | 'premium' | 'lifetime' | 'free' | 'expired'>('all');
 
-  // Modals & Forms
+  // Password Reveal & Copy state
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Modals
+  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState<AppUserRecord | UserSubscriptionRecord | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
-  const [showNewRequestModal, setShowNewRequestModal] = useState(false);
-  const [showActivateModal, setShowActivateModal] = useState<AppUserRecord | UserSubscriptionRecord | null>(null);
 
-  // New Request Form State
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formBusiness, setFormBusiness] = useState('');
-  const [formBusinessType, setFormBusinessType] = useState('Mobile Shop');
-  const [formPlan, setFormPlan] = useState<'1m' | '3m' | '6m' | '12m' | 'lifetime'>('1m');
-  const [formMethod, setFormMethod] = useState('FastPay');
-  const [formReceiptBase64, setFormReceiptBase64] = useState<string>('');
-  const [formNotes, setFormNotes] = useState('');
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Create Account Form State
+  const [createEmail, setCreateEmail] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createPhone, setCreatePhone] = useState('');
+  const [createBusiness, setCreateBusiness] = useState('');
+  const [createBusinessType, setCreateBusinessType] = useState('Mobile Shop');
+  const [createPlan, setCreatePlan] = useState<string>('12m');
+  const [createCustomDays, setCreateCustomDays] = useState<string>('30');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createNotes, setCreateNotes] = useState('');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  // Activate / Extend Subscription Form State
-  const [activatePlan, setActivatePlan] = useState<'1m' | '3m' | '6m' | '12m' | 'lifetime'>('1m');
-  const [activateNotes, setActivateNotes] = useState('');
-  const [activateSubmitting, setActivateSubmitting] = useState(false);
+  // Upgrade / Extend Modal Form State
+  const [upgradePlan, setUpgradePlan] = useState<string>('12m');
+  const [upgradeCustomDays, setUpgradeCustomDays] = useState<string>('30');
+  const [upgradePassword, setUpgradePassword] = useState('');
+  const [upgradeNotes, setUpgradeNotes] = useState('');
+  const [upgradeSubmitting, setUpgradeSubmitting] = useState(false);
 
   // ─── Direct Firestore REST API Resilient Engine ────────────────────────────
   const FIREBASE_API_KEY = 'AIzaSyAPt_45ZxiC6VZALYX65NN_igouWJ-Qpjo';
@@ -188,6 +277,28 @@ export default function PaymentManagement({
     }
   };
 
+  const setDocRest = async (collName: string, docId: string, fields: Record<string, any>): Promise<boolean> => {
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}/${encodeURIComponent(docId)}?key=${FIREBASE_API_KEY}`;
+      const restFields: Record<string, any> = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (v === null || v === undefined) restFields[k] = { nullValue: null };
+        else if (typeof v === 'boolean') restFields[k] = { booleanValue: v };
+        else if (typeof v === 'number') restFields[k] = { integerValue: String(v) };
+        else restFields[k] = { stringValue: String(v) };
+      }
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: restFields }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(`setDocRest error for ${collName}/${docId}:`, err);
+      return false;
+    }
+  };
+
   const updateDocRest = async (collName: string, docId: string, fields: Record<string, any>): Promise<boolean> => {
     try {
       const updateMask = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
@@ -207,28 +318,6 @@ export default function PaymentManagement({
       return res.ok;
     } catch (err) {
       console.error(`updateDocRest error for ${collName}/${docId}:`, err);
-      return false;
-    }
-  };
-
-  const setDocRest = async (collName: string, docId: string, fields: Record<string, any>): Promise<boolean> => {
-    try {
-      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collName}/${encodeURIComponent(docId)}?key=${FIREBASE_API_KEY}`;
-      const restFields: Record<string, any> = {};
-      for (const [k, v] of Object.entries(fields)) {
-        if (v === null || v === undefined) restFields[k] = { nullValue: null };
-        else if (typeof v === 'boolean') restFields[k] = { booleanValue: v };
-        else if (typeof v === 'number') restFields[k] = { integerValue: String(v) };
-        else restFields[k] = { stringValue: String(v) };
-      }
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: restFields }),
-      });
-      return res.ok;
-    } catch (err) {
-      console.error(`setDocRest error for ${collName}/${docId}:`, err);
       return false;
     }
   };
@@ -277,23 +366,20 @@ export default function PaymentManagement({
       }
 
       // 2. Resilient Direct REST API Fallback
-      if (rList.length === 0) {
-        const restReqs = await fetchCollectionRest('payment_requests');
-        if (restReqs.length > 0) rList = restReqs;
-      }
       if (uList.length === 0) {
         const restUsers = await fetchCollectionRest('app_telemetry_users');
         if (restUsers.length > 0) uList = restUsers;
+      }
+      if (rList.length === 0) {
+        const restReqs = await fetchCollectionRest('payment_requests');
+        if (restReqs.length > 0) rList = restReqs;
       }
       if (sList.length === 0) {
         const restSubs = await fetchCollectionRest('user_subscriptions');
         if (restSubs.length > 0) sList = restSubs;
       }
 
-      // Sort and update states
-      uList.sort((a, b) => new Date(b.last_login_at || 0).getTime() - new Date(a.last_login_at || 0).getTime());
-      rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
+      // Process expired subscriptions
       const now = Date.now();
       const processedSubs = sList.map((item) => {
         let status = item.status || 'active';
@@ -304,11 +390,42 @@ export default function PaymentManagement({
         return { ...item, status };
       });
 
+      // Merge: Any email in user_subscriptions that isn't yet in app_telemetry_users
+      // should also appear in appUsers so Tebin sees all accounts he created!
+      const existingEmails = new Set(uList.map((u) => u.email?.toLowerCase().trim()).filter(Boolean));
+      processedSubs.forEach((sub) => {
+        const cleanSubEmail = sub.email?.toLowerCase().trim();
+        if (cleanSubEmail && !existingEmails.has(cleanSubEmail)) {
+          existingEmails.add(cleanSubEmail);
+          uList.push({
+            id: sub.id,
+            user_id: sub.id,
+            email: sub.email,
+            phone: sub.phone,
+            display_name: sub.customerName,
+            business_name: sub.businessName,
+            business_type: sub.businessType,
+            account_password: sub.account_password ?? null,
+            tier: sub.tier ?? 'pro',
+            device_id: null,
+            platform: 'Cloud',
+            app_version: '1.0.0',
+            created_at: sub.startDate,
+            last_login_at: sub.startDate,
+            login_count: 0,
+          });
+        }
+      });
+
+      // Sort
+      uList.sort((a, b) => new Date(b.last_login_at || b.created_at || 0).getTime() - new Date(a.last_login_at || a.created_at || 0).getTime());
+      rList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
       setAppUsers(uList);
       setRequests(rList);
       setSubscriptions(processedSubs);
     } catch (err) {
-      console.error('Failed to load payment data:', err);
+      console.error('Failed to load payment & user data:', err);
     } finally {
       setLoading(false);
     }
@@ -317,32 +434,13 @@ export default function PaymentManagement({
   useEffect(() => {
     fetchData();
 
-    // Auto-polling interval every 8 seconds for rock-solid live syncing
+    // Auto-polling interval every 8 seconds for real-time live synchronization
     const interval = setInterval(() => {
       fetchData();
     }, 8000);
 
-    // Also attempt realtime Firestore listener if client SDK is active
-    let unsub: (() => void) | undefined;
-    try {
-      const db = getClientFirestore();
-      if (db) {
-        unsub = onSnapshot(
-          collection(db, 'payment_requests'),
-          (snapshot) => {
-            const list: PaymentRequestRecord[] = [];
-            snapshot.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
-            list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-            setRequests(list);
-          },
-          (err) => console.warn('Realtime onSnapshot notice:', err)
-        );
-      }
-    } catch {}
-
     return () => {
       clearInterval(interval);
-      if (unsub) unsub();
     };
   }, [fetchData]);
 
@@ -365,36 +463,68 @@ export default function PaymentManagement({
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  // ─── Create Subscription directly by Email ─────────────────────────────────
-  const saveSubscriptionForEmail = async (
-    email: string,
-    customerName: string,
-    phone: string,
-    businessName: string,
-    businessType: string,
-    planId: '1m' | '3m' | '6m' | '12m' | 'lifetime',
-    notes: string = ''
-  ) => {
-    const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[0];
+  const togglePassword = (key: string) => {
+    setRevealedPasswords((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const copyToClipboard = (text: string, key: string) => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {}
+  };
+
+  // ─── Core: Save / Upgrade Subscription for User Email ───────────────────────
+  const saveSubscriptionForEmail = async ({
+    email,
+    customerName,
+    phone,
+    businessName,
+    businessType,
+    planId,
+    notes = '',
+    customDays = 30,
+    password = '',
+  }: {
+    email: string;
+    customerName: string;
+    phone: string;
+    businessName: string;
+    businessType: string;
+    planId: string;
+    notes?: string;
+    customDays?: number;
+    password?: string;
+  }) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const subDocId = cleanEmail.replace(/[^a-z0-9_]/gi, '_');
     const now = new Date();
+
+    const matchedPlan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
+    let planLabel = matchedPlan ? (isKu ? matchedPlan.labelKu : matchedPlan.labelEn) : 'پڕۆ (تایبەت)';
+    let tier = matchedPlan ? matchedPlan.tier : 'pro';
     let expiresAtIso: string | null = null;
 
-    if (plan.durationMonths !== null) {
+    if (planId === 'custom') {
       const expDate = new Date();
-      // If user already has an active subscription, extend from existing expiry date!
-      const existing = getSubscriptionForEmail(email);
+      expDate.setDate(expDate.getDate() + (customDays || 30));
+      expiresAtIso = expDate.toISOString();
+      planLabel = isKu ? `${customDays} ڕۆژ (تایبەت)` : `${customDays} Days (Custom)`;
+      tier = 'pro';
+    } else if (matchedPlan && matchedPlan.durationMonths !== null) {
+      const existing = getSubscriptionForEmail(cleanEmail);
       if (existing && existing.expiresAt && new Date(existing.expiresAt).getTime() > Date.now()) {
         const baseDate = new Date(existing.expiresAt);
-        baseDate.setMonth(baseDate.getMonth() + plan.durationMonths);
+        baseDate.setMonth(baseDate.getMonth() + matchedPlan.durationMonths);
         expiresAtIso = baseDate.toISOString();
       } else {
-        expDate.setMonth(expDate.getMonth() + plan.durationMonths);
+        const expDate = new Date();
+        expDate.setMonth(expDate.getMonth() + matchedPlan.durationMonths);
         expiresAtIso = expDate.toISOString();
       }
     }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const subDocId = cleanEmail.replace(/[^a-z0-9_]/gi, '_');
 
     const subRecord: UserSubscriptionRecord = {
       id: subDocId,
@@ -404,7 +534,9 @@ export default function PaymentManagement({
       businessName: businessName.trim() || 'فرۆشگا',
       businessType: businessType || 'Mobile Shop',
       planId,
-      planLabel: isKu ? plan.labelKu : plan.labelEn,
+      tier,
+      planLabel,
+      account_password: password.trim() ? password.trim() : undefined,
       startDate: now.toISOString(),
       expiresAt: expiresAtIso,
       status: 'active',
@@ -412,24 +544,163 @@ export default function PaymentManagement({
       updatedAt: now.toISOString(),
     };
 
-    // Try SDK first
-    let saved = false;
+    // 1. Save to user_subscriptions (SDK + REST fallback)
+    let subSaved = false;
     try {
       const db = getClientFirestore();
       if (db) {
         await setDoc(doc(db, 'user_subscriptions', subDocId), subRecord, { merge: true });
-        saved = true;
+        subSaved = true;
       }
-    } catch (e) {
-      console.warn('SDK setDoc notice, using REST:', e);
-    }
-
-    // Fallback to REST
-    if (!saved) {
+    } catch {}
+    if (!subSaved) {
       await setDocRest('user_subscriptions', subDocId, subRecord);
     }
 
+    // 2. Synchronize to app_telemetry_users so the user profile & password exist in All Users
+    const userTelemetryData: Record<string, any> = {
+      user_id: subDocId,
+      email: cleanEmail,
+      display_name: customerName.trim() || 'بەکارهێنەر',
+      business_name: businessName.trim() || 'فرۆشگا',
+      phone: phone.trim(),
+      tier,
+      updated_at: now.toISOString(),
+    };
+    if (password.trim()) {
+      userTelemetryData.account_password = password.trim();
+      userTelemetryData.password_updated_at = now.toISOString();
+    }
+
+    try {
+      const db = getClientFirestore();
+      if (db) {
+        await setDoc(doc(db, 'app_telemetry_users', subDocId), userTelemetryData, { merge: true });
+      }
+    } catch {}
+    await setDocRest('app_telemetry_users', subDocId, userTelemetryData);
+
     await fetchData();
+  };
+
+  // ─── Handle Create Account Form Submit ──────────────────────────────────────
+  const handleCreateAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError(null);
+
+    const email = createEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      setCreateError(isKu ? 'تکایە ئیمەیڵێکی دروست بنووسە' : 'Please enter a valid email address');
+      return;
+    }
+
+    setCreateSubmitting(true);
+    try {
+      await saveSubscriptionForEmail({
+        email,
+        customerName: createName,
+        phone: createPhone,
+        businessName: createBusiness,
+        businessType: createBusinessType,
+        planId: createPlan,
+        notes: createNotes,
+        customDays: parseInt(createCustomDays, 10) || 30,
+        password: createPassword,
+      });
+
+      alert(
+        isKu
+          ? `هەژماری (${email}) بە سەرکەوتوویی لەگەڵ پاکێج و وشەی نهێنی تۆمار کرا و چالاک کرا!`
+          : `Account (${email}) successfully created and subscription activated!`
+      );
+
+      // Reset
+      setCreateEmail('');
+      setCreateName('');
+      setCreatePhone('');
+      setCreateBusiness('');
+      setCreatePassword('');
+      setCreateNotes('');
+      setShowCreateAccountModal(false);
+    } catch (err: any) {
+      setCreateError(err?.message || 'Error creating account');
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  // ─── Handle Upgrade / Extend Submit ─────────────────────────────────────────
+  const handleUpgradeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showUpgradeModal || !showUpgradeModal.email) return;
+
+    setUpgradeSubmitting(true);
+    try {
+      const email = showUpgradeModal.email;
+      const name =
+        ('display_name' in showUpgradeModal
+          ? (showUpgradeModal as any).display_name
+          : (showUpgradeModal as any).customerName) || 'بەکارهێنەر';
+      const phone = showUpgradeModal.phone || '';
+      const business =
+        ('business_name' in showUpgradeModal
+          ? (showUpgradeModal as any).business_name
+          : (showUpgradeModal as any).businessName) || 'فرۆشگا';
+      const bType =
+        ('business_type' in showUpgradeModal
+          ? (showUpgradeModal as any).business_type
+          : (showUpgradeModal as any).businessType) || 'Mobile Shop';
+
+      await saveSubscriptionForEmail({
+        email,
+        customerName: name,
+        phone,
+        businessName: business,
+        businessType: bType,
+        planId: upgradePlan,
+        notes: upgradeNotes,
+        customDays: parseInt(upgradeCustomDays, 10) || 30,
+        password: upgradePassword,
+      });
+
+      alert(
+        isKu
+          ? `هەژماری (${email}) بە سەرکەوتوویی بەرزکرایەوە!`
+          : `Account (${email}) upgraded successfully!`
+      );
+
+      setShowUpgradeModal(null);
+      setUpgradeNotes('');
+      setUpgradePassword('');
+    } catch (err: any) {
+      alert(err?.message || 'Error updating subscription');
+    } finally {
+      setUpgradeSubmitting(false);
+    }
+  };
+
+  // ─── Delete Subscription ───────────────────────────────────────────────────
+  const handleDeleteSubscription = async (sub: UserSubscriptionRecord) => {
+    const confirmMsg = isKu
+      ? `ئایا دڵنیایت لە هەڵوەشاندنەوە یان سڕینەوەی بەشداریکردنی (${sub.email})؟ بەم کارە هەژمارەکەی دەگەڕێتەوە باری ئاسایی.`
+      : `Revoke or delete subscription for (${sub.email})?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      let deleted = false;
+      const db = getClientFirestore();
+      if (db) {
+        await deleteDoc(doc(db, 'user_subscriptions', sub.id));
+        deleted = true;
+      }
+      if (!deleted) {
+        await deleteDocRest('user_subscriptions', sub.id);
+      }
+      fetchData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete subscription');
+    }
   };
 
   // ─── Approve Payment Request ───────────────────────────────────────────────
@@ -444,39 +715,26 @@ export default function PaymentManagement({
       const approvedAt = new Date().toISOString();
       let updated = false;
 
-      // 1. Update request status to approved
-      try {
-        const db = getClientFirestore();
-        if (db) {
-          await updateDoc(doc(db, 'payment_requests', req.id), {
-            status: 'approved',
-            approvedAt,
-          });
-          updated = true;
-        }
-      } catch (e) {
-        console.warn('SDK updateDoc notice, using REST:', e);
+      const db = getClientFirestore();
+      if (db) {
+        await updateDoc(doc(db, 'payment_requests', req.id), { status: 'approved', approvedAt });
+        updated = true;
       }
-
       if (!updated) {
-        await updateDocRest('payment_requests', req.id, {
-          status: 'approved',
-          approvedAt,
-        });
+        await updateDocRest('payment_requests', req.id, { status: 'approved', approvedAt });
       }
 
-      // 2. Automatically grant/extend subscription for this email
-      await saveSubscriptionForEmail(
-        req.email,
-        req.customerName,
-        req.phone,
-        req.businessName,
-        req.businessType || 'Store',
-        req.planId,
-        `Approved from Payment Request ID: ${req.id}`
-      );
+      await saveSubscriptionForEmail({
+        email: req.email,
+        customerName: req.customerName,
+        phone: req.phone,
+        businessName: req.businessName,
+        businessType: req.businessType || 'Store',
+        planId: req.planId,
+        notes: `Approved from Payment Request ID: ${req.id}`,
+      });
 
-      alert(isKu ? 'داواکارییەکە بە سەرکەوتوویی پەسەندکرا و بەشداریکردنی بەکارهێنەر چالاک کرا!' : 'Request approved and subscription activated!');
+      alert(isKu ? 'داواکارییەکە پەسەندکرا و بەشداریکردن چالاککرا!' : 'Request approved and subscription activated!');
       fetchData();
     } catch (err: any) {
       alert(err?.message || 'Error approving request');
@@ -486,7 +744,7 @@ export default function PaymentManagement({
   // ─── Reject Payment Request ────────────────────────────────────────────────
   const handleRejectRequest = async (req: PaymentRequestRecord) => {
     const reason = window.prompt(
-      isKu ? 'تکایە هۆکاری ڕەتکردنەوە بنووسە (بۆ نموونە: وەسڵ ساختەیە یان پارە نەگەیشتووە):' : 'Rejection reason:',
+      isKu ? 'هۆکاری ڕەتکردنەوە بنووسە:' : 'Rejection reason:',
       isKu ? 'پارەکە نەگەیشتووە یان وێنەی وەسڵ دروست نییە' : 'Payment not received or invalid receipt'
     );
     if (reason === null) return;
@@ -494,19 +752,15 @@ export default function PaymentManagement({
     try {
       const rejectedAt = new Date().toISOString();
       let updated = false;
-
-      try {
-        const db = getClientFirestore();
-        if (db) {
-          await updateDoc(doc(db, 'payment_requests', req.id), {
-            status: 'rejected',
-            rejectionReason: reason.trim(),
-            rejectedAt,
-          });
-          updated = true;
-        }
-      } catch {}
-
+      const db = getClientFirestore();
+      if (db) {
+        await updateDoc(doc(db, 'payment_requests', req.id), {
+          status: 'rejected',
+          rejectionReason: reason.trim(),
+          rejectedAt,
+        });
+        updated = true;
+      }
       if (!updated) {
         await updateDocRest('payment_requests', req.id, {
           status: 'rejected',
@@ -514,7 +768,6 @@ export default function PaymentManagement({
           rejectedAt,
         });
       }
-
       fetchData();
     } catch (err: any) {
       alert(err?.message || 'Error rejecting request');
@@ -526,14 +779,11 @@ export default function PaymentManagement({
     if (!window.confirm(isKu ? 'ئایا دڵنیایت لە سڕینەوەی ئەم داواکارییە؟' : 'Delete this payment request?')) return;
     try {
       let deleted = false;
-      try {
-        const db = getClientFirestore();
-        if (db) {
-          await deleteDoc(doc(db, 'payment_requests', id));
-          deleted = true;
-        }
-      } catch {}
-
+      const db = getClientFirestore();
+      if (db) {
+        await deleteDoc(doc(db, 'payment_requests', id));
+        deleted = true;
+      }
       if (!deleted) {
         await deleteDocRest('payment_requests', id);
       }
@@ -543,154 +793,49 @@ export default function PaymentManagement({
     }
   };
 
-  // ─── Handle New Payment Request Submit ─────────────────────────────────────
-  const handleSubmitNewRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    const email = formEmail.trim().toLowerCase();
-    if (!email || !email.includes('@')) {
-      setFormError(isKu ? 'تکایە ئیمەیڵێکی دروست بنووسە' : 'Please enter a valid email');
-      return;
-    }
-
-    setFormSubmitting(true);
-    try {
-      const plan = SUBSCRIPTION_PLANS.find((p) => p.id === formPlan) || SUBSCRIPTION_PLANS[0];
-      const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}`;
-
-      const newRecord: PaymentRequestRecord = {
-        id: newId,
-        customerName: formName.trim() || 'کڕیاری نوێ',
-        email,
-        phone: formPhone.trim(),
-        businessName: formBusiness.trim() || 'فرۆشگا',
-        businessType: formBusinessType,
-        planId: formPlan,
-        planLabel: isKu ? plan.labelKu : plan.labelEn,
-        amount: isKu ? plan.priceIqd : plan.priceUsd,
-        paymentMethod: formMethod,
-        receiptImage: formReceiptBase64 || undefined,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        notes: formNotes.trim(),
-      };
-
-      let saved = false;
-      try {
-        const db = getClientFirestore();
-        if (db) {
-          await setDoc(doc(db, 'payment_requests', newId), newRecord);
-          saved = true;
-        }
-      } catch {}
-
-      if (!saved) {
-        await setDocRest('payment_requests', newId, newRecord);
-      }
-
-      // Reset
-      setFormName('');
-      setFormEmail('');
-      setFormPhone('');
-      setFormBusiness('');
-      setFormReceiptBase64('');
-      setFormNotes('');
-      setShowNewRequestModal(false);
-      fetchData();
-    } catch (err: any) {
-      setFormError(err?.message || 'Failed to submit request');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-
-  // ─── Handle Activate/Extend Submit from Modal ──────────────────────────────
-  const handleActivateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!showActivateModal || !showActivateModal.email) return;
-
-    setActivateSubmitting(true);
-    try {
-      const email = showActivateModal.email;
-      const name =
-        ('display_name' in showActivateModal
-          ? (showActivateModal as any).display_name
-          : (showActivateModal as any).customerName) || 'بەکارهێنەر';
-      const phone = showActivateModal.phone || '';
-      const business =
-        ('business_name' in showActivateModal
-          ? (showActivateModal as any).business_name
-          : (showActivateModal as any).businessName) || 'فرۆشگا';
-      const bType =
-        ('business_type' in showActivateModal
-          ? (showActivateModal as any).business_type
-          : (showActivateModal as any).businessType) || 'Mobile Shop';
-
-      await saveSubscriptionForEmail(
-        email,
-        name,
-        phone,
-        business,
-        bType,
-        activatePlan,
-        activateNotes
-      );
-
-      setShowActivateModal(null);
-      setActivateNotes('');
-    } catch (err: any) {
-      alert(err?.message || 'Error updating subscription');
-    } finally {
-      setActivateSubmitting(false);
-    }
-  };
-
-  // ─── Image file handler for receipt upload ─────────────────────────────────
-  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert(isKu ? 'قەبارەی وێنە نابێت لە ٢ مێگابایت زیاتر بێت' : 'Receipt image must be under 2MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setFormReceiptBase64(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   // ─── Stats Counts ──────────────────────────────────────────────────────────
   const statsCounts = useMemo(() => {
-    const pendingReqs = requests.filter((r) => r.status === 'pending').length;
+    const totalUsers = appUsers.length;
     const activeSubs = subscriptions.filter((s) => s.status === 'active').length;
-    const expiredSubs = subscriptions.filter((s) => s.status === 'expired').length;
-    return {
-      totalUsers: appUsers.length,
-      pendingReqs,
-      activeSubs,
-      expiredSubs,
-    };
-  }, [appUsers, requests, subscriptions]);
+    const proSubs = subscriptions.filter((s) => s.status === 'active' && s.tier === 'pro').length;
+    const premiumOrLifetime = subscriptions.filter(
+      (s) => s.status === 'active' && (s.tier === 'premium' || s.tier === 'lifetime' || s.planId === 'lifetime')
+    ).length;
+    const pendingReqs = requests.filter((r) => r.status === 'pending').length;
+
+    return { totalUsers, activeSubs, proSubs, premiumOrLifetime, pendingReqs };
+  }, [appUsers, subscriptions, requests]);
 
   // ─── Filtered Users ────────────────────────────────────────────────────────
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return appUsers;
     return appUsers.filter((u) => {
-      return (
+      // Search Query
+      const matchSearch =
+        !q ||
         u.email?.toLowerCase().includes(q) ||
         u.display_name?.toLowerCase().includes(q) ||
         u.business_name?.toLowerCase().includes(q) ||
-        u.phone?.toLowerCase().includes(q)
-      );
+        u.phone?.toLowerCase().includes(q) ||
+        u.account_password?.toLowerCase().includes(q);
+
+      if (!matchSearch) return false;
+
+      // Plan Filter
+      const sub = getSubscriptionForEmail(u.email);
+      const remaining = sub ? calculateDaysRemaining(sub.expiresAt, sub.planId) : null;
+      const isPaidActive = sub && sub.status === 'active' && remaining !== 'expired';
+
+      if (planFilter === 'all') return true;
+      if (planFilter === 'pro') return isPaidActive && (sub.tier === 'pro' || sub.planId.includes('m'));
+      if (planFilter === 'premium') return isPaidActive && sub.tier === 'premium';
+      if (planFilter === 'lifetime') return isPaidActive && (sub.tier === 'lifetime' || sub.planId === 'lifetime');
+      if (planFilter === 'expired') return sub && (sub.status === 'expired' || remaining === 'expired');
+      if (planFilter === 'free') return !sub || sub.status !== 'active';
+
+      return true;
     });
-  }, [appUsers, searchQuery]);
+  }, [appUsers, searchQuery, planFilter, getSubscriptionForEmail]);
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
@@ -700,12 +845,8 @@ export default function PaymentManagement({
         <div
           onClick={() => setActiveTab('users')}
           className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-[#D4AF37]/60 active:scale-98 ${
-            activeTab === 'users'
-              ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/30'
-              : ''
-          } ${
-            isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
-          }`}
+            activeTab === 'users' ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/30' : ''
+          } ${isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'}`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-slate-400 font-bold">{isKu ? 'کۆی بەکارهێنەران' : 'Total Users'}</span>
@@ -714,19 +855,15 @@ export default function PaymentManagement({
             </div>
           </div>
           <div className="text-xl sm:text-2xl font-black text-inherit">{statsCounts.totalUsers}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'تۆمارکراو لە ناو فرۆشیار' : 'Registered in Froshiar'}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'تۆمارکراو لە ناو فرۆشیار' : 'Registered accounts'}</p>
         </div>
 
         {/* Card 2: Active Subscriptions */}
         <div
           onClick={() => setActiveTab('subscriptions')}
           className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-emerald-500/60 active:scale-98 ${
-            activeTab === 'subscriptions'
-              ? 'border-emerald-500 ring-1 ring-emerald-500/30'
-              : ''
-          } ${
-            isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
-          }`}
+            activeTab === 'subscriptions' ? 'border-emerald-500 ring-1 ring-emerald-500/30' : ''
+          } ${isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'}`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-slate-400 font-bold">{isKu ? 'بەشداریکردنی چالاک' : 'Active Subscriptions'}</span>
@@ -735,16 +872,34 @@ export default function PaymentManagement({
             </div>
           </div>
           <div className="text-xl sm:text-2xl font-black text-emerald-500">{statsCounts.activeSubs}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'ئەکاونتی پارەپێدراوی لایڤ' : 'Live paid accounts'}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'خزمەتگوزاری بێ سنوور' : 'Unlimited Pro accounts'}</p>
         </div>
 
-        {/* Card 3: Pending Payment Requests (With Alert Badge) */}
+        {/* Card 3: Premium & Lifetime VIP */}
+        <div
+          onClick={() => {
+            setActiveTab('users');
+            setPlanFilter('lifetime');
+          }}
+          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-[#D4AF37]/60 active:scale-98 ${
+            isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-400 font-bold">{isKu ? 'پریمیم و هەمیشەیی' : 'Premium & Lifetime'}</span>
+            <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37]">
+              <Crown className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-[#D4AF37]">{statsCounts.premiumOrLifetime}</div>
+          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'ئەکاونتی تایبەت و VIP' : 'VIP & Lifetime Tier'}</p>
+        </div>
+
+        {/* Card 4: Pending Requests (or Pro Count) */}
         <div
           onClick={() => setActiveTab('requests')}
           className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-amber-500/60 active:scale-98 ${
-            activeTab === 'requests'
-              ? 'border-amber-500 ring-1 ring-amber-500/30'
-              : ''
+            activeTab === 'requests' ? 'border-amber-500 ring-1 ring-amber-500/30' : ''
           } ${
             statsCounts.pendingReqs > 0
               ? isDarkMode
@@ -756,10 +911,12 @@ export default function PaymentManagement({
           }`}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-bold">{isKu ? 'داواکاریی نوێی وەسڵ' : 'Pending Requests'}</span>
+            <span className="text-xs text-slate-400 font-bold">{isKu ? 'داواکارییەکانی پەیمێنت' : 'Payment Requests'}</span>
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                statsCounts.pendingReqs > 0 ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-amber-500/15 text-amber-500'
+                statsCounts.pendingReqs > 0
+                  ? 'bg-amber-500 text-slate-950 animate-pulse'
+                  : 'bg-amber-500/15 text-amber-500'
               }`}
             >
               <Clock className="w-4 h-4" />
@@ -767,23 +924,6 @@ export default function PaymentManagement({
           </div>
           <div className="text-xl sm:text-2xl font-black text-amber-500">{statsCounts.pendingReqs}</div>
           <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'چاوەڕوانی پەسەندکردنن' : 'Awaiting admin approval'}</p>
-        </div>
-
-        {/* Card 4: Expired Accounts */}
-        <div
-          onClick={() => setActiveTab('subscriptions')}
-          className={`p-4 sm:p-5 rounded-2xl border transition shadow-sm cursor-pointer hover:border-red-500/60 active:scale-98 ${
-            isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-400 font-bold">{isKu ? 'بەسەرچووەکان' : 'Expired'}</span>
-            <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center text-red-400">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-red-400">{statsCounts.expiredSubs}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">{isKu ? 'خزمەتگوزاری لایان وەستاوە' : 'Services automatically ended'}</p>
         </div>
       </div>
 
@@ -795,7 +935,7 @@ export default function PaymentManagement({
       >
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-          {/* Tab 1: Users */}
+          {/* Tab 1: All Users */}
           <button
             onClick={() => setActiveTab('users')}
             className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shrink-0 ${
@@ -813,7 +953,25 @@ export default function PaymentManagement({
             </span>
           </button>
 
-          {/* Tab 2: Payment Requests */}
+          {/* Tab 2: Active Subscriptions */}
+          <button
+            onClick={() => setActiveTab('subscriptions')}
+            className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shrink-0 ${
+              activeTab === 'subscriptions'
+                ? 'bg-[#D4AF37] text-slate-950 shadow-md shadow-[#D4AF37]/20 font-extrabold'
+                : isDarkMode
+                ? 'bg-[#0E1524] text-slate-300 hover:bg-slate-800'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>{isKu ? 'بەشداریکردنە چالاکەکان' : 'Active Subscriptions'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/15 text-inherit">
+              {subscriptions.length}
+            </span>
+          </button>
+
+          {/* Tab 3: Payment Requests */}
           <button
             onClick={() => setActiveTab('requests')}
             className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shrink-0 ${
@@ -836,68 +994,85 @@ export default function PaymentManagement({
               </span>
             )}
           </button>
-
-          {/* Tab 3: Subscriptions Tracker */}
-          <button
-            onClick={() => setActiveTab('subscriptions')}
-            className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 cursor-pointer shrink-0 ${
-              activeTab === 'subscriptions'
-                ? 'bg-[#D4AF37] text-slate-950 shadow-md shadow-[#D4AF37]/20 font-extrabold'
-                : isDarkMode
-                ? 'bg-[#0E1524] text-slate-300 hover:bg-slate-800'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>{isKu ? 'بەشداریکردنە چالاکەکان' : 'Active Subscriptions'}</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/15 text-inherit">
-              {subscriptions.length}
-            </span>
-          </button>
         </div>
 
-        {/* Right actions: Refresh & New Request Button */}
+        {/* Right actions: Refresh & Create Account Button */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={fetchData}
             disabled={loading}
             className={`p-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-              isDarkMode ? 'bg-[#0E1524] border-slate-700 text-slate-200 hover:bg-slate-800' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              isDarkMode
+                ? 'bg-[#0E1524] border-slate-700 text-slate-200 hover:bg-slate-800'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
             }`}
             title={isKu ? 'نوێکردنەوە' : 'Refresh'}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#D4AF37]' : ''}`} />
           </button>
 
+          {/* Main Action: Directly Create & Assign Account to Person */}
           <button
-            onClick={() => setShowNewRequestModal(true)}
-            className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-[#D4AF37]/20 cursor-pointer active:scale-98 transition"
+            onClick={() => setShowCreateAccountModal(true)}
+            className="px-4 py-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-[#D4AF37]/20 cursor-pointer active:scale-98 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>{isKu ? '+ تۆمارکردنی داواکاری' : '+ New Request'}</span>
+            <span>{isKu ? 'دروستکردنی ئەکاونت و بەشداریکردن' : '+ Create & Assign Account'}</span>
           </button>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── TAB 1: ALL USERS & BUSINESS PROFILES ──                             */}
+      {/* ── TAB 1: ALL USERS & PASSWORD METRICS ──                              */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute top-3.5 left-3.5 sm:left-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isKu ? 'گەڕان بەپێی ئیمەیڵ، ناوی کڕیار، ناوی بازرگانی، یان ژمارەی تەلەفۆن...' : 'Search users by email, name, business, phone...'}
-              className={`w-full pl-10 pr-4 py-3 rounded-2xl text-xs sm:text-sm outline-none border transition ${
-                isDarkMode
-                  ? 'bg-[#141C2E] border-slate-800 text-white placeholder-slate-500 focus:border-[#D4AF37]'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#D4AF37]'
-              }`}
-            />
+          {/* Search Bar & Filter Chips */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute top-3.5 left-3.5 sm:left-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  isKu
+                    ? 'گەڕان بەپێی ئیمەیڵ، ناوی کڕیار، ناوی بازرگانی، وشەی نهێنی، یان تەلەفۆن...'
+                    : 'Search by email, customer name, business, password, phone...'
+                }
+                className={`w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm outline-none border transition ${
+                  isDarkMode
+                    ? 'bg-[#141C2E] border-slate-800 text-white placeholder-slate-500 focus:border-[#D4AF37]'
+                    : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#D4AF37]'
+                }`}
+              />
+            </div>
+
+            {/* Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              {[
+                { id: 'all', label: isKu ? 'هەموو' : 'All' },
+                { id: 'pro', label: isKu ? 'پڕۆ' : 'Pro' },
+                { id: 'premium', label: isKu ? 'پریمیم' : 'Premium' },
+                { id: 'lifetime', label: isKu ? 'هەمیشەیی' : 'Lifetime' },
+                { id: 'free', label: isKu ? 'بێ بەشداریکردن' : 'Free' },
+                { id: 'expired', label: isKu ? 'بەسەرچوو' : 'Expired' },
+              ].map((chip) => (
+                <button
+                  key={chip.id}
+                  onClick={() => setPlanFilter(chip.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                    planFilter === chip.id
+                      ? 'bg-[#D4AF37] text-slate-950 shadow-sm'
+                      : isDarkMode
+                      ? 'bg-[#0E1524] text-slate-400 hover:text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Users List Cards */}
@@ -907,7 +1082,7 @@ export default function PaymentManagement({
                 isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
               }`}
             >
-              {isKu ? 'هیچ بەکارهێنەرێک نەدۆزرایەوە.' : 'No users found.'}
+              {isKu ? 'هیچ بەکارهێنەرێک نەدۆزرایەوە.' : 'No users found matching your search.'}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
@@ -915,6 +1090,9 @@ export default function PaymentManagement({
                 const sub = getSubscriptionForEmail(user.email);
                 const remaining = sub ? calculateDaysRemaining(sub.expiresAt, sub.planId) : null;
                 const isPaidActive = sub && sub.status === 'active' && remaining !== 'expired';
+                const isLifetime = sub && (sub.planId === 'lifetime' || sub.tier === 'lifetime');
+                const isPremium = sub && sub.tier === 'premium';
+                const isExpired = sub && (sub.status === 'expired' || remaining === 'expired');
 
                 return (
                   <div
@@ -925,12 +1103,26 @@ export default function PaymentManagement({
                         : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    {/* Header: Business & Avatar */}
+                    {/* Top: Business & Avatar & Badge */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        {/* Business Avatar / Icon */}
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] font-black text-lg border border-[#D4AF37]/30 shrink-0">
-                          {user.business_name ? user.business_name.charAt(0).toUpperCase() : user.display_name ? user.display_name.charAt(0).toUpperCase() : 'B'}
+                        {/* Avatar */}
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border shrink-0 ${
+                            isLifetime
+                              ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/40 shadow-sm shadow-[#D4AF37]/20'
+                              : isPremium
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                              : isPaidActive
+                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                              : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                          }`}
+                        >
+                          {user.business_name
+                            ? user.business_name.charAt(0).toUpperCase()
+                            : user.display_name
+                            ? user.display_name.charAt(0).toUpperCase()
+                            : 'F'}
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-sm sm:text-base font-extrabold text-inherit truncate">
@@ -944,62 +1136,161 @@ export default function PaymentManagement({
                       </div>
 
                       {/* Subscription Status Pill */}
-                      {isPaidActive ? (
-                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                          {isKu ? 'چالاکە' : 'Active'}
+                      {isLifetime ? (
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1 shrink-0">
+                          <Crown className="w-3 h-3" />
+                          <span>{isKu ? 'هەمیشەیی VIP' : 'Lifetime'}</span>
                         </span>
-                      ) : sub && sub.status === 'expired' ? (
+                      ) : isPremium ? (
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                          <Crown className="w-3 h-3" />
+                          <span>{isKu ? 'پریمیم VIP' : 'Premium'}</span>
+                        </span>
+                      ) : isPaidActive ? (
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>{isKu ? 'پڕۆ - چالاک' : 'Pro Active'}</span>
+                        </span>
+                      ) : isExpired ? (
                         <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 shrink-0">
                           {isKu ? 'بەسەرچووە' : 'Expired'}
                         </span>
                       ) : (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400 shrink-0">
-                          {isKu ? 'بێ بەشداریکردن' : 'No Plan'}
+                          {isKu ? 'بێ بەشداریکردن' : 'Free'}
                         </span>
                       )}
                     </div>
 
-                    {/* Contact & Profile Details */}
+                    {/* Contact & Profile Info */}
                     <div
                       className={`p-3 rounded-xl border space-y-1.5 text-xs ${
                         isDarkMode ? 'bg-[#0E1524] border-slate-800/80 text-slate-300' : 'bg-slate-50 border-slate-100 text-slate-700'
                       }`}
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="font-mono text-[11px] truncate">{user.email || '—'}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 truncate min-w-0">
+                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-mono text-[11px] truncate">{user.email || '—'}</span>
+                        </div>
+                        {user.email && (
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(user.email!, `email_${user.id}`)}
+                            className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                            title={isKu ? 'لەبەرگرتنەوەی ئیمەیڵ' : 'Copy Email'}
+                          >
+                            {copiedKey === `email_${user.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        )}
                       </div>
+
                       <div className="flex items-center gap-2 truncate">
                         <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="font-mono text-[11px]">{user.phone || '—'}</span>
                       </div>
+
                       <div className="flex items-center gap-2 truncate text-[11px] text-slate-400">
                         <Users className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{user.display_name || 'بەکارهێنەر'}</span>
+                        <span className="truncate">{user.display_name || (isKu ? 'بەکارهێنەری فرۆشیار' : 'User')}</span>
                       </div>
+                    </div>
+
+                    {/* ── User Password Row (Visible directly to Admin!) ── */}
+                    <div
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition ${
+                        isDarkMode
+                          ? 'bg-[#0E1524] border-slate-800'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                          <Key className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] text-slate-400 block font-bold leading-tight">
+                            {isKu ? 'وشەی نهێنی (Password)' : 'Account Password'}
+                          </span>
+                          {user.account_password ? (
+                            <span className="font-mono font-bold text-amber-300 text-xs tracking-wider select-all">
+                              {revealedPasswords[user.id] ? user.account_password : '••••••••'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 italic">
+                              {isKu ? 'لە کاتی لۆگین تۆمار دەبێت' : 'Records on login'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {user.account_password && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => togglePassword(user.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                            title={revealedPasswords[user.id] ? (isKu ? 'شاردنەوە' : 'Hide') : (isKu ? 'پیشاندان' : 'Show')}
+                          >
+                            {revealedPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(user.account_password!, `pass_${user.id}`)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                            title={isKu ? 'لەبەرگرتنەوە' : 'Copy'}
+                          >
+                            {copiedKey === `pass_${user.id}` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Subscription Duration Summary if exists */}
                     {sub && (
                       <div className="text-[11px] flex items-center justify-between px-1 text-slate-400">
-                        <span>{sub.planLabel}</span>
+                        <span className="font-bold text-inherit">{sub.planLabel}</span>
                         <span className="font-bold text-inherit">
                           {remaining === 'lifetime'
-                            ? isKu ? 'هەمیشەیی' : 'Lifetime'
+                            ? isKu
+                              ? 'هەمیشەیی'
+                              : 'Lifetime'
                             : remaining === 'expired'
-                            ? isKu ? 'بەسەرچووە' : 'Expired'
+                            ? isKu
+                              ? 'بەسەرچووە'
+                              : 'Expired'
                             : `${remaining} ${isKu ? 'ڕۆژی ماوە' : 'days left'}`}
                         </span>
                       </div>
                     )}
 
-                    {/* Action Button: Activate or Extend Subscription */}
+                    {/* Action Button: Upgrade / Assign Pro */}
                     <button
-                      onClick={() => setShowActivateModal(user)}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-tr from-[#D4AF37]/15 to-[#D4AF37]/25 hover:from-[#D4AF37]/30 hover:to-[#D4AF37]/40 text-[#D4AF37] font-bold text-xs border border-[#D4AF37]/30 transition flex items-center justify-center gap-2 cursor-pointer"
+                      onClick={() => setShowUpgradeModal(user)}
+                      className={`w-full py-2.5 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-98 ${
+                        isPaidActive
+                          ? 'bg-gradient-to-tr from-[#D4AF37]/20 to-[#D4AF37]/35 text-[#D4AF37] border-[#D4AF37]/40 hover:from-[#D4AF37]/30'
+                          : 'bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 font-extrabold border-transparent hover:opacity-95'
+                      }`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isPaidActive ? (isKu ? 'نوێکردنەوە / درێژکردنەوە' : 'Renew / Extend') : (isKu ? 'چالاککردنی بەشداریکردن' : 'Activate Subscription')}</span>
+                      <span>
+                        {isPaidActive
+                          ? isKu
+                            ? 'نوێکردنەوە / بەرزکردنەوەی پلان'
+                            : 'Renew / Upgrade Plan'
+                          : isKu
+                          ? '⚡ بەرزکردنەوەی هەژمار بۆ پڕۆ / پریمیم'
+                          : '⚡ Upgrade Account to Pro / Premium'}
+                      </span>
                     </button>
                   </div>
                 );
@@ -1010,7 +1301,138 @@ export default function PaymentManagement({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── TAB 2: PAYMENT REQUESTS (WITH RECEIPT PROOFS) ──                     */}
+      {/* ── TAB 2: ACTIVE SUBSCRIPTIONS LIST ──                                 */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'subscriptions' && (
+        <div className="space-y-4">
+          {subscriptions.length === 0 ? (
+            <div
+              className={`p-12 text-center rounded-2xl border text-xs text-slate-400 ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
+              }`}
+            >
+              <Clock className="w-8 h-8 mx-auto mb-2 text-slate-500 opacity-60" />
+              <p>{isKu ? 'هیچ بەشداریکردنێکی چالاک نییە.' : 'No active subscriptions found.'}</p>
+              <button
+                onClick={() => setShowCreateAccountModal(true)}
+                className="mt-3 px-4 py-2 rounded-xl bg-[#D4AF37] text-slate-950 font-bold text-xs cursor-pointer"
+              >
+                {isKu ? '+ دروستکردنی یەکەم ئەکاونت' : '+ Create First Account'}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+              {subscriptions.map((sub) => {
+                const remaining = calculateDaysRemaining(sub.expiresAt, sub.planId);
+                const isLifetime = sub.planId === 'lifetime' || sub.tier === 'lifetime';
+                const isExpired = remaining === 'expired' || sub.status === 'expired';
+
+                return (
+                  <div
+                    key={sub.id}
+                    className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition shadow-sm space-y-3 flex flex-col justify-between ${
+                      isExpired
+                        ? 'border-red-500/40 bg-red-500/5'
+                        : isDarkMode
+                        ? 'bg-[#141C2E] border-slate-800'
+                        : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div>
+                      {/* Top: Customer & Email */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                          <div className="font-extrabold text-sm sm:text-base text-inherit">
+                            {sub.customerName || sub.businessName}
+                          </div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">{sub.email}</div>
+                        </div>
+
+                        {isExpired ? (
+                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+                            {isKu ? 'بەسەرچووە' : 'Expired'}
+                          </span>
+                        ) : isLifetime ? (
+                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
+                            <Crown className="w-3 h-3" />
+                            <span>{isKu ? 'هەمیشەیی VIP' : 'Lifetime'}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            {isKu ? 'چالاکە' : 'Active'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Details Box */}
+                      <div
+                        className={`p-3 rounded-xl border space-y-1.5 text-xs ${
+                          isDarkMode ? 'bg-[#0E1524] border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">{isKu ? 'پاکێج:' : 'Plan:'}</span>
+                          <span className="font-bold text-[#D4AF37]">{sub.planLabel}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">{isKu ? 'دەستپێک:' : 'Started:'}</span>
+                          <span className="font-mono text-[11px]">{new Date(sub.startDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400">{isKu ? 'کۆتایی:' : 'Expires:'}</span>
+                          <span className="font-mono text-[11px]">
+                            {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString() : isKu ? 'هەمیشەیی' : 'Never'}
+                          </span>
+                        </div>
+                        {sub.phone && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">{isKu ? 'تەلەفۆن:' : 'Phone:'}</span>
+                            <span className="font-mono text-[11px]">{sub.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expiry Progress or Remaining badge & Actions */}
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs">
+                      <div className="font-bold">
+                        {isExpired ? (
+                          <span className="text-red-400">{isKu ? 'خزمەتگوزاری بەسەرچووە' : 'Subscription Ended'}</span>
+                        ) : isLifetime ? (
+                          <span className="text-[#D4AF37]">{isKu ? 'خزمەتگوزاری هەمیشەیی' : 'Lifetime Access'}</span>
+                        ) : (
+                          <span className="text-emerald-400">
+                            {remaining} {isKu ? 'ڕۆژی ماوە بۆ تەواوبوون' : 'days remaining'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowUpgradeModal(sub)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-[#D4AF37] hover:bg-[#D4AF37]/10 transition border border-[#D4AF37]/30 cursor-pointer"
+                        >
+                          {isKu ? 'گۆڕین / درێژکردنەوە' : 'Extend'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSubscription(sub)}
+                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition border border-red-500/20 cursor-pointer"
+                          title={isKu ? 'سڕینەوە' : 'Delete'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ── TAB 3: PAYMENT REQUESTS (WITH RECEIPT PROOFS) ──                     */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'requests' && (
         <div className="space-y-4">
@@ -1022,9 +1444,6 @@ export default function PaymentManagement({
             >
               <CreditCard className="w-8 h-8 mx-auto mb-2 text-slate-500 opacity-60" />
               <p>{isKu ? 'هیچ داواکارییەکی نوێی پارەدان نەگەیشتووە.' : 'No payment requests received yet.'}</p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                {isKu ? 'کاتێک کڕیار لە وێبسایت یان ئەپ وەسڵی پارەدان دەنێرێت، لێرە پیشان دەدرێت بۆ پەسەندکردن.' : 'Receipt submissions from customers will appear here for approval.'}
-              </p>
             </div>
           ) : (
             <div className="space-y-3.5">
@@ -1048,33 +1467,33 @@ export default function PaymentManagement({
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm sm:text-base font-extrabold text-inherit truncate">
+                            <span className="font-extrabold text-sm sm:text-base text-inherit truncate">
                               {req.customerName}
-                            </h4>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                              {req.paymentMethod}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#D4AF37] font-bold shrink-0">
+                              {req.planLabel}
                             </span>
                           </div>
-                          <div className="text-xs text-slate-400 font-mono truncate">{req.email} · {req.phone}</div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5 truncate">{req.email}</div>
                         </div>
                       </div>
 
                       {/* Status Badge */}
                       <div>
                         {isPending && (
-                          <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1.5 animate-pulse">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>{isKu ? 'چاوەڕوانی پەسەندکردنە' : 'Pending Approval'}</span>
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 animate-spin" />
+                            <span>{isKu ? 'چاوەڕوانی پەسەندکردن' : 'Pending'}</span>
                           </span>
                         )}
                         {isApproved && (
-                          <span className="text-xs font-black px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>{isKu ? 'پەسەندکراوە' : 'Approved'}</span>
                           </span>
                         )}
                         {isRejected && (
-                          <span className="text-xs font-black px-3 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 flex items-center gap-1.5">
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 flex items-center gap-1.5">
                             <XCircle className="w-3.5 h-3.5" />
                             <span>{isKu ? 'ڕەتکراوەتەوە' : 'Rejected'}</span>
                           </span>
@@ -1082,208 +1501,89 @@ export default function PaymentManagement({
                       </div>
                     </div>
 
-                    {/* Middle Row: Plan details & Receipt Image Preview */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      {/* Left: Info capsules */}
-                      <div className="md:col-span-8 flex flex-wrap items-center gap-2 text-xs">
-                        <div
-                          className={`px-3 py-1.5 rounded-xl border font-bold ${
-                            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
-                          }`}
-                        >
-                          <span className="text-slate-400">{isKu ? 'پاکێج: ' : 'Plan: '}</span>
-                          <span className="text-[#D4AF37]">{req.planLabel}</span>
-                        </div>
-
-                        <div
-                          className={`px-3 py-1.5 rounded-xl border font-bold ${
-                            isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
-                          }`}
-                        >
-                          <span className="text-slate-400">{isKu ? 'بڕ: ' : 'Amount: '}</span>
-                          <span className="text-emerald-400">{req.amount}</span>
-                        </div>
-
-                        <div className="text-[11px] text-slate-400 font-mono">
-                          {new Date(req.createdAt).toLocaleDateString()} · {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-
-                        {req.rejectionReason && (
-                          <div className="w-full text-xs text-red-400 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
-                            {isKu ? 'هۆکاری ڕەتکردنەوە: ' : 'Reason: '} {req.rejectionReason}
-                          </div>
-                        )}
+                    {/* Request Details */}
+                    <div
+                      className={`grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl border text-xs ${
+                        isDarkMode ? 'bg-[#0E1524] border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">{isKu ? 'بڕی پارە:' : 'Amount:'}</span>
+                        <span className="font-extrabold text-[#D4AF37] text-sm">{req.amount}</span>
                       </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">{isKu ? 'ڕێگەی پارەدان:' : 'Method:'}</span>
+                        <span className="font-bold">{req.paymentMethod}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">{isKu ? 'تەلەفۆن:' : 'Phone:'}</span>
+                        <span className="font-mono">{req.phone || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">{isKu ? 'بەروار:' : 'Date:'}</span>
+                        <span className="font-mono text-[11px]">{new Date(req.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
 
-                      {/* Right: Receipt Image Thumbnail */}
-                      <div className="md:col-span-4 flex items-center justify-end gap-2">
-                        {req.receiptImage ? (
+                    {/* Receipt Preview if uploaded */}
+                    {req.receiptImage && (
+                      <div className="flex items-center gap-3 p-2.5 rounded-xl border border-dashed border-[#D4AF37]/30 bg-[#D4AF37]/5">
+                        <img
+                          src={req.receiptImage}
+                          alt="Receipt"
+                          className="w-14 h-14 object-cover rounded-lg border border-[#D4AF37]/40 cursor-pointer hover:scale-105 transition"
+                          onClick={() => setPreviewReceipt(req.receiptImage!)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold block">{isKu ? 'وێنەی وەسڵی پارەدان' : 'Receipt Proof Attached'}</span>
                           <button
-                            onClick={() => setPreviewReceipt(req.receiptImage || null)}
-                            className="flex items-center gap-2 p-1.5 px-3 rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-bold transition cursor-pointer"
+                            type="button"
+                            onClick={() => setPreviewReceipt(req.receiptImage!)}
+                            className="text-[11px] text-[#D4AF37] hover:underline font-bold mt-0.5 inline-block cursor-pointer"
                           >
-                            <img
-                              src={req.receiptImage}
-                              alt="Receipt Thumbnail"
-                              className="w-7 h-7 object-cover rounded-lg border border-[#D4AF37]/40"
-                            />
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>{isKu ? 'بینینی وێنەی وەسڵ' : 'View Receipt'}</span>
+                            {isKu ? 'کلیک بکە بۆ گەورەکردن 🔍' : 'Click to preview full image 🔍'}
                           </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-500 italic">
-                            {isKu ? 'وێنەی وەسڵ نییە' : 'No receipt image'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bottom Actions Row: Approve / Reject / Delete */}
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                      <div className="text-[11px] text-slate-400">
-                        ID: <span className="font-mono">{req.id.slice(0, 10)}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <>
-                            {/* Approve Button */}
-                            <button
-                              onClick={() => handleApproveRequest(req)}
-                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition active:scale-98"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>{isKu ? 'پەسەندکردن' : 'Approve'}</span>
-                            </button>
-
-                            {/* Reject Button */}
-                            <button
-                              onClick={() => handleRejectRequest(req)}
-                              className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs flex items-center gap-1.5 border border-red-500/30 cursor-pointer transition"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                              <span>{isKu ? 'ڕەتکردنەوە' : 'Reject'}</span>
-                            </button>
-                          </>
-                        )}
-
-                        {/* Delete Button */}
-                        <button
-                          onClick={() => handleDeleteRequest(req.id)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
-                          title={isKu ? 'سڕینەوە' : 'Delete'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── TAB 3: ACTIVE & EXPIRED SUBSCRIPTIONS TRACKER ──                    */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'subscriptions' && (
-        <div className="space-y-4">
-          {subscriptions.length === 0 ? (
-            <div
-              className={`p-12 text-center rounded-2xl border text-xs text-slate-400 ${
-                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200'
-              }`}
-            >
-              {isKu ? 'هیچ بەشداریکردنێکی چالاک نییە. لە بەشی بەکارهێنەران یان داواکارییەکان بەشداریکردن چالاک بکە.' : 'No active subscriptions found.'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-              {subscriptions.map((sub) => {
-                const remaining = calculateDaysRemaining(sub.expiresAt, sub.planId);
-                const isLifetime = sub.planId === 'lifetime';
-                const isExpired = remaining === 'expired' || sub.status === 'expired';
-
-                return (
-                  <div
-                    key={sub.id}
-                    className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition shadow-sm space-y-3 flex flex-col justify-between ${
-                      isExpired
-                        ? 'border-red-500/40 bg-red-500/5'
-                        : isDarkMode
-                        ? 'bg-[#141C2E] border-slate-800'
-                        : 'bg-white border-slate-200'
-                    }`}
-                  >
-                    <div>
-                      {/* Top: Email, Plan & Status */}
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div>
-                          <div className="font-extrabold text-sm sm:text-base text-inherit">
-                            {sub.customerName || sub.businessName}
-                          </div>
-                          <div className="text-xs text-slate-400 font-mono">{sub.email}</div>
-                        </div>
-
-                        {isExpired ? (
-                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
-                            {isKu ? 'بەسەرچووە' : 'Expired'}
-                          </span>
-                        ) : isLifetime ? (
-                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
-                            {isKu ? 'هەمیشەیی' : 'Lifetime'}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                            {isKu ? 'چالاکە' : 'Active'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Timeline & Expiry Calculation */}
-                      <div
-                        className={`p-3 rounded-xl border space-y-1.5 text-xs ${
-                          isDarkMode ? 'bg-[#0E1524] border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">{isKu ? 'پاکێج:' : 'Plan:'}</span>
-                          <span className="font-bold text-[#D4AF37]">{sub.planLabel}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">{isKu ? 'دەستپێک:' : 'Started:'}</span>
-                          <span className="font-mono text-[11px]">{new Date(sub.startDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">{isKu ? 'کۆتایی:' : 'Expires:'}</span>
-                          <span className="font-mono text-[11px]">
-                            {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString() : isKu ? 'هەمیشەیی' : 'Never'}
-                          </span>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Expiry Progress or Remaining badge */}
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs">
-                      <div className="font-bold">
-                        {isExpired ? (
-                          <span className="text-red-400">{isKu ? 'خزمەتگوزاری بەسەرچووە' : 'Subscription Ended'}</span>
-                        ) : isLifetime ? (
-                          <span className="text-[#D4AF37]">{isKu ? 'خزمەتگوزاری هەمیشەیی' : 'Lifetime Access'}</span>
-                        ) : (
-                          <span className="text-emerald-400">
-                            {remaining} {isKu ? 'ڕۆژی ماوە بۆ تەواوبوون' : 'days remaining'}
-                          </span>
-                        )}
+                    {/* Rejection reason note if rejected */}
+                    {isRejected && req.rejectionReason && (
+                      <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                        <span className="font-bold">{isKu ? 'هۆکاری ڕەتکردنەوە:' : 'Rejection Reason:'} </span>
+                        {req.rejectionReason}
                       </div>
+                    )}
 
+                    {/* Bottom Action Buttons */}
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-end gap-2">
                       <button
-                        onClick={() => setShowActivateModal(sub)}
-                        className="px-3 py-1 rounded-lg text-xs font-bold text-[#D4AF37] hover:bg-[#D4AF37]/10 transition border border-[#D4AF37]/30 cursor-pointer"
+                        onClick={() => handleDeleteRequest(req.id)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition border border-transparent hover:border-red-500/30 flex items-center gap-1 cursor-pointer"
                       >
-                        {isKu ? 'درێژکردنەوە' : 'Extend'}
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{isKu ? 'سڕینەوە' : 'Delete'}</span>
                       </button>
+
+                      {isPending && (
+                        <>
+                          <button
+                            onClick={() => handleRejectRequest(req)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-400 hover:bg-red-500/10 transition border border-red-500/30 flex items-center gap-1 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>{isKu ? 'ڕەتکردنەوە' : 'Reject'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleApproveRequest(req)}
+                            className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-gradient-to-tr from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/20 hover:opacity-95 transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{isKu ? 'پەسەندکردن و چالاککردن' : 'Approve & Activate'}</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -1294,7 +1594,7 @@ export default function PaymentManagement({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MODAL 1: VIEW RECEIPT IMAGE FULL SCREEN ──                          */}
+      {/* ── MODAL 1: VIEW RECEIPT FULL SCREEN ──                                 */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {previewReceipt && (
         <div
@@ -1309,28 +1609,21 @@ export default function PaymentManagement({
           >
             <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
               <h3 className="text-sm font-bold">{isKu ? 'وێنەی وەسڵی پارەدان' : 'Receipt Proof Image'}</h3>
-              <button
-                onClick={() => setPreviewReceipt(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
+              <button onClick={() => setPreviewReceipt(null)} className="p-1 rounded-lg text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="max-h-[75vh] overflow-auto flex items-center justify-center bg-black/40 rounded-2xl p-2">
-              <img
-                src={previewReceipt}
-                alt="Full Receipt"
-                className="max-h-[70vh] w-auto object-contain rounded-xl shadow-lg"
-              />
+              <img src={previewReceipt} alt="Receipt" className="max-h-[70vh] w-auto object-contain rounded-xl shadow-lg" />
             </div>
           </div>
         </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MODAL 2: ADD NEW PAYMENT REQUEST MANUALLY ──                        */}
+      {/* ── MODAL 2: CREATE ACCOUNT & ASSIGN SUBSCRIPTION (ADMIN MANUALLY) ──   */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {showNewRequestModal && (
+      {showCreateAccountModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div
             className={`max-w-lg w-full p-5 sm:p-6 rounded-3xl border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto ${
@@ -1339,43 +1632,144 @@ export default function PaymentManagement({
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
               <div>
-                <h3 className="text-base font-extrabold">{isKu ? 'تۆمارکردنی داواکاریی نوێی پەیمێنت' : 'New Payment Request'}</h3>
-                <p className="text-xs text-slate-400">{isKu ? 'زانیاری پارەدانی کڕیار تۆمار بکە لەگەڵ وێنەی وەسڵ' : 'Record payment & receipt proof'}</p>
+                <h3 className="text-base font-extrabold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                  <span>{isKu ? 'دروستکردنی ئەکاونت و بەستنەوەی پاکێج' : 'Create & Assign Account'}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {isKu
+                    ? 'ئیمەیڵی فەرمی کەسەکە دابنێ و جۆری پاکێجەکەی دیاری بکە'
+                    : 'Link user official email to Pro or Premium tier'}
+                </p>
               </div>
-              <button onClick={() => setShowNewRequestModal(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-white">
+              <button
+                onClick={() => setShowCreateAccountModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitNewRequest} className="space-y-3.5">
-              {formError && (
+            <form onSubmit={handleCreateAccountSubmit} className="space-y-3.5">
+              {createError && (
                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">
-                  {formError}
+                  {createError}
                 </div>
               )}
 
+              {/* Official Email */}
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ئیمەیڵی کڕیار (سەرەکی)' : 'Customer Email'} *</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  {isKu ? 'ئیمەیڵی فەرمی کڕیار (سەرەکی)' : 'Official User Email'} *
+                </label>
                 <input
                   type="email"
                   required
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="customer@example.com"
-                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border ${
-                    isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="skay.kurd@gmail.com"
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border transition ${
+                    isDarkMode
+                      ? 'bg-[#0E1524] border-slate-700 text-white focus:border-[#D4AF37]'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-[#D4AF37]'
                   }`}
                 />
               </div>
 
+              {/* Tier / Plan Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">
+                  {isKu ? 'جۆری هەژمار و پاکێج (Tier & Plan):' : 'Choose Tier & Plan:'}
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SUBSCRIPTION_PLANS.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setCreatePlan(plan.id)}
+                      className={`p-2.5 rounded-xl text-start border transition cursor-pointer ${
+                        createPlan === plan.id
+                          ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] font-bold shadow-md shadow-[#D4AF37]/20'
+                          : isDarkMode
+                          ? 'bg-[#0E1524] border-slate-700 text-slate-300 hover:border-slate-600'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{isKu ? plan.labelKu : plan.labelEn}</div>
+                      <div className="text-[10px] opacity-80 mt-0.5">{isKu ? plan.tierLabelKu : plan.tierLabelEn}</div>
+                    </button>
+                  ))}
+
+                  {/* Custom Plan Button */}
+                  <button
+                    type="button"
+                    onClick={() => setCreatePlan('custom')}
+                    className={`p-2.5 rounded-xl text-start border transition cursor-pointer ${
+                      createPlan === 'custom'
+                        ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] font-bold shadow-md'
+                        : isDarkMode
+                        ? 'bg-[#0E1524] border-slate-700 text-slate-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">{isKu ? 'ڕۆژی دیاریکراو' : 'Custom Days'}</div>
+                    <div className="text-[10px] opacity-80 mt-0.5">{isKu ? 'کاتی تایبەت' : 'Set Days'}</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Days Input if custom is chosen */}
+              {createPlan === 'custom' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    {isKu ? 'ژمارەی ڕۆژەکانی چالاکبوون:' : 'Number of active days:'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={createCustomDays}
+                    onChange={(e) => setCreateCustomDays(e.target.value)}
+                    placeholder="30"
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border ${
+                      isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+              )}
+
+              {/* Password for user (Visible to admin!) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>{isKu ? 'وشەی نهێنی (Password - لای ئەدمین دیارە):' : 'Initial Password (Visible in Admin):'}</span>
+                </label>
+                <input
+                  type="text"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  placeholder={isKu ? 'وشەی نهێنی بۆ ئەکاونتەکەی دابنێ (ئارەزوومەندانە)' : 'e.g. Pass123456 (Optional)'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border transition ${
+                    isDarkMode
+                      ? 'bg-[#0E1524] border-slate-700 text-amber-300 font-bold focus:border-[#D4AF37]'
+                      : 'bg-slate-50 border-slate-200 text-amber-600 font-bold focus:border-[#D4AF37]'
+                  }`}
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  {isKu
+                    ? 'ئەگەر کڕیار دواتر وشەی نهێنیشی گۆڕی، لای تۆ لە ئەدمین پانێڵ نوێ دەبێتەوە.'
+                    : 'If the user later resets or changes password, it automatically updates in this panel.'}
+                </span>
+              </div>
+
+              {/* Name & Phone */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ناوی کڕیار' : 'Customer Name'}</label>
                   <input
                     type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder={isKu ? 'ئارام کەریم' : 'Customer Name'}
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    placeholder={isKu ? 'ئارام کەریم' : 'Aram Karim'}
                     className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
                       isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
                     }`}
@@ -1385,8 +1779,8 @@ export default function PaymentManagement({
                   <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ژمارەی مۆبایل' : 'Phone'}</label>
                   <input
                     type="text"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
+                    value={createPhone}
+                    onChange={(e) => setCreatePhone(e.target.value)}
                     placeholder="0750 000 0000"
                     className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border ${
                       isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
@@ -1395,149 +1789,27 @@ export default function PaymentManagement({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ناوی بازرگانی' : 'Business Name'}</label>
-                  <input
-                    type="text"
-                    value={formBusiness}
-                    onChange={(e) => setFormBusiness(e.target.value)}
-                    placeholder={isKu ? 'مارکێتی کوردستان' : 'Business Name'}
-                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
-                      isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ڕێگەی پارەدان' : 'Method'}</label>
-                  <select
-                    value={formMethod}
-                    onChange={(e) => setFormMethod(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
-                      isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <option value="FastPay">FastPay</option>
-                    <option value="FIB">FIB (First Iraqi Bank)</option>
-                    <option value="ZainCash">ZainCash</option>
-                    <option value="AsiaHawala">AsiaHawala</option>
-                    <option value="Cash">Cash (کاش)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Plan Picker */}
+              {/* Business Name */}
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'پاکێجی داواکراو' : 'Requested Plan'}</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {SUBSCRIPTION_PLANS.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => setFormPlan(plan.id)}
-                      className={`p-2 rounded-xl text-center border text-xs font-bold transition cursor-pointer ${
-                        formPlan === plan.id
-                          ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] shadow-sm'
-                          : isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-300'
-                          : 'bg-slate-50 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <div>{isKu ? plan.labelKu : plan.labelEn}</div>
-                      <div className="text-[10px] opacity-80 mt-0.5">{isKu ? plan.priceIqd : plan.priceUsd}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Receipt Image Upload */}
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'وێنەی وەسڵ (Receipt Proof)' : 'Receipt Proof Image'}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleReceiptFileChange}
-                  className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-slate-950 cursor-pointer"
-                />
-                {formReceiptBase64 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <img src={formReceiptBase64} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-[#D4AF37]" />
-                    <span className="text-xs text-emerald-400 font-bold">{isKu ? 'وێنە بارکرا' : 'Image loaded'}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewRequestModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-bold text-slate-400 hover:text-white"
-                >
-                  {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={formSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  {formSubmitting ? (isKu ? 'چاوەڕوان بە...' : 'Submitting...') : (isKu ? 'تۆمارکردن' : 'Submit Request')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* ── MODAL 3: ACTIVATE OR EXTEND SUBSCRIPTION FOR USER ──                */}
-      {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {showActivateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div
-            className={`max-w-md w-full p-5 sm:p-6 rounded-3xl border shadow-2xl space-y-4 ${
-              isDarkMode ? 'bg-[#141C2E] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
-          >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-              <div>
-                <h3 className="text-base font-extrabold">{isKu ? 'چالاککردنی بەشداریکردن' : 'Activate Subscription'}</h3>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">{showActivateModal.email}</p>
-              </div>
-              <button onClick={() => setShowActivateModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleActivateSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5">{isKu ? 'پاکێجی بەشداریکردن هەڵبژێرە:' : 'Select Plan:'}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SUBSCRIPTION_PLANS.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => setActivatePlan(plan.id)}
-                      className={`p-2.5 rounded-xl text-start border transition cursor-pointer ${
-                        activatePlan === plan.id
-                          ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] font-bold shadow-md'
-                          : isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-300'
-                          : 'bg-slate-50 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{isKu ? plan.labelKu : plan.labelEn}</div>
-                      <div className="text-[10px] opacity-80">{isKu ? plan.priceIqd : plan.priceUsd}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'تێبینی' : 'Notes'}</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'ناوی بازرگانی / مارکێت' : 'Business Name'}</label>
                 <input
                   type="text"
-                  value={activateNotes}
-                  onChange={(e) => setActivateNotes(e.target.value)}
+                  value={createBusiness}
+                  onChange={(e) => setCreateBusiness(e.target.value)}
+                  placeholder={isKu ? 'مارکێتی کوردستان' : 'Kurdistan Market'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
+                    isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'تێبینی تایبەت' : 'Notes'}</label>
+                <input
+                  type="text"
+                  value={createNotes}
+                  onChange={(e) => setCreateNotes(e.target.value)}
                   placeholder={isKu ? 'بۆ نموونە: پارەی دراوە بە کاش لە ئۆفیس' : 'Notes'}
                   className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
                     isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
@@ -1548,17 +1820,168 @@ export default function PaymentManagement({
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowActivateModal(null)}
+                  onClick={() => setShowCreateAccountModal(false)}
                   className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-bold text-slate-400 hover:text-white"
                 >
                   {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  disabled={activateSubmitting}
+                  disabled={createSubmitting}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {activateSubmitting ? (isKu ? 'چاوەڕوان بە...' : 'Activating...') : (isKu ? 'چالاککردنی خزمەتگوزاری' : 'Activate Plan')}
+                  {createSubmitting
+                    ? isKu
+                      ? 'تۆمارکردن...'
+                      : 'Creating...'
+                    : isKu
+                    ? 'دروستکردن و چالاککردنی هەژمار'
+                    : 'Create & Activate Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 3: UPGRADE OR EXTEND SUBSCRIPTION FOR EXISTING USER ──         */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            className={`max-w-md w-full p-5 sm:p-6 rounded-3xl border shadow-2xl space-y-4 ${
+              isDarkMode ? 'bg-[#141C2E] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+              <div>
+                <h3 className="text-base font-extrabold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                  <span>{isKu ? 'بەرزکردنەوەی هەژمار بۆ پڕۆ / پریمیم' : 'Upgrade Account Tier'}</span>
+                </h3>
+                <p className="text-xs text-slate-400 font-mono mt-0.5">{showUpgradeModal.email}</p>
+              </div>
+              <button onClick={() => setShowUpgradeModal(null)} className="p-1 rounded-lg text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpgradeSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">
+                  {isKu ? 'پاکێج و ئاستی نوێ هەڵبژێرە:' : 'Select New Plan:'}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SUBSCRIPTION_PLANS.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setUpgradePlan(plan.id)}
+                      className={`p-2.5 rounded-xl text-start border transition cursor-pointer ${
+                        upgradePlan === plan.id
+                          ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] font-bold shadow-md'
+                          : isDarkMode
+                          ? 'bg-[#0E1524] border-slate-700 text-slate-300'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{isKu ? plan.labelKu : plan.labelEn}</div>
+                      <div className="text-[10px] opacity-80 mt-0.5">{isKu ? plan.tierLabelKu : plan.tierLabelEn}</div>
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setUpgradePlan('custom')}
+                    className={`p-2.5 rounded-xl text-start border transition cursor-pointer ${
+                      upgradePlan === 'custom'
+                        ? 'bg-[#D4AF37] text-slate-950 border-[#D4AF37] font-bold shadow-md'
+                        : isDarkMode
+                        ? 'bg-[#0E1524] border-slate-700 text-slate-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <div className="text-xs font-bold">{isKu ? 'ڕۆژی دیاریکراو' : 'Custom Days'}</div>
+                    <div className="text-[10px] opacity-80 mt-0.5">{isKu ? 'دیاریکردنی ڕۆژ' : 'Set Days'}</div>
+                  </button>
+                </div>
+              </div>
+
+              {upgradePlan === 'custom' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    {isKu ? 'ژمارەی ڕۆژەکان:' : 'Active Days:'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={upgradeCustomDays}
+                    onChange={(e) => setUpgradeCustomDays(e.target.value)}
+                    placeholder="30"
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border ${
+                      isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+              )}
+
+              {/* Password update if desired */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>{isKu ? 'نوێکردنەوەی وشەی نهێنی (ئارەزوومەندانە):' : 'Update Password (Optional):'}</span>
+                </label>
+                <input
+                  type="text"
+                  value={upgradePassword}
+                  onChange={(e) => setUpgradePassword(e.target.value)}
+                  placeholder={
+                    showUpgradeModal.account_password
+                      ? `${isKu ? 'وشەی نهێنی ئێستا:' : 'Current:'} ${showUpgradeModal.account_password}`
+                      : isKu
+                      ? 'وشەی نهێنی نوێ'
+                      : 'New password'
+                  }
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none border ${
+                    isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">{isKu ? 'تێبینی' : 'Notes'}</label>
+                <input
+                  type="text"
+                  value={upgradeNotes}
+                  onChange={(e) => setUpgradeNotes(e.target.value)}
+                  placeholder={isKu ? 'بۆ نموونە: پارەی کاشی داوە بۆ ١ ساڵ' : 'Notes'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs outline-none border ${
+                    isDarkMode ? 'bg-[#0E1524] border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeModal(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={upgradeSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] text-slate-950 text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {upgradeSubmitting
+                    ? isKu
+                      ? 'بەرزکردنەوە...'
+                      : 'Upgrading...'
+                    : isKu
+                    ? 'بەرزکردنەوەی هەژمار'
+                    : 'Upgrade Plan'}
                 </button>
               </div>
             </form>
