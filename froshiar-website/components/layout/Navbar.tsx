@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Menu, X, CreditCard, Sparkles } from "lucide-react";
+import { Menu, X, Phone, Sparkles } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,7 +12,6 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV_LINKS = [
   { type: "anchor", href: "#home", key: "home" },
   { type: "anchor", href: "#features", key: "features" },
-  { type: "anchor", href: "#pricing", key: "pricing" },
   { type: "anchor", href: "#contact", key: "contact" },
   { type: "route", href: "/privacy", label: "Privacy" },
   { type: "route", href: "/terms", label: "Terms" },
@@ -75,17 +74,12 @@ export function Navbar() {
 
               // Anchor link (navigate to /#anchor if on a subpage)
               const targetHref = isHomePage ? link.href : `/${link.href}`;
-              const isPricing = link.key === "pricing";
 
               return (
                 <li key={link.key}>
                   <a
                     href={targetHref}
-                    className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
-                      isPricing
-                        ? "text-gold-700 dark:text-gold-300 font-semibold hover:bg-gold-50 dark:hover:bg-gold-950/40"
-                        : "text-slate-600 hover:text-ink hover:bg-slate-100/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/[0.08]"
-                    }`}
+                    className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all text-slate-600 hover:text-ink hover:bg-slate-100/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/[0.08]"
                   >
                     {t(link.key)}
                   </a>
@@ -95,15 +89,15 @@ export function Navbar() {
           </ul>
         </nav>
 
-        {/* Right: Payment Button + Language Switcher + Theme Toggle */}
+        {/* Right: Contact Button + Language Switcher + Theme Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Dedicated Payment / Subscription Button */}
+          {/* Contact Us CTA Button */}
           <a
-            href={isHomePage ? "#pricing" : "/#pricing"}
+            href={isHomePage ? "#contact" : "/#contact"}
             className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-gold-500 via-amber-500 to-gold-600 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-ink-fixed shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-fixed" />
-            <span>{t("payment")}</span>
+            <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-fixed" />
+            <span>{t("contact")}</span>
           </a>
 
           <div className="hidden sm:flex items-center gap-1.5">

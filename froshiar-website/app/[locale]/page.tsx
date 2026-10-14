@@ -3,7 +3,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/sections/Hero";
 import { Features } from "@/components/sections/Features";
-import { Pricing } from "@/components/sections/Pricing";
 import { About } from "@/components/sections/About";
 import { BusinessTypes } from "@/components/sections/BusinessTypes";
 import { Contact } from "@/components/sections/Contact";
@@ -33,7 +32,6 @@ export default async function Home({
       <main id="main" className="flex-1">
         <Hero />
         <Features />
-        <Pricing />
         <About />
         <BusinessTypes />
         <Contact />
