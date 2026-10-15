@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
+import { hexToRgba } from '@/lib/colorUtils';
 
 interface Props {
   visible: boolean;
@@ -35,14 +36,14 @@ export function CurrencyInfoGuideModal({ visible, onClose }: Props) {
             styles.container,
             {
               backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-              borderColor: isDark ? 'rgba(212, 175, 55, 0.4)' : '#E2E8F0',
+              borderColor: isDark ? hexToRgba(colors.primary, 0.4) : '#E2E8F0',
             },
           ]}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="information-circle" size={26} color="#D4AF37" />
+          <View style={[styles.header, { borderBottomColor: hexToRgba(colors.primary, 0.25) }]}>
+            <View style={[styles.iconCircle, { backgroundColor: hexToRgba(colors.primary, isDark ? 0.20 : 0.12) }]}>
+              <Ionicons name="information-circle" size={26} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginHorizontal: 10 }}>
               <Text style={[styles.title, { color: colors.black, textAlign }]}>

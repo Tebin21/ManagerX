@@ -33,6 +33,7 @@ import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { hexToRgba } from '@/lib/colorUtils';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
@@ -464,8 +465,8 @@ export default function DataScreen() {
             style={[
               styles.gdriveBanner,
               {
-                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
-                borderColor: isDark ? 'rgba(212, 175, 55, 0.30)' : '#FDE047',
+                backgroundColor: isDark ? hexToRgba(colors.primary, 0.12) : hexToRgba(colors.primary, 0.08),
+                borderColor: isDark ? hexToRgba(colors.primary, 0.30) : hexToRgba(colors.primary, 0.22),
               },
             ]}
           >
@@ -474,7 +475,7 @@ export default function DataScreen() {
               <Text
                 style={[
                   styles.gdriveBannerText,
-                  { color: isDark ? colors.primary : '#854D0E' },
+                  { color: isDark ? colors.primary : colors.black },
                 ]}
               >
                 {t('settings.dataScreen.googleDrivePrivacyBadge')}

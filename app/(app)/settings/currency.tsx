@@ -23,6 +23,7 @@ import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { CurrencyLargeToggleSwitch } from '@/components/settings/CurrencyLargeToggleSwitch';
 import { CurrencySwitchConfirmModal } from '@/components/settings/CurrencySwitchConfirmModal';
 import { CurrencyInfoGuideModal } from '@/components/settings/CurrencyInfoGuideModal';
+import { hexToRgba } from '@/lib/colorUtils';
 
 export default function CurrencyScreen() {
   const { t } = useTranslation();
@@ -129,14 +130,14 @@ export default function CurrencyScreen() {
             style={[
               styles.guideBanner,
               {
-                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.10)',
-                borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : 'rgba(212, 175, 55, 0.40)',
+                backgroundColor: isDark ? hexToRgba(colors.primary, 0.12) : hexToRgba(colors.primary, 0.08),
+                borderColor: isDark ? hexToRgba(colors.primary, 0.35) : hexToRgba(colors.primary, 0.25),
                 flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
           >
-            <View style={styles.guideBannerIconWrap}>
-              <Ionicons name="help-buoy" size={18} color="#D4AF37" />
+            <View style={[styles.guideBannerIconWrap, { backgroundColor: hexToRgba(colors.primary, isDark ? 0.20 : 0.14) }]}>
+              <Ionicons name="help-buoy" size={18} color={colors.primary} />
             </View>
             <Text style={[styles.guideBannerText, { color: colors.black, textAlign }]}>
               ڕێبەری تەواوی گۆڕینی دراو و حیسابات بخوێنەرەوە
@@ -352,7 +353,6 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(212, 175, 55, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },

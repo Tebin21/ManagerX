@@ -17,12 +17,14 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import * as Haptics from 'expo-haptics';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { ThemeToggleSwitch } from '@/components/settings/ThemeToggleSwitch';
 import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
+import { SettingsGrid } from '@/components/settings/SettingsGrid';
 import { InfoModal } from '@/components/ui/InfoModal';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
@@ -51,6 +53,8 @@ export default function SettingsScreen() {
   const signOut      = useAuthStore((s) => s.signOut);
   const userEmail    = useAuthStore((s) => s.user?.email);
   const itemLimit    = useLicenseStore((s) => s.limit);
+  const settingsGridLayout = useSettingsStore((s) => s.settingsGridLayout);
+  const setSettingsGridLayout = useSettingsStore((s) => s.setSettingsGridLayout);
 
   const { flexDirection, textAlign } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -126,13 +130,48 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <SettingsBackground />
-      <AppHeader title={t('settings.title')} />
+      <AppHeader
+        title={t('settings.title')}
+        rightAction={
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              } catch {}
+              setSettingsGridLayout(!settingsGridLayout);
+            }}
+            style={styles.layoutToggleBtn}
+          >
+            <Ionicons
+              name={settingsGridLayout ? 'list' : 'grid'}
+              size={18}
+              color="#FFFFFF"
+            />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
 
         {/* Tutorials — premium featured entry */}
         <TutorialsCard />
 
+        {settingsGridLayout ? (
+          <SettingsGrid
+            businessName={business.name}
+            itemLimit={itemLimit}
+            exchangeRate={exchangeRate}
+            language={language}
+            setLanguage={setLanguage}
+            isDark={isDark}
+            toggleTheme={toggle}
+            userEmail={userEmail}
+            onLogoutPress={() => setShowLogoutModal(true)}
+            onDeleteAccountPress={() => setShowDeleteModal(true)}
+          />
+        ) : (
+          <>
         {/* Business */}
         <SettingSection title={t('settings.businessProfile')}>
           <SettingRow
@@ -293,6 +332,8 @@ export default function SettingsScreen() {
         </SettingSection>
 
         <View style={{ height: 40 }} />
+          </>
+        )}
       </ScrollView>
 
       {/* ── Logout confirmation modal ─────────────────────────────────── */}
@@ -607,5 +648,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  layoutToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

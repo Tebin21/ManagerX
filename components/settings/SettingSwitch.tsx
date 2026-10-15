@@ -7,6 +7,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 
+import { hexToRgba } from '@/lib/colorUtils';
+
 interface Props {
   icon:    ComponentProps<typeof Ionicons>['name'];
   label:   string;
@@ -14,18 +16,24 @@ interface Props {
   value:   boolean;
   onToggle: (val: boolean) => void;
   disabled?: boolean;
+  color?:   string;
 }
 
 const IS_IOS = Platform.OS === 'ios';
 
-export function SettingSwitch({ icon, label, sub, value, onToggle, disabled }: Props) {
+export function SettingSwitch({ icon, label, sub, value, onToggle, disabled, color }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const { isTablet } = useResponsive();
 
+  const baseColor = disabled ? colors.gray300 : (color || colors.primary);
   const iconBg = IS_IOS
-    ? (isDark ? 'rgba(212, 175, 55, 0.20)' : 'rgba(212, 175, 55, 0.14)')
-    : colors.softBlue;
+    ? hexToRgba(baseColor, isDark ? 0.18 : 0.10)
+    : hexToRgba(baseColor, isDark ? 0.18 : 0.10);
+
+  const borderColor = IS_IOS
+    ? hexToRgba(baseColor, isDark ? 0.32 : 0.20)
+    : 'transparent';
 
   const tabletIconSize = isTablet ? 44 : 34;
   const tabletIconRadius = isTablet ? 13 : 10;
@@ -39,7 +47,9 @@ export function SettingSwitch({ icon, label, sub, value, onToggle, disabled }: P
           height: tabletIconSize,
           borderRadius: tabletIconRadius,
           backgroundColor: iconBg,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.85)',
+          borderColor: borderColor,
+          shadowColor: isDark ? baseColor : '#000000',
+          shadowOpacity: isDark ? 0.24 : 0.06,
           marginEnd: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : (isTablet ? 16 : 12),
         },
       ]

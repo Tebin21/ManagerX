@@ -10,6 +10,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Circle, Text as SvgText, Defs, RadialGradient, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { hexToRgba } from '@/lib/colorUtils';
 
 export interface CurrencyLargeToggleSwitchProps {
   value: 'IQD' | 'USD';
@@ -187,6 +189,7 @@ export function CurrencyLargeToggleSwitch({
   onToggle,
   disabled = false,
 }: CurrencyLargeToggleSwitchProps) {
+  const { colors, isDark } = useAppTheme();
   const isUSD = value === 'USD';
   const progress = useSharedValue(isUSD ? 1 : 0);
 
@@ -222,7 +225,7 @@ export function CurrencyLargeToggleSwitch({
 
   return (
     <View style={styles.outerContainer}>
-      <View style={styles.track}>
+      <View style={[styles.track, { borderColor: isDark ? hexToRgba(colors.primary, 0.45) : hexToRgba(colors.primary, 0.35) }]}>
         {/* Dark Slate Background */}
         <LinearGradient
           colors={['#0F172A', '#1E293B']}
@@ -258,7 +261,7 @@ export function CurrencyLargeToggleSwitch({
         {/* Animated Sliding Pill Selection Indicator */}
         <Animated.View style={[styles.thumbPill, thumbAnimatedStyle]} pointerEvents="none">
           <LinearGradient
-            colors={['rgba(212, 175, 55, 0.28)', 'rgba(212, 175, 55, 0.08)']}
+            colors={[hexToRgba(colors.primary, 0.28), hexToRgba(colors.primary, 0.08)]}
             style={styles.thumbGradient}
           />
         </Animated.View>

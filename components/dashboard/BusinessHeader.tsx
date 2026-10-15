@@ -19,7 +19,6 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Text } from '@/components/ui/AppText';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -33,6 +32,17 @@ import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
 import { hexToRgba } from '@/lib/colorUtils';
+
+let ExpoVideo: {
+  useVideoPlayer: (uri: string, setup?: (player: any) => void) => any;
+  VideoView: React.ComponentType<any>;
+} | null = null;
+
+try {
+  ExpoVideo = require('expo-video');
+} catch {
+  // ExpoVideo native module is not linked in current native build
+}
 
 const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
 
@@ -61,15 +71,17 @@ function resolveType(type: string, isKurdish = false): { emoji: string; label: s
 /**
  * Looping background video component powered by expo-video
  */
-function HeaderVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => {
+function HeaderVideoInternal({ uri }: { uri: string }) {
+  const player = ExpoVideo!.useVideoPlayer(uri, (p: any) => {
     p.loop = true;
     p.muted = true;
     p.play();
   });
 
+  const VideoComponent = ExpoVideo!.VideoView;
+
   return (
-    <VideoView
+    <VideoComponent
       style={StyleSheet.absoluteFillObject}
       player={player}
       allowsFullscreen={false}
@@ -77,6 +89,13 @@ function HeaderVideo({ uri }: { uri: string }) {
       contentFit="cover"
     />
   );
+}
+
+function HeaderVideo({ uri }: { uri: string; key?: any }) {
+  if (!ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
+    return null;
+  }
+  return <HeaderVideoInternal uri={uri} />;
 }
 
 export function BusinessHeader() {
@@ -273,6 +292,15 @@ export function BusinessHeader() {
 
   // 7. Video Picker with Strict 10-Second Validation
   const pickVideo = async () => {
+    if (!ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
+      Alert.alert(
+        isKurdish ? 'ئاگاداری' : 'Notice',
+        isKurdish
+          ? 'مۆدیوڵی ڤیدیۆ (expo-video) لەم وەشانی نەیتیڤەی ئێستادا نییە. پێویستە ئەپەکە دووبارە بنیات بنرێتەوە (npx expo run:ios).'
+          : 'Video module (expo-video) is not available in current native build. Please rebuild the app (npx expo run:ios).'
+      );
+      return;
+    }
     try {
       setLoadingVideo(true);
       const access = await ensureGalleryAccess();

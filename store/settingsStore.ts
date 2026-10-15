@@ -14,6 +14,7 @@ interface SettingsState {
   globalLowStockEnabled:   boolean;
   globalLowStockThreshold: number;
   baseCurrency:            BaseCurrency;
+  settingsGridLayout:      boolean;
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -21,6 +22,7 @@ interface SettingsState {
   setGlobalLowStockEnabled:   (val: boolean) => void;
   setGlobalLowStockThreshold: (val: number) => void;
   setBaseCurrency:            (currency: BaseCurrency) => void;
+  setSettingsGridLayout:      (val: boolean) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -53,12 +55,14 @@ export const useSettingsStore = create<SettingsState>()(
       globalLowStockEnabled:   true,
       globalLowStockThreshold: 5,
       baseCurrency:            'IQD',
+      settingsGridLayout:      false,
 
       setDarkMode:               (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:            (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
       setGlobalLowStockEnabled:  (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
       setGlobalLowStockThreshold:(val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
       setBaseCurrency:           (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
+      setSettingsGridLayout:     (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
@@ -85,6 +89,7 @@ export const useSettingsStore = create<SettingsState>()(
           globalLowStockEnabled:   p?.globalLowStockEnabled   ?? true,
           globalLowStockThreshold: p?.globalLowStockThreshold ?? 5,
           baseCurrency:            (p?.baseCurrency === 'USD' ? 'USD' : 'IQD') as BaseCurrency,
+          settingsGridLayout:      p?.settingsGridLayout ?? false,
         };
       },
     }

@@ -3,8 +3,10 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/contexts/ThemeContext';
 
+import { hexToRgba } from '@/lib/colorUtils';
+
 export function SettingsBackground({ children }: { children?: React.ReactNode }) {
-  const { isDark } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   if (Platform.OS !== 'ios') return null;
 
   return (
@@ -17,12 +19,12 @@ export function SettingsBackground({ children }: { children?: React.ReactNode })
         }
         style={StyleSheet.absoluteFillObject}
       />
-      {/* Subtle warm Froshiar gold ambient light orb */}
+      {/* Subtle ambient light orb matching active theme */}
       <LinearGradient
         colors={
           isDark
-            ? ['rgba(212, 175, 55, 0.12)', 'rgba(212, 175, 55, 0.02)', 'transparent']
-            : ['rgba(212, 175, 55, 0.16)', 'rgba(212, 175, 55, 0.03)', 'transparent']
+            ? [hexToRgba(colors.primary, 0.14), hexToRgba(colors.primary, 0.02), 'transparent']
+            : [hexToRgba(colors.primary, 0.16), hexToRgba(colors.primary, 0.03), 'transparent']
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 0.8, y: 0.8 }}

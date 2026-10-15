@@ -1242,6 +1242,10 @@
     "customization": {
       "title": "App Customization",
       "subtitle": "Choose your preferred layout and dashboard design style",
+      "settingsLayoutSection": "Settings Screen Layout",
+      "settingsGridTitle": "Settings Grid Layout (Squares)",
+      "settingsGridSub": "Display settings as compact squares with quick tap controls",
+      "settingsGridNotice": "Settings items are now arranged as square cards. Tap Language or Appearance to toggle them directly.",
       "navSection": "Main Dashboard Navigation",
       "showNavTitle": "Show Main Dashboard Navigation",
       "showNavSub": "Show or hide the main navigation banner on the dashboard",

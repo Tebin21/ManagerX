@@ -7,6 +7,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 
+import { hexToRgba } from '@/lib/colorUtils';
+
 interface Props {
   icon:          ComponentProps<typeof Ionicons>['name'];
   label:         string;
@@ -14,6 +16,7 @@ interface Props {
   onPress?:      () => void;
   chevron?:      boolean;
   destructive?:  boolean;
+  color?:        string;
   rightElement?: React.ReactNode;
   disabled?:     boolean;
 }
@@ -27,6 +30,7 @@ export function SettingRow({
   onPress,
   chevron = true,
   destructive = false,
+  color,
   rightElement,
   disabled = false,
 }: Props) {
@@ -35,17 +39,20 @@ export function SettingRow({
   const { chevronForward } = useDirectionalChevron();
   const { isTablet } = useResponsive();
 
-  const iconBg = IS_IOS
-    ? (destructive
-        ? (isDark ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.12)')
-        : (isDark ? 'rgba(212, 175, 55, 0.20)' : 'rgba(212, 175, 55, 0.14)'))
-    : (destructive ? '#FEE2E2' : isDark ? colors.gray200 + '33' : colors.softBlue);
-
-  const iconColor = destructive ? colors.error : colors.primary;
+  const baseColor = destructive ? colors.error : (color || colors.primary);
+  const iconColor = baseColor;
   const labelClr  = destructive ? colors.error : colors.black;
 
   const tabletIconSize = isTablet ? 44 : 34;
   const tabletIconRadius = isTablet ? 13 : 10;
+
+  const iconBg = IS_IOS
+    ? hexToRgba(baseColor, isDark ? 0.18 : 0.10)
+    : (destructive ? '#FEE2E2' : hexToRgba(baseColor, isDark ? 0.18 : 0.10));
+
+  const borderColor = IS_IOS
+    ? hexToRgba(baseColor, isDark ? 0.32 : 0.20)
+    : 'transparent';
 
   const iconWrapStyle = IS_IOS
     ? [
@@ -56,9 +63,9 @@ export function SettingRow({
           height: tabletIconSize,
           borderRadius: tabletIconRadius,
           backgroundColor: iconBg,
-          borderColor: isDark
-            ? (destructive ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.14)')
-            : (destructive ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.85)'),
+          borderColor: borderColor,
+          shadowColor: isDark ? baseColor : '#000000',
+          shadowOpacity: isDark ? 0.24 : 0.06,
           marginRight: isRTL ? 0 : (isTablet ? 16 : 12),
           marginLeft: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : 0,
         },

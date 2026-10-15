@@ -14,6 +14,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { fmtExchangeRate, fmtIQD, fmtUSD } from '@/utils/formatters';
 import { IraqiDinarGraphic, USDollarGraphic } from './CurrencyLargeToggleSwitch';
+import { hexToRgba } from '@/lib/colorUtils';
 
 interface Props {
   visible: boolean;
@@ -50,7 +51,7 @@ export function CurrencySwitchConfirmModal({
             styles.container,
             {
               backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-              borderColor: isDark ? 'rgba(212, 175, 55, 0.4)' : '#E2E8F0',
+              borderColor: isDark ? hexToRgba(colors.primary, 0.4) : '#E2E8F0',
             },
           ]}
         >
@@ -123,13 +124,13 @@ export function CurrencySwitchConfirmModal({
               style={[
                 styles.exampleCard,
                 {
-                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
-                  borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047',
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.12) : hexToRgba(colors.primary, 0.08),
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : hexToRgba(colors.primary, 0.25),
                 },
               ]}
             >
               <View style={styles.exampleHeader}>
-                <Ionicons name="calculator-outline" size={18} color="#D4AF37" />
+                <Ionicons name="calculator-outline" size={18} color={colors.primary} />
                 <Text style={[styles.exampleTitle, { color: colors.black }]}>
                   نموونەی کردارەکی لەسەر بەرز و نزمی نرخ:
                 </Text>

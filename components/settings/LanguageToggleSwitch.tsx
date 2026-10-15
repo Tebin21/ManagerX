@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   goldBorder: {
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   inactiveLeftWrap: {
     position: 'absolute',
