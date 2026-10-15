@@ -45,6 +45,11 @@ export default function CustomizationScreen() {
   const activeStyleItem =
     DASHBOARD_STYLES.find((s) => s.id === dashboardStyle) ?? DASHBOARD_STYLES[0];
 
+  const activeStyleAccent =
+    activeStyleItem.id === 'luxe'
+      ? (colors.primary || '#D4AF37')
+      : activeStyleItem.accentColor;
+
   const handleToggleNav = (val: boolean) => {
     try {
       Haptics.notificationAsync(
@@ -168,9 +173,9 @@ export default function CustomizationScreen() {
                   styles.stylePill,
                   {
                     backgroundColor: isDark
-                      ? hexToRgba(activeStyleItem.accentColor, 0.2)
-                      : hexToRgba(activeStyleItem.accentColor, 0.12),
-                    borderColor: activeStyleItem.accentColor + '50',
+                      ? hexToRgba(activeStyleAccent, 0.2)
+                      : hexToRgba(activeStyleAccent, 0.12),
+                    borderColor: activeStyleAccent + '50',
                     flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
                 ]}
@@ -178,13 +183,13 @@ export default function CustomizationScreen() {
                 <View
                   style={[
                     styles.styleDot,
-                    { backgroundColor: activeStyleItem.accentColor },
+                    { backgroundColor: activeStyleAccent },
                   ]}
                 />
                 <Text
                   style={[
                     styles.stylePillText,
-                    { color: activeStyleItem.accentColor },
+                    { color: activeStyleAccent },
                     isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >

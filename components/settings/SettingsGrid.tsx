@@ -22,7 +22,7 @@ interface SettingsGridProps {
   businessName?: string;
   itemLimit: number;
   exchangeRate: number;
-  language: 'ku' | 'en';
+  language?: 'ku' | 'en' | null;
   setLanguage: (lang: 'ku' | 'en') => void;
   isDark: boolean;
   toggleTheme: () => void;
@@ -158,7 +158,7 @@ export function SettingsGrid({
   const { isTablet } = useResponsive();
   const { width: screenWidth } = useWindowDimensions();
 
-  const isKu = language === 'ku';
+  const isKu = language !== 'en';
 
   // Responsive column calculation: 3 columns on tablet, 2 on mobile
   const numColumns = isTablet ? 3 : 2;

@@ -92,6 +92,15 @@ export default function DashboardStyleScreen() {
   const activeStyle =
     DASHBOARD_STYLES.find((s) => s.id === dashboardStyle) ?? DASHBOARD_STYLES[0];
 
+  const getStyleAccentColor = (style: StyleOption) => {
+    if (style.id === 'luxe') {
+      return colors.primary || '#D4AF37';
+    }
+    return style.accentColor;
+  };
+
+  const activeStyleAccent = getStyleAccentColor(activeStyle);
+
   const handleSelectStyle = (styleId: DashboardStyle) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -136,6 +145,7 @@ export default function DashboardStyleScreen() {
         <View style={[styles.squaresGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {DASHBOARD_STYLES.map((styleItem) => {
             const isSelected = dashboardStyle === styleItem.id;
+            const itemAccent = getStyleAccentColor(styleItem);
 
             return (
               <TouchableOpacity
@@ -148,14 +158,14 @@ export default function DashboardStyleScreen() {
                   {
                     backgroundColor: isSelected
                       ? (isDark
-                          ? hexToRgba(styleItem.accentColor, 0.22)
-                          : hexToRgba(styleItem.accentColor, 0.12))
+                          ? hexToRgba(itemAccent, 0.22)
+                          : hexToRgba(itemAccent, 0.12))
                       : (isDark ? colors.gray100 : '#FFFFFF'),
                     borderColor: isSelected
-                      ? styleItem.accentColor
+                      ? itemAccent
                       : (isDark ? colors.gray200 : '#E2E8F0'),
                     borderWidth: isSelected ? 2.5 : 1,
-                    shadowColor: isSelected ? styleItem.accentColor : '#000000',
+                    shadowColor: isSelected ? itemAccent : '#000000',
                     shadowOpacity: isSelected ? 0.25 : 0.04,
                   },
                 ]}
@@ -165,7 +175,7 @@ export default function DashboardStyleScreen() {
                   <View
                     style={[
                       styles.checkBadge,
-                      { backgroundColor: styleItem.accentColor },
+                      { backgroundColor: itemAccent },
                     ]}
                   >
                     <Ionicons name="checkmark" size={11} color="#FFFFFF" />
@@ -187,18 +197,18 @@ export default function DashboardStyleScreen() {
                     styles.squareIconBox,
                     {
                       backgroundColor: isSelected
-                        ? styleItem.accentColor
+                        ? itemAccent
                         : (isDark
-                            ? hexToRgba(styleItem.accentColor, 0.18)
-                            : hexToRgba(styleItem.accentColor, 0.10)),
-                      borderColor: isSelected ? '#FFFFFF40' : styleItem.accentColor + '30',
+                            ? hexToRgba(itemAccent, 0.18)
+                            : hexToRgba(itemAccent, 0.10)),
+                      borderColor: isSelected ? '#FFFFFF40' : itemAccent + '30',
                     },
                   ]}
                 >
                   <Ionicons
                     name={styleItem.icon}
                     size={22}
-                    color={isSelected ? '#FFFFFF' : styleItem.accentColor}
+                    color={isSelected ? '#FFFFFF' : itemAccent}
                   />
                 </View>
 
@@ -208,7 +218,7 @@ export default function DashboardStyleScreen() {
                     styles.squareName,
                     {
                       color: isSelected
-                        ? (isDark ? '#FFFFFF' : styleItem.accentColor)
+                        ? (isDark ? '#FFFFFF' : itemAccent)
                         : colors.black,
                       textAlign: 'center',
                     },
@@ -230,10 +240,10 @@ export default function DashboardStyleScreen() {
             <View
               style={[
                 styles.previewIconWrap,
-                { backgroundColor: hexToRgba(activeStyle.accentColor, 0.15) },
+                { backgroundColor: hexToRgba(activeStyleAccent, 0.15) },
               ]}
             >
-              <Ionicons name={activeStyle.icon} size={16} color={activeStyle.accentColor} />
+              <Ionicons name={activeStyle.icon} size={16} color={activeStyleAccent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text
@@ -256,14 +266,14 @@ export default function DashboardStyleScreen() {
               style={[
                 styles.activeStatusPill,
                 {
-                  backgroundColor: hexToRgba(activeStyle.accentColor, 0.16),
-                  borderColor: activeStyle.accentColor + '40',
+                  backgroundColor: hexToRgba(activeStyleAccent, 0.16),
+                  borderColor: activeStyleAccent + '40',
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
               ]}
             >
-              <View style={[styles.statusDot, { backgroundColor: activeStyle.accentColor }]} />
-              <Text style={[styles.statusPillText, { color: activeStyle.accentColor }]}>
+              <View style={[styles.statusDot, { backgroundColor: activeStyleAccent }]} />
+              <Text style={[styles.statusPillText, { color: activeStyleAccent }]}>
                 {t('settings.customization.active')}
               </Text>
             </View>

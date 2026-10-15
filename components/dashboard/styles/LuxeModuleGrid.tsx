@@ -34,7 +34,7 @@ export function LuxeModuleGrid({ modules }: Props) {
     router.push(route as never);
   };
 
-  const goldAccent = '#D4AF37';
+  const activeAccent = colors.primary || '#D4AF37';
 
   return (
     <View style={styles.grid}>
@@ -43,7 +43,7 @@ export function LuxeModuleGrid({ modules }: Props) {
           iconName: 'grid-outline' as const,
           tagKu: 'مۆدیول',
           subtitleKu: 'تایبەتمەندی',
-          iconColor: goldAccent,
+          iconColor: activeAccent,
         };
 
         const title = isKurdish ? theme.tagKu : t(item.labelKey);
@@ -58,27 +58,46 @@ export function LuxeModuleGrid({ modules }: Props) {
               styles.card,
               {
                 width: isTablet ? '48.5%' : '48.5%',
-                borderColor: isDark ? '#D4AF3750' : '#D4AF3740',
+                borderColor: isDark ? hexToRgba(activeAccent, 0.40) : hexToRgba(activeAccent, 0.30),
+                shadowColor: isDark ? '#000000' : activeAccent,
+                shadowOpacity: isDark ? 0.30 : 0.12,
               },
             ]}
           >
             <LinearGradient
               colors={
                 isDark
-                  ? ['#1E293B', '#1E293BEE', hexToRgba(goldAccent, 0.08)]
-                  : ['#FFFFFF', '#FAF8F0', hexToRgba(goldAccent, 0.06)]
+                  ? ['#1E293B', '#1E293BEE', hexToRgba(activeAccent, 0.12)]
+                  : ['#FFFFFF', '#FAFBFD', hexToRgba(activeAccent, 0.08)]
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.cardGradient}
             >
-              {/* Header: Gold chip & Star */}
+              {/* Header: Dynamic theme accent chip & Star */}
               <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={[styles.goldPill, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Ionicons name="sparkles" size={10} color={goldAccent} />
-                  <Text style={styles.goldPillText}>{title}</Text>
+                <View
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: hexToRgba(activeAccent, isDark ? 0.22 : 0.12),
+                      borderColor: hexToRgba(activeAccent, isDark ? 0.42 : 0.28),
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <Ionicons name="sparkles" size={10} color={activeAccent} />
+                  <Text style={[styles.pillText, { color: activeAccent }]}>{title}</Text>
                 </View>
-                <View style={[styles.goldRingIcon, { borderColor: hexToRgba(theme.iconColor, 0.35) }]}>
+                <View
+                  style={[
+                    styles.ringIcon,
+                    {
+                      borderColor: hexToRgba(theme.iconColor, isDark ? 0.45 : 0.30),
+                      backgroundColor: hexToRgba(theme.iconColor, isDark ? 0.15 : 0.08),
+                    },
+                  ]}
+                >
                   <Ionicons name={theme.iconName} size={18} color={theme.iconColor} />
                 </View>
               </View>
@@ -125,9 +144,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1.5,
     overflow: 'hidden',
-    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -141,27 +158,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  goldPill: {
+  pill: {
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#D4AF3718',
-    borderColor: '#D4AF3735',
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
-  goldPillText: {
+  pillText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#D4AF37',
   },
-  goldRingIcon: {
+  ringIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
     borderWidth: 1.5,
-    backgroundColor: 'rgba(0,0,0,0.03)',
     alignItems: 'center',
     justifyContent: 'center',
   },

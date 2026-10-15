@@ -39,31 +39,31 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 
 export default function SettingsScreen() {
-  const router  = useRouter();
+  const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark, toggle } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
-  const business   = useBusinessStore();
-  const isDarkMode   = useSettingsStore((s) => s.isDarkMode);
+  const business = useBusinessStore();
+  const isDarkMode = useSettingsStore((s) => s.isDarkMode);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
-  const setDarkMode  = useSettingsStore((s) => s.setDarkMode);
+  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
   const setAccentColor = useSettingsStore((s) => s.setAccentColor);
-  const language     = useLanguageStore((s) => s.language);
-  const setLanguage  = useLanguageStore((s) => s.setLanguage);
-  const signOut      = useAuthStore((s) => s.signOut);
-  const userEmail    = useAuthStore((s) => s.user?.email);
-  const itemLimit    = useLicenseStore((s) => s.limit);
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const signOut = useAuthStore((s) => s.signOut);
+  const userEmail = useAuthStore((s) => s.user?.email);
+  const itemLimit = useLicenseStore((s) => s.limit);
   const settingsGridLayout = useSettingsStore((s) => s.settingsGridLayout);
   const setSettingsGridLayout = useSettingsStore((s) => s.setSettingsGridLayout);
 
   const { flexDirection, textAlign } = useRTL();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut,    setIsLoggingOut]    = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const [showDeleteModal,   setShowDeleteModal]   = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
-  const [cloudDataPending,  setCloudDataPending]  = useState(false);
+  const [cloudDataPending, setCloudDataPending] = useState(false);
   // Synchronous re-entrancy guard — React state is applied async, so two taps
   // in the same tick could both pass an `isDeletingAccount` state check.
   const isDeletingRef = useRef(false);
@@ -137,8 +137,8 @@ export default function SettingsScreen() {
             activeOpacity={0.75}
             onPress={() => {
               try {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              } catch {}
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+              } catch { }
               setSettingsGridLayout(!settingsGridLayout);
             }}
             style={styles.layoutToggleBtn}
@@ -172,166 +172,166 @@ export default function SettingsScreen() {
           />
         ) : (
           <>
-        {/* Business */}
-        <SettingSection title={t('settings.businessProfile')}>
-          <SettingRow
-            icon="business"
-            label={t('settings.businessProfile')}
-            sub={business.name || t('settings.businessProfileSub')}
-            onPress={() => router.push('/(app)/settings/profile' as never)}
-          />
-          <SettingRow
-            icon="color-palette"
-            label={t('settings.generalCustomization')}
-            sub={t('settings.generalCustomizationSub')}
-            onPress={() => router.push('/(app)/settings/customization' as never)}
-          />
-        </SettingSection>
+            {/* Business */}
+            <SettingSection title={t('settings.businessProfile')}>
+              <SettingRow
+                icon="business"
+                label={t('settings.businessProfile')}
+                sub={business.name || t('settings.businessProfileSub')}
+                onPress={() => router.push('/(app)/settings/profile' as never)}
+              />
+              <SettingRow
+                icon="color-palette"
+                label={t('settings.generalCustomization')}
+                sub={t('settings.generalCustomizationSub')}
+                onPress={() => router.push('/(app)/settings/customization' as never)}
+              />
+            </SettingSection>
 
-        {/* Subscriptions — Froshiar License (existing Plan & Limits, relabeled/regrouped
+            {/* Subscriptions — Froshiar License (existing Plan & Limits, relabeled/regrouped
             only, zero functional change) + Online Store Subscription (new, independent) */}
-        <SettingSection title={t('settings.subscriptions')}>
-          <SettingRow
-            icon="rocket"
-            label={t('settings.managerXLicense')}
-            sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
-            onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-          />
-          <SettingRow
-            icon="globe"
-            label={t('settings.onlineStoreSubscription')}
-            sub={t('settings.onlineStoreSubscriptionSub')}
-            onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
-          />
-        </SettingSection>
-
-        {/* Preferences */}
-        <SettingSection title={t('settings.preferences')}>
-          <SettingRow
-            icon="swap-horizontal"
-            label={t('settings.exchangeRate')}
-            sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
-            onPress={() => router.push('/(app)/settings/currency' as never)}
-          />
-          <SettingRow
-            icon="language"
-            label={t('settings.language')}
-            sub={language === 'ku' ? 'کوردی' : 'English'}
-            chevron={false}
-            rightElement={
-              <LanguageToggleSwitch
-                value={language === 'ku'}
-                onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+            <SettingSection title={t('settings.subscriptions')}>
+              <SettingRow
+                icon="rocket"
+                label={t('settings.managerXLicense')}
+                sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
+                onPress={() => router.push('/(app)/settings/plan-limits' as never)}
               />
-            }
-            onPress={() => setLanguage(language === 'ku' ? 'en' : 'ku')}
-          />
-          <SettingRow
-            icon={isDark ? 'moon' : 'sunny'}
-            label={t('settings.appearance')}
-            sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
-            chevron={false}
-            rightElement={
-              <ThemeToggleSwitch
-                value={isDark}
-                onToggle={toggle}
+              <SettingRow
+                icon="globe"
+                label={t('settings.onlineStoreSubscription')}
+                sub={t('settings.onlineStoreSubscriptionSub')}
+                onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
               />
-            }
-            onPress={toggle}
-          />
-          <SettingRow
-            icon="color-palette"
-            label={t('settings.themeColors')}
-            sub={t('settings.themeColorsSub')}
-            onPress={() => router.push('/(app)/settings/theme' as never)}
-          />
-        </SettingSection>
+            </SettingSection>
 
-        {/* Modules */}
-        <SettingSection title={t('settings.modules')}>
-          <SettingRow
-            icon="grid"
-            label={t('settings.modules')}
-            sub={t('settings.modulesSub')}
-            onPress={() => router.push('/(app)/settings/modules' as never)}
-          />
-        </SettingSection>
+            {/* Preferences */}
+            <SettingSection title={t('settings.preferences')}>
+              <SettingRow
+                icon="swap-horizontal"
+                label={t('settings.exchangeRate')}
+                sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
+                onPress={() => router.push('/(app)/settings/currency' as never)}
+              />
+              <SettingRow
+                icon="language"
+                label={t('settings.language')}
+                sub={language === 'ku' ? 'کوردی' : 'English'}
+                chevron={false}
+                rightElement={
+                  <LanguageToggleSwitch
+                    value={language === 'ku'}
+                    onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+                  />
+                }
+                onPress={() => setLanguage(language === 'ku' ? 'en' : 'ku')}
+              />
+              <SettingRow
+                icon={isDark ? 'moon' : 'sunny'}
+                label={t('settings.appearance')}
+                sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
+                chevron={false}
+                rightElement={
+                  <ThemeToggleSwitch
+                    value={isDark}
+                    onToggle={toggle}
+                  />
+                }
+                onPress={toggle}
+              />
+              <SettingRow
+                icon="color-palette"
+                label={t('settings.themeColors')}
+                sub={t('settings.themeColorsSub')}
+                onPress={() => router.push('/(app)/settings/theme' as never)}
+              />
+            </SettingSection>
 
-        {/* Online Store */}
-        <SettingSection title={t('settings.onlineStore')}>
-          <SettingRow
-            icon="storefront"
-            label={t('settings.onlineStore')}
-            sub={t('settings.onlineStoreSub')}
-            onPress={() => router.push('/(app)/settings/online-store' as never)}
-          />
-        </SettingSection>
+            {/* Modules */}
+            <SettingSection title={t('settings.modules')}>
+              <SettingRow
+                icon="grid"
+                label={t('settings.modules')}
+                sub={t('settings.modulesSub')}
+                onPress={() => router.push('/(app)/settings/modules' as never)}
+              />
+            </SettingSection>
 
-        {/* Data */}
-        <SettingSection title={t('settings.data')}>
-          <SettingRow
-            icon="server"
-            label={t('settings.dataManagement')}
-            sub={t('settings.dataManagementSub')}
-            onPress={() => router.push('/(app)/settings/data' as never)}
-          />
-        </SettingSection>
+            {/* Online Store */}
+            <SettingSection title={t('settings.onlineStore')}>
+              <SettingRow
+                icon="storefront"
+                label={t('settings.onlineStore')}
+                sub={t('settings.onlineStoreSub')}
+                onPress={() => router.push('/(app)/settings/online-store' as never)}
+              />
+            </SettingSection>
 
-        {/* About */}
-        <SettingSection title={t('settings.about')}>
-          <SettingRow
-            icon="information-circle"
-            label={t('settings.aboutManagerX')}
-            onPress={() => router.push('/(app)/settings/about' as never)}
-          />
-          {/* PRIVACY_POLICY_URL is unset until a real policy is published — see
+            {/* Data */}
+            <SettingSection title={t('settings.data')}>
+              <SettingRow
+                icon="server"
+                label={t('settings.dataManagement')}
+                sub={t('settings.dataManagementSub')}
+                onPress={() => router.push('/(app)/settings/data' as never)}
+              />
+            </SettingSection>
+
+            {/* About */}
+            <SettingSection title={t('settings.about')}>
+              <SettingRow
+                icon="information-circle"
+                label={t('settings.aboutManagerX')}
+                onPress={() => router.push('/(app)/settings/about' as never)}
+              />
+              {/* PRIVACY_POLICY_URL is unset until a real policy is published — see
               constants/config.ts. Hidden rather than shown with a dead/placeholder
               link. */}
-          {PRIVACY_POLICY_URL ? (
-            <SettingRow
-              icon="shield-checkmark"
-              label={t('settings.privacyPolicy')}
-              onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
-            />
-          ) : null}
-        </SettingSection>
+              {PRIVACY_POLICY_URL ? (
+                <SettingRow
+                  icon="shield-checkmark"
+                  label={t('settings.privacyPolicy')}
+                  onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+                />
+              ) : null}
+            </SettingSection>
 
-        {/* Account / Logout — visually separated */}
-        <View style={styles.logoutSpacer} />
-        <SettingSection title={t('settings.account')}>
-          {userEmail ? (
-            <SettingRow
-              icon="person-circle"
-              label={t('settings.signedInAs')}
-              sub={userEmail}
-              chevron={false}
-              onPress={() => {}}
-            />
-          ) : null}
-          <SettingRow
-            icon="log-out"
-            label={t('settings.logout')}
-            sub={t('settings.logoutSub')}
-            destructive
-            chevron={false}
-            onPress={() => setShowLogoutModal(true)}
-          />
-        </SettingSection>
+            {/* Account / Logout — visually separated */}
+            <View style={styles.logoutSpacer} />
+            <SettingSection title={t('settings.account')}>
+              {userEmail ? (
+                <SettingRow
+                  icon="person-circle"
+                  label={t('settings.signedInAs')}
+                  sub={userEmail}
+                  chevron={false}
+                  onPress={() => { }}
+                />
+              ) : null}
+              <SettingRow
+                icon="log-out"
+                label={t('settings.logout')}
+                sub={t('settings.logoutSub')}
+                destructive
+                chevron={false}
+                onPress={() => setShowLogoutModal(true)}
+              />
+            </SettingSection>
 
-        {/* Danger Zone — Delete Account, visually separated */}
-        <View style={styles.logoutSpacer} />
-        <SettingSection title={t('settings.dangerZone')}>
-          <SettingRow
-            icon="trash"
-            label={t('settings.deleteAccount')}
-            sub={t('settings.deleteAccountSub')}
-            destructive
-            chevron={false}
-            onPress={() => setShowDeleteModal(true)}
-          />
-        </SettingSection>
+            {/* Danger Zone — Delete Account, visually separated */}
+            <View style={styles.logoutSpacer} />
+            <SettingSection title={t('settings.dangerZone')}>
+              <SettingRow
+                icon="trash"
+                label={t('settings.deleteAccount')}
+                sub={t('settings.deleteAccountSub')}
+                destructive
+                chevron={false}
+                onPress={() => setShowDeleteModal(true)}
+              />
+            </SettingSection>
 
-        <View style={{ height: 40 }} />
+            <View style={{ height: 40 }} />
           </>
         )}
       </ScrollView>
@@ -512,8 +512,8 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1 },
-  body:         { padding: 16, paddingTop: 8 },
+  container: { flex: 1 },
+  body: { padding: 16, paddingTop: 8 },
   logoutSpacer: { height: 8 },
 
   ambientOrbTop: {

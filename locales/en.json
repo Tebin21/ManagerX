@@ -1280,9 +1280,9 @@
         "desc": "4-column compact squircle app icons for rapid POS workflow"
       },
       "luxe": {
-        "title": "Froshiar Luxe Gold",
+        "title": "Froshiar Luxe",
         "short": "Luxe",
-        "desc": "High-end luxury styling with gold foil borders and royal typography"
+        "desc": "High-end luxury styling that dynamically adapts to your app theme color"
       }
     },
     "subscriptions":         "Subscriptions",
