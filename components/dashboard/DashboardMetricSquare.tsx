@@ -1,5 +1,5 @@
 import React, { type ComponentProps } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/AppText';
@@ -9,6 +9,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   title: string;
@@ -19,6 +20,7 @@ interface Props {
   subtitle?: string;
   isAlert?: boolean;
   delay?: number;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 export function DashboardMetricSquare({
@@ -30,10 +32,12 @@ export function DashboardMetricSquare({
   subtitle,
   isAlert = false,
   delay = 0,
+  containerStyle,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   const cardBg = isDark ? colors.gray100 : colors.white;
   const borderColor = isAlert
@@ -42,12 +46,20 @@ export function DashboardMetricSquare({
     ? colors.gray200
     : colors.gray100;
 
+  const widthStyle: ViewStyle = {
+    width: isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
+    marginBottom: isTablet ? 12 : 10,
+  };
+
+  const iconBoxDim = isTabletLandscape ? 46 : isTablet ? 42 : 38;
+  const iconSize = isTabletLandscape ? 24 : isTablet ? 22 : 20;
+
   return (
     <MotiView
       from={{ opacity: 0, scale: 0.95, translateY: 10 }}
       animate={{ opacity: 1, scale: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 320, delay }}
-      style={styles.container}
+      style={[styles.container, widthStyle, containerStyle]}
     >
       <View
         style={[
@@ -55,6 +67,8 @@ export function DashboardMetricSquare({
           {
             backgroundColor: cardBg,
             borderColor,
+            minHeight: isTabletLandscape ? 148 : isTablet ? 134 : 120,
+            padding: isTabletLandscape ? 16 : isTablet ? 15 : 14,
           },
         ]}
       >
@@ -64,12 +78,15 @@ export function DashboardMetricSquare({
             style={[
               styles.iconBox,
               {
+                width: iconBoxDim,
+                height: iconBoxDim,
+                borderRadius: isTabletLandscape ? 14 : 12,
                 backgroundColor: color + '15',
                 borderColor: color + '30',
               },
             ]}
           >
-            <Ionicons name={icon} size={20} color={color} />
+            <Ionicons name={icon} size={iconSize} color={color} />
           </View>
 
           {subtitle ? (
@@ -78,13 +95,15 @@ export function DashboardMetricSquare({
                 styles.badge,
                 {
                   backgroundColor: color + '12',
+                  paddingHorizontal: isTabletLandscape ? 10 : 8,
+                  paddingVertical: isTabletLandscape ? 4 : 3,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.badgeText,
-                  { color },
+                  { color, fontSize: isTabletLandscape ? 12 : 10.5 },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
@@ -99,7 +118,11 @@ export function DashboardMetricSquare({
         <Text
           style={[
             styles.title,
-            { color: colors.gray400, textAlign },
+            {
+              color: colors.gray400,
+              textAlign,
+              fontSize: isTabletLandscape ? 14.5 : isTablet ? 13.5 : 12.5,
+            },
             isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
           ]}
           numberOfLines={1}
@@ -115,6 +138,7 @@ export function DashboardMetricSquare({
               style={[
                 styles.valueText,
                 {
+                  fontSize: isTabletLandscape ? 24 : isTablet ? 21 : 19,
                   color: isAlert
                     ? colors.error
                     : value < 0
@@ -132,6 +156,7 @@ export function DashboardMetricSquare({
                 styles.valueText,
                 styles.enDigitText,
                 {
+                  fontSize: isTabletLandscape ? 24 : isTablet ? 21 : 19,
                   color: isAlert && value > 0 ? colors.error : colors.darkBlue,
                 },
               ]}

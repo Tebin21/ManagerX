@@ -97,10 +97,11 @@ export default function CustomersScreen() {
       from={{ opacity: 0, translateY: 10 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+      style={isTablet ? { flex: 1 } : undefined}
     >
       <CustomerCard customer={item} onPress={handleCustomerPress} />
     </MotiView>
-  ), [handleCustomerPress]);
+  ), [handleCustomerPress, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>

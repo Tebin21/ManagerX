@@ -63,7 +63,7 @@ export default function NewSaleScreen() {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, cardColumns, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
@@ -431,6 +431,118 @@ export default function NewSaleScreen() {
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>{t('sales.cartEmpty')}</Text>
             <PrimaryButton label={t('sales.step1')} onPress={() => setStep(1)} />
           </View>
+        ) : isTabletLandscape ? (
+          <View style={{ flexDirection, gap: 20, alignItems: 'flex-start', width: '100%' }}>
+            {/* Left/Main Column: Items */}
+            <View style={{ flex: 1.3 }}>
+              {/* Quick Actions: Scan More / Add Items */}
+              <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginBottom: 14 }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.step2ScanBtn,
+                    { backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 18 },
+                  ]}
+                  onPress={() => setScannerOpen(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="barcode-outline" size={26} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={[styles.step2ScanBtnText, { fontSize: 17 }]}>
+                    {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.step2AddBtn,
+                    { borderColor: colors.primary, backgroundColor: colors.primary + '14', paddingVertical: 18, borderRadius: 18 },
+                  ]}
+                  onPress={() => setStep(1)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add-circle-outline" size={26} color={colors.primary} style={{ marginRight: 8 }} />
+                  <Text style={[styles.step2AddBtnText, { color: colors.primary, fontSize: 17 }]}>
+                    {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {cart.items.map((item) => (
+                <CartItemRow
+                  key={item.product.id}
+                  item={item}
+                  onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+                  onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+                  onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+                  onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+                  onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                  onRemove={() => cart.removeItem(item.product.id)}
+                />
+              ))}
+            </View>
+
+            {/* Right Column: Discounts & Summary */}
+            <View style={{ flex: 0.9, gap: 14 }}>
+              <GlobalDiscountBar
+                type={cart.globalDiscountType}
+                value={cart.globalDiscountValue}
+                discountAmount={globalDiscountAmount}
+                subtotal={subtotal}
+                onTypeChange={(type) => cart.setGlobalDiscountType(type)}
+                onValueChange={(val) => cart.setGlobalDiscountValue(val)}
+              />
+
+              <PremiumCard style={styles.summaryCard}>
+                <Text style={[styles.summaryTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.orderSummary')}</Text>
+                <View style={[styles.summaryRow, { flexDirection }]}>
+                  <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.subtotal')}</Text>
+                  <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                    <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                    {isUSD ? (
+                      <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                        {fmtIQD(subtotal)} IQD
+                      </Text>
+                    ) : (
+                      <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                        {fmtUSD(subtotalUsd)} USD
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                {discountTotal > 0 && (
+                  <View style={[styles.summaryRow, { flexDirection }]}>
+                    <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.totalDiscount')}</Text>
+                    <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                  </View>
+                )}
+                {globalDiscountAmount > 0 && (
+                  <View style={[styles.summaryRow, { flexDirection }]}>
+                    <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.globalDiscount')}</Text>
+                    <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                  </View>
+                )}
+                <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100, paddingTop: 14, marginTop: 8 }]}>
+                  <Text style={[styles.grandLabel, { color: colors.primary, textAlign, fontSize: 20 }]}>{t('sales.grandTotal')}</Text>
+                  <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                    <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 26 }]} />
+                    {isUSD ? (
+                      <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
+                        {fmtIQD(grandTotal)} IQD
+                      </Text>
+                    ) : (
+                      <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
+                        {fmtUSD(grandTotalUsd)} USD
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </PremiumCard>
+
+              <PrimaryButton
+                label={t('common.continue')}
+                onPress={() => setStep(3)}
+              />
+            </View>
+          </View>
         ) : (
           <>
             {/* Quick Actions: Scan More / Add Items */}
@@ -560,128 +672,263 @@ export default function NewSaleScreen() {
 
       <KeyboardAwareScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]}>
 
-        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-          <PremiumCard style={styles.sectionCard}>
-            <DateTimePicker
-              value={saleDate}
-              onChange={setSaleDate}
-              label={t('sales.saleDate')}
-              maxDate={new Date()}
-            />
-          </PremiumCard>
-        </MotiView>
+        {isTabletLandscape ? (
+          <View style={{ flexDirection, gap: 20, alignItems: 'flex-start', width: '100%' }}>
+            {/* Left Column: Date, Customer, Invoice */}
+            <View style={{ flex: 1, gap: 16 }}>
+              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+                <PremiumCard style={styles.sectionCard}>
+                  <DateTimePicker
+                    value={saleDate}
+                    onChange={setSaleDate}
+                    label={t('sales.saleDate')}
+                    maxDate={new Date()}
+                  />
+                </PremiumCard>
+              </MotiView>
 
-        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
-          <PremiumCard style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.customerInfo')}</Text>
-            <CustomerInputForm
-              value={cart.customerInput}
-              onChange={(patch) => {
-                cart.setCustomerInput(patch);
-                if (patch.name !== undefined && patch.name.trim()) setNameError('');
-                if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
-              }}
-              customerFound={customerFound}
-              nameError={nameError}
-              phoneError={phoneError}
-            />
-          </PremiumCard>
-        </MotiView>
+              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
+                <PremiumCard style={styles.sectionCard}>
+                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.customerInfo')}</Text>
+                  <CustomerInputForm
+                    value={cart.customerInput}
+                    onChange={(patch) => {
+                      cart.setCustomerInput(patch);
+                      if (patch.name !== undefined && patch.name.trim()) setNameError('');
+                      if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
+                    }}
+                    customerFound={customerFound}
+                    nameError={nameError}
+                    phoneError={phoneError}
+                  />
+                </PremiumCard>
+              </MotiView>
 
-        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
-          <PremiumCard style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
-            <PaymentMethodSelector
-              selected={cart.paymentMethod}
-              onChange={(m) => cart.setPaymentMethod(m)}
-            />
+              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+                <PremiumCard style={styles.sectionCard}>
+                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.invoicePreview')}</Text>
+                  <InvoiceView
+                    sale={{
+                      id: 0,
+                      invoiceNumber: 'Preview',
+                      customerId: null,
+                      customerName: cart.customerInput.name || null,
+                      customerPhone: cart.customerInput.phone || null,
+                      customerAddress: cart.customerInput.address || null,
+                      warranty: cart.customerInput.warranty || null,
+                      notes: cart.saleNotes || null,
+                      paymentMethod: cart.paymentMethod,
+                      subtotal,
+                      discountTotal,
+                      globalDiscountType: cart.globalDiscountType,
+                      globalDiscount: globalDiscountAmount,
+                      grandTotal,
+                      paidAmount: cart.paymentMethod === 'debt'
+                        ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                        : grandTotal,
+                      remainingDebt,
+                      status: 'completed',
+                      exchangeRateUsed: exchangeRate,
+                      date: saleDate.toISOString(),
+                      createdAt: saleDate.toISOString(),
+                      updatedAt: saleDate.toISOString(),
+                      items: cart.items.map((ci, i) => ({
+                        id: i,
+                        saleId: 0,
+                        productId: ci.product.id,
+                        productName: ci.product.name,
+                        itemId: ci.product.itemId,
+                        idMode: ci.product.idMode,
+                        purchasePrice: ci.product.purchasePrice,
+                        sellingPrice: ci.sellingPrice,
+                        quantity: ci.quantity,
+                        discount: ci.discount,
+                        lineTotal: ci.lineTotal,
+                      })),
+                    }}
+                    compact={true}
+                  />
+                </PremiumCard>
+              </MotiView>
+            </View>
 
-            {cart.paymentMethod === 'debt' && (
-              <View style={styles.debtSection}>
-                <AppTextInput
-                  label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
-                  placeholder={isUSD ? '0.00' : '0'}
-                  value={cart.paidAmount}
-                  onChangeText={(t) => cart.setPaidAmount(t)}
-                  keyboardType="decimal-pad"
+            {/* Right Column: Payment, Currency, Actions */}
+            <View style={{ flex: 1, gap: 16 }}>
+              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
+                <PremiumCard style={styles.sectionCard}>
+                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.paymentMethod')}</Text>
+                  <PaymentMethodSelector
+                    selected={cart.paymentMethod}
+                    onChange={(m) => cart.setPaymentMethod(m)}
+                  />
+
+                  {cart.paymentMethod === 'debt' && (
+                    <View style={styles.debtSection}>
+                      <AppTextInput
+                        label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                        placeholder={isUSD ? '0.00' : '0'}
+                        value={cart.paidAmount}
+                        onChangeText={(t) => cart.setPaidAmount(t)}
+                        keyboardType="decimal-pad"
+                      />
+                      {remainingDebt > 0 && (
+                        <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
+                          <Ionicons name="time-outline" size={16} color={errorTint.text} />
+                          <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </PremiumCard>
+              </MotiView>
+
+              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+                <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+              </MotiView>
+
+              <CheckoutActionGrid
+                mode={checkoutMode}
+                onSelectMode={setCheckoutMode}
+                type="sale"
+              />
+
+              <PrimaryButton
+                label={
+                  checkoutMode === 'print'
+                    ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                    : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+                }
+                onPress={handleCompleteSale}
+                loading={isSubmitting}
+              />
+            </View>
+          </View>
+        ) : (
+          <>
+            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+              <PremiumCard style={styles.sectionCard}>
+                <DateTimePicker
+                  value={saleDate}
+                  onChange={setSaleDate}
+                  label={t('sales.saleDate')}
+                  maxDate={new Date()}
                 />
-                {remainingDebt > 0 && (
-                  <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
-                    <Ionicons name="time-outline" size={16} color={errorTint.text} />
-                    <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+              </PremiumCard>
+            </MotiView>
+
+            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
+              <PremiumCard style={styles.sectionCard}>
+                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.customerInfo')}</Text>
+                <CustomerInputForm
+                  value={cart.customerInput}
+                  onChange={(patch) => {
+                    cart.setCustomerInput(patch);
+                    if (patch.name !== undefined && patch.name.trim()) setNameError('');
+                    if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
+                  }}
+                  customerFound={customerFound}
+                  nameError={nameError}
+                  phoneError={phoneError}
+                />
+              </PremiumCard>
+            </MotiView>
+
+            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
+              <PremiumCard style={styles.sectionCard}>
+                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
+                <PaymentMethodSelector
+                  selected={cart.paymentMethod}
+                  onChange={(m) => cart.setPaymentMethod(m)}
+                />
+
+                {cart.paymentMethod === 'debt' && (
+                  <View style={styles.debtSection}>
+                    <AppTextInput
+                      label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                      placeholder={isUSD ? '0.00' : '0'}
+                      value={cart.paidAmount}
+                      onChangeText={(t) => cart.setPaidAmount(t)}
+                      keyboardType="decimal-pad"
+                    />
+                    {remainingDebt > 0 && (
+                      <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
+                        <Ionicons name="time-outline" size={16} color={errorTint.text} />
+                        <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
-            )}
-          </PremiumCard>
-        </MotiView>
+              </PremiumCard>
+            </MotiView>
 
-        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-          <PremiumCard style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.invoicePreview')}</Text>
-            <InvoiceView
-              sale={{
-                id: 0,
-                invoiceNumber: 'Preview',
-                customerId: null,
-                customerName: cart.customerInput.name || null,
-                customerPhone: cart.customerInput.phone || null,
-                customerAddress: cart.customerInput.address || null,
-                warranty: cart.customerInput.warranty || null,
-                notes: cart.saleNotes || null,
-                paymentMethod: cart.paymentMethod,
-                subtotal,
-                discountTotal,
-                globalDiscountType: cart.globalDiscountType,
-                globalDiscount: globalDiscountAmount,
-                grandTotal,
-                paidAmount: cart.paymentMethod === 'debt'
-                  ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
-                  : grandTotal,
-                remainingDebt,
-                status: 'completed',
-                exchangeRateUsed: exchangeRate,
-                date: saleDate.toISOString(),
-                createdAt: saleDate.toISOString(),
-                updatedAt: saleDate.toISOString(),
-                items: cart.items.map((ci, i) => ({
-                  id: i,
-                  saleId: 0,
-                  productId: ci.product.id,
-                  productName: ci.product.name,
-                  itemId: ci.product.itemId,
-                  idMode: ci.product.idMode,
-                  purchasePrice: ci.product.purchasePrice,
-                  sellingPrice: ci.sellingPrice,
-                  quantity: ci.quantity,
-                  discount: ci.discount,
-                  lineTotal: ci.lineTotal,
-                })),
-              }}
-              compact={false}
+            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+              <PremiumCard style={styles.sectionCard}>
+                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.invoicePreview')}</Text>
+                <InvoiceView
+                  sale={{
+                    id: 0,
+                    invoiceNumber: 'Preview',
+                    customerId: null,
+                    customerName: cart.customerInput.name || null,
+                    customerPhone: cart.customerInput.phone || null,
+                    customerAddress: cart.customerInput.address || null,
+                    warranty: cart.customerInput.warranty || null,
+                    notes: cart.saleNotes || null,
+                    paymentMethod: cart.paymentMethod,
+                    subtotal,
+                    discountTotal,
+                    globalDiscountType: cart.globalDiscountType,
+                    globalDiscount: globalDiscountAmount,
+                    grandTotal,
+                    paidAmount: cart.paymentMethod === 'debt'
+                      ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                      : grandTotal,
+                    remainingDebt,
+                    status: 'completed',
+                    exchangeRateUsed: exchangeRate,
+                    date: saleDate.toISOString(),
+                    createdAt: saleDate.toISOString(),
+                    updatedAt: saleDate.toISOString(),
+                    items: cart.items.map((ci, i) => ({
+                      id: i,
+                      saleId: 0,
+                      productId: ci.product.id,
+                      productName: ci.product.name,
+                      itemId: ci.product.itemId,
+                      idMode: ci.product.idMode,
+                      purchasePrice: ci.product.purchasePrice,
+                      sellingPrice: ci.sellingPrice,
+                      quantity: ci.quantity,
+                      discount: ci.discount,
+                      lineTotal: ci.lineTotal,
+                    })),
+                  }}
+                  compact={false}
+                />
+              </PremiumCard>
+            </MotiView>
+
+            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+              <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+            </MotiView>
+
+            <CheckoutActionGrid
+              mode={checkoutMode}
+              onSelectMode={setCheckoutMode}
+              type="sale"
             />
-          </PremiumCard>
-        </MotiView>
 
-        <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-        </MotiView>
-
-        <CheckoutActionGrid
-          mode={checkoutMode}
-          onSelectMode={setCheckoutMode}
-          type="sale"
-        />
-
-        <PrimaryButton
-          label={
-            checkoutMode === 'print'
-              ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-              : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-          }
-          onPress={handleCompleteSale}
-          loading={isSubmitting}
-        />
+            <PrimaryButton
+              label={
+                checkoutMode === 'print'
+                  ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                  : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+              }
+              onPress={handleCompleteSale}
+              loading={isSubmitting}
+            />
+          </>
+        )}
 
         <View style={styles.bottomSpacer} />
       </KeyboardAwareScrollView>

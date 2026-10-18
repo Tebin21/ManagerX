@@ -27,7 +27,7 @@ interface Props {
 export function PaymentMethodSelector({ selected, onChange }: Props) {
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   return (
     <View style={[styles.row, { flexDirection }]}>
@@ -40,7 +40,10 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
             activeOpacity={0.8}
             style={[
               styles.option,
-              isTablet && { paddingVertical: 20, borderRadius: 16 },
+              isTablet && {
+                paddingVertical: isTabletLandscape ? 24 : 20,
+                borderRadius: isTabletLandscape ? 18 : 16,
+              },
               active
                 ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
                 : { borderColor: colors.gray200, backgroundColor: colors.gray50 },
@@ -48,10 +51,10 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
           >
             <Ionicons
               name={opt.icon}
-              size={isTablet ? 26 : 20}
+              size={isTabletLandscape ? 30 : (isTablet ? 26 : 20)}
               color={active ? colors.primary : colors.gray400}
             />
-            <Text style={[styles.label, isTablet && { fontSize: 16 }, { color: active ? colors.primary : colors.gray500 }]}>
+            <Text style={[styles.label, isTablet && { fontSize: isTabletLandscape ? 17 : 16 }, { color: active ? colors.primary : colors.gray500 }]}>
               {opt.label}
             </Text>
           </TouchableOpacity>

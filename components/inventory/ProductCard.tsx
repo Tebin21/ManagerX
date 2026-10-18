@@ -26,8 +26,8 @@ interface Props {
 
 function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const okTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const lowTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -43,7 +43,11 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
 
   return (
     <TouchableOpacity
-      style={[styles.card, isSold && styles.cardSold, { padding: isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 16) }]}
+      style={[
+        styles.card,
+        isSold && styles.cardSold,
+        { padding: isTabletLandscape ? 20 : isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 16) }
+      ]}
       onPress={() => onPress(product.id)}
       activeOpacity={0.82}
     >
@@ -138,15 +142,15 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
 
 export const ProductCard = React.memo(ProductCardImpl);
 
-function getStyles(colors: AppColors, isTablet: boolean) {
-  const thumbDim = isTablet ? 56 : 48;
+function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: boolean = false) {
+  const thumbDim = isTabletLandscape ? 72 : isTablet ? 58 : 48;
   return StyleSheet.create({
     card: {
       flex: isTablet ? 1 : undefined,
       backgroundColor: colors.white,
-      borderRadius: isTablet ? 18 : Theme.radius.card,
-      padding: isTablet ? 18 : 16,
-      marginBottom: 10,
+      borderRadius: isTabletLandscape ? 20 : isTablet ? 18 : Theme.radius.card,
+      padding: isTabletLandscape ? 20 : isTablet ? 18 : 16,
+      marginBottom: isTabletLandscape ? 14 : 10,
       ...Theme.shadow.card,
     },
     cardSold: {
@@ -156,37 +160,37 @@ function getStyles(colors: AppColors, isTablet: boolean) {
     topRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: 12,
-      gap: isTablet ? 12 : 10,
+      marginBottom: isTabletLandscape ? 14 : 12,
+      gap: isTabletLandscape ? 14 : isTablet ? 12 : 10,
     },
     thumbWrap: {
       width: thumbDim,
       height: thumbDim,
-      borderRadius: isTablet ? 12 : 10,
+      borderRadius: isTabletLandscape ? 14 : isTablet ? 12 : 10,
       overflow: 'hidden',
       flexShrink: 0,
     },
     thumb: {
       width: thumbDim,
       height: thumbDim,
-      borderRadius: isTablet ? 12 : 10,
+      borderRadius: isTabletLandscape ? 14 : isTablet ? 12 : 10,
     },
     thumbPlaceholder: {
       width: thumbDim,
       height: thumbDim,
-      borderRadius: isTablet ? 12 : 10,
+      borderRadius: isTabletLandscape ? 14 : isTablet ? 12 : 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
     nameWrap: { flex: 1 },
     name: {
-      fontSize: isTablet ? 17 : 15,
+      fontSize: isTabletLandscape ? 18.5 : isTablet ? 17 : 15,
       fontWeight: '700',
       color: colors.black,
       marginBottom: isTablet ? 6 : 5,
     },
     itemDescription: {
-      fontSize: isTablet ? 14 : 12,
+      fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12,
       color: colors.gray500,
       marginBottom: 4,
     },
@@ -197,46 +201,47 @@ function getStyles(colors: AppColors, isTablet: boolean) {
     },
     catChip: {
       borderRadius: isTablet ? 8 : 6,
-      paddingHorizontal: isTablet ? 10 : 8,
-      paddingVertical: isTablet ? 4 : 2,
+      paddingHorizontal: isTabletLandscape ? 12 : isTablet ? 10 : 8,
+      paddingVertical: isTabletLandscape ? 5 : isTablet ? 4 : 2,
     },
     catText: {
-      fontSize: isTablet ? 13 : 11,
+      fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11,
       fontWeight: '600',
     },
     idChip: {
       backgroundColor: colors.gray100,
       borderRadius: isTablet ? 8 : 6,
-      paddingHorizontal: isTablet ? 10 : 8,
-      paddingVertical: isTablet ? 4 : 2,
-      maxWidth: 140,
+      paddingHorizontal: isTabletLandscape ? 12 : isTablet ? 10 : 8,
+      paddingVertical: isTabletLandscape ? 5 : isTablet ? 4 : 2,
+      maxWidth: 160,
     },
     idText: {
       color: colors.gray600,
+      fontSize: isTabletLandscape ? 13 : 11,
     },
 
     qtyBadge: {
       flexDirection: 'row',
       alignItems: 'baseline',
       borderRadius: isTablet ? 12 : 10,
-      paddingHorizontal: isTablet ? 12 : 10,
-      paddingVertical: isTablet ? 6 : 4,
+      paddingHorizontal: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+      paddingVertical: isTabletLandscape ? 7 : isTablet ? 6 : 4,
     },
     qtyBadgeSold: { backgroundColor: colors.gray100 },
-    qtyText:   { fontSize: isTablet ? 18 : 16, fontWeight: '800' },
-    qtyTextSold: { color: colors.gray500, fontSize: isTablet ? 15 : 13, fontWeight: '600' },
-    qtyUnit:  { fontSize: isTablet ? 13 : 11, fontWeight: '500' },
+    qtyText:   { fontSize: isTabletLandscape ? 20 : isTablet ? 18 : 16, fontWeight: '800' },
+    qtyTextSold: { color: colors.gray500, fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13, fontWeight: '600' },
+    qtyUnit:  { fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11, fontWeight: '500' },
 
     priceRow: {
       flexDirection: 'row',
       backgroundColor: colors.gray50,
-      borderRadius: isTablet ? 12 : 10,
-      paddingVertical: isTablet ? 10 : 8,
-      paddingHorizontal: isTablet ? 14 : 12,
-      marginBottom: 12,
+      borderRadius: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+      paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 8,
+      paddingHorizontal: isTabletLandscape ? 16 : isTablet ? 14 : 12,
+      marginBottom: isTabletLandscape ? 14 : 12,
     },
     priceItem: { flex: 1, alignItems: 'center' },
-    priceLabel: { fontSize: isTablet ? 12 : 10, color: colors.gray400, fontWeight: '600', marginBottom: 2 },
+    priceLabel: { fontSize: isTabletLandscape ? 13 : isTablet ? 12 : 10, color: colors.gray400, fontWeight: '600', marginBottom: 2 },
     priceValue: { color: colors.black },
     divider: {
       width: 1,

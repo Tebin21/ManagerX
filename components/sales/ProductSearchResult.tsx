@@ -19,8 +19,8 @@ interface Props {
 
 export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   const { colors, isDark } = useAppTheme();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const soldTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isUniqueAndSold = product.idMode === 'unique' && (!product.isActive || product.quantity === 0);
@@ -103,7 +103,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd }: Props) {
   );
 }
 
-function getStyles(colors: AppColors, isTablet: boolean) {
+function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: boolean) {
   return StyleSheet.create({
     row: {
       flex: 1,
@@ -111,23 +111,23 @@ function getStyles(colors: AppColors, isTablet: boolean) {
       alignItems: 'flex-start',
       backgroundColor: colors.white,
       borderRadius: isTablet ? 16 : Theme.radius.card,
-      paddingHorizontal: isTablet ? 18 : 16,
-      paddingVertical: isTablet ? 16 : 14,
+      paddingHorizontal: isTabletLandscape ? 20 : (isTablet ? 18 : 16),
+      paddingVertical: isTabletLandscape ? 18 : (isTablet ? 16 : 14),
       marginBottom: isTablet ? 10 : 6,
       ...Theme.shadow.soft,
     },
     rowDisabled: { opacity: 0.6 },
     thumb: {
-      width: isTablet ? 80 : 72,
-      height: isTablet ? 80 : 72,
+      width: isTabletLandscape ? 88 : (isTablet ? 80 : 72),
+      height: isTabletLandscape ? 88 : (isTablet ? 80 : 72),
       borderRadius: isTablet ? 14 : 12,
       marginRight: 12,
       flexShrink: 0,
       backgroundColor: colors.gray100,
     },
     thumbPlaceholder: {
-      width: isTablet ? 80 : 72,
-      height: isTablet ? 80 : 72,
+      width: isTabletLandscape ? 88 : (isTablet ? 80 : 72),
+      height: isTabletLandscape ? 88 : (isTablet ? 80 : 72),
       borderRadius: isTablet ? 14 : 12,
       marginRight: 12,
       flexShrink: 0,
@@ -137,19 +137,19 @@ function getStyles(colors: AppColors, isTablet: boolean) {
     },
     left: { flex: 1, paddingTop: 2 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
-    name: { fontSize: isTablet ? 16 : 14, fontWeight: '600', color: colors.black },
+    name: { fontSize: isTabletLandscape ? 17.5 : (isTablet ? 16 : 14), fontWeight: '700', color: colors.black },
     nameDisabled: { color: colors.gray400 },
-    itemDescription: { fontSize: isTablet ? 13 : 12, color: colors.gray500, marginBottom: 4 },
+    itemDescription: { fontSize: isTabletLandscape ? 14 : (isTablet ? 13 : 12), color: colors.gray500, marginBottom: 4 },
     idBadge: {
       borderRadius: 4,
-      paddingHorizontal: 5,
-      paddingVertical: 1,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
     },
-    idText: { fontSize: isTablet ? 11 : 10, fontWeight: '500' },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    price: { fontSize: isTablet ? 15 : 13, fontWeight: '700' },
+    idText: { fontSize: isTabletLandscape ? 12 : (isTablet ? 11 : 10), fontWeight: '600' },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    price: { fontSize: isTabletLandscape ? 17 : (isTablet ? 15 : 13), fontWeight: '800' },
     dot: { color: colors.gray300 },
-    stock: { fontSize: isTablet ? 13 : 12, color: colors.success, fontWeight: '500' },
+    stock: { fontSize: isTabletLandscape ? 14 : (isTablet ? 13 : 12), color: colors.success, fontWeight: '600' },
     stockLow: { color: colors.warning },
     stockOut: { color: colors.error },
     soldBadge: {
@@ -159,15 +159,15 @@ function getStyles(colors: AppColors, isTablet: boolean) {
     },
     soldText: { fontSize: isTablet ? 12 : 11, fontWeight: '600' },
     addBtn: {
-      width: isTablet ? 44 : 36,
-      height: isTablet ? 44 : 36,
-      borderRadius: isTablet ? 22 : 18,
+      width: isTabletLandscape ? 48 : (isTablet ? 44 : 36),
+      height: isTabletLandscape ? 48 : (isTablet ? 44 : 36),
+      borderRadius: isTabletLandscape ? 24 : (isTablet ? 22 : 18),
       alignItems: 'center',
       justifyContent: 'center',
       marginLeft: 8,
       alignSelf: 'center',
     },
     inCartBadge: { flexDirection: 'row', alignItems: 'center' },
-    inCartText: { fontSize: isTablet ? 15 : 13, fontWeight: '700' },
+    inCartText: { fontSize: isTabletLandscape ? 16 : (isTablet ? 15 : 13), fontWeight: '700' },
   });
 }

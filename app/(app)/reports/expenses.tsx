@@ -280,6 +280,7 @@ function ExpenseFormModal({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
+  const { isTablet, sheetMaxWidth } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [amount, setAmount]           = useState(() => initial ? String(initial.amount) : '');
@@ -381,6 +382,7 @@ function ExpenseFormModal({
             {
               backgroundColor: isDark ? colors.gray100 : colors.white,
               borderColor: isDark ? colors.gray200 : 'rgba(0,0,0,0.08)',
+              maxWidth: isTablet ? Math.min(sheetMaxWidth, 620) : 420,
             },
           ]}
         >
@@ -687,6 +689,7 @@ function ExpenseCard({
 }) {
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
+  const { isTabletLandscape } = useResponsive();
 
   const iconBg = useMemo(() => getCategoryTint(expense.category, colors, isDark), [expense.category, colors, isDark]);
   const editTint = useMemo(() => getBlueTint(isDark), [isDark]);
@@ -694,49 +697,54 @@ function ExpenseCard({
 
   return (
     <MotiView
+      style={isTabletLandscape ? { flex: 1 } : undefined}
       from={{ opacity: 0, translateY: 6 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 200 }}
     >
-      <View style={[styles.card, { backgroundColor: colors.white }]}>
+      <View style={[styles.card, { backgroundColor: colors.white }, isTabletLandscape && { padding: 18 }]}>
         {/* Top row: icon + category + amount */}
         <View style={[styles.cardTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.cardIconCircle, { backgroundColor: iconBg }]}>
-            <Text style={{ fontSize: 18 }}>{CATEGORY_ICONS[expense.category] ?? '📌'}</Text>
+          <View style={[
+            styles.cardIconCircle,
+            { backgroundColor: iconBg },
+            isTabletLandscape && { width: 50, height: 50, borderRadius: 25 },
+          ]}>
+            <Text style={{ fontSize: isTabletLandscape ? 22 : 18 }}>{CATEGORY_ICONS[expense.category] ?? '📌'}</Text>
           </View>
-          <View style={[styles.cardMid, { marginStart: 12, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-            <Text style={[styles.cardCategory, { color: colors.black }]} numberOfLines={2}>
+          <View style={[styles.cardMid, { marginStart: isTabletLandscape ? 14 : 12, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+            <Text style={[styles.cardCategory, { color: colors.black }, isTabletLandscape && { fontSize: 16.5, marginBottom: 4 }]} numberOfLines={2}>
               {expense.reason ?? expense.note ?? '—'}
             </Text>
             {expense.reason != null && expense.note ? (
-              <Text style={[styles.cardReason, { color: colors.gray500 }]} numberOfLines={1}>
+              <Text style={[styles.cardReason, { color: colors.gray500 }, isTabletLandscape && { fontSize: 14 }]} numberOfLines={1}>
                 {expense.note}
               </Text>
             ) : null}
           </View>
-          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: colors.error }]} />
+          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: colors.error }, isTabletLandscape && { fontSize: 18 }]} />
         </View>
 
         {/* Bottom row: date/time + action buttons */}
         <View style={[styles.cardBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Text style={[styles.cardDate, { color: colors.gray400 }]}>
-            <DateText value={expense.date} size="small" style={styles.cardDate} />
-            {expense.createdAt ? <> · <TimeText value={expense.createdAt} style={styles.cardDate} /></> : null}
+          <Text style={[styles.cardDate, { color: colors.gray400 }, isTabletLandscape && { fontSize: 13 }]}>
+            <DateText value={expense.date} size="small" style={[styles.cardDate, isTabletLandscape && { fontSize: 13 }]} />
+            {expense.createdAt ? <> · <TimeText value={expense.createdAt} style={[styles.cardDate, isTabletLandscape && { fontSize: 13 }]} /></> : null}
           </Text>
           <View style={[styles.cardActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: editTint.bg }]}
+              style={[styles.actionBtn, { backgroundColor: editTint.bg }, isTabletLandscape && { width: 36, height: 36, borderRadius: 10 }]}
               onPress={onEdit}
               hitSlop={6}
             >
-              <Ionicons name="create-outline" size={15} color={colors.primary} />
+              <Ionicons name="create-outline" size={isTabletLandscape ? 18 : 15} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: deleteTint.bg, marginStart: 6 }]}
+              style={[styles.actionBtn, { backgroundColor: deleteTint.bg, marginStart: 8 }, isTabletLandscape && { width: 36, height: 36, borderRadius: 10 }]}
               onPress={onDelete}
               hitSlop={6}
             >
-              <Ionicons name="trash-outline" size={15} color={colors.error} />
+              <Ionicons name="trash-outline" size={isTabletLandscape ? 18 : 15} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -752,7 +760,7 @@ export default function ExpensesScreen() {
   const { expenses, reloadAfterMutation, loadExpenses } = useReportStore();
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape, horizontalPadding } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const params = useLocalSearchParams<{ tab?: string }>();
 
@@ -900,8 +908,11 @@ export default function ExpensesScreen() {
           />
 
           <FlatList
+            key={isTabletLandscape ? 'expenses-grid-2' : 'expenses-list-1'}
             data={filteredExpenses}
             keyExtractor={(item) => String(item.id)}
+            numColumns={isTabletLandscape ? 2 : 1}
+            columnWrapperStyle={isTabletLandscape ? { gap: 14 } : undefined}
             renderItem={({ item }) => (
               <ExpenseCard
                 expense={item}
@@ -909,7 +920,7 @@ export default function ExpensesScreen() {
                 onDelete={() => handleDelete(item.id)}
               />
             )}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingHorizontal: horizontalPadding }]}
             ListHeaderComponent={
               <>
                 {/* Summary card */}

@@ -133,8 +133,8 @@ function SalesDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors } = useAppTheme();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
@@ -151,6 +151,7 @@ function SalesDebtCardImpl({
       from={{ opacity: 0, translateY: 8 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 250 }}
+      style={isTablet ? { flex: 1 } : undefined}
     >
       <TouchableOpacity
         style={styles.card}
@@ -221,8 +222,8 @@ function PurchaseDebtCardImpl({
 }) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
@@ -240,6 +241,7 @@ function PurchaseDebtCardImpl({
       from={{ opacity: 0, translateY: 8 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 250 }}
+      style={isTablet ? { flex: 1 } : undefined}
     >
       <TouchableOpacity
         style={[styles.card, styles.cardPurchase]}
@@ -383,8 +385,8 @@ export default function DebtScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const { isTablet, isTabletLandscape, contentContainerStyle, cardColumns } = useResponsive();
+  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -1314,28 +1316,28 @@ export default function DebtScreen() {
 
 // ─── Stylesheet ───────────────────────────────────────────────────────────────
 
-function getStyles(colors: AppColors, isTablet: boolean = false) {
+function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandscape: boolean = false) {
   return StyleSheet.create({
     container: { flex: 1 },
 
     // ── Segmented Control Switcher (outside AppHeader) ──
     segmentWrapper: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: isTabletLandscape ? 24 : 16,
+      paddingVertical: isTabletLandscape ? 14 : 10,
       borderBottomWidth: 1,
     },
     segmentTrack: {
-      borderRadius: 12,
-      padding: 3,
-      gap: 4,
+      borderRadius: isTabletLandscape ? 16 : 12,
+      padding: isTabletLandscape ? 5 : 3,
+      gap: isTabletLandscape ? 8 : 4,
     },
     segmentBtn: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 9,
-      paddingHorizontal: 6,
-      borderRadius: 9,
+      paddingVertical: isTabletLandscape ? 13 : isTablet ? 11 : 9,
+      paddingHorizontal: isTabletLandscape ? 12 : 6,
+      borderRadius: isTabletLandscape ? 12 : 9,
       gap: 6,
     },
     segmentBtnActive: {
@@ -1346,7 +1348,7 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
       elevation: 2,
     },
     segmentBtnText: {
-      fontSize: 13,
+      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 13,
       fontWeight: '700',
     },
     tabBadge: {
@@ -1559,9 +1561,9 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
     card: {
       flex: isTablet ? 1 : undefined,
       backgroundColor: colors.white,
-      borderRadius: isTablet ? 18 : Theme.radius.card,
-      padding: isTablet ? 18 : 14,
-      marginBottom: 12,
+      borderRadius: isTabletLandscape ? 20 : isTablet ? 18 : Theme.radius.card,
+      padding: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+      marginBottom: isTabletLandscape ? 16 : 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.07,
@@ -1569,56 +1571,57 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
       elevation: 3,
     },
     cardPurchase: { borderStartWidth: 3, borderStartColor: colors.error },
-    cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+    cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: isTabletLandscape ? 14 : 10 },
     cardAvatar: {
-      width: isTablet ? 52 : 40,
-      height: isTablet ? 52 : 40,
-      borderRadius: isTablet ? 26 : 20,
+      width: isTabletLandscape ? 58 : isTablet ? 52 : 40,
+      height: isTabletLandscape ? 58 : isTablet ? 52 : 40,
+      borderRadius: isTabletLandscape ? 29 : isTablet ? 26 : 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginEnd: 10,
+      marginEnd: isTabletLandscape ? 14 : 10,
     },
-    cardAvatarText: { fontSize: isTablet ? 18 : 15, fontWeight: '700' },
+    cardAvatarText: { fontSize: isTabletLandscape ? 20 : isTablet ? 18 : 15, fontWeight: '700' },
     cardInfo: { flex: 1 },
-    cardName: { fontSize: isTablet ? 18 : 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
-    cardSub: { fontSize: isTablet ? 14 : 12, color: colors.gray400 },
-    cardSub2: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
+    cardName: { fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, fontWeight: '700', color: colors.black, marginBottom: 6 },
+    cardSub: { fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12, color: colors.gray400 },
+    cardSub2: { fontSize: isTabletLandscape ? 13.5 : isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
     cardRight: { alignItems: 'flex-end', gap: 4 },
 
-    cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: 8 },
-    amountRemaining: { fontSize: isTablet ? 20 : 17, fontWeight: '800' },
-    amountSub: { fontSize: isTablet ? 14 : 12, color: colors.gray400 },
+    cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: isTabletLandscape ? 12 : 8 },
+    amountRemaining: { fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 17, fontWeight: '800' },
+    amountSub: { fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12, color: colors.gray400 },
 
     progressTrack: {
-      height: 6,
+      height: isTabletLandscape ? 8 : 6,
       backgroundColor: colors.gray100,
-      borderRadius: 3,
-      marginBottom: 12,
+      borderRadius: 4,
+      marginBottom: isTabletLandscape ? 14 : 12,
       overflow: 'hidden',
     },
-    progressFill: { height: '100%', borderRadius: 3 },
+    progressFill: { height: '100%', borderRadius: 4 },
 
-    cardActionsStack: { gap: 8 },
+    cardActionsStack: { gap: isTabletLandscape ? 10 : 8 },
     quickPayBtnFull: {
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 8,
-      paddingVertical: isTablet ? 14 : 10,
+      borderRadius: isTabletLandscape ? 12 : 8,
+      paddingVertical: isTabletLandscape ? 16 : isTablet ? 14 : 10,
       gap: 6,
     },
-    quickPayText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
+    quickPayText: { fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13, fontWeight: '700' },
     detailBtnRow: {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 2,
+      paddingVertical: isTabletLandscape ? 6 : 4,
     },
-    detailBtnText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
+    detailBtnText: { fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13, fontWeight: '600' },
 
-    statusPill: { borderRadius: 6, paddingHorizontal: isTablet ? 10 : 7, paddingVertical: isTablet ? 4 : 2 },
-    statusPillText: { fontSize: isTablet ? 13 : 11, fontWeight: '700' },
+    statusPill: { borderRadius: 6, paddingHorizontal: isTabletLandscape ? 12 : isTablet ? 10 : 7, paddingVertical: isTabletLandscape ? 5 : isTablet ? 4 : 2 },
+    statusPillText: { fontSize: isTabletLandscape ? 13.5 : isTablet ? 13 : 11, fontWeight: '700' },
 
-    overdueBadge: { borderRadius: 6, paddingHorizontal: isTablet ? 8 : 6, paddingVertical: isTablet ? 3 : 2, marginTop: 3 },
-    overdueBadgeText: { fontSize: isTablet ? 12 : 10, fontWeight: '700' },
+    overdueBadge: { borderRadius: 6, paddingHorizontal: isTabletLandscape ? 10 : isTablet ? 8 : 6, paddingVertical: isTabletLandscape ? 4 : isTablet ? 3 : 2, marginTop: 3 },
+    overdueBadgeText: { fontSize: isTabletLandscape ? 12.5 : isTablet ? 12 : 10, fontWeight: '700' },
 
     empty: { paddingTop: 60, alignItems: 'center', gap: 8 },
     emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.gray500, marginTop: 8 },

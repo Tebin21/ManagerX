@@ -31,7 +31,7 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   return (
     <TouchableOpacity
       style={[
@@ -39,8 +39,9 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
         {
           backgroundColor: colors.white,
           flexDirection,
-          padding: isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14),
-          marginBottom: isTablet ? 12 : (isRTL ? RTL_SPACING.cardGap : 8),
+          padding: isTabletLandscape ? 20 : isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14),
+          marginBottom: isTabletLandscape ? 14 : isTablet ? 12 : (isRTL ? RTL_SPACING.cardGap : 8),
+          borderRadius: isTabletLandscape ? 18 : isTablet ? 16 : Theme.radius.card,
           flex: isTablet ? 1 : undefined,
         },
       ]}
@@ -52,30 +53,30 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
           styles.cardAvatar,
           {
             backgroundColor: colors.softBlue,
-            width: isTablet ? 52 : 44,
-            height: isTablet ? 52 : 44,
-            borderRadius: isTablet ? 16 : 12,
-            marginEnd: isRTL ? 0 : (isTablet ? 16 : 12),
-            marginStart: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : 0,
+            width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+            height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+            borderRadius: isTabletLandscape ? 18 : isTablet ? 16 : 12,
+            marginEnd: isRTL ? 0 : (isTabletLandscape ? 18 : isTablet ? 16 : 12),
+            marginStart: isRTL ? (isTabletLandscape ? 18 : isTablet ? 16 : RTL_SPACING.gapXl) : 0,
           },
         ]}
       >
-        <Ionicons name="business-outline" size={isTablet ? 26 : 22} color={colors.primary} />
+        <Ionicons name="business-outline" size={isTabletLandscape ? 28 : isTablet ? 26 : 22} color={colors.primary} />
       </View>
       <View style={[styles.cardBody, { gap: isRTL ? (isTablet ? 6 : RTL_SPACING.stackGap) : (isTablet ? 4 : 0) }]}>
-        <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
+        <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
           {supplier.name}
         </Text>
         {supplier.phone ? (
-          <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, fontSize: isTablet ? 14 : 12, marginBottom: isRTL ? 0 : 2 }]}>
+          <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12, marginBottom: isRTL ? 0 : 2 }]}>
             {supplier.phone}
           </Text>
         ) : null}
-        <Text style={[styles.cardSub, { color: colors.gray400, textAlign, fontSize: isTablet ? 14 : 12 }]}>
+        <Text style={[styles.cardSub, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 }]}>
           {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant={isTablet ? "default" : "small"} />
         </Text>
       </View>
-      <Ionicons name={chevronForward as never} size={isTablet ? 22 : 18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
+      <Ionicons name={chevronForward as never} size={isTabletLandscape ? 24 : isTablet ? 22 : 18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>
   );
 }

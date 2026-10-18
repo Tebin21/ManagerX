@@ -84,10 +84,18 @@ export default function DashboardStyleScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
-  const { dashboardStyle, setDashboardStyle } = useModuleStore();
+  const { dashboardStyle, setDashboardStyle, modules } = useModuleStore();
+
+  const sortedModules = React.useMemo(() => {
+    return [...MODULES].sort((a, b) => {
+      const orderA = modules[a.id]?.order ?? MODULES.findIndex((m) => m.id === a.id);
+      const orderB = modules[b.id]?.order ?? MODULES.findIndex((m) => m.id === b.id);
+      return orderA - orderB;
+    });
+  }, [modules]);
 
   const activeStyle =
     DASHBOARD_STYLES.find((s) => s.id === dashboardStyle) ?? DASHBOARD_STYLES[0];
@@ -155,6 +163,7 @@ export default function DashboardStyleScreen() {
                 style={[
                   styles.squareCard,
                   isTablet && styles.squareCardTablet,
+                  isTabletLandscape && { width: '18.5%', height: 145, padding: 14 },
                   {
                     backgroundColor: isSelected
                       ? (isDark
@@ -195,6 +204,7 @@ export default function DashboardStyleScreen() {
                 <View
                   style={[
                     styles.squareIconBox,
+                    isTabletLandscape && { width: 56, height: 56, borderRadius: 16, marginBottom: 10 },
                     {
                       backgroundColor: isSelected
                         ? itemAccent
@@ -207,7 +217,7 @@ export default function DashboardStyleScreen() {
                 >
                   <Ionicons
                     name={styleItem.icon}
-                    size={22}
+                    size={isTabletLandscape ? 28 : 22}
                     color={isSelected ? '#FFFFFF' : itemAccent}
                   />
                 </View>
@@ -216,6 +226,7 @@ export default function DashboardStyleScreen() {
                 <Text
                   style={[
                     styles.squareName,
+                    isTabletLandscape && { fontSize: 15.5 },
                     {
                       color: isSelected
                         ? (isDark ? '#FFFFFF' : itemAccent)
@@ -291,7 +302,7 @@ export default function DashboardStyleScreen() {
           >
             {activeStyle.id === 'classic' && (
               <View style={styles.classicPreviewWrap}>
-                {MODULES.slice(0, 4).map((item) => (
+                {sortedModules.slice(0, 4).map((item) => (
                   <ModuleCard
                     key={item.id}
                     module={item}
@@ -305,19 +316,19 @@ export default function DashboardStyleScreen() {
             )}
 
             {activeStyle.id === 'modern' && (
-              <ModernModuleGrid modules={MODULES.slice(0, 4)} />
+              <ModernModuleGrid modules={sortedModules.slice(0, 4)} />
             )}
 
             {activeStyle.id === 'bento' && (
-              <BentoModuleGrid modules={MODULES.slice(0, 4)} />
+              <BentoModuleGrid modules={sortedModules.slice(0, 4)} />
             )}
 
             {activeStyle.id === 'compact' && (
-              <CompactModuleGrid modules={MODULES} />
+              <CompactModuleGrid modules={sortedModules} />
             )}
 
             {activeStyle.id === 'luxe' && (
-              <LuxeModuleGrid modules={MODULES.slice(0, 4)} />
+              <LuxeModuleGrid modules={sortedModules.slice(0, 4)} />
             )}
           </View>
         </View>

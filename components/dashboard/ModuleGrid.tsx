@@ -31,7 +31,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export function ModuleGrid() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
@@ -121,41 +121,9 @@ export function ModuleGrid() {
     setSelectedIdForSwap(null);
   };
 
-  if (dashboardStyle === 'modern') {
-    return (
-      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
-        <ModernModuleGrid modules={displayModules} />
-      </View>
-    );
-  }
-
-  if (dashboardStyle === 'bento') {
-    return (
-      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
-        <BentoModuleGrid modules={displayModules} />
-      </View>
-    );
-  }
-
-  if (dashboardStyle === 'compact') {
-    return (
-      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
-        <CompactModuleGrid modules={displayModules} />
-      </View>
-    );
-  }
-
-  if (dashboardStyle === 'luxe') {
-    return (
-      <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
-        <LuxeModuleGrid modules={displayModules} />
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, { paddingHorizontal: isTablet ? 12 : 8 }]}>
-      {/* Customize Toolbar when editing layout */}
+    <View style={[styles.container, { paddingHorizontal: isTabletLandscape ? 4 : isTablet ? 12 : 8 }]}>
+      {/* Customize Toolbar when editing layout (Shown for ALL styles) */}
       {isCustomizing && (
         <View
           style={[
@@ -217,84 +185,138 @@ export function ModuleGrid() {
             </View>
           </View>
 
-          {/* Quick Shape Toggles: All Square / All Wide */}
-          <View style={[styles.shapeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <TouchableOpacity
-              onPress={() => handleSetAll('half')}
-              activeOpacity={0.7}
-              style={[
-                styles.shapeToggleBtn,
-                {
-                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                },
-              ]}
-            >
-              <Ionicons name="grid-outline" size={13} color={colors.darkBlue} />
-              <Text
+          {/* Quick Shape Toggles: Only applicable to Classic style */}
+          {dashboardStyle === 'classic' && (
+            <View style={[styles.shapeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <TouchableOpacity
+                onPress={() => handleSetAll('half')}
+                activeOpacity={0.7}
                 style={[
-                  styles.shapeToggleText,
-                  { color: colors.darkBlue },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  styles.shapeToggleBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                    borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                  },
                 ]}
               >
-                {isKurdish ? 'هەمووی چوارگۆشە' : 'All Square'}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="grid-outline" size={13} color={colors.darkBlue} />
+                <Text
+                  style={[
+                    styles.shapeToggleText,
+                    { color: colors.darkBlue },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {isKurdish ? 'هەمووی چوارگۆشە' : 'All Square'}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => handleSetAll('full')}
-              activeOpacity={0.7}
-              style={[
-                styles.shapeToggleBtn,
-                {
-                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                },
-              ]}
-            >
-              <Ionicons name="reorder-two-outline" size={15} color={colors.darkBlue} />
-              <Text
+              <TouchableOpacity
+                onPress={() => handleSetAll('full')}
+                activeOpacity={0.7}
                 style={[
-                  styles.shapeToggleText,
-                  { color: colors.darkBlue },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  styles.shapeToggleBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                    borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                  },
                 ]}
               >
-                {isKurdish ? 'هەمووی درێژ' : 'All Wide'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <Ionicons name="reorder-two-outline" size={15} color={colors.darkBlue} />
+                <Text
+                  style={[
+                    styles.shapeToggleText,
+                    { color: colors.darkBlue },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {isKurdish ? 'هەمووی درێژ' : 'All Wide'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Text style={[styles.toolbarHint, { color: colors.gray500, textAlign }]}>
-            {selectedIdForSwap ? t('dashboard.swapTapHint') : t('dashboard.customizeHint')}
+            {selectedIdForSwap
+              ? t('dashboard.swapTapHint')
+              : dashboardStyle === 'classic'
+              ? t('dashboard.customizeHint')
+              : isKurdish
+              ? 'دەست لە دوگمەیەک بنێ بۆ دیاریکردن و ئاڵوگۆڕکردنی شوێنەکەی'
+              : 'Tap a button to select and swap positions'}
           </Text>
         </View>
       )}
 
-      {/* Grid of 7 Buttons */}
-      <View style={styles.gridContainer}>
-        {displayModules.map((item) => {
-          const config = modules[item.id];
-          const layout = config?.layout ?? (item.id === 'expenses' ? 'full' : 'half');
-          const isSelected = selectedIdForSwap === item.id;
+      {/* Modern Style */}
+      {dashboardStyle === 'modern' && (
+        <ModernModuleGrid
+          modules={displayModules}
+          isCustomizing={isCustomizing}
+          selectedIdForSwap={selectedIdForSwap}
+          onStartCustomize={handleStartCustomize}
+          onSelectForSwap={handleSelectForSwap}
+        />
+      )}
 
-          return (
-            <ModuleCard
-              key={item.id}
-              module={item}
-              enabled={config?.enabled ?? true}
-              label={t(item.labelKey)}
-              layout={layout}
-              isCustomizing={isCustomizing}
-              isSelectedForSwap={isSelected}
-              onStartCustomize={() => handleStartCustomize(item.id)}
-              onToggleLayout={() => handleToggleLayout(item.id)}
-              onSelectForSwap={() => handleSelectForSwap(item.id)}
-            />
-          );
-        })}
-      </View>
+      {/* Bento Style */}
+      {dashboardStyle === 'bento' && (
+        <BentoModuleGrid
+          modules={displayModules}
+          isCustomizing={isCustomizing}
+          selectedIdForSwap={selectedIdForSwap}
+          onStartCustomize={handleStartCustomize}
+          onSelectForSwap={handleSelectForSwap}
+        />
+      )}
+
+      {/* Compact Style */}
+      {dashboardStyle === 'compact' && (
+        <CompactModuleGrid
+          modules={displayModules}
+          isCustomizing={isCustomizing}
+          selectedIdForSwap={selectedIdForSwap}
+          onStartCustomize={handleStartCustomize}
+          onSelectForSwap={handleSelectForSwap}
+        />
+      )}
+
+      {/* Luxe Style */}
+      {dashboardStyle === 'luxe' && (
+        <LuxeModuleGrid
+          modules={displayModules}
+          isCustomizing={isCustomizing}
+          selectedIdForSwap={selectedIdForSwap}
+          onStartCustomize={handleStartCustomize}
+          onSelectForSwap={handleSelectForSwap}
+        />
+      )}
+
+      {/* Classic Style */}
+      {dashboardStyle === 'classic' && (
+        <View style={styles.gridContainer}>
+          {displayModules.map((item) => {
+            const config = modules[item.id];
+            const layout = config?.layout ?? (item.id === 'expenses' ? 'full' : 'half');
+            const isSelected = selectedIdForSwap === item.id;
+
+            return (
+              <ModuleCard
+                key={item.id}
+                module={item}
+                enabled={config?.enabled ?? true}
+                label={t(item.labelKey)}
+                layout={layout}
+                isCustomizing={isCustomizing}
+                isSelectedForSwap={isSelected}
+                onStartCustomize={() => handleStartCustomize(item.id)}
+                onToggleLayout={() => handleToggleLayout(item.id)}
+                onSelectForSwap={() => handleSelectForSwap(item.id)}
+              />
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }

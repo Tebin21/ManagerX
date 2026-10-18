@@ -32,6 +32,7 @@ import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -43,6 +44,7 @@ export default function EditPurchaseScreen() {
   const { colors, isDark } = useAppTheme();
   const { updatePurchase } = usePurchaseStore();
   const { isRTL, flexDirection, writingDirection } = useRTL();
+  const { isTablet, contentContainerStyle } = useResponsive();
 
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,9 +152,207 @@ export default function EditPurchaseScreen() {
     );
   }
 
+  const primaryCol = (
+    <View style={{ flex: 1.15, gap: 14 }}>
+      {/* Product image */}
+      <PremiumCard style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productImage')}</Text>
+        <ProductImagePicker
+          uri={imageUri}
+          onSelect={setImageUri}
+          onRemove={() => setImageUri(null)}
+        />
+      </PremiumCard>
+
+      {/* Supplier info (read-only) */}
+      {purchase.supplierName && (
+        <PremiumCard style={styles.card}>
+          <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
+            <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierName')}</Text>
+            <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierName}</Text>
+          </View>
+          {purchase.supplierPhone ? (
+            <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
+              <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierPhone')}</Text>
+              <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierPhone}</Text>
+            </View>
+          ) : null}
+        </PremiumCard>
+      )}
+
+      {/* Product info */}
+      <PremiumCard style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productInfo')}</Text>
+        <LockedFieldRow
+          label={t('purchases.date')}
+          value={purchase.date}
+          caption={t('purchases.dateLockedNote')}
+          valueNumeric
+        />
+        <AppTextInput
+          label={`${t('purchases.productName')} *`}
+          value={productName}
+          onChangeText={setProductName}
+          placeholder={t('purchases.productNamePlaceholder')}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+        <AppTextInput
+          label={t('purchases.category')}
+          value={category}
+          onChangeText={setCategory}
+          placeholder={t('common.optional')}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+        <LockedFieldRow
+          label={t('purchases.qty')}
+          value={String(qty)}
+          caption={t('purchases.quantityLockedNote')}
+          valueNumeric
+        />
+        <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
+          {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
+        </Text>
+      </PremiumCard>
+    </View>
+  );
+
+  const secondaryCol = (
+    <View style={{ flex: 1, gap: 14 }}>
+      {/* Pricing */}
+      <PremiumCard style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.pricingInfo')}</Text>
+        <View style={[styles.priceRow, { flexDirection }]}>
+          <View style={{ flex: 1 }}>
+            <LockedFieldRow
+              label={`${t('purchases.buyPrice')} (IQD)`}
+              value={fmtIQD(purchase.buyPriceIQD)}
+              caption={t('purchases.buyPriceLockedNote')}
+              valueNumeric
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <LockedFieldRow
+              label={`${t('purchases.buyPrice')} (USD)`}
+              value={fmtUSD(purchase.buyPriceUSD)}
+              valueNumeric
+            />
+          </View>
+        </View>
+        <View style={[styles.priceRow, { flexDirection }]}>
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label={`${t('purchases.sellPrice')} (IQD)`}
+              value={sellPriceIQD}
+              onChangeText={syncSellUSD}
+              onEndEditing={() => {
+                const r = roundToNearest250(parseFloat(sellPriceIQD) || 0);
+                setSellPriceIQD(String(r));
+                if (exchangeRate > 0) setSellPriceUSD((r / exchangeRate).toFixed(2));
+              }}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+              style={{ textAlign: 'left', writingDirection: 'ltr' }}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label={`${t('purchases.sellPrice')} (USD)`}
+              value={sellPriceUSD}
+              onChangeText={syncSellIQD}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+              style={{ textAlign: 'left', writingDirection: 'ltr' }}
+            />
+          </View>
+        </View>
+
+        {/* Live totals */}
+        <View style={[styles.totalBox, { backgroundColor: colors.softBlue }]}>
+          <View style={[styles.totalRow, { flexDirection }]}>
+            <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.autoTotal')}</Text>
+            <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary, textAlign: 'right' }]} />
+          </View>
+          {sellNum > 0 && (
+            <View style={[styles.totalRow, { flexDirection }]}>
+              <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.profitLabel')}</Text>
+              <AmountText
+                value={profitIQD}
+                currency="IQD"
+                prefix={profitIQD >= 0 ? '+' : ''}
+                style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error, textAlign: 'right' }]}
+              />
+            </View>
+          )}
+        </View>
+      </PremiumCard>
+
+      {/* Payment status */}
+      <PremiumCard style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.paymentInfo')}</Text>
+        <LockedFieldRow
+          label={t('purchases.paymentInfo')}
+          value={purchase.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
+          caption={t('purchases.paymentStatusLockedNote')}
+        />
+        {purchase.paymentStatus === 'debt' && (
+          <View
+            style={[
+              styles.debtNote,
+              {
+                backgroundColor: isDark ? hexToRgba(colors.warning, 0.15) : '#FFF7ED',
+              },
+            ]}
+          >
+            <Text style={[styles.debtNoteText, { color: colors.warning, writingDirection }]}>
+              <AmountText value={purchase.totalIQD} currency="IQD" variant="small" style={[styles.debtNoteText, { color: colors.warning }]} /> {t('common.debt')}
+            </Text>
+          </View>
+        )}
+      </PremiumCard>
+
+      {/* Additional info */}
+      <PremiumCard style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalInfo')}</Text>
+        <AppTextInput
+          label={t('purchases.warranty')}
+          value={warranty}
+          onChangeText={setWarranty}
+          placeholder={t('common.optional')}
+          returnKeyType="next"
+        />
+        <AppTextInput
+          label={t('purchases.description')}
+          value={description}
+          onChangeText={setDescription}
+          placeholder={t('purchases.descriptionPlaceholder')}
+          multiline
+          returnKeyType="next"
+        />
+        <AppTextInput
+          label={t('purchases.notes')}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t('purchases.notesPlaceholder')}
+          multiline
+          returnKeyType="done"
+        />
+      </PremiumCard>
+
+      <PrimaryButton
+        label={saving ? t('purchases.saving') : t('purchases.saveChanges')}
+        onPress={handleSave}
+        loading={saving}
+        disabled={saving}
+      />
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.gray50 }]}
+      style={styles.wrap}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <AppHeader
@@ -165,7 +365,11 @@ export default function EditPurchaseScreen() {
       />
 
       <KeyboardAwareScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          isTablet && contentContainerStyle,
+          isTablet && { padding: 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <MotiView
@@ -173,195 +377,17 @@ export default function EditPurchaseScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 18, stiffness: 200 }}
         >
-          {/* Product image */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productImage')}</Text>
-            <ProductImagePicker
-              uri={imageUri}
-              onSelect={setImageUri}
-              onRemove={() => setImageUri(null)}
-            />
-          </PremiumCard>
-
-          {/* Supplier info (read-only) */}
-          {purchase.supplierName && (
-            <PremiumCard style={styles.card}>
-              <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
-              <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierName')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierName}</Text>
-              </View>
-              {purchase.supplierPhone ? (
-                <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
-                  <Text style={[styles.infoLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierPhone')}</Text>
-                  <Text style={[styles.infoValue, { color: colors.black, textAlign: 'right' }]}>{purchase.supplierPhone}</Text>
-                </View>
-              ) : null}
-            </PremiumCard>
+          {isTablet ? (
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 24, alignItems: 'flex-start' }}>
+              {primaryCol}
+              {secondaryCol}
+            </View>
+          ) : (
+            <View style={{ gap: 14 }}>
+              {primaryCol}
+              {secondaryCol}
+            </View>
           )}
-
-          {/* Product info */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productInfo')}</Text>
-            <LockedFieldRow
-              label={t('purchases.date')}
-              value={purchase.date}
-              caption={t('purchases.dateLockedNote')}
-              valueNumeric
-            />
-            <AppTextInput
-              label={`${t('purchases.productName')} *`}
-              value={productName}
-              onChangeText={setProductName}
-              placeholder={t('purchases.productNamePlaceholder')}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-            <AppTextInput
-              label={t('purchases.category')}
-              value={category}
-              onChangeText={setCategory}
-              placeholder={t('common.optional')}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
-            <LockedFieldRow
-              label={t('purchases.qty')}
-              value={String(qty)}
-              caption={t('purchases.quantityLockedNote')}
-              valueNumeric
-            />
-            <Text style={[styles.hintText, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left', writingDirection }]}>
-              {t('purchases.soldAvailableHint', { sold: soldQty, available: Math.max(0, qty - soldQty) })}
-            </Text>
-          </PremiumCard>
-
-          {/* Pricing */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.pricingInfo')}</Text>
-            <View style={[styles.priceRow, { flexDirection }]}>
-              <View style={{ flex: 1 }}>
-                <LockedFieldRow
-                  label={`${t('purchases.buyPrice')} (IQD)`}
-                  value={fmtIQD(purchase.buyPriceIQD)}
-                  caption={t('purchases.buyPriceLockedNote')}
-                  valueNumeric
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <LockedFieldRow
-                  label={`${t('purchases.buyPrice')} (USD)`}
-                  value={fmtUSD(purchase.buyPriceUSD)}
-                  valueNumeric
-                />
-              </View>
-            </View>
-            <View style={[styles.priceRow, { flexDirection }]}>
-              <View style={{ flex: 1 }}>
-                <AppTextInput
-                  label={`${t('purchases.sellPrice')} (IQD)`}
-                  value={sellPriceIQD}
-                  onChangeText={syncSellUSD}
-                  onEndEditing={() => {
-                    const r = roundToNearest250(parseFloat(sellPriceIQD) || 0);
-                    setSellPriceIQD(String(r));
-                    if (exchangeRate > 0) setSellPriceUSD((r / exchangeRate).toFixed(2));
-                  }}
-                  keyboardType="decimal-pad"
-                  returnKeyType="next"
-                  style={{ textAlign: 'left', writingDirection: 'ltr' }}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppTextInput
-                  label={`${t('purchases.sellPrice')} (USD)`}
-                  value={sellPriceUSD}
-                  onChangeText={syncSellIQD}
-                  keyboardType="decimal-pad"
-                  returnKeyType="next"
-                  style={{ textAlign: 'left', writingDirection: 'ltr' }}
-                />
-              </View>
-            </View>
-
-            {/* Live totals */}
-            <View style={[styles.totalBox, { backgroundColor: colors.softBlue }]}>
-              <View style={[styles.totalRow, { flexDirection }]}>
-                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.autoTotal')}</Text>
-                <AmountText value={purchase.totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary, textAlign: 'right' }]} />
-              </View>
-              {sellNum > 0 && (
-                <View style={[styles.totalRow, { flexDirection }]}>
-                  <Text style={[styles.totalLabel, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.profitLabel')}</Text>
-                  <AmountText
-                    value={profitIQD}
-                    currency="IQD"
-                    prefix={profitIQD >= 0 ? '+' : ''}
-                    style={[styles.totalValue, { color: profitIQD >= 0 ? Colors.success : Colors.error, textAlign: 'right' }]}
-                  />
-                </View>
-              )}
-            </View>
-          </PremiumCard>
-
-          {/* Payment status */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.paymentInfo')}</Text>
-            <LockedFieldRow
-              label={t('purchases.paymentInfo')}
-              value={purchase.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
-              caption={t('purchases.paymentStatusLockedNote')}
-            />
-            {purchase.paymentStatus === 'debt' && (
-              <View
-                style={[
-                  styles.debtNote,
-                  {
-                    backgroundColor: isDark ? hexToRgba(colors.warning, 0.15) : '#FFF7ED',
-                  },
-                ]}
-              >
-                <Text style={[styles.debtNoteText, { color: colors.warning, writingDirection }]}>
-                  <AmountText value={purchase.totalIQD} currency="IQD" variant="small" style={[styles.debtNoteText, { color: colors.warning }]} /> {t('common.debt')}
-                </Text>
-              </View>
-            )}
-          </PremiumCard>
-
-          {/* Additional info */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalInfo')}</Text>
-            <AppTextInput
-              label={t('purchases.warranty')}
-              value={warranty}
-              onChangeText={setWarranty}
-              placeholder={t('common.optional')}
-              returnKeyType="next"
-            />
-            <AppTextInput
-              label={t('purchases.description')}
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t('purchases.descriptionPlaceholder')}
-              multiline
-              returnKeyType="next"
-            />
-            <AppTextInput
-              label={t('purchases.notes')}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={t('purchases.notesPlaceholder')}
-              multiline
-              returnKeyType="done"
-            />
-          </PremiumCard>
-
-          <PrimaryButton
-            label={saving ? t('purchases.saving') : t('purchases.saveChanges')}
-            onPress={handleSave}
-            loading={saving}
-            disabled={saving}
-          />
           <View style={{ height: 32 }} />
         </MotiView>
       </KeyboardAwareScrollView>

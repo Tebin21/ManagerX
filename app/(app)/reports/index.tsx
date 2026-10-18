@@ -330,13 +330,13 @@ function FinancialCard({
 }) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
-  const fcStyles = useMemo(() => getFcStyles(colors, isTablet), [colors, isTablet]);
+  const fcStyles = useMemo(() => getFcStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   return (
     <View style={[fcStyles.card, { backgroundColor: `${color}0D` }]}>
       <View style={[fcStyles.iconBox, { backgroundColor: `${color}1A`, alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}>
-        <Ionicons name={icon} size={isTablet ? 24 : 18} color={color} />
+        <Ionicons name={icon} size={isTabletLandscape ? 26 : isTablet ? 24 : 18} color={color} />
       </View>
       <Text style={[fcStyles.label, { textAlign }]}>{label}</Text>
       <AmountText
@@ -352,35 +352,35 @@ function FinancialCard({
   );
 }
 
-function getFcStyles(colors: AppColors, isTablet: boolean = false) {
+function getFcStyles(colors: AppColors, isTablet: boolean = false, isTabletLandscape: boolean = false) {
   return StyleSheet.create({
     card: {
       flex: 1,
-      borderRadius: isTablet ? 20 : 16,
-      padding: isTablet ? 18 : 14,
+      borderRadius: isTabletLandscape ? 22 : isTablet ? 20 : 16,
+      padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
     },
     iconBox: {
-      width: isTablet ? 42 : 34,
-      height: isTablet ? 42 : 34,
-      borderRadius: isTablet ? 12 : 10,
+      width: isTabletLandscape ? 48 : isTablet ? 42 : 34,
+      height: isTabletLandscape ? 48 : isTablet ? 42 : 34,
+      borderRadius: isTabletLandscape ? 14 : isTablet ? 12 : 10,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: isTablet ? 12 : 10,
+      marginBottom: isTabletLandscape ? 14 : isTablet ? 12 : 10,
     },
     label: {
-      fontSize: isTablet ? 13 : 11,
+      fontSize: isTabletLandscape ? 14.5 : isTablet ? 13 : 11,
       fontWeight: '600',
       color: colors.gray500,
       marginBottom: 4,
     },
     value: {
-      fontSize: isTablet ? 24 : 20,
+      fontSize: isTabletLandscape ? 27 : isTablet ? 24 : 20,
       fontWeight: '800',
-      lineHeight: isTablet ? 32 : 28,
+      lineHeight: isTabletLandscape ? 36 : isTablet ? 32 : 28,
       marginBottom: 2,
     },
     currency: {
-      fontSize: isTablet ? 13 : 11,
+      fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11,
       color: colors.gray400,
       fontWeight: '600',
     },
@@ -397,6 +397,45 @@ function FinancialSummaryGrid({
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
+  const { isTabletLandscape } = useResponsive();
+
+  if (isTabletLandscape) {
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 360 }}
+        style={fsgStyles.grid}
+      >
+        <View style={[fsgStyles.row, { gap: 12 }]}>
+          <FinancialCard
+            label={t('reports.totalSales')}
+            amount={totalSales}
+            icon="trending-up"
+            color={colors.primary}
+          />
+          <FinancialCard
+            label={t('reports.netProfit')}
+            amount={netProfit}
+            icon="cash"
+            color={colors.success}
+          />
+          <FinancialCard
+            label={t('reports.totalLoss')}
+            amount={totalLoss}
+            icon="trending-down"
+            color={colors.error}
+          />
+          <FinancialCard
+            label={t('reports.remainingDebt')}
+            amount={remainingDebt}
+            icon="time"
+            color={colors.warning}
+          />
+        </View>
+      </MotiView>
+    );
+  }
 
   return (
     <MotiView

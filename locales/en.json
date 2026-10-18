@@ -299,6 +299,8 @@
     "inventory":         "Inventory",
     "reports":           "Reports",
     "customers":         "Customer History",
+    "suppliers":         "Suppliers",
+    "suppliersSub":      "Suppliers list & transactions",
     "history":           "History",
     "debt":              "Debt ",
     "soldProducts":      "Sold Products",

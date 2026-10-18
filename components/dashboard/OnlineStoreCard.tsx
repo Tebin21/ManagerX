@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useAuthStore } from '@/store/authStore';
@@ -24,6 +25,7 @@ export function OnlineStoreCard() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection, textAlign, writingDirection } = useRTL();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const [infoVisible, setInfoVisible] = useState(false);
 
   const {
@@ -84,25 +86,25 @@ export function OnlineStoreCard() {
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.lightBlue }, Theme.shadow.card]}>
+    <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.lightBlue, padding: isTabletLandscape ? 22 : isTablet ? 18 : 16 }, Theme.shadow.card]}>
       {/* Header */}
       <View style={[styles.headerRow, { flexDirection }]}>
-        <View style={[styles.headerLeft, { flexDirection }]}>
-          <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue }]}>
-            <Ionicons name="storefront" size={22} color={colors.primary} />
+        <View style={[styles.headerLeft, { flexDirection, gap: isTablet ? 14 : 10 }]}>
+          <View style={[styles.iconWrapper, { backgroundColor: colors.softBlue, width: isTabletLandscape ? 54 : isTablet ? 46 : 40, height: isTabletLandscape ? 54 : isTablet ? 46 : 40, borderRadius: isTablet ? 16 : 12 }]}>
+            <Ionicons name="storefront" size={isTabletLandscape ? 28 : isTablet ? 25 : 22} color={colors.primary} />
           </View>
-          <Text style={[styles.title, { color: colors.darkBlue, textAlign, writingDirection }]}>{t('dashboard.onlineStore.title')}</Text>
+          <Text style={[styles.title, { color: colors.darkBlue, textAlign, writingDirection, fontSize: isTabletLandscape ? 21 : isTablet ? 18.5 : 16 }]}>{t('dashboard.onlineStore.title')}</Text>
         </View>
 
-        <View style={[styles.headerRight, { flexDirection }]}>
+        <View style={[styles.headerRight, { flexDirection, gap: isTablet ? 10 : 8 }]}>
           <View
             style={[
               styles.statusPill,
-              { backgroundColor: enabled ? '#DCFCE7' : colors.gray100, flexDirection },
+              { backgroundColor: enabled ? '#DCFCE7' : colors.gray100, flexDirection, paddingHorizontal: isTablet ? 14 : 10, paddingVertical: isTablet ? 7 : 5 },
             ]}
           >
-            <View style={[styles.statusDot, { backgroundColor: enabled ? colors.success : colors.gray400 }]} />
-            <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500, textAlign }]}>
+            <View style={[styles.statusDot, { backgroundColor: enabled ? colors.success : colors.gray400, width: isTablet ? 8 : 6, height: isTablet ? 8 : 6 }]} />
+            <Text style={[styles.statusText, { color: enabled ? colors.success : colors.gray500, textAlign, fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 12 }]}>
               {enabled ? t('dashboard.onlineStore.active') : t('dashboard.onlineStore.disabled')}
             </Text>
           </View>
@@ -111,19 +113,19 @@ export function OnlineStoreCard() {
             hitSlop={8}
             accessibilityLabel={t('dashboard.onlineStore.infoButtonA11y')}
           >
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+            <Ionicons name="information-circle-outline" size={isTabletLandscape ? 26 : isTablet ? 22 : 20} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Subscription status */}
-      <View style={[styles.subRow, { backgroundColor: colors.gray50, flexDirection }]}>
-        <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-        <Text style={[styles.subText, { color: colors.gray600, textAlign, writingDirection }]} numberOfLines={1}>
+      <View style={[styles.subRow, { backgroundColor: colors.gray50, flexDirection, paddingHorizontal: isTablet ? 14 : 10, paddingVertical: isTablet ? 10 : 7 }]}>
+        <Ionicons name="checkmark-circle" size={isTabletLandscape ? 18 : isTablet ? 16 : 14} color={colors.success} />
+        <Text style={[styles.subText, { color: colors.gray600, textAlign, writingDirection, fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11.5 }]} numberOfLines={1}>
           {t('dashboard.onlineStore.activeSubscriptionLabel')}
         </Text>
         {(subscriptionExpiresAt || remainingDays !== null) && (
-          <LTRNumber style={[styles.subDate, { color: colors.gray600 }]} numberOfLines={1}>
+          <LTRNumber style={[styles.subDate, { color: colors.gray600, fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11.5 }]} numberOfLines={1}>
             {subscriptionExpiresAt ? formatDateShort(subscriptionExpiresAt) : ''}
             {subscriptionExpiresAt && remainingDays !== null ? ' · ' : ''}
             {remainingDays !== null ? `${remainingDays}d` : ''}
@@ -132,9 +134,9 @@ export function OnlineStoreCard() {
       </View>
 
       {/* Store URL */}
-      <View style={[styles.urlRow, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue, flexDirection }]}>
-        <Ionicons name="globe-outline" size={16} color={colors.primary} />
-        <LTRNumber style={[styles.urlText, { color: colors.primaryDark }]} numberOfLines={1}>
+      <View style={[styles.urlRow, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue, flexDirection, paddingVertical: isTablet ? 14 : 10, paddingHorizontal: isTablet ? 16 : 12 }]}>
+        <Ionicons name="globe-outline" size={isTabletLandscape ? 22 : isTablet ? 19 : 16} color={colors.primary} />
+        <LTRNumber style={[styles.urlText, { color: colors.primaryDark, fontSize: isTabletLandscape ? 17 : isTablet ? 15 : 13 }]} numberOfLines={1}>
           {storeUrl ? stripProtocol(storeUrl) : t('dashboard.onlineStore.registering')}
         </LTRNumber>
         <TouchableOpacity
@@ -144,7 +146,7 @@ export function OnlineStoreCard() {
           style={styles.urlIconBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="copy-outline" size={18} color={storeUrl ? colors.primary : colors.gray300} />
+          <Ionicons name="copy-outline" size={isTabletLandscape ? 22 : isTablet ? 20 : 18} color={storeUrl ? colors.primary : colors.gray300} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={openWebsite}
@@ -153,7 +155,7 @@ export function OnlineStoreCard() {
           style={styles.urlIconBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="open-outline" size={18} color={storeUrl ? colors.primary : colors.gray300} />
+          <Ionicons name="open-outline" size={isTabletLandscape ? 22 : isTablet ? 20 : 18} color={storeUrl ? colors.primary : colors.gray300} />
         </TouchableOpacity>
         {enabled && (
           <TouchableOpacity
@@ -166,25 +168,25 @@ export function OnlineStoreCard() {
             {isSyncingNow ? (
               <ActivityIndicator color={colors.primary} size="small" />
             ) : (
-              <Ionicons name="sync-outline" size={18} color={colors.primary} />
+              <Ionicons name="sync-outline" size={isTabletLandscape ? 22 : isTablet ? 20 : 18} color={colors.primary} />
             )}
           </TouchableOpacity>
         )}
       </View>
 
       {/* Stats */}
-      <View style={[styles.statsRow, { flexDirection }]}>
-        <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('dashboard.onlineStore.lastSync')}</Text>
+      <View style={[styles.statsRow, { flexDirection, gap: isTablet ? 14 : 10 }]}>
+        <View style={[styles.statBlock, { backgroundColor: colors.gray50, paddingHorizontal: isTablet ? 16 : 12, paddingVertical: isTablet ? 14 : 10 }]}>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection, fontSize: isTabletLandscape ? 14 : isTablet ? 12.5 : 11 }]}>{t('dashboard.onlineStore.lastSync')}</Text>
           {lastSyncAt ? (
-            <LTRNumber style={[styles.statValue, { color: colors.darkBlue, textAlign }]}>{formatRelativeTime(lastSyncAt)}</LTRNumber>
+            <LTRNumber style={[styles.statValue, { color: colors.darkBlue, textAlign, fontSize: isTabletLandscape ? 17 : isTablet ? 15 : 13 }]}>{formatRelativeTime(lastSyncAt)}</LTRNumber>
           ) : (
-            <Text style={[styles.statValue, { color: colors.darkBlue, textAlign, writingDirection }]}>{t('dashboard.onlineStore.never')}</Text>
+            <Text style={[styles.statValue, { color: colors.darkBlue, textAlign, writingDirection, fontSize: isTabletLandscape ? 17 : isTablet ? 15 : 13 }]}>{t('dashboard.onlineStore.never')}</Text>
           )}
         </View>
-        <View style={[styles.statBlock, { backgroundColor: colors.gray50 }]}>
-          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
-          <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success, textAlign, writingDirection }]}>
+        <View style={[styles.statBlock, { backgroundColor: colors.gray50, paddingHorizontal: isTablet ? 16 : 12, paddingVertical: isTablet ? 14 : 10 }]}>
+          <Text style={[styles.statLabel, { color: colors.gray500, textAlign, writingDirection, fontSize: isTabletLandscape ? 14 : isTablet ? 12.5 : 11 }]}>{t('settings.onlineStoreScreen.pendingChanges')}</Text>
+          <Text style={[styles.statValue, { color: pendingCount > 0 ? colors.warning : colors.success, textAlign, writingDirection, fontSize: isTabletLandscape ? 17 : isTablet ? 15 : 13 }]}>
             {pendingCount > 0
               ? t('dashboard.onlineStore.changesWaiting', { count: pendingCount })
               : t('dashboard.onlineStore.allSynced')}
@@ -199,14 +201,18 @@ export function OnlineStoreCard() {
         activeOpacity={0.85}
         style={[
           styles.actionBtn,
-          { backgroundColor: enabled ? colors.gray100 : colors.primary },
+          {
+            backgroundColor: enabled ? colors.gray100 : colors.primary,
+            height: isTabletLandscape ? 62 : isTablet ? 56 : Theme.button.height,
+            borderRadius: isTablet ? 16 : Theme.button.borderRadius,
+          },
           !enabled && Theme.shadow.button,
         ]}
       >
         {isLoading ? (
           <ActivityIndicator color={enabled ? colors.gray500 : colors.white} size="small" />
         ) : (
-          <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white }]}>
+          <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white, fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 15 }]}>
             {enabled ? t('dashboard.onlineStore.disableStore') : t('dashboard.onlineStore.enableStore')}
           </Text>
         )}

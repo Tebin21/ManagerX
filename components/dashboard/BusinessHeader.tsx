@@ -102,7 +102,7 @@ export function BusinessHeader() {
   const { t } = useTranslation();
   const { name, type, phone, address, logoUri, showOnDashboard = false } = useBusinessStore();
   const { colors: themeColors, isDark } = useAppTheme();
-  const { isTablet, headerMaxWidth } = useResponsive();
+  const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
@@ -440,7 +440,7 @@ export function BusinessHeader() {
 
   const resolved = resolveType(type, isKurdish);
   const typeEmoji = resolved?.emoji || '🏢';
-  const styles = React.useMemo(() => getStyles(isTablet), [isTablet]);
+  const styles = React.useMemo(() => getStyles(isTablet, isTabletLandscape), [isTablet, isTabletLandscape]);
 
   // Current tab media for modal UI
   const currentTabVideo = activeTab === 'banner' ? bannerVideo : bizVideo;
@@ -955,7 +955,7 @@ export function BusinessHeader() {
   );
 }
 
-function getStyles(isTablet: boolean) {
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
   return StyleSheet.create({
     pressableRoot: {
       overflow: 'hidden',
@@ -974,21 +974,21 @@ function getStyles(isTablet: boolean) {
       height: '100%',
     },
     container: {
-      paddingTop: isTablet ? 50 : 70,
-      paddingBottom: isTablet ? 36 : 34,
-      paddingHorizontal: isTablet ? 28 : 22,
-      minHeight: isTablet ? 260 : 230,
+      paddingTop: isTabletLandscape ? 40 : isTablet ? 50 : 70,
+      paddingBottom: isTabletLandscape ? 38 : isTablet ? 36 : 34,
+      paddingHorizontal: isTabletLandscape ? 36 : isTablet ? 28 : 22,
+      minHeight: isTabletLandscape ? 280 : isTablet ? 260 : 230,
       justifyContent: 'space-between',
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: isTablet ? 18 : 14,
+      gap: isTabletLandscape ? 22 : isTablet ? 18 : 14,
     },
     logoContainer: {
-      width: isTablet ? 104 : 88,
-      height: isTablet ? 104 : 88,
-      borderRadius: isTablet ? 22 : 18,
+      width: isTabletLandscape ? 128 : isTablet ? 110 : 88,
+      height: isTabletLandscape ? 128 : isTablet ? 110 : 88,
+      borderRadius: isTabletLandscape ? 28 : isTablet ? 24 : 18,
       overflow: 'hidden',
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.4)',
@@ -1005,41 +1005,41 @@ function getStyles(isTablet: boolean) {
       justifyContent: 'center',
     },
     logoEmoji: {
-      fontSize: 38,
+      fontSize: isTabletLandscape ? 48 : isTablet ? 42 : 38,
     },
     info: {
       flex: 1,
-      gap: isTablet ? 6 : 4,
+      gap: isTablet ? 8 : 4,
       justifyContent: 'center',
       marginTop: 4,
     },
     nameGroup: {
-      gap: 2,
+      gap: 3,
     },
     contactGroup: {
-      gap: isTablet ? 6 : 4,
+      gap: isTablet ? 8 : 4,
     },
     businessName: {
-      fontSize: isTablet ? 23 : 17,
-      lineHeight: isTablet ? 27 : 19,
+      fontSize: isTabletLandscape ? 30 : isTablet ? 25 : 17,
+      lineHeight: isTabletLandscape ? 36 : isTablet ? 30 : 19,
       fontWeight: '700',
       color: '#FFFFFF',
       letterSpacing: 0.3,
     },
     typeText: {
-      fontSize: isTablet ? 15 : 13,
-      lineHeight: isTablet ? 18 : 14,
+      fontSize: isTabletLandscape ? 19 : isTablet ? 16.5 : 13,
+      lineHeight: isTabletLandscape ? 22 : isTablet ? 19 : 14,
       color: 'rgba(255,255,255,0.95)',
       fontWeight: '600',
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: isTablet ? 6 : 4,
+      gap: isTablet ? 8 : 4,
     },
     detailText: {
-      fontSize: isTablet ? 14 : 12,
-      lineHeight: isTablet ? 16 : 13,
+      fontSize: isTabletLandscape ? 16.5 : isTablet ? 15 : 12,
+      lineHeight: isTabletLandscape ? 20 : isTablet ? 18 : 13,
       color: 'rgba(255,255,255,0.85)',
       flex: 1,
     },

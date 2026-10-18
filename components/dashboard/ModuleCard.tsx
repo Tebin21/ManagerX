@@ -160,7 +160,7 @@ export function ModuleCard({
 }: Props) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, isLargeTablet } = useResponsive();
+  const { isTablet, isLargeTablet, isTabletLandscape } = useResponsive();
   const { isRTL } = useRTL();
   const lang = useLanguageStore((s) => s.language);
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
@@ -350,8 +350,8 @@ export function ModuleCard({
   );
 
   const styles = useMemo(
-    () => getStyles(isTablet, isLargeTablet, isFull, isDark),
-    [isTablet, isLargeTablet, isFull, isDark]
+    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark),
+    [isTablet, isLargeTablet, isTabletLandscape, isFull, isDark]
   );
 
   return (
@@ -428,7 +428,7 @@ export function ModuleCard({
               >
                 <Ionicons
                   name={theme.iconName}
-                  size={isTablet ? 25 : 22}
+                  size={isTabletLandscape ? 36 : isTablet ? 30 : 22}
                   color={theme.iconColor}
                 />
               </View>
@@ -487,7 +487,7 @@ export function ModuleCard({
               >
                 <Ionicons
                   name={theme.iconName}
-                  size={isTablet ? 28 : 25}
+                  size={isTabletLandscape ? 42 : isTablet ? 35 : 25}
                   color={theme.iconColor}
                 />
               </View>
@@ -554,13 +554,13 @@ export function ModuleCard({
   );
 }
 
-function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, isDark: boolean) {
-  const squareHeight = isLargeTablet ? 172 : isTablet ? 160 : 142;
-  const wideHeight = isLargeTablet ? 94 : isTablet ? 88 : 78;
+function getStyles(isTablet: boolean, isLargeTablet: boolean, isTabletLandscape: boolean, isFull: boolean, isDark: boolean) {
+  const squareHeight = isTabletLandscape ? 200 : isLargeTablet ? 188 : isTablet ? 172 : 142;
+  const wideHeight = isTabletLandscape ? 120 : isLargeTablet ? 110 : isTablet ? 98 : 78;
 
   return StyleSheet.create({
     container: {
-      width: isFull ? '100%' : isTablet ? '31.8%' : '48.5%',
+      width: isFull ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
       marginVertical: isTablet ? 6 : 5,
     },
     pressable: {
@@ -597,9 +597,9 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, i
       position: 'relative',
     },
     circleContainerSquare: {
-      width: isTablet ? 58 : 52,
-      height: isTablet ? 58 : 52,
-      borderRadius: isTablet ? 29 : 26,
+      width: isTabletLandscape ? 82 : isTablet ? 70 : 52,
+      height: isTabletLandscape ? 82 : isTablet ? 70 : 52,
+      borderRadius: isTabletLandscape ? 41 : isTablet ? 35 : 26,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
@@ -611,14 +611,14 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, i
       elevation: 4,
     },
     titleSquare: {
-      fontSize: isTablet ? 16.5 : 14.5,
+      fontSize: isTabletLandscape ? 21 : isTablet ? 19 : 14.5,
       fontWeight: '700',
       textAlign: 'center',
       letterSpacing: -0.2,
       marginBottom: 3,
     },
     subtitleSquare: {
-      fontSize: isTablet ? 11 : 9.5,
+      fontSize: isTabletLandscape ? 14.5 : isTablet ? 13 : 9.5,
       fontWeight: '500',
       textAlign: 'center',
       paddingHorizontal: 4,
@@ -631,9 +631,9 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, i
       justifyContent: 'space-between',
     },
     circleContainerWide: {
-      width: isTablet ? 50 : 46,
-      height: isTablet ? 50 : 46,
-      borderRadius: isTablet ? 25 : 23,
+      width: isTabletLandscape ? 72 : isTablet ? 60 : 46,
+      height: isTabletLandscape ? 72 : isTablet ? 60 : 46,
+      borderRadius: isTabletLandscape ? 36 : isTablet ? 30 : 23,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
@@ -648,13 +648,13 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isFull: boolean, i
       justifyContent: 'center',
     },
     titleWide: {
-      fontSize: isTablet ? 17 : 15,
+      fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 15,
       fontWeight: '700',
       letterSpacing: -0.2,
       marginBottom: 2,
     },
     subtitleWide: {
-      fontSize: isTablet ? 11.5 : 10,
+      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14 : 10,
       fontWeight: '500',
     },
     wideTrailingGroup: {

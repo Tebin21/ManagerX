@@ -20,6 +20,7 @@ import { computeProductLowStock } from '@/lib/lowStock';
 import { useSettingsStore } from '@/store/settingsStore';
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import { toEnglishDigits } from '@/utils/formatters';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface Props {
   products: InventoryProduct[];
@@ -43,6 +44,7 @@ export function InventoryReportView({
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
   // 1. Core financial and inventory metrics
   const totalCostValue = useMemo(() => {
@@ -110,7 +112,7 @@ export function InventoryReportView({
           colors={[colors.primary]}
         />
       }
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}
     >
       {/* ── Section Header Row (Dashboard Style) ── */}
       <View style={[styles.sectionHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -275,17 +277,20 @@ export function InventoryReportView({
         />
       </View>
 
-      {/* ── Category Breakdown Card ── */}
-      {categoryStats.length > 0 && (
-        <View
-          style={[
-            styles.cardContainer,
-            {
-              backgroundColor: isDark ? colors.gray100 : colors.white,
-              borderColor: isDark ? colors.gray200 : colors.gray100,
-            },
-          ]}
-        >
+      {/* ── Secondary Details: Categories & Low Stock (Side-by-side on tablet landscape) ── */}
+      <View style={isTabletLandscape && (categoryStats.length > 0 || lowStockProducts.length > 0) ? { flexDirection: 'row', gap: 16, marginHorizontal: 16 } : undefined}>
+        {/* ── Category Breakdown Card ── */}
+        {categoryStats.length > 0 && (
+          <View
+            style={[
+              styles.cardContainer,
+              isTabletLandscape && { flex: 1, marginHorizontal: 0, marginTop: 14 },
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: isDark ? colors.gray200 : colors.gray100,
+              },
+            ]}
+          >
           <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <View style={[styles.cardHeaderIcon, { backgroundColor: colors.primary + '18' }]}>
               <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
@@ -364,6 +369,7 @@ export function InventoryReportView({
         <View
           style={[
             styles.cardContainer,
+            isTabletLandscape && { flex: 1, marginHorizontal: 0, marginTop: 14 },
             {
               backgroundColor: isDark ? colors.gray100 : colors.white,
               borderColor: colors.error + '40',
@@ -434,6 +440,7 @@ export function InventoryReportView({
           </View>
         </View>
       )}
+      </View>
     </ScrollView>
   );
 }

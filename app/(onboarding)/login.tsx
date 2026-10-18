@@ -24,6 +24,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Colors } from '@/constants/colors';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -68,6 +69,31 @@ export default function LoginScreen() {
     }
   };
 
+  const { isTablet, sheetMaxWidth, buttonHeight } = useResponsive();
+
+  const handleDevBypass = async () => {
+    try {
+      const { initializeDatabase } = await import('@/lib/sqlite');
+      await initializeDatabase();
+    } catch {}
+    const mockUser = {
+      id: 'dev_user_1',
+      uid: 'dev_user_1',
+      email: 'demo@froshiar.store',
+      displayName: 'Dev Administrator',
+    };
+    useAuthStore.setState({ user: mockUser as any, isLoading: false });
+    const { useOnboardingStore } = await import('@/store/onboardingStore');
+    useOnboardingStore.setState({ hasCompletedOnboarding: true });
+    const { useBusinessStore } = await import('@/store/businessStore');
+    useBusinessStore.setState({
+      isSetupComplete: true,
+      name: 'Froshiar Store',
+      ownerUserId: 'dev_user_1',
+    });
+    router.replace('/(app)/dashboard');
+  };
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
       <StatusBar barStyle="light-content" />
@@ -105,7 +131,7 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, isTablet && { alignItems: 'center' }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -113,8 +139,31 @@ export default function LoginScreen() {
             from={{ opacity: 0, translateY: 24 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 450 }}
-            style={styles.buttonGroup}
+            style={[styles.buttonGroup, { maxWidth: Math.min(sheetMaxWidth, 460) }]}
           >
+            {__DEV__ && (
+              <TouchableOpacity
+                onPress={handleDevBypass}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: 14,
+                  paddingHorizontal: 20,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  marginBottom: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
+                  ⚡ تاقیکردنەوە / Dev Quick Login
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <EmailPasswordForm
               mode="signin"
               loading={isLoading}

@@ -19,7 +19,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
 
   // When the business header is hidden, ensure proper breathing space below the status bar / Dynamic Island
@@ -54,10 +54,19 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               onPress={() => router.push('/(app)/settings' as never)}
-              style={[styles.settingsBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '1F' }]}
+              style={[
+                styles.settingsBtn,
+                {
+                  backgroundColor: colors.softBlue,
+                  borderColor: colors.primary + '1F',
+                  width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                  height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                  borderRadius: isTabletLandscape ? 20 : isTablet ? 16 : 14,
+                },
+              ]}
               hitSlop={8}
             >
-              <Ionicons name="settings-outline" size={22} color={colors.primary} />
+              <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
             </TouchableOpacity>
           </MotiView>
 

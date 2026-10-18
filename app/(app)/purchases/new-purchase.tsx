@@ -61,7 +61,7 @@ export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign, flexDirection, isRTL } = useRTL();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
@@ -485,9 +485,1166 @@ export default function NewPurchaseScreen() {
         console.error('Failed to save purchase:', err);
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
+    } finally {
       setIsSubmitting(false);
     }
   }
+
+  // ─── Render Components ──────────────────────────────────────────────────────
+
+  // 1. Product Info Card
+  const cardProductInfo = (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
+          <Ionicons name="cube-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'زانیاری بەرهەم' : t('purchases.productInfo', 'Product Information')}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'ناو، وەسف، وێنە و پۆلێنی کاڵا' : 'Name, details, image and category'}
+          </Text>
+        </View>
+      </View>
+
+      <AppTextInput
+        label={t('purchases.productName')}
+        value={productName}
+        onChangeText={setProductName}
+        onEndEditing={() => {
+          const match = findByName(productName);
+          if (match) {
+            if (!imageUri && match.imageUri) {
+              setImageUri(match.imageUri);
+            }
+            if (!itemDescription && match.description) {
+              setItemDescription(match.description);
+            }
+            if (!category && match.category) {
+              setCategory(match.category);
+            }
+          }
+        }}
+        placeholder={t('purchases.productNameNewPlaceholder')}
+        returnKeyType="next"
+      />
+
+      {/* Quick Auto-Fill Suggestion Chips when typing product name */}
+      {matchingPresets.length > 0 && !imageUri && (
+        <View style={styles.presetsSuggestionWrap}>
+          <View style={[styles.presetsHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="sparkles" size={13} color={colors.primary} />
+            <Text style={[styles.presetsHeaderText, { color: colors.primary }]}>
+              {isKuLanguage
+                ? 'ئایتمە سەڤکراوەکان (داگرە بۆ پڕکردنەوەی وێنە و وەسف):'
+                : 'Saved items (tap to auto-fill photo & details):'}
+            </Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[styles.presetsScroll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+          >
+            {matchingPresets.map((preset) => (
+              <TouchableOpacity
+                key={preset.id}
+                style={[
+                  styles.presetChip,
+                  {
+                    backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                    borderColor: isDark ? colors.gray200 : colors.primary + '50',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+                onPress={() => handleSelectSavedItem(preset)}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: preset.imageUri }}
+                  style={styles.presetChipImage}
+                />
+                <View style={{ gap: 2 }}>
+                  <Text
+                    style={[
+                      styles.presetChipName,
+                      { color: colors.black },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {preset.name}
+                  </Text>
+                  {Boolean(preset.description) && (
+                    <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
+                      {preset.description}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={colors.primary}
+                  style={{ marginStart: 4 }}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <AppTextInput
+        value={itemDescription}
+        onChangeText={setItemDescription}
+        placeholder={t('purchases.itemDescriptionPlaceholder')}
+        maxLength={30}
+        returnKeyType="next"
+      />
+
+      <CategoryAutocompleteInput
+        label={t('purchases.category')}
+        value={category}
+        onChange={setCategory}
+        categories={availableCategories}
+        placeholder={t('purchases.categoryPlaceholder')}
+        inputStyle={isRTL ? { fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT } : undefined}
+      />
+
+      {/* Product Image */}
+      <ProductImagePicker
+        uri={imageUri}
+        onSelect={setImageUri}
+        onRemove={() => setImageUri(null)}
+        label={t('purchases.productImage')}
+        onSelectSavedItem={handleSelectSavedItem}
+      />
+
+      <AppTextInput
+        label={t('purchases.notes')}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder={t('purchases.notesPlaceholder')}
+        multiline
+        numberOfLines={3}
+        style={[styles.textarea, isRTL && { fontSize: 13 }]}
+      />
+
+      <AppTextInput
+        label={t('purchases.websiteDescription')}
+        value={websiteDescription}
+        onChangeText={setWebsiteDescription}
+        placeholder={t('purchases.websiteDescriptionPlaceholder')}
+        maxLength={30}
+        returnKeyType="next"
+        style={isRTL ? { fontSize: 13 } : undefined}
+      />
+      <Text style={[styles.hintText, { color: colors.gray400, textAlign }]}>
+        {t('purchases.websiteDescriptionHint')}
+      </Text>
+    </PremiumCard>
+  );
+
+  // 2. Quantity & IDs Card
+  const cardQuantityAndIds = (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
+          <Ionicons name="barcode-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'بڕ و ناسێنەری کاڵا' : 'Quantity & Item IDs'}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs'}
+          </Text>
+        </View>
+      </View>
+
+      <QuantityStepper
+        label={t('purchases.qty')}
+        value={qty}
+        onChangeText={onQtyChange}
+        min={1}
+        max={100}
+        placeholder={t('purchases.qtyPlaceholder')}
+      />
+
+      {/* ID Type */}
+      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.idType')}</Text>
+      <View style={[styles.idTypeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <TouchableOpacity
+          style={[styles.idTypeBtn,
+            isTablet && { height: 50, borderRadius: 14 },
+            idType === 'shared'
+              ? { backgroundColor: colors.primary, borderColor: colors.primary }
+              : { borderColor: colors.gray200, backgroundColor: colors.white }
+          ]}
+          onPress={() => selectIdType('shared')}
+          activeOpacity={0.8}
+        >
+          <Text style={[
+            styles.idTypeBtnText,
+            isTablet && { fontSize: 15.5 },
+            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            { color: idType === 'shared' ? colors.white : colors.gray500 }
+          ]}>
+            {t('purchases.sharedId')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.idTypeBtn,
+            isTablet && { height: 50, borderRadius: 14 },
+            idType === 'custom'
+              ? { backgroundColor: colors.primary, borderColor: colors.primary }
+              : { borderColor: colors.gray200, backgroundColor: colors.white }
+          ]}
+          onPress={() => selectIdType('custom')}
+          activeOpacity={0.8}
+        >
+          <Text style={[
+            styles.idTypeBtnText,
+            isTablet && { fontSize: 15.5 },
+            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            { color: idType === 'custom' ? colors.white : colors.gray500 }
+          ]}>
+            {t('purchases.customIds')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Prominent Barcode / QR Scanner Button Banner */}
+      <TouchableOpacity
+        style={[
+          styles.scanBarcodeBanner,
+          {
+            borderColor: colors.primary,
+            backgroundColor: colors.primary + '12',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+          },
+        ]}
+        onPress={() => handleOpenScanner()}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.scanIconBadge, { backgroundColor: colors.primary }]}>
+          <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
+        </View>
+        <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+          <Text
+            style={[
+              styles.scanBannerTitle,
+              {
+                color: colors.primary,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+                alignSelf: 'stretch',
+              },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
+          </Text>
+          <Text
+            style={[
+              styles.scanBannerSub,
+              {
+                color: colors.gray500,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+                alignSelf: 'stretch',
+              },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {isKuLanguage
+              ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
+              : 'Open camera to auto-fill product ID instantly'}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.scanActionPill,
+            {
+              backgroundColor: colors.primary,
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              gap: 4,
+            },
+          ]}
+        >
+          <Ionicons name="camera" size={16} color="#FFFFFF" />
+          <Text
+            style={[
+              styles.scanActionPillText,
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {isKuLanguage ? 'سکان' : 'Scan'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {idType === 'shared' && (
+        <View
+          style={[
+            styles.customIdCardBox,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#F8FAFC',
+              borderColor: isDark ? colors.gray200 : colors.gray200,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.customIdCardHeader,
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <View
+              style={[
+                styles.customIdCardTitleGroup,
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+            >
+              <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name="layers" size={14} color={colors.white} />
+              </View>
+              <Text
+                style={[
+                  styles.customIdCardTitle,
+                  { color: colors.black },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('purchases.sharedIdLabel')}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.customIdActionsGroup,
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => handleOpenScanner()}
+                style={[
+                  styles.itemActionBtn,
+                  { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="barcode-outline" size={16} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.itemActionBtnText,
+                    { color: colors.primary },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage ? 'سکان' : 'Scan'}
+                </Text>
+              </TouchableOpacity>
+
+              <GenerateIdButton
+                loading={isGeneratingShared}
+                onPress={handleGenerateSharedId}
+              />
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.customIdInputWrapNew,
+              {
+                borderColor: colors.gray200,
+                backgroundColor: colors.white,
+                flexDirection: 'row',
+              },
+            ]}
+          >
+            <View style={[styles.customIdInputIconBox, { backgroundColor: colors.softBlue }]}>
+              <Ionicons name="barcode-outline" size={17} color={colors.primary} />
+            </View>
+            <TextInput
+              style={[
+                styles.customIdInputNew,
+                { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: sharedId, forceLatin: true }), {}),
+              ]}
+              value={sharedId}
+              onChangeText={setSharedId}
+              placeholder={isKuLanguage ? 'کۆد یان بارکۆدی هاوبەش بنووسە یان سکان بکە' : 'e.g. SN-12345 or scan barcode'}
+              placeholderTextColor={colors.gray400}
+              returnKeyType="done"
+              onFocus={scrollIntoView}
+            />
+            {Boolean(sharedId) && (
+              <TouchableOpacity
+                onPress={() => setSharedId('')}
+                style={styles.customIdClearIcon}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.gray400} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
+      {idType === 'custom' && (
+        <View style={styles.customIdsContainer}>
+          <View style={[styles.customIdsHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="barcode" size={18} color={colors.primary} />
+              <Text
+                style={[
+                  styles.customIdsHeaderTitle,
+                  { color: colors.primary },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                const next = qtyNum + 1;
+                setQty(String(next));
+                setCustomIds((prev) => [...prev, '']);
+              }}
+              style={[
+                styles.addSlotBtn,
+                { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={15} color={colors.primary} />
+              <Text
+                style={[
+                  styles.addSlotBtnText,
+                  { color: colors.primary },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isKuLanguage ? 'زیادکردنی ئایتم' : 'Add Item'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {Array.from({ length: qtyNum }, (_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.customIdCardBox,
+                {
+                  backgroundColor: isDark ? colors.gray100 : '#F8FAFC',
+                  borderColor: isDark ? colors.gray200 : colors.gray200,
+                },
+              ]}
+            >
+              {/* Card Header Row: Item Badge on Right (in RTL), Action Buttons on Left */}
+              <View
+                style={[
+                  styles.customIdCardHeader,
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.customIdCardTitleGroup,
+                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                  ]}
+                >
+                  <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.customIdCardTitle,
+                      { color: colors.black },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isKuLanguage ? `ئایتەمی #${i + 1}` : `Item #${i + 1}`}
+                  </Text>
+                </View>
+
+                {/* Actions group: Scan, Generate, Delete */}
+                <View
+                  style={[
+                    styles.customIdActionsGroup,
+                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                  ]}
+                >
+                  <TouchableOpacity
+                    onPress={() => handleOpenScanner(i)}
+                    style={[
+                      styles.itemActionBtn,
+                      { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="barcode-outline" size={15} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.itemActionBtnText,
+                        { color: colors.primary },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKuLanguage ? 'سکان' : 'Scan'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <GenerateIdButton
+                    loading={generatingCustomIdxs.has(i)}
+                    onPress={() => handleGenerateCustomId(i)}
+                  />
+
+                  {qtyNum > 1 && (
+                    <TouchableOpacity
+                      onPress={() => removeCustomIdSlot(i)}
+                      style={[
+                        styles.customIdDeleteBtn,
+                        {
+                          backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEE2E2',
+                          borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                        },
+                      ]}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Full-width Spacious Input Row */}
+              <View
+                style={[
+                  styles.customIdInputWrapNew,
+                  {
+                    borderColor: colors.gray200,
+                    backgroundColor: colors.white,
+                    flexDirection: 'row',
+                  },
+                ]}
+              >
+                <View style={[styles.customIdInputIconBox, { backgroundColor: colors.softBlue }]}>
+                  <Ionicons name="qr-code-outline" size={17} color={colors.primary} />
+                </View>
+                <TextInput
+                  style={[
+                    styles.customIdInputNew,
+                    { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
+                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
+                  ]}
+                  value={customIds[i] ?? ''}
+                  onChangeText={(val) => updateCustomId(i, val)}
+                  placeholder={isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
+                  placeholderTextColor={colors.gray400}
+                  returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
+                  onFocus={scrollIntoView}
+                />
+                {Boolean(customIds[i]) && (
+                  <TouchableOpacity
+                    onPress={() => updateCustomId(i, '')}
+                    style={styles.customIdClearIcon}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.gray400} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </PremiumCard>
+  );
+
+  // 3. Supplier Card
+  const cardSupplier = (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
+          <Ionicons name="business-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'زانیاری دابینکەر و بەروار' : 'Supplier & Date'}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'دیاریکردنی فرۆشیار و کاتی تۆمارکردن' : 'Supplier details and intake timestamp'}
+          </Text>
+        </View>
+      </View>
+
+      <SupplierInputForm
+        name={supplierName}
+        phone={supplierPhone}
+        address={supplierAddress}
+        onNameChange={setSupplierName}
+        onPhoneChange={setSupplierPhone}
+        onAddressChange={setSupplierAddress}
+        onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
+      />
+
+      <DateTimePicker
+        value={purchaseDate}
+        onChange={setPurchaseDate}
+        label={t('purchases.date')}
+        maxDate={new Date()}
+      />
+    </PremiumCard>
+  );
+
+  // 4. Pricing Card
+  const cardPricing = (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
+          <Ionicons name="cash-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'نرخی کڕین، فرۆشتن و قازانج' : 'Pricing & Profit'}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'تێچووی کڕین بە دینار و دۆلار لەگەڵ قازانج' : 'Unit buy/sell rates with live profit margin'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Buy Price Row */}
+      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.buyPrice')}</Text>
+      <View style={[styles.priceRow, { flexDirection }]}>
+        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
+          <TextInput
+            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            value={buyIQD}
+            onChangeText={onBuyIQDChange}
+            onEndEditing={() => {
+              const r = roundToNearest250(parseFloat(buyIQD) || 0);
+              setBuyIQD(r > 0 ? String(r) : '');
+              setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
+            }}
+            keyboardType="decimal-pad"
+            placeholder={t('purchases.buyPriceIQDPlaceholder')}
+            placeholderTextColor={colors.gray400}
+            returnKeyType="next"
+            onFocus={scrollIntoView}
+          />
+        </View>
+        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
+          <TextInput
+            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            value={buyUSD}
+            onChangeText={onBuyUSDChange}
+            keyboardType="decimal-pad"
+            placeholder={t('purchases.buyPriceUSDPlaceholder')}
+            placeholderTextColor={colors.gray400}
+            returnKeyType="next"
+            onFocus={scrollIntoView}
+          />
+        </View>
+      </View>
+      <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>{t('purchases.rateNote', { rate: fmtExchangeRate(exchangeRate) })}</Text>
+
+      {/* Auto Total */}
+      <View style={[styles.totalBox, { backgroundColor: colors.softBlue, borderColor: colors.mediumBlue, flexDirection }]}>
+        <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
+        <AmountText value={totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary }]} />
+      </View>
+
+      {/* Sell Price Row */}
+      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.sellPrice')}</Text>
+      <View style={[styles.priceRow, { flexDirection }]}>
+        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
+          <TextInput
+            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            value={sellIQD}
+            onChangeText={onSellIQDChange}
+            onEndEditing={() => {
+              const r = roundToNearest250(parseFloat(sellIQD) || 0);
+              setSellIQD(r > 0 ? String(r) : '');
+              setSellUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
+            }}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            placeholderTextColor={colors.gray400}
+            returnKeyType="next"
+            onFocus={scrollIntoView}
+          />
+        </View>
+        <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+          <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
+          <TextInput
+            style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
+            value={sellUSD}
+            onChangeText={onSellUSDChange}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={colors.gray400}
+            returnKeyType="next"
+            onFocus={scrollIntoView}
+          />
+        </View>
+      </View>
+
+      {sellIQDNum > 0 && (
+        <View
+          style={[
+            styles.totalBox,
+            {
+              backgroundColor: profitIQD >= 0
+                ? (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4')
+                : (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2'),
+              borderColor: profitIQD >= 0
+                ? (isDark ? hexToRgba(colors.success, 0.35) : '#BBF7D0')
+                : (isDark ? hexToRgba(colors.error, 0.35) : '#FECACA'),
+              flexDirection,
+            },
+          ]}
+        >
+          <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
+          <AmountText
+            value={profitIQD}
+            currency="IQD"
+            prefix={profitIQD >= 0 ? '+' : ''}
+            style={[styles.totalValue, { color: profitIQD >= 0 ? colors.success : colors.error }]}
+          />
+        </View>
+      )}
+
+      <AppTextInput
+        label={t('purchases.warranty')}
+        value={warranty}
+        onChangeText={setWarranty}
+        placeholder={t('purchases.warrantyPlaceholder')}
+        returnKeyType="next"
+        style={isRTL ? { fontSize: 13 } : undefined}
+      />
+    </PremiumCard>
+  );
+
+  // 5. Checkout & Payment Card
+  const cardCheckout = (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
+          <Ionicons name="wallet-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'پارەدان و تەواوکردن' : 'Payment & Checkout'}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'جۆری پارەدان، سندوقی کاش و چاپکردنی وەسڵ' : 'Payment terms, cash drawer check & invoice printing'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Payment Status */}
+      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
+      <View style={[styles.paymentRow, { flexDirection }]}>
+        <TouchableOpacity
+          style={[
+            styles.payBtn,
+            paymentStatus === 'paid'
+              ? (isDark
+                  ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
+                  : styles.payBtnPaid)
+              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+            { flexDirection },
+          ]}
+          onPress={() => setPaymentStatus('paid')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="checkmark-circle" size={18} color={paymentStatus === 'paid' ? colors.success : colors.gray400} />
+          <Text style={[styles.payBtnText, { color: paymentStatus === 'paid' ? colors.success : colors.gray500 }]}>{t('purchases.paid')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.payBtn,
+            paymentStatus === 'debt'
+              ? (isDark
+                  ? { backgroundColor: hexToRgba(colors.error, 0.18), borderColor: colors.error }
+                  : styles.payBtnDebt)
+              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+            { flexDirection },
+          ]}
+          onPress={() => setPaymentStatus('debt')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="alert-circle" size={18} color={paymentStatus === 'debt' ? colors.error : colors.gray400} />
+          <Text style={[styles.payBtnText, { color: paymentStatus === 'debt' ? colors.error : colors.gray500 }]}>{t('purchases.debt')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {paymentStatus === 'debt' && (
+        <View style={{ marginTop: 12 }}>
+          <AppTextInput
+            label={t('purchases.amountPaid')}
+            value={amountPaid}
+            onChangeText={setAmountPaid}
+            keyboardType="decimal-pad"
+            placeholder={t('purchases.amountPaidPlaceholder')}
+            returnKeyType="done"
+            forceLatin
+          />
+          <View
+            style={[
+              styles.totalBox,
+              {
+                backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
+                borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                flexDirection,
+              },
+            ]}
+          >
+            <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
+            <AmountText value={remainingDebt} currency="IQD" style={[styles.totalValue, { color: colors.error }]} />
+          </View>
+        </View>
+      )}
+
+      <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+
+      {/* Cash Drawer Live Indicator (Capital System) */}
+      {isCapitalEnabled && drawerBalance !== null && (
+        <View
+          style={[
+            styles.drawerCardInner,
+            {
+              borderColor: isInsufficientCash ? colors.error : colors.primary + '35',
+              backgroundColor: isDark ? colors.white : colors.gray50,
+            },
+          ]}
+        >
+          <View style={[styles.drawerCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={[styles.drawerCardTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.drawerIconBox,
+                  { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '18') },
+                ]}
+              >
+                <Ionicons
+                  name="wallet"
+                  size={18}
+                  color={isInsufficientCash ? colors.error : colors.primary}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.drawerCardTitle,
+                  { color: colors.black, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {t('capital.drawerStatusTitle')}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.drawerActivePill,
+                { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '14') },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.drawerActivePillText,
+                  { color: isInsufficientCash ? colors.error : colors.primary },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {isInsufficientCash ? t('common.error') : t('capital.statusActive')}
+              </Text>
+            </View>
+          </View>
+
+          {/* 3 Metric Rows */}
+          <View style={styles.drawerMetricsContainer}>
+            {/* 1. Available Balance Now */}
+            <View
+              style={[
+                styles.drawerMetricRow,
+                {
+                  backgroundColor: isDark ? colors.white : colors.white,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.drawerMetricIconCircle, { backgroundColor: colors.softBlue }]}>
+                  <Ionicons name="wallet-outline" size={16} color={colors.primary} />
+                </View>
+                <Text
+                  style={[
+                    styles.drawerMetricRowLabel,
+                    { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {t('capital.drawerBalanceNow')}
+                </Text>
+              </View>
+              <AmountText
+                value={drawerBalance}
+                currency="IQD"
+                style={[styles.drawerMetricRowVal, { color: colors.black }]}
+              />
+            </View>
+
+            {/* 2. Cash Needed for this purchase */}
+            <View
+              style={[
+                styles.drawerMetricRow,
+                {
+                  backgroundColor: isDark ? colors.white : colors.white,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View
+                  style={[
+                    styles.drawerMetricIconCircle,
+                    {
+                      backgroundColor: isInsufficientCash
+                        ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
+                        : (isDark ? hexToRgba(colors.warning, 0.18) : '#FEF3C7'),
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="cash-outline"
+                    size={16}
+                    color={isInsufficientCash ? colors.error : colors.warning}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.drawerMetricRowLabel,
+                    { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {t('capital.drawerCashNeeded')}
+                </Text>
+              </View>
+              <AmountText
+                value={cashNeeded}
+                currency="IQD"
+                style={[
+                  styles.drawerMetricRowVal,
+                  { color: isInsufficientCash ? colors.error : colors.warning },
+                ]}
+              />
+            </View>
+
+            {/* 3. Projected Balance After Purchase */}
+            <View
+              style={[
+                styles.drawerMetricRowHighlight,
+                {
+                  backgroundColor: isInsufficientCash
+                    ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
+                    : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
+                  borderColor: isInsufficientCash
+                    ? (isDark ? hexToRgba(colors.error, 0.5) : '#FECACA')
+                    : (isDark ? hexToRgba(colors.success, 0.5) : '#BBF7D0'),
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View
+                  style={[
+                    styles.drawerMetricIconCircle,
+                    {
+                      backgroundColor: isInsufficientCash
+                        ? (isDark ? hexToRgba(colors.error, 0.25) : '#FEE2E2')
+                        : (isDark ? hexToRgba(colors.success, 0.25) : '#DCFCE7'),
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={isInsufficientCash ? 'alert-circle-outline' : 'shield-checkmark-outline'}
+                    size={17}
+                    color={isInsufficientCash ? colors.error : colors.success}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.drawerMetricRowLabel,
+                    {
+                      color: isInsufficientCash ? colors.error : colors.success,
+                      textAlign: isRTL ? 'right' : 'left',
+                    },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {t('capital.drawerBalanceAfter')}
+                </Text>
+              </View>
+              <AmountText
+                value={projectedBalance}
+                currency="IQD"
+                variant="default"
+                style={[
+                  styles.drawerMetricRowValBold,
+                  { color: isInsufficientCash ? colors.error : colors.success },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Insufficient Warning Banner */}
+          {isInsufficientCash && (
+            <View
+              style={[
+                styles.drawerWarningBanner,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
+                  borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="alert-circle" size={18} color={colors.error} />
+              <Text
+                style={[
+                  styles.drawerWarningText,
+                  { color: colors.error, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
+                {t('capital.insufficientBanner')}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Checkout Mode Action Grid */}
+      <CheckoutActionGrid
+        mode={checkoutMode}
+        onSelectMode={setCheckoutMode}
+        type="purchase"
+      />
+
+      <View style={[styles.actions, isTablet && { gap: 14 }]}>
+        <PrimaryButton
+          label={
+            isSubmitting
+              ? t('purchases.saving')
+              : checkoutMode === 'print'
+              ? (isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
+              : (isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
+          }
+          onPress={handleSave}
+          loading={isSubmitting}
+          disabled={isSubmitting}
+        />
+        <PrimaryButton
+          label={t('purchases.reset')}
+          onPress={() => {
+            setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
+            setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
+            setIdType(null); setSharedId(''); setCustomIds(['']);
+            setCategory(''); setWarranty(''); setNotes('');
+            setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
+            setAmountPaid('');
+            setImageUri(null);
+            setReceiptCurrency('iqd');
+          }}
+          variant="ghost"
+        />
+      </View>
+    </PremiumCard>
+  );
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -501,828 +1658,44 @@ export default function NewPurchaseScreen() {
       >
         <KeyboardAwareScrollView
           ref={scrollRef}
-          contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}
+          contentContainerStyle={[
+            styles.body,
+            isTablet && contentContainerStyle,
+            isTablet && { padding: isTabletLandscape ? 32 : 24 },
+          ]}
           showsVerticalScrollIndicator={false}
         >
-
-          {/* ── Card 1: Required ──────────────────────────────── */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500, borderBottomColor: colors.gray100, textAlign }]}>{t('purchases.requiredInfo')}</Text>
-
-            <AppTextInput
-              label={t('purchases.productName')}
-              value={productName}
-              onChangeText={setProductName}
-              onEndEditing={() => {
-                const match = findByName(productName);
-                if (match) {
-                  if (!imageUri && match.imageUri) {
-                    setImageUri(match.imageUri);
-                  }
-                  if (!itemDescription && match.description) {
-                    setItemDescription(match.description);
-                  }
-                  if (!category && match.category) {
-                    setCategory(match.category);
-                  }
-                }
-              }}
-              placeholder={t('purchases.productNameNewPlaceholder')}
-              returnKeyType="next"
-            />
-
-            {/* Quick Auto-Fill Suggestion Chips when typing product name */}
-            {matchingPresets.length > 0 && !imageUri && (
-              <View style={styles.presetsSuggestionWrap}>
-                <View style={[styles.presetsHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Ionicons name="sparkles" size={13} color={colors.primary} />
-                  <Text style={[styles.presetsHeaderText, { color: colors.primary }]}>
-                    {isKuLanguage
-                      ? 'ئایتمە سەڤکراوەکان (داگرە بۆ پڕکردنەوەی وێنە و وەسف):'
-                      : 'Saved items (tap to auto-fill photo & details):'}
-                  </Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[styles.presetsScroll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-                >
-                  {matchingPresets.map((preset) => (
-                    <TouchableOpacity
-                      key={preset.id}
-                      style={[
-                        styles.presetChip,
-                        {
-                          backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-                          borderColor: isDark ? colors.gray200 : colors.primary + '50',
-                          flexDirection: isRTL ? 'row-reverse' : 'row',
-                        },
-                      ]}
-                      onPress={() => handleSelectSavedItem(preset)}
-                      activeOpacity={0.8}
-                    >
-                      <Image
-                        source={{ uri: preset.imageUri }}
-                        style={styles.presetChipImage}
-                      />
-                      <View style={{ gap: 2 }}>
-                        <Text
-                          style={[
-                            styles.presetChipName,
-                            { color: colors.black },
-                            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                          ]}
-                        >
-                          {preset.name}
-                        </Text>
-                        {Boolean(preset.description) && (
-                          <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
-                            {preset.description}
-                          </Text>
-                        )}
-                      </View>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color={colors.primary}
-                        style={{ marginStart: 4 }}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <AppTextInput
-              value={itemDescription}
-              onChangeText={setItemDescription}
-              placeholder={t('purchases.itemDescriptionPlaceholder')}
-              maxLength={30}
-              returnKeyType="next"
-            />
-
-            <SupplierInputForm
-              name={supplierName}
-              phone={supplierPhone}
-              address={supplierAddress}
-              onNameChange={setSupplierName}
-              onPhoneChange={setSupplierPhone}
-              onAddressChange={setSupplierAddress}
-              onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
-            />
-
-            <QuantityStepper
-              label={t('purchases.qty')}
-              value={qty}
-              onChangeText={onQtyChange}
-              min={1}
-              max={100}
-              placeholder={t('purchases.qtyPlaceholder')}
-            />
-
-            {/* ID Type */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.idType')}</Text>
-            <View style={[styles.idTypeRow, { flexDirection }]}>
-              <TouchableOpacity
-                style={[styles.idTypeBtn,
-                  idType === 'shared'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : { borderColor: colors.gray200, backgroundColor: colors.white }
-                ]}
-                onPress={() => selectIdType('shared')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.idTypeBtnText, { color: idType === 'shared' ? colors.white : colors.gray500 }]}>
-                  {t('purchases.sharedId')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.idTypeBtn,
-                  idType === 'custom'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : { borderColor: colors.gray200, backgroundColor: colors.white }
-                ]}
-                onPress={() => selectIdType('custom')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.idTypeBtnText, { color: idType === 'custom' ? colors.white : colors.gray500 }]}>
-                  {t('purchases.customIds')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Prominent Barcode / QR Scanner Button Banner */}
-            <TouchableOpacity
-              style={[
-                styles.scanBarcodeBanner,
-                {
-                  borderColor: colors.primary,
-                  backgroundColor: colors.primary + '12',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-              onPress={() => handleOpenScanner()}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.scanIconBadge, { backgroundColor: colors.primary }]}>
-                <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
-              </View>
-              <View style={[styles.scanBannerTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-                <Text
-                  style={[
-                    styles.scanBannerTitle,
-                    {
-                      color: colors.primary,
-                      textAlign: isRTL ? 'right' : 'left',
-                      writingDirection: isRTL ? 'rtl' : 'ltr',
-                      alignSelf: 'stretch',
-                    },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
-                </Text>
-                <Text
-                  style={[
-                    styles.scanBannerSub,
-                    {
-                      color: colors.gray500,
-                      textAlign: isRTL ? 'right' : 'left',
-                      writingDirection: isRTL ? 'rtl' : 'ltr',
-                      alignSelf: 'stretch',
-                    },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-                  ]}
-                >
-                  {isKuLanguage
-                    ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
-                    : 'Open camera to auto-fill product ID instantly'}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.scanActionPill,
-                  {
-                    backgroundColor: colors.primary,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    gap: 4,
-                  },
-                ]}
-              >
-                <Ionicons name="camera" size={16} color="#FFFFFF" />
-                <Text
-                  style={[
-                    styles.scanActionPillText,
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {isKuLanguage ? 'سکان' : 'Scan'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {idType === 'shared' && (
-              <AppTextInput
-                label={t('purchases.sharedIdLabel')}
-                value={sharedId}
-                onChangeText={setSharedId}
-                placeholder="e.g. SN-12345"
-                returnKeyType="done"
-                forceLatin
-                rightElement={
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <TouchableOpacity
-                      onPress={() => handleOpenScanner()}
-                      style={[styles.smallScanIconBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="barcode-outline" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                    <GenerateIdButton
-                      loading={isGeneratingShared}
-                      onPress={handleGenerateSharedId}
-                    />
-                  </View>
-                }
-              />
-            )}
-
-            {idType === 'custom' && (
-              <View style={styles.customIdsContainer}>
-                <View style={[styles.customIdsHeader, { flexDirection }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="barcode" size={16} color={colors.primary} />
-                    <Text style={[styles.customIdsHeaderTitle, { color: colors.primary }]}>
-                      {isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const next = qtyNum + 1;
-                      setQty(String(next));
-                      setCustomIds((prev) => [...prev, '']);
-                    }}
-                    style={[styles.addSlotBtn, { borderColor: colors.primary }]}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={14} color={colors.primary} style={{ marginRight: 2 }} />
-                    <Text style={[styles.addSlotBtnText, { color: colors.primary }]}>
-                      {isKuLanguage ? 'زیادکردنی دانەیەک' : 'Add Item'}
-                    </Text>
-                  </TouchableOpacity>
+          {isTablet ? (
+            <View style={{ gap: 24 }}>
+              {/* Top 2 Columns: Right is Product & IDs, Left is Supplier & Pricing */}
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 24, alignItems: 'flex-start' }}>
+                {/* Right Column in RTL (Products & Barcode/IDs) */}
+                <View style={{ flex: 1, gap: 20 }}>
+                  {cardProductInfo}
+                  {cardQuantityAndIds}
                 </View>
 
-                {Array.from({ length: qtyNum }, (_, i) => (
-                  <View key={i} style={[styles.customIdRow, { flexDirection }]}>
-                    <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
-                      <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
-                    </View>
-                    <View style={[styles.customIdInputWrap, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
-                      <TextInput
-                        style={[
-                          styles.customIdInput,
-                          { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
-                          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
-                        ]}
-                        value={customIds[i] ?? ''}
-                        onChangeText={(val) => updateCustomId(i, val)}
-                        placeholder={`ID for item ${i + 1}`}
-                        placeholderTextColor={colors.gray400}
-                        returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
-                        onFocus={scrollIntoView}
-                      />
-                      {Boolean(customIds[i]) && (
-                        <TouchableOpacity
-                          onPress={() => updateCustomId(i, '')}
-                          style={styles.customIdClearIcon}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Ionicons name="close-circle" size={16} color={colors.gray400} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleOpenScanner(i)}
-                      style={[styles.smallScanIconBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '18' }]}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="barcode-outline" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                    <GenerateIdButton
-                      loading={generatingCustomIdxs.has(i)}
-                      onPress={() => handleGenerateCustomId(i)}
-                    />
-                    {qtyNum > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeCustomIdSlot(i)}
-                        style={[
-                          styles.customIdDeleteBtn,
-                          isDark && {
-                            backgroundColor: hexToRgba(colors.error, 0.15),
-                            borderColor: hexToRgba(colors.error, 0.35),
-                          },
-                        ]}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={17} color={colors.error} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
+                {/* Left Column in RTL (Supplier & Pricing) */}
+                <View style={{ flex: 1, gap: 20 }}>
+                  {cardSupplier}
+                  {cardPricing}
+                </View>
               </View>
-            )}
 
-            {/* Buy Price Row */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.buyPrice')}</Text>
-            <View style={[styles.priceRow, { flexDirection }]}>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
-                  value={buyIQD}
-                  onChangeText={onBuyIQDChange}
-                  onEndEditing={() => {
-                    const r = roundToNearest250(parseFloat(buyIQD) || 0);
-                    setBuyIQD(r > 0 ? String(r) : '');
-                    setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder={t('purchases.buyPriceIQDPlaceholder')}
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                  onFocus={scrollIntoView}
-                />
-              </View>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
-                  value={buyUSD}
-                  onChangeText={onBuyUSDChange}
-                  keyboardType="decimal-pad"
-                  placeholder={t('purchases.buyPriceUSDPlaceholder')}
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                  onFocus={scrollIntoView}
-                />
+              {/* Full-width Section: Payment & Checkout (پان بوونەوەی بەشی پارەدان و تەواوکردن) */}
+              <View style={{ width: '100%' }}>
+                {cardCheckout}
               </View>
             </View>
-            <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>{t('purchases.rateNote', { rate: fmtExchangeRate(exchangeRate) })}</Text>
-
-            {/* Auto Total */}
-            <View style={[styles.totalBox, { backgroundColor: colors.softBlue, borderColor: colors.mediumBlue, flexDirection }]}>
-              <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.autoTotal')}</Text>
-              <AmountText value={totalIQD} currency="IQD" style={[styles.totalValue, { color: colors.primary }]} />
+          ) : (
+            <View style={{ gap: 16 }}>
+              {cardProductInfo}
+              {cardQuantityAndIds}
+              {cardSupplier}
+              {cardPricing}
+              {cardCheckout}
             </View>
-
-            <DateTimePicker
-              value={purchaseDate}
-              onChange={setPurchaseDate}
-              label={t('purchases.date')}
-              maxDate={new Date()}
-            />
-          </PremiumCard>
-
-          {/* ── Card 2: Optional ──────────────────────────────── */}
-          <PremiumCard style={styles.card}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500, borderBottomColor: colors.gray100, textAlign }]}>{t('purchases.optionalInfo')}</Text>
-
-            {/* Product Image */}
-            <ProductImagePicker
-              uri={imageUri}
-              onSelect={setImageUri}
-              onRemove={() => setImageUri(null)}
-              label={t('purchases.productImage')}
-              onSelectSavedItem={handleSelectSavedItem}
-            />
-
-            {/* Sell Price Row */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.sellPrice')}</Text>
-            <View style={[styles.priceRow, { flexDirection }]}>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>IQD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
-                  value={sellIQD}
-                  onChangeText={onSellIQDChange}
-                  onEndEditing={() => {
-                    const r = roundToNearest250(parseFloat(sellIQD) || 0);
-                    setSellIQD(r > 0 ? String(r) : '');
-                    setSellUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                  onFocus={scrollIntoView}
-                />
-              </View>
-              <View style={[styles.priceField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-                <Text style={[styles.currencyBadge, { color: colors.primary, backgroundColor: colors.softBlue }]}>USD</Text>
-                <TextInput
-                  style={[styles.priceInput, { color: colors.black, textAlign: 'left', writingDirection: 'ltr' }]}
-                  value={sellUSD}
-                  onChangeText={onSellUSDChange}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType="next"
-                  onFocus={scrollIntoView}
-                />
-              </View>
-            </View>
-
-            {sellIQDNum > 0 && (
-              <View
-                style={[
-                  styles.totalBox,
-                  {
-                    backgroundColor: profitIQD >= 0
-                      ? (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4')
-                      : (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2'),
-                    borderColor: profitIQD >= 0
-                      ? (isDark ? hexToRgba(colors.success, 0.35) : '#BBF7D0')
-                      : (isDark ? hexToRgba(colors.error, 0.35) : '#FECACA'),
-                    flexDirection,
-                  },
-                ]}
-              >
-                <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.profitLabel')}</Text>
-                <AmountText
-                  value={profitIQD}
-                  currency="IQD"
-                  prefix={profitIQD >= 0 ? '+' : ''}
-                  style={[styles.totalValue, { color: profitIQD >= 0 ? colors.success : colors.error }]}
-                />
-              </View>
-            )}
-
-            {/* Category */}
-            <CategoryAutocompleteInput
-              label={t('purchases.category')}
-              value={category}
-              onChange={setCategory}
-              categories={availableCategories}
-              placeholder={t('purchases.categoryPlaceholder')}
-              inputStyle={isRTL ? { fontSize: 13, fontFamily: SETTINGS_KURDISH_FONT } : undefined}
-            />
-
-            <AppTextInput
-              label={t('purchases.warranty')}
-              value={warranty}
-              onChangeText={setWarranty}
-              placeholder={t('purchases.warrantyPlaceholder')}
-              returnKeyType="next"
-              style={isRTL ? { fontSize: 13 } : undefined}
-            />
-
-            <AppTextInput
-              label={t('purchases.notes')}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={t('purchases.notesPlaceholder')}
-              multiline
-              numberOfLines={3}
-              style={[styles.textarea, isRTL && { fontSize: 13 }]}
-            />
-
-            <AppTextInput
-              label={t('purchases.websiteDescription')}
-              value={websiteDescription}
-              onChangeText={setWebsiteDescription}
-              placeholder={t('purchases.websiteDescriptionPlaceholder')}
-              maxLength={30}
-              returnKeyType="next"
-              style={isRTL ? { fontSize: 13 } : undefined}
-            />
-            <Text style={[styles.hintText, { color: colors.gray400, textAlign }]}>
-              {t('purchases.websiteDescriptionHint')}
-            </Text>
-
-            {/* Payment Status */}
-            <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
-            <View style={[styles.paymentRow, { flexDirection }]}>
-              <TouchableOpacity
-                style={[
-                  styles.payBtn,
-                  paymentStatus === 'paid'
-                    ? (isDark
-                        ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
-                        : styles.payBtnPaid)
-                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-                  { flexDirection },
-                ]}
-                onPress={() => setPaymentStatus('paid')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="checkmark-circle" size={18} color={paymentStatus === 'paid' ? colors.success : colors.gray400} />
-                <Text style={[styles.payBtnText, { color: paymentStatus === 'paid' ? colors.success : colors.gray500 }]}>{t('purchases.paid')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.payBtn,
-                  paymentStatus === 'debt'
-                    ? (isDark
-                        ? { backgroundColor: hexToRgba(colors.error, 0.18), borderColor: colors.error }
-                        : styles.payBtnDebt)
-                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-                  { flexDirection },
-                ]}
-                onPress={() => setPaymentStatus('debt')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="alert-circle" size={18} color={paymentStatus === 'debt' ? colors.error : colors.gray400} />
-                <Text style={[styles.payBtnText, { color: paymentStatus === 'debt' ? colors.error : colors.gray500 }]}>{t('purchases.debt')}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {paymentStatus === 'debt' && (
-              <>
-                <AppTextInput
-                  label={t('purchases.amountPaid')}
-                  value={amountPaid}
-                  onChangeText={setAmountPaid}
-                  keyboardType="decimal-pad"
-                  placeholder={t('purchases.amountPaidPlaceholder')}
-                  returnKeyType="done"
-                  forceLatin
-                />
-                <View
-                  style={[
-                    styles.totalBox,
-                    {
-                      backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
-                      borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
-                      flexDirection,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
-                  <AmountText value={remainingDebt} currency="IQD" style={[styles.totalValue, { color: colors.error }]} />
-                </View>
-              </>
-            )}
-          </PremiumCard>
-
-          <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-
-          {/* ── Cash Drawer Live Indicator (Capital System) ───── */}
-          {isCapitalEnabled && drawerBalance !== null && (
-            <PremiumCard
-              style={[
-                styles.card,
-                {
-                  borderColor: isInsufficientCash ? colors.error : colors.primary + '35',
-                  backgroundColor: isDark ? colors.gray100 : colors.white,
-                },
-              ]}
-            >
-              <View style={[styles.drawerCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={[styles.drawerCardTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <View
-                    style={[
-                      styles.drawerIconBox,
-                      { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '18') },
-                    ]}
-                  >
-                    <Ionicons
-                      name="wallet"
-                      size={18}
-                      color={isInsufficientCash ? colors.error : colors.primary}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.drawerCardTitle,
-                      { color: colors.black, textAlign },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                    ]}
-                  >
-                    {t('capital.drawerStatusTitle')}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.drawerActivePill,
-                    { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '14') },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.drawerActivePillText,
-                      { color: isInsufficientCash ? colors.error : colors.primary },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                    ]}
-                  >
-                    {isInsufficientCash ? t('common.error') : t('capital.statusActive')}
-                  </Text>
-                </View>
-              </View>
-
-              {/* 3 Metric Rows (Long, Clear, Neat & Well-arranged) */}
-              <View style={styles.drawerMetricsContainer}>
-                {/* 1. Available Balance Now */}
-                <View
-                  style={[
-                    styles.drawerMetricRow,
-                    {
-                      backgroundColor: isDark ? colors.white : colors.gray50,
-                      borderColor: colors.gray200,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View style={[styles.drawerMetricIconCircle, { backgroundColor: colors.softBlue }]}>
-                      <Ionicons name="wallet-outline" size={16} color={colors.primary} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.drawerMetricRowLabel,
-                        { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {t('capital.drawerBalanceNow')}
-                    </Text>
-                  </View>
-                  <AmountText
-                    value={drawerBalance}
-                    currency="IQD"
-                    style={[styles.drawerMetricRowVal, { color: colors.black }]}
-                  />
-                </View>
-
-                {/* 2. Cash Needed for this purchase */}
-                <View
-                  style={[
-                    styles.drawerMetricRow,
-                    {
-                      backgroundColor: isDark ? colors.white : colors.gray50,
-                      borderColor: colors.gray200,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View
-                      style={[
-                        styles.drawerMetricIconCircle,
-                        {
-                          backgroundColor: isInsufficientCash
-                            ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
-                            : (isDark ? hexToRgba(colors.warning, 0.18) : '#FEF3C7'),
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="cash-outline"
-                        size={16}
-                        color={isInsufficientCash ? colors.error : colors.warning}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.drawerMetricRowLabel,
-                        { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {t('capital.drawerCashNeeded')}
-                    </Text>
-                  </View>
-                  <AmountText
-                    value={cashNeeded}
-                    currency="IQD"
-                    style={[
-                      styles.drawerMetricRowVal,
-                      { color: isInsufficientCash ? colors.error : colors.warning },
-                    ]}
-                  />
-                </View>
-
-                {/* 3. Projected Balance After Purchase (Highlight) */}
-                <View
-                  style={[
-                    styles.drawerMetricRowHighlight,
-                    {
-                      backgroundColor: isInsufficientCash
-                        ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
-                        : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
-                      borderColor: isInsufficientCash
-                        ? (isDark ? hexToRgba(colors.error, 0.5) : '#FECACA')
-                        : (isDark ? hexToRgba(colors.success, 0.5) : '#BBF7D0'),
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View
-                      style={[
-                        styles.drawerMetricIconCircle,
-                        {
-                          backgroundColor: isInsufficientCash
-                            ? (isDark ? hexToRgba(colors.error, 0.25) : '#FEE2E2')
-                            : (isDark ? hexToRgba(colors.success, 0.25) : '#DCFCE7'),
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={isInsufficientCash ? 'alert-circle-outline' : 'shield-checkmark-outline'}
-                        size={17}
-                        color={isInsufficientCash ? colors.error : colors.success}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.drawerMetricRowLabel,
-                        {
-                          color: isInsufficientCash ? colors.error : colors.success,
-                          textAlign: isRTL ? 'right' : 'left',
-                        },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {t('capital.drawerBalanceAfter')}
-                    </Text>
-                  </View>
-                  <AmountText
-                    value={projectedBalance}
-                    currency="IQD"
-                    variant="default"
-                    style={[
-                      styles.drawerMetricRowValBold,
-                      { color: isInsufficientCash ? colors.error : colors.success },
-                    ]}
-                  />
-                </View>
-              </View>
-
-              {/* Insufficient Warning Banner */}
-              {isInsufficientCash && (
-                <View
-                  style={[
-                    styles.drawerWarningBanner,
-                    {
-                      backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
-                      borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <Ionicons name="alert-circle" size={18} color={colors.error} />
-                  <Text
-                    style={[
-                      styles.drawerWarningText,
-                      { color: colors.error, textAlign },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                    ]}
-                  >
-                    {t('capital.insufficientBanner')}
-                  </Text>
-                </View>
-              )}
-            </PremiumCard>
           )}
-
-          {/* ── Actions ───────────────────────────────────────── */}
-          <CheckoutActionGrid
-            mode={checkoutMode}
-            onSelectMode={setCheckoutMode}
-            type="purchase"
-          />
-
-          <View style={styles.actions}>
-            <PrimaryButton
-              label={
-                isSubmitting
-                  ? t('purchases.saving')
-                  : checkoutMode === 'print'
-                  ? (isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
-                  : (isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
-              }
-              onPress={handleSave}
-              loading={isSubmitting}
-              disabled={isSubmitting}
-            />
-            <PrimaryButton
-              label={t('purchases.reset')}
-              onPress={() => {
-                setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
-                setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
-                setIdType(null); setSharedId(''); setCustomIds(['']);
-                setCategory(''); setWarranty(''); setNotes('');
-                setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
-                setAmountPaid('');
-                setImageUri(null);
-                setReceiptCurrency('iqd');
-              }}
-              variant="ghost"
-            />
-          </View>
-
         </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
 
@@ -1408,6 +1781,38 @@ const styles = StyleSheet.create({
   flex:       { flex: 1 },
   body:       { padding: 16, paddingBottom: 40 },
   card:       { marginBottom: 16 },
+  cardTablet: {
+    padding: 24,
+    borderRadius: 22,
+    marginBottom: 0,
+  },
+  cardHeaderRow: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  cardHeaderIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cardHeaderSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  drawerCardInner: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 14,
+    marginTop: 10,
+    marginBottom: 8,
+  },
 
   sectionTitle: {
     fontSize:      11,
@@ -1491,20 +1896,83 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   customIdsHeaderTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   addSlotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    gap: 4,
   },
   addSlotBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
+  },
+  customIdCardBox: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 13,
+    marginBottom: 12,
+    gap: 10,
+  },
+  customIdCardHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customIdCardTitleGroup: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  customIdCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  customIdActionsGroup: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  itemActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
+  itemActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  customIdInputWrapNew: {
+    height: 48,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    overflow: 'hidden',
+  },
+  customIdInputIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  customIdInputNew: {
+    flex: 1,
+    height: '100%',
+    fontSize: 14.5,
+    fontWeight: '600',
+    paddingVertical: 0,
+    letterSpacing: 0.5,
   },
   customIdInputWrap: {
     flex: 1,
@@ -1526,28 +1994,26 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   customIdDeleteBtn: {
-    width: 36,
-    height: 38,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Theme.radius.sm,
-    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FECACA',
   },
 
   scanBarcodeBanner: {
     borderWidth: 1.5,
-    borderRadius: Theme.radius.md,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     alignItems: 'center',
     marginBottom: 14,
     gap: 12,
   },
   scanIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1555,7 +2021,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scanBannerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   scanBannerSub: {

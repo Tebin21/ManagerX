@@ -48,7 +48,7 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
-  const { isTablet, headerMaxWidth } = useResponsive();
+  const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
   const gradColors = gradient ?? [colors.gradientStart, colors.gradientMid];
 
   return (
@@ -64,12 +64,16 @@ export function AppHeader({
         <View
           style={[
             styles.row,
-            isTablet && { minHeight: 70, paddingHorizontal: 20, paddingVertical: 18 },
+            isTablet && {
+              minHeight: isTabletLandscape ? 78 : 70,
+              paddingHorizontal: isTabletLandscape ? 24 : 20,
+              paddingVertical: isTabletLandscape ? 20 : 18,
+            },
             { flexDirection: isRTL ? 'row-reverse' : 'row' },
           ]}
         >
           {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
-          <View style={[styles.side, isTablet && { minWidth: 54 }]}>
+          <View style={[styles.side, isTablet && { minWidth: isTabletLandscape ? 62 : 54 }]}>
             {showBack ? <BackButton onPress={onBack} /> : null}
           </View>
 
@@ -77,7 +81,11 @@ export function AppHeader({
           <Text
             style={[
               styles.title,
-              isTablet && { fontSize: 23, fontWeight: '700', lineHeight: 28 },
+              isTablet && {
+                fontSize: isTabletLandscape ? 26 : 23,
+                fontWeight: '700',
+                lineHeight: isTabletLandscape ? 32 : 28,
+              },
               titleStyle,
             ]}
             numberOfLines={1}
@@ -86,7 +94,7 @@ export function AppHeader({
           </Text>
 
           {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
-          <View style={[styles.side, isTablet && { minWidth: 54 }]}>
+          <View style={[styles.side, isTablet && { minWidth: isTabletLandscape ? 62 : 54 }]}>
             {rightAction ?? null}
           </View>
         </View>

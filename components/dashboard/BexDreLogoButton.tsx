@@ -9,15 +9,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const BEXDRE_URL = 'https://www.bexdre.com';
 const AUTO_RETURN_DELAY = 10000;
-const ROW_HEIGHT = 44;
-
-// Source PNGs are pre-trimmed to their visible content bounds (no transparent margins).
-const X_SIZE = 32;
-const WORDMARK_HEIGHT = 32;
-const WORDMARK_WIDTH = Math.round(WORDMARK_HEIGHT * (1886 / 378)); // ~160
 
 async function openWebsite() {
   try {
@@ -29,6 +24,13 @@ async function openWebsite() {
 
 function BexDreLogoButtonImpl() {
   const { isDark } = useAppTheme();
+  const { isTablet, isTabletLandscape } = useResponsive();
+
+  const rowHeight = isTabletLandscape ? 58 : isTablet ? 50 : 44;
+  const xSize = isTabletLandscape ? 44 : isTablet ? 38 : 32;
+  const wordmarkHeight = isTabletLandscape ? 42 : isTablet ? 36 : 32;
+  const wordmarkWidth = Math.round(wordmarkHeight * (1886 / 378));
+
   const progress = useSharedValue(0); // 0 = X mark, 1 = full wordmark
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks expand state synchronously for tap branching — first tap reveals,
@@ -63,7 +65,7 @@ function BexDreLogoButtonImpl() {
   };
 
   const revealStyle = useAnimatedStyle(() => ({
-    width: interpolate(progress.value, [0, 1], [X_SIZE, WORDMARK_WIDTH], Extrapolation.CLAMP),
+    width: interpolate(progress.value, [0, 1], [xSize, wordmarkWidth], Extrapolation.CLAMP),
   }));
 
   const xStyle = useAnimatedStyle(() => ({
@@ -84,22 +86,46 @@ function BexDreLogoButtonImpl() {
       accessibilityRole="button"
       accessibilityLabel="BexDre Website"
     >
-      <Animated.View style={[styles.outer, revealStyle]}>
+      <Animated.View style={[styles.outer, { height: rowHeight }, revealStyle]}>
         <Animated.Image
           source={require('@/assets/images/greenlogo.png')}
-          style={[styles.xImage, xStyle]}
+          style={[
+            styles.xImage,
+            {
+              top: (rowHeight - xSize) / 2,
+              width: xSize,
+              height: xSize,
+            },
+            xStyle,
+          ]}
           resizeMode="contain"
         />
 
         {/* Clips the (fixed-width) wordmark so it visually unfurls left-to-right as `revealStyle` widens. */}
-        <Animated.View style={[styles.wordmarkClip, revealStyle]}>
+        <Animated.View
+          style={[
+            styles.wordmarkClip,
+            {
+              top: (rowHeight - wordmarkHeight) / 2,
+              height: wordmarkHeight,
+            },
+            revealStyle,
+          ]}
+        >
           <Animated.Image
             source={
               isDark
                 ? require('@/assets/images/bexdrelogo-light.png')
                 : require('@/assets/images/bexdrelogo-dark.png')
             }
-            style={[styles.wordmarkImage, wordmarkStyle]}
+            style={[
+              styles.wordmarkImage,
+              {
+                width: wordmarkWidth,
+                height: wordmarkHeight,
+              },
+              wordmarkStyle,
+            ]}
             resizeMode="contain"
           />
         </Animated.View>
@@ -111,25 +137,15 @@ function BexDreLogoButtonImpl() {
 export const BexDreLogoButton = React.memo(BexDreLogoButtonImpl);
 
 const styles = StyleSheet.create({
-  outer: {
-    height: ROW_HEIGHT,
-  },
+  outer: {},
   xImage: {
     position: 'absolute',
     left:     0,
-    top:      (ROW_HEIGHT - X_SIZE) / 2,
-    width:    X_SIZE,
-    height:   X_SIZE,
   },
   wordmarkClip: {
     position: 'absolute',
     left:     0,
-    top:      (ROW_HEIGHT - WORDMARK_HEIGHT) / 2,
-    height:   WORDMARK_HEIGHT,
     overflow: 'hidden',
   },
-  wordmarkImage: {
-    width:  WORDMARK_WIDTH,
-    height: WORDMARK_HEIGHT,
-  },
+  wordmarkImage: {},
 });

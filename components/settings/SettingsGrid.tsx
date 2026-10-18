@@ -56,6 +56,7 @@ function SettingsGridTile({
 }: TileProps) {
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   const baseColor = destructive ? colors.error : (color || colors.primary);
 
@@ -74,10 +75,13 @@ function SettingsGridTile({
         styles.tile,
         {
           width: cardWidth,
+          borderRadius: isTablet ? 18 : 14,
           backgroundColor: isDark ? 'rgba(30, 41, 59, 0.72)' : '#FFFFFF',
           borderColor: isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(0, 0, 0, 0.06)',
           shadowColor: isDark ? '#000000' : baseColor,
           shadowOpacity: isDark ? 0.35 : 0.08,
+          padding: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+          minHeight: isTabletLandscape ? 144 : isTablet ? 128 : 112,
         },
       ]}
     >
@@ -89,10 +93,13 @@ function SettingsGridTile({
             {
               backgroundColor: hexToRgba(baseColor, isDark ? 0.20 : 0.12),
               borderColor: hexToRgba(baseColor, isDark ? 0.35 : 0.22),
+              width: isTabletLandscape ? 56 : isTablet ? 48 : 36,
+              height: isTabletLandscape ? 56 : isTablet ? 48 : 36,
+              borderRadius: isTabletLandscape ? 17 : isTablet ? 14 : 11,
             },
           ]}
         >
-          <Ionicons name={icon} size={20} color={baseColor} />
+          <Ionicons name={icon} size={isTabletLandscape ? 28 : isTablet ? 24 : 20} color={baseColor} />
         </View>
 
         {badge ? (
@@ -100,20 +107,21 @@ function SettingsGridTile({
         ) : (
           <Ionicons
             name={isRTL ? 'chevron-back' : 'chevron-forward'}
-            size={14}
+            size={isTabletLandscape ? 22 : isTablet ? 18 : 14}
             color={isDark ? 'rgba(255,255,255,0.30)' : colors.gray300}
           />
         )}
       </View>
 
       {/* Title & Sub */}
-      <View style={styles.tileFooter}>
+      <View style={[styles.tileFooter, isTablet && { marginTop: isTabletLandscape ? 16 : 12 }]}>
         <Text
           style={[
             styles.tileTitle,
             {
               color: destructive ? colors.error : colors.black,
               textAlign: isRTL ? 'right' : 'left',
+              fontSize: isTabletLandscape ? 19 : isTablet ? 17 : 14,
             },
           ]}
           numberOfLines={1}
@@ -127,6 +135,7 @@ function SettingsGridTile({
               {
                 color: colors.gray400,
                 textAlign: isRTL ? 'right' : 'left',
+                fontSize: isTabletLandscape ? 15 : isTablet ? 13.5 : 11,
               },
             ]}
             numberOfLines={1}
@@ -155,17 +164,18 @@ export function SettingsGrid({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape, contentMaxWidth } = useResponsive();
   const { width: screenWidth } = useWindowDimensions();
 
   const isKu = language !== 'en';
 
-  // Responsive column calculation: 3 columns on tablet, 2 on mobile
-  const numColumns = isTablet ? 3 : 2;
+  // Responsive column calculation: 4 columns on tablet landscape, 3 on tablet portrait, 2 on mobile
+  const numColumns = isTabletLandscape ? 4 : (isTablet ? 3 : 2);
+  const containerWidth = isTablet ? (contentMaxWidth ? Math.min(screenWidth, contentMaxWidth) : screenWidth) : screenWidth;
   const horizontalPadding = 16 * 2;
   const gap = 12;
   const totalGap = gap * (numColumns - 1);
-  const cardWidth = Math.floor((screenWidth - horizontalPadding - totalGap) / numColumns);
+  const cardWidth = Math.floor((containerWidth - horizontalPadding - totalGap) / numColumns);
 
   // Quick Language Toggle
   const handleToggleLanguage = () => {

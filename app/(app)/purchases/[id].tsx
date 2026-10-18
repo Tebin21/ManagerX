@@ -194,6 +194,172 @@ export default function PurchaseDetailScreen() {
   const isPaid = purchase.paymentStatus === 'paid';
   const hasIds = purchase.itemIds.some((v) => v.trim());
 
+  const primaryCol = (
+    <View style={{ flex: 1.15 }}>
+      {/* Invoice header */}
+      <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200 }}>
+        <LinearGradient
+          colors={[colors.primaryDark, colors.primary]}
+          style={styles.invoiceHeaderCard}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        >
+          <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
+            <View>
+              <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
+              <IdText style={[styles.invoiceNumber, !isRTL && styles.invoiceNumberSpacing]}>{purchase.purchaseNumber}</IdText>
+            </View>
+            <View style={[styles.statusPill, isPaid ? styles.statusPillPaid : styles.statusPillDebt]}>
+              <Text style={[styles.statusPillText, isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt]}>
+                {isPaid ? t('common.paid') : t('common.debt')}
+              </Text>
+            </View>
+          </View>
+          <DateText value={purchase.date} style={styles.invoiceDate} />
+          <View style={[styles.invoiceTotalRow, { flexDirection }]}>
+            <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
+            <AmountText value={purchase.totalIQD} currency="IQD" variant="large" style={styles.invoiceTotalValue} />
+          </View>
+          {!isPaid && purchaseDebt && (
+            <View style={styles.debtBreakdown}>
+              <View style={[styles.debtRow, { flexDirection }]}>
+                <Text style={styles.debtRowLabel}>{t('invoicePdf.amountPaid')}</Text>
+                <AmountText value={purchaseDebt.paidAmount} currency="IQD" style={styles.debtRowValue} />
+              </View>
+              <View style={[styles.debtRow, { flexDirection }]}>
+                <Text style={styles.debtRowLabel}>{t('invoicePdf.remainingDebt')}</Text>
+                <AmountText value={purchaseDebt.remainingAmount} currency="IQD" style={[styles.debtRowValue, styles.debtRowValueHighlight]} />
+              </View>
+            </View>
+          )}
+        </LinearGradient>
+      </MotiView>
+
+      {/* Product */}
+      <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 60 }}>
+        <PremiumCard style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productSection')}</Text>
+          <InfoRow label={t('purchases.productName')} value={purchase.productName} />
+          {purchase.itemDescription ? (
+            <Text style={[styles.itemDescription, { color: colors.gray500 }]} numberOfLines={1}>{purchase.itemDescription}</Text>
+          ) : null}
+          {purchase.category ? <InfoRow label={t('purchases.category')} value={purchase.category} /> : null}
+          <InfoRow label={t('purchases.qty')} value={String(purchase.quantity)} />
+          <InfoRow label={`${t('purchases.buyPrice')} (IQD)`} value={`${fmtIQD(purchase.buyPriceIQD)} IQD`} />
+          <InfoRow label={`${t('purchases.buyPrice')} (USD)`} value={`$${purchase.buyPriceUSD.toFixed(2)}`} />
+          <InfoRow label={t('purchases.exchangeRate')} value={`100 USD = ${fmtExchangeRate(purchase.exchangeRate)} IQD`} />
+          {purchase.sellPriceIQD > 0 && (
+            <>
+              <InfoRow label={`${t('purchases.sellPrice')} (IQD)`} value={`${fmtIQD(purchase.sellPriceIQD)} IQD`} />
+              <InfoRow label={t('purchases.profitLabel')} value={`${purchase.profitIQD >= 0 ? '+' : ''}${fmtIQD(purchase.profitIQD)} IQD`} />
+            </>
+          )}
+          {purchase.warranty ? <InfoRow label={t('purchases.warranty')} value={purchase.warranty} /> : null}
+        </PremiumCard>
+      </MotiView>
+
+      {/* Items */}
+      {purchaseItems.length > 1 && (
+        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 80 }}>
+          <PremiumCard style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
+            {purchaseItems.map((item) => (
+              <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100, flexDirection }]}>
+                <View style={styles.itemLeft}>
+                  <Text style={[styles.itemName, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>{item.productName}</Text>
+                  {item.category ? <Text style={[styles.itemCat, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{item.category}</Text> : null}
+                </View>
+                <View style={[styles.itemRight, { alignItems: alignEnd }]}>
+                  <Text style={[styles.itemQty, { color: colors.gray400 }]}>×{item.quantity}</Text>
+                  <AmountText value={item.lineTotalIQD} currency="IQD" style={[styles.itemPrice, { color: colors.primary }]} />
+                </View>
+              </View>
+            ))}
+          </PremiumCard>
+        </MotiView>
+      )}
+    </View>
+  );
+
+  const secondaryCol = (
+    <View style={{ flex: 1 }}>
+      {/* Supplier */}
+      {(purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) && (
+        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 100 }}>
+          <PremiumCard style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
+            {purchase.supplierName    ? <InfoRow label={t('purchases.supplierName')}    value={purchase.supplierName} />    : null}
+            {purchase.supplierPhone   ? <InfoRow label={t('inventory.phone')}           value={purchase.supplierPhone} />   : null}
+            {purchase.supplierAddress ? <InfoRow label={t('inventory.address')}         value={purchase.supplierAddress} /> : null}
+          </PremiumCard>
+        </MotiView>
+      )}
+
+      {/* Item IDs */}
+      {hasIds && (
+        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 140 }}>
+          <PremiumCard style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+              {purchase.idType === 'shared' ? t('purchases.sharedIdTitle') : `${t('purchases.itemIdsTitle')} (${purchase.itemIds.length})`}
+            </Text>
+            {purchase.idType === 'shared' ? (
+              <View style={[styles.sharedIdBox, { backgroundColor: colors.softBlue }]}>
+                <IdText style={[styles.sharedIdText, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.itemIds[0] || '—'}</IdText>
+              </View>
+            ) : (
+              <View style={styles.chipsWrap}>
+                {purchase.itemIds.map((v, i) => (
+                  <View key={i} style={[styles.idChip, { backgroundColor: colors.softBlue, flexDirection }]}>
+                    <Text style={[styles.idChipBadge, { backgroundColor: colors.primary }]}>{i + 1}</Text>
+                    <IdText style={[styles.idChipText, { color: colors.primary }]}>{v || '—'}</IdText>
+                  </View>
+                ))}
+              </View>
+            )}
+          </PremiumCard>
+        </MotiView>
+      )}
+
+      {/* Additional info */}
+      {(purchase.description || purchase.notes) && (
+        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 180 }}>
+          <PremiumCard style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalSection')}</Text>
+            {purchase.description && (
+              <View style={styles.notesBlock}>
+                <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.description')}</Text>
+                <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.description}</Text>
+              </View>
+            )}
+            {purchase.notes && (
+              <View style={styles.notesBlock}>
+                <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.notes')}</Text>
+                <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.notes}</Text>
+              </View>
+            )}
+          </PremiumCard>
+        </MotiView>
+      )}
+
+      {/* Actions */}
+      <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
+        <PrimaryButton
+          label={isSharing ? t('purchases.preparingPdf') : t('purchases.shareInvoice')}
+          onPress={handleShare}
+          loading={isSharing}
+          disabled={isSharing || isDeleting}
+        />
+        <View style={styles.gap} />
+        <PrimaryButton
+          label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
+          onPress={confirmDelete}
+          loading={isDeleting}
+          disabled={isDeleting || isSharing}
+          variant="outline"
+        />
+      </MotiView>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader
@@ -213,166 +379,25 @@ export default function PurchaseDetailScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
-
-        {/* Invoice header */}
-        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200 }}>
-          <LinearGradient
-            colors={[colors.primaryDark, colors.primary]}
-            style={styles.invoiceHeaderCard}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          >
-            <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
-              <View>
-                <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
-                <IdText style={[styles.invoiceNumber, !isRTL && styles.invoiceNumberSpacing]}>{purchase.purchaseNumber}</IdText>
-              </View>
-              <View style={[styles.statusPill, isPaid ? styles.statusPillPaid : styles.statusPillDebt]}>
-                <Text style={[styles.statusPillText, isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt]}>
-                  {isPaid ? t('common.paid') : t('common.debt')}
-                </Text>
-              </View>
-            </View>
-            <DateText value={purchase.date} style={styles.invoiceDate} />
-            <View style={[styles.invoiceTotalRow, { flexDirection }]}>
-              <Text style={styles.invoiceTotalLabel}>{t('purchases.totalLabel')}</Text>
-              <AmountText value={purchase.totalIQD} currency="IQD" variant="large" style={styles.invoiceTotalValue} />
-            </View>
-            {!isPaid && purchaseDebt && (
-              <View style={styles.debtBreakdown}>
-                <View style={[styles.debtRow, { flexDirection }]}>
-                  <Text style={styles.debtRowLabel}>{t('invoicePdf.amountPaid')}</Text>
-                  <AmountText value={purchaseDebt.paidAmount} currency="IQD" style={styles.debtRowValue} />
-                </View>
-                <View style={[styles.debtRow, { flexDirection }]}>
-                  <Text style={styles.debtRowLabel}>{t('invoicePdf.remainingDebt')}</Text>
-                  <AmountText value={purchaseDebt.remainingAmount} currency="IQD" style={[styles.debtRowValue, styles.debtRowValueHighlight]} />
-                </View>
-              </View>
-            )}
-          </LinearGradient>
-        </MotiView>
-
-        {/* Product */}
-        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 60 }}>
-          <PremiumCard style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.productSection')}</Text>
-            <InfoRow label={t('purchases.productName')} value={purchase.productName} />
-            {purchase.itemDescription ? (
-              <Text style={[styles.itemDescription, { color: colors.gray500 }]} numberOfLines={1}>{purchase.itemDescription}</Text>
-            ) : null}
-            {purchase.category ? <InfoRow label={t('purchases.category')} value={purchase.category} /> : null}
-            <InfoRow label={t('purchases.qty')} value={String(purchase.quantity)} />
-            <InfoRow label={`${t('purchases.buyPrice')} (IQD)`} value={`${fmtIQD(purchase.buyPriceIQD)} IQD`} />
-            <InfoRow label={`${t('purchases.buyPrice')} (USD)`} value={`$${purchase.buyPriceUSD.toFixed(2)}`} />
-            <InfoRow label={t('purchases.exchangeRate')} value={`100 USD = ${fmtExchangeRate(purchase.exchangeRate)} IQD`} />
-            {purchase.sellPriceIQD > 0 && (
-              <>
-                <InfoRow label={`${t('purchases.sellPrice')} (IQD)`} value={`${fmtIQD(purchase.sellPriceIQD)} IQD`} />
-                <InfoRow label={t('purchases.profitLabel')} value={`${purchase.profitIQD >= 0 ? '+' : ''}${fmtIQD(purchase.profitIQD)} IQD`} />
-              </>
-            )}
-            {purchase.warranty ? <InfoRow label={t('purchases.warranty')} value={purchase.warranty} /> : null}
-          </PremiumCard>
-        </MotiView>
-
-        {/* Items */}
-        {purchaseItems.length > 1 && (
-          <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 80 }}>
-            <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.itemsCount')} ({purchaseItems.length})</Text>
-              {purchaseItems.map((item) => (
-                <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.gray100, flexDirection }]}>
-                  <View style={styles.itemLeft}>
-                    <Text style={[styles.itemName, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>{item.productName}</Text>
-                    {item.category ? <Text style={[styles.itemCat, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{item.category}</Text> : null}
-                  </View>
-                  <View style={[styles.itemRight, { alignItems: alignEnd }]}>
-                    <Text style={[styles.itemQty, { color: colors.gray400 }]}>×{item.quantity}</Text>
-                    <AmountText value={item.lineTotalIQD} currency="IQD" style={[styles.itemPrice, { color: colors.primary }]} />
-                  </View>
-                </View>
-              ))}
-            </PremiumCard>
-          </MotiView>
+      <ScrollView
+        contentContainerStyle={[
+          styles.body,
+          isTablet && contentContainerStyle,
+          isTablet && { padding: 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {isTablet ? (
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 24, alignItems: 'flex-start' }}>
+            {primaryCol}
+            {secondaryCol}
+          </View>
+        ) : (
+          <>
+            {primaryCol}
+            {secondaryCol}
+          </>
         )}
-
-        {/* Supplier */}
-        {(purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) && (
-          <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 100 }}>
-            <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.supplierSection')}</Text>
-              {purchase.supplierName    ? <InfoRow label={t('purchases.supplierName')}    value={purchase.supplierName} />    : null}
-              {purchase.supplierPhone   ? <InfoRow label={t('inventory.phone')}           value={purchase.supplierPhone} />   : null}
-              {purchase.supplierAddress ? <InfoRow label={t('inventory.address')}         value={purchase.supplierAddress} /> : null}
-            </PremiumCard>
-          </MotiView>
-        )}
-
-        {/* Item IDs */}
-        {hasIds && (
-          <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 140 }}>
-            <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
-                {purchase.idType === 'shared' ? t('purchases.sharedIdTitle') : `${t('purchases.itemIdsTitle')} (${purchase.itemIds.length})`}
-              </Text>
-              {purchase.idType === 'shared' ? (
-                <View style={[styles.sharedIdBox, { backgroundColor: colors.softBlue }]}>
-                  <IdText style={[styles.sharedIdText, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.itemIds[0] || '—'}</IdText>
-                </View>
-              ) : (
-                <View style={styles.chipsWrap}>
-                  {purchase.itemIds.map((v, i) => (
-                    <View key={i} style={[styles.idChip, { backgroundColor: colors.softBlue, flexDirection }]}>
-                      <Text style={[styles.idChipBadge, { backgroundColor: colors.primary }]}>{i + 1}</Text>
-                      <IdText style={[styles.idChipText, { color: colors.primary }]}>{v || '—'}</IdText>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </PremiumCard>
-          </MotiView>
-        )}
-
-        {/* Additional info */}
-        {(purchase.description || purchase.notes) && (
-          <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 180 }}>
-            <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.additionalSection')}</Text>
-              {purchase.description && (
-                <View style={styles.notesBlock}>
-                  <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.description')}</Text>
-                  <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.description}</Text>
-                </View>
-              )}
-              {purchase.notes && (
-                <View style={styles.notesBlock}>
-                  <Text style={[styles.notesLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.notes')}</Text>
-                  <Text style={[styles.notesText, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{purchase.notes}</Text>
-                </View>
-              )}
-            </PremiumCard>
-          </MotiView>
-        )}
-
-        {/* Actions */}
-        <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
-          <PrimaryButton
-            label={isSharing ? t('purchases.preparingPdf') : t('purchases.shareInvoice')}
-            onPress={handleShare}
-            loading={isSharing}
-            disabled={isSharing || isDeleting}
-          />
-          <View style={styles.gap} />
-          <PrimaryButton
-            label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
-            onPress={confirmDelete}
-            loading={isDeleting}
-            disabled={isDeleting || isSharing}
-            variant="outline"
-          />
-        </MotiView>
-
       </ScrollView>
     </View>
   );

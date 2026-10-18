@@ -3,7 +3,7 @@
     "name": "Froshiar",
     "slug": "managerx",
     "version": "1.0.1",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/logo-icon.png",
     "scheme": "froshiar",
     "userInterfaceStyle": "light",
@@ -15,10 +15,12 @@
     },
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.froshiar.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
       "infoPlist": {
+        "UIRequiresFullScreen": true,
         "NSPhotoLibraryUsageDescription": "We need access to your photos to upload your business logo.",
         "NSCameraUsageDescription": "Froshiar needs camera access to scan product barcodes, QR codes, and take photos.",
         "ITSAppUsesNonExemptEncryption": false

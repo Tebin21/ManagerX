@@ -72,6 +72,24 @@ export default function Index() {
       return;
     }
 
+    if (__DEV__ && !user) {
+      const mockUser = {
+        id: 'dev_user_1',
+        uid: 'dev_user_1',
+        email: 'demo@froshiar.store',
+        displayName: 'Dev Administrator',
+      };
+      useAuthStore.setState({ user: mockUser as any, isLoading: false });
+      useOnboardingStore.setState({ hasCompletedOnboarding: true });
+      useBusinessStore.setState({
+        isSetupComplete: true,
+        name: 'Froshiar Store',
+        ownerUserId: 'dev_user_1',
+      });
+      router.replace('/(app)/dashboard');
+      return;
+    }
+
     if (!user) {
       router.replace('/(onboarding)/login');
       return;

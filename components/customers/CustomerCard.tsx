@@ -24,15 +24,15 @@ function CustomerCardImpl({ customer, onPress }: Props) {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
-  const { isTablet } = useResponsive();
-  const styles = useMemo(() => getStyles(isTablet), [isTablet]);
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const styles = useMemo(() => getStyles(isTablet, isTabletLandscape), [isTablet, isTabletLandscape]);
   const hasDebt = customer.remainingDebt > 0;
 
-  const cardPad = isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14);
+  const cardPad = isTabletLandscape ? 20 : isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14);
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: cardPad, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
+      style={[styles.card, { backgroundColor: colors.white, flexDirection, padding: cardPad, marginBottom: isTablet ? 12 : (isRTL ? RTL_SPACING.cardGap : 8) }]}
       onPress={() => onPress(customer.id)}
       activeOpacity={0.82}
     >
@@ -93,15 +93,15 @@ function CustomerCardImpl({ customer, onPress }: Props) {
 
 export const CustomerCard = React.memo(CustomerCardImpl);
 
-function getStyles(isTablet: boolean) {
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
   return StyleSheet.create({
     card: {
       flex: isTablet ? 1 : undefined,
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: isTablet ? 16 : 14,
-      padding: 14,
-      marginBottom: 8,
+      borderRadius: isTabletLandscape ? 18 : isTablet ? 16 : 14,
+      padding: isTabletLandscape ? 18 : 14,
+      marginBottom: isTabletLandscape ? 12 : 8,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.06,
@@ -109,28 +109,28 @@ function getStyles(isTablet: boolean) {
       elevation: 2,
     },
     avatar: {
-      width: isTablet ? 52 : 44,
-      height: isTablet ? 52 : 44,
-      borderRadius: isTablet ? 15 : 12,
+      width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+      height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+      borderRadius: isTabletLandscape ? 18 : isTablet ? 15 : 12,
       alignItems: 'center',
       justifyContent: 'center',
-      marginEnd: 12,
+      marginEnd: isTabletLandscape ? 16 : 12,
     },
-    avatarText: { fontSize: isTablet ? 22 : 18, fontWeight: '800' },
+    avatarText: { fontSize: isTabletLandscape ? 24 : isTablet ? 22 : 18, fontWeight: '800' },
     body:       { flex: 1 },
     nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-    name:       { fontSize: isTablet ? 18 : 15, fontWeight: '700', flexShrink: 1 },
-    debtBadge:  { borderRadius: 6, paddingHorizontal: isTablet ? 10 : 8, paddingVertical: isTablet ? 4 : 2 },
-    debtBadgeText: { fontSize: isTablet ? 12 : 10, fontWeight: '700' },
+    name:       { fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, fontWeight: '700', flexShrink: 1 },
+    debtBadge:  { borderRadius: 6, paddingHorizontal: isTabletLandscape ? 12 : isTablet ? 10 : 8, paddingVertical: isTabletLandscape ? 5 : isTablet ? 4 : 2 },
+    debtBadgeText: { fontSize: isTabletLandscape ? 13 : isTablet ? 12 : 10, fontWeight: '700' },
     phoneRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-    phone:      { fontSize: isTablet ? 14 : 12 },
-    sub:        { fontSize: isTablet ? 14 : 12, marginBottom: 2 },
+    phone:      { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 },
+    sub:        { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12, marginBottom: 2 },
     subRow:     { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-    subDot:     { fontSize: isTablet ? 14 : 12 },
+    subDot:     { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 },
     debtRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    debtRowLabel:  { fontSize: isTablet ? 14 : 12 },
-    debtRowValue:  { fontSize: isTablet ? 14 : 12 },
+    debtRowLabel:  { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 },
+    debtRowValue:  { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 },
     dateRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-    dateText:   { fontSize: isTablet ? 13 : 11 },
+    dateText:   { fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11 },
   });
 }
