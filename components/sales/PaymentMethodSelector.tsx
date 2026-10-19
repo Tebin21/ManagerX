@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { PaymentMethod } from '@/types/sales';
 
 interface Option {
@@ -13,25 +16,42 @@ interface Option {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-const OPTIONS: Option[] = [
-  { method: 'cash', label: 'Cash', icon: 'cash-outline' },
-  { method: 'fib',  label: 'FIB',  icon: 'phone-portrait-outline' },
-  { method: 'debt', label: 'Debt', icon: 'time-outline' },
-];
-
 interface Props {
   selected: PaymentMethod;
   onChange: (method: PaymentMethod) => void;
 }
 
 export function PaymentMethodSelector({ selected, onChange }: Props) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const options: Option[] = useMemo(
+    () => [
+      {
+        method: 'cash',
+        label: isKuLanguage ? 'کاش' : t('sales.cash', 'Cash'),
+        icon: 'cash-outline',
+      },
+      {
+        method: 'fib',
+        label: 'FIB',
+        icon: 'phone-portrait-outline',
+      },
+      {
+        method: 'debt',
+        label: isKuLanguage ? 'قەرز' : t('sales.debt', 'Debt'),
+        icon: 'time-outline',
+      },
+    ],
+    [isKuLanguage, t]
+  );
 
   return (
     <View style={[styles.row, { flexDirection }]}>
-      {OPTIONS.map((opt) => {
+      {options.map((opt) => {
         const active = selected === opt.method;
         return (
           <TouchableOpacity
@@ -54,7 +74,14 @@ export function PaymentMethodSelector({ selected, onChange }: Props) {
               size={isTabletLandscape ? 30 : (isTablet ? 26 : 20)}
               color={active ? colors.primary : colors.gray400}
             />
-            <Text style={[styles.label, isTablet && { fontSize: isTabletLandscape ? 17 : 16 }, { color: active ? colors.primary : colors.gray500 }]}>
+            <Text
+              style={[
+                styles.label,
+                isTablet && { fontSize: isTabletLandscape ? 17 : 16 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: active ? colors.primary : colors.gray500 },
+              ]}
+            >
               {opt.label}
             </Text>
           </TouchableOpacity>

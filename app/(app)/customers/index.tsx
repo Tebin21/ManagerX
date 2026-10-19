@@ -23,6 +23,7 @@ import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import { useLanguageStore } from '@/store/languageStore';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -35,6 +36,7 @@ export default function CustomersScreen() {
   const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -113,7 +115,7 @@ export default function CustomersScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={[styles.headerStats, isTablet && { paddingVertical: 18, marginHorizontal: 28 }]}
+            style={[styles.headerStats, isTablet && { paddingVertical: 18, marginHorizontal: 28 }, { flexDirection }]}
           >
             <View style={styles.headerStat}>
               <Text style={[styles.headerStatVal, isTablet && { fontSize: 24 }]}>{customers.length}</Text>
@@ -133,13 +135,23 @@ export default function CustomersScreen() {
         )}
 
         {/* Search */}
-        <View style={[styles.searchWrap, isTablet && { height: 54, marginHorizontal: 24, borderRadius: 16 }, { backgroundColor: colors.white }]}>
+        <View
+          style={[
+            styles.searchWrap,
+            { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 },
+            isTablet && { height: 54, marginHorizontal: 24, borderRadius: 16 },
+          ]}
+        >
           <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[
               styles.searchInput,
+              {
+                color: colors.black,
+                textAlign,
+                writingDirection,
+              },
               isTablet && { fontSize: 17 },
-              { color: colors.black },
               isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
             ]}
             value={query}
@@ -159,7 +171,14 @@ export default function CustomersScreen() {
 
       {/* Count strip */}
       {customers.length > 0 && (
-        <View style={[styles.countStrip, isTablet && { paddingVertical: 14 }, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }, isTablet && contentContainerStyle]}>
+        <View
+          style={[
+            styles.countStrip,
+            { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection },
+            isTablet && { paddingVertical: 14 },
+            isTablet && contentContainerStyle,
+          ]}
+        >
           <Text style={[styles.countText, isTablet && { fontSize: 15 }, { color: colors.gray500 }]}>
             {visible.length} {visible.length === 1 ? 'customer' : 'customers'}
           </Text>

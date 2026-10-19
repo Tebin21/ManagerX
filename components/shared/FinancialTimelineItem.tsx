@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
 import type { FinancialLedgerEvent } from '@/types/debt';
 
 interface FinancialTimelineItemProps {
@@ -23,6 +24,7 @@ export function FinancialTimelineItem({ event, isLast }: FinancialTimelineItemPr
   const styles = useMemo(() => getStyles(colors), [colors]);
   const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const dotColor =
     event.type === 'debt_created' ? colors.primary
@@ -65,7 +67,11 @@ export function FinancialTimelineItem({ event, isLast }: FinancialTimelineItemPr
               {t('debt.remainingLabel')}: <AmountText value={event.remainingAfter} currency="IQD" variant="small" style={styles.timelineRemaining} />
             </Text>
             {event.paymentMethod ? (
-              <Text style={[styles.timelineNote, { textAlign }]}>{event.paymentMethod}</Text>
+              <Text style={[styles.timelineNote, { textAlign }]}>
+                {isKuLanguage
+                  ? (event.paymentMethod.toLowerCase() === 'cash' ? 'کاش' : event.paymentMethod.toLowerCase() === 'debt' ? 'قەرز' : event.paymentMethod)
+                  : event.paymentMethod}
+              </Text>
             ) : null}
             {event.note ? (
               <Text style={[styles.timelineNote, { textAlign }]}>{event.note}</Text>

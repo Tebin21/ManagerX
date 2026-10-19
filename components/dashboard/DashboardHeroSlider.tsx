@@ -23,6 +23,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
@@ -343,6 +344,7 @@ export function DashboardHeroSlider() {
         animationType="slide"
         transparent
         onRequestClose={() => setModalOpen(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: isDark ? colors.gray100 : colors.white }]}>

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -24,7 +25,14 @@ export function InfoModal({ visible, onClose, title, description, bullets, foote
   const { textAlign, flexDirection } = useRTL();
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+    >
       <View style={styles.overlay}>
         <View
           style={[

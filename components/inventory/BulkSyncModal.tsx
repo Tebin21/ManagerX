@@ -9,6 +9,7 @@ import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -67,7 +68,7 @@ export function BulkSyncModal({ visible, onClose }: Props) {
   const pct = progress && progress.total > 0 ? Math.min(1, progress.done / progress.total) : 0;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose} supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalSheet, { backgroundColor: colors.white }]}>
           <View style={[styles.modalHeader, { flexDirection }]}>

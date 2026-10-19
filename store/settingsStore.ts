@@ -15,6 +15,9 @@ interface SettingsState {
   globalLowStockThreshold: number;
   baseCurrency:            BaseCurrency;
   settingsGridLayout:      boolean;
+  salesProductGridLayout:  boolean;
+  historyGridLayout:       boolean;
+  dashboardActivityGridLayout: boolean;
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -23,6 +26,9 @@ interface SettingsState {
   setGlobalLowStockThreshold: (val: number) => void;
   setBaseCurrency:            (currency: BaseCurrency) => void;
   setSettingsGridLayout:      (val: boolean) => void;
+  setSalesProductGridLayout:  (val: boolean) => void;
+  setHistoryGridLayout:       (val: boolean) => void;
+  setDashboardActivityGridLayout: (val: boolean) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -56,13 +62,19 @@ export const useSettingsStore = create<SettingsState>()(
       globalLowStockThreshold: 5,
       baseCurrency:            'IQD',
       settingsGridLayout:      false,
+      salesProductGridLayout:  false,
+      historyGridLayout:       false,
+      dashboardActivityGridLayout: false,
 
-      setDarkMode:               (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
-      setAccentColor:            (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
-      setGlobalLowStockEnabled:  (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
-      setGlobalLowStockThreshold:(val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
-      setBaseCurrency:           (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
-      setSettingsGridLayout:     (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
+      setDarkMode:                (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
+      setAccentColor:             (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
+      setGlobalLowStockEnabled:   (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
+      setGlobalLowStockThreshold: (val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
+      setBaseCurrency:            (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
+      setSettingsGridLayout:      (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
+      setSalesProductGridLayout:  (val) => { set({ salesProductGridLayout: val }); notifyPreferencesChanged(); },
+      setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
+      setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();
@@ -90,6 +102,9 @@ export const useSettingsStore = create<SettingsState>()(
           globalLowStockThreshold: p?.globalLowStockThreshold ?? 5,
           baseCurrency:            (p?.baseCurrency === 'USD' ? 'USD' : 'IQD') as BaseCurrency,
           settingsGridLayout:      p?.settingsGridLayout ?? false,
+          salesProductGridLayout:  p?.salesProductGridLayout ?? false,
+          historyGridLayout:       p?.historyGridLayout ?? false,
+          dashboardActivityGridLayout: p?.dashboardActivityGridLayout ?? false,
         };
       },
     }

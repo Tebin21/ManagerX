@@ -25,10 +25,13 @@ import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
+import { isDirectSupplierName } from '@/lib/sqlite';
 
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isDirect = isDirectSupplierName(supplier.name);
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -61,12 +64,22 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
           },
         ]}
       >
-        <Ionicons name="business-outline" size={isTabletLandscape ? 28 : isTablet ? 26 : 22} color={colors.primary} />
+        <Ionicons name={isDirect ? "flash" : "business-outline"} size={isTabletLandscape ? 28 : isTablet ? 26 : 22} color={isDirect ? "#D97706" : colors.primary} />
       </View>
       <View style={[styles.cardBody, { gap: isRTL ? (isTablet ? 6 : RTL_SPACING.stackGap) : (isTablet ? 4 : 0) }]}>
-        <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
-          {supplier.name}
-        </Text>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
+            {supplier.name}
+          </Text>
+          {isDirect && (
+            <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="flash" size={10} color="#D97706" />
+              <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#D97706' }}>
+                {isKuLanguage ? 'سیستەم' : 'System'}
+              </Text>
+            </View>
+          )}
+        </View>
         {supplier.phone ? (
           <Text style={[styles.cardPhone, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12, marginBottom: isRTL ? 0 : 2 }]}>
             {supplier.phone}
@@ -88,6 +101,7 @@ export default function SuppliersScreen() {
   const { colors } = useAppTheme();
   const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const [query, setQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -139,7 +153,7 @@ export default function SuppliersScreen() {
             from={{ opacity: 0, translateY: 6 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'timing', duration: 300 }}
-            style={[styles.headerStats, isTablet && { paddingVertical: 18, borderRadius: 18 }]}
+            style={[styles.headerStats, isTablet && { paddingVertical: 18, borderRadius: 18 }, { flexDirection }]}
           >
             <View style={styles.headerStat}>
               <Text style={[styles.headerStatVal, isTablet && { fontSize: 24 }]}>{suppliers.length}</Text>
@@ -153,12 +167,22 @@ export default function SuppliersScreen() {
           </MotiView>
         )}
 
-        <View style={[styles.searchWrap, { backgroundColor: colors.white }, isTablet && { height: 54, paddingHorizontal: 16 }]}>
+        <View
+          style={[
+            styles.searchWrap,
+            { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 },
+            isTablet && { height: 54, paddingHorizontal: 16 },
+          ]}
+        >
           <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
           <TextInput
             style={[
               styles.searchInput,
-              { color: colors.black },
+              {
+                color: colors.black,
+                textAlign,
+                writingDirection,
+              },
               isTablet && { fontSize: 17 },
               isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
             ]}

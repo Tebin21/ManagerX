@@ -24,7 +24,7 @@ import { ThemeToggleSwitch } from '@/components/settings/ThemeToggleSwitch';
 import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
 import { TutorialsCard } from '@/components/settings/TutorialsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
-import { SettingsGrid } from '@/components/settings/SettingsGrid';
+import { SettingsGrid, getSettingsTileColors } from '@/components/settings/SettingsGrid';
 import { InfoModal } from '@/components/ui/InfoModal';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
@@ -37,6 +37,7 @@ import { PRIVACY_POLICY_URL } from '@/constants/config';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -57,6 +58,7 @@ export default function SettingsScreen() {
   const setSettingsGridLayout = useSettingsStore((s) => s.setSettingsGridLayout);
 
   const { flexDirection, textAlign } = useRTL();
+  const tileColors = getSettingsTileColors(isDark);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -176,12 +178,14 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.businessProfile')}>
               <SettingRow
                 icon="business"
+                color={tileColors.profile}
                 label={t('settings.businessProfile')}
                 sub={business.name || t('settings.businessProfileSub')}
                 onPress={() => router.push('/(app)/settings/profile' as never)}
               />
               <SettingRow
                 icon="color-palette"
+                color={tileColors.design}
                 label={t('settings.generalCustomization')}
                 sub={t('settings.generalCustomizationSub')}
                 onPress={() => router.push('/(app)/settings/customization' as never)}
@@ -193,12 +197,14 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.subscriptions')}>
               <SettingRow
                 icon="rocket"
+                color={tileColors.license}
                 label={t('settings.managerXLicense')}
                 sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
                 onPress={() => router.push('/(app)/settings/plan-limits' as never)}
               />
               <SettingRow
                 icon="globe"
+                color={tileColors.storeSub}
                 label={t('settings.onlineStoreSubscription')}
                 sub={t('settings.onlineStoreSubscriptionSub')}
                 onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
@@ -209,12 +215,14 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.preferences')}>
               <SettingRow
                 icon="swap-horizontal"
+                color={tileColors.currency}
                 label={t('settings.exchangeRate')}
                 sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
                 onPress={() => router.push('/(app)/settings/currency' as never)}
               />
               <SettingRow
                 icon="language"
+                color={tileColors.language}
                 label={t('settings.language')}
                 sub={language === 'ku' ? 'کوردی' : 'English'}
                 chevron={false}
@@ -228,6 +236,7 @@ export default function SettingsScreen() {
               />
               <SettingRow
                 icon={isDark ? 'moon' : 'sunny'}
+                color={tileColors.appearance}
                 label={t('settings.appearance')}
                 sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
                 chevron={false}
@@ -241,6 +250,7 @@ export default function SettingsScreen() {
               />
               <SettingRow
                 icon="color-palette"
+                color={tileColors.themeColors}
                 label={t('settings.themeColors')}
                 sub={t('settings.themeColorsSub')}
                 onPress={() => router.push('/(app)/settings/theme' as never)}
@@ -251,6 +261,7 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.modules')}>
               <SettingRow
                 icon="grid"
+                color={tileColors.modules}
                 label={t('settings.modules')}
                 sub={t('settings.modulesSub')}
                 onPress={() => router.push('/(app)/settings/modules' as never)}
@@ -261,6 +272,7 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.onlineStore')}>
               <SettingRow
                 icon="storefront"
+                color={tileColors.store}
                 label={t('settings.onlineStore')}
                 sub={t('settings.onlineStoreSub')}
                 onPress={() => router.push('/(app)/settings/online-store' as never)}
@@ -271,6 +283,7 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.data')}>
               <SettingRow
                 icon="server"
+                color={tileColors.data}
                 label={t('settings.dataManagement')}
                 sub={t('settings.dataManagementSub')}
                 onPress={() => router.push('/(app)/settings/data' as never)}
@@ -281,6 +294,7 @@ export default function SettingsScreen() {
             <SettingSection title={t('settings.about')}>
               <SettingRow
                 icon="information-circle"
+                color={tileColors.about}
                 label={t('settings.aboutManagerX')}
                 onPress={() => router.push('/(app)/settings/about' as never)}
               />
@@ -343,6 +357,7 @@ export default function SettingsScreen() {
         animationType="fade"
         onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}
         statusBarTranslucent
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.overlay}>
           <View style={[
@@ -412,6 +427,7 @@ export default function SettingsScreen() {
         animationType="fade"
         onRequestClose={() => !isDeletingAccount && setShowDeleteModal(false)}
         statusBarTranslucent
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.overlay}>
           <View style={[

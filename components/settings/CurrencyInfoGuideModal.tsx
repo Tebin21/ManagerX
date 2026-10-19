@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -29,6 +30,7 @@ export function CurrencyInfoGuideModal({ visible, onClose }: Props) {
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <View style={styles.overlay}>
         <View

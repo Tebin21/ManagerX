@@ -9,6 +9,7 @@ import { hexToRgba } from '@/lib/colorUtils';
 import { useRTL } from '@/lib/rtl';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useLanguageStore } from '@/store/languageStore';
 import type { Sale } from '@/types/sales';
 import {
   fmtIQD, fmtUSD, formatDate, formatTime,
@@ -57,6 +58,16 @@ export function InvoiceView({ sale, compact = false }: Props) {
   const status = getPaymentStatus(sale);
   const statusBg = isDark ? hexToRgba(colors[STATUS_TONE[status]], 0.18) : STATUS_BG_LIGHT[status];
   const statusText = isDark ? colors[STATUS_TONE[status]] : STATUS_TEXT_LIGHT[status];
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const paymentMethodLabel = isKuLanguage
+    ? (sale.paymentMethod === 'cash' ? 'کاش' : sale.paymentMethod === 'debt' ? 'قەرز' : 'FIB')
+    : (PAYMENT_LABEL[sale.paymentMethod] || sale.paymentMethod);
+
+  const paymentStatusLabel = isKuLanguage
+    ? (status === 'paid' ? 'پارەدراو' : status === 'partial' ? 'بەشێکی دراوە' : 'نەدراو')
+    : (PAYMENT_STATUS_LABEL[status] || status);
+
   const exchangeRate = sale.exchangeRateUsed || 1310;
   const valueAlign = isRTL ? 'left' : 'right';
 
@@ -111,11 +122,11 @@ export function InvoiceView({ sale, compact = false }: Props) {
         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
           <IdText style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr', lineHeight: undefined }]}>{sale.invoiceNumber}</IdText>
           <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-            <Text style={[styles.statusPillText, { color: statusText }]}>
-              {PAYMENT_STATUS_LABEL[status]}
+            <Text style={[styles.statusPillText, { color: statusText }, isKuLanguage && { fontFamily: 'RudawRegular' }]}>
+              {paymentStatusLabel}
             </Text>
           </View>
-          <Text style={[styles.methodLabel, { color: colors.gray400 }]}>{PAYMENT_LABEL[sale.paymentMethod]}</Text>
+          <Text style={[styles.methodLabel, { color: colors.gray400 }, isKuLanguage && { fontFamily: 'RudawRegular' }]}>{paymentMethodLabel}</Text>
         </View>
       </View>
 

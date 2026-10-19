@@ -18,13 +18,13 @@ const languageDetector = {
       const raw = await getItemWithLegacyFallback(LANGUAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        const lang: string = parsed?.state?.language ?? 'en';
-        callback(['en', 'ku'].includes(lang) ? lang : 'en');
+        const lang: string = parsed?.state?.language ?? 'ku';
+        callback(['en', 'ku'].includes(lang) ? lang : 'ku');
       } else {
-        callback('en');
+        callback('ku');
       }
     } catch {
-      callback('en');
+      callback('ku');
     }
   },
   init: () => {},
@@ -43,7 +43,7 @@ i18n
       en: { translation: en },
       ku: { translation: ku },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'ku',
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
   });

@@ -1,41 +1,121 @@
 import React, { useState } from 'react';
 import {
   View,
-  ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  StatusBar,
   TouchableOpacity,
   useWindowDimensions,
+  StatusBar,
+  Platform,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text } from '@/components/ui/AppText';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { SvgXml } from 'react-native-svg';
 import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Text } from '@/components/ui/AppText';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useAuthStore } from '@/store/authStore';
+import { TABLET_LOGIN_BRO_SVG } from '@/constants/onboardingIllustrations';
+import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
+import { KurdistanFlagIcon, UKFlagIcon } from '@/components/settings/LanguageToggleSwitch';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
-import { EmailPasswordForm } from '@/components/auth/EmailPasswordForm';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
-import { SupportFooter } from '@/components/ui/SupportFooter';
-import { useAuthStore } from '@/store/authStore';
-import { Colors } from '@/constants/colors';
-import { useTranslation } from 'react-i18next';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { useResponsive } from '@/hooks/useResponsive';
+
+// Localized strings for Kurdish and English
+const LOGIN_STRINGS = {
+  ku: {
+    illustrationTitle: 'سیستەمی بەڕێوەبردنی فرۆشیار',
+    illustrationSub: 'بەهێزترین و پێشکەوتووترین سیستەمی فرۆشتن و کۆگای سەردەمیانە',
+    mobileSub: 'فرۆشتن، کڕین و کۆگاکەت بە ئاسانی بەڕێوەببە',
+    welcomeTitle: 'سڵاو بەخێربێیتەوە',
+    welcomeSub: 'بڕۆ ژوورەوە بۆ ناو هەژمارەکەت',
+    usernamePlaceholder: 'ناوی بەکارهێنەر یان ئیمەیڵ',
+    passwordPlaceholder: 'وشەی نهێنی',
+    forgotPassword: 'وشەی نهێنیت لەبیرکردووە؟',
+    loginBtn: 'چوونەژوورەوە',
+    googleBtn: 'بەردەوامبوون لەگەڵ Google',
+    or: 'یان',
+    noAccount: 'هەژمارت نییە؟',
+    signUpLink: 'خۆت تۆمار بکە',
+    devBypass: 'داشبۆرد ⚡',
+    validationError: 'تکایە ئیمەیڵ و وشەی نهێنی بنووسە',
+  },
+  en: {
+    illustrationTitle: 'Froshiar Management System',
+    illustrationSub: 'The modern and advanced POS, retail & inventory system',
+    mobileSub: 'Manage your sales, purchases and inventory with ease',
+    welcomeTitle: 'Welcome Back',
+    welcomeSub: 'Sign in to access your account',
+    usernamePlaceholder: 'Username or Email',
+    passwordPlaceholder: 'Password',
+    forgotPassword: 'Forgot password?',
+    loginBtn: 'Log In',
+    googleBtn: 'Continue with Google',
+    or: 'or',
+    noAccount: "Don't have an account?",
+    signUpLink: 'Sign up',
+    devBypass: 'Dashboard ⚡',
+    validationError: 'Please enter your email and password',
+  },
+};
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const isDarkMode = useSettingsStore((s) => s.isDarkMode);
+  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
+  const isDark = isDarkMode;
+
+  const { language, setLanguage, isRTL } = useLanguageStore();
   const { signInWithGoogle, signInWithApple, signInWithEmail, isLoading } = useAuthStore();
-  const { colors } = useAppTheme();
-  const [authError, setAuthError] = useState<string | null>(null);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const logoSize = Math.min(84, Math.max(60, width * 0.2));
-  const headerPaddingTop = insets.top + 16;
+  const { isTablet, isTabletLandscape } = useResponsive();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  // Large screen vs phone breakpoint
+  const isLargeScreen = isTablet || width >= 720;
+
+  const curLang = language === 'en' ? 'en' : 'ku';
+  const strings = LOGIN_STRINGS[curLang];
+
+  const handleToggleTheme = () => {
+    setDarkMode(!isDarkMode);
+  };
+
+  const handleSelectLanguage = (lang: 'ku' | 'en') => {
+    setLanguage(lang);
+    setIsLangDropdownOpen(false);
+  };
+
+  const handleEmailSignIn = async () => {
+    if (!email.trim() || !password) {
+      setAuthError(strings.validationError);
+      return;
+    }
+    setAuthError(null);
+    const { error, needsVerification } = await signInWithEmail(email.trim(), password);
+    if (error) {
+      setAuthError(error);
+    } else if (needsVerification) {
+      router.replace('/(onboarding)/verify-email' as never);
+    } else {
+      router.replace('/');
+    }
+  };
 
   const handleGoogle = async () => {
     setAuthError(null);
@@ -56,20 +136,6 @@ export default function LoginScreen() {
       router.replace('/');
     }
   };
-
-  const handleEmailSignIn = async ({ email, password }: { email: string; password: string }) => {
-    setAuthError(null);
-    const { error, needsVerification } = await signInWithEmail(email, password);
-    if (error) {
-      setAuthError(error);
-    } else if (needsVerification) {
-      router.replace('/(onboarding)/verify-email' as never);
-    } else {
-      router.replace('/');
-    }
-  };
-
-  const { isTablet, sheetMaxWidth, buttonHeight } = useResponsive();
 
   const handleDevBypass = async () => {
     try {
@@ -94,114 +160,533 @@ export default function LoginScreen() {
     router.replace('/(app)/dashboard');
   };
 
-  return (
-    <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
-      <StatusBar barStyle="light-content" />
+  // Dimensions
+  const phoneSvgSize = Math.min(210, width * 0.52);
+  const tabletSvgSize = isTabletLandscape ? 360 : 300;
 
-      <LinearGradient
-        colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={[styles.header, { paddingTop: headerPaddingTop }]}
-      >
-        <MotiView
-          from={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 15, stiffness: 110, delay: 100 }}
+  // Render Top Header Controls (Language Flag Dropdown + Theme Switcher + Dev bypass)
+  const renderTopControls = () => (
+    <View style={styles.topControlsRow}>
+      {/* Dev Quick Login Bypass (if enabled) */}
+      {(DEV_FORCE_ONBOARDING_PREVIEW || __DEV__) && (
+        <TouchableOpacity
+          onPress={handleDevBypass}
+          activeOpacity={0.8}
+          style={[
+            styles.devBypassBtn,
+            { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(241, 245, 249, 0.9)' },
+          ]}
         >
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={[styles.logo, { width: logoSize, height: logoSize }]}
-            resizeMode="contain"
-          />
-        </MotiView>
+          <Text style={[styles.devBypassText, curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+            {strings.devBypass}
+          </Text>
+        </TouchableOpacity>
+      )}
 
-        <MotiView
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 300 }}
-        >
-          <Text style={styles.headline}>{t('login.title')}</Text>
-          <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
-        </MotiView>
-      </LinearGradient>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={[styles.scroll, isTablet && { alignItems: 'center' }]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <MotiView
-            from={{ opacity: 0, translateY: 24 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, stiffness: 100, delay: 450 }}
-            style={[styles.buttonGroup, { maxWidth: Math.min(sheetMaxWidth, 460) }]}
+      <View style={styles.controlsGroup}>
+        {/* Language Flag Dropdown Button (NO TEXT, ONLY FLAG as requested) */}
+        <View style={styles.langPickerContainer}>
+          <TouchableOpacity
+            onPress={() => setIsLangDropdownOpen((prev) => !prev)}
+            activeOpacity={0.8}
+            style={[
+              styles.languageFlagBtn,
+              {
+                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: isLangDropdownOpen ? '#F8C61E' : (isDark ? '#334155' : '#E2E8F0'),
+              },
+            ]}
           >
-            {__DEV__ && (
-              <TouchableOpacity
-                onPress={handleDevBypass}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingVertical: 14,
-                  paddingHorizontal: 20,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  marginBottom: 10,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 4,
-                  elevation: 3,
-                }}
-              >
-                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>
-                  ⚡ تاقیکردنەوە / Dev Quick Login
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <EmailPasswordForm
-              mode="signin"
-              loading={isLoading}
-              submitLabel={t('login.signInBtn')}
-              onSubmit={handleEmailSignIn}
+            {curLang === 'en' ? <UKFlagIcon size={22} /> : <KurdistanFlagIcon size={22} />}
+            <Ionicons
+              name={isLangDropdownOpen ? 'chevron-forward' : 'chevron-back'}
+              size={13}
+              color={isDark ? '#94A3B8' : '#64748B'}
+              style={{ marginHorizontal: 3 }}
             />
+          </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/(onboarding)/forgot-password' as never)} style={styles.forgotLink}>
-              <Text style={[styles.linkText, { color: colors.primary }]}>{t('login.forgotPassword')}</Text>
-            </TouchableOpacity>
+          {/* Language Menu opening to the LEFT (not downwards) */}
+          {isLangDropdownOpen && (
+            <MotiView
+              from={{ opacity: 0, scale: 0.9, translateX: 10 }}
+              animate={{ opacity: 1, scale: 1, translateX: 0 }}
+              transition={{ type: 'timing', duration: 160 }}
+              style={[
+                styles.langDropdownMenu,
+                {
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                },
+              ]}
+            >
+              {/* Option 1: Kurdistan Flag */}
+              <TouchableOpacity
+                onPress={() => handleSelectLanguage('ku')}
+                activeOpacity={0.7}
+                style={[
+                  styles.langOptionItem,
+                  curLang === 'ku' && {
+                    backgroundColor: isDark ? 'rgba(248, 198, 30, 0.16)' : '#FEF9C3',
+                    borderColor: '#F8C61E',
+                  },
+                ]}
+              >
+                <KurdistanFlagIcon size={28} />
+                {curLang === 'ku' && <View style={styles.activeCheckDot} />}
+              </TouchableOpacity>
 
-            {authError && <AuthErrorBanner message={authError} style={styles.errorBanner} />}
+              {/* Option 2: UK Flag */}
+              <TouchableOpacity
+                onPress={() => handleSelectLanguage('en')}
+                activeOpacity={0.7}
+                style={[
+                  styles.langOptionItem,
+                  curLang === 'en' && {
+                    backgroundColor: isDark ? 'rgba(248, 198, 30, 0.16)' : '#FEF9C3',
+                    borderColor: '#F8C61E',
+                  },
+                ]}
+              >
+                <UKFlagIcon size={28} />
+                {curLang === 'en' && <View style={styles.activeCheckDot} />}
+              </TouchableOpacity>
+            </MotiView>
+          )}
+        </View>
 
-            {Platform.OS !== 'android' && (
-              <>
-                <View style={styles.dividerRow}>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
-                  <Text style={[styles.dividerText, { color: colors.gray400 }]}>{t('login.or')}</Text>
-                  <View style={[styles.dividerLine, { backgroundColor: colors.gray200 }]} />
+        {/* Dark / Light Mode Toggle Button */}
+        <TouchableOpacity
+          onPress={handleToggleTheme}
+          activeOpacity={0.8}
+          style={[
+            styles.themeBtn,
+            {
+              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+              borderColor: isDark ? '#334155' : '#E2E8F0',
+            },
+          ]}
+        >
+          <Ionicons
+            name={isDark ? 'sunny' : 'moon'}
+            size={18}
+            color={isDark ? '#F8C61E' : '#475569'}
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // Render Form Inputs & Action Buttons
+  const renderFormFields = (isTabletLayout: boolean) => (
+    <View style={styles.formContainer}>
+      {/* Welcome Title & Subtitle */}
+      <View
+        style={[
+          styles.welcomeBox,
+          isTabletLayout
+            ? { alignItems: isRTL ? 'flex-end' : 'flex-start' }
+            : { alignItems: 'center' },
+        ]}
+      >
+        <Text
+          style={[
+            isTabletLayout ? styles.tabletWelcomeTitle : styles.mobileWelcomeTitle,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            {
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              textAlign: isTabletLayout ? (isRTL ? 'right' : 'left') : 'center',
+            },
+          ]}
+        >
+          {strings.welcomeTitle}
+        </Text>
+        <Text
+          style={[
+            isTabletLayout ? styles.tabletWelcomeSub : styles.mobileWelcomeSub,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            {
+              color: isDark ? '#94A3B8' : '#64748B',
+              textAlign: isTabletLayout ? (isRTL ? 'right' : 'left') : 'center',
+            },
+          ]}
+        >
+          {strings.welcomeSub}
+        </Text>
+      </View>
+
+      {/* Input 1: Username / Email */}
+      <View
+        style={[
+          styles.pillInputWrapper,
+          {
+            backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+            borderColor: isDark ? '#334155' : '#E2E8F0',
+            flexDirection: 'row',
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.inputIconCircle,
+            { backgroundColor: isDark ? '#1E293B' : '#EEF2F6' },
+          ]}
+        >
+          <Ionicons name="person" size={17} color={isDark ? '#94A3B8' : '#64748B'} />
+        </View>
+
+        <TextInput
+          style={[
+            styles.pillTextInput,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            {
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              textAlign: isRTL ? 'right' : 'left',
+            },
+          ]}
+          placeholder={strings.usernamePlaceholder}
+          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+        />
+      </View>
+
+      {/* Input 2: Password */}
+      <View
+        style={[
+          styles.pillInputWrapper,
+          {
+            backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+            borderColor: isDark ? '#334155' : '#E2E8F0',
+            flexDirection: 'row',
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.inputIconCircle,
+            { backgroundColor: isDark ? '#1E293B' : '#EEF2F6' },
+          ]}
+        >
+          <Ionicons name="lock-closed" size={17} color={isDark ? '#94A3B8' : '#64748B'} />
+        </View>
+
+        <TextInput
+          style={[
+            styles.pillTextInput,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            {
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              textAlign: isRTL ? 'right' : 'left',
+            },
+          ]}
+          placeholder={strings.passwordPlaceholder}
+          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        {/* Eye icon to toggle password visibility */}
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          activeOpacity={0.7}
+          style={styles.eyeToggleBtn}
+        >
+          <Ionicons
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color={isDark ? '#94A3B8' : '#64748B'}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Forgot Password Row */}
+      <TouchableOpacity
+        onPress={() => router.push('/(onboarding)/forgot-password' as never)}
+        activeOpacity={0.7}
+        style={[styles.forgotPasswordRow, { alignSelf: isRTL ? 'flex-start' : 'flex-end' }]}
+      >
+        <Text
+          style={[
+            styles.forgotPasswordText,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            { color: isDark ? '#94A3B8' : '#64748B' },
+          ]}
+        >
+          {strings.forgotPassword}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Error Banner */}
+      {authError && <AuthErrorBanner message={authError} style={{ marginVertical: 8 }} />}
+
+      {/* Gold Login Button */}
+      <TouchableOpacity
+        onPress={handleEmailSignIn}
+        activeOpacity={0.88}
+        disabled={isLoading}
+        style={[styles.goldLoginBtn, { height: isTabletLayout ? 60 : 54 }]}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#0F172A" size="small" />
+        ) : (
+          <View style={styles.buttonContentRow}>
+            <Ionicons
+              name={isRTL ? "log-in-outline" : "log-in-outline"}
+              size={22}
+              color="#0F172A"
+              style={{ marginHorizontal: 8 }}
+            />
+            <Text
+              style={[
+                styles.goldLoginText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {strings.loginBtn}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Divider */}
+      {Platform.OS !== 'android' && (
+        <>
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+            <Text
+              style={[
+                styles.dividerText,
+                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                { color: isDark ? '#64748B' : '#94A3B8' },
+              ]}
+            >
+              {strings.or}
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+          </View>
+
+          {/* Social Logins */}
+          <View style={styles.socialBtnsWrapper}>
+            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
+            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+          </View>
+        </>
+      )}
+
+      {/* Don't have an account -> Sign up link */}
+      <TouchableOpacity
+        onPress={() => router.push('/(onboarding)/signup' as never)}
+        activeOpacity={0.7}
+        style={styles.signUpRow}
+      >
+        <Text
+          style={[
+            styles.signUpPrompt,
+            curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+            { color: isDark ? '#94A3B8' : '#64748B' },
+          ]}
+        >
+          {strings.noAccount}{' '}
+          <Text
+            style={[
+              styles.signUpLinkText,
+              curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: '#F8C61E' },
+            ]}
+          >
+            {strings.signUpLink}
+          </Text>
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Close dropdown when background is pressed
+  const handleDismissDropdown = () => {
+    if (isLangDropdownOpen) {
+      setIsLangDropdownOpen(false);
+    }
+  };
+
+  // ==========================================
+  // Layout for iPad & Large Tablets
+  // ==========================================
+  if (isLargeScreen) {
+    return (
+      <TouchableWithoutFeedback onPress={handleDismissDropdown}>
+        <View style={[styles.screen, { backgroundColor: isDark ? '#0B1120' : '#F8FAFC' }]}>
+          <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+          <SafeAreaView style={styles.tabletCenterWrapper}>
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 18, stiffness: 100 }}
+              style={[
+                styles.tabletMasterCard,
+                {
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                  maxWidth: isTabletLandscape ? 1220 : 960,
+                  padding: isTabletLandscape ? 36 : 28,
+                  // Kurdish (RTL): Illustration on LEFT, Form on RIGHT
+                  // English (LTR): Form on LEFT, Illustration on RIGHT (per user request)
+                  flexDirection: isRTL ? 'row' : 'row-reverse',
+                },
+              ]}
+            >
+              {/* Child 0: Illustration Box (ALWAYS on the LEFT side) */}
+              <View
+                style={[
+                  styles.tabletIllustrationBox,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                    borderColor: isDark ? '#1E293B' : '#F1F5F9',
+                    minHeight: isTabletLandscape ? 580 : 500,
+                    padding: isTabletLandscape ? 32 : 24,
+                    borderRadius: 30,
+                  },
+                ]}
+              >
+                <SvgXml xml={TABLET_LOGIN_BRO_SVG} width={tabletSvgSize} height={tabletSvgSize} />
+
+                <View style={styles.tabletIllustrationTextWrap}>
+                  <Text
+                    style={[
+                      styles.tabletIllustrationTitle,
+                      curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    ]}
+                  >
+                    {strings.illustrationTitle}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.tabletIllustrationSub,
+                      curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                      { color: isDark ? '#94A3B8' : '#64748B' },
+                    ]}
+                  >
+                    {strings.illustrationSub}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Child 1: Content & Login Form (ALWAYS on the RIGHT side) */}
+              <View
+                style={[
+                  styles.tabletContentBox,
+                  {
+                    paddingHorizontal: isTabletLandscape ? 44 : 32,
+                    paddingVertical: 12,
+                  },
+                ]}
+              >
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+                >
+                  {/* Top Controls Row */}
+                  <View style={{ marginBottom: 12, zIndex: 100 }}>
+                    {renderTopControls()}
+                  </View>
+
+                  {/* Form Fields */}
+                  {renderFormFields(true)}
+                </ScrollView>
+              </View>
+            </MotiView>
+          </SafeAreaView>
+        </View>
+      </TouchableWithoutFeedback>
+    );
+  }
+
+  // ==========================================
+  // Layout for Mobile Phones (Reference Image Style)
+  // ==========================================
+  return (
+    <TouchableWithoutFeedback onPress={handleDismissDropdown}>
+      <View style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <SafeAreaView style={styles.mobileSafeContainer}>
+          {/* Top Action Bar */}
+          <View style={[styles.mobileTopBar, { zIndex: 100 }]}>
+            {renderTopControls()}
+          </View>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1 }}
+          >
+            <ScrollView
+              contentContainerStyle={[
+                styles.mobileScrollContent,
+                { paddingBottom: Math.max(insets.bottom, 28) },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Mobile Master Card Container */}
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 450 }}
+                style={[
+                  styles.mobileCardContainer,
+                  {
+                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                  },
+                ]}
+              >
+                {/* Inner Illustration Box */}
+                <View
+                  style={[
+                    styles.mobileIllustrationCard,
+                    {
+                      backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                      borderColor: isDark ? '#1E293B' : '#F1F5F9',
+                    },
+                  ]}
+                >
+                  <SvgXml xml={TABLET_LOGIN_BRO_SVG} width={phoneSvgSize} height={phoneSvgSize} />
+
+                  <Text
+                    style={[
+                      styles.mobileIllustrationTitle,
+                      curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    ]}
+                  >
+                    {strings.illustrationTitle}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.mobileIllustrationSub,
+                      curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                      { color: isDark ? '#94A3B8' : '#64748B' },
+                    ]}
+                  >
+                    {strings.mobileSub}
+                  </Text>
                 </View>
 
-                <GoogleSignInButton onPress={handleGoogle} loading={isLoading} />
-                <AppleSignInButton onPress={handleApple} loading={isLoading} />
-              </>
-            )}
-
-            <TouchableOpacity onPress={() => router.push('/(onboarding)/signup' as never)} style={styles.signUpRow}>
-              <Text style={[styles.linkText, { color: colors.gray600 }]}>
-                {t('login.noAccount')}{' '}
-                <Text style={[styles.linkTextBold, { color: colors.primary }]}>{t('login.signUpLink')}</Text>
-              </Text>
-            </TouchableOpacity>
-          </MotiView>
-
-          <SupportFooter />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+                {/* Form Section */}
+                {renderFormFields(false)}
+              </MotiView>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -209,72 +694,317 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  flex: { flex: 1 },
-  header: {
+
+  // --- Top Controls (Language, Theme, Dev) ---
+  topControlsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 24,
-    paddingHorizontal: 28,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
-  },
-  logo: {
-    marginBottom: 14,
-  },
-  headline: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.white,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.78)',
-    textAlign: 'center',
-    lineHeight: 21,
-    paddingHorizontal: 8,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingTop: 28,
-    paddingHorizontal: 24,
-  },
-  buttonGroup: {
+    justifyContent: 'space-between',
     width: '100%',
-    gap: 14,
+    paddingVertical: 4,
+    zIndex: 100,
   },
-  errorBanner: {
-    marginBottom: 0,
+  controlsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginStart: 'auto',
+    zIndex: 100,
   },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-    marginBottom: 4,
+  devBypassBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
   },
-  linkText: {
+  devBypassText: {
     fontSize: 13,
-    fontWeight: '500',
+    color: '#D4AF37',
+    fontWeight: 'bold',
   },
-  linkTextBold: {
-    fontWeight: '700',
+
+  // --- Flag Dropdown Picker ---
+  langPickerContainer: {
+    position: 'relative',
+    zIndex: 200,
+  },
+  languageFlagBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    minWidth: 58,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  langDropdownMenu: {
+    position: 'absolute',
+    right: '100%',
+    marginRight: 8,
+    top: -3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 5,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 9999,
+  },
+  langOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  activeCheckDot: {
+    position: 'absolute',
+    bottom: 3,
+    right: 3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F8C61E',
+  },
+
+  themeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  // --- Form & Input Styles ---
+  formContainer: {
+    width: '100%',
+  },
+  welcomeBox: {
+    marginBottom: 20,
+  },
+  mobileWelcomeTitle: {
+    fontSize: 24,
+    lineHeight: 36,
+    fontWeight: 'bold',
+  },
+  mobileWelcomeSub: {
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  tabletWelcomeTitle: {
+    fontSize: 30,
+    lineHeight: 44,
+    fontWeight: 'bold',
+  },
+  tabletWelcomeSub: {
+    fontSize: 16,
+    lineHeight: 26,
+    marginTop: 4,
+  },
+  pillInputWrapper: {
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  inputIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillTextInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+    paddingHorizontal: 12,
+  },
+  eyeToggleBtn: {
+    padding: 8,
+  },
+  forgotPasswordRow: {
+    marginTop: -2,
+    marginBottom: 18,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+  },
+  goldLoginBtn: {
+    width: '100%',
+    backgroundColor: '#F8C61E',
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F8C61E',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  buttonContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goldLoginText: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#0F172A',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
-    gap: 10,
+    marginVertical: 18,
+    gap: 12,
   },
   dividerLine: {
     flex: 1,
     height: 1,
   },
   dividerText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+  },
+  socialBtnsWrapper: {
+    gap: 10,
+    marginBottom: 14,
   },
   signUpRow: {
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 6,
+  },
+  signUpPrompt: {
+    fontSize: 14,
+  },
+  signUpLinkText: {
+    fontWeight: 'bold',
+  },
+
+  // --- Tablet / Large Screen Layout Styles ---
+  tabletCenterWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  tabletMasterCard: {
+    width: '100%',
+    borderRadius: 36,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 10,
+  },
+  tabletIllustrationBox: {
+    flex: 1.1,
+    width: '100%',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabletIllustrationTextWrap: {
+    alignItems: 'center',
+    marginTop: 18,
+    paddingHorizontal: 16,
+  },
+  tabletIllustrationTitle: {
+    fontSize: 21,
+    lineHeight: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  tabletIllustrationSub: {
+    fontSize: 14,
+    lineHeight: 24,
+    textAlign: 'center',
     marginTop: 6,
+  },
+  tabletContentBox: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+
+  // --- Mobile Phone Layout Styles ---
+  mobileSafeContainer: {
+    flex: 1,
+  },
+  mobileTopBar: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  mobileScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  mobileCardContainer: {
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  mobileIllustrationCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  mobileIllustrationTitle: {
+    fontSize: 17,
+    lineHeight: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  mobileIllustrationSub: {
+    fontSize: 12.5,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 8,
   },
 });

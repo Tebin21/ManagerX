@@ -5,6 +5,8 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useHasHydrated } from '@/lib/useHasHydrated';
 
+import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
+
 export default function OnboardingLayout() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -17,12 +19,10 @@ export default function OnboardingLayout() {
 
   // Mirrors (app)/_layout.tsx's guard in the opposite direction: self-heals if a
   // valid session/setup state becomes available while sitting on any onboarding
-  // screen, so a transient mis-route during store rehydration can't turn into a
-  // permanent stuck-on-login state. Suppressed while pendingCloudConflict is set —
-  // a freshly signed-in account can leave `user` truthy and this device's *old*
-  // account's isSetupComplete still true at the same time, which would otherwise
-  // force this effect to redirect straight past the required conflict screen.
+  // screen. When DEV_FORCE_ONBOARDING_PREVIEW is true, bouncing is suspended so
+  // developers can view and test onboarding freely.
   useEffect(() => {
+    if (DEV_FORCE_ONBOARDING_PREVIEW) return;
     if (!authHydrated || !onboardingHydrated || !businessHydrated) return;
     if (pendingCloudConflict) return;
     if (hasCompletedOnboarding && user && isSetupComplete) {

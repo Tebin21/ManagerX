@@ -139,7 +139,7 @@ export default function SalesHistoryScreen() {
         onBack={() => router.back()}
         rightAction={
           <HeaderActionButton
-            icon="funnel-outline"
+            icon="options-outline"
             onPress={() => setPeriodSheetVisible(true)}
           />
         }

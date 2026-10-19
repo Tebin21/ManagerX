@@ -13,8 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { fmtExchangeRate, fmtIQD, fmtUSD } from '@/utils/formatters';
-import { IraqiDinarGraphic, USDollarGraphic } from './CurrencyLargeToggleSwitch';
 import { hexToRgba } from '@/lib/colorUtils';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -44,6 +45,7 @@ export function CurrencySwitchConfirmModal({
       transparent
       animationType="fade"
       onRequestClose={onCancel}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <View style={styles.overlay}>
         <View
@@ -97,7 +99,19 @@ export function CurrencySwitchConfirmModal({
               ]}
             >
               <View style={styles.flowItem}>
-                {isUSD ? <IraqiDinarGraphic size={34} /> : <USDollarGraphic size={34} />}
+                <View
+                  style={[
+                    styles.currencyPill,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                      borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#CBD5E1',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.currencyPillText, { color: colors.black }]}>
+                    {isUSD ? 'دینار' : 'دۆلار'}
+                  </Text>
+                </View>
                 <Text style={[styles.flowLabel, { color: colors.gray400 }]}>
                   {isUSD ? 'دیناری عێراقی' : 'دۆلاری ئەمریکی'}
                 </Text>
@@ -112,7 +126,19 @@ export function CurrencySwitchConfirmModal({
               </View>
 
               <View style={styles.flowItem}>
-                {isUSD ? <USDollarGraphic size={34} /> : <IraqiDinarGraphic size={34} />}
+                <View
+                  style={[
+                    styles.currencyPill,
+                    {
+                      backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.14),
+                      borderColor: colors.primary,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.currencyPillText, { color: colors.primary, fontWeight: '700' }]}>
+                    {isUSD ? 'دۆلار' : 'دینار'}
+                  </Text>
+                </View>
                 <Text style={[styles.flowLabel, { color: '#D4AF37', fontWeight: '700' }]}>
                   {isUSD ? 'دۆلاری ئەمریکی ($)' : 'دیناری عێراقی (د.ع)'}
                 </Text>
@@ -294,6 +320,21 @@ const styles = StyleSheet.create({
   flowItem: {
     alignItems: 'center',
     gap: 4,
+  },
+  currencyPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  currencyPillText: {
+    fontSize: 16,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    letterSpacing: 0.2,
   },
   flowLabel: {
     fontSize: 11,

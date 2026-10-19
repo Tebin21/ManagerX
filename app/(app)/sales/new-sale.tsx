@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
+  ScrollView,
   FlatList,
   TouchableOpacity,
   Keyboard,
@@ -8,12 +9,16 @@ import {
   Platform,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { InventoryProduct } from '@/types/inventory';
 import { MotiView } from 'moti';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -53,9 +58,9 @@ import { fmtUSD, fmtIQD } from '@/utils/formatters';
 import { roundUSD, roundToNearest250 } from '@/utils/rounding';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
+import { DIRECT_CUSTOMER_NAME, isDirectCustomerName } from '@/lib/sqlite';
 
 type Step = 1 | 2 | 3;
-
 
 export default function NewSaleScreen() {
   const router = useRouter();
@@ -71,7 +76,14 @@ export default function NewSaleScreen() {
   const { getCustomerById } = useCustomerStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const salesProductGridLayout = useSettingsStore((s) => s.salesProductGridLayout);
+  const setSalesProductGridLayout = useSettingsStore((s) => s.setSalesProductGridLayout);
   const isUSD = baseCurrency === 'USD';
+
+  const isGridView = salesProductGridLayout;
+  const numColumns = isGridView
+    ? (isTabletLandscape ? 4 : isTablet ? 3 : 2)
+    : 1;
 
   const { customerId } = useLocalSearchParams<{ customerId?: string }>();
 
@@ -88,6 +100,22 @@ export default function NewSaleScreen() {
 
   // Derived
   const visibleProducts = inventory.searchProducts(query, selectedCategory);
+  type ProductItem = (typeof visibleProducts)[number];
+  type ProductOrFiller = ProductItem | { id: string; isFiller: true };
+
+  const gridFormattedProducts: ProductOrFiller[] = useMemo(() => {
+    if (!isGridView || numColumns <= 1 || visibleProducts.length === 0) {
+      return visibleProducts;
+    }
+    const remainder = visibleProducts.length % numColumns;
+    if (remainder === 0) return visibleProducts;
+    const needed = numColumns - remainder;
+    const fillers: ProductOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__grid_filler_${i}`,
+      isFiller: true,
+    }));
+    return [...visibleProducts, ...fillers];
+  }, [visibleProducts, isGridView, numColumns]);
   const itemCount = cart.items.length;
   const subtotal = cart.subtotal();
   const discountTotal = cart.discountTotal();
@@ -118,6 +146,15 @@ export default function NewSaleScreen() {
 
   function getCartQty(productId: number): number {
     return cart.items.find((i) => i.product.id === productId)?.quantity ?? 0;
+  }
+
+  function handleDecreaseQty(productId: number) {
+    const current = getCartQty(productId);
+    if (current <= 1) {
+      cart.removeItem(productId);
+    } else {
+      cart.updateQuantity(productId, current - 1);
+    }
   }
 
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
@@ -203,14 +240,20 @@ export default function NewSaleScreen() {
       return;
     }
 
+    const isDirectCust = isDirectCustomerName(cart.customerInput.name);
     const nameVal = cart.customerInput.name.trim();
     const phoneVal = cart.customerInput.phone.trim();
     let hasError = false;
-    if (!nameVal) { setNameError(t('customers.nameRequired')); hasError = true; }
-    else setNameError('');
-    if (!phoneVal) { setPhoneError(t('customers.phoneRequired')); hasError = true; }
-    else setPhoneError('');
-    if (hasError) return;
+    if (!isDirectCust) {
+      if (!nameVal) { setNameError(t('customers.nameRequired')); hasError = true; }
+      else setNameError('');
+      if (!phoneVal) { setPhoneError(t('customers.phoneRequired')); hasError = true; }
+      else setPhoneError('');
+      if (hasError) return;
+    } else {
+      setNameError('');
+      setPhoneError('');
+    }
 
     setIsSubmitting(true);
     try {
@@ -243,11 +286,11 @@ export default function NewSaleScreen() {
           receiptCurrency
         );
         cart.clearCart();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
       } else if (checkoutMode === 'normal') {
         cart.clearCart();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
       } else {
         cart.clearCart();
@@ -284,21 +327,46 @@ export default function NewSaleScreen() {
       <AppHeader
         title={t('sales.newSale')}
         rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+            {/* Grid vs List Layout Toggle Button */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setSalesProductGridLayout(!salesProductGridLayout);
+              }}
+              style={[
+                styles.layoutToggleBtn,
+                isTablet && { width: 44, height: 44, borderRadius: 22 },
+              ]}
+              accessibilityLabel={salesProductGridLayout ? 'List View' : 'Grid View'}
+            >
+              <Ionicons
+                name={salesProductGridLayout ? 'list' : 'grid'}
+                size={isTablet ? 22 : 18}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => setScannerOpen(true)}
-              style={styles.headerScanBtn}
+              style={[
+                styles.headerScanBtn,
+                isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+              ]}
               activeOpacity={0.8}
             >
-              <Ionicons name="barcode-outline" size={19} color="#FFFFFF" />
-              <Text style={styles.headerScanBtnText}>
+              <Ionicons name="barcode-outline" size={isTablet ? 22 : 19} color="#FFFFFF" />
+              <Text style={[styles.headerScanBtnText, isTablet && { fontSize: 14 }]}>
                 {isKuLanguage ? 'سکان' : 'Scan'}
               </Text>
             </TouchableOpacity>
 
             {itemCount > 0 && (
               <TouchableOpacity onPress={() => setStep(2)} style={styles.cartBtn}>
-                <Ionicons name="cart" size={22} color="#FFFFFF" />
+                <Ionicons name="cart" size={isTablet ? 24 : 22} color="#FFFFFF" />
                 <View style={styles.cartBadge}>
                   <Text style={styles.cartBadgeText}>{itemCount}</Text>
                 </View>
@@ -369,19 +437,47 @@ export default function NewSaleScreen() {
         />
 
         <FlatList
-          key={`sale-grid-${cardColumns}`}
-          data={visibleProducts}
+          key={`sale-products-${isGridView ? 'grid' : 'list'}-${numColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+          data={gridFormattedProducts}
           keyExtractor={(item) => String(item.id)}
-          numColumns={cardColumns}
-          columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
-          renderItem={({ item }) => (
-            <ProductSearchResult
-              product={item}
-              inCartQty={getCartQty(item.id)}
-              onAdd={() => cart.addItem(item)}
-            />
-          )}
-          contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle]}
+          numColumns={numColumns}
+          columnWrapperStyle={
+            numColumns > 1
+              ? {
+                  gap: isTablet ? 12 : 8,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                }
+              : undefined
+          }
+          renderItem={({ item }) => {
+            if ('isFiller' in item && item.isFiller) {
+              return (
+                <View
+                  style={{
+                    flex: 1,
+                    marginBottom: isTablet ? 12 : 8,
+                    backgroundColor: 'transparent',
+                    borderColor: 'transparent',
+                  }}
+                  pointerEvents="none"
+                />
+              );
+            }
+            const product = item as ProductItem;
+            return (
+              <ProductSearchResult
+                product={product}
+                inCartQty={getCartQty(product.id)}
+                onAdd={() => cart.addItem(product)}
+                onDecrease={() => handleDecreaseQty(product.id)}
+                layout={isGridView ? 'grid' : 'list'}
+              />
+            );
+          }}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: isTablet ? 120 : 90 },
+          ]}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => Keyboard.dismiss()}
           ListEmptyComponent={
@@ -425,234 +521,293 @@ export default function NewSaleScreen() {
 
       {hasWarning && <LossWarningBanner />}
 
-      <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
-        {cart.items.length === 0 ? (
+      {cart.items.length === 0 ? (
+        <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: colors.gray500, textAlign }]}>{t('sales.cartEmpty')}</Text>
             <PrimaryButton label={t('sales.step1')} onPress={() => setStep(1)} />
           </View>
-        ) : isTabletLandscape ? (
-          <View style={{ flexDirection, gap: 20, alignItems: 'flex-start', width: '100%' }}>
-            {/* Left/Main Column: Items */}
-            <View style={{ flex: 1.3 }}>
-              {/* Quick Actions: Scan More / Add Items */}
-              <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginBottom: 14 }]}>
-                <TouchableOpacity
-                  style={[
-                    styles.step2ScanBtn,
-                    { backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 18 },
-                  ]}
-                  onPress={() => setScannerOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="barcode-outline" size={26} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={[styles.step2ScanBtnText, { fontSize: 17 }]}>
-                    {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
-                  </Text>
-                </TouchableOpacity>
+        </KeyboardAwareScrollView>
+      ) : isTabletLandscape ? (
+        <View style={[styles.flex, isTablet && contentContainerStyle, styles.step2LandscapeContainer]}>
+          <View style={[styles.step2LandscapeRow, { flexDirection }]}>
+            {/* Items Column (Right in Kurdish RTL): SCROLLABLE */}
+            <View style={styles.step2ItemsCol}>
+              <KeyboardAwareScrollView
+                style={styles.flex}
+                contentContainerStyle={{ paddingBottom: 60 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Quick Actions: Scan More / Add Items */}
+                <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10, marginBottom: 12 }]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.step2ScanBtn,
+                      {
+                        backgroundColor: colors.primary,
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                      styles.step2BtnTablet,
+                    ]}
+                    onPress={() => setScannerOpen(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
+                    <Text
+                      style={[
+                        styles.step2ScanBtnText,
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        isTablet && { fontSize: 16 },
+                      ]}
+                    >
+                      {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+                    </Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.step2AddBtn,
-                    { borderColor: colors.primary, backgroundColor: colors.primary + '14', paddingVertical: 18, borderRadius: 18 },
-                  ]}
-                  onPress={() => setStep(1)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="add-circle-outline" size={26} color={colors.primary} style={{ marginRight: 8 }} />
-                  <Text style={[styles.step2AddBtnText, { color: colors.primary, fontSize: 17 }]}>
-                    {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.step2AddBtn,
+                      {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.primary + '14',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                      styles.step2BtnTablet,
+                    ]}
+                    onPress={() => setStep(1)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.step2AddBtnText,
+                        { color: colors.primary },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        isTablet && { fontSize: 16 },
+                      ]}
+                    >
+                      {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-              {cart.items.map((item) => (
-                <CartItemRow
-                  key={item.product.id}
-                  item={item}
-                  onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
-                  onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
-                  onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
-                  onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
-                  onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
-                  onRemove={() => cart.removeItem(item.product.id)}
-                />
-              ))}
+                {cart.items.map((item) => (
+                  <CartItemRow
+                    key={item.product.id}
+                    item={item}
+                    onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+                    onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+                    onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+                    onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+                    onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                    onRemove={() => cart.removeItem(item.product.id)}
+                  />
+                ))}
+              </KeyboardAwareScrollView>
             </View>
 
-            {/* Right Column: Discounts & Summary */}
-            <View style={{ flex: 0.9, gap: 14 }}>
-              <GlobalDiscountBar
-                type={cart.globalDiscountType}
-                value={cart.globalDiscountValue}
-                discountAmount={globalDiscountAmount}
-                subtotal={subtotal}
-                onTypeChange={(type) => cart.setGlobalDiscountType(type)}
-                onValueChange={(val) => cart.setGlobalDiscountValue(val)}
-              />
+            {/* Left Column in RTL (Discounts, Summary, Direct Sale, Continue Button): FIXED IN PLACE */}
+            <View style={styles.step2FixedSideCol}>
+              <ScrollView
+                style={styles.flex}
+                contentContainerStyle={{ gap: 14, paddingBottom: 30 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+              >
+                <GlobalDiscountBar
+                  type={cart.globalDiscountType}
+                  value={cart.globalDiscountValue}
+                  discountAmount={globalDiscountAmount}
+                  subtotal={subtotal}
+                  onTypeChange={(type) => cart.setGlobalDiscountType(type)}
+                  onValueChange={(val) => cart.setGlobalDiscountValue(val)}
+                />
 
-              <PremiumCard style={styles.summaryCard}>
-                <Text style={[styles.summaryTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.orderSummary')}</Text>
-                <View style={[styles.summaryRow, { flexDirection }]}>
-                  <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.subtotal')}</Text>
-                  <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                    <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
-                    {isUSD ? (
-                      <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
-                        {fmtIQD(subtotal)} IQD
-                      </Text>
-                    ) : (
-                      <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
-                        {fmtUSD(subtotalUsd)} USD
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                {discountTotal > 0 && (
+                <PremiumCard style={styles.summaryCard}>
+                  <Text style={[styles.summaryTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.orderSummary')}</Text>
                   <View style={[styles.summaryRow, { flexDirection }]}>
-                    <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.totalDiscount')}</Text>
-                    <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                    <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.subtotal')}</Text>
+                    <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                      <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                      {isUSD ? (
+                        <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                          {fmtIQD(subtotal)} IQD
+                        </Text>
+                      ) : (
+                        <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                          {fmtUSD(subtotalUsd)} USD
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                )}
-                {globalDiscountAmount > 0 && (
-                  <View style={[styles.summaryRow, { flexDirection }]}>
-                    <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.globalDiscount')}</Text>
-                    <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                  {discountTotal > 0 && (
+                    <View style={[styles.summaryRow, { flexDirection }]}>
+                      <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.totalDiscount')}</Text>
+                      <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                    </View>
+                  )}
+                  {globalDiscountAmount > 0 && (
+                    <View style={[styles.summaryRow, { flexDirection }]}>
+                      <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign, fontSize: 15 }]}>{t('sales.globalDiscount')}</Text>
+                      <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right', fontSize: 18 }]} />
+                    </View>
+                  )}
+                  <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100, paddingTop: 14, marginTop: 8 }]}>
+                    <Text style={[styles.grandLabel, { color: colors.primary, textAlign, fontSize: 20 }]}>{t('sales.grandTotal')}</Text>
+                    <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                      <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 26 }]} />
+                      {isUSD ? (
+                        <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
+                          {fmtIQD(grandTotal)} IQD
+                        </Text>
+                      ) : (
+                        <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
+                          {fmtUSD(grandTotalUsd)} USD
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                )}
-                <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100, paddingTop: 14, marginTop: 8 }]}>
-                  <Text style={[styles.grandLabel, { color: colors.primary, textAlign, fontSize: 20 }]}>{t('sales.grandTotal')}</Text>
-                  <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                    <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 26 }]} />
-                    {isUSD ? (
-                      <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
-                        {fmtIQD(grandTotal)} IQD
-                      </Text>
-                    ) : (
-                      <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right', fontSize: 14 }]}>
-                        {fmtUSD(grandTotalUsd)} USD
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </PremiumCard>
+                </PremiumCard>
 
-              <PrimaryButton
-                label={t('common.continue')}
-                onPress={() => setStep(3)}
-              />
+                <PrimaryButton
+                  label={t('common.continue')}
+                  onPress={() => setStep(3)}
+                />
+              </ScrollView>
             </View>
           </View>
-        ) : (
-          <>
-            {/* Quick Actions: Scan More / Add Items */}
-            <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <TouchableOpacity
+        </View>
+      ) : (
+        <KeyboardAwareScrollView contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}>
+          {/* Quick Actions: Scan More / Add Items */}
+          <View style={[styles.step2ActionRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10 }]}>
+            <TouchableOpacity
+              style={[
+                styles.step2ScanBtn,
+                {
+                  backgroundColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && styles.step2BtnTablet,
+              ]}
+              onPress={() => setScannerOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
+              <Text
                 style={[
-                  styles.step2ScanBtn,
-                  { backgroundColor: colors.primary },
-                  isTablet && { paddingVertical: 16, borderRadius: 16 },
+                  styles.step2ScanBtnText,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  isTablet && { fontSize: 16 },
                 ]}
-                onPress={() => setScannerOpen(true)}
-                activeOpacity={0.8}
               >
-                <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={[styles.step2ScanBtnText, isTablet && { fontSize: 16 }]}>
-                  {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
-                </Text>
-              </TouchableOpacity>
+                {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
+            <TouchableOpacity
+              style={[
+                styles.step2AddBtn,
+                {
+                  borderColor: colors.primary,
+                  backgroundColor: colors.primary + '14',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && styles.step2BtnTablet,
+              ]}
+              onPress={() => setStep(1)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} />
+              <Text
                 style={[
-                  styles.step2AddBtn,
-                  { borderColor: colors.primary, backgroundColor: colors.primary + '14' },
-                  isTablet && { paddingVertical: 16, borderRadius: 16 },
+                  styles.step2AddBtnText,
+                  { color: colors.primary },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  isTablet && { fontSize: 16 },
                 ]}
-                onPress={() => setStep(1)}
-                activeOpacity={0.8}
               >
-                <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} style={{ marginRight: 6 }} />
-                <Text style={[styles.step2AddBtnText, { color: colors.primary }, isTablet && { fontSize: 16 }]}>
-                  {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
-                </Text>
-              </TouchableOpacity>
+                {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {cart.items.map((item) => (
+            <CartItemRow
+              key={item.product.id}
+              item={item}
+              onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+              onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+              onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+              onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+              onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+              onRemove={() => cart.removeItem(item.product.id)}
+            />
+          ))}
+
+          <GlobalDiscountBar
+            type={cart.globalDiscountType}
+            value={cart.globalDiscountValue}
+            discountAmount={globalDiscountAmount}
+            subtotal={subtotal}
+            onTypeChange={(type) => cart.setGlobalDiscountType(type)}
+            onValueChange={(val) => cart.setGlobalDiscountValue(val)}
+          />
+
+          <PremiumCard style={styles.summaryCard}>
+            <Text style={[styles.summaryTitle, { color: colors.black, textAlign }]}>{t('sales.orderSummary')}</Text>
+            <View style={[styles.summaryRow, { flexDirection }]}>
+              <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.subtotal')}</Text>
+              <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]} />
+                {isUSD ? (
+                  <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                    {fmtIQD(subtotal)} IQD
+                  </Text>
+                ) : (
+                  <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
+                    {fmtUSD(subtotalUsd)} USD
+                  </Text>
+                )}
+              </View>
             </View>
-
-            {cart.items.map((item) => (
-              <CartItemRow
-                key={item.product.id}
-                item={item}
-                onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
-                onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
-                onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
-                onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
-                onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
-                onRemove={() => cart.removeItem(item.product.id)}
-              />
-            ))}
-
-            <GlobalDiscountBar
-              type={cart.globalDiscountType}
-              value={cart.globalDiscountValue}
-              discountAmount={globalDiscountAmount}
-              subtotal={subtotal}
-              onTypeChange={(type) => cart.setGlobalDiscountType(type)}
-              onValueChange={(val) => cart.setGlobalDiscountValue(val)}
-            />
-
-            <PremiumCard style={styles.summaryCard}>
-              <Text style={[styles.summaryTitle, { color: colors.black, textAlign }]}>{t('sales.orderSummary')}</Text>
+            {discountTotal > 0 && (
               <View style={[styles.summaryRow, { flexDirection }]}>
-                <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.subtotal')}</Text>
-                <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                  <AmountText value={subtotal} style={[styles.summaryValue, { color: colors.black, textAlign: isRTL ? 'left' : 'right' }]} />
-                  {isUSD ? (
-                    <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
-                      {fmtIQD(subtotal)} IQD
-                    </Text>
-                  ) : (
-                    <Text style={[styles.summaryValueSub, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>
-                      {fmtUSD(subtotalUsd)} USD
-                    </Text>
-                  )}
-                </View>
+                <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.totalDiscount')}</Text>
+                <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
               </View>
-              {discountTotal > 0 && (
-                <View style={[styles.summaryRow, { flexDirection }]}>
-                  <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.totalDiscount')}</Text>
-                  <AmountText value={discountTotal} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
-                </View>
-              )}
-              {globalDiscountAmount > 0 && (
-                <View style={[styles.summaryRow, { flexDirection }]}>
-                  <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.globalDiscount')}</Text>
-                  <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
-                </View>
-              )}
-              <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100 }]}>
-                <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
-                <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
-                  <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
-                  {isUSD ? (
-                    <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
-                      {fmtIQD(grandTotal)} IQD
-                    </Text>
-                  ) : (
-                    <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
-                      {fmtUSD(grandTotalUsd)} USD
-                    </Text>
-                  )}
-                </View>
+            )}
+            {globalDiscountAmount > 0 && (
+              <View style={[styles.summaryRow, { flexDirection }]}>
+                <Text style={[styles.summaryLabel, { color: colors.gray500, textAlign }]}>{t('sales.globalDiscount')}</Text>
+                <AmountText value={globalDiscountAmount} prefix="−" style={[styles.summaryValue, { color: colors.success, textAlign: isRTL ? 'left' : 'right' }]} />
               </View>
-            </PremiumCard>
+            )}
+            <View style={[styles.summaryRow, styles.summaryGrand, { flexDirection, borderTopColor: colors.gray100 }]}>
+              <Text style={[styles.grandLabel, { color: colors.primary, textAlign }]}>{t('sales.grandTotal')}</Text>
+              <View style={[styles.summaryValueStack, { alignItems: alignEnd }]}>
+                <AmountText value={grandTotal} variant="large" style={[styles.grandValue, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
+                {isUSD ? (
+                  <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
+                    {fmtIQD(grandTotal)} IQD
+                  </Text>
+                ) : (
+                  <Text style={[styles.summaryValueSub, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]}>
+                    {fmtUSD(grandTotalUsd)} USD
+                  </Text>
+                )}
+              </View>
+            </View>
+          </PremiumCard>
 
-            <PrimaryButton
-              label={t('common.continue')}
-              onPress={() => setStep(3)}
-            />
-          </>
-        )}
-      </KeyboardAwareScrollView>
+          <PrimaryButton
+            label={t('common.continue')}
+            onPress={() => setStep(3)}
+          />
+        </KeyboardAwareScrollView>
+      )}
     </KeyboardAvoidingView>
   );
 
@@ -670,268 +825,283 @@ export default function NewSaleScreen() {
         <SaleStepIndicator step={3} />
       </AppHeader>
 
-      <KeyboardAwareScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]}>
-
-        {isTabletLandscape ? (
-          <View style={{ flexDirection, gap: 20, alignItems: 'flex-start', width: '100%' }}>
-            {/* Left Column: Date, Customer, Invoice */}
-            <View style={{ flex: 1, gap: 16 }}>
-              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-                <PremiumCard style={styles.sectionCard}>
-                  <DateTimePicker
-                    value={saleDate}
-                    onChange={setSaleDate}
-                    label={t('sales.saleDate')}
-                    maxDate={new Date()}
-                  />
-                </PremiumCard>
-              </MotiView>
-
-              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
-                <PremiumCard style={styles.sectionCard}>
-                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.customerInfo')}</Text>
-                  <CustomerInputForm
-                    value={cart.customerInput}
-                    onChange={(patch) => {
-                      cart.setCustomerInput(patch);
-                      if (patch.name !== undefined && patch.name.trim()) setNameError('');
-                      if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
-                    }}
-                    customerFound={customerFound}
-                    nameError={nameError}
-                    phoneError={phoneError}
-                  />
-                </PremiumCard>
-              </MotiView>
-
-              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-                <PremiumCard style={styles.sectionCard}>
-                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.invoicePreview')}</Text>
-                  <InvoiceView
-                    sale={{
-                      id: 0,
-                      invoiceNumber: 'Preview',
-                      customerId: null,
-                      customerName: cart.customerInput.name || null,
-                      customerPhone: cart.customerInput.phone || null,
-                      customerAddress: cart.customerInput.address || null,
-                      warranty: cart.customerInput.warranty || null,
-                      notes: cart.saleNotes || null,
-                      paymentMethod: cart.paymentMethod,
-                      subtotal,
-                      discountTotal,
-                      globalDiscountType: cart.globalDiscountType,
-                      globalDiscount: globalDiscountAmount,
-                      grandTotal,
-                      paidAmount: cart.paymentMethod === 'debt'
-                        ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
-                        : grandTotal,
-                      remainingDebt,
-                      status: 'completed',
-                      exchangeRateUsed: exchangeRate,
-                      date: saleDate.toISOString(),
-                      createdAt: saleDate.toISOString(),
-                      updatedAt: saleDate.toISOString(),
-                      items: cart.items.map((ci, i) => ({
-                        id: i,
-                        saleId: 0,
-                        productId: ci.product.id,
-                        productName: ci.product.name,
-                        itemId: ci.product.itemId,
-                        idMode: ci.product.idMode,
-                        purchasePrice: ci.product.purchasePrice,
-                        sellingPrice: ci.sellingPrice,
-                        quantity: ci.quantity,
-                        discount: ci.discount,
-                        lineTotal: ci.lineTotal,
-                      })),
-                    }}
-                    compact={true}
-                  />
-                </PremiumCard>
-              </MotiView>
-            </View>
-
-            {/* Right Column: Payment, Currency, Actions */}
-            <View style={{ flex: 1, gap: 16 }}>
-              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
-                <PremiumCard style={styles.sectionCard}>
-                  <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.paymentMethod')}</Text>
-                  <PaymentMethodSelector
-                    selected={cart.paymentMethod}
-                    onChange={(m) => cart.setPaymentMethod(m)}
-                  />
-
-                  {cart.paymentMethod === 'debt' && (
-                    <View style={styles.debtSection}>
-                      <AppTextInput
-                        label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
-                        placeholder={isUSD ? '0.00' : '0'}
-                        value={cart.paidAmount}
-                        onChangeText={(t) => cart.setPaidAmount(t)}
-                        keyboardType="decimal-pad"
-                      />
-                      {remainingDebt > 0 && (
-                        <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
-                          <Ionicons name="time-outline" size={16} color={errorTint.text} />
-                          <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </PremiumCard>
-              </MotiView>
-
-              <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-                <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-              </MotiView>
-
-              <CheckoutActionGrid
-                mode={checkoutMode}
-                onSelectMode={setCheckoutMode}
-                type="sale"
-              />
-
-              <PrimaryButton
-                label={
-                  checkoutMode === 'print'
-                    ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                    : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-                }
-                onPress={handleCompleteSale}
-                loading={isSubmitting}
-              />
-            </View>
-          </View>
-        ) : (
-          <>
-            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-              <PremiumCard style={styles.sectionCard}>
-                <DateTimePicker
-                  value={saleDate}
-                  onChange={setSaleDate}
-                  label={t('sales.saleDate')}
-                  maxDate={new Date()}
-                />
-              </PremiumCard>
-            </MotiView>
-
-            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
-              <PremiumCard style={styles.sectionCard}>
-                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.customerInfo')}</Text>
-                <CustomerInputForm
-                  value={cart.customerInput}
-                  onChange={(patch) => {
-                    cart.setCustomerInput(patch);
-                    if (patch.name !== undefined && patch.name.trim()) setNameError('');
-                    if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
-                  }}
-                  customerFound={customerFound}
-                  nameError={nameError}
-                  phoneError={phoneError}
-                />
-              </PremiumCard>
-            </MotiView>
-
-            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
-              <PremiumCard style={styles.sectionCard}>
-                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
-                <PaymentMethodSelector
-                  selected={cart.paymentMethod}
-                  onChange={(m) => cart.setPaymentMethod(m)}
-                />
-
-                {cart.paymentMethod === 'debt' && (
-                  <View style={styles.debtSection}>
-                    <AppTextInput
-                      label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
-                      placeholder={isUSD ? '0.00' : '0'}
-                      value={cart.paidAmount}
-                      onChangeText={(t) => cart.setPaidAmount(t)}
-                      keyboardType="decimal-pad"
+      {isTabletLandscape ? (
+        <View style={[styles.flex, isTablet && contentContainerStyle, styles.step3LandscapeContainer]}>
+          <View style={[styles.step3LandscapeRow, { flexDirection }]}>
+            {/* Scrollable Column (Right in Kurdish RTL): Date, Customer, Invoice */}
+            <View style={styles.step3ScrollCol}>
+              <KeyboardAwareScrollView
+                style={styles.flex}
+                contentContainerStyle={{ gap: 16, paddingBottom: 60 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+                  <PremiumCard style={styles.sectionCard}>
+                    <DateTimePicker
+                      value={saleDate}
+                      onChange={setSaleDate}
+                      label={t('sales.saleDate')}
+                      maxDate={new Date()}
                     />
-                    {remainingDebt > 0 && (
-                      <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
-                        <Ionicons name="time-outline" size={16} color={errorTint.text} />
-                        <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+                  </PremiumCard>
+                </MotiView>
+
+                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
+                  <PremiumCard style={styles.sectionCard}>
+                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.customerInfo')}</Text>
+                    <CustomerInputForm
+                      value={cart.customerInput}
+                      onChange={(patch) => {
+                        cart.setCustomerInput(patch);
+                        if (patch.name !== undefined && patch.name.trim()) setNameError('');
+                        if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
+                      }}
+                      customerFound={customerFound}
+                      nameError={nameError}
+                      phoneError={phoneError}
+                    />
+                  </PremiumCard>
+                </MotiView>
+
+                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+                  <PremiumCard style={styles.sectionCard}>
+                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.invoicePreview')}</Text>
+                    <InvoiceView
+                      sale={{
+                        id: 0,
+                        invoiceNumber: 'Preview',
+                        customerId: null,
+                        customerName: cart.customerInput.name || null,
+                        customerPhone: cart.customerInput.phone || null,
+                        customerAddress: cart.customerInput.address || null,
+                        warranty: cart.customerInput.warranty || null,
+                        notes: cart.saleNotes || null,
+                        paymentMethod: cart.paymentMethod,
+                        subtotal,
+                        discountTotal,
+                        globalDiscountType: cart.globalDiscountType,
+                        globalDiscount: globalDiscountAmount,
+                        grandTotal,
+                        paidAmount: cart.paymentMethod === 'debt'
+                          ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                          : grandTotal,
+                        remainingDebt,
+                        status: 'completed',
+                        exchangeRateUsed: exchangeRate,
+                        date: saleDate.toISOString(),
+                        createdAt: saleDate.toISOString(),
+                        updatedAt: saleDate.toISOString(),
+                        items: cart.items.map((ci, i) => ({
+                          id: i,
+                          saleId: 0,
+                          productId: ci.product.id,
+                          productName: ci.product.name,
+                          itemId: ci.product.itemId,
+                          idMode: ci.product.idMode,
+                          purchasePrice: ci.product.purchasePrice,
+                          sellingPrice: ci.sellingPrice,
+                          quantity: ci.quantity,
+                          discount: ci.discount,
+                          lineTotal: ci.lineTotal,
+                        })),
+                      }}
+                      compact={true}
+                    />
+                  </PremiumCard>
+                </MotiView>
+              </KeyboardAwareScrollView>
+            </View>
+
+            {/* Fixed Column (Left in Kurdish RTL): Payment Method, Currency, Actions, Submit */}
+            <View style={styles.step3FixedCol}>
+              <ScrollView
+                style={styles.flex}
+                contentContainerStyle={{ gap: 14, paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                overScrollMode="never"
+              >
+                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
+                  <PremiumCard style={styles.sectionCard}>
+                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.paymentMethod')}</Text>
+                    <PaymentMethodSelector
+                      selected={cart.paymentMethod}
+                      onChange={(m) => cart.setPaymentMethod(m)}
+                    />
+
+                    {cart.paymentMethod === 'debt' && (
+                      <View style={styles.debtSection}>
+                        <AppTextInput
+                          label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                          placeholder={isUSD ? '0.00' : '0'}
+                          value={cart.paidAmount}
+                          onChangeText={(t) => cart.setPaidAmount(t)}
+                          keyboardType="decimal-pad"
+                        />
+                        {remainingDebt > 0 && (
+                          <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
+                            <Ionicons name="time-outline" size={16} color={errorTint.text} />
+                            <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+                          </View>
+                        )}
                       </View>
                     )}
-                  </View>
-                )}
-              </PremiumCard>
-            </MotiView>
+                  </PremiumCard>
+                </MotiView>
 
-            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-              <PremiumCard style={styles.sectionCard}>
-                <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.invoicePreview')}</Text>
-                <InvoiceView
-                  sale={{
-                    id: 0,
-                    invoiceNumber: 'Preview',
-                    customerId: null,
-                    customerName: cart.customerInput.name || null,
-                    customerPhone: cart.customerInput.phone || null,
-                    customerAddress: cart.customerInput.address || null,
-                    warranty: cart.customerInput.warranty || null,
-                    notes: cart.saleNotes || null,
-                    paymentMethod: cart.paymentMethod,
-                    subtotal,
-                    discountTotal,
-                    globalDiscountType: cart.globalDiscountType,
-                    globalDiscount: globalDiscountAmount,
-                    grandTotal,
-                    paidAmount: cart.paymentMethod === 'debt'
-                      ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
-                      : grandTotal,
-                    remainingDebt,
-                    status: 'completed',
-                    exchangeRateUsed: exchangeRate,
-                    date: saleDate.toISOString(),
-                    createdAt: saleDate.toISOString(),
-                    updatedAt: saleDate.toISOString(),
-                    items: cart.items.map((ci, i) => ({
-                      id: i,
-                      saleId: 0,
-                      productId: ci.product.id,
-                      productName: ci.product.name,
-                      itemId: ci.product.itemId,
-                      idMode: ci.product.idMode,
-                      purchasePrice: ci.product.purchasePrice,
-                      sellingPrice: ci.sellingPrice,
-                      quantity: ci.quantity,
-                      discount: ci.discount,
-                      lineTotal: ci.lineTotal,
-                    })),
-                  }}
-                  compact={false}
+                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+                  <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+                </MotiView>
+
+                <CheckoutActionGrid
+                  mode={checkoutMode}
+                  onSelectMode={setCheckoutMode}
+                  type="sale"
                 />
-              </PremiumCard>
-            </MotiView>
 
-            <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-              <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-            </MotiView>
+                <PrimaryButton
+                  label={
+                    checkoutMode === 'print'
+                      ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                      : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+                  }
+                  onPress={handleCompleteSale}
+                  loading={isSubmitting}
+                />
+              </ScrollView>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <KeyboardAwareScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]}>
+          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
+            <PremiumCard style={styles.sectionCard}>
+              <DateTimePicker
+                value={saleDate}
+                onChange={setSaleDate}
+                label={t('sales.saleDate')}
+                maxDate={new Date()}
+              />
+            </PremiumCard>
+          </MotiView>
 
-            <CheckoutActionGrid
-              mode={checkoutMode}
-              onSelectMode={setCheckoutMode}
-              type="sale"
-            />
+          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
+            <PremiumCard style={styles.sectionCard}>
+              <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.customerInfo')}</Text>
+              <CustomerInputForm
+                value={cart.customerInput}
+                onChange={(patch) => {
+                  cart.setCustomerInput(patch);
+                  if (patch.name !== undefined && patch.name.trim()) setNameError('');
+                  if (patch.phone !== undefined && patch.phone.trim()) setPhoneError('');
+                }}
+                customerFound={customerFound}
+                nameError={nameError}
+                phoneError={phoneError}
+              />
+            </PremiumCard>
+          </MotiView>
 
-            <PrimaryButton
-              label={
-                checkoutMode === 'print'
-                  ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                  : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-              }
-              onPress={handleCompleteSale}
-              loading={isSubmitting}
-            />
-          </>
-        )}
+          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
+            <PremiumCard style={styles.sectionCard}>
+              <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
+              <PaymentMethodSelector
+                selected={cart.paymentMethod}
+                onChange={(m) => cart.setPaymentMethod(m)}
+              />
 
-        <View style={styles.bottomSpacer} />
-      </KeyboardAwareScrollView>
+              {cart.paymentMethod === 'debt' && (
+                <View style={styles.debtSection}>
+                  <AppTextInput
+                    label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                    placeholder={isUSD ? '0.00' : '0'}
+                    value={cart.paidAmount}
+                    onChangeText={(t) => cart.setPaidAmount(t)}
+                    keyboardType="decimal-pad"
+                  />
+                  {remainingDebt > 0 && (
+                    <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
+                      <Ionicons name="time-outline" size={16} color={errorTint.text} />
+                      <Text style={[styles.debtText, { color: errorTint.text, textAlign }]}>{t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: errorTint.text }]} /></Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </PremiumCard>
+          </MotiView>
+
+          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+            <PremiumCard style={styles.sectionCard}>
+              <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.invoicePreview')}</Text>
+              <InvoiceView
+                sale={{
+                  id: 0,
+                  invoiceNumber: 'Preview',
+                  customerId: null,
+                  customerName: cart.customerInput.name || null,
+                  customerPhone: cart.customerInput.phone || null,
+                  customerAddress: cart.customerInput.address || null,
+                  warranty: cart.customerInput.warranty || null,
+                  notes: cart.saleNotes || null,
+                  paymentMethod: cart.paymentMethod,
+                  subtotal,
+                  discountTotal,
+                  globalDiscountType: cart.globalDiscountType,
+                  globalDiscount: globalDiscountAmount,
+                  grandTotal,
+                  paidAmount: cart.paymentMethod === 'debt'
+                    ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                    : grandTotal,
+                  remainingDebt,
+                  status: 'completed',
+                  exchangeRateUsed: exchangeRate,
+                  date: saleDate.toISOString(),
+                  createdAt: saleDate.toISOString(),
+                  updatedAt: saleDate.toISOString(),
+                  items: cart.items.map((ci, i) => ({
+                    id: i,
+                    saleId: 0,
+                    productId: ci.product.id,
+                    productName: ci.product.name,
+                    itemId: ci.product.itemId,
+                    idMode: ci.product.idMode,
+                    purchasePrice: ci.product.purchasePrice,
+                    sellingPrice: ci.sellingPrice,
+                    quantity: ci.quantity,
+                    discount: ci.discount,
+                    lineTotal: ci.lineTotal,
+                  })),
+                }}
+                compact={false}
+              />
+            </PremiumCard>
+          </MotiView>
+
+          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
+            <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+          </MotiView>
+
+          <CheckoutActionGrid
+            mode={checkoutMode}
+            onSelectMode={setCheckoutMode}
+            type="sale"
+          />
+
+          <PrimaryButton
+            label={
+              checkoutMode === 'print'
+                ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+            }
+            onPress={handleCompleteSale}
+            loading={isSubmitting}
+          />
+
+          <View style={styles.bottomSpacer} />
+        </KeyboardAwareScrollView>
+      )}
     </KeyboardAvoidingView>
   );
 
@@ -960,6 +1130,16 @@ const styles = StyleSheet.create({
   cartBtn:       { position: 'relative' },
   cartBadge:     { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   cartBadgeText: { fontSize: 10, color: '#fff', fontWeight: '700' },
+  layoutToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerScanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1031,18 +1211,20 @@ const styles = StyleSheet.create({
     color: '#725D18',
   },
   step2ActionRow: {
-    flexDirection: 'row',
+    width: '100%',
     alignItems: 'center',
     gap: 10,
     marginBottom: 14,
   },
   step2ScanBtn: {
     flex: 1,
-    height: 46,
+    minHeight: 48,
     borderRadius: 14,
-    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -1051,21 +1233,33 @@ const styles = StyleSheet.create({
   },
   step2ScanBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   step2AddBtn: {
     flex: 1,
-    height: 46,
+    minHeight: 48,
     borderRadius: 14,
     borderWidth: 1.5,
-    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
   step2AddBtnText: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  step2BtnTablet: {
+    minHeight: 52,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: 16,
   },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },
@@ -1090,4 +1284,45 @@ const styles = StyleSheet.create({
   debtAlert:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 10, marginTop: 4 },
   debtText:      { fontSize: 14, fontWeight: '600' },
   bottomSpacer:  { height: 24 },
+
+  step2LandscapeContainer: {
+    flex: 1,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  step2LandscapeRow: {
+    flex: 1,
+    gap: 20,
+    width: '100%',
+  },
+  step2ItemsCol: {
+    flex: 1.3,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  step2FixedSideCol: {
+    flex: 0.9,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  step3LandscapeContainer: {
+    flex: 1,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  step3LandscapeRow: {
+    flex: 1,
+    gap: 20,
+    width: '100%',
+  },
+  step3ScrollCol: {
+    flex: 1.05,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  step3FixedCol: {
+    flex: 0.95,
+    height: '100%',
+    overflow: 'hidden',
+  },
 });

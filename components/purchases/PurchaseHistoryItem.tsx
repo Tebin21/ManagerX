@@ -11,6 +11,8 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { isDirectSupplierName } from '@/lib/sqlite';
+import { useLanguageStore } from '@/store/languageStore';
 import type { Purchase } from '@/types/purchases';
 
 interface Props {
@@ -23,6 +25,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const isPaid = purchase.paymentStatus === 'paid';
   const statusTint = useMemo(
@@ -31,6 +34,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   );
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
 
+  const isDirectSupplier = isDirectSupplierName(purchase.supplierName);
   const headerPad = isTablet ? 18 : (isRTL ? RTL_SPACING.cardPad : 14);
 
   return (
@@ -48,7 +52,32 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
           <View style={styles.headerInfo}>
             <Text style={[styles.productName, { textAlign }]} numberOfLines={1}>{purchase.productName}</Text>
             {purchase.supplierName ? (
-              <Text style={[styles.supplierName, { textAlign, marginTop: isRTL ? RTL_SPACING.title : 1 }]} numberOfLines={1}>{purchase.supplierName}</Text>
+              isDirectSupplier ? (
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: isRTL ? RTL_SPACING.title : 1 }}>
+                  <Ionicons name="flash" size={11} color="#D97706" />
+                  <Text style={[styles.supplierName, { color: isDark ? '#FBBF24' : '#B45309', fontWeight: '700', textAlign }]} numberOfLines={1}>
+                    {isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={[styles.supplierName, { textAlign, marginTop: isRTL ? RTL_SPACING.title : 1 }]} numberOfLines={1}>{purchase.supplierName}</Text>
+              )
+            ) : null}
+            {(purchase.supplierPhone || purchase.supplierAddress) && !isDirectSupplier ? (
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                {Boolean(purchase.supplierPhone) && (
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                    <Ionicons name="call-outline" size={10} color={colors.gray400} />
+                    <Text style={{ fontSize: 11, color: colors.gray400 }}>{purchase.supplierPhone}</Text>
+                  </View>
+                )}
+                {Boolean(purchase.supplierAddress) && (
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3, flexShrink: 1 }}>
+                    <Ionicons name="location-outline" size={10} color={colors.gray400} />
+                    <Text style={{ fontSize: 11, color: colors.gray400 }} numberOfLines={1}>{purchase.supplierAddress}</Text>
+                  </View>
+                )}
+              </View>
             ) : null}
           </View>
         </View>

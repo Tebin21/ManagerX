@@ -21,6 +21,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 let NativeCameraView: any = null;
 let useNativeCameraPermissions: any = null;
@@ -316,6 +317,7 @@ export function BarcodeScannerModal({
       transparent={false}
       statusBarTranslucent
       onRequestClose={handleFinish}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
       <View style={styles.container}>

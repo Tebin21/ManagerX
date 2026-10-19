@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, FlatList, TouchableOpacity, Modal, TextInput,
   StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform,
@@ -22,7 +22,7 @@ import { useReportStore } from '@/store/reportStore';
 import { getStatusTint, getBlueTint } from '@/constants/statusTints';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { Theme } from '@/constants/theme';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
@@ -33,6 +33,7 @@ import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { CapitalView } from '@/components/capital/CapitalView';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -117,151 +118,298 @@ function ExpenseFilterBar({
   filter,
   appliedRange,
   onChange,
+  searchQuery,
+  onSearchChange,
+  isSearchOpen,
+  onToggleSearch,
 }: {
   filter: ExpenseFilterKey;
   appliedRange: { from: string; to: string } | null;
   onChange: (key: ExpenseFilterKey, range?: { from: string; to: string }) => void;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  isSearchOpen: boolean;
+  onToggleSearch: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
-  const scrollIntoView = useKeyboardAwareFocus();
 
   const [customOpen, setCustomOpen] = useState(false);
   const [fromVal, setFromVal]       = useState('');
   const [toVal, setToVal]           = useState('');
+  const searchInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const keys: ExpenseFilterKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
+  const keys: ExpenseFilterKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const labels: Record<ExpenseFilterKey, string> = {
-    all:    isKurdish ? 'هەمووی' : 'All',
     today:  t('common.today'),
     week:   t('common.thisWeek'),
     month:  t('common.thisMonth'),
     year:   t('reports.year'),
+    all:    isKurdish ? 'هەمووی' : 'All',
     custom: t('reports.custom'),
   };
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (isRTL && scrollRef.current) {
+      const timer = setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isRTL]);
 
   return (
     <>
       <View style={[efbStyles.wrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
-          contentContainerStyle={efbStyles.row}
+        <View
+          style={[
+            efbStyles.container,
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+            },
+          ]}
         >
-          {keys.map((key) => {
-            const active = filter === key;
-            return (
-              <TouchableOpacity
-                key={key}
+          {isSearchOpen ? (
+            /* Full-width Search Bar covering filters */
+            <View
+              style={[
+                efbStyles.searchBarContainer,
+                {
+                  backgroundColor: colors.gray100,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && { height: 50, paddingHorizontal: 16 },
+              ]}
+            >
+              <Ionicons
+                name="search"
+                size={isTablet ? 22 : 18}
+                color={colors.gray400}
+                style={{ marginHorizontal: 4 }}
+              />
+              <TextInput
+                ref={searchInputRef}
                 style={[
-                  efbStyles.pill,
-                  isRTL && { transform: [{ scaleX: -1 }] },
-                  { backgroundColor: active ? colors.error : colors.gray100, borderColor: active ? colors.error : colors.gray200 },
+                  efbStyles.searchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontSize: isTablet ? 16 : 14,
+                  },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
                 ]}
+                value={searchQuery}
+                onChangeText={onSearchChange}
+                placeholder={t('reports.searchExpensesPlaceholder', 'گەڕان بەپێی هۆکار یان بڕی خەرجی...')}
+                placeholderTextColor={colors.gray400}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => onSearchChange('')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
                 onPress={() => {
-                  if (key === 'custom') { setFromVal(''); setToVal(''); setCustomOpen(true); }
-                  else { onChange(key); }
+                  onSearchChange('');
+                  onToggleSearch(false);
                 }}
+                style={[
+                  efbStyles.searchCloseBtn,
+                  {
+                    backgroundColor: colors.white,
+                    borderColor: colors.gray200,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
+                ]}
+                activeOpacity={0.7}
               >
+                <Ionicons name="close" size={isTablet ? 18 : 16} color={colors.gray600} />
                 <Text
                   style={[
-                    efbStyles.pillText,
-                    { color: active ? '#fff' : colors.gray600 },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    efbStyles.searchCloseText,
+                    { color: colors.gray600 },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isTablet && { fontSize: 14 },
                   ]}
                 >
-                  {labels[key]}
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-        {filter === 'custom' && appliedRange && (
-          <Text style={[efbStyles.rangeLabel, { color: colors.gray500 }]}>
-            <DateText value={appliedRange.from} size="small" style={efbStyles.rangeLabel} /> {'→'} <DateText value={appliedRange.to} size="small" style={efbStyles.rangeLabel} />
-          </Text>
-        )}
-      </View>
-
-      <Modal visible={customOpen} animationType="fade" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={efbStyles.overlay}>
-          <View style={[efbStyles.modal, { backgroundColor: colors.white }]}>
-            <Text style={[efbStyles.modalTitle, { color: colors.black }]}>
-              {t('reports.customRange')}
-            </Text>
-            <Text style={[efbStyles.dateLabel, { color: colors.gray600 }]}>
-              {t('reports.fromDate')} (YYYY-MM-DD)
-            </Text>
-            <TextInput
-              style={[efbStyles.dateInput, { borderColor: colors.gray200, color: colors.black }]}
-              placeholder="2026-01-01"
-              placeholderTextColor={colors.gray400}
-              value={fromVal}
-              onChangeText={setFromVal}
-              onFocus={scrollIntoView}
-            />
-            <Text style={[efbStyles.dateLabel, { color: colors.gray600 }]}>
-              {t('reports.toDate')} (YYYY-MM-DD)
-            </Text>
-            <TextInput
-              style={[efbStyles.dateInput, { borderColor: colors.gray200, color: colors.black }]}
-              placeholder="2026-12-31"
-              placeholderTextColor={colors.gray400}
-              value={toVal}
-              onChangeText={setToVal}
-              onFocus={scrollIntoView}
-            />
-            <View style={efbStyles.modalActions}>
-              <TouchableOpacity
-                style={[efbStyles.cancelBtn, { borderColor: colors.gray200 }]}
-                onPress={() => setCustomOpen(false)}
-              >
-                <Text style={[efbStyles.cancelText, { color: colors.gray500 }]}>{t('common.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[efbStyles.applyBtn, { backgroundColor: colors.error }]}
-                onPress={() => {
-                  if (!fromVal || !toVal) {
-                    Alert.alert(t('common.required'), t('purchases.validationDate'));
-                    return;
+            </View>
+          ) : (
+            /* Normal Filter Bar with right-to-left pills and search button */
+            <View style={[efbStyles.barRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* Filter Pills ScrollView */}
+              <ScrollView
+                ref={scrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onContentSizeChange={() => {
+                  if (isRTL) {
+                    scrollRef.current?.scrollToEnd({ animated: false });
                   }
-                  if (fromVal > toVal) {
-                    Alert.alert(t('common.error'), t('reports.invalidDateRange'));
-                    return;
-                  }
-                  onChange('custom', { from: fromVal, to: toVal });
-                  setCustomOpen(false);
                 }}
+                contentContainerStyle={[
+                  efbStyles.row,
+                  {
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexGrow: 1,
+                    justifyContent: 'flex-start',
+                  },
+                  isTablet && { paddingVertical: 14, gap: 12 },
+                ]}
+                style={efbStyles.scrollView}
               >
-                <Text style={efbStyles.applyText}>{t('reports.apply')}</Text>
+                {keys.map((key) => {
+                  const active = filter === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        efbStyles.pill,
+                        {
+                          backgroundColor: active ? colors.error : colors.gray100,
+                          borderColor: active ? colors.error : colors.gray200,
+                          paddingHorizontal: isTablet ? 20 : 14,
+                          paddingVertical: isTablet ? 10 : 7,
+                          borderRadius: isTablet ? 24 : 20,
+                        },
+                      ]}
+                      onPress={() => {
+                        if (key === 'custom') {
+                          setFromVal(appliedRange?.from || '');
+                          setToVal(appliedRange?.to || '');
+                          setCustomOpen(true);
+                        } else {
+                          onChange(key);
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          efbStyles.pillText,
+                          {
+                            color: active ? '#fff' : colors.gray600,
+                            fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 13,
+                          },
+                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                        ]}
+                      >
+                        {labels[key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Search Toggle Icon Button */}
+              <TouchableOpacity
+                style={[
+                  efbStyles.searchToggleBtn,
+                  {
+                    backgroundColor: searchQuery ? colors.primary + '18' : colors.gray100,
+                    borderColor: searchQuery ? colors.primary : colors.gray200,
+                  },
+                  isTablet && { width: 44, height: 44, borderRadius: 22 },
+                ]}
+                onPress={() => onToggleSearch(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Search"
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 20 : 18}
+                  color={searchQuery ? colors.primary : colors.gray600}
+                />
+                {searchQuery.length > 0 && (
+                  <View style={[efbStyles.searchBadge, { backgroundColor: colors.primary }]} />
+                )}
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          )}
+
+          {filter === 'custom' && appliedRange && !isSearchOpen && (
+            <Text
+              style={[
+                efbStyles.rangeLabel,
+                {
+                  color: colors.gray500,
+                  fontSize: isTablet ? 13 : 11,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
+              ]}
+            >
+              <DateText value={appliedRange.from} size="small" style={[efbStyles.rangeLabel, isTablet && { fontSize: 13 }]} /> {'→'} <DateText value={appliedRange.to} size="small" style={[efbStyles.rangeLabel, isTablet && { fontSize: 13 }]} />
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <CustomDateRangeModal
+        visible={customOpen}
+        onClose={() => setCustomOpen(false)}
+        initialFrom={appliedRange?.from}
+        initialTo={appliedRange?.to}
+        onApply={(from, to) => {
+          onChange('custom', { from, to });
+          setCustomOpen(false);
+        }}
+      />
     </>
   );
 }
 
 const efbStyles = StyleSheet.create({
-  wrapper:    { borderBottomWidth: 1 },
-  row:        { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  pill:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
-  pillText:   { fontSize: 13, fontWeight: '600' },
-  rangeLabel: { fontSize: 11, fontWeight: '500', paddingHorizontal: 16, paddingBottom: 8 },
-  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modal:      { borderRadius: 20, padding: 24, width: '85%' },
-  modalTitle: { fontSize: 17, fontWeight: '800', marginBottom: 16 },
-  dateLabel:  { fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  dateInput:  { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 14 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn:  { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  cancelText: { fontSize: 14, fontWeight: '600' },
-  applyBtn:   { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  applyText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
+  wrapper:            { borderBottomWidth: 1 },
+  container:          { width: '100%' },
+  barRow:             { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
+  scrollView:         { flex: 1 },
+  row:                { paddingVertical: 4, gap: 8, alignItems: 'center' },
+  pill:               { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  pillText:           { fontSize: 13, fontWeight: '600' },
+  rangeLabel:         { fontSize: 11, fontWeight: '500', paddingHorizontal: 16, paddingBottom: 8 },
+  searchToggleBtn:    { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
+  searchBadge:        { position: 'absolute', top: 5, right: 5, width: 8, height: 8, borderRadius: 4 },
+  searchBarContainer: { height: 44, marginHorizontal: 12, marginVertical: 6, borderRadius: 12, borderWidth: 1, alignItems: 'center', paddingHorizontal: 10 },
+  searchInput:        { flex: 1, height: '100%', paddingHorizontal: 8 },
+  searchCloseBtn:     { alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  searchCloseText:    { fontSize: 13, fontWeight: '600' },
+  overlay:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modal:              { borderRadius: 20, padding: 24, width: '85%' },
+  modalTitle:         { fontSize: 17, fontWeight: '800', marginBottom: 16 },
+  dateLabel:          { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  dateInput:          { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 14 },
+  modalActions:       { flexDirection: 'row', gap: 10, marginTop: 4 },
+  cancelBtn:          { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  cancelText:         { fontSize: 14, fontWeight: '600' },
+  applyBtn:           { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  applyText:          { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
 
 // ─── Expense Form Modal (Add + Edit) ──────────────────────────────────────────
@@ -367,6 +515,7 @@ function ExpenseFormModal({
       transparent
       statusBarTranslucent
       onRequestClose={onClose}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <KeyboardAvoidingView
         style={styles.modalOverlay}
@@ -648,6 +797,7 @@ function ExpenseFormModal({
               style={[
                 styles.saveButton,
                 { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                isTablet && { minHeight: 56, paddingVertical: 14, borderRadius: 14 },
               ]}
               onPress={handleSave}
               disabled={saving}
@@ -657,10 +807,11 @@ function ExpenseFormModal({
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Ionicons name={isEdit ? "checkmark" : "add"} size={18} color="#fff" style={{ marginEnd: 6 }} />
+                  <Ionicons name={isEdit ? "checkmark" : "add"} size={isTablet ? 22 : 18} color="#fff" style={{ marginEnd: 8 }} />
                   <Text
                     style={[
                       styles.saveButtonText,
+                      isTablet && { fontSize: 16.5 },
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
@@ -689,7 +840,7 @@ function ExpenseCard({
 }) {
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
-  const { isTabletLandscape } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   const iconBg = useMemo(() => getCategoryTint(expense.category, colors, isDark), [expense.category, colors, isDark]);
   const editTint = useMemo(() => getBlueTint(isDark), [isDark]);
@@ -697,54 +848,135 @@ function ExpenseCard({
 
   return (
     <MotiView
-      style={isTabletLandscape ? { flex: 1 } : undefined}
+      style={isTablet ? { flex: 1 } : undefined}
       from={{ opacity: 0, translateY: 6 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 200 }}
     >
-      <View style={[styles.card, { backgroundColor: colors.white }, isTabletLandscape && { padding: 18 }]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.white },
+          isTablet && {
+            padding: isTabletLandscape ? 20 : 16,
+            borderRadius: 18,
+            marginBottom: 14,
+          },
+        ]}
+      >
         {/* Top row: icon + category + amount */}
         <View style={[styles.cardTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[
-            styles.cardIconCircle,
-            { backgroundColor: iconBg },
-            isTabletLandscape && { width: 50, height: 50, borderRadius: 25 },
-          ]}>
-            <Text style={{ fontSize: isTabletLandscape ? 22 : 18 }}>{CATEGORY_ICONS[expense.category] ?? '📌'}</Text>
+          <View
+            style={[
+              styles.cardIconCircle,
+              { backgroundColor: iconBg },
+              isTablet && {
+                width: isTabletLandscape ? 54 : 48,
+                height: isTabletLandscape ? 54 : 48,
+                borderRadius: isTabletLandscape ? 27 : 24,
+              },
+            ]}
+          >
+            <Text style={{ fontSize: isTabletLandscape ? 24 : isTablet ? 21 : 18 }}>
+              {CATEGORY_ICONS[expense.category] ?? '📌'}
+            </Text>
           </View>
-          <View style={[styles.cardMid, { marginStart: isTabletLandscape ? 14 : 12, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-            <Text style={[styles.cardCategory, { color: colors.black }, isTabletLandscape && { fontSize: 16.5, marginBottom: 4 }]} numberOfLines={2}>
+          <View
+            style={[
+              styles.cardMid,
+              {
+                marginStart: isTabletLandscape ? 16 : isTablet ? 14 : 12,
+                alignItems: isRTL ? 'flex-end' : 'flex-start',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.cardCategory,
+                { color: colors.black },
+                isTablet && {
+                  fontSize: isTabletLandscape ? 18 : 16.5,
+                  marginBottom: 4,
+                },
+              ]}
+              numberOfLines={2}
+            >
               {expense.reason ?? expense.note ?? '—'}
             </Text>
             {expense.reason != null && expense.note ? (
-              <Text style={[styles.cardReason, { color: colors.gray500 }, isTabletLandscape && { fontSize: 14 }]} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.cardReason,
+                  { color: colors.gray500 },
+                  isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
+                ]}
+                numberOfLines={1}
+              >
                 {expense.note}
               </Text>
             ) : null}
           </View>
-          <AmountText value={expense.amount} currency="IQD" style={[styles.cardAmount, { color: colors.error }, isTabletLandscape && { fontSize: 18 }]} />
+          <AmountText
+            value={expense.amount}
+            currency="IQD"
+            style={[
+              styles.cardAmount,
+              { color: colors.error },
+              isTablet && { fontSize: isTabletLandscape ? 21 : 19 },
+            ]}
+          />
         </View>
 
         {/* Bottom row: date/time + action buttons */}
         <View style={[styles.cardBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Text style={[styles.cardDate, { color: colors.gray400 }, isTabletLandscape && { fontSize: 13 }]}>
-            <DateText value={expense.date} size="small" style={[styles.cardDate, isTabletLandscape && { fontSize: 13 }]} />
-            {expense.createdAt ? <> · <TimeText value={expense.createdAt} style={[styles.cardDate, isTabletLandscape && { fontSize: 13 }]} /></> : null}
+          <Text
+            style={[
+              styles.cardDate,
+              { color: colors.gray400 },
+              isTablet && { fontSize: isTabletLandscape ? 14 : 13 },
+            ]}
+          >
+            <DateText value={expense.date} size="small" style={[styles.cardDate, isTablet && { fontSize: isTabletLandscape ? 14 : 13 }]} />
+            {expense.createdAt ? <> · <TimeText value={expense.createdAt} style={[styles.cardDate, isTablet && { fontSize: isTabletLandscape ? 14 : 13 }]} /></> : null}
           </Text>
           <View style={[styles.cardActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: editTint.bg }, isTabletLandscape && { width: 36, height: 36, borderRadius: 10 }]}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: editTint.bg },
+                isTablet && {
+                  width: isTabletLandscape ? 40 : 36,
+                  height: isTabletLandscape ? 40 : 36,
+                  borderRadius: 10,
+                },
+              ]}
               onPress={onEdit}
-              hitSlop={6}
+              hitSlop={8}
             >
-              <Ionicons name="create-outline" size={isTabletLandscape ? 18 : 15} color={colors.primary} />
+              <Ionicons
+                name="create-outline"
+                size={isTabletLandscape ? 20 : isTablet ? 18 : 15}
+                color={colors.primary}
+              />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: deleteTint.bg, marginStart: 8 }, isTabletLandscape && { width: 36, height: 36, borderRadius: 10 }]}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: deleteTint.bg, marginStart: isTablet ? 10 : 8 },
+                isTablet && {
+                  width: isTabletLandscape ? 40 : 36,
+                  height: isTabletLandscape ? 40 : 36,
+                  borderRadius: 10,
+                },
+              ]}
               onPress={onDelete}
-              hitSlop={6}
+              hitSlop={8}
             >
-              <Ionicons name="trash-outline" size={isTabletLandscape ? 18 : 15} color={colors.error} />
+              <Ionicons
+                name="trash-outline"
+                size={isTabletLandscape ? 20 : isTablet ? 18 : 15}
+                color={colors.error}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -767,8 +999,10 @@ export default function ExpensesScreen() {
   const [activeTab, setActiveTab]       = useState<'expenses' | 'capital'>('expenses');
   const [formOpen, setFormOpen]         = useState(false);
   const [editTarget, setEditTarget]     = useState<Expense | undefined>(undefined);
-  const [expenseFilter, setExpenseFilter] = useState<ExpenseFilterKey>('all');
+  const [expenseFilter, setExpenseFilter] = useState<ExpenseFilterKey>('today');
   const [appliedRange, setAppliedRange]   = useState<{ from: string; to: string } | null>(null);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [isSearchOpen, setIsSearchOpen]   = useState(false);
 
   React.useEffect(() => { loadExpenses(); }, []);
 
@@ -784,10 +1018,23 @@ export default function ExpensesScreen() {
     }, [params.tab, loadExpenses])
   );
 
-  const filteredExpenses = useMemo(
-    () => applyExpenseFilter(expenses, expenseFilter, appliedRange),
-    [expenses, expenseFilter, appliedRange],
-  );
+  const filteredExpenses = useMemo(() => {
+    const periodFiltered = applyExpenseFilter(expenses, expenseFilter, appliedRange);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return periodFiltered;
+    return periodFiltered.filter((e) => {
+      const reason = (e.reason || '').toLowerCase();
+      const note = (e.note || '').toLowerCase();
+      const category = (e.category || '').toLowerCase();
+      const amountStr = String(e.amount);
+      return (
+        reason.includes(q) ||
+        note.includes(q) ||
+        category.includes(q) ||
+        amountStr.includes(q)
+      );
+    });
+  }, [expenses, expenseFilter, appliedRange, searchQuery]);
 
   const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount, 0);
 
@@ -843,8 +1090,25 @@ export default function ExpensesScreen() {
       />
 
       {/* Segmented Tab Switcher */}
-      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
-        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View
+        style={[
+          styles.segmentWrapper,
+          { backgroundColor: colors.white, borderBottomColor: colors.gray200 },
+          isTablet && { alignItems: 'center', paddingVertical: isTabletLandscape ? 16 : 14 },
+        ]}
+      >
+        <View
+          style={[
+            styles.segmentTrack,
+            { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              width: '100%',
+              padding: isTabletLandscape ? 6 : 5,
+              borderRadius: 18,
+            },
+          ]}
+        >
           {/* Expenses Tab */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -852,18 +1116,26 @@ export default function ExpensesScreen() {
             style={[
               styles.segmentBtn,
               activeTab === 'expenses' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="receipt-outline"
-              size={isTablet ? 18 : 16}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
               color={activeTab === 'expenses' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeTab === 'expenses' ? '#FFFFFF' : colors.gray600 },
+                {
+                  color: activeTab === 'expenses' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -878,18 +1150,26 @@ export default function ExpensesScreen() {
             style={[
               styles.segmentBtn,
               activeTab === 'capital' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="cash-outline"
-              size={isTablet ? 18 : 16}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
               color={activeTab === 'capital' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeTab === 'capital' ? '#FFFFFF' : colors.gray600 },
+                {
+                  color: activeTab === 'capital' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -905,14 +1185,18 @@ export default function ExpensesScreen() {
             filter={expenseFilter}
             appliedRange={appliedRange}
             onChange={handleFilterChange}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            isSearchOpen={isSearchOpen}
+            onToggleSearch={setIsSearchOpen}
           />
 
           <FlatList
-            key={isTabletLandscape ? 'expenses-grid-2' : 'expenses-list-1'}
+            key={isTablet ? 'expenses-grid-2' : 'expenses-list-1'}
             data={filteredExpenses}
             keyExtractor={(item) => String(item.id)}
-            numColumns={isTabletLandscape ? 2 : 1}
-            columnWrapperStyle={isTabletLandscape ? { gap: 14 } : undefined}
+            numColumns={isTablet ? 2 : 1}
+            columnWrapperStyle={isTablet ? { gap: 14 } : undefined}
             renderItem={({ item }) => (
               <ExpenseCard
                 expense={item}
@@ -920,7 +1204,18 @@ export default function ExpensesScreen() {
                 onDelete={() => handleDelete(item.id)}
               />
             )}
-            contentContainerStyle={[styles.listContent, { paddingHorizontal: horizontalPadding }]}
+            contentContainerStyle={[
+              styles.listContent,
+              isTablet
+                ? {
+                    maxWidth: isTabletLandscape ? 1320 : 1040,
+                    alignSelf: 'center',
+                    width: '100%',
+                    paddingHorizontal: isTabletLandscape ? 32 : 24,
+                    paddingBottom: 60,
+                  }
+                : { paddingHorizontal: horizontalPadding },
+            ]}
             ListHeaderComponent={
               <>
                 {/* Summary card */}
@@ -930,18 +1225,52 @@ export default function ExpensesScreen() {
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'timing', duration: 300 }}
                   >
-                    <PremiumCard style={styles.summaryCard}>
-                      <Text style={[styles.summaryLabel, { color: colors.gray400, textAlign }]}>
+                    <PremiumCard
+                      style={[
+                        styles.summaryCard,
+                        isTablet && {
+                          padding: isTabletLandscape ? 24 : 20,
+                          borderRadius: 20,
+                          marginBottom: 18,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.summaryLabel,
+                          { color: colors.gray400, textAlign },
+                          isTablet && { fontSize: isTabletLandscape ? 16 : 14.5, marginBottom: 6 },
+                        ]}
+                      >
                         {t('reports.totalExpenses')}
                       </Text>
-                      <CompactAmount value={totalExpenses} style={[styles.summaryTotal, { color: colors.error, textAlign }]} />
+                      <CompactAmount
+                        value={totalExpenses}
+                        style={[
+                          styles.summaryTotal,
+                          { color: colors.error, textAlign },
+                          isTablet && { fontSize: isTabletLandscape ? 36 : 32, marginBottom: 14 },
+                        ]}
+                      />
 
                       <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
                       <View style={[styles.summaryCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.summaryCountLabel, { color: colors.gray500 }]}>
+                        <Text
+                          style={[
+                            styles.summaryCountLabel,
+                            { color: colors.gray500 },
+                            isTablet && { fontSize: isTabletLandscape ? 16 : 14.5 },
+                          ]}
+                        >
                           {t('reports.expenses')}
                         </Text>
-                        <Text style={[styles.summaryCountValue, { color: colors.gray700 }]}>
+                        <Text
+                          style={[
+                            styles.summaryCountValue,
+                            { color: colors.gray700 },
+                            isTablet && { fontSize: isTabletLandscape ? 17 : 15.5 },
+                          ]}
+                        >
                           {filteredExpenses.length}
                         </Text>
                       </View>
@@ -951,10 +1280,23 @@ export default function ExpensesScreen() {
 
                 {filteredExpenses.length > 0 && (
                   <View style={[styles.listHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={[styles.listTitle, { color: colors.black }, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' }]}>
+                    <Text
+                      style={[
+                        styles.listTitle,
+                        { color: colors.black },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                        isTablet && { fontSize: isTabletLandscape ? 18 : 16.5 },
+                      ]}
+                    >
                       {`${t('reports.expenses')} (${filteredExpenses.length})`}
                     </Text>
-                    <Text style={[styles.listHint, { color: colors.gray400 }]}>
+                    <Text
+                      style={[
+                        styles.listHint,
+                        { color: colors.gray400 },
+                        isTablet && { fontSize: isTabletLandscape ? 14 : 12.5 },
+                      ]}
+                    >
                       {t('reports.tapToDelete')}
                     </Text>
                   </View>
@@ -962,25 +1304,109 @@ export default function ExpensesScreen() {
               </>
             }
             ListEmptyComponent={
-              <View style={styles.empty}>
-                <View style={[styles.emptyIconWrap, { backgroundColor: colors.gray100 }]}>
-                  <Ionicons name="wallet-outline" size={40} color={colors.gray400} />
+              searchQuery.trim().length > 0 ? (
+                <View style={[styles.empty, isTablet && { paddingTop: 100, gap: 12 }]}>
+                  <View
+                    style={[
+                      styles.emptyIconWrap,
+                      { backgroundColor: colors.gray100 },
+                      isTablet && { width: 90, height: 90, borderRadius: 45, marginBottom: 8 },
+                    ]}
+                  >
+                    <Ionicons name="search-outline" size={isTablet ? 48 : 40} color={colors.gray400} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.emptyTitle,
+                      { color: colors.gray600 },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      isTablet && { fontSize: 20 },
+                    ]}
+                  >
+                    {t('reports.noExpensesFound', 'هیچ خەرجییەک نەدۆزرایەوە')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.emptySub,
+                      { color: colors.gray400 },
+                      isTablet && { fontSize: 15, marginBottom: 12 },
+                    ]}
+                  >
+                    {searchQuery}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.emptyAddBtn,
+                      { backgroundColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                      isTablet && { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16 },
+                    ]}
+                    onPress={() => setSearchQuery('')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="close" size={isTablet ? 22 : 18} color={colors.gray700} style={{ marginEnd: 8 }} />
+                    <Text
+                      style={[
+                        styles.emptyAddBtnLabel,
+                        { color: colors.gray700 },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                        isTablet && { fontSize: 16.5 },
+                      ]}
+                    >
+                      {t('reports.clearSearch', 'پاککردنەوەی گەڕان')}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={[styles.emptyTitle, { color: colors.gray600 }]}>
-                  {t('reports.noExpenses')}
-                </Text>
-                <Text style={[styles.emptySub, { color: colors.gray400 }]}>
-                  {t('reports.tapToAddExpense')}
-                </Text>
-                <TouchableOpacity
-                  style={[styles.emptyAddBtn, { backgroundColor: colors.primary, flexDirection }]}
-                  onPress={openAdd}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="add" size={18} color="#fff" style={{ marginEnd: 6 }} />
-                  <Text style={styles.emptyAddBtnLabel}>{t('reports.addExpense')}</Text>
-                </TouchableOpacity>
-              </View>
+              ) : (
+                <View style={[styles.empty, isTablet && { paddingTop: 100, gap: 12 }]}>
+                  <View
+                    style={[
+                      styles.emptyIconWrap,
+                      { backgroundColor: colors.gray100 },
+                      isTablet && { width: 90, height: 90, borderRadius: 45, marginBottom: 8 },
+                    ]}
+                  >
+                    <Ionicons name="wallet-outline" size={isTablet ? 48 : 40} color={colors.gray400} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.emptyTitle,
+                      { color: colors.gray600 },
+                      isTablet && { fontSize: 20 },
+                    ]}
+                  >
+                    {t('reports.noExpenses')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.emptySub,
+                      { color: colors.gray400 },
+                      isTablet && { fontSize: 15, marginBottom: 12 },
+                    ]}
+                  >
+                    {t('reports.tapToAddExpense')}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.emptyAddBtn,
+                      { backgroundColor: colors.primary, flexDirection },
+                      isTablet && { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16 },
+                    ]}
+                    onPress={openAdd}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="add" size={isTablet ? 22 : 18} color="#fff" style={{ marginEnd: 8 }} />
+                    <Text
+                      style={[
+                        styles.emptyAddBtnLabel,
+                        isTablet && { fontSize: 16.5 },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                    >
+                      {t('reports.addExpense')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )
             }
           />
 

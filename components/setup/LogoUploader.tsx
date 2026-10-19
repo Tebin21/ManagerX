@@ -7,14 +7,25 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 
+import { useResponsive } from '@/hooks/useResponsive';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+
 interface Props {
   uri: string | null;
   onSelect: (uri: string) => void;
+  size?: number;
 }
 
-export function LogoUploader({ uri, onSelect }: Props) {
+export function LogoUploader({ uri, onSelect, size }: Props) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const { isTablet } = useResponsive();
+
+  const finalSize = size ?? (isTablet ? 136 : 88);
+  const radius = finalSize / 2;
+  const cameraIconSize = Math.round(finalSize * 0.32);
+  const badgeSize = Math.round(finalSize * 0.28);
+  const pencilIconSize = Math.round(badgeSize * 0.52);
 
   const pick = async () => {
     try {
@@ -64,17 +75,72 @@ export function LogoUploader({ uri, onSelect }: Props) {
   };
 
   return (
-    <TouchableOpacity onPress={pick} activeOpacity={0.8} style={styles.wrapper}>
+    <TouchableOpacity
+      onPress={pick}
+      activeOpacity={0.8}
+      style={[
+        styles.wrapper,
+        {
+          width: finalSize,
+          height: finalSize,
+          borderRadius: radius,
+        },
+      ]}
+    >
       {uri ? (
-        <Image source={{ uri }} style={[styles.image, { borderColor: colors.lightBlue }]} />
+        <Image
+          source={{ uri }}
+          style={[
+            styles.image,
+            {
+              width: finalSize,
+              height: finalSize,
+              borderRadius: radius,
+              borderColor: colors.lightBlue,
+            },
+          ]}
+        />
       ) : (
-        <View style={[styles.placeholder, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
-          <Ionicons name="camera" size={28} color={colors.primary} />
-          <Text style={[styles.hint, { color: colors.primary }]}>Upload Logo</Text>
+        <View
+          style={[
+            styles.placeholder,
+            {
+              width: finalSize,
+              height: finalSize,
+              borderRadius: radius,
+              backgroundColor: colors.softBlue,
+              borderColor: colors.lightBlue,
+            },
+          ]}
+        >
+          <Ionicons name="camera" size={cameraIconSize} color={colors.primary} />
+          <Text
+            style={[
+              styles.hint,
+              {
+                color: colors.primary,
+                fontSize: finalSize > 100 ? 13 : 10,
+                fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+              },
+            ]}
+          >
+            Upload Logo
+          </Text>
         </View>
       )}
-      <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-        <Ionicons name="pencil" size={12} color="#fff" />
+      <View
+        style={[
+          styles.badge,
+          {
+            backgroundColor: colors.primary,
+            width: badgeSize,
+            height: badgeSize,
+            borderRadius: badgeSize / 2,
+            borderColor: isDark ? '#1E293B' : '#FFFFFF',
+          },
+        ]}
+      >
+        <Ionicons name="pencil" size={pencilIconSize} color="#fff" />
       </View>
     </TouchableOpacity>
   );
@@ -82,43 +148,34 @@ export function LogoUploader({ uri, onSelect }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    width:     88,
-    height:    88,
-    borderRadius: 44,
-    overflow:  'visible',
+    overflow: 'visible',
     alignSelf: 'center',
     marginBottom: 8,
   },
   image: {
-    width:        88,
-    height:       88,
-    borderRadius: 44,
-    borderWidth:  2,
+    borderWidth: 2.5,
   },
   placeholder: {
-    width:        88,
-    height:       88,
-    borderRadius: 44,
-    borderWidth:  2,
-    borderStyle:  'dashed',
-    alignItems:   'center',
+    borderWidth: 2.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   hint: {
-    fontSize:   10,
-    fontWeight: '500',
-    marginTop:  2,
+    fontWeight: '600',
+    marginTop: 4,
   },
   badge: {
-    position:     'absolute',
-    right:        0,
-    bottom:       0,
-    width:        24,
-    height:       24,
-    borderRadius: 12,
-    alignItems:   'center',
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth:  2,
-    borderColor:  '#fff',
+    borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

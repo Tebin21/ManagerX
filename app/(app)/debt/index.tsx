@@ -33,7 +33,7 @@ import { useDebtStore } from '@/store/debtStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
-import { Theme } from '@/constants/theme';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
 import { fmtIQD } from '@/utils/formatters';
@@ -45,6 +45,7 @@ import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } f
 import { useResponsive } from '@/hooks/useResponsive';
 import { shareDebtsAuditReport } from '@/lib/generateInvoice';
 import { DebtPdfExportModal } from '@/components/debt/DebtPdfExportModal';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import type { DebtReportSections } from '@/lib/debtReportTemplate';
 
 
@@ -426,8 +427,8 @@ export default function DebtScreen() {
     Keyboard.dismiss();
   }, []);
 
-  // Period filter state — ALWAYS defaults to 'all' (هەمووی)!
-  const [periodKey, setPeriodKey] = useState<PeriodKey>('all');
+  // Period filter state — defaults to 'today' (ئەمڕۆ)
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [fromVal, setFromVal] = useState('');
@@ -607,7 +608,7 @@ export default function DebtScreen() {
   ]);
 
   // Period Filter keys and labels
-  const periodKeys: PeriodKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
+  const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
     all:    isKuLanguage ? 'هەمووی' : 'All',
     today:  t('periodFilter.today'),
@@ -823,8 +824,8 @@ export default function DebtScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={[{ flex: 1 }, isRTL ? { transform: [{ scaleX: -1 }] } : undefined]}
-              contentContainerStyle={styles.filterRow}
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.filterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
             >
               {periodKeys.map((key) => {
                 const active = periodKey === key;
@@ -833,7 +834,6 @@ export default function DebtScreen() {
                     key={key}
                     style={[
                       styles.filterPill,
-                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: active ? colors.primary : colors.gray100,
                         borderColor: active ? colors.primary : colors.gray200,
@@ -1255,61 +1255,17 @@ export default function DebtScreen() {
       />
 
       {/* ── Custom Date Range Modal ── */}
-      <Modal visible={customOpen} animationType="fade" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={[styles.customModal, { backgroundColor: colors.white }]}>
-            <Text style={[styles.modalTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('periodFilter.customRange')}
-            </Text>
-            <Text style={[styles.dateLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('reports.fromDate')} (YYYY-MM-DD)
-            </Text>
-            <TextInput
-              style={[styles.customDateInput, { borderColor: colors.gray200, color: colors.black }]}
-              placeholder="2026-01-01"
-              placeholderTextColor={colors.gray400}
-              value={fromVal}
-              onChangeText={setFromVal}
-            />
-            <Text style={[styles.dateLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>
-              {t('reports.toDate')} (YYYY-MM-DD)
-            </Text>
-            <TextInput
-              style={[styles.customDateInput, { borderColor: colors.gray200, color: colors.black }]}
-              placeholder="2026-12-31"
-              placeholderTextColor={colors.gray400}
-              value={toVal}
-              onChangeText={setToVal}
-            />
-            <View style={[styles.modalActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <TouchableOpacity
-                style={[styles.modalCancel, { borderColor: colors.gray200 }]}
-                onPress={() => setCustomOpen(false)}
-              >
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  if (!fromVal || !toVal) {
-                    Alert.alert(t('common.required'), t('purchases.validationDate'));
-                    return;
-                  }
-                  if (fromVal > toVal) {
-                    Alert.alert(t('common.error'), t('reports.invalidDateRange'));
-                    return;
-                  }
-                  setPeriodKey('custom');
-                  setCustomRange({ from: fromVal, to: toVal });
-                  setCustomOpen(false);
-                }}
-              >
-                <Text style={[styles.modalConfirmText, { color: '#FFFFFF' }]}>{t('reports.apply')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <CustomDateRangeModal
+        visible={customOpen}
+        onClose={() => setCustomOpen(false)}
+        initialFrom={customRange?.from}
+        initialTo={customRange?.to}
+        onApply={(from, to) => {
+          setPeriodKey('custom');
+          setCustomRange({ from, to });
+          setCustomOpen(false);
+        }}
+      />
     </View>
   );
 }

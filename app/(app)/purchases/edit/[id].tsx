@@ -28,6 +28,7 @@ import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
+import { useSavedProductStore } from '@/store/savedProductStore';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
@@ -117,6 +118,18 @@ export default function EditPurchaseScreen() {
         notes: notes.trim() || null,
         imageUri,
       });
+
+      if (imageUri) {
+        try {
+          useSavedProductStore.getState().savePreset({
+            name: productName.trim() || undefined,
+            description: description.trim() || null,
+            imageUri,
+            category: category.trim() || null,
+          });
+        } catch { /* non-critical */ }
+      }
+
       router.back();
     } catch (err: any) {
       console.error(err);

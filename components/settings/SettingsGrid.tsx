@@ -147,6 +147,25 @@ function SettingsGridTile({
   );
 }
 
+export function getSettingsTileColors(isDark: boolean) {
+  return {
+    profile:      isDark ? '#60A5FA' : '#2563EB', // Royal Blue for Business
+    design:       isDark ? '#C084FC' : '#9333EA', // Violet / Purple for Design & Customization
+    license:      isDark ? '#FBBF24' : '#D97706', // Radiant Amber Gold for License & Limits
+    storeSub:     isDark ? '#22D3EE' : '#0891B2', // Cyan / Teal for Web Store Subscription
+    currency:     isDark ? '#34D399' : '#059669', // Emerald Green for Currency / Dollar
+    language:     isDark ? '#F472B6' : '#DB2777', // Soft Rose Pink for Language
+    appearance:   isDark ? '#818CF8' : '#F59E0B', // Indigo for Dark, Sun Gold for Light
+    themeColors:  isDark ? '#E879F9' : '#C026D3', // Magenta / Fuchsia for Palette
+    modules:      isDark ? '#38BDF8' : '#0284C7', // Sky Blue for Modules
+    store:        isDark ? '#4ADE80' : '#16A34A', // Fresh Green for Online Storefront
+    data:         isDark ? '#A5B4FC' : '#4F46E5', // Indigo Slate for Data & Backup
+    cloudSync:    isDark ? '#38BDF8' : '#0284C7', // Cloud Sky for Live Cloud Sync
+    about:        isDark ? '#60A5FA' : '#2563EB', // Info Blue for About
+    tutorials:    isDark ? '#FB923C' : '#EA580C', // Guide Orange for Tutorials
+  };
+}
+
 export function SettingsGrid({
   businessName,
   itemLimit,
@@ -166,6 +185,7 @@ export function SettingsGrid({
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const isKu = language !== 'en';
+  const tileColors = getSettingsTileColors(isDark);
 
   // Quick Language Toggle
   const handleToggleLanguage = () => {
@@ -183,53 +203,53 @@ export function SettingsGrid({
     toggleTheme();
   };
 
-  // 1. Business Section
-  const sectionBusiness = (
+  // 1. Business & Subscriptions Section (Right Column - Top 2 Rows)
+  const sectionBusinessAndSubs = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {t('settings.businessProfile').toUpperCase()}
+        {isKu ? 'پڕۆفایلی بازرگانی و بەشداریکردن' : 'BUSINESS & SUBSCRIPTIONS'}
       </Text>
-      <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <SettingsGridTile
-          icon="business"
-          title={isKu ? 'پڕۆفایل' : 'Business'}
-          sub={businessName || (isKu ? 'زانیاری کار' : 'Info')}
-          onPress={() => router.push('/(app)/settings/profile' as never)}
-        />
-        <SettingsGridTile
-          icon="color-palette"
-          title={isKu ? 'دیزاین' : 'Customization'}
-          sub={isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
-          onPress={() => router.push('/(app)/settings/customization' as never)}
-        />
+      <View style={{ gap: 12 }}>
+        {/* Row 1: Profile & Customization */}
+        <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <SettingsGridTile
+            icon="business"
+            color={tileColors.profile}
+            title={isKu ? 'پڕۆفایل' : 'Business'}
+            sub={businessName || (isKu ? 'زانیاری کار' : 'Info')}
+            onPress={() => router.push('/(app)/settings/profile' as never)}
+          />
+          <SettingsGridTile
+            icon="color-palette"
+            color={tileColors.design}
+            title={isKu ? 'دیزاین' : 'Customization'}
+            sub={isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
+            onPress={() => router.push('/(app)/settings/customization' as never)}
+          />
+        </View>
+
+        {/* Row 2: License & Store Subscription */}
+        <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <SettingsGridTile
+            icon="rocket"
+            color={tileColors.license}
+            title={isKu ? 'مۆڵەت' : 'License'}
+            sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
+            onPress={() => router.push('/(app)/settings/plan-limits' as never)}
+          />
+          <SettingsGridTile
+            icon="globe"
+            color={tileColors.storeSub}
+            title={isKu ? 'ئابوونەی وێب' : 'Store Sub'}
+            sub={isKu ? 'بەڕێوەبردن' : 'Manage'}
+            onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
+          />
+        </View>
       </View>
     </View>
   );
 
-  // 2. Subscriptions Section
-  const sectionSubscriptions = (
-    <View style={styles.sectionWrap}>
-      <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {t('settings.subscriptions').toUpperCase()}
-      </Text>
-      <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <SettingsGridTile
-          icon="rocket"
-          title={isKu ? 'مۆڵەت' : 'License'}
-          sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
-          onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-        />
-        <SettingsGridTile
-          icon="globe"
-          title={isKu ? 'ئابوونەی وێب' : 'Store Sub'}
-          sub={isKu ? 'بەڕێوەبردن' : 'Manage'}
-          onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
-        />
-      </View>
-    </View>
-  );
-
-  // 3. System & Preferences Section
+  // 2. System & Preferences Section (Left Column - Rows 1 & 2)
   const sectionPreferences = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -240,18 +260,20 @@ export function SettingsGrid({
         <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <SettingsGridTile
             icon="swap-horizontal"
+            color={tileColors.currency}
             title={isKu ? 'نرخی دۆلار' : 'Exchange Rate'}
             sub={`100$ = ${fmtExchangeRate(exchangeRate)}`}
             onPress={() => router.push('/(app)/settings/currency' as never)}
             badge={
-              <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : 'rgba(16, 185, 129, 0.12)' }]}>
-                <Text style={[styles.statusBadgeText, { color: '#10B981' }]}>IQD</Text>
+              <View style={[styles.statusBadge, { backgroundColor: hexToRgba(tileColors.currency, isDark ? 0.22 : 0.12) }]}>
+                <Text style={[styles.statusBadgeText, { color: tileColors.currency }]}>IQD</Text>
               </View>
             }
           />
 
           <SettingsGridTile
             icon="language"
+            color={tileColors.language}
             title={isKu ? 'زمان' : 'Language'}
             sub={isKu ? 'کلیک بکە بۆ ئینگلیزی' : 'Tap for Kurdish'}
             onPress={handleToggleLanguage}
@@ -270,7 +292,7 @@ export function SettingsGrid({
         <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <SettingsGridTile
             icon={isDark ? 'moon' : 'sunny'}
-            color={isDark ? '#818CF8' : '#F59E0B'}
+            color={tileColors.appearance}
             title={isKu ? 'ڕووکار' : 'Theme'}
             sub={isDark ? (isKu ? 'تاریک (Dark)' : 'Dark mode') : (isKu ? 'ڕووناک (Light)' : 'Light mode')}
             onPress={handleToggleTheme}
@@ -301,7 +323,8 @@ export function SettingsGrid({
           />
 
           <SettingsGridTile
-            icon="color-palette"
+            icon="color-filter"
+            color={tileColors.themeColors}
             title={isKu ? 'ڕەنگەکان' : 'Theme Colors'}
             sub={isKu ? 'ئەکسێنت' : 'Accent Color'}
             onPress={() => router.push('/(app)/settings/theme' as never)}
@@ -319,7 +342,7 @@ export function SettingsGrid({
     </View>
   );
 
-  // 4. Modules & Store Section
+  // 3. Modules & Store Section (Left Column - Row 3)
   const sectionModules = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -328,12 +351,14 @@ export function SettingsGrid({
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
           icon="grid"
+          color={tileColors.modules}
           title={isKu ? 'مۆدیوڵەکان' : 'Modules'}
           sub={isKu ? 'بەشەکانی ئەپ' : 'Dashboard Grid'}
           onPress={() => router.push('/(app)/settings/modules' as never)}
         />
         <SettingsGridTile
           icon="storefront"
+          color={tileColors.store}
           title={isKu ? 'فرۆشگا' : 'Online Store'}
           sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
           onPress={() => router.push('/(app)/settings/online-store' as never)}
@@ -342,30 +367,57 @@ export function SettingsGrid({
     </View>
   );
 
-  // 5. Data & About Section
+  // 4. Data & Cloud Sync Section (Right Column - Row 3)
   const sectionData = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {t('settings.data').toUpperCase()}
+        {isKu ? 'داتا و هاوکاتکردن' : t('settings.data').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
           icon="server"
+          color={tileColors.data}
           title={isKu ? 'داتا و باکئەپ' : 'Data & Backup'}
           sub={isKu ? 'کلاود و باکئەپ' : 'Cloud Sync & Data'}
           onPress={() => router.push('/(app)/settings/data' as never)}
         />
         <SettingsGridTile
-          icon="information-circle"
-          title={isKu ? 'دەربارە' : 'About'}
-          sub={isKu ? 'فرۆشیار v1.0' : 'Froshiar v1.0'}
-          onPress={() => router.push('/(app)/settings/about' as never)}
+          icon="cloud-upload"
+          color={tileColors.cloudSync}
+          title={isKu ? 'هاوکاتکردنی هەور' : 'Cloud Sync'}
+          sub={isKu ? 'هاوکاتکردنی داتا' : 'Live Cloud Sync'}
+          onPress={() => router.push('/(app)/settings/cloud-sync' as never)}
         />
       </View>
     </View>
   );
 
-  // 6. Account & Danger Zone Section
+  // 5. About & Tutorials Section (Right Column - Row 4)
+  const sectionAbout = (
+    <View style={styles.sectionWrap}>
+      <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+        {isKu ? 'دەربارە و فێرکارییەکان' : t('settings.about').toUpperCase()}
+      </Text>
+      <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <SettingsGridTile
+          icon="information-circle"
+          color={tileColors.about}
+          title={isKu ? 'دەربارە' : 'About'}
+          sub={isKu ? 'فرۆشیار v1.0' : 'Froshiar v1.0'}
+          onPress={() => router.push('/(app)/settings/about' as never)}
+        />
+        <SettingsGridTile
+          icon="play-circle"
+          color={tileColors.tutorials}
+          title={isKu ? 'فێرکارییەکان' : 'Tutorials'}
+          sub={isKu ? 'ڕێبەری کارکردن' : 'User Guides'}
+          onPress={() => router.push('/(app)/settings/tutorials' as never)}
+        />
+      </View>
+    </View>
+  );
+
+  // 6. Account & Danger Zone Section (Left Column - Row 4)
   const sectionAccount = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -400,14 +452,14 @@ export function SettingsGrid({
             { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTabletLandscape ? 24 : 18 },
           ]}
         >
-          {/* Column 1 (Right in RTL) */}
+          {/* Column 1 (Right in RTL - 4 Rows matching Left perfectly) */}
           <View style={styles.columnHalf}>
-            {sectionBusiness}
-            {sectionSubscriptions}
+            {sectionBusinessAndSubs}
             {sectionData}
+            {sectionAbout}
           </View>
 
-          {/* Column 2 (Left in RTL) */}
+          {/* Column 2 (Left in RTL - 4 Rows untouched) */}
           <View style={styles.columnHalf}>
             {sectionPreferences}
             {sectionModules}
@@ -417,11 +469,11 @@ export function SettingsGrid({
       ) : (
         /* Phone: Single vertical column */
         <View style={{ gap: 4 }}>
-          {sectionBusiness}
-          {sectionSubscriptions}
+          {sectionBusinessAndSubs}
           {sectionPreferences}
           {sectionModules}
           {sectionData}
+          {sectionAbout}
           {sectionAccount}
         </View>
       )}

@@ -113,11 +113,8 @@ export const useCapitalStore = create<CapitalState>()(
         try {
           const stats = await getCashDrawerStats();
           return (
-            netCapital +
-            stats.salesCash +
-            stats.customerDebtCash -
+            netCapital -
             stats.purchasesCash -
-            stats.supplierDebtCash -
             stats.expensesCash
           );
         } catch (err) {
@@ -151,11 +148,8 @@ export const useCapitalStore = create<CapitalState>()(
         try {
           const stats = await getCashDrawerStats();
           const currentBalance =
-            netCapital +
-            stats.salesCash +
-            stats.customerDebtCash -
+            netCapital -
             stats.purchasesCash -
-            stats.supplierDebtCash -
             stats.expensesCash;
           return {
             initialCapital: state.initialCapital,

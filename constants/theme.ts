@@ -52,3 +52,17 @@ export const Theme = {
     borderRadius: 12,
   },
 } as const;
+
+export const MODAL_SUPPORTED_ORIENTATIONS: (
+  | 'portrait'
+  | 'portrait-upside-down'
+  | 'landscape'
+  | 'landscape-left'
+  | 'landscape-right'
+)[] = [
+  'portrait',
+  'portrait-upside-down',
+  'landscape',
+  'landscape-left',
+  'landscape-right',
+];

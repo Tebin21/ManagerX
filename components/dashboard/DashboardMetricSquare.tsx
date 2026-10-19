@@ -21,6 +21,7 @@ interface Props {
   isAlert?: boolean;
   delay?: number;
   containerStyle?: StyleProp<ViewStyle>;
+  isFullWidth?: boolean;
 }
 
 export function DashboardMetricSquare({
@@ -33,6 +34,7 @@ export function DashboardMetricSquare({
   isAlert = false,
   delay = 0,
   containerStyle,
+  isFullWidth = false,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
@@ -46,13 +48,144 @@ export function DashboardMetricSquare({
     ? colors.gray200
     : colors.gray100;
 
-  const widthStyle: ViewStyle = {
-    width: isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
-    marginBottom: isTablet ? 12 : 10,
-  };
+  const widthStyle: ViewStyle = isFullWidth
+    ? {
+        width: '100%',
+        marginBottom: isTablet ? 14 : 10,
+      }
+    : {
+        width: isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
+        marginBottom: isTablet ? 14 : 10,
+      };
 
-  const iconBoxDim = isTabletLandscape ? 46 : isTablet ? 42 : 38;
-  const iconSize = isTabletLandscape ? 24 : isTablet ? 22 : 20;
+  const iconBoxDim = isTabletLandscape ? 52 : isTablet ? 48 : 38;
+  const iconSize = isTabletLandscape ? 26 : isTablet ? 24 : 20;
+
+  if (isFullWidth) {
+    return (
+      <MotiView
+        from={{ opacity: 0, scale: 0.96, translateY: 10 }}
+        animate={{ opacity: 1, scale: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 320, delay }}
+        style={[styles.fullWidthContainer, widthStyle, containerStyle]}
+      >
+        <View
+          style={[
+            styles.card,
+            styles.fullWidthCard,
+            {
+              backgroundColor: cardBg,
+              borderColor,
+              minHeight: isTabletLandscape ? 96 : isTablet ? 88 : 76,
+              paddingHorizontal: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+              paddingVertical: isTabletLandscape ? 16 : isTablet ? 14 : 12,
+            },
+          ]}
+        >
+          <View style={[styles.fullWidthRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* Start side: Icon + Title + Badge */}
+            <View style={[styles.fullWidthStartGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View
+                style={[
+                  styles.iconBox,
+                  {
+                    width: iconBoxDim,
+                    height: iconBoxDim,
+                    borderRadius: isTabletLandscape ? 16 : isTablet ? 14 : 12,
+                    backgroundColor: color + '15',
+                    borderColor: color + '30',
+                  },
+                ]}
+              >
+                <Ionicons name={icon} size={iconSize} color={color} />
+              </View>
+
+              <View style={[styles.fullWidthTextGroup, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                <Text
+                  style={[
+                    styles.title,
+                    {
+                      color: colors.gray400,
+                      textAlign,
+                      fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 13.5,
+                      marginBottom: 2,
+                    },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+
+                {subtitle ? (
+                  <View
+                    style={[
+                      styles.badge,
+                      {
+                        backgroundColor: color + '12',
+                        paddingHorizontal: isTabletLandscape ? 10 : 8,
+                        paddingVertical: isTabletLandscape ? 4 : 3,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.badgeText,
+                        { color, fontSize: isTabletLandscape ? 12 : isTablet ? 11 : 10 },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {subtitle}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* End side: Large Value */}
+            <View style={[styles.valueRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
+              {isCurrency ? (
+                <AmountText
+                  value={Math.abs(value)}
+                  style={[
+                    styles.valueText,
+                    {
+                      fontSize: isTabletLandscape ? 28 : isTablet ? 25 : 21,
+                      color: isAlert
+                        ? colors.error
+                        : value < 0
+                        ? colors.error
+                        : colors.darkBlue,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                />
+              ) : (
+                <Text
+                  style={[
+                    styles.valueText,
+                    styles.enDigitText,
+                    {
+                      fontSize: isTabletLandscape ? 28 : isTablet ? 25 : 21,
+                      color: isAlert && value > 0 ? colors.error : colors.darkBlue,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {fmtEnNumber(value)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </MotiView>
+    );
+  }
 
   return (
     <MotiView
@@ -67,8 +200,8 @@ export function DashboardMetricSquare({
           {
             backgroundColor: cardBg,
             borderColor,
-            minHeight: isTabletLandscape ? 148 : isTablet ? 134 : 120,
-            padding: isTabletLandscape ? 16 : isTablet ? 15 : 14,
+            minHeight: isTabletLandscape ? 164 : isTablet ? 154 : 124,
+            padding: isTabletLandscape ? 18 : isTablet ? 16 : 14,
           },
         ]}
       >
@@ -80,7 +213,7 @@ export function DashboardMetricSquare({
               {
                 width: iconBoxDim,
                 height: iconBoxDim,
-                borderRadius: isTabletLandscape ? 14 : 12,
+                borderRadius: isTabletLandscape ? 16 : isTablet ? 14 : 12,
                 backgroundColor: color + '15',
                 borderColor: color + '30',
               },
@@ -95,7 +228,7 @@ export function DashboardMetricSquare({
                 styles.badge,
                 {
                   backgroundColor: color + '12',
-                  paddingHorizontal: isTabletLandscape ? 10 : 8,
+                  paddingHorizontal: isTabletLandscape ? 10 : isTablet ? 9 : 8,
                   paddingVertical: isTabletLandscape ? 4 : 3,
                 },
               ]}
@@ -103,7 +236,7 @@ export function DashboardMetricSquare({
               <Text
                 style={[
                   styles.badgeText,
-                  { color, fontSize: isTabletLandscape ? 12 : 10.5 },
+                  { color, fontSize: isTabletLandscape ? 12.5 : isTablet ? 11.5 : 10.5 },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
@@ -121,7 +254,7 @@ export function DashboardMetricSquare({
             {
               color: colors.gray400,
               textAlign,
-              fontSize: isTabletLandscape ? 14.5 : isTablet ? 13.5 : 12.5,
+              fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 12.5,
             },
             isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
           ]}
@@ -138,7 +271,7 @@ export function DashboardMetricSquare({
               style={[
                 styles.valueText,
                 {
-                  fontSize: isTabletLandscape ? 24 : isTablet ? 21 : 19,
+                  fontSize: isTabletLandscape ? 26 : isTablet ? 24 : 19,
                   color: isAlert
                     ? colors.error
                     : value < 0
@@ -148,7 +281,7 @@ export function DashboardMetricSquare({
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
+              minimumFontScale={0.65}
             />
           ) : (
             <Text
@@ -156,13 +289,13 @@ export function DashboardMetricSquare({
                 styles.valueText,
                 styles.enDigitText,
                 {
-                  fontSize: isTabletLandscape ? 24 : isTablet ? 21 : 19,
+                  fontSize: isTabletLandscape ? 26 : isTablet ? 24 : 19,
                   color: isAlert && value > 0 ? colors.error : colors.darkBlue,
                 },
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
+              minimumFontScale={0.65}
             >
               {fmtEnNumber(value)}
             </Text>
@@ -234,5 +367,25 @@ const styles = StyleSheet.create({
   enDigitText: {
     writingDirection: 'ltr',
     fontVariant: ['tabular-nums'],
+  },
+  fullWidthContainer: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  fullWidthCard: {
+    minHeight: 76,
+    justifyContent: 'center',
+  },
+  fullWidthRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fullWidthStartGroup: {
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  fullWidthTextGroup: {
+    justifyContent: 'center',
   },
 });

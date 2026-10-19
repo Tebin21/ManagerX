@@ -26,6 +26,7 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { BulkSyncModal } from '@/components/inventory/BulkSyncModal';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useTranslation } from 'react-i18next';
 import { ProductCard } from '@/components/inventory/ProductCard';
 import { InventoryReportView } from '@/components/inventory/InventoryReportView';
@@ -138,7 +139,7 @@ export default function InventoryScreen() {
   const [pendingReport, setPendingReport] = useState<PendingReport | null>(null);
 
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle, cardColumns } = useResponsive();
 
   useEffect(() => {
     loadInventory();
@@ -587,9 +588,26 @@ export default function InventoryScreen() {
         }
       />
 
-      {/* ── Segmented Tab Switcher (Report & Products) — Styled outside header exactly like Expenses ── */}
-      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
-        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      {/* ── Segmented Tab Switcher (Report & Products) — Styled with tablet responsiveness ── */}
+      <View
+        style={[
+          styles.segmentWrapper,
+          { backgroundColor: colors.white, borderBottomColor: colors.gray200 },
+          isTablet && { alignItems: 'center', paddingVertical: isTabletLandscape ? 16 : 14 },
+        ]}
+      >
+        <View
+          style={[
+            styles.segmentTrack,
+            { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              width: '100%',
+              padding: isTabletLandscape ? 6 : 5,
+              borderRadius: 18,
+            },
+          ]}
+        >
           {/* Tab 1: ڕاپۆرت (Report) */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -597,18 +615,26 @@ export default function InventoryScreen() {
             style={[
               styles.segmentBtn,
               activeNavTab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={isTablet ? 18 : 16}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
               color={activeNavTab === 'report' ? activeTabTextColor : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeNavTab === 'report' ? activeTabTextColor : colors.gray600 },
+                {
+                  color: activeNavTab === 'report' ? activeTabTextColor : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -623,18 +649,26 @@ export default function InventoryScreen() {
             style={[
               styles.segmentBtn,
               activeNavTab === 'products' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="cube-outline"
-              size={isTablet ? 18 : 16}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
               color={activeNavTab === 'products' ? activeTabTextColor : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeNavTab === 'products' ? activeTabTextColor : colors.gray600 },
+                {
+                  color: activeNavTab === 'products' ? activeTabTextColor : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -1049,7 +1083,7 @@ export default function InventoryScreen() {
           setPendingReport(null);
         }}
         onSelect={handlePeriodSelect}
-        current="all"
+        current="today"
         includeAll
       />
 
@@ -1059,6 +1093,7 @@ export default function InventoryScreen() {
         animationType="slide"
         transparent
         onRequestClose={() => setCatModalVisible(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.catModalOverlay}>
           <View style={[styles.catModalContent, { backgroundColor: isDark ? colors.gray100 : colors.white }]}>

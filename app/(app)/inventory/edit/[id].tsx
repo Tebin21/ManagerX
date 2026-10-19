@@ -33,6 +33,7 @@ import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { useSavedProductStore } from '@/store/savedProductStore';
 
 
 type FieldKey =
@@ -145,6 +146,17 @@ export default function EditProductScreen() {
         websiteDescription: websiteDescription.trim() || null,
       };
       await editProduct(product.id, data);
+
+      if (imageUri) {
+        try {
+          useSavedProductStore.getState().savePreset({
+            name: name.trim() || undefined,
+            description: itemDescription.trim() || description.trim() || null,
+            imageUri,
+            category: category?.trim() || null,
+          });
+        } catch { /* non-critical */ }
+      }
 
       // Animate changed fields
       if (changed.size > 0) {

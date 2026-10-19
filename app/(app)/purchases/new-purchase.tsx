@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { MotiView } from 'moti';
 import { useSavedProductStore, SavedProductPreset } from '@/store/savedProductStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 
@@ -35,7 +36,7 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
-import { getProductCategories } from '@/lib/sqlite';
+import { getProductCategories, DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/sqlite';
 import { generateUniqueProductId } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
@@ -61,13 +62,16 @@ export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign, flexDirection, isRTL } = useRTL();
-  const { isTablet, isTabletLandscape, width, contentContainerStyle } = useResponsive();
-  const useThreeColumns = isTablet && (isTabletLandscape || width >= 1000);
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const useThreeColumns = isTablet && isTabletLandscape;
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
   const { colors, isDark } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
+  const col1ScrollRef = useRef<ScrollView>(null);
+  const col2ScrollRef = useRef<ScrollView>(null);
+  const col3ScrollRef = useRef<ScrollView>(null);
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
@@ -92,6 +96,7 @@ export default function NewPurchaseScreen() {
 
   // ─── Required fields ────────────────────────────────────────────────────────
   const [supplierName, setSupplierName]     = useState('');
+  const isDirectSupplier = isDirectSupplierName(supplierName);
   const [purchaseDate, setPurchaseDate]     = useState(() => new Date());
   const [productName, setProductName]       = useState('');
   const [itemDescription, setItemDescription] = useState('');
@@ -372,9 +377,9 @@ export default function NewPurchaseScreen() {
     try {
       const purchase = await createPurchase({
         date: purchaseDate.toISOString(),
-        supplierName,
-        supplierPhone,
-        supplierAddress,
+        supplierName: isDirectSupplier ? DIRECT_SUPPLIER_NAME : supplierName,
+        supplierPhone: isDirectSupplier ? '' : supplierPhone,
+        supplierAddress: isDirectSupplier ? '' : supplierAddress,
         productName,
         category,
         quantity: qtyNum,
@@ -393,14 +398,14 @@ export default function NewPurchaseScreen() {
         paymentStatus,
         initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
         imageUri,
-        selectedSupplierId,
+        selectedSupplierId: isDirectSupplier ? undefined : selectedSupplierId,
       });
 
       // Auto-persist to saved presets library
-      if (productName.trim() && imageUri) {
+      if (imageUri) {
         try {
           savePreset({
-            name: productName.trim(),
+            name: productName.trim() || undefined,
             description: itemDescription.trim() || null,
             imageUri,
             itemId: sharedId.trim() || (customIds[0]?.trim()) || null,
@@ -421,11 +426,14 @@ export default function NewPurchaseScreen() {
         setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
         setIdType(null); setSharedId(''); setCustomIds(['']);
         setCategory(''); setWarranty(''); setNotes('');
-        setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
+        setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined); setPaymentStatus('paid');
         setAmountPaid('');
         setImageUri(null);
         setReceiptCurrency('iqd');
         scrollRef.current?.scrollTo({ y: 0, animated: true });
+        col1ScrollRef.current?.scrollTo({ y: 0, animated: true });
+        col2ScrollRef.current?.scrollTo({ y: 0, animated: true });
+        col3ScrollRef.current?.scrollTo({ y: 0, animated: true });
       };
 
       if (checkoutMode === 'print') {
@@ -1127,15 +1135,152 @@ export default function NewPurchaseScreen() {
         </View>
       </View>
 
-      <SupplierInputForm
-        name={supplierName}
-        phone={supplierPhone}
-        address={supplierAddress}
-        onNameChange={setSupplierName}
-        onPhoneChange={setSupplierPhone}
-        onAddressChange={setSupplierAddress}
-        onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
-      />
+      {isDirectSupplier ? (
+        <MotiView
+          from={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'timing', duration: 180 }}
+          style={[
+            styles.directSupplierActiveCard,
+            {
+              backgroundColor: isDark ? '#1E293B' : '#FFFBEB',
+              borderColor: '#D97706',
+            },
+          ]}
+        >
+          <View
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+              <View style={[styles.directSupplierIconWrap, { backgroundColor: '#D97706' }]}>
+                <Ionicons name="flash" size={16} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text
+                  style={[
+                    styles.directSupplierActiveTitle,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    { color: isDark ? '#FBBF24' : '#92400E', textAlign },
+                  ]}
+                >
+                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier (System)'}
+                </Text>
+                <Text
+                  style={[
+                    styles.directSupplierActiveBadge,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                    { color: isDark ? '#FDE68A' : '#B45309', textAlign },
+                  ]}
+                >
+                  {isKuLanguage ? 'ئەکاونتی هەمیشەیی پارێزراو' : 'Protected Permanent Account'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSupplierName('');
+                setSupplierPhone('');
+                setSupplierAddress('');
+                setSelectedSupplierId(undefined);
+              }}
+              style={[
+                styles.directSupplierChangeBtn,
+                {
+                  backgroundColor: isDark ? '#334155' : '#FDE68A',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="refresh-outline" size={14} color={isDark ? '#F1F5F9' : '#78350F'} />
+              <Text
+                style={[
+                  styles.directSupplierChangeBtnText,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#F1F5F9' : '#78350F' },
+                ]}
+              >
+                {isKuLanguage ? 'گۆڕین' : 'Change'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text
+            style={[
+              styles.directSupplierActiveDesc,
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: isDark ? '#CBD5E1' : '#78350F', textAlign },
+            ]}
+          >
+            {isKuLanguage
+              ? 'ئەم کڕینە راستەوخۆ لەسەر ئەکاونتی هەمیشەیی دابینکەری ڕاستەوخۆ پاشەکەوت دەکرێت. هیچ فۆرم و بۆشاییەک پێویست بە پڕکردنەوە ناکات.'
+              : 'This purchase will be automatically logged under the permanent Direct Supplier account. No fields need to be filled.'}
+          </Text>
+        </MotiView>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={[
+              styles.directSupplierBtn,
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                backgroundColor: isDark ? '#1E293B' : '#FFFBEB',
+                borderColor: isDark ? '#D97706' : '#F59E0B',
+              },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setSupplierName(DIRECT_SUPPLIER_NAME);
+              setSupplierPhone('');
+              setSupplierAddress('');
+              setSelectedSupplierId(undefined);
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.directSupplierIconWrap, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.25)' : '#FEF3C7' }]}>
+              <Ionicons name="flash" size={18} color="#D97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.directSupplierBtnTitle,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  { color: isDark ? '#FBBF24' : '#B45309', textAlign },
+                ]}
+              >
+                {isKuLanguage ? 'دابینکەری ڕاستەوخۆ ⚡' : 'Direct Supplier ⚡'}
+              </Text>
+              <Text
+                style={[
+                  styles.directSupplierBtnSub,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                  { color: isDark ? '#E2E8F0' : '#78350F', textAlign },
+                ]}
+              >
+                {isKuLanguage ? 'کڕینی دەستبەجێ بەبێ پێویستی بە ژمارە و ناونیشان' : 'Quick intake without phone or address'}
+              </Text>
+            </View>
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#D97706" />
+          </TouchableOpacity>
+
+          <SupplierInputForm
+            name={supplierName}
+            phone={supplierPhone}
+            address={supplierAddress}
+            onNameChange={setSupplierName}
+            onPhoneChange={setSupplierPhone}
+            onAddressChange={setSupplierAddress}
+            onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
+          />
+        </>
+      )}
 
       <DateTimePicker
         value={purchaseDate}
@@ -1387,7 +1532,7 @@ export default function NewPurchaseScreen() {
         </View>
       )}
 
-      <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
+      <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} inner />
 
       {/* Cash Drawer Live Indicator (Capital System) */}
       {isCapitalEnabled && drawerBalance !== null && (
@@ -1640,6 +1785,10 @@ export default function NewPurchaseScreen() {
             setAmountPaid('');
             setImageUri(null);
             setReceiptCurrency('iqd');
+            scrollRef.current?.scrollTo({ y: 0, animated: true });
+            col1ScrollRef.current?.scrollTo({ y: 0, animated: true });
+            col2ScrollRef.current?.scrollTo({ y: 0, animated: true });
+            col3ScrollRef.current?.scrollTo({ y: 0, animated: true });
           }}
           variant="ghost"
         />
@@ -1657,76 +1806,121 @@ export default function NewPurchaseScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
-        <KeyboardAwareScrollView
-          ref={scrollRef}
-          contentContainerStyle={[
-            styles.body,
-            isTablet && contentContainerStyle,
-            isTablet && { padding: isTabletLandscape ? 32 : 24 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {useThreeColumns ? (
-            /* 3 Columns Layout on Large Tablet Screens (iPad Landscape / Wide Tablet) */
+        {useThreeColumns ? (
+          /* 3 Independent Columns Layout on Large Tablet Screens (iPad Landscape / Wide Tablet) */
+          <View
+            style={[
+              styles.flex,
+              isTablet && contentContainerStyle,
+              styles.threeColsLandscapeContainer,
+            ]}
+          >
             <View
-              style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: 20,
-                alignItems: 'flex-start',
-                width: '100%',
-              }}
+              style={[
+                styles.threeColsLandscapeRow,
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
             >
-              {/* Column 1 (First in RTL: Products & Supplier) */}
-              <View style={{ flex: 1, gap: 20 }}>
+              {/* Column 1 (Right in RTL: Product Info & Supplier) - scrolls to content end and stops */}
+              <View style={styles.threeColSide}>
+                <KeyboardAwareScrollView
+                  ref={col1ScrollRef}
+                  style={styles.flex}
+                  contentContainerStyle={styles.threeColScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  bounces={false}
+                  overScrollMode="never"
+                  extraScrollSpace={24}
+                >
+                  <View style={styles.threeColCardsWrap}>
+                    {cardProductInfo}
+                    {cardSupplier}
+                  </View>
+                </KeyboardAwareScrollView>
+              </View>
+
+              {/* Column 2 (Middle: Quantity & Item Barcodes / IDs) - independently scrollable */}
+              <View style={styles.threeColMiddle}>
+                <KeyboardAwareScrollView
+                  ref={col2ScrollRef}
+                  style={styles.flex}
+                  contentContainerStyle={styles.threeColMiddleScrollContent}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                  extraScrollSpace={30}
+                >
+                  <View style={styles.threeColMiddleCardsWrap}>
+                    {cardQuantityAndIds}
+                  </View>
+                </KeyboardAwareScrollView>
+              </View>
+
+              {/* Column 3 (Left in RTL: Pricing, Profit & Checkout/Save) - scrolls to content end and stops */}
+              <View style={styles.threeColSide}>
+                <KeyboardAwareScrollView
+                  ref={col3ScrollRef}
+                  style={styles.flex}
+                  contentContainerStyle={styles.threeColScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  bounces={false}
+                  overScrollMode="never"
+                  extraScrollSpace={24}
+                >
+                  <View style={styles.threeColCardsWrap}>
+                    {cardPricing}
+                    {cardCheckout}
+                  </View>
+                </KeyboardAwareScrollView>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <KeyboardAwareScrollView
+            ref={scrollRef}
+            contentContainerStyle={[
+              styles.body,
+              isTablet && contentContainerStyle,
+              isTablet && { padding: 24 },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {isTablet ? (
+              /* 2 Balanced Columns Layout on Medium Tablet (iPad Portrait) */
+              <View
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  gap: 20,
+                  alignItems: 'flex-start',
+                  width: '100%',
+                }}
+              >
+                {/* Column 1: Product & IDs */}
+                <View style={{ flex: 1, gap: 20 }}>
+                  {cardProductInfo}
+                  {cardQuantityAndIds}
+                </View>
+
+                {/* Column 2: Supplier, Pricing & Checkout */}
+                <View style={{ flex: 1, gap: 20 }}>
+                  {cardSupplier}
+                  {cardPricing}
+                  {cardCheckout}
+                </View>
+              </View>
+            ) : (
+              /* 1 Column Layout on Phone */
+              <View style={{ gap: 16 }}>
                 {cardProductInfo}
-                {cardSupplier}
-              </View>
-
-              {/* Column 2 (Middle: Quantity & Item Barcodes / IDs) */}
-              <View style={{ flex: 1, gap: 20 }}>
                 {cardQuantityAndIds}
-              </View>
-
-              {/* Column 3 (Left in RTL: Pricing, Profit & Checkout/Save) */}
-              <View style={{ flex: 1, gap: 20 }}>
+                {cardSupplier}
                 {cardPricing}
                 {cardCheckout}
               </View>
-            </View>
-          ) : isTablet ? (
-            /* 2 Balanced Columns Layout on Medium Tablet (iPad Portrait) */
-            <View
-              style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: 20,
-                alignItems: 'flex-start',
-                width: '100%',
-              }}
-            >
-              {/* Column 1: Product & IDs */}
-              <View style={{ flex: 1, gap: 20 }}>
-                {cardProductInfo}
-                {cardQuantityAndIds}
-              </View>
-
-              {/* Column 2: Supplier, Pricing & Checkout */}
-              <View style={{ flex: 1, gap: 20 }}>
-                {cardSupplier}
-                {cardPricing}
-                {cardCheckout}
-              </View>
-            </View>
-          ) : (
-            /* 1 Column Layout on Phone */
-            <View style={{ gap: 16 }}>
-              {cardProductInfo}
-              {cardQuantityAndIds}
-              {cardSupplier}
-              {cardPricing}
-              {cardCheckout}
-            </View>
-          )}
-        </KeyboardAwareScrollView>
+            )}
+          </KeyboardAwareScrollView>
+        )}
       </KeyboardAvoidingView>
 
       <BarcodeScannerModal
@@ -2100,11 +2294,14 @@ const styles = StyleSheet.create({
   drawerCardHeader: {
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
     marginBottom: 12,
   },
   drawerCardTitleGroup: {
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
   },
   drawerIconBox: {
     width: 32,
@@ -2149,8 +2346,9 @@ const styles = StyleSheet.create({
   },
   drawerMetricLabelGroup: {
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flex: 1,
+    flexShrink: 1,
   },
   drawerMetricIconCircle: {
     width: 32,
@@ -2162,14 +2360,17 @@ const styles = StyleSheet.create({
   drawerMetricRowLabel: {
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
   },
   drawerMetricRowVal: {
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 0,
   },
   drawerMetricRowValBold: {
     fontSize: 15,
     fontWeight: '800',
+    flexShrink: 0,
   },
   drawerWarningBanner: {
     backgroundColor: '#FEF2F2',
@@ -2232,5 +2433,94 @@ const styles = StyleSheet.create({
   presetChipDesc: {
     fontSize: 10,
     maxWidth: 110,
+  },
+  directSupplierBtn: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  directSupplierIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  directSupplierBtnTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  directSupplierBtnSub: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  directSupplierActiveCard: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  directSupplierActiveTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  directSupplierActiveBadge: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  directSupplierChangeBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  directSupplierChangeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  directSupplierActiveDesc: {
+    fontSize: 12,
+    lineHeight: 19,
+    marginTop: 4,
+  },
+  threeColsLandscapeContainer: {
+    flex: 1,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  threeColsLandscapeRow: {
+    flex: 1,
+    gap: 16,
+    width: '100%',
+  },
+  threeColSide: {
+    flex: 1,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  threeColMiddle: {
+    flex: 1,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  threeColScrollContent: {
+    paddingBottom: 16,
+  },
+  threeColMiddleScrollContent: {
+    paddingBottom: 20,
+  },
+  threeColCardsWrap: {
+    gap: 18,
+    paddingBottom: 36,
+  },
+  threeColMiddleCardsWrap: {
+    paddingBottom: 36,
   },
 });

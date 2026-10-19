@@ -13,176 +13,32 @@ import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { hexToRgba } from '@/lib/colorUtils';
 
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { Text } from '@/components/settings/SettingsText';
+
 export interface CurrencyLargeToggleSwitchProps {
   value: 'IQD' | 'USD';
   onToggle: (nextCurrency: 'IQD' | 'USD') => void;
   disabled?: boolean;
 }
 
-// ─── Iraqi Dinar Cash Note Graphic ──────────────────────────────────────────
-export function IraqiDinarBanknote({
-  size,
-  width,
-  height,
-}: {
-  size?: number;
-  width?: number;
-  height?: number;
-}) {
-  const w = width ?? (size ? Math.round(size * 1.55) : 64);
-  const h = height ?? (size ?? 38);
-  return (
-    <View style={[styles.banknoteWrap, { width: w, height: h }]}>
-      <Svg width={w} height={h} viewBox="0 0 68 40">
-        <Defs>
-          <SvgLinearGradient id="iqdBillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#0D9488" />
-            <Stop offset="45%" stopColor="#047857" />
-            <Stop offset="100%" stopColor="#064E3B" />
-          </SvgLinearGradient>
-          <RadialGradient id="iqdGlow" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#34D399" stopOpacity="0.38" />
-            <Stop offset="100%" stopColor="#064E3B" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-
-        {/* Banknote Base */}
-        <Rect x="0.5" y="0.5" width="67" height="39" rx="5" fill="url(#iqdBillGrad)" stroke="#F59E0B" strokeWidth="1.2" />
-
-        {/* Sheen overlay */}
-        <Rect x="1" y="1" width="66" height="38" rx="4" fill="url(#iqdGlow)" />
-
-        {/* Guilloche border frame */}
-        <Rect
-          x="3.5"
-          y="3.5"
-          width="61"
-          height="33"
-          rx="3.5"
-          fill="none"
-          stroke="rgba(251, 191, 36, 0.45)"
-          strokeWidth="0.8"
-          strokeDasharray="2.5,1.5"
-        />
-
-        {/* Security watermark strip */}
-        <Rect x="12" y="1" width="3.5" height="38" fill="rgba(217, 119, 6, 0.38)" />
-
-        {/* Corner Denomination numerals */}
-        <SvgText x="5.5" y="10" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="start">
-          د.ع
-        </SvgText>
-        <SvgText x="62.5" y="35" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="end">
-          IQD
-        </SvgText>
-
-        {/* Center Medallion with decorative circle */}
-        <Circle cx="36" cy="20" r="12" fill="#064E3B" stroke="#F59E0B" strokeWidth="1.2" />
-        <Circle cx="36" cy="20" r="10" fill="none" stroke="rgba(251, 191, 36, 0.4)" strokeWidth="0.6" strokeDasharray="1.5,1" />
-
-        {/* Central Currency Symbol "د.ع" */}
-        <SvgText
-          x="36"
-          y="24"
-          fontSize="11.5"
-          fontWeight="bold"
-          fill="#FFFFFF"
-          textAnchor="middle"
-        >
-          د.ع
-        </SvgText>
-      </Svg>
-    </View>
-  );
+// ─── Backward compatibility stub graphics (unused in UI now) ────────────────
+export function IraqiDinarBanknote() {
+  return null;
 }
-
-// ─── US Dollar Cash Note Graphic ────────────────────────────────────────────
-export function USDollarBanknote({
-  size,
-  width,
-  height,
-}: {
-  size?: number;
-  width?: number;
-  height?: number;
-}) {
-  const w = width ?? (size ? Math.round(size * 1.55) : 64);
-  const h = height ?? (size ?? 38);
-  return (
-    <View style={[styles.banknoteWrap, { width: w, height: h }]}>
-      <Svg width={w} height={h} viewBox="0 0 68 40">
-        <Defs>
-          <SvgLinearGradient id="usdBillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#1E293B" />
-            <Stop offset="35%" stopColor="#0F766E" />
-            <Stop offset="100%" stopColor="#047857" />
-          </SvgLinearGradient>
-          <RadialGradient id="usdGlow" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#6EE7B7" stopOpacity="0.38" />
-            <Stop offset="100%" stopColor="#064E3B" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-
-        {/* Banknote Base */}
-        <Rect x="0.5" y="0.5" width="67" height="39" rx="5" fill="url(#usdBillGrad)" stroke="#F59E0B" strokeWidth="1.2" />
-
-        {/* Sheen overlay */}
-        <Rect x="1" y="1" width="66" height="38" rx="4" fill="url(#usdGlow)" />
-
-        {/* Guilloche border frame */}
-        <Rect
-          x="3.5"
-          y="3.5"
-          width="61"
-          height="33"
-          rx="3.5"
-          fill="none"
-          stroke="rgba(251, 191, 36, 0.45)"
-          strokeWidth="0.8"
-          strokeDasharray="2.5,1.5"
-        />
-
-        {/* Famous $100 3D Blue Security Ribbon */}
-        <Rect x="20" y="1" width="3.5" height="38" fill="#3B82F6" opacity={0.7} />
-
-        {/* Corner Denomination numerals */}
-        <SvgText x="5.5" y="10" fontSize="7" fontWeight="bold" fill="#86EFAC" textAnchor="start">
-          $
-        </SvgText>
-        <SvgText x="62.5" y="35" fontSize="6.5" fontWeight="bold" fill="#FDE68A" textAnchor="end">
-          USD
-        </SvgText>
-
-        {/* Center Federal Reserve Oval Medallion */}
-        <Circle cx="37" cy="20" r="12" fill="#022C22" stroke="#F59E0B" strokeWidth="1.2" />
-        <Circle cx="37" cy="20" r="10" fill="none" stroke="rgba(251, 191, 36, 0.4)" strokeWidth="0.6" strokeDasharray="1.5,1" />
-
-        {/* Central Currency Symbol "$" */}
-        <SvgText
-          x="37"
-          y="25.5"
-          fontSize="15"
-          fontWeight="bold"
-          fill="#FFFFFF"
-          textAnchor="middle"
-        >
-          $
-        </SvgText>
-      </Svg>
-    </View>
-  );
+export function USDollarBanknote() {
+  return null;
 }
-
-// Backward compatibility export aliases
 export const IraqiDinarGraphic = IraqiDinarBanknote;
 export const USDollarGraphic = USDollarBanknote;
 
-const TRACK_WIDTH = 176;
-const TRACK_HEIGHT = 56;
+const TRACK_WIDTH = 220;
+const TRACK_HEIGHT = 52;
 const TRACK_PADDING = 4;
-const THUMB_WIDTH = (TRACK_WIDTH - TRACK_PADDING * 2) / 2; // 84px
-const THUMB_HEIGHT = TRACK_HEIGHT - TRACK_PADDING * 2; // 48px
-const TRAVEL_DISTANCE = THUMB_WIDTH; // 84px
+const THUMB_WIDTH = (TRACK_WIDTH - TRACK_PADDING * 2) / 2; // 106px
+const THUMB_HEIGHT = TRACK_HEIGHT - TRACK_PADDING * 2; // 44px
+const TRAVEL_DISTANCE = THUMB_WIDTH; // 106px
 
 export function CurrencyLargeToggleSwitch({
   value,
@@ -190,13 +46,14 @@ export function CurrencyLargeToggleSwitch({
   disabled = false,
 }: CurrencyLargeToggleSwitchProps) {
   const { colors, isDark } = useAppTheme();
+  const isKu = useLanguageStore((s) => s.language === 'ku');
   const isUSD = value === 'USD';
   const progress = useSharedValue(isUSD ? 1 : 0);
 
   useEffect(() => {
     progress.value = withSpring(isUSD ? 1 : 0, {
-      damping: 17,
-      stiffness: 185,
+      damping: 18,
+      stiffness: 195,
       mass: 0.85,
     });
   }, [isUSD, progress]);
@@ -225,7 +82,16 @@ export function CurrencyLargeToggleSwitch({
 
   return (
     <View style={styles.outerContainer}>
-      <View style={[styles.track, { borderColor: isDark ? hexToRgba(colors.primary, 0.45) : hexToRgba(colors.primary, 0.35) }]}>
+      <View
+        style={[
+          styles.track,
+          {
+            borderColor: isDark
+              ? hexToRgba(colors.primary, 0.45)
+              : hexToRgba(colors.primary, 0.35),
+          },
+        ]}
+      >
         {/* Dark Slate Background */}
         <LinearGradient
           colors={['#0F172A', '#1E293B']}
@@ -234,37 +100,57 @@ export function CurrencyLargeToggleSwitch({
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Left Side: Iraqi Dinar Banknote */}
+        {/* Animated Sliding Pill Selection Indicator */}
+        <Animated.View style={[styles.thumbPill, thumbAnimatedStyle]} pointerEvents="none">
+          <LinearGradient
+            colors={[colors.primary, '#B4881D']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.thumbGradient}
+          />
+        </Animated.View>
+
+        {/* Left Slot: Dinar (IQD) */}
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={0.8}
           onPress={() => handlePress('IQD')}
           disabled={disabled}
           style={styles.slotBtn}
         >
-          <View style={[styles.badgeWrap, !isUSD ? styles.activeBadge : styles.inactiveBadge]}>
-            <IraqiDinarBanknote width={66} height={39} />
-          </View>
+          <Text
+            style={[
+              styles.slotText,
+              {
+                color: !isUSD ? '#0F172A' : '#94A3B8',
+                fontFamily: !isUSD ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                fontWeight: !isUSD ? '700' : '500',
+              },
+            ]}
+          >
+            {isKu ? 'دینار' : 'IQD'}
+          </Text>
         </TouchableOpacity>
 
-        {/* Right Side: US Dollar Banknote */}
+        {/* Right Slot: Dollar (USD) */}
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={0.8}
           onPress={() => handlePress('USD')}
           disabled={disabled}
           style={styles.slotBtn}
         >
-          <View style={[styles.badgeWrap, isUSD ? styles.activeBadge : styles.inactiveBadge]}>
-            <USDollarBanknote width={66} height={39} />
-          </View>
+          <Text
+            style={[
+              styles.slotText,
+              {
+                color: isUSD ? '#0F172A' : '#94A3B8',
+                fontFamily: isUSD ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT,
+                fontWeight: isUSD ? '700' : '500',
+              },
+            ]}
+          >
+            {isKu ? 'دۆلار' : 'USD'}
+          </Text>
         </TouchableOpacity>
-
-        {/* Animated Sliding Pill Selection Indicator */}
-        <Animated.View style={[styles.thumbPill, thumbAnimatedStyle]} pointerEvents="none">
-          <LinearGradient
-            colors={[hexToRgba(colors.primary, 0.28), hexToRgba(colors.primary, 0.08)]}
-            style={styles.thumbGradient}
-          />
-        </Animated.View>
       </View>
     </View>
   );
@@ -301,26 +187,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  badgeWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeBadge: {
-    opacity: 1,
-    transform: [{ scale: 1.05 }],
-  },
-  inactiveBadge: {
-    opacity: 0.42,
-    transform: [{ scale: 0.94 }],
-  },
-  banknoteWrap: {
-    borderRadius: 6,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+  slotText: {
+    fontSize: 16.5,
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   thumbPill: {
     position: 'absolute',

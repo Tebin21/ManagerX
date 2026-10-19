@@ -380,6 +380,8 @@ async function runInitializeDatabase(): Promise<void> {
   `);
 
   await runMigrations(database);
+  await ensureDirectCustomer(database);
+  await ensureDirectSupplier(database);
 }
 
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -1479,16 +1481,73 @@ export async function getSoldProducts(): Promise<SoldProductRecord[]> {
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 
+export const DIRECT_CUSTOMER_NAME = 'کڕیاری ڕاستەوخۆ';
+
+export function isDirectCustomerName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n === DIRECT_CUSTOMER_NAME.toLowerCase() ||
+    n === 'direct customer' ||
+    n === 'walk-in customer'
+  );
+}
+
+export async function ensureDirectCustomer(db?: SQLite.SQLiteDatabase): Promise<number> {
+  const database = db ?? (await getDatabase());
+  const row = await database.getFirstAsync<{ id: number }>(
+    `SELECT id FROM customers 
+     WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+        OR LOWER(TRIM(name)) = 'direct customer'
+        OR LOWER(TRIM(name)) = 'walk-in customer'
+     LIMIT 1`,
+    [DIRECT_CUSTOMER_NAME]
+  );
+  let directId: number;
+  if (row) {
+    directId = row.id;
+  } else {
+    const uuid = await newUuid();
+    const res = await database.runAsync(
+      'INSERT INTO customers (name, phone, address, notes, uuid) VALUES (?, NULL, NULL, ?, ?)',
+      [DIRECT_CUSTOMER_NAME, 'سیستەم • فرۆشتنی ڕاستەوخۆ', uuid]
+    );
+    directId = res.lastInsertRowId;
+  }
+
+  // Backfill any prior direct sales that had customer_id IS NULL
+  try {
+    await database.runAsync(
+      `UPDATE sales SET customer_id = ? 
+       WHERE customer_id IS NULL 
+         AND (customer_name = ? OR customer_name = 'Direct Customer' OR customer_name = 'Walk-in Customer')`,
+      [directId, DIRECT_CUSTOMER_NAME]
+    );
+  } catch {}
+
+  return directId;
+}
+
+export async function getOrCreateDirectCustomer(): Promise<number> {
+  return ensureDirectCustomer();
+}
+
 export async function upsertCustomer(input: {
   name: string;
   phone: string;
   address?: string;
   selectedId?: number;
 }): Promise<number> {
-  if (input.selectedId) return input.selectedId;
-
   const database = await getDatabase();
   const trimName  = input.name.trim();
+
+  // If this is the direct customer, always route to ensureDirectCustomer!
+  if (isDirectCustomerName(trimName)) {
+    return ensureDirectCustomer(database);
+  }
+
+  if (input.selectedId) return input.selectedId;
+
   const trimPhone = input.phone.trim();
 
   if (trimPhone) {
@@ -1587,6 +1646,14 @@ export async function updateCustomer(
 ): Promise<void> {
   const database = await getDatabase();
 
+  const cust = await database.getFirstAsync<{ name: string }>(
+    'SELECT name FROM customers WHERE id = ?',
+    [id]
+  );
+  if (cust && isDirectCustomerName(cust.name) && data.name !== undefined && !isDirectCustomerName(data.name)) {
+    throw new Error('CANNOT_RENAME_DIRECT_CUSTOMER');
+  }
+
   if (data.name !== undefined) {
     const trimName = data.name.trim();
     const byName = await database.getFirstAsync<{ id: number }>(
@@ -1625,6 +1692,14 @@ export async function updateCustomer(
 
 export async function deleteCustomer(id: number): Promise<void> {
   const database = await getDatabase();
+
+  const cust = await database.getFirstAsync<{ name: string }>(
+    'SELECT name FROM customers WHERE id = ?',
+    [id]
+  );
+  if (cust && isDirectCustomerName(cust.name)) {
+    throw new Error('CANNOT_DELETE_DIRECT_CUSTOMER');
+  }
 
   const saleCheck = await database.getFirstAsync<{ cnt: number }>(
     'SELECT COUNT(*) AS cnt FROM sales WHERE customer_id = ?', [id]
@@ -2336,6 +2411,78 @@ function rowToSupplierWithStats(row: Record<string, unknown>): SupplierWithStats
   };
 }
 
+export const DIRECT_SUPPLIER_NAME = 'دابینکەری ڕاستەوخۆ';
+
+export function isDirectSupplierName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return (
+    n === DIRECT_SUPPLIER_NAME.toLowerCase() ||
+    n === 'direct supplier' ||
+    n === 'walk-in supplier' ||
+    n === 'دابینکەری راستەوخۆ' ||
+    n === 'دابینکەری دەستبەجێ'
+  );
+}
+
+export async function ensureDirectSupplier(db?: SQLite.SQLiteDatabase): Promise<number> {
+  const database = db ?? (await getDatabase());
+  const row = await database.getFirstAsync<{ id: number }>(
+    `SELECT id FROM suppliers 
+     WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+        OR LOWER(TRIM(name)) = 'direct supplier'
+        OR LOWER(TRIM(name)) = 'walk-in supplier'
+        OR LOWER(TRIM(name)) = 'دابینکەری راستەوخۆ'
+     LIMIT 1`,
+    [DIRECT_SUPPLIER_NAME]
+  );
+  let directId: number;
+  if (row) {
+    directId = row.id;
+  } else {
+    let uuidVal: string | null = null;
+    try {
+      uuidVal = await newUuid();
+    } catch {}
+
+    let hasUuid = false;
+    try {
+      const cols = await database.getAllAsync<{ name: string }>("PRAGMA table_info('suppliers')");
+      hasUuid = cols.some((c) => c.name === 'uuid');
+    } catch {}
+
+    if (hasUuid && uuidVal) {
+      const res = await database.runAsync(
+        'INSERT INTO suppliers (name, phone, address, notes, uuid) VALUES (?, NULL, NULL, ?, ?)',
+        [DIRECT_SUPPLIER_NAME, 'سیستەم • دابینکەری ڕاستەوخۆ', uuidVal]
+      );
+      directId = res.lastInsertRowId;
+    } else {
+      const res = await database.runAsync(
+        'INSERT INTO suppliers (name, phone, address, notes) VALUES (?, NULL, NULL, ?)',
+        [DIRECT_SUPPLIER_NAME, 'سیستەم • دابینکەری ڕاستەوخۆ']
+      );
+      directId = res.lastInsertRowId;
+    }
+  }
+
+  // Backfill any prior direct purchases that have supplier_name matching
+  try {
+    await database.runAsync(
+      `UPDATE purchases SET supplier_name = ?
+       WHERE supplier_name IS NOT NULL
+         AND (LOWER(TRIM(supplier_name)) = 'direct supplier' OR LOWER(TRIM(supplier_name)) = 'دابینکەری راستەوخۆ')`,
+      [DIRECT_SUPPLIER_NAME]
+    );
+  } catch {}
+
+  return directId;
+}
+
+export async function getOrCreateDirectSupplier(): Promise<number> {
+  return ensureDirectSupplier();
+}
+
 export async function upsertSupplier(input: {
   name: string;
   phone?: string | null;
@@ -2347,6 +2494,11 @@ export async function upsertSupplier(input: {
   const database = await getDatabase();
   const trimName  = input.name.trim();
   if (!trimName) throw new Error('Supplier name is required');
+
+  if (isDirectSupplierName(trimName)) {
+    return await ensureDirectSupplier(database);
+  }
+
   const trimPhone = input.phone?.trim() ?? null;
 
   if (trimPhone) {
@@ -2418,6 +2570,16 @@ export async function updateSupplier(id: number, data: {
 }): Promise<void> {
   const database = await getDatabase();
 
+  const current = await database.getFirstAsync<{ name: string }>(
+    'SELECT name FROM suppliers WHERE id = ?',
+    [id]
+  );
+  if (current && isDirectSupplierName(current.name)) {
+    if (data.name !== undefined && !isDirectSupplierName(data.name)) {
+      throw new Error('CANNOT_RENAME_DIRECT_SUPPLIER');
+    }
+  }
+
   if (data.name !== undefined) {
     const trimName = data.name.trim();
     const byName = await database.getFirstAsync<{ id: number }>(
@@ -2451,6 +2613,15 @@ export async function updateSupplier(id: number, data: {
 
 export async function deleteSupplier(id: number): Promise<void> {
   const database = await getDatabase();
+
+  const supp = await database.getFirstAsync<{ name: string }>(
+    'SELECT name FROM suppliers WHERE id = ?',
+    [id]
+  );
+  if (supp && isDirectSupplierName(supp.name)) {
+    throw new Error('CANNOT_DELETE_DIRECT_SUPPLIER');
+  }
+
   const debtCheck = await database.getFirstAsync<{ cnt: number }>(
     `SELECT COUNT(*) AS cnt FROM purchase_debts WHERE supplier_name = (SELECT name FROM suppliers WHERE id = ?) AND status = 'active'`,
     [id]

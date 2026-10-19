@@ -6,6 +6,9 @@ import {
   updateSaleComplete,
   generateInvoiceNumber,
   upsertCustomer,
+  getOrCreateDirectCustomer,
+  DIRECT_CUSTOMER_NAME,
+  isDirectCustomerName,
   getSaleItemsSearchIndex,
 } from '@/lib/sqlite';
 import { useInventoryStore } from './inventoryStore';
@@ -73,7 +76,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
     const customer = cart.customerInput;
     let customerId: number | null = null;
-    if (customer.name.trim()) {
+    const isDirect = !customer.name.trim() || isDirectCustomerName(customer.name);
+
+    if (isDirect) {
+      customerId = await getOrCreateDirectCustomer();
+    } else if (customer.name.trim()) {
       customerId = await upsertCustomer({
         name:       customer.name.trim(),
         phone:      customer.phone.trim(),
@@ -81,6 +88,10 @@ export const useSalesStore = create<SalesState>((set, get) => ({
         selectedId: customer.selectedCustomerId,
       });
     }
+
+    const customerName = isDirect
+      ? DIRECT_CUSTOMER_NAME
+      : (customer.name.trim() || null);
 
     const saleItems: Omit<SaleItem, 'id' | 'saleId'>[] = cart.items.map((ci) => ({
       productId: ci.product.id,
@@ -97,9 +108,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const saleData = {
       invoiceNumber,
       customerId,
-      customerName: customer.name.trim() || null,
-      customerPhone: customer.phone.trim() || null,
-      customerAddress: customer.address.trim() || null,
+      customerName,
+      customerPhone: isDirect ? null : (customer.phone.trim() || null),
+      customerAddress: isDirect ? null : (customer.address.trim() || null),
       warranty: customer.warranty.trim() || null,
       notes: cart.saleNotes.trim() || null,
       paymentMethod: cart.paymentMethod,

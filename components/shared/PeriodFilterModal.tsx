@@ -1,15 +1,13 @@
 import React, { useState, type ComponentProps } from 'react';
-import { View, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/lib/i18n';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
-import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import type { PeriodKey } from '@/utils/dateRanges';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 
 interface Props {
   visible: boolean;
@@ -37,27 +35,23 @@ export function PeriodFilterModal({
   exportPdfLabel,
 }: Props) {
   const { colors } = useAppTheme();
-  const { textAlign } = useRTL();
-  const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [showCustom, setShowCustom] = useState(false);
+  const [customModalVisible, setCustomModalVisible] = useState(false);
 
   type Option = { key: PeriodKey; label: string; icon: ComponentProps<typeof Ionicons>['name'] };
   const options: Option[] = [
-    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
     { key: 'today', label: labels?.today ?? i18n.t('common.today'), icon: 'today-outline' },
     { key: 'week', label: labels?.week ?? i18n.t('common.thisWeek'), icon: 'calendar-outline' },
     { key: 'month', label: labels?.month ?? i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
     { key: 'year', label: labels?.year ?? i18n.t('reports.year'), icon: 'stats-chart-outline' },
+    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
     { key: 'custom', label: labels?.custom ?? i18n.t('reports.custom'), icon: 'options-outline' },
   ];
 
   function handleClose() {
-    setShowCustom(false);
-    setCustomFrom('');
-    setCustomTo('');
+    setCustomModalVisible(false);
     onClose();
   }
 
@@ -67,69 +61,30 @@ export function PeriodFilterModal({
       handleClose();
       return;
     }
-    setShowCustom(true);
-  }
-
-  function handleApplyCustom() {
-    if (!customFrom || !customTo) {
-      Alert.alert(i18n.t('common.required'), i18n.t('purchases.validationDate'));
-      return;
-    }
-    if (customFrom > customTo) {
-      Alert.alert(i18n.t('common.error'), i18n.t('reports.invalidDateRange'));
-      return;
-    }
-    onSelect('custom', customFrom, customTo);
-    handleClose();
+    onClose();
+    setTimeout(() => {
+      setCustomModalVisible(true);
+    }, 150);
   }
 
   return (
-    <AppSheet visible={visible} onClose={handleClose}>
-      <AppSheetHeader title={i18n.t('reports.filterByPeriod')} />
+    <>
+      <AppSheet visible={visible} onClose={handleClose}>
+        <AppSheetHeader title={i18n.t('reports.filterByPeriod')} />
 
-      {options.map(({ key, icon, label }) => {
-        const active = showCustom ? key === 'custom' : key === current;
-        return (
-          <AppSheetOption
-            key={key}
-            icon={icon}
-            label={label}
-            active={active}
-            indicator="check"
-            onPress={() => handleSelect(key)}
-          />
-        );
-      })}
-
-      {showCustom && (
-        <View style={styles.customBox}>
-          <Text style={[styles.dateLabel, { color: colors.gray600, textAlign }]}>
-            {i18n.t('reports.fromDate')} (YYYY-MM-DD)
-          </Text>
-          <TextInput
-            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customFrom }), {})]}
-            placeholder="2026-01-01"
-            placeholderTextColor={colors.gray400}
-            value={customFrom}
-            onChangeText={setCustomFrom}
-            onFocus={scrollIntoView}
-          />
-          <Text style={[styles.dateLabel, { color: colors.gray600, textAlign }]}>
-            {i18n.t('reports.toDate')} (YYYY-MM-DD)
-          </Text>
-          <TextInput
-            style={[styles.dateInput, { color: colors.black, borderColor: colors.gray200, textAlign }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customTo }), {})]}
-            placeholder="2026-12-31"
-            placeholderTextColor={colors.gray400}
-            value={customTo}
-            onChangeText={setCustomTo}
-            onFocus={scrollIntoView}
-          />
-          <TouchableOpacity style={[styles.applyBtn, { backgroundColor: colors.primary }]} onPress={handleApplyCustom}>
-            <Text style={styles.applyText}>{i18n.t('reports.apply')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {options.map(({ key, icon, label }) => {
+          const active = key === current;
+          return (
+            <AppSheetOption
+              key={key}
+              icon={icon}
+              label={label}
+              active={active}
+              indicator="check"
+              onPress={() => handleSelect(key)}
+            />
+          );
+        })}
 
       {onExportPdf && (
         <View style={styles.exportSection}>
@@ -156,17 +111,26 @@ export function PeriodFilterModal({
           </TouchableOpacity>
         </View>
       )}
-    </AppSheet>
+      </AppSheet>
+
+      <CustomDateRangeModal
+        visible={customModalVisible}
+        onClose={() => setCustomModalVisible(false)}
+        initialFrom={customFrom}
+        initialTo={customTo}
+        onApply={(from, to) => {
+          setCustomFrom(from);
+          setCustomTo(to);
+          setCustomModalVisible(false);
+          onSelect('custom', from, to);
+          handleClose();
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  customBox: { marginTop: 8 },
-  dateLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 8 },
-  dateInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, marginBottom: 4 },
-  applyBtn: { borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
-  applyText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-
   exportSection: {
     marginTop: 10,
     marginBottom: 4,

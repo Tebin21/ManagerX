@@ -34,6 +34,7 @@ import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { hexToRgba } from '@/lib/colorUtils';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
@@ -664,6 +665,7 @@ export default function DataScreen() {
         animationType="fade"
         onRequestClose={handleDismissReset}
         statusBarTranslucent
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
           <View style={[
@@ -756,6 +758,7 @@ export default function DataScreen() {
         animationType="fade"
         onRequestClose={handleDismissRestore}
         statusBarTranslucent
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.overlay}>
           <View style={[

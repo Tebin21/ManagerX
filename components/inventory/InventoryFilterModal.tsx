@@ -13,6 +13,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 export type StockStatusFilter = 'all' | 'inStock' | 'lowStock' | 'outOfStock' | 'paid' | 'debt';
 export type InventorySortBy =
@@ -79,7 +80,13 @@ export function InventoryFilterModal({
     (sortBy !== 'newest' ? 1 : 0);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+    >
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: isDark ? colors.gray100 : colors.white }]}>
           {/* Header */}

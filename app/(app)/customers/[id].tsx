@@ -31,6 +31,8 @@ import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
 import type { FinancialLedgerEvent } from '@/types/debt';
 import { useRTL } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
+import { isDirectCustomerName } from '@/lib/sqlite';
 
 export default function CustomerProfileScreen() {
   const router = useRouter();
@@ -48,7 +50,7 @@ export default function CustomerProfileScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
-  const { flexDirection, textAlign, writingDirection } = useRTL();
+  const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
   const customer: CustomerWithStats | undefined = customers.find((c) => c.id === Number(id));
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
@@ -117,8 +119,20 @@ export default function CustomerProfileScreen() {
     );
   }, [deleteSale, loadCustomers, loadAll, t]);
 
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isDirectCustomer = isDirectCustomerName(customer?.name);
+
   const handleDeleteCustomer = useCallback(() => {
     if (!customer) return;
+    if (isDirectCustomer) {
+      Alert.alert(
+        t('common.error'),
+        isKuLanguage
+          ? 'ئەم ئەکاونتە تایبەتە بە فرۆشتنی ڕاستەوخۆ (سیستەم) و ناتوانرێت بسڕدرێتەوە.'
+          : 'Direct Customer is a permanent system account and cannot be deleted.'
+      );
+      return;
+    }
     Alert.alert(
       t('customers.deleteAccountTitle'),
       t('customers.deleteAccountMsg', { name: customer.name }),
@@ -133,7 +147,14 @@ export default function CustomerProfileScreen() {
               router.back();
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : '';
-              if (msg === 'CUSTOMER_HAS_SALES') {
+              if (msg === 'CANNOT_DELETE_DIRECT_CUSTOMER') {
+                Alert.alert(
+                  t('common.error'),
+                  isKuLanguage
+                    ? 'ئەم ئەکاونتە تایبەتە بە فرۆشتنی ڕاستەوخۆ (سیستەم) و ناتوانرێت بسڕدرێتەوە.'
+                    : 'Direct Customer is a permanent system account and cannot be deleted.'
+                );
+              } else if (msg === 'CUSTOMER_HAS_SALES') {
                 Alert.alert(t('common.error'), t('customers.deleteBlockedSales'));
               } else if (msg === 'CUSTOMER_HAS_ACTIVE_DEBTS') {
                 Alert.alert(t('common.error'), t('customers.deleteBlockedDebts'));
@@ -145,7 +166,7 @@ export default function CustomerProfileScreen() {
         },
       ]
     );
-  }, [customer, deleteCustomer, router, t]);
+  }, [customer, isDirectCustomer, isKuLanguage, deleteCustomer, router, t]);
 
   const handleExportPDF = useCallback(async () => {
     if (!customer) return;
@@ -205,6 +226,12 @@ export default function CustomerProfileScreen() {
         {/* Phone + address chips */}
         {customer && (
           <View style={styles.chipsRow}>
+            {isDirectCustomer && (
+              <View style={[styles.chip, { backgroundColor: '#D97706' }]}>
+                <Ionicons name="flash" size={12} color="#fff" />
+                <Text style={styles.chipText}>{isKuLanguage ? 'کڕیاری ڕاستەوخۆ (سیستەم)' : 'Direct Customer'}</Text>
+              </View>
+            )}
             {customer.phone ? (
               <View style={styles.chip}>
                 <Ionicons name="call-outline" size={12} color="#fff" />
@@ -365,51 +392,80 @@ export default function CustomerProfileScreen() {
           )}
 
           {/* Danger Zone — Delete Customer Account */}
+          {/* Danger Zone — Delete Customer Account or Permanent System Account Banner */}
           {customer && (
-            <MotiView
-              from={{ opacity: 0, translateY: 10 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-              style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
-            >
-              <Text style={sectionTitleStyle}>
-                {t('customers.deleteAccountSection')}
-              </Text>
+            isDirectCustomer ? (
+              <MotiView
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
+                style={[
+                  styles.section,
+                  {
+                    borderWidth: 1.5,
+                    borderColor: isDark ? '#D97706' : '#F59E0B',
+                    backgroundColor: isDark ? '#1E293B' : '#FFFBEB',
+                  },
+                ]}
+              >
+                <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 8 }]}>
+                  <Ionicons name="shield-checkmark" size={22} color="#D97706" />
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }}>
+                    {isKuLanguage ? 'ئەکاونتی هەمیشەیی سیستەم' : 'Permanent System Account'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 13, lineHeight: 21, color: isDark ? '#E2E8F0' : '#78350F', textAlign }}>
+                  {isKuLanguage
+                    ? 'ئەم کڕیارە تایبەتە بە فرۆشتنە دەستبەجێکانی دووکان (کڕیاری ڕاستەوخۆ). بە هیچ شێوەیەک ناسڕدرێتەوە تا هەموو کات مێژووی فرۆشتن و حساباتی دووکانت پارێزراو بێت.'
+                    : 'This is the permanent account for walk-in direct sales. It cannot be deleted to ensure all historical transactions remain intact.'}
+                </Text>
+              </MotiView>
+            ) : (
+              <MotiView
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
+                style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
+              >
+                <Text style={sectionTitleStyle}>
+                  {t('customers.deleteAccountSection')}
+                </Text>
 
-              {!canDeleteAccount ? (
-                <>
-                  <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg, flexDirection }]}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
-                    <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
-                      {sales.length > 0
-                        ? t('customers.deleteBlockedSalesHint', { count: sales.length })
-                        : t('customers.deleteBlockedDebtsHint')}
-                    </Text>
-                  </View>
+                {!canDeleteAccount ? (
+                  <>
+                    <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg, flexDirection }]}>
+                      <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
+                      <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
+                        {sales.length > 0
+                          ? t('customers.deleteBlockedSalesHint', { count: sales.length })
+                          : t('customers.deleteBlockedDebtsHint')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}
+                      disabled
+                      activeOpacity={1}
+                    >
+                      <Ionicons name="person-remove-outline" size={16} color={colors.gray400} />
+                      <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
+                        {t('customers.deleteAccount')}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
                   <TouchableOpacity
-                    style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}
-                    disabled
-                    activeOpacity={1}
+                    style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg, flexDirection }]}
+                    onPress={handleDeleteCustomer}
+                    activeOpacity={0.82}
                   >
-                    <Ionicons name="person-remove-outline" size={16} color={colors.gray400} />
-                    <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
+                    <Ionicons name="person-remove-outline" size={16} color={colors.error} />
+                    <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
                       {t('customers.deleteAccount')}
                     </Text>
                   </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg, flexDirection }]}
-                  onPress={handleDeleteCustomer}
-                  activeOpacity={0.82}
-                >
-                  <Ionicons name="person-remove-outline" size={16} color={colors.error} />
-                  <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
-                    {t('customers.deleteAccount')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </MotiView>
+                )}
+              </MotiView>
+            )
           )}
         </KeyboardAwareScrollView>
       )}

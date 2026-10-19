@@ -9,6 +9,7 @@ import { Theme } from '@/constants/theme';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
+import { useLanguageStore } from '@/store/languageStore';
 import type { Sale } from '@/types/sales';
 
 interface Props {
@@ -32,7 +33,12 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
   const debtTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { isRTL, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const hasDebt = sale.remainingDebt > 0;
+
+  const methodLabel = isKuLanguage
+    ? (sale.paymentMethod === 'cash' ? 'کاش' : sale.paymentMethod === 'debt' ? 'قەرز' : 'FIB')
+    : (METHOD_LABEL[sale.paymentMethod] ?? sale.paymentMethod);
 
   const methodColor: Record<string, string> = {
     cash: colors.success,
@@ -58,7 +64,7 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
           <View style={[styles.badges, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
             <View style={[styles.methodBadge, { backgroundColor: `${methodColor[sale.paymentMethod]}20` }]}>
               <Text style={[styles.methodText, { color: methodColor[sale.paymentMethod] }]}>
-                {METHOD_LABEL[sale.paymentMethod] ?? sale.paymentMethod}
+                {methodLabel}
               </Text>
             </View>
             {hasDebt && (

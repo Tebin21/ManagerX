@@ -13,7 +13,10 @@ import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
-import { searchCustomersList } from '@/lib/sqlite';
+import { searchCustomersList, DIRECT_CUSTOMER_NAME, isDirectCustomerName } from '@/lib/sqlite';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { useLanguageStore } from '@/store/languageStore';
+import * as Haptics from 'expo-haptics';
 import type { CustomerInput } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 
@@ -27,14 +30,17 @@ interface Props {
 
 export function CustomerInputForm({ value, onChange, customerFound, nameError, phoneError }: Props) {
   const { t } = useTranslation();
-  const { textAlign, flexDirection } = useRTL();
+  const { textAlign, flexDirection, isRTL } = useRTL();
   const { arrowForwardOutline } = useDirectionalChevron();
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isDirect = isDirectCustomerName(value.name);
 
   const fetchSuggestions = useCallback((query: string) => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -81,8 +87,135 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
     }
   }, [onChange, fetchSuggestions]);
 
+  if (isDirect) {
+    return (
+      <MotiView
+        from={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'timing', duration: 250 }}
+        style={[
+          styles.directCustomerActiveCard,
+          {
+            backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF3C7',
+            borderColor: isDark ? 'rgba(212, 175, 55, 0.45)' : '#F59E0B',
+          },
+        ]}
+      >
+        <View style={[styles.directCustomerActiveHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.directCustomerActiveBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="flash" size={14} color="#D4AF37" />
+            <Text
+              style={[
+                styles.directCustomerActiveTitle,
+                { color: isDark ? '#FCD34D' : '#B45309' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {t('sales.directCustomerPermanent')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+              onChange({
+                name: '',
+                phone: '',
+                address: '',
+                warranty: '',
+                notes: '',
+                selectedCustomerId: undefined,
+              });
+            }}
+            style={[
+              styles.directCustomerChangeBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                borderColor: colors.gray200,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="refresh-outline" size={13} color={colors.gray400} />
+            <Text
+              style={[
+                styles.directCustomerChangeBtnText,
+                { color: colors.gray400 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {t('sales.changeCustomer')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text
+          style={[
+            styles.directCustomerActiveDesc,
+            { color: isDark ? '#E2E8F0' : '#475569', textAlign },
+            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+          ]}
+        >
+          {t('sales.directCustomerSelectedHint')}
+        </Text>
+      </MotiView>
+    );
+  }
+
   return (
     <View>
+      {/* Quick Direct Customer Selection Button */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => {
+          try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+          onChange({
+            name: DIRECT_CUSTOMER_NAME,
+            phone: '',
+            address: '',
+            warranty: '',
+            notes: isKuLanguage ? 'فرۆشتنی ڕاستەوخۆ' : 'Direct Sale',
+            selectedCustomerId: undefined,
+          });
+        }}
+        style={[
+          styles.directCustomerQuickBtn,
+          {
+            backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+            borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+          },
+        ]}
+      >
+        <View style={styles.directCustomerIconWrap}>
+          <Ionicons name="flash" size={16} color="#D4AF37" />
+        </View>
+        <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <Text
+            style={[
+              styles.directCustomerQuickBtnTitle,
+              { color: isDark ? '#FCD34D' : '#92400E', textAlign },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('sales.directSale')}
+          </Text>
+          <Text
+            style={[
+              styles.directCustomerQuickBtnSub,
+              { color: isDark ? '#FDE68A' : '#B45309', textAlign },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {isKuLanguage ? 'کڕینی دەستبەجێ بەبێ پێویستی بە ناو و مۆبایل' : 'Instant walk-in without name or phone'}
+          </Text>
+        </View>
+        <Ionicons
+          name={isRTL ? 'chevron-back' : 'chevron-forward'}
+          size={16}
+          color={isDark ? '#FCD34D' : '#B45309'}
+        />
+      </TouchableOpacity>
+
       <AppTextInput
         label={t('sales.customerName') + ' *'}
         placeholder={t('sales.customerNamePlaceholder')}
@@ -176,8 +309,71 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
+    directCustomerQuickBtn: {
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      marginBottom: 14,
+    },
+    directCustomerIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(212, 175, 55, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    directCustomerQuickBtnTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    directCustomerQuickBtnSub: {
+      fontSize: 11,
+      marginTop: 2,
+    },
+    directCustomerActiveCard: {
+      borderWidth: 1.5,
+      borderRadius: 14,
+      padding: 14,
+      gap: 10,
+    },
+    directCustomerActiveHeader: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    directCustomerActiveBadge: {
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(212, 175, 55, 0.2)',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+    },
+    directCustomerActiveTitle: {
+      fontSize: 13,
+      fontWeight: 'bold',
+    },
+    directCustomerChangeBtn: {
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    directCustomerChangeBtnText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    directCustomerActiveDesc: {
+      fontSize: 12,
+      lineHeight: 18,
+    },
     dropdown: {
       backgroundColor: colors.white,
       borderRadius: 10,

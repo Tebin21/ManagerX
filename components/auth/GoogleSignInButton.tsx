@@ -13,9 +13,10 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   onPress: () => void;
   loading?: boolean;
+  label?: string;
 }
 
-export function GoogleSignInButton({ onPress, loading }: Props) {
+export function GoogleSignInButton({ onPress, loading, label }: Props) {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
@@ -38,7 +39,7 @@ export function GoogleSignInButton({ onPress, loading }: Props) {
           <View style={styles.iconWrapper}>
             <Text style={styles.gText}>G</Text>
           </View>
-          <Text style={styles.label}>{t('login.googleBtn')}</Text>
+          <Text style={styles.label}>{label || t('login.googleBtn')}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>

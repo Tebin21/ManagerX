@@ -263,6 +263,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     return get().purchases.filter((p) => {
       if (p.productName.toLowerCase().includes(q)) return true;
       if (p.supplierName?.toLowerCase().includes(q)) return true;
+      if (p.supplierAddress?.toLowerCase().includes(q)) return true;
       if (p.purchaseNumber.toLowerCase().includes(q)) return true;
       if (p.supplierPhone) {
         if (p.supplierPhone.toLowerCase().includes(q)) return true;

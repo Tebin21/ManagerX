@@ -17,6 +17,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { fmtIQD, fmtUSD, formatCompactIQD, formatCompactUSD } from '@/utils/formatters';
 import { useSettingsStore } from '@/store/settingsStore';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 interface CompactAmountProps extends Omit<TextProps, 'children'> {
   /** Raw amount in IQD — formatting, conversion, and compacting happen internally. */
@@ -112,7 +113,7 @@ function AmountDetailModal({
   ).current;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}>
       <View style={styles.overlay}>
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={StyleSheet.absoluteFill} />

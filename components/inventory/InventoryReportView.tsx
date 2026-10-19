@@ -263,6 +263,7 @@ export function InventoryReportView({
           color="#10B981"
           subtitle={isKuLanguage ? 'پارەدراو' : 'Paid'}
           delay={270}
+          containerStyle={isTablet ? { width: '49.2%' } : undefined}
         />
 
         {/* 10. Debt-funded Stock Value / بەهای کاڵای قەرزدار */}
@@ -274,6 +275,7 @@ export function InventoryReportView({
           color="#DC2626"
           subtitle={isKuLanguage ? 'قەرز' : 'Debt'}
           delay={300}
+          containerStyle={isTablet ? { width: '49.2%' } : undefined}
         />
       </View>
 

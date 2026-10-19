@@ -38,12 +38,12 @@ export default function DashboardViewScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
-  // Period filter state (defaults to 'all' for complete store overview)
+  // Period filter state (defaults to 'today')
   const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } =
-    usePeriodFilter('all');
+    usePeriodFilter('today');
 
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,7 +154,7 @@ export default function DashboardViewScreen() {
         showBack
         rightAction={
           <HeaderActionButton
-            icon="funnel-outline"
+            icon="options-outline"
             onPress={() => setPeriodSheetVisible(true)}
           />
         }
@@ -181,21 +181,41 @@ export default function DashboardViewScreen() {
             tintColor={colors.primary}
           />
         }
-        contentContainerStyle={[styles.scrollContent, isTablet && styles.tabletContainer]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isTablet && styles.tabletContainer,
+          isTabletLandscape && styles.tabletLandscapeContainer,
+        ]}
       >
-        {/* 1. Hero Image Banner with 5s Auto-sliding and Long-press manager */}
-        <DashboardHeroSlider />
+        {/* 1. Hero Image Banner (Fixed max 760px centered in both portrait and landscape as requested) */}
+        <View style={styles.heroSliderWrapper}>
+          <DashboardHeroSlider />
+        </View>
 
         {/* 2. Section Header: Analytics Grid */}
         <View style={[styles.sectionHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={[styles.sectionTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={[styles.sectionIconBox, { backgroundColor: colors.primary + '18' }]}>
-              <Ionicons name="stats-chart" size={18} color={colors.primary} />
+            <View
+              style={[
+                styles.sectionIconBox,
+                {
+                  backgroundColor: colors.primary + '18',
+                  width: isTablet ? 38 : 32,
+                  height: isTablet ? 38 : 32,
+                  borderRadius: isTablet ? 12 : 10,
+                },
+              ]}
+            >
+              <Ionicons name="stats-chart" size={isTablet ? 20 : 18} color={colors.primary} />
             </View>
             <Text
               style={[
                 styles.sectionHeading,
-                { color: colors.darkBlue, textAlign },
+                {
+                  color: colors.darkBlue,
+                  textAlign,
+                  fontSize: isTabletLandscape ? 19 : isTablet ? 17.5 : 16,
+                },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -215,6 +235,9 @@ export default function DashboardViewScreen() {
                   backgroundColor: colors.primary + '16',
                   borderColor: colors.primary + '40',
                   flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 14 : 9,
+                  paddingVertical: isTablet ? 6 : 4.5,
+                  borderRadius: isTablet ? 12 : 10,
                 },
               ]}
             >
@@ -222,11 +245,11 @@ export default function DashboardViewScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
-                  <Ionicons name="document-text-outline" size={13} color={colors.primary} />
+                  <Ionicons name="document-text-outline" size={isTablet ? 15 : 13} color={colors.primary} />
                   <Text
                     style={[
                       styles.pdfActionText,
-                      { color: colors.primary },
+                      { color: colors.primary, fontSize: isTablet ? 13 : 11.5 },
                       isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
@@ -243,11 +266,19 @@ export default function DashboardViewScreen() {
                   backgroundColor: isDark ? colors.gray100 : colors.white,
                   borderColor: colors.gray200,
                   flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 12 : 8,
+                  paddingVertical: isTablet ? 6 : 4,
+                  borderRadius: isTablet ? 12 : 10,
                 },
               ]}
             >
-              <Ionicons name="eye-outline" size={13} color={colors.gray400} />
-              <Text style={[styles.readOnlyText, { color: colors.gray400 }]}>
+              <Ionicons name="eye-outline" size={isTablet ? 15 : 13} color={colors.gray400} />
+              <Text
+                style={[
+                  styles.readOnlyText,
+                  { color: colors.gray400, fontSize: isTablet ? 12.5 : 11 },
+                ]}
+              >
                 {isKurdish ? 'تەنها بینین' : 'View Only'}
               </Text>
             </View>
@@ -408,7 +439,7 @@ export default function DashboardViewScreen() {
               delay={330}
             />
 
-            {/* 12. Total Discounts / کۆی داشکاندن */}
+            {/* 13. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
             <DashboardMetricSquare
               title={t('dashboard.totalDiscounts')}
               value={stats.totalDiscount}
@@ -417,6 +448,7 @@ export default function DashboardViewScreen() {
               color="#8B5CF6"
               subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
               delay={360}
+              isFullWidth
             />
           </View>
         )}
@@ -440,9 +472,17 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   tabletContainer: {
-    maxWidth: 760,
+    maxWidth: 1040,
     alignSelf: 'center',
     width: '100%',
+  },
+  tabletLandscapeContainer: {
+    maxWidth: 1320,
+  },
+  heroSliderWrapper: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   sectionHeaderRow: {
     marginHorizontal: 16,

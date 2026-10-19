@@ -19,6 +19,7 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PurchaseHistoryItem } from '@/components/purchases/PurchaseHistoryItem';
+import { PurchaseGridCard } from '@/components/purchases/PurchaseGridCard';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
@@ -38,12 +39,13 @@ export default function PurchaseHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase } = usePurchaseStore();
 
   const [query, setQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [refreshing, setRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -102,22 +104,37 @@ export default function PurchaseHistoryScreen() {
     });
   }, [purchases, period, bounds]);
 
-  // Search filter on top of the period-filtered purchases
+  // Search filter on top of the period-filtered purchases: product, supplier name, phone, address, etc.
   const visible = useMemo(() => {
     if (!query.trim()) return periodFilteredPurchases;
     const q = query.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, '');
     return periodFilteredPurchases.filter((p) => {
       const num = (p.purchaseNumber || '').toLowerCase();
       const prod = (p.productName || '').toLowerCase();
       const supp = (p.supplierName || '').toLowerCase();
       const phone = (p.supplierPhone || '').toLowerCase();
+      const addr = (p.supplierAddress || '').toLowerCase();
       const cat = (p.category || '').toLowerCase();
+      const notes = (p.notes || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const warranty = (p.warranty || '').toLowerCase();
+      const phoneDigits = (p.supplierPhone || '').replace(/\D/g, '');
+      const matchPhoneDigits = Boolean(qDigits.length > 2 && phoneDigits.includes(qDigits));
+      const matchItemIds = Boolean(p.itemIds?.some((id) => id.toLowerCase().includes(q)));
+
       return (
         num.includes(q) ||
         prod.includes(q) ||
         supp.includes(q) ||
         phone.includes(q) ||
-        cat.includes(q)
+        matchPhoneDigits ||
+        addr.includes(q) ||
+        cat.includes(q) ||
+        notes.includes(q) ||
+        desc.includes(q) ||
+        warranty.includes(q) ||
+        matchItemIds
       );
     });
   }, [query, periodFilteredPurchases]);
@@ -241,18 +258,34 @@ export default function PurchaseHistoryScreen() {
     </MotiView>
   );
 
+  const numColumns = useMemo(() => {
+    if (viewMode === 'list') {
+      return isTablet ? (isTabletLandscape ? 2 : 1) : 1;
+    }
+    // 'grid' mode (چوارگۆشە)
+    return isTabletLandscape ? 4 : isTablet ? 3 : 2;
+  }, [viewMode, isTablet, isTabletLandscape]);
+
   const renderItem = ({ item, index }: { item: Purchase; index: number }) => (
     <MotiView
       from={{ opacity: 0, translateY: 12 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 40, 400) }}
-      style={{ flex: isTablet ? 1 : undefined }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
+      style={{ flex: 1 }}
     >
-      <PurchaseHistoryItem
-        purchase={item}
-        onPress={() => router.push(`/(app)/purchases/${item.id}` as never)}
-        onDelete={() => confirmDelete(item)}
-      />
+      {viewMode === 'grid' ? (
+        <PurchaseGridCard
+          purchase={item}
+          onPress={() => router.push(`/(app)/purchases/${item.id}` as never)}
+          onDelete={() => confirmDelete(item)}
+        />
+      ) : (
+        <PurchaseHistoryItem
+          purchase={item}
+          onPress={() => router.push(`/(app)/purchases/${item.id}` as never)}
+          onDelete={() => confirmDelete(item)}
+        />
+      )}
     </MotiView>
   );
 
@@ -265,7 +298,11 @@ export default function PurchaseHistoryScreen() {
         rightAction={
           <View style={[styles.headerActions, { flexDirection }]}>
             <HeaderActionButton
-              icon="funnel-outline"
+              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+              onPress={() => setViewMode((m) => (m === 'grid' ? 'list' : 'grid'))}
+            />
+            <HeaderActionButton
+              icon="options-outline"
               onPress={() => setPeriodSheetVisible(true)}
             />
             <HeaderActionButton
@@ -332,7 +369,7 @@ export default function PurchaseHistoryScreen() {
                 ]}
                 activeOpacity={0.7}
               >
-                <Ionicons name="funnel-outline" size={isTablet ? 14 : 11} color={colors.primary} />
+                <Ionicons name="options-outline" size={isTablet ? 14 : 11} color={colors.primary} />
                 <Text style={[styles.periodBadgeText, { color: colors.primary }, isTablet && { fontSize: 14 }]}>
                   {periodDisplayLabel}
                 </Text>
@@ -351,12 +388,12 @@ export default function PurchaseHistoryScreen() {
 
       {/* Purchases List */}
       <FlatList
-        key={`purch-hist-${cardColumns}`}
+        key={`purch-hist-${viewMode}-${numColumns}`}
         data={visible}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        numColumns={cardColumns}
-        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
         contentContainerStyle={[
           styles.list,
           isTablet && contentContainerStyle,

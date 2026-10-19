@@ -1,108 +1,108 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
-  TextInput,
+  ScrollView,
   TouchableOpacity,
-  RefreshControl,
+  TextInput,
   Keyboard,
   StyleSheet,
+  Alert,
+  RefreshControl,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
-import { useRouter } from 'expo-router';
+import { LTRNumber } from '@/components/ui/LTRNumber';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
 
+import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { CustomerCard } from '@/components/customers/CustomerCard';
-import { useTranslation } from 'react-i18next';
+import { SupplierCard } from '@/components/suppliers/SupplierCard';
 import { useCustomerStore } from '@/store/customerStore';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
-import { useAppTheme } from '@/contexts/ThemeContext';
-import { Theme } from '@/constants/theme';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
-import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
-import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
-import { isDateWithinRange } from '@/utils/dateRanges';
-import { usePeriodFilter } from '@/hooks/usePeriodFilter';
+import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { isDateWithinRange, getPeriodBounds, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useResponsive } from '@/hooks/useResponsive';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 
-type Tab = 'customers' | 'suppliers';
+type HistoryTab = 'report' | 'customers' | 'suppliers';
 
-function SupplierCardImpl({ supplier, onPress }: { supplier: SupplierWithStats; onPress: (supplierId: number) => void }) {
-  const { colors } = useAppTheme();
-  const { isRTL, textAlign, flexDirection } = useRTL();
-  const { chevronForward } = useDirectionalChevron();
-  const { t } = useTranslation();
-  return (
-    <TouchableOpacity
-      style={[styles.supplierCard, { backgroundColor: colors.white, flexDirection, padding: isRTL ? RTL_SPACING.cardPad : 14, marginBottom: isRTL ? RTL_SPACING.cardGap : 8 }]}
-      onPress={() => onPress(supplier.id)}
-      activeOpacity={0.85}
-    >
-      <View style={[styles.cardAvatar, { backgroundColor: colors.softBlue, marginEnd: isRTL ? 0 : 12, marginStart: isRTL ? RTL_SPACING.gapXl : 0 }]}>
-        <Ionicons name="business-outline" size={22} color={colors.primary} />
-      </View>
-      <View style={[styles.cardBody, { gap: isRTL ? RTL_SPACING.stackGap : 0 }]}>
-        <Text style={[styles.cardName, { color: colors.black, textAlign, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>{supplier.name}</Text>
-        {supplier.phone ? (
-          <View style={[styles.cardPhoneRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginBottom: isRTL ? 0 : 2 }]}>
-            <Ionicons name="call-outline" size={12} color={colors.gray400} />
-            <Text style={[styles.cardPhone, { color: colors.gray400, textAlign }]}>{supplier.phone}</Text>
-          </View>
-        ) : null}
-        <View style={[styles.subRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, flexWrap: 'wrap', marginBottom: isRTL ? 0 : 2 }]}>
-          <Text style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]}>
-            {supplier.purchaseCount} {t('suppliers.purchases')}
-          </Text>
-          <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
-          <AmountText value={supplier.totalSpent} currency="IQD" variant="small" style={[styles.cardSub, { color: colors.gray400, textAlign, marginBottom: 0 }]} />
-        </View>
-        {supplier.lastPurchaseDate ? (
-          <View style={[styles.cardDateRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 4, marginTop: isRTL ? 0 : 2 }]}>
-            <Ionicons name="time-outline" size={11} color={colors.gray300} />
-            <Text style={[styles.cardDate, { color: colors.gray400, textAlign }]}>
-              {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" />
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      <Ionicons name={chevronForward as never} size={18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
-    </TouchableOpacity>
-  );
-}
-
-const SupplierCard = React.memo(SupplierCardImpl);
+// Forces a numeric Text/AmountText to render LTR + left-aligned regardless of app language.
+const NUMBER_LTR = { textAlign: 'left' as const, writingDirection: 'ltr' as const };
 
 export default function HistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const { colors, isDark } = useAppTheme();
+  const { isRTL, textAlign, writingDirection } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
-  const { customers, isLoading: custLoading, loadCustomers, searchCustomers } = useCustomerStore();
-  const { suppliers, isLoading: supLoading, loadSuppliers, searchSuppliers } = useSupplierStore();
+  const historyGridLayout = useSettingsStore((s) => s.historyGridLayout);
+  const setHistoryGridLayout = useSettingsStore((s) => s.setHistoryGridLayout);
+
+  const { customers, isLoading: custLoading, loadCustomers } = useCustomerStore();
+  const { suppliers, isLoading: supLoading, loadSuppliers } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts } = useDebtStore();
 
-  const [activeTab, setActiveTab] = useState<Tab>('customers');
-  const [custQuery, setCustQuery] = useState('');
-  const [supQuery, setSupQuery] = useState('');
+  const [tab, setTab] = useState<HistoryTab>('report');
+  const [query, setQuery] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);
-  const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } = usePeriodFilter('all');
+
+  // Period filter state — defaults to 'today' (ئەمڕۆ)
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [fromVal, setFromVal] = useState('');
+  const [toVal, setToVal] = useState('');
+
+  const isGridView = historyGridLayout;
+  const numColumns = isGridView
+    ? (isTabletLandscape ? 4 : isTablet ? 3 : 2)
+    : (isTabletLandscape ? 2 : 1);
+
+  const styles = useMemo(
+    () => getStyles(colors, isTablet, isTabletLandscape),
+    [colors, isTablet, isTabletLandscape]
+  );
+
+  const loadAllData = useCallback(async () => {
+    await Promise.all([loadCustomers(), loadSuppliers(), loadDebts()]);
+  }, [loadCustomers, loadSuppliers, loadDebts]);
 
   useEffect(() => {
-    loadCustomers();
-    loadSuppliers();
-    loadDebts();
-  }, []);
+    loadAllData();
+  }, [loadAllData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAllData();
+    }, [loadAllData])
+  );
 
   const onRefreshCustomers = useCallback(async () => {
     setCustRefreshing(true);
@@ -116,38 +116,173 @@ export default function HistoryScreen() {
     setSupRefreshing(false);
   }, [loadSuppliers]);
 
-  const visibleCustomers = useMemo(
-    () =>
-      (custQuery.trim() ? searchCustomers(custQuery) : customers).filter((c) =>
-        period === 'all' ? true : isDateWithinRange(c.lastPurchaseDate ?? c.createdAt, bounds.from, bounds.to)
-      ),
-    [custQuery, customers, searchCustomers, bounds, period]
-  );
-  const visibleSuppliers = useMemo(
-    () =>
-      (supQuery.trim() ? searchSuppliers(supQuery) : suppliers).filter((s) =>
-        period === 'all' ? true : isDateWithinRange(s.lastPurchaseDate ?? s.createdAt, bounds.from, bounds.to)
-      ),
-    [supQuery, suppliers, searchSuppliers, bounds, period]
+  // Search expansion / collapse
+  const handleExpandSearch = useCallback(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSearchExpanded(true);
+    if (tab === 'report') {
+      setTab('customers');
+    }
+  }, [tab]);
+
+  const handleCollapseSearch = useCallback((clearQuery = false) => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSearchExpanded(false);
+    if (clearQuery) {
+      setQuery('');
+    }
+    Keyboard.dismiss();
+  }, []);
+
+  // Date bounds for current period filter
+  const bounds = useMemo(() => {
+    if (periodKey === 'custom' && customRange) {
+      return getPeriodBounds('custom', customRange.from, customRange.to);
+    }
+    return getPeriodBounds(periodKey);
+  }, [periodKey, customRange]);
+
+  const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const periodLabels: Record<PeriodKey, string> = {
+    today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
+    week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+    month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
+    year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
+    all: isKuLanguage ? 'هەمووی' : 'All Time',
+    custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+  };
+
+  const periodDisplayLabel = useMemo(() => {
+    if (periodKey === 'custom' && customRange) {
+      return `${formatDateShort(customRange.from)} - ${formatDateShort(customRange.to)}`;
+    }
+    return periodLabels[periodKey] || periodLabels.all;
+  }, [periodKey, customRange, periodLabels]);
+
+  // Filter by date bounds
+  const periodFilteredCustomers = useMemo(() => {
+    if (periodKey === 'all') return customers;
+    return customers.filter((c) =>
+      isDateWithinRange(c.lastPurchaseDate ?? c.createdAt, bounds.from, bounds.to)
+    );
+  }, [customers, periodKey, bounds]);
+
+  const periodFilteredSuppliers = useMemo(() => {
+    if (periodKey === 'all') return suppliers;
+    return suppliers.filter((s) =>
+      isDateWithinRange(s.lastPurchaseDate ?? s.createdAt, bounds.from, bounds.to)
+    );
+  }, [suppliers, periodKey, bounds]);
+
+  // Search filter on top of date bounds
+  const visibleCustomers = useMemo(() => {
+    if (!query.trim()) return periodFilteredCustomers;
+    const q = query.trim().toLowerCase();
+    return periodFilteredCustomers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.phone && c.phone.toLowerCase().includes(q))
+    );
+  }, [periodFilteredCustomers, query]);
+
+  const visibleSuppliers = useMemo(() => {
+    if (!query.trim()) return periodFilteredSuppliers;
+    const q = query.trim().toLowerCase();
+    return periodFilteredSuppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.phone && s.phone.toLowerCase().includes(q))
+    );
+  }, [periodFilteredSuppliers, query]);
+
+  // Grid layout dummy fillers for equal sizing on incomplete rows
+  type CustomerOrFiller = CustomerWithStats | { id: string; isFiller: true };
+  type SupplierOrFiller = SupplierWithStats | { id: string; isFiller: true };
+
+  const gridFormattedCustomers: CustomerOrFiller[] = useMemo(() => {
+    if (!isGridView || numColumns <= 1 || visibleCustomers.length === 0) {
+      return visibleCustomers;
+    }
+    const remainder = visibleCustomers.length % numColumns;
+    if (remainder === 0) return visibleCustomers;
+    const needed = numColumns - remainder;
+    const fillers: CustomerOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__cust_filler_${i}`,
+      isFiller: true,
+    }));
+    return [...visibleCustomers, ...fillers];
+  }, [visibleCustomers, isGridView, numColumns]);
+
+  const gridFormattedSuppliers: SupplierOrFiller[] = useMemo(() => {
+    if (!isGridView || numColumns <= 1 || visibleSuppliers.length === 0) {
+      return visibleSuppliers;
+    }
+    const remainder = visibleSuppliers.length % numColumns;
+    if (remainder === 0) return visibleSuppliers;
+    const needed = numColumns - remainder;
+    const fillers: SupplierOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__sup_filler_${i}`,
+      isFiller: true,
+    }));
+    return [...visibleSuppliers, ...fillers];
+  }, [visibleSuppliers, isGridView, numColumns]);
+
+  // ── Metrics & Calculations for Report Dashboard ──
+  const reportTotalCustSpent = useMemo(
+    () => periodFilteredCustomers.reduce((sum, c) => sum + (c.totalPurchases || 0), 0),
+    [periodFilteredCustomers]
   );
 
-  const totalDebtors = useMemo(
-    () => customers.filter((c) => c.remainingDebt > 0).length,
-    [customers]
+  const reportTotalSupSpent = useMemo(
+    () => periodFilteredSuppliers.reduce((sum, s) => sum + (s.totalSpent || 0), 0),
+    [periodFilteredSuppliers]
   );
-  const totalCustValue = useMemo(
-    () => customers.reduce((s, c) => s + c.totalPurchases, 0),
-    [customers]
+
+  const reportCustDebtors = useMemo(
+    () => periodFilteredCustomers.filter((c) => (c.remainingDebt || 0) > 0).length,
+    [periodFilteredCustomers]
   );
-  const totalSupSpent = useMemo(
-    () => suppliers.reduce((s, sup) => s + sup.totalSpent, 0),
-    [suppliers]
-  );
-  const activeSupplierDebts = useMemo(() => new Set(
-    purchaseDebts
-      .filter((d) => d.status === 'active' && d.remainingAmount > 0)
-      .map((d) => d.supplierName.toLowerCase())
-  ).size, [purchaseDebts]);
+
+  const reportActiveSupplierDebts = useMemo(() => {
+    return new Set(
+      purchaseDebts
+        .filter((d) => d.status === 'active' && d.remainingAmount > 0)
+        .map((d) => d.supplierName.toLowerCase())
+    ).size;
+  }, [purchaseDebts]);
+
+  const reportNetActivity = reportTotalCustSpent - reportTotalSupSpent;
+  const netActivityColor = reportNetActivity >= 0 ? '#10B981' : colors.error;
+  const netActivityDesc = reportNetActivity >= 0
+    ? t('history.netActivityPositive')
+    : t('history.netActivityNegative');
+
+  const topPreviewCustomers = useMemo(() => {
+    return [...periodFilteredCustomers]
+      .sort((a, b) => (b.totalPurchases || 0) - (a.totalPurchases || 0))
+      .slice(0, 3);
+  }, [periodFilteredCustomers]);
+
+  const topPreviewSuppliers = useMemo(() => {
+    return [...periodFilteredSuppliers]
+      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+      .slice(0, 3);
+  }, [periodFilteredSuppliers]);
+
+  // Card click navigations
+  const handleCustomerPress = useCallback((customerId: number) => {
+    router.push(`/(app)/customers/${customerId}` as never);
+  }, [router]);
+
+  const handleSupplierPress = useCallback((supplierId: number) => {
+    router.push(`/(app)/suppliers/${supplierId}` as never);
+  }, [router]);
 
   const renderCustomerEmpty = () => (
     <MotiView
@@ -157,16 +292,16 @@ export default function HistoryScreen() {
       style={styles.emptyContainer}
     >
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
-        <Ionicons name="people-outline" size={48} color={colors.gray300} />
+        <Ionicons name="people-outline" size={isTablet ? 56 : 48} color={colors.gray300} />
       </View>
-      {custQuery.trim() || period !== 'all' ? (
+      {query.trim() || periodKey !== 'all' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
           <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('customers.noCustomers')}</Text>
           <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('customers.noCustomersDetail')}</Text>
           <TouchableOpacity
-            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection }]}
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
             onPress={() => router.push('/(app)/sales/new-sale' as never)}
             activeOpacity={0.85}
           >
@@ -186,16 +321,16 @@ export default function HistoryScreen() {
       style={styles.emptyContainer}
     >
       <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
-        <Ionicons name="business-outline" size={48} color={colors.gray300} />
+        <Ionicons name="business-outline" size={isTablet ? 56 : 48} color={colors.gray300} />
       </View>
-      {supQuery.trim() || period !== 'all' ? (
+      {query.trim() || periodKey !== 'all' ? (
         <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('inventory.noResults')}</Text>
       ) : (
         <>
           <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('suppliers.noSuppliers')}</Text>
           <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('suppliers.noSuppliersDetail')}</Text>
           <TouchableOpacity
-            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection }]}
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
             onPress={() => router.push('/(app)/purchases/new-purchase' as never)}
             activeOpacity={0.85}
           >
@@ -207,292 +342,1038 @@ export default function HistoryScreen() {
     </MotiView>
   );
 
-  const handleCustomerPress = useCallback((customerId: number) => {
-    router.push(`/(app)/customers/${customerId}` as never);
-  }, [router]);
+  const renderCustomer = useCallback(({ item, index }: { item: CustomerOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            marginBottom: isTablet ? 12 : 8,
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+          }}
+          pointerEvents="none"
+        />
+      );
+    }
+    const customer = item as CustomerWithStats;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+        style={{ flex: 1 }}
+      >
+        <CustomerCard
+          customer={customer}
+          onPress={handleCustomerPress}
+          layout={isGridView ? 'grid' : 'list'}
+        />
+      </MotiView>
+    );
+  }, [handleCustomerPress, isGridView, isTablet]);
 
-  const handleSupplierPress = useCallback((supplierId: number) => {
-    router.push(`/(app)/suppliers/${supplierId}` as never);
-  }, [router]);
-
-  const renderCustomer = useCallback(({ item, index }: { item: CustomerWithStats; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
-    >
-      <CustomerCard customer={item} onPress={handleCustomerPress} />
-    </MotiView>
-  ), [handleCustomerPress]);
-
-  const renderSupplier = useCallback(({ item, index }: { item: SupplierWithStats; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
-    >
-      <SupplierCard supplier={item} onPress={handleSupplierPress} />
-    </MotiView>
-  ), [handleSupplierPress]);
+  const renderSupplier = useCallback(({ item, index }: { item: SupplierOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            marginBottom: isTablet ? 12 : 8,
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+          }}
+          pointerEvents="none"
+        />
+      );
+    }
+    const supplier = item as SupplierWithStats;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+        style={{ flex: 1 }}
+      >
+        <SupplierCard
+          supplier={supplier}
+          onPress={handleSupplierPress}
+          layout={isGridView ? 'grid' : 'list'}
+        />
+      </MotiView>
+    );
+  }, [handleSupplierPress, isGridView, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+      {/* ── Top Header ── */}
       <AppHeader
         title={t('history.title')}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)' as never);
+        }}
         rightAction={
-          <HeaderActionButton icon="funnel-outline" onPress={() => setPeriodSheetVisible(true)} />
+          tab !== 'report' ? (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setHistoryGridLayout(!historyGridLayout);
+              }}
+              style={[
+                styles.layoutToggleBtn,
+                isTablet && { width: 44, height: 44, borderRadius: 22 },
+              ]}
+              accessibilityLabel={historyGridLayout ? 'List View' : 'Grid View'}
+            >
+              <Ionicons
+                name={historyGridLayout ? 'list' : 'grid'}
+                size={isTablet ? 22 : 18}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+          ) : undefined
         }
-      >
-        {/* Stats strip */}
-        {activeTab === 'customers' && customers.length > 0 && (
-          <MotiView
-            from={{ opacity: 0, translateY: 6 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStatsCard}
-          >
-            <View style={styles.headerStatTotal}>
-              <AmountText
-                value={totalCustValue}
-                currency="IQD"
-                style={styles.headerStatTotalVal}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.5}
-              />
-              <Text style={styles.headerStatLabel}>{t('customers.totalSpent')}</Text>
-            </View>
-            <View style={styles.headerStatsDividerH} />
-            <View style={[styles.headerStatsRow, { flexDirection }]}>
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatVal}>{customers.length}</Text>
-                <Text style={styles.headerStatLabel}>{t('customers.title')}</Text>
-              </View>
-              <View style={styles.headerStatDivider} />
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatVal}>{totalDebtors}</Text>
-                <Text style={styles.headerStatLabel}>{t('customers.activeDebts')}</Text>
-              </View>
-            </View>
-          </MotiView>
-        )}
-        {activeTab === 'suppliers' && suppliers.length > 0 && (
-          <MotiView
-            from={{ opacity: 0, translateY: 6 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300 }}
-            style={styles.headerStatsCard}
-          >
-            <View style={styles.headerStatTotal}>
-              <AmountText
-                value={totalSupSpent}
-                currency="IQD"
-                style={styles.headerStatTotalVal}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.5}
-              />
-              <Text style={styles.headerStatLabel}>{t('suppliers.totalSpent')}</Text>
-            </View>
-            <View style={styles.headerStatsDividerH} />
-            <View style={[styles.headerStatsRow, { flexDirection }]}>
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatVal}>{suppliers.length}</Text>
-                <Text style={styles.headerStatLabel}>{t('suppliers.title')}</Text>
-              </View>
-              <View style={styles.headerStatDivider} />
-              <View style={styles.headerStat}>
-                <Text style={styles.headerStatVal}>{activeSupplierDebts}</Text>
-                <Text style={styles.headerStatLabel}>{t('suppliers.activeDebts')}</Text>
-              </View>
-            </View>
-          </MotiView>
-        )}
+      />
 
-        {/* Tab pills */}
-        <View style={[styles.tabRow, { backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16, marginBottom: 8, flexDirection }]}>
+      {/* ── 3-Tab Segmented Switcher (Report, Customers, Suppliers) ── */}
+      <View style={[styles.segmentWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray200 }]}>
+        <View style={[styles.segmentTrack, { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Tab 1: ڕاپۆرت (Report) */}
           <TouchableOpacity
-            style={[styles.tabPill, activeTab === 'customers' && { backgroundColor: '#fff' }, { flexDirection }]}
-            onPress={() => setActiveTab('customers')}
             activeOpacity={0.8}
+            onPress={() => { setTab('report'); handleCollapseSearch(true); }}
+            style={[
+              styles.segmentBtn,
+              tab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
           >
-            <Ionicons name="people-outline" size={14} color={activeTab === 'customers' ? colors.primary : 'rgba(255,255,255,0.8)'} />
-            <Text style={[styles.tabPillText, { color: activeTab === 'customers' ? colors.primary : 'rgba(255,255,255,0.8)' }]}>
+            <Ionicons
+              name="stats-chart-outline"
+              size={isTablet ? 18 : 16}
+              color={tab === 'report' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'report' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
+              {t('history.reportTab')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Tab 2: کڕیاران (Customers) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { setTab('customers'); handleCollapseSearch(true); }}
+            style={[
+              styles.segmentBtn,
+              tab === 'customers' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="people-outline"
+              size={isTablet ? 18 : 16}
+              color={tab === 'customers' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'customers' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
               {t('history.customersTab')}
             </Text>
+            {periodFilteredCustomers.length > 0 && (
+              <View style={[styles.tabBadge, tab === 'customers' ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: colors.gray200 }]}>
+                <Text style={[styles.tabBadgeText, { color: tab === 'customers' ? '#fff' : colors.gray700 }, NUMBER_LTR]}>
+                  {periodFilteredCustomers.length}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
+
+          {/* Tab 3: دابینکەران (Suppliers) */}
           <TouchableOpacity
-            style={[styles.tabPill, activeTab === 'suppliers' && { backgroundColor: '#fff' }, { flexDirection }]}
-            onPress={() => setActiveTab('suppliers')}
             activeOpacity={0.8}
+            onPress={() => { setTab('suppliers'); handleCollapseSearch(true); }}
+            style={[
+              styles.segmentBtn,
+              tab === 'suppliers' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
           >
-            <Ionicons name="business-outline" size={14} color={activeTab === 'suppliers' ? colors.primary : 'rgba(255,255,255,0.8)'} />
-            <Text style={[styles.tabPillText, { color: activeTab === 'suppliers' ? colors.primary : 'rgba(255,255,255,0.8)' }]}>
+            <Ionicons
+              name="business-outline"
+              size={isTablet ? 18 : 16}
+              color={tab === 'suppliers' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'suppliers' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
               {t('history.suppliersTab')}
             </Text>
+            {periodFilteredSuppliers.length > 0 && (
+              <View style={[styles.tabBadge, tab === 'suppliers' ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: colors.gray200 }]}>
+                <Text style={[styles.tabBadgeText, { color: tab === 'suppliers' ? '#fff' : colors.gray700 }, NUMBER_LTR]}>
+                  {periodFilteredSuppliers.length}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Search */}
-        {activeTab === 'customers' ? (
-          <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-            <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
-            <TextInput
+      {/* ── Period Filter Horizontal Bar (with expandable search icon on right of هەمووی) ── */}
+      <View
+        style={[
+          styles.filterWrapper,
+          {
+            backgroundColor: colors.white,
+            borderBottomWidth: tab === 'report' ? 1 : 0,
+            borderBottomColor: colors.gray200,
+          },
+        ]}
+      >
+        {isSearchExpanded ? (
+          <View style={[styles.expandedSearchContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View
               style={[
-                styles.searchInput,
-                { color: colors.black, textAlign, writingDirection },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: custQuery }), {}),
+                styles.expandedSearchBox,
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.gray50,
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
               ]}
-              value={custQuery}
-              onChangeText={setCustQuery}
-              placeholder={t('customers.search')}
-              placeholderTextColor={colors.gray400}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-            {custQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setCustQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.gray400} />
-              </TouchableOpacity>
-            )}
+            >
+              <Ionicons name="search" size={17} color={colors.primary} />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.expandedSearchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                ]}
+                placeholder={tab === 'suppliers' ? t('history.searchSuppliers') : t('history.searchCustomers')}
+                placeholderTextColor={colors.gray400}
+                value={query}
+                onChangeText={setQuery}
+                returnKeyType="search"
+                autoFocus
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={17} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => handleCollapseSearch(true)}
+              style={[styles.closeSearchBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={18} color={colors.gray600} />
+            </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-            <Ionicons name="search" size={16} color={colors.gray400} style={styles.searchIcon} />
-            <TextInput
+          <View style={[styles.filterRowContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* Search Icon Button - positioned on the right of هەمووی in Kurdish RTL */}
+            <TouchableOpacity
+              onPress={handleExpandSearch}
               style={[
-                styles.searchInput,
-                { color: colors.black, textAlign, writingDirection },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: supQuery }), {}),
+                styles.searchIconBtn,
+                {
+                  backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.gray100),
+                  borderColor: query ? colors.primary : colors.gray200,
+                },
               ]}
-              value={supQuery}
-              onChangeText={setSupQuery}
-              placeholder={t('suppliers.search')}
-              placeholderTextColor={colors.gray400}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-            {supQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSupQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.gray400} />
-              </TouchableOpacity>
-            )}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="search"
+                size={16}
+                color={query ? '#0F172A' : (isDark ? colors.gray600 : colors.gray700)}
+              />
+            </TouchableOpacity>
+
+            {/* Period Filter ScrollView */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.filterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            >
+              {periodKeys.map((key) => {
+                const active = periodKey === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.filterPill,
+                      {
+                        backgroundColor: active ? colors.primary : colors.gray100,
+                        borderColor: active ? colors.primary : colors.gray200,
+                      },
+                    ]}
+                    onPress={() => {
+                      if (key === 'custom') {
+                        setFromVal(customRange?.from || '');
+                        setToVal(customRange?.to || '');
+                        setCustomOpen(true);
+                      } else {
+                        setPeriodKey(key);
+                        setCustomRange(null);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: active ? '#FFFFFF' : colors.gray600 },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                    >
+                      {periodLabels[key]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
-      </AppHeader>
 
+        {/* Selected date range info label when custom is chosen */}
+        {periodKey === 'custom' && customRange && !isSearchExpanded && (
+          <Text style={[styles.rangeLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+            {formatDateShort(customRange.from)} - {formatDateShort(customRange.to)}
+          </Text>
+        )}
+      </View>
 
-      {/* Customers list */}
-      {activeTab === 'customers' && (
-        <FlatList
-          data={visibleCustomers}
-          keyExtractor={(item) => `c-${item.id}`}
-          renderItem={renderCustomer}
-          contentContainerStyle={[styles.list, visibleCustomers.length === 0 && styles.listEmpty]}
-          ListEmptyComponent={renderCustomerEmpty}
-          removeClippedSubviews
-          initialNumToRender={15}
-          maxToRenderPerBatch={10}
-          windowSize={11}
+      {/* ── Tab Content ── */}
+      {tab === 'report' ? (
+        /* ═══════════════════════════════════════════════════════════════
+           TAB 1: ڕاپۆرت (REPORT DASHBOARD VIEW)
+           ═══════════════════════════════════════════════════════════════ */
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.reportScrollContent, isTablet && contentContainerStyle]}
           refreshControl={
             <RefreshControl
-              refreshing={custRefreshing || custLoading}
-              onRefresh={onRefreshCustomers}
+              refreshing={custLoading || supLoading}
+              onRefresh={loadAllData}
               tintColor={colors.primary}
-              colors={[colors.primary]}
             />
           }
-          showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={() => Keyboard.dismiss()}
-        />
-      )}
-
-      {/* Suppliers list */}
-      {activeTab === 'suppliers' && (
-        <FlatList
-          data={visibleSuppliers}
-          keyExtractor={(item) => `s-${item.id}`}
-          renderItem={renderSupplier}
-          contentContainerStyle={[styles.list, visibleSuppliers.length === 0 && styles.listEmpty]}
-          ListEmptyComponent={renderSupplierEmpty}
-          removeClippedSubviews
-          initialNumToRender={15}
-          maxToRenderPerBatch={10}
-          windowSize={11}
-          refreshControl={
-            <RefreshControl
-              refreshing={supRefreshing || supLoading}
-              onRefresh={onRefreshSuppliers}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+          onScrollBeginDrag={() => {
+            Keyboard.dismiss();
+            if (isSearchExpanded) handleCollapseSearch(false);
+          }}
+          onTouchStart={() => {
+            if (isSearchExpanded) handleCollapseSearch(false);
+          }}
+        >
+          {/* 4 Dashboard Metric Squares */}
+          <View style={[styles.metricGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* 1. Customer Purchases */}
+            <DashboardMetricSquare
+              title={t('history.customerPurchases')}
+              value={reportTotalCustSpent}
+              isCurrency
+              icon="people"
+              color="#10B981"
+              subtitle={isKuLanguage ? 'کۆی فرۆشراو بە کڕیاران' : 'Customer Sales'}
+              delay={30}
             />
-          }
-          showsVerticalScrollIndicator={false}
-          onScrollBeginDrag={() => Keyboard.dismiss()}
-        />
+
+            {/* 2. Supplier Purchases */}
+            <DashboardMetricSquare
+              title={t('history.supplierExpenses')}
+              value={reportTotalSupSpent}
+              isCurrency
+              icon="business"
+              color={colors.primary}
+              subtitle={isKuLanguage ? 'کۆی کڕدراو لە دابینکەر' : 'Supplier Purchases'}
+              delay={60}
+            />
+
+            {/* 3. Customer Debtors */}
+            <DashboardMetricSquare
+              title={t('history.activeDebtors')}
+              value={reportCustDebtors}
+              icon="alert-circle"
+              color={reportCustDebtors > 0 ? colors.error : colors.gray500}
+              subtitle={reportCustDebtors > 0 ? (isKuLanguage ? 'کڕیاری قەرزدار' : 'Active Debtors') : (isKuLanguage ? 'سفر' : 'None')}
+              isAlert={reportCustDebtors > 0}
+              delay={90}
+            />
+
+            {/* 4. Active Supplier Debts */}
+            <DashboardMetricSquare
+              title={t('history.activeSupplierDebts')}
+              value={reportActiveSupplierDebts}
+              icon="layers"
+              color="#6366F1"
+              subtitle={isKuLanguage ? 'دابینکەری قەرزدار' : 'Supplier Debts'}
+              delay={120}
+            />
+          </View>
+
+          {/* Net Activity Balance Card */}
+          <View style={[styles.netBalanceCard, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+            <View style={[styles.netBalanceTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.netBalanceIconBox, { backgroundColor: netActivityColor + '18' }]}>
+                <Ionicons
+                  name={reportNetActivity >= 0 ? 'shield-checkmark-outline' : 'trending-down-outline'}
+                  size={22}
+                  color={netActivityColor}
+                />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text
+                  style={[
+                    styles.netBalanceTitle,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('history.netActivityBalance')}
+                </Text>
+                <Text style={[styles.netBalanceSubtitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {netActivityDesc}
+                </Text>
+              </View>
+              <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                <AmountText
+                  value={Math.abs(reportNetActivity)}
+                  currency="IQD"
+                  variant="large"
+                  style={[styles.netBalanceAmount, { color: netActivityColor }, NUMBER_LTR]}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Quick Customers Preview Section */}
+          <View style={[styles.previewSection, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
+            <View style={[styles.previewHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="people-outline" size={17} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.previewTitle,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('history.topCustomers')}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.gray400 }}>
+                  ({periodFilteredCustomers.length})
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setTab('customers'); setQuery(''); }}
+                style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              >
+                <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
+                  {t('history.viewAll')}
+                </Text>
+                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {topPreviewCustomers.length === 0 ? (
+              <Text style={[styles.previewEmptyText, { color: colors.gray400 }]}>
+                {t('customers.noCustomers')}
+              </Text>
+            ) : (
+              topPreviewCustomers.map((cust) => (
+                <TouchableOpacity
+                  key={cust.id}
+                  onPress={() => handleCustomerPress(cust.id)}
+                  style={[styles.previewRow, { borderTopColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text style={[styles.previewName, { color: colors.black }]} numberOfLines={1}>
+                      {cust.name}
+                    </Text>
+                    <Text style={[styles.previewSub, { color: colors.gray400 }]}>
+                      {cust.phone || '—'} {cust.lastPurchaseDate ? `• ${formatDateShort(cust.lastPurchaseDate)}` : ''}
+                    </Text>
+                  </View>
+                  <AmountText
+                    value={cust.totalPurchases || 0}
+                    currency="IQD"
+                    style={[{ fontSize: 14, fontWeight: '800', color: colors.primary }, NUMBER_LTR]}
+                  />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+          {/* Quick Suppliers Preview Section */}
+          <View style={[styles.previewSection, { backgroundColor: colors.white, borderColor: colors.gray200, marginBottom: 28 }]}>
+            <View style={[styles.previewHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="business-outline" size={17} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.previewTitle,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('history.topSuppliers')}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.gray400 }}>
+                  ({periodFilteredSuppliers.length})
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { setTab('suppliers'); setQuery(''); }}
+                style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              >
+                <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
+                  {t('history.viewAll')}
+                </Text>
+                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {topPreviewSuppliers.length === 0 ? (
+              <Text style={[styles.previewEmptyText, { color: colors.gray400 }]}>
+                {t('suppliers.noSuppliers')}
+              </Text>
+            ) : (
+              topPreviewSuppliers.map((sup) => (
+                <TouchableOpacity
+                  key={sup.id}
+                  onPress={() => handleSupplierPress(sup.id)}
+                  style={[styles.previewRow, { borderTopColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text style={[styles.previewName, { color: colors.black }]} numberOfLines={1}>
+                      {sup.name}
+                    </Text>
+                    <Text style={[styles.previewSub, { color: colors.gray400 }]}>
+                      {sup.phone || '—'} {sup.lastPurchaseDate ? `• ${formatDateShort(sup.lastPurchaseDate)}` : ''}
+                    </Text>
+                  </View>
+                  <AmountText
+                    value={sup.totalSpent || 0}
+                    currency="IQD"
+                    style={[{ fontSize: 14, fontWeight: '800', color: colors.primary }, NUMBER_LTR]}
+                  />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      ) : tab === 'customers' ? (
+        /* ═══════════════════════════════════════════════════════════════
+           TAB 2: کڕیاران (CUSTOMERS LIST)
+           ═══════════════════════════════════════════════════════════════ */
+        <>
+          {/* Quick summary strip */}
+          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text
+              style={[
+                styles.summaryStripText,
+                { color: colors.gray500 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleCustomers.length} {t('history.customersTab')}
+            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
+                {isKuLanguage ? 'کۆی کڕینیان:' : 'Total Purchases:'}
+              </Text>
+              <AmountText
+                value={visibleCustomers.reduce((s, c) => s + (c.totalPurchases || 0), 0)}
+                currency="IQD"
+                variant="small"
+                style={[{ color: colors.primary, fontWeight: '700' }, NUMBER_LTR]}
+              />
+            </View>
+          </View>
+
+          <FlatList
+            key={`cust_${isGridView ? 'grid' : 'list'}_${numColumns}`}
+            data={gridFormattedCustomers}
+            renderItem={renderCustomer}
+            keyExtractor={(item) => String(item.id)}
+            numColumns={numColumns}
+            contentContainerStyle={[
+              styles.listContent,
+              isTablet && contentContainerStyle,
+              visibleCustomers.length === 0 && styles.listEmpty,
+            ]}
+            columnWrapperStyle={
+              isGridView && numColumns > 1
+                ? { gap: isTablet ? 12 : 8, marginBottom: isTablet ? 12 : 8 }
+                : undefined
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={custRefreshing || custLoading}
+                onRefresh={onRefreshCustomers}
+                tintColor={colors.primary}
+              />
+            }
+            ListEmptyComponent={renderCustomerEmpty}
+            onScrollBeginDrag={() => {
+              Keyboard.dismiss();
+              if (isSearchExpanded && !query) {
+                handleCollapseSearch(false);
+              }
+            }}
+          />
+        </>
+      ) : (
+        /* ═══════════════════════════════════════════════════════════════
+           TAB 3: دابینکەران (SUPPLIERS LIST)
+           ═══════════════════════════════════════════════════════════════ */
+        <>
+          {/* Quick summary strip */}
+          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text
+              style={[
+                styles.summaryStripText,
+                { color: colors.gray500 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleSuppliers.length} {t('history.suppliersTab')}
+            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
+                {isKuLanguage ? 'کۆی خەرجکراو:' : 'Total Spent:'}
+              </Text>
+              <AmountText
+                value={visibleSuppliers.reduce((s, sup) => s + (sup.totalSpent || 0), 0)}
+                currency="IQD"
+                variant="small"
+                style={[{ color: colors.primary, fontWeight: '700' }, NUMBER_LTR]}
+              />
+            </View>
+          </View>
+
+          <FlatList
+            key={`sup_${isGridView ? 'grid' : 'list'}_${numColumns}`}
+            data={gridFormattedSuppliers}
+            renderItem={renderSupplier}
+            keyExtractor={(item) => String(item.id)}
+            numColumns={numColumns}
+            contentContainerStyle={[
+              styles.listContent,
+              isTablet && contentContainerStyle,
+              visibleSuppliers.length === 0 && styles.listEmpty,
+            ]}
+            columnWrapperStyle={
+              isGridView && numColumns > 1
+                ? { gap: isTablet ? 12 : 8, marginBottom: isTablet ? 12 : 8 }
+                : undefined
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={supRefreshing || supLoading}
+                onRefresh={onRefreshSuppliers}
+                tintColor={colors.primary}
+              />
+            }
+            ListEmptyComponent={renderSupplierEmpty}
+            onScrollBeginDrag={() => {
+              Keyboard.dismiss();
+              if (isSearchExpanded && !query) {
+                handleCollapseSearch(false);
+              }
+            }}
+          />
+        </>
       )}
 
-      <PeriodFilterModal
-        visible={periodSheetVisible}
-        current={period}
-        includeAll
-        labels={{
-          all: isKuLanguage ? 'هەمووی' : 'All',
-          today: t('periodFilter.today'),
-          week: t('periodFilter.thisWeek'),
-          month: t('periodFilter.thisMonth'),
-          year: t('periodFilter.thisYear'),
-          custom: t('periodFilter.customRange'),
+      {/* ── Custom Date Range Modal ── */}
+      <CustomDateRangeModal
+        visible={customOpen}
+        onClose={() => setCustomOpen(false)}
+        initialFrom={customRange?.from}
+        initialTo={customRange?.to}
+        onApply={(from, to) => {
+          setPeriodKey('custom');
+          setCustomRange({ from, to });
+          setCustomOpen(false);
         }}
-        onClose={() => setPeriodSheetVisible(false)}
-        onSelect={handlePeriodSelect}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container:         { flex: 1 },
-  headerStatsCard:    { marginHorizontal: 20, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
-  headerStatTotal:    { alignItems: 'center', paddingBottom: 12 },
-  headerStatTotalVal: { fontSize: 26, lineHeight: 34, fontWeight: '800', color: '#fff', alignSelf: 'stretch', textAlign: 'center' },
-  headerStatsDividerH:{ height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginBottom: 12 },
-  headerStatsRow:     { flexDirection: 'row' },
-  headerStat:        { flex: 1, alignItems: 'center' },
-  headerStatVal:     { fontSize: 18, fontWeight: '800', color: '#fff' },
-  headerStatLabel:   { fontSize: 10, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },
-  headerStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginVertical: 4 },
+// ─── STYLES ───────────────────────────────────────────────────────────────────
 
-  tabRow:  { flexDirection: 'row', borderRadius: Theme.radius.full, padding: 4, gap: 4, marginBottom: 8 },
-  tabPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: Theme.radius.full, paddingVertical: 8 },
-  tabPillText: { fontSize: 13, fontWeight: '700' },
+function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1 },
 
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', borderRadius: Theme.radius.lg, marginHorizontal: 16, marginBottom: 14, paddingHorizontal: 12, height: 44, gap: 8 },
-  searchIcon:  { flexShrink: 0 },
-  searchInput: { flex: 1, fontSize: 14, height: '100%' },
+    layoutToggleBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255, 255, 255, 0.22)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
+    // ── Segmented Control Switcher (outside AppHeader) ──
+    segmentWrapper: {
+      paddingHorizontal: isTabletLandscape ? 24 : 16,
+      paddingVertical: isTabletLandscape ? 14 : 10,
+      borderBottomWidth: 1,
+    },
+    segmentTrack: {
+      borderRadius: isTabletLandscape ? 16 : 12,
+      padding: isTabletLandscape ? 5 : 3,
+      gap: isTabletLandscape ? 8 : 4,
+    },
+    segmentBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: isTabletLandscape ? 13 : isTablet ? 11 : 9,
+      paddingHorizontal: isTabletLandscape ? 12 : 6,
+      borderRadius: isTabletLandscape ? 12 : 9,
+      gap: 6,
+    },
+    segmentBtnActive: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    segmentBtnText: {
+      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 13,
+      fontWeight: '700',
+    },
+    tabBadge: {
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 1.5,
+    },
+    tabBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
 
-  list:      { padding: 16, paddingBottom: 32 },
-  listEmpty: { flex: 1 },
+    // ── Period Filter Pills ──
+    filterWrapper: {
+      borderBottomWidth: 0,
+    },
+    filterRowContainer: {
+      alignItems: 'center',
+      paddingHorizontal: 12,
+    },
+    searchIconBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginHorizontal: 4,
+    },
+    expandedSearchContainer: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+    },
+    expandedSearchBox: {
+      flex: 1,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: 1.2,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      gap: 8,
+    },
+    expandedSearchInput: {
+      flex: 1,
+      fontSize: 13.5,
+      paddingVertical: 0,
+    },
+    closeSearchBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterRow: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 8,
+    },
+    filterPill: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 18,
+      borderWidth: 1,
+    },
+    filterPillText: {
+      fontSize: 12.5,
+      fontWeight: '600',
+    },
+    rangeLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      paddingHorizontal: 16,
+      paddingBottom: 6,
+    },
 
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 32 },
-  emptyIcon:      { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle:     { fontSize: 17, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
-  emptySub:       { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  emptyAction:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Theme.radius.full, paddingHorizontal: 20, paddingVertical: 10, marginTop: 20 },
-  emptyActionText:{ fontSize: 14, fontWeight: '600', color: '#fff' },
+    // ── Report Dashboard View ──
+    reportScrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 24,
+    },
+    metricGrid: {
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    netBalanceCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      padding: 14,
+      marginBottom: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 5,
+      elevation: 2,
+    },
+    netBalanceTop: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    netBalanceIconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    netBalanceTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      marginBottom: 2,
+    },
+    netBalanceSubtitle: {
+      fontSize: 11,
+      lineHeight: 15,
+    },
+    netBalanceAmount: {
+      fontWeight: '800',
+    },
 
-  supplierCard:  { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  cardAvatar:    { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginEnd: 12 },
-  cardBody:      { flex: 1 },
-  cardName:      { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  cardPhoneRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  cardPhone:     { fontSize: 12 },
-  cardSub:       { fontSize: 12, marginBottom: 2 },
-  subRow:        { alignItems: 'center', marginBottom: 2 },
-  subDot:        { fontSize: 12 },
-  cardDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  cardDate:      { fontSize: 11 },
-});
+    previewSection: {
+      borderRadius: 16,
+      borderWidth: 1,
+      padding: 14,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 5,
+      elevation: 2,
+    },
+    previewHeader: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    previewTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    previewViewAll: {
+      alignItems: 'center',
+      gap: 3,
+    },
+    previewViewAllText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    previewEmptyText: {
+      fontSize: 12.5,
+      paddingVertical: 10,
+      textAlign: 'center',
+      fontStyle: 'italic',
+    },
+    previewRow: {
+      paddingVertical: 9,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderTopWidth: 1,
+    },
+    previewName: {
+      fontSize: 13,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    previewSub: {
+      fontSize: 11,
+    },
+
+    // ── Summary Strip for lists ──
+    summaryStrip: {
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderBottomWidth: 1,
+    },
+    summaryStripText: {
+      fontSize: 12.5,
+      fontWeight: '600',
+    },
+
+    listContent: {
+      padding: 16,
+      paddingBottom: 40,
+    },
+    listEmpty: {
+      flex: 1,
+    },
+
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+      paddingHorizontal: 32,
+    },
+    emptyIcon: {
+      width: 88,
+      height: 88,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    emptySub: {
+      fontSize: 14.5,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    emptyAction: {
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: Theme.radius.full,
+      paddingHorizontal: 22,
+      paddingVertical: 12,
+      marginTop: 22,
+    },
+    emptyActionText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalBox: {
+      width: '100%',
+      maxWidth: 400,
+      borderRadius: 16,
+      padding: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    modalSub: {
+      fontSize: 13,
+      marginBottom: 16,
+    },
+    inputLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      marginBottom: 6,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 14,
+      marginBottom: 14,
+    },
+    modalActions: {
+      gap: 10,
+      marginTop: 8,
+    },
+    modalCancel: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 10,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    modalCancelText: {
+      fontSize: 14,
+      color: '#6B7280',
+      fontWeight: '600',
+    },
+    modalConfirm: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    modalConfirmText: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
+}

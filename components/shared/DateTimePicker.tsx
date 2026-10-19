@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { Theme } from '@/constants/theme';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { formatDateTimeUI, toDateOnly } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@/store/languageStore';
@@ -148,6 +148,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
         animationType="none"
         statusBarTranslucent
         onRequestClose={closeModal}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <KeyboardAvoidingView
           style={styles.modalRoot}

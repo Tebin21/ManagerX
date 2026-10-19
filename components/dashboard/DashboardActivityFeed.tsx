@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -10,6 +11,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { toEnglishDigits } from '@/utils/formatters';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { DashboardActivityItem } from '@/lib/sqlite';
 
 interface Props {
@@ -123,6 +125,16 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isUSD = baseCurrency === 'USD';
+  const { width, isTablet, isTabletLandscape } = useResponsive();
+
+  const isGridView = useSettingsStore((s) => s.dashboardActivityGridLayout);
+  const setDashboardActivityGridLayout = useSettingsStore((s) => s.setDashboardActivityGridLayout);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const numCols = isTabletLandscape ? 4 : isTablet ? 3 : 2;
+  const gap = isTablet ? 12 : 10;
+  const availableWidth = containerWidth > 0 ? containerWidth : (width - 32);
+  const cardWidth = Math.floor((availableWidth - (numCols - 1) * gap) / numCols);
 
   const getActivityConfig = (type: DashboardActivityItem['type']) => {
     switch (type) {
@@ -200,17 +212,31 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View style={styles.wrapper} onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
       {/* Section Header */}
       <View style={[styles.headerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <View style={[styles.headerTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.headerIconBox, { backgroundColor: colors.primary + '18' }]}>
-            <Ionicons name="time-outline" size={18} color={colors.primary} />
+          <View
+            style={[
+              styles.headerIconBox,
+              {
+                backgroundColor: colors.primary + '18',
+                width: isTablet ? 38 : 32,
+                height: isTablet ? 38 : 32,
+                borderRadius: isTablet ? 12 : 10,
+              },
+            ]}
+          >
+            <Ionicons name="time-outline" size={isTablet ? 20 : 18} color={colors.primary} />
           </View>
           <Text
             style={[
               styles.sectionTitle,
-              { color: colors.darkBlue, textAlign },
+              {
+                color: colors.darkBlue,
+                textAlign,
+                fontSize: isTabletLandscape ? 19 : isTablet ? 17.5 : 16,
+              },
               isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
             ]}
           >
@@ -223,13 +249,16 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                 {
                   backgroundColor: colors.primary + '14',
                   borderColor: colors.primary + '30',
+                  paddingHorizontal: isTablet ? 12 : 8,
+                  paddingVertical: isTablet ? 4.5 : 2.5,
+                  borderRadius: isTablet ? 10 : 8,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.periodBadgeText,
-                  { color: colors.primary },
+                  { color: colors.primary, fontSize: isTablet ? 12.5 : 11 },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
               >
@@ -239,30 +268,134 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
           ) : null}
         </View>
 
-        {activities.length > 0 && (
-          <View style={[styles.countBadge, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
-            <Text style={[styles.countBadgeText, { color: isDark ? colors.gray400 : colors.gray500, writingDirection: 'ltr' }]}>
-              {toEnglishDigits(activities.length)}
-            </Text>
+        <View style={[styles.headerActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Layout Switcher (Square / Long) */}
+          <View
+            style={[
+              styles.layoutToggleContainer,
+              {
+                backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                borderColor: isDark ? colors.gray300 : 'rgba(0,0,0,0.06)',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            {/* List / Long (درێژ) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setDashboardActivityGridLayout(false);
+              }}
+              style={[
+                styles.layoutBtn,
+                !isGridView && [
+                  styles.layoutBtnActive,
+                  {
+                    backgroundColor: colors.primary,
+                    shadowColor: colors.primary,
+                  },
+                ],
+              ]}
+              accessibilityLabel={isKurdish ? 'شێوازی درێژ' : 'List View'}
+            >
+              <Ionicons
+                name="list"
+                size={isTablet ? 17 : 14}
+                color={!isGridView ? '#FFFFFF' : isDark ? colors.gray400 : colors.gray500}
+              />
+            </TouchableOpacity>
+
+            {/* Grid / Square (چوارگۆشە) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setDashboardActivityGridLayout(true);
+              }}
+              style={[
+                styles.layoutBtn,
+                isGridView && [
+                  styles.layoutBtnActive,
+                  {
+                    backgroundColor: colors.primary,
+                    shadowColor: colors.primary,
+                  },
+                ],
+              ]}
+              accessibilityLabel={isKurdish ? 'شێوازی چوارگۆشە' : 'Grid View'}
+            >
+              <Ionicons
+                name="grid"
+                size={isTablet ? 16 : 13}
+                color={isGridView ? '#FFFFFF' : isDark ? colors.gray400 : colors.gray500}
+              />
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Count Badge */}
+          {activities.length > 0 && (
+            <View
+              style={[
+                styles.countBadge,
+                {
+                  backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                  paddingHorizontal: isTablet ? 12 : 8,
+                  paddingVertical: isTablet ? 4.5 : 3,
+                  borderRadius: isTablet ? 12 : 10,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.countBadgeText,
+                  {
+                    color: isDark ? colors.gray400 : colors.gray500,
+                    fontSize: isTablet ? 12.5 : 11,
+                    writingDirection: 'ltr',
+                  },
+                ]}
+              >
+                {toEnglishDigits(activities.length)}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* Activities Card Container */}
-      <View
-        style={[
-          styles.containerCard,
-          {
-            backgroundColor: isDark ? colors.gray100 : colors.white,
-            borderColor: isDark ? colors.gray200 : colors.gray100,
-          },
-        ]}
-      >
-        {isLoading ? (
+      {/* Activities Container */}
+      {isLoading ? (
+        <View
+          style={[
+            styles.containerCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: isDark ? colors.gray200 : colors.gray100,
+              paddingHorizontal: isTablet ? 18 : 14,
+              paddingVertical: isTablet ? 14 : 10,
+            },
+          ]}
+        >
           <View style={styles.centerBox}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
-        ) : activities.length === 0 ? (
+        </View>
+      ) : activities.length === 0 ? (
+        <View
+          style={[
+            styles.containerCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: isDark ? colors.gray200 : colors.gray100,
+              paddingHorizontal: isTablet ? 18 : 14,
+              paddingVertical: isTablet ? 14 : 10,
+            },
+          ]}
+        >
           <View style={styles.emptyBox}>
             <Ionicons name="hourglass-outline" size={32} color={colors.gray300} />
             <Text style={[styles.emptyText, { color: colors.gray400 }]}>
@@ -273,8 +406,194 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                 : t('dashboard.noActivity')}
             </Text>
           </View>
-        ) : (
-          activities.map((item, index) => {
+        </View>
+      ) : isGridView ? (
+        /* ─── Grid View (چوارگۆشە) ─── */
+        <View
+          style={[
+            styles.gridContainer,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              gap,
+            },
+          ]}
+        >
+          {activities.map((item, index) => {
+            const config = getActivityConfig(item.type);
+            const timeStr = formatActivityTime(item.timestamp, isKurdish);
+            const displayTitle = getActivityDisplayTitle(item, isKurdish, t);
+            const displaySubtitle = getActivityDisplaySubtitle(item, isKurdish);
+            const currencyLabel = isUSD ? 'USD' : (isKurdish ? 'د.ع' : 'IQD');
+
+            return (
+              <View
+                key={`act_grid_${item.id}_${index}`}
+                style={[
+                  styles.gridCard,
+                  {
+                    width: cardWidth,
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: isDark ? colors.gray200 : 'rgba(0,0,0,0.06)',
+                    padding: isTablet ? 14 : 11,
+                  },
+                ]}
+              >
+                {/* Top Row: Icon circle on start, Time on end */}
+                <View style={[styles.gridCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View
+                    style={[
+                      styles.gridIconCircle,
+                      {
+                        backgroundColor: config.color + '15',
+                        borderColor: config.color + '30',
+                        width: isTablet ? 38 : 32,
+                        height: isTablet ? 38 : 32,
+                        borderRadius: isTablet ? 11 : 9,
+                      },
+                    ]}
+                  >
+                    <Ionicons name={config.icon} size={isTablet ? 19 : 16} color={config.color} />
+                  </View>
+
+                  <View style={[styles.gridTimeBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Ionicons name="time-outline" size={isTablet ? 11.5 : 9.5} color={colors.gray400} />
+                    <Text
+                      style={[
+                        styles.gridTimeText,
+                        {
+                          color: colors.gray400,
+                          writingDirection: 'ltr',
+                          fontSize: isTablet ? 11 : 9.5,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {timeStr}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Middle: Title, Discount tag, Subtitle */}
+                <View style={[styles.gridCardBody, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                  <View style={[styles.gridTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text
+                      style={[
+                        styles.gridTitle,
+                        { color: colors.darkBlue, textAlign, fontSize: isTablet ? 14.5 : 13 },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {displayTitle}
+                    </Text>
+                    {item.discount && item.discount > 0 ? (
+                      <View style={[styles.discountTag, { backgroundColor: '#A855F718' }]}>
+                        <Text style={[styles.discountTagText, { writingDirection: 'ltr', fontSize: isTablet ? 10.5 : 9.5 }]}>
+                          %{toEnglishDigits(Math.round((item.discount / (item.amount + item.discount)) * 100))}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.gridSubtitle,
+                      { color: colors.gray400, textAlign, fontSize: isTablet ? 12 : 11 },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {displaySubtitle}
+                  </Text>
+                </View>
+
+                {/* Bottom Row: Amount / Status Badge */}
+                <View
+                  style={[
+                    styles.gridCardFooter,
+                    {
+                      borderTopColor: isDark ? colors.gray200 : colors.gray100,
+                      alignItems: isRTL ? 'flex-end' : 'flex-start',
+                    },
+                  ]}
+                >
+                  {item.amount > 0 ? (
+                    <View style={[styles.amountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline' }]}>
+                      <AmountText
+                        value={item.amount}
+                        currency={null}
+                        style={[
+                          styles.gridAmountText,
+                          {
+                            fontSize: isTablet ? 14.5 : 12.5,
+                            color:
+                              config.sign === '+'
+                                ? colors.success
+                                : config.sign === '-'
+                                ? colors.error
+                                : colors.darkBlue,
+                          },
+                        ]}
+                        variant="small"
+                      />
+                      <Text
+                        style={[
+                          styles.gridCurrencyMini,
+                          {
+                            fontSize: isTablet ? 11 : 9.5,
+                            color:
+                              config.sign === '+'
+                                ? colors.success
+                                : config.sign === '-'
+                                ? colors.error
+                                : colors.darkBlue,
+                          },
+                        ]}
+                      >
+                        {' '}
+                        {currencyLabel}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor: config.color + '18',
+                          paddingHorizontal: isTablet ? 9 : 7,
+                          paddingVertical: isTablet ? 3 : 2,
+                          borderRadius: isTablet ? 7 : 6,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: config.color, fontSize: isTablet ? 11.5 : 10 },
+                        ]}
+                      >
+                        {config.label}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        /* ─── List View (درێژ) ─── */
+        <View
+          style={[
+            styles.containerCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: isDark ? colors.gray200 : colors.gray100,
+              paddingHorizontal: isTablet ? 18 : 14,
+              paddingVertical: isTablet ? 14 : 10,
+            },
+          ]}
+        >
+          {activities.map((item, index) => {
             const config = getActivityConfig(item.type);
             const isLast = index === activities.length - 1;
             const timeStr = formatActivityTime(item.timestamp, isKurdish);
@@ -284,7 +603,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
 
             return (
               <View key={`act_${item.id}_${index}`}>
-                <View style={[styles.activityRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.activityRow, { flexDirection: isRTL ? 'row-reverse' : 'row', paddingVertical: isTablet ? 13 : 10 }]}>
                   {/* Icon Box */}
                   <View
                     style={[
@@ -292,10 +611,13 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                       {
                         backgroundColor: config.color + '15',
                         borderColor: config.color + '30',
+                        width: isTablet ? 44 : 38,
+                        height: isTablet ? 44 : 38,
+                        borderRadius: isTablet ? 14 : 12,
                       },
                     ]}
                   >
-                    <Ionicons name={config.icon} size={18} color={config.color} />
+                    <Ionicons name={config.icon} size={isTablet ? 22 : 18} color={config.color} />
                   </View>
 
                   {/* Middle Column: Title & Subtitle */}
@@ -304,7 +626,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                       <Text
                         style={[
                           styles.activityTitle,
-                          { color: colors.darkBlue, textAlign },
+                          { color: colors.darkBlue, textAlign, fontSize: isTablet ? 15 : 13.5 },
                           isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}
                         numberOfLines={1}
@@ -313,7 +635,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                       </Text>
                       {item.discount && item.discount > 0 ? (
                         <View style={[styles.discountTag, { backgroundColor: '#A855F718' }]}>
-                          <Text style={[styles.discountTagText, { writingDirection: 'ltr' }]}>
+                          <Text style={[styles.discountTagText, { writingDirection: 'ltr', fontSize: isTablet ? 11 : 10 }]}>
                             %{toEnglishDigits(Math.round((item.discount / (item.amount + item.discount)) * 100))}
                           </Text>
                         </View>
@@ -323,7 +645,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                     <Text
                       style={[
                         styles.activitySubtitle,
-                        { color: colors.gray400, textAlign },
+                        { color: colors.gray400, textAlign, fontSize: isTablet ? 12.5 : 11.5 },
                       ]}
                       numberOfLines={1}
                     >
@@ -341,6 +663,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                           style={[
                             styles.amountText,
                             {
+                              fontSize: isTablet ? 15.5 : 13,
                               color:
                                 config.sign === '+'
                                   ? colors.success
@@ -355,6 +678,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                           style={[
                             styles.currencyMini,
                             {
+                              fontSize: isTablet ? 11.5 : 10,
                               color:
                                 config.sign === '+'
                                   ? colors.success
@@ -369,16 +693,40 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                         </Text>
                       </View>
                     ) : (
-                      <View style={[styles.statusBadge, { backgroundColor: config.color + '18' }]}>
-                        <Text style={[styles.statusBadgeText, { color: config.color }]}>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: config.color + '18',
+                            paddingHorizontal: isTablet ? 10 : 7,
+                            paddingVertical: isTablet ? 3.5 : 2,
+                            borderRadius: isTablet ? 8 : 6,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            { color: config.color, fontSize: isTablet ? 12 : 10.5 },
+                          ]}
+                        >
                           {config.label}
                         </Text>
                       </View>
                     )}
 
                     <View style={[styles.timeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Ionicons name="time-outline" size={10} color={colors.gray400} />
-                      <Text style={[styles.timeText, { color: colors.gray400, writingDirection: 'ltr' }]}>
+                      <Ionicons name="time-outline" size={isTablet ? 12 : 10} color={colors.gray400} />
+                      <Text
+                        style={[
+                          styles.timeText,
+                          {
+                            color: colors.gray400,
+                            writingDirection: 'ltr',
+                            fontSize: isTablet ? 12 : 10.5,
+                          },
+                        ]}
+                      >
                         {timeStr}
                       </Text>
                     </View>
@@ -395,9 +743,9 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
                 )}
               </View>
             );
-          })
-        )}
-      </View>
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -545,5 +893,88 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 12.5,
+  },
+  headerActions: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  layoutToggleContainer: {
+    padding: 2.5,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  layoutBtn: {
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: 7.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutBtnActive: {
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2.5,
+    elevation: 2,
+  },
+  gridContainer: {
+    flexWrap: 'wrap',
+  },
+  gridCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+    minHeight: 122,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1.5,
+  },
+  gridCardHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  gridIconCircle: {
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridTimeBadge: {
+    alignItems: 'center',
+    gap: 3,
+  },
+  gridTimeText: {
+    fontWeight: '500',
+  },
+  gridCardBody: {
+    marginVertical: 8,
+    gap: 2,
+    width: '100%',
+  },
+  gridTitleRow: {
+    alignItems: 'center',
+    gap: 5,
+    width: '100%',
+  },
+  gridTitle: {
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  gridSubtitle: {
+    fontWeight: '500',
+  },
+  gridCardFooter: {
+    borderTopWidth: 1,
+    paddingTop: 6,
+    marginTop: 2,
+    width: '100%',
+  },
+  gridAmountText: {
+    fontWeight: '800',
+  },
+  gridCurrencyMini: {
+    fontWeight: '700',
   },
 });

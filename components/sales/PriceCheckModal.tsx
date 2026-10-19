@@ -21,6 +21,7 @@ import { useCartStore } from '@/store/cartStore';
 import { applyKurdishFont } from '@/lib/settingsFont';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { useResponsive } from '@/hooks/useResponsive';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { Product } from '@/types/sales';
 
 interface PriceCheckModalProps {
@@ -83,6 +84,7 @@ export function PriceCheckModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <View style={[styles.overlay, isTablet && { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
         {/* Backdrop touch to dismiss */}

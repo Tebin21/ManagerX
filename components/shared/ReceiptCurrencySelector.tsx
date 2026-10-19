@@ -18,20 +18,21 @@ const OPTIONS: { key: ReceiptCurrencyMode; labelKey: string }[] = [
 interface Props {
   value: ReceiptCurrencyMode;
   onChange: (mode: ReceiptCurrencyMode) => void;
+  inner?: boolean;
 }
 
-export function ReceiptCurrencySelector({ value, onChange }: Props) {
+export function ReceiptCurrencySelector({ value, onChange, inner = false }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
 
-  return (
-    <PremiumCard style={styles.card}>
+  const content = (
+    <>
       <View style={[styles.titleRow, { flexDirection }]}>
         <Ionicons name="cash-outline" size={16} color={colors.primary} />
         <Text style={[styles.title, { color: colors.black, textAlign }]}>{t('receiptCurrency.title')}</Text>
       </View>
-      <View style={[styles.toggleRow, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
+      <View style={[styles.toggleRow, { borderColor: colors.gray200, backgroundColor: inner ? colors.white : colors.gray50, flexDirection }]}>
         {OPTIONS.map((opt) => {
           const active = value === opt.key;
           return (
@@ -48,12 +49,32 @@ export function ReceiptCurrencySelector({ value, onChange }: Props) {
           );
         })}
       </View>
+    </>
+  );
+
+  if (inner) {
+    return (
+      <View style={[styles.innerCard, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <PremiumCard style={styles.card}>
+      {content}
     </PremiumCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: { marginBottom: 14 },
+  innerCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
   titleRow: { alignItems: 'center', gap: 6, marginBottom: 10 },
   title: { fontSize: 14, fontWeight: '700' },
   toggleRow: { borderRadius: 8, borderWidth: 1, overflow: 'hidden' },

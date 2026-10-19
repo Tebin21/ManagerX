@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
-import { Theme } from '@/constants/theme';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 
 const CENTER_THRESHOLD = 0.7;
 const SHEET_MAX_HEIGHT_RATIO = 0.85;
@@ -32,64 +32,70 @@ interface AppSheetProps {
 // is tall. Decided once per open via a single invisible layout pass — children
 // mount exactly once so forms with autoFocus/TextInput never double-render.
 export function AppSheet({ visible, onClose, children, avoidKeyboard = true }: AppSheetProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const isTablet =
     Platform.OS === 'ios'
       ? Boolean(Platform.isPad) || screenWidth >= 700
       : screenWidth >= 640;
-  const [phase, setPhase] = useState<'sheet' | 'center'>('sheet');
-  const [revealed, setRevealed] = useState(false);
-  const measuredRef = useRef(false);
-
-  function handleShow() {
-    measuredRef.current = false;
-    setRevealed(false);
-    setPhase('sheet');
-  }
+  const [phase, setPhase] = useState<'sheet' | 'center'>(isTablet ? 'center' : 'sheet');
 
   function handleLayout(e: LayoutChangeEvent) {
-    if (measuredRef.current) return;
-    measuredRef.current = true;
     const h = e.nativeEvent.layout.height;
-    setPhase(isTablet || h < screenHeight * CENTER_THRESHOLD ? 'center' : 'sheet');
-    setRevealed(true);
+    if (h > 0 && !isTablet) {
+      setPhase(h < screenHeight * CENTER_THRESHOLD ? 'center' : 'sheet');
+    }
   }
 
   const isCenter = isTablet || phase === 'center';
   const Wrapper = avoidKeyboard ? KeyboardAvoidingView : View;
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onShow={handleShow} statusBarTranslucent>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <Wrapper
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        pointerEvents="box-none"
-        style={isCenter ? styles.centerWrap : styles.bottomWrap}
-      >
-        <ScrollView
-          style={isCenter ? styles.centerScroll : [styles.bottomScroll, { maxHeight: screenHeight * SHEET_MAX_HEIGHT_RATIO }]}
-          contentContainerStyle={isCenter ? styles.centerContent : (isTablet ? styles.tabletBottomContent : undefined)}
-          scrollEnabled={revealed}
-          bounces={false}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+    >
+      <View style={styles.modalRoot}>
+        {/* Full-screen backdrop */}
+        <Pressable style={styles.backdrop} onPress={onClose} />
+
+        <Wrapper
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents="box-none"
+          style={isCenter ? styles.centerWrap : styles.bottomWrap}
         >
-          <View
-            onLayout={handleLayout}
-            style={[
-              styles.card,
-              { backgroundColor: colors.white },
-              isCenter ? styles.cardCenter : styles.cardSheet,
-              isTablet && styles.cardTablet,
-              !revealed && styles.invisible,
-            ]}
+          <Pressable
+            style={isCenter ? styles.centerOverlayPressable : styles.bottomOverlayPressable}
+            onPress={onClose}
           >
-            {!isCenter && <View style={[styles.handle, { backgroundColor: colors.gray200 }]} />}
-            {children}
-          </View>
-        </ScrollView>
-      </Wrapper>
+            <ScrollView
+              style={isCenter ? styles.centerScroll : [styles.bottomScroll, { maxHeight: screenHeight * SHEET_MAX_HEIGHT_RATIO }]}
+              contentContainerStyle={isCenter ? styles.centerContent : (isTablet ? styles.tabletBottomContent : undefined)}
+              scrollEnabled={true}
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Pressable
+                onLayout={handleLayout}
+                onPress={(e) => e.stopPropagation()}
+                style={[
+                  styles.card,
+                  { backgroundColor: isDark ? colors.gray100 : colors.white },
+                  isCenter ? styles.cardCenter : styles.cardSheet,
+                  isTablet && styles.cardTablet,
+                ]}
+              >
+                {!isCenter && <View style={[styles.handle, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]} />}
+                {children}
+              </Pressable>
+            </ScrollView>
+          </Pressable>
+        </Wrapper>
+      </View>
     </Modal>
   );
 }
@@ -171,22 +177,51 @@ export function AppSheetOption({ icon, label, subtitle, active, indicator = 'che
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalRoot: {
+    flex: 1,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
 
-  bottomWrap: { flex: 1, justifyContent: 'flex-end' },
-  bottomScroll: { width: '100%' },
+  bottomWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  bottomOverlayPressable: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  bottomScroll: {
+    width: '100%',
+  },
 
-  centerWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  centerScroll: { flex: 1, width: '100%' },
+  centerWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerOverlayPressable: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerScroll: {
+    width: '100%',
+    flexGrow: 0,
+  },
   centerContent: {
-    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: Theme.spacing.xl,
     paddingHorizontal: Theme.spacing.lg,
   },
 
-  card: { width: '100%' },
+  card: {
+    width: '100%',
+  },
   cardSheet: {
     borderTopLeftRadius: Theme.radius.xl,
     borderTopRightRadius: Theme.radius.xl,
@@ -199,6 +234,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 440,
+    alignSelf: 'center',
   },
   cardTablet: {
     maxWidth: 560,
@@ -209,9 +245,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 24,
   },
-  invisible: { opacity: 0 },
 
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
 });
 
 const headerStyles = StyleSheet.create({

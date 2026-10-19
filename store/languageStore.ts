@@ -14,8 +14,8 @@ interface LanguageState {
 export const useLanguageStore = create<LanguageState>()(
   persist(
     (set) => ({
-      language: null,
-      isRTL:    false,
+      language: 'ku',
+      isRTL:    true,
 
       setLanguage: (lang) => {
         const isRTL = lang === 'ku';

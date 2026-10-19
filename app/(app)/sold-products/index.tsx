@@ -27,6 +27,7 @@ import { getStatusTint, getBlueTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { SoldProductRecord, SoldSortBy, SoldPaymentFilter } from '@/types/soldProducts';
 import { useLanguageStore } from '@/store/languageStore';
+import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 const SORT_KEYS: SoldSortBy[] = ['date', 'customer', 'product', 'profit'];
@@ -139,6 +140,7 @@ export default function SoldProductsScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
 
   const {
     records, isLoading,
@@ -246,13 +248,13 @@ export default function SoldProductsScreen() {
             from={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 44 }}
             transition={{ type: 'timing', duration: 200 }}
-            style={[styles.searchWrap, { backgroundColor: colors.white }]}
+            style={[styles.searchWrap, { backgroundColor: colors.white, flexDirection }]}
           >
-            <Ionicons name="search" size={16} color={colors.gray400} style={{ marginStart: 12 }} />
+            <Ionicons name="search" size={16} color={colors.gray400} style={{ marginHorizontal: 10 }} />
             <TextInput
               style={[
                 styles.searchInput,
-                { color: colors.black },
+                { color: colors.black, textAlign, writingDirection },
                 isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search }), {}),
               ]}
               value={search}
@@ -264,7 +266,7 @@ export default function SoldProductsScreen() {
               clearButtonMode="while-editing"
             />
             {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} style={{ marginEnd: 12 }}>
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={8} style={{ marginHorizontal: 10 }}>
                 <Ionicons name="close-circle" size={16} color={colors.gray400} />
               </TouchableOpacity>
             )}

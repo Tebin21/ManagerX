@@ -23,6 +23,7 @@ import { Text } from '@/components/ui/AppText';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { BUSINESS_TYPES } from '@/constants/config';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
@@ -595,6 +596,7 @@ export function BusinessHeader() {
         animationType="slide"
         transparent
         onRequestClose={() => setModalOpen(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: isDark ? themeColors.gray100 : themeColors.white }]}>

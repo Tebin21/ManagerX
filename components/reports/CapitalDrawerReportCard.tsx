@@ -120,9 +120,9 @@ export function CapitalDrawerReportCard() {
         </View>
 
         {/* Breakdown Grid */}
-        <View style={styles.grid}>
+        <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* Initial / Net Capital */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
+          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
             <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
               {t('capital.initialCapital')}
             </Text>
@@ -132,30 +132,8 @@ export function CapitalDrawerReportCard() {
             />
           </View>
 
-          {/* Sales Cash */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
-              {t('capital.salesCash')}
-            </Text>
-            <AmountText
-              value={stats.salesCash}
-              style={[styles.gridValue, { color: colors.success, textAlign }]}
-            />
-          </View>
-
-          {/* Customer Debt Collected */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
-              {t('capital.customerDebtCash')}
-            </Text>
-            <AmountText
-              value={stats.customerDebtCash}
-              style={[styles.gridValue, { color: '#059669', textAlign }]}
-            />
-          </View>
-
           {/* Cash Purchases */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
+          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
             <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
               {t('capital.purchasesCash')}
             </Text>
@@ -165,19 +143,8 @@ export function CapitalDrawerReportCard() {
             />
           </View>
 
-          {/* Supplier Debt Paid */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
-              {t('capital.supplierDebtCash')}
-            </Text>
-            <AmountText
-              value={stats.supplierDebtCash}
-              style={[styles.gridValue, { color: '#DC2626', textAlign }]}
-            />
-          </View>
-
           {/* Expenses */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100 }]}>
+          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
             <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
               {t('capital.expensesCash')}
             </Text>
@@ -186,23 +153,6 @@ export function CapitalDrawerReportCard() {
               style={[styles.gridValue, { color: colors.warning, textAlign }]}
             />
           </View>
-        </View>
-
-        {/* Unified till cash explanation banner */}
-        <View
-          style={[
-            styles.disclaimer,
-            {
-              backgroundColor: isDark ? colors.gray100 : colors.gray50,
-              borderColor: isDark ? colors.gray200 : colors.lightBlue,
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-            },
-          ]}
-        >
-          <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
-          <Text style={[styles.disclaimerText, { color: colors.gray500, textAlign }]}>
-            {t('capital.unifiedCashDisclaimer')}
-          </Text>
         </View>
       </PremiumCard>
     </MotiView>

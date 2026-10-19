@@ -29,6 +29,7 @@ interface Props {
   onStartCustomize?: () => void;
   onToggleLayout?: () => void;
   onSelectForSwap?: () => void;
+  isLastRowPair?: boolean;
 }
 
 export interface ModuleVisualTheme {
@@ -157,6 +158,7 @@ export function ModuleCard({
   onStartCustomize,
   onToggleLayout,
   onSelectForSwap,
+  isLastRowPair = false,
 }: Props) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
@@ -350,8 +352,8 @@ export function ModuleCard({
   );
 
   const styles = useMemo(
-    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark),
-    [isTablet, isLargeTablet, isTabletLandscape, isFull, isDark]
+    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair),
+    [isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair]
   );
 
   return (
@@ -487,7 +489,7 @@ export function ModuleCard({
               >
                 <Ionicons
                   name={theme.iconName}
-                  size={isTabletLandscape ? 42 : isTablet ? 35 : 25}
+                  size={isTabletLandscape ? 42 : isTablet ? (isLastRowPair ? 38 : 35) : 25}
                   color={theme.iconColor}
                 />
               </View>
@@ -554,13 +556,28 @@ export function ModuleCard({
   );
 }
 
-function getStyles(isTablet: boolean, isLargeTablet: boolean, isTabletLandscape: boolean, isFull: boolean, isDark: boolean) {
-  const squareHeight = isTabletLandscape ? 200 : isLargeTablet ? 188 : isTablet ? 172 : 142;
+function getStyles(
+  isTablet: boolean,
+  isLargeTablet: boolean,
+  isTabletLandscape: boolean,
+  isFull: boolean,
+  isDark: boolean,
+  isLastRowPair: boolean = false
+) {
+  const squareHeight = isTabletLandscape ? 200 : isLargeTablet ? 188 : isTablet ? (isLastRowPair ? 176 : 172) : 142;
   const wideHeight = isTabletLandscape ? 120 : isLargeTablet ? 110 : isTablet ? 98 : 78;
 
   return StyleSheet.create({
     container: {
-      width: isFull ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
+      width: isFull
+        ? '100%'
+        : isTabletLandscape
+        ? '23.8%'
+        : isLastRowPair
+        ? '48.5%'
+        : isTablet
+        ? '31.8%'
+        : '48.5%',
       marginVertical: isTablet ? 6 : 5,
     },
     pressable: {
@@ -597,9 +614,9 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isTabletLandscape:
       position: 'relative',
     },
     circleContainerSquare: {
-      width: isTabletLandscape ? 82 : isTablet ? 70 : 52,
-      height: isTabletLandscape ? 82 : isTablet ? 70 : 52,
-      borderRadius: isTabletLandscape ? 41 : isTablet ? 35 : 26,
+      width: isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52,
+      height: isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52,
+      borderRadius: isTabletLandscape ? 41 : isTablet ? (isLastRowPair ? 38 : 35) : 26,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
@@ -611,14 +628,14 @@ function getStyles(isTablet: boolean, isLargeTablet: boolean, isTabletLandscape:
       elevation: 4,
     },
     titleSquare: {
-      fontSize: isTabletLandscape ? 21 : isTablet ? 19 : 14.5,
+      fontSize: isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14.5,
       fontWeight: '700',
       textAlign: 'center',
       letterSpacing: -0.2,
       marginBottom: 3,
     },
     subtitleSquare: {
-      fontSize: isTabletLandscape ? 14.5 : isTablet ? 13 : 9.5,
+      fontSize: isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5,
       fontWeight: '500',
       textAlign: 'center',
       paddingHorizontal: 4,

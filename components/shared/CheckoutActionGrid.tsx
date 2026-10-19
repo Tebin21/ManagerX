@@ -24,7 +24,7 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
   const isSale = type === 'sale';
 
   const handlePress = (targetMode: CheckoutMode) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
     if (targetMode === 'empty1' || targetMode === 'empty2') {
       Alert.alert(
         isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',

@@ -27,8 +27,9 @@ import { useDebtStore } from '@/store/debtStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
-import { getPurchasesBySupplierName, getSupplierFinancialTimeline } from '@/lib/sqlite';
+import { getPurchasesBySupplierName, getSupplierFinancialTimeline, isDirectSupplierName } from '@/lib/sqlite';
 import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
+import { useLanguageStore } from '@/store/languageStore';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
@@ -184,6 +185,9 @@ export default function SupplierDetailScreen() {
   const [saving, setSaving] = useState(false);
 
   const supplier: SupplierWithStats | undefined = suppliers.find((s) => s.id === Number(id));
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isDirectSupplier = isDirectSupplierName(supplier?.name);
+  const { isRTL } = useRTL();
 
   const loadAll = useCallback(async () => {
     if (!supplier) return;
@@ -226,7 +230,7 @@ export default function SupplierDetailScreen() {
     .filter((d) => d.supplierName.toLowerCase() === (supplier?.name ?? '').toLowerCase())
     .reduce((s, d) => s + d.paidAmount, 0);
 
-  const canDelete = purchases.length === 0 && activeDebts.length === 0;
+  const canDelete = purchases.length === 0 && activeDebts.length === 0 && !isDirectSupplier;
 
   const handlePay = useCallback(async (debtId: number, amount: number) => {
     await payPurchaseDebt(debtId, amount);
@@ -281,6 +285,15 @@ export default function SupplierDetailScreen() {
 
   const handleDelete = useCallback(() => {
     if (!supplier) return;
+    if (isDirectSupplier) {
+      Alert.alert(
+        t('common.error'),
+        isKuLanguage
+          ? 'ئەم دابینکەرە تایبەتە بە کڕینی ڕاستەوخۆ (سیستەم) و بە هیچ شێوەیەک ناتوانرێت بسڕدرێتەوە.'
+          : 'Direct Supplier is a permanent system account and cannot be deleted.'
+      );
+      return;
+    }
     Alert.alert(
       t('suppliers.deleteTitle'),
       t('suppliers.deleteMsg', { name: supplier.name }),
@@ -295,7 +308,14 @@ export default function SupplierDetailScreen() {
               router.back();
             } catch (err) {
               const msg = err instanceof Error ? err.message : '';
-              if (msg === 'SUPPLIER_HAS_ACTIVE_DEBTS') {
+              if (msg === 'CANNOT_DELETE_DIRECT_SUPPLIER') {
+                Alert.alert(
+                  t('common.error'),
+                  isKuLanguage
+                    ? 'ئەم دابینکەرە تایبەتە بە کڕینی ڕاستەوخۆ (سیستەم) و بە هیچ شێوەیەک ناتوانرێت بسڕدرێتەوە.'
+                    : 'Direct Supplier is a permanent system account and cannot be deleted.'
+                );
+              } else if (msg === 'SUPPLIER_HAS_ACTIVE_DEBTS') {
                 Alert.alert(t('suppliers.deleteTitle'), t('suppliers.hasActiveDebts'));
               } else if (msg === 'SUPPLIER_HAS_PURCHASES') {
                 Alert.alert(t('suppliers.deleteTitle'), t('suppliers.hasPurchases'));
@@ -307,7 +327,7 @@ export default function SupplierDetailScreen() {
         },
       ]
     );
-  }, [supplier, deleteSupplier]);
+  }, [supplier, isDirectSupplier, isKuLanguage, deleteSupplier, router, t]);
 
   if (!supplier) {
     return (
@@ -327,13 +347,21 @@ export default function SupplierDetailScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <TouchableOpacity onPress={() => setEditing((v) => !v)} hitSlop={8}>
-            <Ionicons name={editing ? 'close-outline' : 'create-outline'} size={22} color="#fff" />
-          </TouchableOpacity>
+          isDirectSupplier ? undefined : (
+            <TouchableOpacity onPress={() => setEditing((v) => !v)} hitSlop={8}>
+              <Ionicons name={editing ? 'close-outline' : 'create-outline'} size={22} color="#fff" />
+            </TouchableOpacity>
+          )
         }
       >
         {/* Contact chips */}
         <View style={styles.chipsRow}>
+          {isDirectSupplier && (
+            <View style={[styles.chip, { backgroundColor: '#D97706' }]}>
+              <Ionicons name="flash" size={12} color="#fff" />
+              <Text style={styles.chipText}>{isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier'}</Text>
+            </View>
+          )}
           {supplier.phone ? (
             <View style={styles.chip}>
               <Ionicons name="call-outline" size={12} color="#fff" />
@@ -551,42 +579,68 @@ export default function SupplierDetailScreen() {
           </MotiView>
         ) : null}
 
-        {/* Danger Zone */}
-        <MotiView
-          from={{ opacity: 0, translateY: 10 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-          style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
-        >
-          <Text style={sectionTitleStyle}>
-            {t('customers.deleteAccountSection')}
-          </Text>
-          {!canDelete ? (
-            <>
-              <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg }]}>
-                <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
-                <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
-                  {purchases.length > 0
-                    ? t('suppliers.hasPurchases')
-                    : t('suppliers.hasActiveDebts')}
-                </Text>
-              </View>
-              <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]} disabled activeOpacity={1}>
-                <Ionicons name="trash-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
+        {/* Danger Zone or Permanent System Notice */}
+        {isDirectSupplier ? (
+          <MotiView
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
+            style={[
+              styles.section,
+              {
+                borderWidth: 1.5,
+                borderColor: isDark ? '#D97706' : '#F59E0B',
+                backgroundColor: isDark ? '#1E293B' : '#FFFBEB',
+              },
+            ]}
+          >
+            <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 8 }]}>
+              <Ionicons name="shield-checkmark" size={22} color="#D97706" />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }}>
+                {t('suppliers.permanentAccountTitle')}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 13, lineHeight: 21, color: isDark ? '#E2E8F0' : '#78350F', textAlign }}>
+              {t('suppliers.permanentAccountDesc')}
+            </Text>
+          </MotiView>
+        ) : (
+          <MotiView
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
+            style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
+          >
+            <Text style={sectionTitleStyle}>
+              {t('customers.deleteAccountSection')}
+            </Text>
+            {!canDelete ? (
+              <>
+                <View style={[styles.deleteWarningBox, { backgroundColor: warningTint.bg }]}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.warning} />
+                  <Text style={[styles.deleteWarningText, { color: colors.gray600, textAlign, writingDirection }]}>
+                    {purchases.length > 0
+                      ? t('suppliers.hasPurchases')
+                      : t('suppliers.hasActiveDebts')}
+                  </Text>
+                </View>
+                <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]} disabled activeOpacity={1}>
+                  <Ionicons name="trash-outline" size={16} color={colors.gray400} />
+                  <Text style={[styles.deleteAccountBtnText, { color: colors.gray400 }]}>
+                    {t('suppliers.deleteAccount')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg }]} onPress={handleDelete} activeOpacity={0.82}>
+                <Ionicons name="trash-outline" size={16} color={colors.error} />
+                <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
                   {t('suppliers.deleteAccount')}
                 </Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity style={[styles.deleteAccountBtn, { borderColor: colors.error, backgroundColor: errorTint.bg }]} onPress={handleDelete} activeOpacity={0.82}>
-              <Ionicons name="trash-outline" size={16} color={colors.error} />
-              <Text style={[styles.deleteAccountBtnText, { color: colors.error }]}>
-                {t('suppliers.deleteAccount')}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </MotiView>
+            )}
+          </MotiView>
+        )}
 
       </KeyboardAwareScrollView>
     </KeyboardAvoidingView>

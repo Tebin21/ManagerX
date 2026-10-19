@@ -10,6 +10,7 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
 import type { Sale } from '@/types/sales';
 
 interface Props {
@@ -23,14 +24,20 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const isDirectCustomer = !sale.customerName ||
+    sale.customerName === 'کڕیاری ڕاستەوخۆ' ||
+    sale.customerName === 'Direct Customer' ||
+    sale.customerName === 'Walk-in Customer';
 
   const cashTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const debtTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
   const paymentColors: Record<string, { bg: string; text: string; label: string }> = {
-    cash: { bg: cashTint.bg, text: cashTint.text, label: 'Cash' },
+    cash: { bg: cashTint.bg, text: cashTint.text, label: isKuLanguage ? 'کاش' : 'Cash' },
     fib:  { bg: colors.lightBlue, text: colors.darkBlue, label: 'FIB' },
-    debt: { bg: debtTint.bg, text: debtTint.text, label: 'Debt' },
+    debt: { bg: debtTint.bg, text: debtTint.text, label: isKuLanguage ? 'قەرز' : 'Debt' },
   };
 
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;
@@ -41,9 +48,24 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { flexDirection, padding: cardPadding }]}>
       <View style={styles.left}>
         <IdText style={[styles.invoice, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]}>{sale.invoiceNumber}</IdText>
-        {sale.customerName ? (
-          <Text style={[styles.customer, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]} numberOfLines={1}>{sale.customerName}</Text>
-        ) : null}
+        {isDirectCustomer ? (
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: isRTL ? RTL_SPACING.title : 2 }}>
+            <Ionicons name="flash" size={12} color="#D97706" />
+            <Text
+              style={[
+                styles.customer,
+                { color: isDark ? '#FBBF24' : '#B45309', fontWeight: '700', textAlign },
+              ]}
+              numberOfLines={1}
+            >
+              {isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer'}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.customer, { textAlign, marginBottom: isRTL ? RTL_SPACING.title : 2 }]} numberOfLines={1}>
+            {sale.customerName}
+          </Text>
+        )}
         <DateText value={sale.date ?? sale.createdAt} size={isTablet ? 'default' : 'small'} style={[styles.date, { textAlign }]} />
       </View>
 

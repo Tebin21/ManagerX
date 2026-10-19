@@ -15,6 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { DebtReportSections } from '@/lib/debtReportTemplate';
 
 interface DebtPdfExportModalProps {
@@ -88,6 +89,7 @@ export function DebtPdfExportModal({
       animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable

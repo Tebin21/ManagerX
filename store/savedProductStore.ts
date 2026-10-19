@@ -16,7 +16,7 @@ export interface SavedProductPreset {
 export interface SavedProductState {
   savedPresets: SavedProductPreset[];
   savePreset: (preset: {
-    name: string;
+    name?: string | null;
     description?: string | null;
     imageUri: string;
     itemId?: string | null;
@@ -35,26 +35,28 @@ export const useSavedProductStore = create<SavedProductState>()(
       savedPresets: [],
 
       savePreset: (preset) => {
-        const trimmedName = preset.name.trim();
-        if (!trimmedName || !preset.imageUri) return;
+        if (!preset.imageUri) return;
 
-        const normalizedName = trimmedName.toLowerCase();
+        const rawName = preset.name?.trim() || '';
         const existing = get().savedPresets;
+        const now = new Date().toISOString();
+
+        // If no name provided, generate a friendly fallback like "وێنەی پاشەکەوتکراو #1"
+        const finalName = rawName || `وێنەی پاشەکەوتکراو #${existing.length + 1}`;
+        const normalizedName = finalName.toLowerCase();
 
         // Check if an entry with this name already exists (case-insensitive)
-        const existingIdx = existing.findIndex(
-          (p) => p.name.trim().toLowerCase() === normalizedName
-        );
-
-        const now = new Date().toISOString();
+        const existingIdx = rawName
+          ? existing.findIndex((p) => p.name.trim().toLowerCase() === normalizedName)
+          : -1;
 
         if (existingIdx !== -1) {
           const updated = [...existing];
           const curr = updated[existingIdx];
           updated[existingIdx] = {
             ...curr,
-            name: trimmedName,
-            description: preset.description?.trim() || curr.description,
+            name: finalName,
+            description: preset.description !== undefined ? (preset.description?.trim() || null) : curr.description,
             imageUri: preset.imageUri,
             itemId: preset.itemId?.trim() || curr.itemId,
             category: preset.category?.trim() || curr.category,
@@ -66,7 +68,7 @@ export const useSavedProductStore = create<SavedProductState>()(
         } else {
           const newPreset: SavedProductPreset = {
             id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            name: trimmedName,
+            name: finalName,
             description: preset.description?.trim() || null,
             imageUri: preset.imageUri,
             itemId: preset.itemId?.trim() || null,

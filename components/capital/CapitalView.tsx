@@ -23,13 +23,14 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useCapitalStore, type DrawerFullStats } from '@/store/capitalStore';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { formatDateShort } from '@/utils/formatters';
 
 export function CapitalView() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
   const {
@@ -349,6 +350,7 @@ export function CapitalView() {
           transparent
           animationType="fade"
           onRequestClose={() => setActivateModalOpen(false)}
+          supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -490,9 +492,21 @@ export function CapitalView() {
   const isPositiveBalance = stats.currentBalance >= 0;
   const balanceColor = isPositiveBalance ? colors.success : colors.error;
 
+  const cellMinWidth = isTablet ? '30%' : '48%';
+  const cellMinHeight = isTabletLandscape ? 128 : isTablet ? 116 : 88;
+  const miniIconDim = isTabletLandscape ? 44 : isTablet ? 38 : 28;
+  const miniIconSize = isTabletLandscape ? 24 : isTablet ? 20 : 16;
+  const cellLabelFontSize = isTabletLandscape ? 16 : isTablet ? 14.5 : 12;
+  const cellAmtFontSize = isTabletLandscape ? 24 : isTablet ? 21 : 16;
+
   return (
     <ScrollView
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 }]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        isTablet && styles.tabletContainer,
+        isTabletLandscape && styles.tabletLandscapeContainer,
+        { paddingBottom: 60 },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <MotiView
@@ -509,14 +523,17 @@ export function CapitalView() {
               borderColor: '#10B98135',
               alignSelf: isRTL ? 'flex-end' : 'flex-start',
               flexDirection: isRTL ? 'row-reverse' : 'row',
+              paddingHorizontal: isTablet ? 16 : 12,
+              paddingVertical: isTablet ? 8 : 6,
+              borderRadius: isTablet ? 22 : 20,
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+          <Ionicons name="checkmark-circle" size={isTablet ? 20 : 16} color="#10B981" />
           <Text
             style={[
               styles.statusText,
-              { color: '#10B981' },
+              { color: '#10B981', fontSize: isTablet ? 14.5 : 13 },
               isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
             ]}
           >
@@ -531,21 +548,45 @@ export function CapitalView() {
             {
               backgroundColor: colors.white,
               borderColor: colors.lightBlue,
+              padding: isTabletLandscape ? 28 : isTablet ? 22 : 18,
+              minHeight: isTabletLandscape ? 130 : isTablet ? 116 : 96,
+              borderRadius: isTablet ? 22 : 20,
             },
           ]}
         >
           <View style={[styles.balanceCardTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={[styles.balanceIconWrap, { backgroundColor: balanceColor + '15' }]}>
-              <Ionicons name="cash" size={24} color={balanceColor} />
+            <View
+              style={[
+                styles.balanceIconWrap,
+                {
+                  backgroundColor: balanceColor + '15',
+                  width: isTabletLandscape ? 70 : isTablet ? 58 : 48,
+                  height: isTabletLandscape ? 70 : isTablet ? 58 : 48,
+                  borderRadius: isTablet ? 20 : 14,
+                },
+              ]}
+            >
+              <Ionicons name="cash" size={isTabletLandscape ? 36 : isTablet ? 30 : 24} color={balanceColor} />
             </View>
             <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-              <Text style={[styles.balanceLabel, { color: colors.gray500 }]}>
+              <Text
+                style={[
+                  styles.balanceLabel,
+                  { color: colors.gray500, fontSize: isTabletLandscape ? 17 : isTablet ? 15.5 : 13 },
+                ]}
+              >
                 {t('capital.currentBalance')}
               </Text>
               <View style={[styles.balanceAmtRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <AmountText
                   value={Math.abs(stats.currentBalance)}
-                  style={[styles.balanceBigAmt, { color: balanceColor }]}
+                  style={[
+                    styles.balanceBigAmt,
+                    {
+                      color: balanceColor,
+                      fontSize: isTabletLandscape ? 42 : isTablet ? 36 : 26,
+                    },
+                  ]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.6}
@@ -555,116 +596,167 @@ export function CapitalView() {
           </View>
         </View>
 
-        {/* Breakdown Grid */}
-        <View style={styles.gridContainer}>
-          {/* 1. Initial Capital */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
+        {/* Breakdown Grid - Injected Capital, Cash Purchases (-), Expenses (-) */}
+        <View style={[styles.gridContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* 1. Injected Capital */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
             <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: colors.primary + '18' }]}>
-                <Ionicons name="wallet" size={16} color={colors.primary} />
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: colors.primary + '18',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="wallet" size={miniIconSize} color={colors.primary} />
               </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
                 {t('capital.initialCapital')}
               </Text>
             </View>
             <AmountText
-              value={stats.initialCapital}
-              style={[styles.gridCellAmt, { color: colors.darkBlue, textAlign }]}
+              value={stats.netCapital !== undefined && stats.netCapital !== 0 ? stats.netCapital : stats.initialCapital}
+              style={[
+                styles.gridCellAmt,
+                { color: colors.darkBlue, textAlign, fontSize: cellAmtFontSize },
+              ]}
             />
           </View>
 
-          {/* 2. Sales Cash (+) */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
+          {/* 2. Cash Purchases (-) */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
             <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: colors.success + '18' }]}>
-                <Ionicons name="arrow-up-circle" size={16} color={colors.success} />
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: colors.error + '18',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="cart" size={miniIconSize} color={colors.error} />
               </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
-                {t('capital.salesCash')}
-              </Text>
-            </View>
-            <AmountText
-              value={stats.salesCash}
-              style={[styles.gridCellAmt, { color: colors.success, textAlign }]}
-            />
-          </View>
-
-          {/* 3. Customer Debt Collected (+) */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
-            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: '#05966918' }]}>
-                <Ionicons name="cash-outline" size={16} color="#059669" />
-              </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
-                {t('capital.customerDebtCash')}
-              </Text>
-            </View>
-            <AmountText
-              value={stats.customerDebtCash}
-              style={[styles.gridCellAmt, { color: '#059669', textAlign }]}
-            />
-          </View>
-
-          {/* 4. Purchases Cash (-) */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
-            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: colors.error + '18' }]}>
-                <Ionicons name="cart" size={16} color={colors.error} />
-              </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
                 {t('capital.purchasesCash')}
               </Text>
             </View>
             <AmountText
               value={stats.purchasesCash}
-              style={[styles.gridCellAmt, { color: colors.error, textAlign }]}
+              style={[
+                styles.gridCellAmt,
+                { color: colors.error, textAlign, fontSize: cellAmtFontSize },
+              ]}
             />
           </View>
 
-          {/* 5. Supplier Debt Paid (-) */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
+          {/* 3. Expenses (-) */}
+          <View
+            style={[
+              styles.gridCell,
+              {
+                flex: 1,
+                minWidth: cellMinWidth,
+                minHeight: cellMinHeight,
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTabletLandscape ? 20 : isTablet ? 18 : 14,
+              },
+            ]}
+          >
             <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: '#DC262618' }]}>
-                <Ionicons name="card-outline" size={16} color="#DC2626" />
+              <View
+                style={[
+                  styles.miniIconBox,
+                  {
+                    backgroundColor: colors.warning + '18',
+                    width: miniIconDim,
+                    height: miniIconDim,
+                    borderRadius: isTablet ? 10 : 8,
+                  },
+                ]}
+              >
+                <Ionicons name="receipt" size={miniIconSize} color={colors.warning} />
               </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
-                {t('capital.supplierDebtCash')}
-              </Text>
-            </View>
-            <AmountText
-              value={stats.supplierDebtCash}
-              style={[styles.gridCellAmt, { color: '#DC2626', textAlign }]}
-            />
-          </View>
-
-          {/* 6. Expenses (-) */}
-          <View style={[styles.gridCell, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
-            <View style={[styles.gridCellTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.miniIconBox, { backgroundColor: colors.warning + '18' }]}>
-                <Ionicons name="receipt" size={16} color={colors.warning} />
-              </View>
-              <Text style={[styles.gridCellLabel, { color: colors.gray500, textAlign }]}>
+              <Text
+                style={[
+                  styles.gridCellLabel,
+                  { color: colors.gray500, textAlign, fontSize: cellLabelFontSize },
+                ]}
+              >
                 {t('capital.expensesCash')}
               </Text>
             </View>
             <AmountText
               value={stats.expensesCash}
-              style={[styles.gridCellAmt, { color: colors.warning, textAlign }]}
+              style={[
+                styles.gridCellAmt,
+                { color: colors.warning, textAlign, fontSize: cellAmtFontSize },
+              ]}
             />
           </View>
         </View>
 
         {/* Quick Fund Adjustment Buttons */}
-        <View style={[styles.actionBtnRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.actionBtnRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 14 : 10 }]}>
           <TouchableOpacity
-            style={[styles.fundActionBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.fundActionBtn,
+              {
+                backgroundColor: colors.primary,
+                minHeight: isTabletLandscape ? 66 : isTablet ? 60 : 48,
+                paddingVertical: isTablet ? 16 : 12,
+                borderRadius: isTablet ? 16 : 14,
+              },
+            ]}
             onPress={() => handleOpenAdjustment('deposit')}
             activeOpacity={0.8}
           >
-            <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+            <Ionicons name="add-circle" size={isTabletLandscape ? 26 : isTablet ? 24 : 18} color="#FFFFFF" />
             <Text
               style={[
                 styles.fundActionText,
+                { fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 13 },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
               numberOfLines={2}
@@ -674,15 +766,26 @@ export function CapitalView() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.fundActionBtn, { backgroundColor: colors.gray200 }]}
+            style={[
+              styles.fundActionBtn,
+              {
+                backgroundColor: colors.gray200,
+                minHeight: isTabletLandscape ? 66 : isTablet ? 60 : 48,
+                paddingVertical: isTablet ? 16 : 12,
+                borderRadius: isTablet ? 16 : 14,
+              },
+            ]}
             onPress={() => handleOpenAdjustment('withdrawal')}
             activeOpacity={0.8}
           >
-            <Ionicons name="remove-circle" size={18} color={colors.darkBlue} />
+            <Ionicons name="remove-circle" size={isTabletLandscape ? 26 : isTablet ? 24 : 18} color={colors.darkBlue} />
             <Text
               style={[
                 styles.fundActionText,
-                { color: colors.darkBlue },
+                {
+                  color: colors.darkBlue,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 13,
+                },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
               numberOfLines={2}
@@ -694,11 +797,25 @@ export function CapitalView() {
 
         {/* Transactions History */}
         {deposits.length > 0 && (
-          <View style={[styles.historyCard, { backgroundColor: colors.white, borderColor: colors.lightBlue }]}>
+          <View
+            style={[
+              styles.historyCard,
+              {
+                backgroundColor: colors.white,
+                borderColor: colors.lightBlue,
+                padding: isTablet ? 22 : 16,
+                borderRadius: isTablet ? 22 : 18,
+              },
+            ]}
+          >
             <Text
               style={[
                 styles.historyTitle,
-                { color: colors.darkBlue, textAlign },
+                {
+                  color: colors.darkBlue,
+                  textAlign,
+                  fontSize: isTablet ? 19 : 15,
+                },
                 isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -712,31 +829,61 @@ export function CapitalView() {
                   key={tx.id}
                   style={[
                     styles.txRow,
-                    { borderBottomColor: colors.lightBlue, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    {
+                      borderBottomColor: colors.lightBlue,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      paddingVertical: isTablet ? 16 : 12,
+                    },
                   ]}
                 >
-                  <View style={[styles.txIconBox, { backgroundColor: isDep ? colors.success + '15' : colors.error + '15' }]}>
+                  <View
+                    style={[
+                      styles.txIconBox,
+                      {
+                        backgroundColor: isDep ? colors.success + '15' : colors.error + '15',
+                        width: isTablet ? 44 : 36,
+                        height: isTablet ? 44 : 36,
+                        borderRadius: isTablet ? 14 : 10,
+                      },
+                    ]}
+                  >
                     <Ionicons
                       name={isDep ? 'arrow-down' : 'arrow-up'}
-                      size={16}
+                      size={isTablet ? 22 : 16}
                       color={isDep ? colors.success : colors.error}
                     />
                   </View>
                   <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                    <Text style={[styles.txTypeLabel, { color: colors.darkBlue }]}>
+                    <Text
+                      style={[
+                        styles.txTypeLabel,
+                        { color: colors.darkBlue, fontSize: isTablet ? 16.5 : 14 },
+                      ]}
+                    >
                       {tx.type === 'initial'
                         ? t('capital.initialCapital')
                         : tx.type === 'deposit'
                         ? t('capital.addFundsTitle')
                         : t('capital.withdrawTitle')}
                     </Text>
-                    <Text style={[styles.txDate, { color: colors.gray400 }]}>
+                    <Text
+                      style={[
+                        styles.txDate,
+                        { color: colors.gray400, fontSize: isTablet ? 13 : 11.5 },
+                      ]}
+                    >
                       {formatDateShort(tx.date)} {tx.note ? `• ${tx.note}` : ''}
                     </Text>
                   </View>
                   <AmountText
                     value={tx.amount}
-                    style={[styles.txAmount, { color: isDep ? colors.success : colors.error }]}
+                    style={[
+                      styles.txAmount,
+                      {
+                        color: isDep ? colors.success : colors.error,
+                        fontSize: isTablet ? 18 : 15,
+                      },
+                    ]}
                   />
                 </View>
               );
@@ -746,14 +893,22 @@ export function CapitalView() {
 
         {/* Deactivation Button */}
         <TouchableOpacity
-          style={[styles.deactivateBtn, { borderColor: colors.error + '40', backgroundColor: colors.error + '0A' }]}
+          style={[
+            styles.deactivateBtn,
+            {
+              borderColor: colors.error + '40',
+              backgroundColor: colors.error + '0A',
+              paddingVertical: isTablet ? 16 : 12,
+              borderRadius: isTablet ? 16 : 12,
+            },
+          ]}
           onPress={handleDeactivate}
         >
-          <Ionicons name="trash-outline" size={18} color={colors.error} />
+          <Ionicons name="trash-outline" size={isTablet ? 22 : 18} color={colors.error} />
           <Text
             style={[
               styles.deactivateText,
-              { color: colors.error },
+              { color: colors.error, fontSize: isTablet ? 16 : 13.5 },
               isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
             ]}
           >
@@ -768,6 +923,7 @@ export function CapitalView() {
         transparent
         animationType="fade"
         onRequestClose={() => setAdjModalOpen(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -936,6 +1092,16 @@ export function CapitalView() {
 const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
+  },
+  tabletContainer: {
+    maxWidth: 1040,
+    alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: 24,
+  },
+  tabletLandscapeContainer: {
+    maxWidth: 1320,
+    paddingHorizontal: 32,
   },
   heroCard: {
     borderRadius: 20,
@@ -1188,8 +1354,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   gridCell: {
-    flex: 1,
-    minWidth: '47%',
     borderRadius: 16,
     borderWidth: 1,
     padding: 14,

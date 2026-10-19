@@ -59,6 +59,51 @@ export function ModuleGrid() {
     return sortedModules;
   }, [sortedModules]);
 
+  // On portrait tablet (3 columns), identify rows with exactly 2 items so they can expand to 48.5% and fill empty space
+  const tabletPortraitPairSet = useMemo(() => {
+    if (!isTablet || isTabletLandscape) return new Set<ModuleId>();
+
+    const rows: ModuleId[][] = [];
+    let currentRow: ModuleId[] = [];
+    let currentSlots = 0;
+
+    displayModules.forEach((item) => {
+      const config = modules[item.id];
+      const isFull = (config?.layout ?? (item.id === 'expenses' ? 'full' : 'half')) === 'full';
+
+      if (isFull) {
+        if (currentRow.length > 0) {
+          rows.push(currentRow);
+          currentRow = [];
+          currentSlots = 0;
+        }
+        rows.push([item.id]);
+      } else {
+        currentRow.push(item.id);
+        currentSlots += 1;
+        if (currentSlots === 3) {
+          rows.push(currentRow);
+          currentRow = [];
+          currentSlots = 0;
+        }
+      }
+    });
+
+    if (currentRow.length > 0) {
+      rows.push(currentRow);
+    }
+
+    const twoItemSet = new Set<ModuleId>();
+    rows.forEach((row) => {
+      if (row.length === 2) {
+        twoItemSet.add(row[0]);
+        twoItemSet.add(row[1]);
+      }
+    });
+
+    return twoItemSet;
+  }, [displayModules, modules, isTablet, isTabletLandscape]);
+
   const animateLayout = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
@@ -299,6 +344,7 @@ export function ModuleGrid() {
             const config = modules[item.id];
             const layout = config?.layout ?? (item.id === 'expenses' ? 'full' : 'half');
             const isSelected = selectedIdForSwap === item.id;
+            const isLastRowPair = tabletPortraitPairSet.has(item.id);
 
             return (
               <ModuleCard
@@ -309,6 +355,7 @@ export function ModuleGrid() {
                 layout={layout}
                 isCustomizing={isCustomizing}
                 isSelectedForSwap={isSelected}
+                isLastRowPair={isLastRowPair}
                 onStartCustomize={() => handleStartCustomize(item.id)}
                 onToggleLayout={() => handleToggleLayout(item.id)}
                 onSelectForSwap={() => handleSelectForSwap(item.id)}
