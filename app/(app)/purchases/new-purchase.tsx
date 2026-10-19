@@ -61,7 +61,8 @@ export default function NewPurchaseScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { textAlign, flexDirection, isRTL } = useRTL();
-  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, width, contentContainerStyle } = useResponsive();
+  const useThreeColumns = isTablet && (isTabletLandscape || width >= 1000);
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
@@ -1665,29 +1666,58 @@ export default function NewPurchaseScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {isTablet ? (
-            <View style={{ gap: 24 }}>
-              {/* Top 2 Columns: Right is Product & IDs, Left is Supplier & Pricing */}
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 24, alignItems: 'flex-start' }}>
-                {/* Right Column in RTL (Products & Barcode/IDs) */}
-                <View style={{ flex: 1, gap: 20 }}>
-                  {cardProductInfo}
-                  {cardQuantityAndIds}
-                </View>
-
-                {/* Left Column in RTL (Supplier & Pricing) */}
-                <View style={{ flex: 1, gap: 20 }}>
-                  {cardSupplier}
-                  {cardPricing}
-                </View>
+          {useThreeColumns ? (
+            /* 3 Columns Layout on Large Tablet Screens (iPad Landscape / Wide Tablet) */
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                gap: 20,
+                alignItems: 'flex-start',
+                width: '100%',
+              }}
+            >
+              {/* Column 1 (First in RTL: Products & Supplier) */}
+              <View style={{ flex: 1, gap: 20 }}>
+                {cardProductInfo}
+                {cardSupplier}
               </View>
 
-              {/* Full-width Section: Payment & Checkout (پان بوونەوەی بەشی پارەدان و تەواوکردن) */}
-              <View style={{ width: '100%' }}>
+              {/* Column 2 (Middle: Quantity & Item Barcodes / IDs) */}
+              <View style={{ flex: 1, gap: 20 }}>
+                {cardQuantityAndIds}
+              </View>
+
+              {/* Column 3 (Left in RTL: Pricing, Profit & Checkout/Save) */}
+              <View style={{ flex: 1, gap: 20 }}>
+                {cardPricing}
+                {cardCheckout}
+              </View>
+            </View>
+          ) : isTablet ? (
+            /* 2 Balanced Columns Layout on Medium Tablet (iPad Portrait) */
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                gap: 20,
+                alignItems: 'flex-start',
+                width: '100%',
+              }}
+            >
+              {/* Column 1: Product & IDs */}
+              <View style={{ flex: 1, gap: 20 }}>
+                {cardProductInfo}
+                {cardQuantityAndIds}
+              </View>
+
+              {/* Column 2: Supplier, Pricing & Checkout */}
+              <View style={{ flex: 1, gap: 20 }}>
+                {cardSupplier}
+                {cardPricing}
                 {cardCheckout}
               </View>
             </View>
           ) : (
+            /* 1 Column Layout on Phone */
             <View style={{ gap: 16 }}>
               {cardProductInfo}
               {cardQuantityAndIds}

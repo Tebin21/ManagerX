@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +16,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { KurdistanFlagIcon, UKFlagIcon } from '@/components/settings/LanguageToggleSwitch';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 interface SettingsGridProps {
   businessName?: string;
@@ -39,10 +39,8 @@ interface TileProps {
   color?: string;
   destructive?: boolean;
   badge?: React.ReactNode;
-  cardWidth: number;
+  cardWidth?: number;
 }
-
-const IS_IOS = Platform.OS === 'ios';
 
 function SettingsGridTile({
   icon,
@@ -52,7 +50,6 @@ function SettingsGridTile({
   color,
   destructive = false,
   badge,
-  cardWidth,
 }: TileProps) {
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
@@ -74,14 +71,14 @@ function SettingsGridTile({
       style={[
         styles.tile,
         {
-          width: cardWidth,
-          borderRadius: isTablet ? 18 : 14,
+          flex: 1,
+          borderRadius: isTablet ? 20 : 14,
           backgroundColor: isDark ? 'rgba(30, 41, 59, 0.72)' : '#FFFFFF',
           borderColor: isDark ? 'rgba(255, 255, 255, 0.09)' : 'rgba(0, 0, 0, 0.06)',
           shadowColor: isDark ? '#000000' : baseColor,
           shadowOpacity: isDark ? 0.35 : 0.08,
           padding: isTabletLandscape ? 22 : isTablet ? 18 : 14,
-          minHeight: isTabletLandscape ? 144 : isTablet ? 128 : 112,
+          minHeight: isTabletLandscape ? 134 : isTablet ? 122 : 110,
         },
       ]}
     >
@@ -93,13 +90,13 @@ function SettingsGridTile({
             {
               backgroundColor: hexToRgba(baseColor, isDark ? 0.20 : 0.12),
               borderColor: hexToRgba(baseColor, isDark ? 0.35 : 0.22),
-              width: isTabletLandscape ? 56 : isTablet ? 48 : 36,
-              height: isTabletLandscape ? 56 : isTablet ? 48 : 36,
-              borderRadius: isTabletLandscape ? 17 : isTablet ? 14 : 11,
+              width: isTabletLandscape ? 52 : isTablet ? 46 : 36,
+              height: isTabletLandscape ? 52 : isTablet ? 46 : 36,
+              borderRadius: isTabletLandscape ? 16 : isTablet ? 14 : 11,
             },
           ]}
         >
-          <Ionicons name={icon} size={isTabletLandscape ? 28 : isTablet ? 24 : 20} color={baseColor} />
+          <Ionicons name={icon} size={isTabletLandscape ? 26 : isTablet ? 23 : 20} color={baseColor} />
         </View>
 
         {badge ? (
@@ -107,21 +104,22 @@ function SettingsGridTile({
         ) : (
           <Ionicons
             name={isRTL ? 'chevron-back' : 'chevron-forward'}
-            size={isTabletLandscape ? 22 : isTablet ? 18 : 14}
+            size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
             color={isDark ? 'rgba(255,255,255,0.30)' : colors.gray300}
           />
         )}
       </View>
 
       {/* Title & Sub */}
-      <View style={[styles.tileFooter, isTablet && { marginTop: isTabletLandscape ? 16 : 12 }]}>
+      <View style={[styles.tileFooter, isTablet && { marginTop: isTabletLandscape ? 14 : 10 }]}>
         <Text
           style={[
             styles.tileTitle,
             {
               color: destructive ? colors.error : colors.black,
               textAlign: isRTL ? 'right' : 'left',
-              fontSize: isTabletLandscape ? 19 : isTablet ? 17 : 14,
+              fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 14,
+              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
             },
           ]}
           numberOfLines={1}
@@ -135,7 +133,8 @@ function SettingsGridTile({
               {
                 color: colors.gray400,
                 textAlign: isRTL ? 'right' : 'left',
-                fontSize: isTabletLandscape ? 15 : isTablet ? 13.5 : 11,
+                fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 11,
+                fontFamily: SETTINGS_KURDISH_FONT,
               },
             ]}
             numberOfLines={1}
@@ -164,18 +163,9 @@ export function SettingsGrid({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
-  const { isTablet, isTabletLandscape, contentMaxWidth } = useResponsive();
-  const { width: screenWidth } = useWindowDimensions();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   const isKu = language !== 'en';
-
-  // Responsive column calculation: 4 columns on tablet landscape, 3 on tablet portrait, 2 on mobile
-  const numColumns = isTabletLandscape ? 4 : (isTablet ? 3 : 2);
-  const containerWidth = isTablet ? (contentMaxWidth ? Math.min(screenWidth, contentMaxWidth) : screenWidth) : screenWidth;
-  const horizontalPadding = 16 * 2;
-  const gap = 12;
-  const totalGap = gap * (numColumns - 1);
-  const cardWidth = Math.floor((containerWidth - horizontalPadding - totalGap) / numColumns);
 
   // Quick Language Toggle
   const handleToggleLanguage = () => {
@@ -193,187 +183,196 @@ export function SettingsGrid({
     toggleTheme();
   };
 
-  return (
-    <View style={styles.container}>
-      {/* ── 1. Business Profile ── */}
+  // 1. Business Section
+  const sectionBusiness = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.businessProfile').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="business"
           title={isKu ? 'پڕۆفایل' : 'Business'}
           sub={businessName || (isKu ? 'زانیاری کار' : 'Info')}
           onPress={() => router.push('/(app)/settings/profile' as never)}
         />
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="color-palette"
           title={isKu ? 'دیزاین' : 'Customization'}
           sub={isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
           onPress={() => router.push('/(app)/settings/customization' as never)}
         />
       </View>
+    </View>
+  );
 
-      {/* ── 2. Subscriptions ── */}
+  // 2. Subscriptions Section
+  const sectionSubscriptions = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.subscriptions').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="rocket"
           title={isKu ? 'مۆڵەت' : 'License'}
           sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
           onPress={() => router.push('/(app)/settings/plan-limits' as never)}
         />
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="globe"
           title={isKu ? 'ئابوونەی وێب' : 'Store Sub'}
           sub={isKu ? 'بەڕێوەبردن' : 'Manage'}
           onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
         />
       </View>
+    </View>
+  );
 
-      {/* ── 3. Preferences (Includes Interactive Language & Dark/Light Toggles) ── */}
+  // 3. System & Preferences Section
+  const sectionPreferences = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.preferences').toUpperCase()}
       </Text>
-      <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Exchange Rate */}
-        <SettingsGridTile
-          cardWidth={cardWidth}
-          icon="swap-horizontal"
-          title={isKu ? 'نرخی دۆلار' : 'Exchange Rate'}
-          sub={`100$ = ${fmtExchangeRate(exchangeRate)}`}
-          onPress={() => router.push('/(app)/settings/currency' as never)}
-          badge={
-            <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : 'rgba(16, 185, 129, 0.12)' }]}>
-              <Text style={[styles.statusBadgeText, { color: '#10B981' }]}>IQD</Text>
-            </View>
-          }
-        />
+      <View style={{ gap: 12 }}>
+        {/* Row 1: Exchange Rate & Language */}
+        <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <SettingsGridTile
+            icon="swap-horizontal"
+            title={isKu ? 'نرخی دۆلار' : 'Exchange Rate'}
+            sub={`100$ = ${fmtExchangeRate(exchangeRate)}`}
+            onPress={() => router.push('/(app)/settings/currency' as never)}
+            badge={
+              <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.20)' : 'rgba(16, 185, 129, 0.12)' }]}>
+                <Text style={[styles.statusBadgeText, { color: '#10B981' }]}>IQD</Text>
+              </View>
+            }
+          />
 
-        {/* Interactive Language Quick-Toggle Square */}
-        <SettingsGridTile
-          cardWidth={cardWidth}
-          icon="language"
-          title={isKu ? 'زمان' : 'Language'}
-          sub={isKu ? 'کلیک بکە بۆ ئینگلیزی' : 'Tap for Kurdish'}
-          onPress={handleToggleLanguage}
-          badge={
-            <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-              {isKu ? <KurdistanFlagIcon size={16} /> : <UKFlagIcon size={16} />}
-              <Text style={[styles.statusBadgeText, { color: colors.black, marginStart: 4 }]}>
-                {isKu ? 'کوردی' : 'English'}
-              </Text>
-            </View>
-          }
-        />
+          <SettingsGridTile
+            icon="language"
+            title={isKu ? 'زمان' : 'Language'}
+            sub={isKu ? 'کلیک بکە بۆ ئینگلیزی' : 'Tap for Kurdish'}
+            onPress={handleToggleLanguage}
+            badge={
+              <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                {isKu ? <KurdistanFlagIcon size={16} /> : <UKFlagIcon size={16} />}
+                <Text style={[styles.statusBadgeText, { color: colors.black, marginStart: 4 }]}>
+                  {isKu ? 'کوردی' : 'English'}
+                </Text>
+              </View>
+            }
+          />
+        </View>
 
-        {/* Interactive Appearance (Dark / Light) Quick-Toggle Square */}
-        <SettingsGridTile
-          cardWidth={cardWidth}
-          icon={isDark ? 'moon' : 'sunny'}
-          color={isDark ? '#818CF8' : '#F59E0B'}
-          title={isKu ? 'ڕووکار' : 'Theme'}
-          sub={isDark ? (isKu ? 'تاریک (Dark)' : 'Dark mode') : (isKu ? 'ڕووناک (Light)' : 'Light mode')}
-          onPress={handleToggleTheme}
-          badge={
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor: isDark ? 'rgba(129, 140, 248, 0.22)' : 'rgba(245, 158, 11, 0.18)',
-                },
-              ]}
-            >
-              <Ionicons
-                name={isDark ? 'moon' : 'sunny'}
-                size={12}
-                color={isDark ? '#818CF8' : '#D97706'}
-              />
-              <Text
+        {/* Row 2: Theme (Dark/Light) & Accent Colors */}
+        <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <SettingsGridTile
+            icon={isDark ? 'moon' : 'sunny'}
+            color={isDark ? '#818CF8' : '#F59E0B'}
+            title={isKu ? 'ڕووکار' : 'Theme'}
+            sub={isDark ? (isKu ? 'تاریک (Dark)' : 'Dark mode') : (isKu ? 'ڕووناک (Light)' : 'Light mode')}
+            onPress={handleToggleTheme}
+            badge={
+              <View
                 style={[
-                  styles.statusBadgeText,
-                  { color: isDark ? '#818CF8' : '#D97706', marginStart: 3 },
+                  styles.statusBadge,
+                  {
+                    backgroundColor: isDark ? 'rgba(129, 140, 248, 0.22)' : 'rgba(245, 158, 11, 0.18)',
+                  },
                 ]}
               >
-                {isDark ? 'Dark' : 'Light'}
-              </Text>
-            </View>
-          }
-        />
+                <Ionicons
+                  name={isDark ? 'moon' : 'sunny'}
+                  size={12}
+                  color={isDark ? '#818CF8' : '#D97706'}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: isDark ? '#818CF8' : '#D97706', marginStart: 3 },
+                  ]}
+                >
+                  {isDark ? 'Dark' : 'Light'}
+                </Text>
+              </View>
+            }
+          />
 
-        {/* App Theme Colors */}
-        <SettingsGridTile
-          cardWidth={cardWidth}
-          icon="color-palette"
-          title={isKu ? 'ڕەنگەکان' : 'Theme Colors'}
-          sub={isKu ? 'ئەکسێنت' : 'Accent Color'}
-          onPress={() => router.push('/(app)/settings/theme' as never)}
-          badge={
-            <View
-              style={[
-                styles.colorDot,
-                { backgroundColor: colors.primary, borderColor: isDark ? '#FFFFFF40' : '#00000020' },
-              ]}
-            />
-          }
-        />
+          <SettingsGridTile
+            icon="color-palette"
+            title={isKu ? 'ڕەنگەکان' : 'Theme Colors'}
+            sub={isKu ? 'ئەکسێنت' : 'Accent Color'}
+            onPress={() => router.push('/(app)/settings/theme' as never)}
+            badge={
+              <View
+                style={[
+                  styles.colorDot,
+                  { backgroundColor: colors.primary, borderColor: isDark ? '#FFFFFF40' : '#00000020' },
+                ]}
+              />
+            }
+          />
+        </View>
       </View>
+    </View>
+  );
 
-      {/* ── 4. Modules & Online Store ── */}
+  // 4. Modules & Store Section
+  const sectionModules = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.modules').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="grid"
           title={isKu ? 'مۆدیوڵەکان' : 'Modules'}
           sub={isKu ? 'بەشەکانی ئەپ' : 'Dashboard Grid'}
           onPress={() => router.push('/(app)/settings/modules' as never)}
         />
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="storefront"
           title={isKu ? 'فرۆشگا' : 'Online Store'}
           sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
           onPress={() => router.push('/(app)/settings/online-store' as never)}
         />
       </View>
+    </View>
+  );
 
-      {/* ── 5. Data & About ── */}
+  // 5. Data & About Section
+  const sectionData = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.data').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="server"
           title={isKu ? 'داتا و باکئەپ' : 'Data & Backup'}
           sub={isKu ? 'کلاود و باکئەپ' : 'Cloud Sync & Data'}
           onPress={() => router.push('/(app)/settings/data' as never)}
         />
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="information-circle"
           title={isKu ? 'دەربارە' : 'About'}
           sub={isKu ? 'فرۆشیار v1.0' : 'Froshiar v1.0'}
           onPress={() => router.push('/(app)/settings/about' as never)}
         />
       </View>
+    </View>
+  );
 
-      {/* ── 6. Account & Danger Zone ── */}
+  // 6. Account & Danger Zone Section
+  const sectionAccount = (
+    <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
         {t('settings.account').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="log-out"
           destructive
           title={isKu ? 'دەرچوون' : 'Logout'}
@@ -381,7 +380,6 @@ export function SettingsGrid({
           onPress={onLogoutPress}
         />
         <SettingsGridTile
-          cardWidth={cardWidth}
           icon="trash"
           destructive
           title={isKu ? 'سڕینەوە' : 'Delete'}
@@ -389,6 +387,44 @@ export function SettingsGrid({
           onPress={onDeleteAccountPress}
         />
       </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {isTablet ? (
+        /* Tablet: Balanced 2-Column Section Layout that eliminates all empty whitespace */
+        <View
+          style={[
+            styles.tabletTwoColumns,
+            { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTabletLandscape ? 24 : 18 },
+          ]}
+        >
+          {/* Column 1 (Right in RTL) */}
+          <View style={styles.columnHalf}>
+            {sectionBusiness}
+            {sectionSubscriptions}
+            {sectionData}
+          </View>
+
+          {/* Column 2 (Left in RTL) */}
+          <View style={styles.columnHalf}>
+            {sectionPreferences}
+            {sectionModules}
+            {sectionAccount}
+          </View>
+        </View>
+      ) : (
+        /* Phone: Single vertical column */
+        <View style={{ gap: 4 }}>
+          {sectionBusiness}
+          {sectionSubscriptions}
+          {sectionPreferences}
+          {sectionModules}
+          {sectionData}
+          {sectionAccount}
+        </View>
+      )}
 
       <View style={{ height: 40 }} />
     </View>
@@ -399,23 +435,36 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 0,
     marginTop: 4,
+    width: '100%',
+  },
+  tabletTwoColumns: {
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  columnHalf: {
+    flex: 1,
+    gap: 4,
+  },
+  sectionWrap: {
+    width: '100%',
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
-    marginTop: 18,
+    marginTop: 16,
     marginBottom: 10,
     paddingHorizontal: 4,
   },
   rowGrid: {
-    flexWrap: 'wrap',
+    flexDirection: 'row',
     gap: 12,
+    width: '100%',
   },
   tile: {
     borderRadius: 18,
     padding: 14,
-    minHeight: 112,
+    minHeight: 110,
     justifyContent: 'space-between',
     borderWidth: 1.2,
     elevation: 3,
@@ -456,7 +505,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   tileFooter: {
-    marginTop: 12,
+    marginTop: 10,
   },
   tileTitle: {
     fontSize: 14,
