@@ -122,6 +122,9 @@ export const useSettingsStore = create<SettingsState>()(
           checkPriceGridLayout:    p?.checkPriceGridLayout ?? true,
           historyGridLayout:       p?.historyGridLayout ?? false,
           dashboardActivityGridLayout: p?.dashboardActivityGridLayout ?? false,
+          expiryTrackingEnabled:       p?.expiryTrackingEnabled ?? false,
+          expiryAlertDays:             p?.expiryAlertDays ?? 30,
+          expiryTermsAccepted:         p?.expiryTermsAccepted ?? false,
         };
       },
     }
