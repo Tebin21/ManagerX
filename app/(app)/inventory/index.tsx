@@ -29,6 +29,9 @@ import { BulkSyncModal } from '@/components/inventory/BulkSyncModal';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useTranslation } from 'react-i18next';
 import { ProductCard } from '@/components/inventory/ProductCard';
+import { ProductGridCard } from '@/components/inventory/ProductGridCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { InventoryReportView } from '@/components/inventory/InventoryReportView';
 import {
   InventoryFilterModal,
@@ -52,6 +55,7 @@ import { toEnglishDigits } from '@/utils/formatters';
 
 type InventoryNavTab = 'report' | 'products';
 type ActiveCategoryTab = 'all' | 'categories';
+type ProductOrFiller = InventoryProduct | { id: string; isFiller: true };
 
 type PendingReport =
   | { type: 'full'; products: InventoryProduct[] }
@@ -126,6 +130,33 @@ export default function InventoryScreen() {
   const [stockStatusFilter, setStockStatusFilter] = useState<StockStatusFilter>('all');
   const [sortBy, setSortBy] = useState<InventorySortBy>('newest');
 
+  // Layout View Mode (چوارگۆشە / درێژ)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    AsyncStorage.getItem('@froshiar_inventory_view_mode')
+      .then((saved) => {
+        if (saved === 'grid' || saved === 'list') {
+          setViewMode(saved);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleViewMode = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    if (activeNavTab !== 'products') {
+      setActiveNavTab('products');
+    }
+    setViewMode((prev) => {
+      const next = prev === 'grid' ? 'list' : 'grid';
+      AsyncStorage.setItem('@froshiar_inventory_view_mode', next).catch(() => {});
+      return next;
+    });
+  }, [activeNavTab]);
+
   // Modals
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -139,7 +170,15 @@ export default function InventoryScreen() {
   const [pendingReport, setPendingReport] = useState<PendingReport | null>(null);
 
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
-  const { isTablet, isTabletLandscape, contentContainerStyle, cardColumns } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+
+  const numColumns = useMemo(() => {
+    if (viewMode === 'list') {
+      return isTablet ? (isTabletLandscape ? 2 : 1) : 1;
+    }
+    // 'grid' mode (چوارگۆشە)
+    return isTabletLandscape ? 4 : isTablet ? 3 : 2;
+  }, [viewMode, isTablet, isTabletLandscape]);
 
   useEffect(() => {
     loadInventory();
@@ -522,6 +561,21 @@ export default function InventoryScreen() {
     </MotiView>
   );
 
+  // Balance out incomplete rows in grid view with transparent fillers
+  const gridFormattedProducts: ProductOrFiller[] = useMemo(() => {
+    if (viewMode !== 'grid' || numColumns <= 1 || visible.length === 0) {
+      return visible;
+    }
+    const remainder = visible.length % numColumns;
+    if (remainder === 0) return visible;
+    const needed = numColumns - remainder;
+    const fillers: ProductOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__grid_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visible, ...fillers];
+  }, [visible, viewMode, numColumns]);
+
   const handleProductPress = useCallback(
     (productId: number) => {
       router.push(`/(app)/inventory/${productId}` as never);
@@ -530,9 +584,13 @@ export default function InventoryScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: InventoryProduct; index: number }) => {
+    ({ item, index }: { item: ProductOrFiller; index: number }) => {
+      if ('isFiller' in item && item.isFiller) {
+        return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
+      }
+      const prod = item as InventoryProduct;
       const isLowStock = computeProductLowStock(
-        item,
+        prod,
         globalLowStockEnabled,
         globalLowStockThreshold
       );
@@ -546,13 +604,25 @@ export default function InventoryScreen() {
             stiffness: 200,
             delay: index < 10 ? index * 35 : 0,
           }}
-          style={isTablet ? { flex: 1 } : undefined}
+          style={{ flex: 1 }}
         >
-          <ProductCard product={item} onPress={handleProductPress} isLowStock={isLowStock} />
+          {viewMode === 'grid' ? (
+            <ProductGridCard
+              product={prod}
+              onPress={handleProductPress}
+              isLowStock={isLowStock}
+            />
+          ) : (
+            <ProductCard
+              product={prod}
+              onPress={handleProductPress}
+              isLowStock={isLowStock}
+            />
+          )}
         </MotiView>
       );
     },
-    [globalLowStockEnabled, globalLowStockThreshold, handleProductPress, isTablet]
+    [globalLowStockEnabled, globalLowStockThreshold, handleProductPress, viewMode]
   );
 
   return (
@@ -571,6 +641,12 @@ export default function InventoryScreen() {
         }}
         rightAction={
           <View style={{ flexDirection, gap: 8, alignItems: 'center' }}>
+            <HeaderActionButton
+              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+              size={36}
+              iconSize={19}
+              onPress={handleToggleViewMode}
+            />
             <HeaderActionButton
               icon="storefront-outline"
               size={36}
@@ -972,12 +1048,12 @@ export default function InventoryScreen() {
 
           {/* 6. Products FlatList */}
           <FlatList
-            key={`inv-list-${cardColumns}`}
-            data={visible}
+            key={`inv-list-${viewMode}-${numColumns}`}
+            data={gridFormattedProducts}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
-            numColumns={cardColumns}
-            columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+            numColumns={numColumns}
+            columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
             contentContainerStyle={[
               styles.list,
               isTablet && contentContainerStyle,

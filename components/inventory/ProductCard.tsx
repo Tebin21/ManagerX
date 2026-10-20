@@ -146,6 +146,7 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
   const thumbDim = isTabletLandscape ? 72 : isTablet ? 58 : 48;
   return StyleSheet.create({
     card: {
+      width: '100%',
       flex: isTablet ? 1 : undefined,
       backgroundColor: colors.white,
       borderRadius: isTabletLandscape ? 20 : isTablet ? 18 : Theme.radius.card,
