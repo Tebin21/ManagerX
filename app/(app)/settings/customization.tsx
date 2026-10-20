@@ -21,7 +21,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useModuleStore } from '@/store/moduleStore';
-import { useSettingsStore } from '@/store/settingsStore';
 import { hexToRgba } from '@/lib/colorUtils';
 import { DASHBOARD_STYLES } from './dashboard-style';
 
@@ -33,8 +32,6 @@ export default function CustomizationScreen() {
   const { chevronForward } = useDirectionalChevron();
   const { isTablet, contentContainerStyle } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
-  const settingsGridLayout = useSettingsStore((s) => s.settingsGridLayout);
-  const setSettingsGridLayout = useSettingsStore((s) => s.setSettingsGridLayout);
 
   const {
     showDashboardNavigation,
@@ -61,17 +58,6 @@ export default function CustomizationScreen() {
     setShowDashboardNavigation(val);
   };
 
-  const handleToggleSettingsGrid = (val: boolean) => {
-    try {
-      Haptics.notificationAsync(
-        val
-          ? Haptics.NotificationFeedbackType.Success
-          : Haptics.NotificationFeedbackType.Warning
-      ).catch(() => {});
-    } catch {}
-    setSettingsGridLayout(val);
-  };
-
   const handleOpenStylesScreen = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -88,41 +74,7 @@ export default function CustomizationScreen() {
         contentContainerStyle={[styles.body, isTablet && contentContainerStyle]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Settings Screen Layout: List vs Grid Toggle */}
-        <SettingSection title={t('settings.customization.settingsLayoutSection')}>
-          <SettingSwitch
-            icon="grid"
-            label={t('settings.customization.settingsGridTitle')}
-            sub={t('settings.customization.settingsGridSub')}
-            value={settingsGridLayout}
-            onToggle={handleToggleSettingsGrid}
-          />
-        </SettingSection>
-
-        {settingsGridLayout && (
-          <View
-            style={[
-              styles.noticeCard,
-              {
-                backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : hexToRgba(colors.primary, 0.08),
-                borderColor: isDark ? hexToRgba(colors.primary, 0.4) : hexToRgba(colors.primary, 0.25),
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-          >
-            <Ionicons name="apps" size={22} color={colors.primary} />
-            <Text
-              style={[
-                styles.noticeText,
-                { color: isDark ? colors.primary : colors.black, textAlign },
-              ]}
-            >
-              {t('settings.customization.settingsGridNotice')}
-            </Text>
-          </View>
-        )}
-
-        {/* 2. Master Toggle Section: Show/Hide Main Dashboard Navigation Banner */}
+        {/* 1. Master Toggle Section: Show/Hide Main Dashboard Navigation Banner */}
         <SettingSection title={t('settings.customization.navSection')}>
           <SettingSwitch
             icon="compass"
