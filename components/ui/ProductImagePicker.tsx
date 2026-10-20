@@ -141,120 +141,200 @@ export function ProductImagePicker({
   return (
     <View style={styles.wrapper}>
       {label ? (
-        <Text style={[styles.label, { color: colors.gray600, textAlign }]}>{label}</Text>
+        <View style={{ marginBottom: 10 }}>
+          <Text
+            style={[
+              styles.label,
+              { color: colors.gray600, textAlign, marginBottom: 2 },
+              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {label}
+          </Text>
+          <Text
+            style={[
+              styles.labelSub,
+              { color: colors.gray400, textAlign },
+              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {isKurdish
+              ? 'وێنەی نوێ بگرە یان لە سەڤکراوەکان هەڵبژێرە'
+              : 'Take new photo or choose from saved library'}
+          </Text>
+        </View>
       ) : null}
 
       <View style={[styles.pickerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {uri ? (
-          /* ── Preview ── */
-          <View style={styles.previewWrap}>
-            <Image
-              source={{ uri }}
-              style={styles.preview}
-              resizeMode="cover"
-            />
-            {/* Change button overlay */}
-            <TouchableOpacity
-              style={[styles.changeBtn, { backgroundColor: colors.primary }]}
-              onPress={() => setShowModal(true)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="camera" size={14} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          /* ── Empty placeholder ── */
-          <TouchableOpacity
-            style={[
-              styles.placeholder,
-              { backgroundColor: colors.gray100, borderColor: colors.gray200 },
-            ]}
-            onPress={() => setShowModal(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="image-outline" size={26} color={colors.gray400} />
-            <Text style={[styles.placeholderText, { color: colors.gray400 }]}>
-              {t('inventory.addPhoto')}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Action column on the side */}
-        <View style={styles.actionColumn}>
-          {/* Prominent Saved Images Button */}
-          <TouchableOpacity
-            style={[
-              styles.savedImagesBtn,
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.softBlue,
-                borderColor: isDark ? colors.gray200 : colors.primary + '35',
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-            onPress={() => setShowSavedModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.savedIconBadge, { backgroundColor: colors.primary }]}>
-              <Ionicons name="images" size={18} color="#FFFFFF" />
+          <>
+            {/* ── Preview ── */}
+            <View style={styles.previewWrap}>
+              <Image
+                source={{ uri }}
+                style={styles.preview}
+                resizeMode="cover"
+              />
+              {/* Change button overlay */}
+              <TouchableOpacity
+                style={[styles.changeBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setShowModal(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="camera" size={14} color="#fff" />
+              </TouchableOpacity>
             </View>
-            <View style={[styles.savedTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-              <View style={[styles.savedHeaderLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text
-                  style={[
-                    styles.savedBtnTitle,
-                    { color: colors.primary },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
-                </Text>
-                {savedCount > 0 && (
-                  <View style={[styles.savedCountBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.savedCountText}>{savedCount}</Text>
+
+            {/* Action column on the side */}
+            <View style={styles.actionColumn}>
+              {/* Prominent Saved Images Button */}
+              <TouchableOpacity
+                style={[
+                  styles.savedImagesBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray100 : colors.softBlue,
+                    borderColor: isDark ? colors.gray200 : colors.primary + '35',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+                onPress={() => setShowSavedModal(true)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.savedIconBadge, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="images" size={18} color="#FFFFFF" />
+                </View>
+                <View style={[styles.savedTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                  <View style={[styles.savedHeaderLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Text
+                      style={[
+                        styles.savedBtnTitle,
+                        { color: colors.primary },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
+                    </Text>
+                    {savedCount > 0 && (
+                      <View style={[styles.savedCountBadge, { backgroundColor: colors.primary }]}>
+                        <Text style={styles.savedCountText}>{savedCount}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
+                  <Text
+                    style={[
+                      styles.savedBtnSub,
+                      { color: colors.gray400 },
+                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isKurdish
+                      ? 'هەڵبژاردن و پڕکردنەوەی خۆکارانە'
+                      : 'Auto-fill name & photo'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Remove button */}
+              <TouchableOpacity
+                style={[styles.removeBtn, { backgroundColor: '#FEE2E2', flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                onPress={onRemove}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-outline" size={15} color={Colors.error} />
+                <Text style={[styles.removeBtnText, { color: Colors.error }]}>
+                  {t('inventory.removePhoto')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Button 1: Add Photo */}
+            <TouchableOpacity
+              style={[
+                styles.pickerBtn,
+                styles.pickerBtnDashed,
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.gray50,
+                  borderColor: colors.gray200,
+                },
+              ]}
+              onPress={() => setShowModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.btnIconBox, { backgroundColor: colors.softBlue }]}>
+                <Ionicons name="camera-outline" size={20} color={colors.primary} />
               </View>
               <Text
                 style={[
-                  styles.savedBtnSub,
+                  styles.btnTitle,
+                  { color: colors.black },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+                numberOfLines={1}
+              >
+                {t('inventory.addPhoto')}
+              </Text>
+              <Text
+                style={[
+                  styles.btnSub,
                   { color: colors.gray400 },
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
                 numberOfLines={1}
               >
-                {isKurdish
-                  ? 'هەڵبژاردن و پڕکردنەوەی خۆکارانە'
-                  : 'Auto-fill name & photo'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Remove / Hint row */}
-          {uri ? (
-            <TouchableOpacity
-              style={[styles.removeBtn, { backgroundColor: '#FEE2E2', flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-              onPress={onRemove}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="trash-outline" size={15} color={Colors.error} />
-              <Text style={[styles.removeBtnText, { color: Colors.error }]}>
-                {t('inventory.removePhoto')}
+                {isKurdish ? 'کامێرا یان گەلەری' : 'Camera or Gallery'}
               </Text>
             </TouchableOpacity>
-          ) : (
-            <Text
+
+            {/* Button 2: Saved Photos */}
+            <TouchableOpacity
               style={[
-                styles.hint,
-                { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                styles.pickerBtn,
+                styles.pickerBtnSolid,
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.softBlue,
+                  borderColor: isDark ? colors.gray200 : colors.primary + '35',
+                },
               ]}
+              onPress={() => setShowSavedModal(true)}
+              activeOpacity={0.8}
             >
-              {isKurdish
-                ? 'وێنەی نوێ بگرە یان لە سەڤکراوەکان هەڵبژێرە'
-                : 'Take new photo or choose from saved library'}
-            </Text>
-          )}
-        </View>
+              <View style={styles.iconContainer}>
+                <View style={[styles.btnIconBox, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="images" size={19} color="#FFFFFF" />
+                </View>
+                {savedCount > 0 && (
+                  <View style={[styles.floatingBadge, { backgroundColor: colors.error }]}>
+                    <Text style={styles.floatingBadgeText}>{savedCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.btnTitle,
+                  { color: colors.primary },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
+              </Text>
+              <Text
+                style={[
+                  styles.btnSub,
+                  { color: colors.gray400 },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+                numberOfLines={1}
+              >
+                {isKurdish ? 'پڕکردنەوەی خۆکارانە' : 'Auto-fill name & photo'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* ── Source selection sheet ── */}
@@ -309,8 +389,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '500',
-    marginBottom: 8,
     letterSpacing: 0.2,
+  },
+  labelSub: {
+    fontSize: 11.5,
+    marginTop: 1,
   },
 
   pickerRow: {
@@ -318,18 +401,59 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  /* Placeholder (no image selected) */
-  placeholder: {
-    width: 95,
-    height: 95,
-    borderRadius: Theme.radius.lg,
+  /* Equal picker buttons (when no image is selected) */
+  pickerBtn: {
+    flex: 1,
+    height: 98,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
     gap: 4,
   },
-  placeholderText: { fontSize: 11, fontWeight: '500' },
+  pickerBtnDashed: {
+    borderStyle: 'dashed',
+  },
+  pickerBtnSolid: {
+    borderStyle: 'solid',
+  },
+  btnIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    position: 'relative',
+  },
+  floatingBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  btnTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  btnSub: {
+    fontSize: 10.5,
+    textAlign: 'center',
+  },
 
   /* Preview (image selected) */
   previewWrap: {
@@ -417,8 +541,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   removeBtnText: { fontSize: 12, fontWeight: '600' },
-
-  hint: { fontSize: 11, lineHeight: 16 },
 
   /* Source selection sheet */
   cancelBtn: {
