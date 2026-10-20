@@ -47,11 +47,7 @@ export function CategoryAutocompleteInput({
     ? categories.filter((c) => c.toLowerCase().includes(trimmedLower))
     : categories;
 
-  const exactMatch = categories.some(
-    (c) => c.toLowerCase() === value.trim().toLowerCase()
-  );
-  const showCreate = value.trim() !== '' && !exactMatch;
-  const hasContent = filtered.length > 0 || showCreate;
+  const hasContent = filtered.length > 0;
 
   function handleSelect(cat: string) {
     onChange(cat);
@@ -145,25 +141,6 @@ export function CategoryAutocompleteInput({
                 <Text style={[styles.rowText, { color: colors.black }]}>{item}</Text>
               </TouchableOpacity>
             )}
-            ListFooterComponent={
-              showCreate ? (
-                <TouchableOpacity
-                  style={[styles.row, styles.createRow]}
-                  onPress={() => handleSelect(value.trim())}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={13}
-                    color={colors.primary}
-                    style={styles.rowIcon}
-                  />
-                  <Text style={[styles.rowText, { color: colors.primary }]}>
-                    {`Create "${value.trim()}"`}
-                  </Text>
-                </TouchableOpacity>
-              ) : null
-            }
           />
         </MotiView>
       ) : null}
@@ -218,5 +195,4 @@ const styles = StyleSheet.create({
   },
   rowIcon: { marginEnd: 10 },
   rowText: { fontSize: 13, fontWeight: '500', flex: 1 },
-  createRow: { borderBottomWidth: 0 },
 });

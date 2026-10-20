@@ -147,6 +147,15 @@ export default function EditProductScreen() {
       };
       await editProduct(product.id, data);
 
+      if (category.trim()) {
+        try {
+          const { addManagedCategory } = await import('@/lib/sqlite');
+          await addManagedCategory(category.trim());
+        } catch {
+          // ignore duplicate
+        }
+      }
+
       if (imageUri) {
         try {
           useSavedProductStore.getState().savePreset({
