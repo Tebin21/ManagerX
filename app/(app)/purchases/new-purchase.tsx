@@ -44,7 +44,7 @@ import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
-import { fmtExchangeRate, toEnglishDigits } from '@/utils/formatters';
+import { fmtExchangeRate, toEnglishDigits, toDateOnly } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { resolveInterFont } from '@/constants/typography';
@@ -67,6 +67,7 @@ export default function NewPurchaseScreen() {
   const useThreeColumns = isTablet && isTabletLandscape;
   const { createPurchase } = usePurchaseStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
   const { colors, isDark } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
@@ -210,6 +211,38 @@ export default function NewPurchaseScreen() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('normal');
+
+  // ─── Expiry & Production Dates ──────────────────────────────────────────────
+  const [productionDate, setProductionDate] = useState<Date | null>(null);
+  const [expiryDate, setExpiryDate]         = useState<Date | null>(null);
+  const [showProdPicker, setShowProdPicker] = useState(false);
+  const [showExpPicker, setShowExpPicker]   = useState(false);
+
+  const handleSetProductionQuick = (type: 'today' | 'yesterday' | 'clear') => {
+    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    if (type === 'clear') {
+      setProductionDate(null);
+    } else if (type === 'today') {
+      setProductionDate(new Date());
+    } else if (type === 'yesterday') {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      setProductionDate(d);
+    }
+  };
+
+  const handleAddExpiryMonths = (months: number) => {
+    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    const base = productionDate || new Date();
+    const target = new Date(base);
+    target.setMonth(target.getMonth() + months);
+    setExpiryDate(target);
+  };
+
+  const handleClearExpiry = () => {
+    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    setExpiryDate(null);
+  };
 
   useEffect(() => {
     getProductCategories().then(setAvailableCategories).catch(() => {});
@@ -400,6 +433,8 @@ export default function NewPurchaseScreen() {
         initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
         imageUri,
         selectedSupplierId: isDirectSupplier ? undefined : selectedSupplierId,
+        productionDate: productionDate ? toDateOnly(productionDate) : null,
+        expiryDate: expiryDate ? toDateOnly(expiryDate) : null,
       });
 
       // Auto-persist to saved presets library
@@ -1169,6 +1204,189 @@ export default function NewPurchaseScreen() {
       )}
     </PremiumCard>
   );
+
+  // 2b. Expiry & Production Dates Card (shown when expiryTrackingEnabled is active)
+  const cardExpiryDates = expiryTrackingEnabled ? (
+    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
+      <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.22 : 0.12) }]}>
+          <Ionicons name="time-outline" size={isTablet ? 22 : 18} color="#F59E0B" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              styles.cardHeaderTitle,
+              isTablet && { fontSize: 17 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              { color: colors.black, textAlign },
+            ]}
+          >
+            {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
+          </Text>
+          <Text
+            style={[
+              styles.cardHeaderSub,
+              isTablet && { fontSize: 13 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray400, textAlign },
+            ]}
+          >
+            {isKuLanguage
+              ? 'دیاریکردنی بەرواری دروستکردن و بەسەرچوون بۆ چاودێری سەلامەتی'
+              : 'Record manufacturing and expiration dates for quality & stock alerts'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Production Date Section */}
+      <View style={{ gap: 8, marginTop: 4 }}>
+        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن (Production Date)' : 'Production Date'}
+        </Text>
+        <View style={[styles.expiryDateActionRow, { flexDirection }]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowProdPicker(true)}
+            style={[
+              styles.datePickerBtn,
+              {
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                flexDirection,
+              },
+            ]}
+          >
+            <Ionicons name="construct-outline" size={18} color={colors.primary} />
+            <Text style={[styles.datePickerBtnText, { color: productionDate ? colors.black : colors.gray400 }]}>
+              {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={[styles.quickChipsWrap, { flexDirection }]}>
+            <TouchableOpacity
+              onPress={() => handleSetProductionQuick('today')}
+              style={[styles.smallChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 }]}
+            >
+              <Text style={[styles.smallChipText, { color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
+              </Text>
+            </TouchableOpacity>
+
+            {productionDate && (
+              <TouchableOpacity
+                onPress={() => handleSetProductionQuick('clear')}
+                style={[styles.smallChip, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2' }]}
+              >
+                <Ionicons name="close" size={14} color="#EF4444" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Expiry Date Section */}
+      <View style={{ gap: 8, marginTop: 14 }}>
+        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          {isKuLanguage ? 'بەرواری بەسەرچوون (Expiry Date)' : 'Expiry Date'}
+        </Text>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setShowExpPicker(true)}
+          style={[
+            styles.datePickerBtn,
+            {
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
+              borderColor: expiryDate ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+              flexDirection,
+            },
+          ]}
+        >
+          <Ionicons name="calendar-outline" size={18} color={expiryDate ? '#F59E0B' : colors.primary} />
+          <Text
+            style={[
+              styles.datePickerBtnText,
+              { color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400 },
+              expiryDate && { fontWeight: '700' },
+            ]}
+          >
+            {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+          </Text>
+          {expiryDate && (
+            <TouchableOpacity
+              onPress={handleClearExpiry}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginStart: 'auto' }}
+            >
+              <Ionicons name="close-circle" size={18} color="#EF4444" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Quick Expiry Duration Shortcut Chips */}
+        <Text style={[styles.shortcutHint, { color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+          {isKuLanguage ? 'هەڵبژاردنی خێرا لە ئەمڕۆوە:' : 'Quick shortcuts from today:'}
+        </Text>
+
+        <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {[
+            { label: isKuLanguage ? '+١ مانگ' : '+1M', months: 1 },
+            { label: isKuLanguage ? '+٣ مانگ' : '+3M', months: 3 },
+            { label: isKuLanguage ? '+٦ مانگ' : '+6M', months: 6 },
+            { label: isKuLanguage ? '+١ ساڵ' : '+1Y', months: 12 },
+            { label: isKuLanguage ? '+٢ ساڵ' : '+2Y', months: 24 },
+          ].map((chip) => (
+            <TouchableOpacity
+              key={chip.months}
+              activeOpacity={0.78}
+              onPress={() => handleAddExpiryMonths(chip.months)}
+              style={[
+                styles.durationChip,
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.30)' : '#FDE68A',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.durationChipText,
+                  { color: isDark ? '#FBBF24' : '#B45309' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Production Date Picker Modal */}
+      {showProdPicker && (
+        <DateTimePicker
+          value={productionDate || new Date()}
+          onChange={(d) => {
+            setProductionDate(d);
+            setShowProdPicker(false);
+          }}
+          label={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Pick Production Date'}
+        />
+      )}
+
+      {/* Expiry Date Picker Modal */}
+      {showExpPicker && (
+        <DateTimePicker
+          value={expiryDate || new Date()}
+          onChange={(d) => {
+            setExpiryDate(d);
+            setShowExpPicker(false);
+          }}
+          label={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Pick Expiry Date'}
+        />
+      )}
+    </PremiumCard>
+  ) : null;
 
   // 3. Supplier Card
   const cardSupplier = (
@@ -1943,6 +2161,7 @@ export default function NewPurchaseScreen() {
                 >
                   <View style={styles.threeColMiddleCardsWrap}>
                     {cardQuantityAndIds}
+                    {cardExpiryDates}
                   </View>
                 </KeyboardAwareScrollView>
               </View>
@@ -1987,10 +2206,11 @@ export default function NewPurchaseScreen() {
                   width: '100%',
                 }}
               >
-                {/* Column 1: Product & IDs */}
+                {/* Column 1: Product, IDs & Expiry */}
                 <View style={{ flex: 1, gap: 20 }}>
                   {cardProductInfo}
                   {cardQuantityAndIds}
+                  {cardExpiryDates}
                 </View>
 
                 {/* Column 2: Supplier, Pricing & Checkout */}
@@ -2005,6 +2225,7 @@ export default function NewPurchaseScreen() {
               <View style={{ gap: 16 }}>
                 {cardProductInfo}
                 {cardQuantityAndIds}
+                {cardExpiryDates}
                 {cardSupplier}
                 {cardPricing}
                 {cardCheckout}
@@ -2637,5 +2858,57 @@ const styles = StyleSheet.create({
   },
   threeColMiddleCardsWrap: {
     paddingBottom: 36,
+  },
+  datePickerBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  datePickerBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  expiryDateActionRow: {
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  quickChipsWrap: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  smallChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallChipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  shortcutHint: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  durationChipsRow: {
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
+  },
+  durationChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  durationChipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
   },
 });

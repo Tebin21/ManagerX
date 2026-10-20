@@ -260,6 +260,83 @@ export default function InventoryDetailScreen() {
           </MotiView>
         )}
 
+        {/* Expiry and Production Date Section */}
+        {(product.productionDate || product.expiryDate) && (
+          <MotiView
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 90 }}
+            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+          >
+            <View style={[styles.sectionHeaderRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }]}>
+              <Text style={[sectionTitleStyle, { marginBottom: 0 }]}>
+                {t('inventory.expiryDates', 'بەرواری بەسەرچوون و دەرچوون')}
+              </Text>
+              {product.expiryDate && (() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const exp = new Date(product.expiryDate);
+                exp.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const isExpired = diffDays < 0;
+                const isExpiring = diffDays >= 0 && diffDays <= 30;
+
+                return (
+                  <View
+                    style={[
+                      styles.expiryBadge,
+                      {
+                        backgroundColor: isExpired
+                          ? (isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2')
+                          : isExpiring
+                          ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
+                          : (isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5'),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.expiryBadgeText,
+                        {
+                          color: isExpired ? '#EF4444' : isExpiring ? '#D97706' : '#10B981',
+                        },
+                      ]}
+                    >
+                      {isExpired
+                        ? `بەسەرچووە (پێش ${Math.abs(diffDays)} ڕۆژ)`
+                        : `${diffDays} ڕۆژ ماوە`}
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
+
+            {product.productionDate && (
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+                <Ionicons name="construct-outline" size={16} color={colors.gray400} />
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
+                  {t('inventory.productionDate', 'بەرواری دەرچوون')}
+                </Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>
+                  {product.productionDate}
+                </Text>
+              </View>
+            )}
+
+            {product.expiryDate && (
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
+                  {t('inventory.expiryDate', 'بەرواری بەسەرچوون')}
+                </Text>
+                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign, fontWeight: '700' }]}>
+                  {product.expiryDate}
+                </Text>
+              </View>
+            )}
+          </MotiView>
+        )}
+
         {/* Item IDs section */}
         {product.itemId && (
           <MotiView
@@ -438,6 +515,9 @@ const styles = StyleSheet.create({
   statValue:      { fontSize: 15, fontWeight: '700' },
   section:        { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },
   sectionTitle:   { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  expiryBadge:    { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  expiryBadgeText: { fontSize: 11.5, fontWeight: '700' },
   infoRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   infoLabel:      { fontSize: 13, width: 70 },
   infoValue:      { flex: 1, fontSize: 13, fontWeight: '600' },

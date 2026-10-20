@@ -28,6 +28,8 @@ export interface Purchase {
   imageUri?: string | null;
   /** Derived from the linked product's item_description, not a column on `purchases` — only populated by getPurchaseById. */
   itemDescription?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +58,8 @@ export interface NewPurchaseInput {
   initialAmountPaid?: number;
   imageUri?: string | null;
   selectedSupplierId?: number;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }
 
 export const PURCHASE_RATE = 1310; // 1 USD = 1310 IQD

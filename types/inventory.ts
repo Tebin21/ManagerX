@@ -61,6 +61,8 @@ export interface NewProductData {
   lowStockThreshold?: number | null;
   lowStockEnabled?: 1 | 0 | null;
   websiteDescription?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }
 
 export interface InventoryHistoryItem {

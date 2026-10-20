@@ -57,6 +57,7 @@ export default function SettingsScreen() {
   const itemLimit = useLicenseStore((s) => s.limit);
   const settingsGridLayout = useSettingsStore((s) => s.settingsGridLayout);
   const setSettingsGridLayout = useSettingsStore((s) => s.setSettingsGridLayout);
+  const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
   const { flexDirection, textAlign } = useRTL();
   const tileColors = getSettingsTileColors(isDark);
@@ -251,6 +252,21 @@ export default function SettingsScreen() {
                 label={t('settings.onlineStore')}
                 sub={t('settings.onlineStoreSub')}
                 onPress={() => router.push('/(app)/settings/online-store' as never)}
+              />
+            </SettingSection>
+
+            {/* Expiry Tracking */}
+            <SettingSection title={t('settings.expiry', 'بەسەرچوون')}>
+              <SettingRow
+                icon="time"
+                color={tileColors.expiry}
+                label={t('settings.expiry', 'بەسەرچوون')}
+                sub={
+                  expiryTrackingEnabled
+                    ? t('settings.expiryActive', 'سیستەمی بەرواری بەسەرچوون چالاککراوە')
+                    : t('settings.expiryInactive', 'سیستەمی بەرواری بەسەرچوون ناچالاکە')
+                }
+                onPress={() => router.push('/(app)/settings/expiry' as never)}
               />
             </SettingSection>
 

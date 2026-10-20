@@ -75,6 +75,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       description:     input.description.trim()     || null,
       notes:           input.notes.trim()           || null,
       paymentStatus:   input.paymentStatus,
+      productionDate:  input.productionDate ?? null,
+      expiryDate:      input.expiryDate ?? null,
     };
 
     // Validate supplier uniqueness before committing the purchase
@@ -125,6 +127,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         lineTotalIQD: data.totalIQD,
         idType:       data.idType,
         itemIds:      data.itemIds,
+        productionDate: input.productionDate ?? null,
+        expiryDate:   input.expiryDate ?? null,
       });
     } catch { /* non-critical */ }
 
@@ -171,6 +175,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       websiteDescription: input.websiteDescription.trim() || null,
       itemDescription: input.itemDescription.trim() || null,
       imageUri:        input.imageUri ?? null,
+      productionDate:  input.productionDate ?? null,
+      expiryDate:      input.expiryDate ?? null,
       isActive:        true,
     };
 

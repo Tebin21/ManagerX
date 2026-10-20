@@ -17,6 +17,7 @@ import { hexToRgba } from '@/lib/colorUtils';
 import { fmtExchangeRate } from '@/utils/formatters';
 import { KurdistanFlagIcon, UKFlagIcon } from '@/components/settings/LanguageToggleSwitch';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface SettingsGridProps {
   businessName?: string;
@@ -163,6 +164,7 @@ export function getSettingsTileColors(isDark: boolean) {
     cloudSync:    isDark ? '#38BDF8' : '#0284C7', // Cloud Sky for Live Cloud Sync
     about:        isDark ? '#60A5FA' : '#2563EB', // Info Blue for About
     tutorials:    isDark ? '#FB923C' : '#EA580C', // Guide Orange for Tutorials
+    expiry:       isDark ? '#F59E0B' : '#D97706', // Radiant Amber for Expiry Tracking
   };
 }
 
@@ -186,6 +188,7 @@ export function SettingsGrid({
 
   const isKu = language !== 'en';
   const tileColors = getSettingsTileColors(isDark);
+  const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
   // Quick Language Toggle
   const handleToggleLanguage = () => {
@@ -344,6 +347,47 @@ export function SettingsGrid({
           title={isKu ? 'فرۆشگا' : 'Online Store'}
           sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
           onPress={() => router.push('/(app)/settings/online-store' as never)}
+        />
+      </View>
+
+      {/* Row 2: Expiry Date Tracking */}
+      <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 12 }]}>
+        <SettingsGridTile
+          icon="time"
+          color={tileColors.expiry}
+          title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
+          sub={
+            expiryTrackingEnabled
+              ? (isKu ? 'سیستەمی بەروار چالاکە' : 'Active')
+              : (isKu ? 'سیستەمی بەروار ناچالاکە' : 'Disabled')
+          }
+          onPress={() => router.push('/(app)/settings/expiry' as never)}
+          badge={
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: expiryTrackingEnabled
+                    ? hexToRgba(colors.success, isDark ? 0.22 : 0.12)
+                    : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                },
+              ]}
+            >
+              <Ionicons
+                name={expiryTrackingEnabled ? 'checkmark-circle' : 'close-circle'}
+                size={12}
+                color={expiryTrackingEnabled ? colors.success : colors.gray400}
+              />
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  { color: expiryTrackingEnabled ? colors.success : colors.gray400, marginStart: 3 },
+                ]}
+              >
+                {expiryTrackingEnabled ? (isKu ? 'چالاکە' : 'ON') : (isKu ? 'ناچالاکە' : 'OFF')}
+              </Text>
+            </View>
+          }
         />
       </View>
     </View>

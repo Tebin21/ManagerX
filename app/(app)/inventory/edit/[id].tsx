@@ -30,10 +30,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toDateOnly } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { useSavedProductStore } from '@/store/savedProductStore';
+import { DateTimePicker } from '@/components/shared/DateTimePicker';
 
 
 type FieldKey =
@@ -47,8 +48,9 @@ export default function EditProductScreen() {
   const { editProduct, categories: availableCategories } = useInventoryStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate);
   const globalLowStockThreshold = useSettingsStore((s) => s.globalLowStockThreshold);
-  const { colors } = useAppTheme();
-  const { flexDirection, textAlign } = useRTL();
+  const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
+  const { colors, isDark } = useAppTheme();
+  const { flexDirection, textAlign, isRTL } = useRTL();
   const insets = useSafeAreaInsets();
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -69,6 +71,10 @@ export default function EditProductScreen() {
   const [imageUri, setImageUri]       = useState<string | null>(null);
   const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [websiteDescription, setWebsiteDescription] = useState('');
+  const [productionDate, setProductionDate] = useState<Date | null>(null);
+  const [expiryDate, setExpiryDate]         = useState<Date | null>(null);
+  const [showProdPicker, setShowProdPicker] = useState(false);
+  const [showExpPicker, setShowExpPicker]   = useState(false);
 
   // Change-highlight state
   const [changedFields, setChangedFields] = useState<Set<FieldKey>>(new Set());
@@ -91,6 +97,12 @@ export default function EditProductScreen() {
         setImageUri(p.imageUri ?? null);
         setLowStockThreshold(p.lowStockThreshold != null ? String(p.lowStockThreshold) : '');
         setWebsiteDescription(p.websiteDescription ?? '');
+        if (p.productionDate) {
+          try { setProductionDate(new Date(p.productionDate)); } catch {}
+        }
+        if (p.expiryDate) {
+          try { setExpiryDate(new Date(p.expiryDate)); } catch {}
+        }
       }
       setLoading(false);
     })();
@@ -144,6 +156,8 @@ export default function EditProductScreen() {
         lowStockThreshold:  (!isNaN(parsedThreshold as number) && parsedThreshold !== null && (parsedThreshold as number) > 0) ? parsedThreshold : null,
         lowStockEnabled:    null,
         websiteDescription: websiteDescription.trim() || null,
+        productionDate:     productionDate ? toDateOnly(productionDate) : null,
+        expiryDate:         expiryDate ? toDateOnly(expiryDate) : null,
       };
       await editProduct(product.id, data);
 
@@ -385,6 +399,141 @@ export default function EditProductScreen() {
           </MotiView>
         </View>
 
+        {/* Expiry & Production Dates */}
+        {(expiryTrackingEnabled || (product && (product.expiryDate || product.productionDate))) && (
+          <View style={[styles.card, { backgroundColor: colors.white }]}>
+            <View style={[styles.sectionHeaderRow, { flexDirection }]}>
+              <Ionicons name="time-outline" size={18} color="#F59E0B" />
+              <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 0 }]}>
+                {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
+              </Text>
+            </View>
+
+            {/* Production Date */}
+            <View style={[styles.fieldWrap, { marginTop: 10 }]}>
+              <Text style={[styles.label, { color: colors.gray500, textAlign }]}>
+                {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
+              </Text>
+              <View style={[styles.dateActionRow, { flexDirection }]}>
+                <TouchableOpacity
+                  onPress={() => setShowProdPicker(true)}
+                  style={[styles.dateBtn, { borderColor: colors.gray200, flexDirection }]}
+                >
+                  <Ionicons name="construct-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.dateBtnText, { color: productionDate ? colors.black : colors.gray400 }]}>
+                    {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setProductionDate(new Date())}
+                  style={[styles.quickBtn, { backgroundColor: colors.gray100 }]}
+                >
+                  <Text style={[styles.quickBtnText, { color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
+                  </Text>
+                </TouchableOpacity>
+
+                {productionDate && (
+                  <TouchableOpacity
+                    onPress={() => setProductionDate(null)}
+                    style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                  >
+                    <Ionicons name="close" size={14} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Expiry Date */}
+            <View style={[styles.fieldWrap, { marginTop: 12 }]}>
+              <Text style={[styles.label, { color: colors.gray500, textAlign }]}>
+                {isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
+              </Text>
+              <View style={[styles.dateActionRow, { flexDirection }]}>
+                <TouchableOpacity
+                  onPress={() => setShowExpPicker(true)}
+                  style={[styles.dateBtn, { borderColor: expiryDate ? '#F59E0B' : colors.gray200, flexDirection }]}
+                >
+                  <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
+                  <Text
+                    style={[
+                      styles.dateBtnText,
+                      {
+                        color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400,
+                        fontWeight: expiryDate ? '700' : 'normal',
+                      },
+                    ]}
+                  >
+                    {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                  </Text>
+                </TouchableOpacity>
+
+                {expiryDate && (
+                  <TouchableOpacity
+                    onPress={() => setExpiryDate(null)}
+                    style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                  >
+                    <Ionicons name="close" size={14} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Quick shortcut chips */}
+              <View style={[styles.quickExpiryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {[
+                  { label: isKuLanguage ? '+١ مانگ' : '+1M', m: 1 },
+                  { label: isKuLanguage ? '+٣ مانگ' : '+3M', m: 3 },
+                  { label: isKuLanguage ? '+٦ مانگ' : '+6M', m: 6 },
+                  { label: isKuLanguage ? '+١ ساڵ' : '+1Y', m: 12 },
+                  { label: isKuLanguage ? '+٢ ساڵ' : '+2Y', m: 24 },
+                ].map((c) => (
+                  <TouchableOpacity
+                    key={c.m}
+                    onPress={() => {
+                      const d = new Date(productionDate || new Date());
+                      d.setMonth(d.getMonth() + c.m);
+                      setExpiryDate(d);
+                    }}
+                    style={[
+                      styles.expiryChip,
+                      {
+                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                        borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.expiryChipText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                      {c.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {showProdPicker && (
+              <DateTimePicker
+                value={productionDate || new Date()}
+                onChange={(d) => {
+                  setProductionDate(d);
+                  setShowProdPicker(false);
+                }}
+                label={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Pick Production Date'}
+              />
+            )}
+            {showExpPicker && (
+              <DateTimePicker
+                value={expiryDate || new Date()}
+                onChange={(d) => {
+                  setExpiryDate(d);
+                  setShowExpPicker(false);
+                }}
+                label={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Pick Expiry Date'}
+              />
+            )}
+          </View>
+        )}
+
         {/* Additional */}
         <View style={[styles.card, { backgroundColor: colors.white }]}>
           <Text style={[styles.cardTitle, { color: colors.gray400, textAlign }]}>{t('inventory.additionalInfo')}</Text>
@@ -509,4 +658,13 @@ const styles = StyleSheet.create({
   hintText:         { fontSize: 11, lineHeight: 15 },
   alertInputRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clearBtn:         { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sectionHeaderRow: { alignItems: 'center', gap: 8, marginBottom: 12 },
+  dateActionRow:    { alignItems: 'center', gap: 8, width: '100%' },
+  dateBtn:          { flex: 1, height: Theme.input.height, borderWidth: 1.5, borderRadius: Theme.input.borderRadius, paddingHorizontal: 12, alignItems: 'center', gap: 8 },
+  dateBtnText:      { fontSize: 14, fontWeight: '600' },
+  quickBtn:         { height: Theme.input.height, paddingHorizontal: 14, borderRadius: Theme.input.borderRadius, alignItems: 'center', justifyContent: 'center' },
+  quickBtnText:     { fontSize: 13, fontWeight: '600' },
+  quickExpiryRow:   { flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  expiryChip:       { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  expiryChipText:   { fontSize: 12, fontWeight: '700' },
 });

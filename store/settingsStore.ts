@@ -19,6 +19,9 @@ interface SettingsState {
   checkPriceGridLayout:    boolean;
   historyGridLayout:       boolean;
   dashboardActivityGridLayout: boolean;
+  expiryTrackingEnabled:       boolean;
+  expiryAlertDays:             number;
+  expiryTermsAccepted:         boolean;
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -31,6 +34,9 @@ interface SettingsState {
   setCheckPriceGridLayout:    (val: boolean) => void;
   setHistoryGridLayout:       (val: boolean) => void;
   setDashboardActivityGridLayout: (val: boolean) => void;
+  setExpiryTrackingEnabled:    (val: boolean) => void;
+  setExpiryAlertDays:          (val: number) => void;
+  setExpiryTermsAccepted:      (val: boolean) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -68,6 +74,9 @@ export const useSettingsStore = create<SettingsState>()(
       checkPriceGridLayout:    true,
       historyGridLayout:       false,
       dashboardActivityGridLayout: false,
+      expiryTrackingEnabled:       false,
+      expiryAlertDays:             30,
+      expiryTermsAccepted:         false,
 
       setDarkMode:                (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:             (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
@@ -79,6 +88,9 @@ export const useSettingsStore = create<SettingsState>()(
       setCheckPriceGridLayout:    (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
       setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
+      setExpiryTrackingEnabled:    (val) => { set({ expiryTrackingEnabled: val }); notifyPreferencesChanged(); },
+      setExpiryAlertDays:          (val) => { set({ expiryAlertDays: Math.max(1, Math.round(val)) }); notifyPreferencesChanged(); },
+      setExpiryTermsAccepted:      (val) => { set({ expiryTermsAccepted: val }); notifyPreferencesChanged(); },
 
       setExchangeRate: async (rate: number) => {
         const now = new Date().toISOString();

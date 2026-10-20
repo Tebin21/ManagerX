@@ -196,6 +196,8 @@ async function runInitializeDatabase(): Promise<void> {
       quantity        INTEGER NOT NULL DEFAULT 0,
       unit            TEXT    NOT NULL DEFAULT 'pcs',
       description     TEXT,
+      production_date TEXT,
+      expiry_date     TEXT,
       is_active       INTEGER NOT NULL DEFAULT 1,
       created_at      TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at      TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -292,6 +294,8 @@ async function runInitializeDatabase(): Promise<void> {
       description      TEXT,
       notes            TEXT,
       payment_status   TEXT NOT NULL DEFAULT 'paid',
+      production_date  TEXT,
+      expiry_date      TEXT,
       created_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -644,6 +648,14 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
        INSERT OR REPLACE INTO cloud_tombstones (entity_type, uuid, deleted_at) VALUES ('inventory_history', OLD.uuid, CURRENT_TIMESTAMP);
        INSERT OR REPLACE INTO cloud_sync_queue (entity_type, uuid, operation) VALUES ('inventory_history', OLD.uuid, 'delete');
      END`,
+    // Expiry and manufacturing date tracking for products and purchases
+    `ALTER TABLE products ADD COLUMN production_date TEXT`,
+    `ALTER TABLE products ADD COLUMN expiry_date TEXT`,
+    `ALTER TABLE purchases ADD COLUMN production_date TEXT`,
+    `ALTER TABLE purchases ADD COLUMN expiry_date TEXT`,
+    `ALTER TABLE purchase_items ADD COLUMN production_date TEXT`,
+    `ALTER TABLE purchase_items ADD COLUMN expiry_date TEXT`,
+    `CREATE INDEX IF NOT EXISTS idx_products_expiry_date ON products(expiry_date)`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -843,6 +855,8 @@ function rowToProduct(row: Record<string, unknown>): Product {
     itemDescription: (row.item_description as string | null) ?? null,
     isActive: (row.is_active as number) === 1,
     imageUri: (row.image_uri as string | null) ?? null,
+    productionDate: (row.production_date as string | null) ?? null,
+    expiryDate: (row.expiry_date as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -957,6 +971,8 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     storeVisible: (row.store_visible as number) === 1,
     websiteDescription: (row.website_description as string | null) ?? null,
     itemDescription: (row.item_description as string | null) ?? null,
+    productionDate: (row.production_date as string | null) ?? null,
+    expiryDate: (row.expiry_date as string | null) ?? null,
   };
 }
 
@@ -981,8 +997,9 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       purchase_price, selling_price, quantity, unit, description, is_active,
       purchase_id, supplier_name, supplier_phone, supplier_address, purchase_date,
       payment_status, warranty, image_uri, buy_price_usd, sell_price_usd,
-      website_description, item_description, store_visible, uuid
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      website_description, item_description, store_visible, uuid,
+      production_date, expiry_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.name,
       data.category,
@@ -1008,6 +1025,8 @@ export async function insertProduct(data: NewProductData): Promise<number> {
       data.itemDescription ?? null,
       bulkPublishEnabled ? 1 : 0,
       await newUuid(),
+      data.productionDate ?? null,
+      data.expiryDate ?? null,
     ]
   );
 
@@ -1043,6 +1062,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.lowStockEnabled !== undefined)  { fields.push('low_stock_enabled = ?');  values.push(data.lowStockEnabled ?? null); }
   if (data.websiteDescription !== undefined) { fields.push('website_description = ?'); values.push(data.websiteDescription); }
   if (data.itemDescription !== undefined)    { fields.push('item_description = ?');    values.push(data.itemDescription); }
+  if (data.productionDate !== undefined)     { fields.push('production_date = ?');     values.push(data.productionDate); }
+  if (data.expiryDate !== undefined)         { fields.push('expiry_date = ?');         values.push(data.expiryDate); }
 
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -2758,6 +2779,8 @@ function rowToPurchase(row: Record<string, unknown>): Purchase {
     description: row.description as string | null,
     notes: row.notes as string | null,
     paymentStatus: row.payment_status as PurchasePaymentStatus,
+    productionDate: (row.production_date as string | null) ?? null,
+    expiryDate: (row.expiry_date as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -2773,8 +2796,9 @@ export async function insertPurchase(
       product_name, category, quantity,
       buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd,
       total_iqd, profit_iqd, exchange_rate, id_type, item_ids,
-      warranty, description, notes, payment_status, uuid
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      warranty, description, notes, payment_status, uuid,
+      production_date, expiry_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.purchaseNumber,
       data.date,
@@ -2798,6 +2822,8 @@ export async function insertPurchase(
       data.notes ?? null,
       data.paymentStatus,
       await newUuid(),
+      data.productionDate ?? null,
+      data.expiryDate ?? null,
     ]
   );
   return result.lastInsertRowId;
@@ -2911,6 +2937,8 @@ export interface UpdatePurchaseInput {
   notes?: string | null;
   paymentStatus?: 'paid' | 'debt';
   imageUri?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
 }
 
 // Pushes the fields shared between a purchase and its linked product(s) onto the
@@ -2925,6 +2953,8 @@ async function propagateToProducts(
     sellingPrice?: number; sellPriceUsd?: number;
     warranty?: string | null; description?: string | null; notes?: string | null;
     imageUri?: string | null;
+    productionDate?: string | null;
+    expiryDate?: string | null;
   }
 ): Promise<void> {
   const setClauses: string[] = [];
@@ -2939,6 +2969,8 @@ async function propagateToProducts(
   if (fields.description !== undefined)  { setClauses.push('description = ?');    values.push(fields.description); }
   if (fields.notes !== undefined)         { setClauses.push('notes = ?');          values.push(fields.notes); }
   if (fields.imageUri !== undefined)      { setClauses.push('image_uri = ?', 'image_remote_url = NULL'); values.push(fields.imageUri); }
+  if (fields.productionDate !== undefined){ setClauses.push('production_date = ?');values.push(fields.productionDate); }
+  if (fields.expiryDate !== undefined)    { setClauses.push('expiry_date = ?');    values.push(fields.expiryDate); }
   if (setClauses.length === 0) return;
   setClauses.push('updated_at = CURRENT_TIMESTAMP');
   values.push(purchaseId);
@@ -2960,6 +2992,8 @@ async function propagateToPurchase(
     buyPriceIQD?: number; buyPriceUSD?: number;
     sellPriceIQD?: number; sellPriceUSD?: number;
     warranty?: string | null; description?: string | null; notes?: string | null;
+    productionDate?: string | null;
+    expiryDate?: string | null;
   }
 ): Promise<void> {
   const pFields: string[] = [];
@@ -2973,6 +3007,8 @@ async function propagateToPurchase(
   if (fields.warranty !== undefined)     { pFields.push('warranty = ?');      pValues.push(fields.warranty); }
   if (fields.description !== undefined) { pFields.push('description = ?');   pValues.push(fields.description); }
   if (fields.notes !== undefined)        { pFields.push('notes = ?');         pValues.push(fields.notes); }
+  if (fields.productionDate !== undefined) { pFields.push('production_date = ?'); pValues.push(fields.productionDate); }
+  if (fields.expiryDate !== undefined)     { pFields.push('expiry_date = ?');     pValues.push(fields.expiryDate); }
 
   // If buying price or selling price is being updated, recalculate total_iqd, profit_iqd, and debts
   if (fields.buyPriceIQD !== undefined || fields.sellPriceIQD !== undefined) {
@@ -3064,6 +3100,8 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
     if (input.description !== undefined) { fields.push('description = ?');   values.push(input.description); }
     if (input.notes       !== undefined) { fields.push('notes = ?');         values.push(input.notes); }
     if (input.paymentStatus !== undefined) { fields.push('payment_status = ?'); values.push(input.paymentStatus); }
+    if (input.productionDate !== undefined) { fields.push('production_date = ?'); values.push(input.productionDate); }
+    if (input.expiryDate !== undefined) { fields.push('expiry_date = ?'); values.push(input.expiryDate); }
 
     fields.push('total_iqd = ?',  'profit_iqd = ?', 'updated_at = CURRENT_TIMESTAMP');
     values.push(newTotal, newProfit, id);
@@ -3079,6 +3117,8 @@ export async function updatePurchase(id: number, input: UpdatePurchaseInput, act
       description: input.description,
       notes: input.notes,
       imageUri: input.imageUri,
+      productionDate: input.productionDate,
+      expiryDate: input.expiryDate,
     });
 
     // Quantity-driven stock sync — never allow negative inventory.
@@ -4217,6 +4257,8 @@ export interface PurchaseItem {
   lineTotalIQD: number;
   idType: string | null;
   itemIds: string[];
+  productionDate?: string | null;
+  expiryDate?: string | null;
   createdAt: string;
 }
 
@@ -4234,6 +4276,8 @@ function rowToPurchaseItem(row: Record<string, unknown>): PurchaseItem {
     lineTotalIQD: row.line_total_iqd as number,
     idType:       (row.id_type       as string | null) ?? null,
     itemIds:      JSON.parse((row.item_ids as string) || '[]') as string[],
+    productionDate: (row.production_date as string | null) ?? null,
+    expiryDate:   (row.expiry_date as string | null) ?? null,
     createdAt:    row.created_at     as string,
   };
 }
@@ -4246,8 +4290,9 @@ export async function insertPurchaseItem(
   const result = await database.runAsync(
     `INSERT INTO purchase_items
        (purchase_id, product_name, category, quantity, buy_price_iqd, buy_price_usd,
-        sell_price_iqd, sell_price_usd, line_total_iqd, id_type, item_ids, uuid)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sell_price_iqd, sell_price_usd, line_total_iqd, id_type, item_ids, uuid,
+        production_date, expiry_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseId,
       item.productName,
@@ -4261,6 +4306,8 @@ export async function insertPurchaseItem(
       item.idType ?? null,
       JSON.stringify(item.itemIds),
       await newUuid(),
+      item.productionDate ?? null,
+      item.expiryDate ?? null,
     ]
   );
   return result.lastInsertRowId;
