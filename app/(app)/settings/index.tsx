@@ -192,25 +192,6 @@ export default function SettingsScreen() {
               />
             </SettingSection>
 
-            {/* Subscriptions — Froshiar License (existing Plan & Limits, relabeled/regrouped
-            only, zero functional change) + Online Store Subscription (new, independent) */}
-            <SettingSection title={t('settings.subscriptions')}>
-              <SettingRow
-                icon="rocket"
-                color={tileColors.license}
-                label={t('settings.managerXLicense')}
-                sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
-                onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-              />
-              <SettingRow
-                icon="globe"
-                color={tileColors.storeSub}
-                label={t('settings.onlineStoreSubscription')}
-                sub={t('settings.onlineStoreSubscriptionSub')}
-                onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
-              />
-            </SettingSection>
-
             {/* Preferences */}
             <SettingSection title={t('settings.preferences')}>
               <SettingRow

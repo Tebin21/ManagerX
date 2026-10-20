@@ -203,14 +203,14 @@ export function SettingsGrid({
     toggleTheme();
   };
 
-  // 1. Business & Subscriptions Section (Right Column - Top 2 Rows)
+  // 1. Business Profile Section (Profile & Customization)
   const sectionBusinessAndSubs = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {isKu ? 'پڕۆفایلی بازرگانی و بەشداریکردن' : 'BUSINESS & SUBSCRIPTIONS'}
+        {isKu ? 'پڕۆفایلی بازرگانی' : 'BUSINESS PROFILE'}
       </Text>
       <View style={{ gap: 12 }}>
-        {/* Row 1: Profile & Customization */}
+        {/* Profile & Customization */}
         <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <SettingsGridTile
             icon="business"
@@ -225,24 +225,6 @@ export function SettingsGrid({
             title={isKu ? 'دیزاین' : 'Customization'}
             sub={isKu ? 'داشبۆرد و ڕووکار' : 'UI & Styles'}
             onPress={() => router.push('/(app)/settings/customization' as never)}
-          />
-        </View>
-
-        {/* Row 2: License & Store Subscription */}
-        <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <SettingsGridTile
-            icon="rocket"
-            color={tileColors.license}
-            title={isKu ? 'مۆڵەت' : 'License'}
-            sub={t('settings.managerXLicenseSub', { limit: itemLimit })}
-            onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-          />
-          <SettingsGridTile
-            icon="globe"
-            color={tileColors.storeSub}
-            title={isKu ? 'ئابوونەی وێب' : 'Store Sub'}
-            sub={isKu ? 'بەڕێوەبردن' : 'Manage'}
-            onPress={() => router.push('/(app)/settings/online-store-subscription' as never)}
           />
         </View>
       </View>
