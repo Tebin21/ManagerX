@@ -64,7 +64,7 @@ function SectionHeader({
   return (
     <View style={[
       secStyles.row,
-      compact && { paddingHorizontal: 0, marginTop: isTablet ? 16 : 12, marginBottom: isTablet ? 8 : 6 },
+      compact && { paddingHorizontal: 0, marginTop: isTablet ? 16 : 12, marginBottom: isTablet ? 10 : 6 },
       { flexDirection: isRTL ? 'row-reverse' : 'row' }
     ]}>
       <View style={[secStyles.left, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -76,9 +76,13 @@ function SectionHeader({
         <Text style={[secStyles.title, { textAlign }]}>{title}</Text>
       </View>
       {action && route && (
-        <TouchableOpacity onPress={() => router.push(route as never)} style={[secStyles.actionBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => router.push(route as never)}
+          style={[secStyles.actionBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+        >
           <Text style={[secStyles.actionText, { color: colors.primary }]}>{action}</Text>
-          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={isTablet ? 16 : 13} color={colors.primary} />
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={isTablet ? 15 : 13} color={colors.primary} />
         </TouchableOpacity>
       )}
     </View>
@@ -87,12 +91,27 @@ function SectionHeader({
 
 function getSecStyles(colors: AppColors, isTablet: boolean = false) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: isTablet ? 28 : 22, marginBottom: isTablet ? 12 : 8 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      marginTop: isTablet ? 28 : 22,
+      marginBottom: isTablet ? 14 : 8,
+    },
     left: { flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8, flex: 1 },
     iconWrap: { width: isTablet ? 30 : 24, height: isTablet ? 30 : 24, borderRadius: isTablet ? 9 : 7, alignItems: 'center', justifyContent: 'center' },
     title: { fontSize: isTablet ? 18 : 15, fontWeight: '800', color: colors.black },
-    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    actionText: { fontSize: isTablet ? 15 : 13, fontWeight: '600' },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: isTablet ? 6 : 4,
+      paddingHorizontal: isTablet ? 12 : 8,
+      paddingVertical: isTablet ? 6 : 4,
+      borderRadius: isTablet ? 10 : 8,
+      backgroundColor: `${colors.primary}14`,
+    },
+    actionText: { fontSize: isTablet ? 14 : 13, fontWeight: '700' },
   });
 }
 
@@ -414,7 +433,7 @@ function FinancialSummaryGrid({
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { isTabletLandscape } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   if (isList) {
     return (
@@ -422,7 +441,7 @@ function FinancialSummaryGrid({
         from={{ opacity: 0, translateY: 10 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 300 }}
-        style={fsgStyles.grid}
+        style={[fsgStyles.grid, { gap: isTablet ? 14 : 10, marginBottom: isTablet ? 22 : 12, paddingHorizontal: isTablet ? 20 : 16 }]}
       >
         <FinancialCard label={t('reports.totalSales')} amount={totalSales} icon="trending-up" color={colors.primary} isList />
         <FinancialCard label={t('reports.netProfit')} amount={netProfit} icon="cash" color={colors.success} isList />
@@ -438,9 +457,9 @@ function FinancialSummaryGrid({
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 360 }}
-        style={fsgStyles.grid}
+        style={[fsgStyles.grid, { gap: 18, marginBottom: 22, paddingHorizontal: 20 }]}
       >
-        <View style={[fsgStyles.row, { gap: 12 }]}>
+        <View style={[fsgStyles.row, { gap: 18 }]}>
           <FinancialCard
             label={t('reports.totalSales')}
             amount={totalSales}
@@ -475,9 +494,9 @@ function FinancialSummaryGrid({
       from={{ opacity: 0, translateY: 12 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 360 }}
-      style={fsgStyles.grid}
+      style={[fsgStyles.grid, { gap: isTablet ? 18 : 10, marginBottom: isTablet ? 22 : 12, paddingHorizontal: isTablet ? 20 : 16 }]}
     >
-      <View style={fsgStyles.row}>
+      <View style={[fsgStyles.row, { gap: isTablet ? 18 : 10 }]}>
         <FinancialCard
           label={t('reports.totalSales')}
           amount={totalSales}
@@ -491,7 +510,7 @@ function FinancialSummaryGrid({
           color={colors.success}
         />
       </View>
-      <View style={fsgStyles.row}>
+      <View style={[fsgStyles.row, { gap: isTablet ? 18 : 10 }]}>
         <FinancialCard
           label={t('reports.totalLoss')}
           amount={totalLoss}
@@ -510,8 +529,8 @@ function FinancialSummaryGrid({
 }
 
 const fsgStyles = StyleSheet.create({
-  grid: { paddingHorizontal: 16, gap: 8 },
-  row: { flexDirection: 'row', gap: 8 },
+  grid: { paddingHorizontal: 16, gap: 14, marginBottom: 14 },
+  row: { flexDirection: 'row', gap: 14 },
 });
 
 // ─── Export Report Modal ──────────────────────────────────────────────────────
@@ -1116,7 +1135,7 @@ export default function ReportsScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, alignItems: 'center' }}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 8, alignItems: 'center' }}>
             <HeaderActionButton
               icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
               onPress={() => setViewMode((m) => (m === 'grid' ? 'list' : 'grid'))}
@@ -1330,13 +1349,13 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
     loadingText: { fontSize: isTablet ? 16 : 14, color: colors.gray400 },
 
     scrollBody: { paddingBottom: 20 },
-    card: { marginHorizontal: 16, marginBottom: isTablet ? 8 : 4 },
-    cashBalanceCard: { marginHorizontal: 16, marginBottom: isTablet ? 8 : 4, marginTop: 20 },
+    card: { marginHorizontal: 16, marginBottom: isTablet ? 20 : 10 },
+    cashBalanceCard: { marginHorizontal: 16, marginBottom: isTablet ? 20 : 10, marginTop: isTablet ? 24 : 16 },
     gridPairRow: {
       flexDirection: 'row',
       paddingHorizontal: 16,
-      gap: isTablet ? 14 : 8,
-      marginBottom: isTablet ? 8 : 4,
+      gap: isTablet ? 22 : 12,
+      marginBottom: isTablet ? 20 : 10,
     },
     gridCol: {
       flex: 1,
@@ -1344,6 +1363,7 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
     gridCard: {
       marginHorizontal: 0,
       marginBottom: 0,
+      flex: 1,
     },
 
     // ── Discount chip ──────────────────────────────────────────────────────────

@@ -262,8 +262,42 @@ function ExpenseFilterBar({
               </TouchableOpacity>
             </View>
           ) : (
-            /* Normal Filter Bar with right-to-left pills and search button */
-            <View style={[efbStyles.barRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            /* Normal Filter Bar with search button on the right of 'ئەمڕۆ' */
+            <View
+              style={[
+                efbStyles.barRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  gap: isTablet ? 10 : 8,
+                },
+              ]}
+            >
+              {/* Search Toggle Icon Button (Placed on the right in RTL, right next to 'ئەمڕۆ') */}
+              <TouchableOpacity
+                style={[
+                  efbStyles.searchToggleBtn,
+                  {
+                    backgroundColor: searchQuery ? colors.primary + '18' : colors.gray100,
+                    borderColor: searchQuery ? colors.primary : colors.gray200,
+                    marginHorizontal: 0,
+                  },
+                  isTablet && { width: 44, height: 44, borderRadius: 22 },
+                ]}
+                onPress={() => onToggleSearch(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Search"
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 20 : 18}
+                  color={searchQuery ? colors.primary : colors.gray600}
+                />
+                {searchQuery.length > 0 && (
+                  <View style={[efbStyles.searchBadge, { backgroundColor: colors.primary }]} />
+                )}
+              </TouchableOpacity>
+
               {/* Filter Pills ScrollView */}
               <ScrollView
                 ref={scrollRef}
@@ -326,31 +360,6 @@ function ExpenseFilterBar({
                   );
                 })}
               </ScrollView>
-
-              {/* Search Toggle Icon Button */}
-              <TouchableOpacity
-                style={[
-                  efbStyles.searchToggleBtn,
-                  {
-                    backgroundColor: searchQuery ? colors.primary + '18' : colors.gray100,
-                    borderColor: searchQuery ? colors.primary : colors.gray200,
-                  },
-                  isTablet && { width: 44, height: 44, borderRadius: 22 },
-                ]}
-                onPress={() => onToggleSearch(true)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Search"
-              >
-                <Ionicons
-                  name="search"
-                  size={isTablet ? 20 : 18}
-                  color={searchQuery ? colors.primary : colors.gray600}
-                />
-                {searchQuery.length > 0 && (
-                  <View style={[efbStyles.searchBadge, { backgroundColor: colors.primary }]} />
-                )}
-              </TouchableOpacity>
             </View>
           )}
 
@@ -394,7 +403,7 @@ const efbStyles = StyleSheet.create({
   pill:               { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   pillText:           { fontSize: 13, fontWeight: '600' },
   rangeLabel:         { fontSize: 11, fontWeight: '500', paddingHorizontal: 16, paddingBottom: 8 },
-  searchToggleBtn:    { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
+  searchToggleBtn:    { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   searchBadge:        { position: 'absolute', top: 5, right: 5, width: 8, height: 8, borderRadius: 4 },
   searchBarContainer: { height: 44, marginHorizontal: 12, marginVertical: 6, borderRadius: 12, borderWidth: 1, alignItems: 'center', paddingHorizontal: 10 },
   searchInput:        { flex: 1, height: '100%', paddingHorizontal: 8 },

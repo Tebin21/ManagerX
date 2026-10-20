@@ -11,6 +11,7 @@ import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary, F
 import type { SoldProductRecord } from '@/types/soldProducts';
 import type { Supplier, SupplierWithStats } from '@/types/suppliers';
 import { newUuid } from '@/lib/uuid';
+import { toEnglishDigits } from '@/utils/formatters';
 
 export const DEFAULT_CATEGORY = 'General';
 
@@ -382,6 +383,42 @@ async function runInitializeDatabase(): Promise<void> {
   await runMigrations(database);
   await ensureDirectCustomer(database);
   await ensureDirectSupplier(database);
+  await migrateEasternDigitsInDatabase(database);
+}
+
+async function migrateEasternDigitsInDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    const customers = await database.getAllAsync<{ id: number; phone: string | null }>(
+      `SELECT id, phone FROM customers WHERE phone IS NOT NULL AND phone != ''`
+    );
+    for (const c of customers) {
+      if (c.phone && /[٠-٩۰-۹]/.test(c.phone)) {
+        await database.runAsync(`UPDATE customers SET phone = ? WHERE id = ?`, [toEnglishDigits(c.phone), c.id]);
+      }
+    }
+
+    const suppliers = await database.getAllAsync<{ id: number; phone: string | null }>(
+      `SELECT id, phone FROM suppliers WHERE phone IS NOT NULL AND phone != ''`
+    );
+    for (const s of suppliers) {
+      if (s.phone && /[٠-٩۰-۹]/.test(s.phone)) {
+        await database.runAsync(`UPDATE suppliers SET phone = ? WHERE id = ?`, [toEnglishDigits(s.phone), s.id]);
+      }
+    }
+
+    const products = await database.getAllAsync<{ id: number; barcode: string | null; supplier_phone: string | null }>(
+      `SELECT id, barcode, supplier_phone FROM products WHERE (barcode IS NOT NULL AND barcode != '') OR (supplier_phone IS NOT NULL AND supplier_phone != '')`
+    );
+    for (const p of products) {
+      const newBarcode = p.barcode && /[٠-٩۰-۹]/.test(p.barcode) ? toEnglishDigits(p.barcode) : p.barcode;
+      const newSupplierPhone = p.supplier_phone && /[٠-٩۰-۹]/.test(p.supplier_phone) ? toEnglishDigits(p.supplier_phone) : p.supplier_phone;
+      if (newBarcode !== p.barcode || newSupplierPhone !== p.supplier_phone) {
+        await database.runAsync(`UPDATE products SET barcode = ?, supplier_phone = ? WHERE id = ?`, [newBarcode, newSupplierPhone, p.id]);
+      }
+    }
+  } catch (err) {
+    console.warn('[SQLite] migrateEasternDigitsInDatabase error:', err);
+  }
 }
 
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -1548,7 +1585,7 @@ export async function upsertCustomer(input: {
 
   if (input.selectedId) return input.selectedId;
 
-  const trimPhone = input.phone.trim();
+  const trimPhone = toEnglishDigits(input.phone.trim());
 
   if (trimPhone) {
     const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
@@ -1664,7 +1701,7 @@ export async function updateCustomer(
     data = { ...data, name: trimName };
   }
   if (data.phone !== undefined && data.phone.trim()) {
-    const trimPhone = data.phone.trim();
+    const trimPhone = toEnglishDigits(data.phone.trim());
     const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
       'SELECT id, name FROM customers WHERE phone = ? AND id != ?',
       [trimPhone, id]
@@ -2499,7 +2536,7 @@ export async function upsertSupplier(input: {
     return await ensureDirectSupplier(database);
   }
 
-  const trimPhone = input.phone?.trim() ?? null;
+  const trimPhone = input.phone ? toEnglishDigits(input.phone.trim()) : null;
 
   if (trimPhone) {
     const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
@@ -2590,7 +2627,7 @@ export async function updateSupplier(id: number, data: {
     data = { ...data, name: trimName };
   }
   if (data.phone !== undefined && data.phone && data.phone.trim()) {
-    const trimPhone = data.phone.trim();
+    const trimPhone = toEnglishDigits(data.phone.trim());
     const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
       'SELECT id, name FROM suppliers WHERE phone = ? AND id != ?',
       [trimPhone, id]

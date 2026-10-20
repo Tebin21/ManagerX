@@ -19,28 +19,39 @@ import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
 import { PriceCheckModal } from '@/components/sales/PriceCheckModal';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useLanguageStore } from '@/store/languageStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { applyKurdishFont } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Product } from '@/types/sales';
 
+type ProductOrFiller = Product | { id: string; isFiller: true };
+
 export default function CheckPriceScreen() {
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
+  const { textAlign, isRTL } = useRTL();
   const { colors } = useAppTheme();
-  const { isTablet, cardColumns, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { products, categories, loadInventory, isLoading } = useInventoryStore();
 
-  const [query, setQuery]                         = useState('');
-  const [selectedCategory, setSelectedCategory]   = useState('all');
-  const [scannerOpen, setScannerOpen]             = useState(false);
-  const [inspectedProduct, setInspectedProduct]   = useState<Product | null>(null);
+  const checkPriceGridLayout = useSettingsStore((s) => s.checkPriceGridLayout);
+  const setCheckPriceGridLayout = useSettingsStore((s) => s.setCheckPriceGridLayout);
+
+  const [query, setQuery]                       = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [scannerOpen, setScannerOpen]           = useState(false);
+  const [inspectedProduct, setInspectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     loadInventory();
   }, []);
+
+  const isGridView = checkPriceGridLayout;
+  const numColumns = isGridView
+    ? (isTabletLandscape ? 4 : isTablet ? 3 : 2)
+    : 1;
 
   const filteredProducts = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -60,6 +71,21 @@ export default function CheckPriceScreen() {
       );
     });
   }, [products, query, selectedCategory]);
+
+  // Balance out incomplete rows in grid view with transparent fillers
+  const gridFormattedProducts: ProductOrFiller[] = useMemo(() => {
+    if (!isGridView || numColumns <= 1 || filteredProducts.length === 0) {
+      return filteredProducts;
+    }
+    const remainder = filteredProducts.length % numColumns;
+    if (remainder === 0) return filteredProducts;
+    const needed = numColumns - remainder;
+    const fillers: ProductOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__grid_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...filteredProducts, ...fillers];
+  }, [filteredProducts, isGridView, numColumns]);
 
   const handleBarcodeScanned = (code: string) => {
     const cleanCode = code.trim();
@@ -123,22 +149,51 @@ export default function CheckPriceScreen() {
       <AppHeader
         title={t('sales.checkPrice')}
         rightAction={
-          <TouchableOpacity
-            onPress={() => setScannerOpen(true)}
-            style={styles.headerScanBtn}
-            activeOpacity={0.8}
-            hitSlop={6}
-          >
-            <Ionicons name="barcode-outline" size={19} color="#FFFFFF" />
-            <Text
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+            {/* Grid vs List Layout Toggle Button (گۆڕینی نێوان چوارگۆشە و درێژ) */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setCheckPriceGridLayout(!checkPriceGridLayout);
+              }}
               style={[
-                styles.headerScanBtnText,
-                isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                styles.layoutToggleBtn,
+                isTablet && { width: 44, height: 44, borderRadius: 22 },
               ]}
+              accessibilityLabel={checkPriceGridLayout ? 'List View' : 'Grid View'}
             >
-              {isKuLanguage ? 'سکان' : 'Scan'}
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name={checkPriceGridLayout ? 'list' : 'grid'}
+                size={isTablet ? 22 : 18}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+
+            {/* Scan Barcode Button */}
+            <TouchableOpacity
+              onPress={() => setScannerOpen(true)}
+              style={[
+                styles.headerScanBtn,
+                isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+              ]}
+              activeOpacity={0.8}
+              hitSlop={6}
+            >
+              <Ionicons name="barcode-outline" size={isTablet ? 22 : 19} color="#FFFFFF" />
+              <Text
+                style={[
+                  styles.headerScanBtnText,
+                  isTablet && { fontSize: 14 },
+                  isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
+                ]}
+              >
+                {isKuLanguage ? 'سکان' : 'Scan'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -152,18 +207,45 @@ export default function CheckPriceScreen() {
       />
 
       <FlatList
-        key={`check-price-grid-${cardColumns}`}
-        data={filteredProducts}
+        key={`check-price-${isGridView ? 'grid' : 'list'}-${numColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+        data={gridFormattedProducts}
         keyExtractor={(item) => String(item.id)}
-        numColumns={cardColumns}
-        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
-        renderItem={({ item }) => (
-          <CheckPriceRow
-            product={item}
-            onPress={() => setInspectedProduct(item)}
-          />
-        )}
-        contentContainerStyle={[styles.list, isTablet && contentContainerStyle]}
+        numColumns={numColumns}
+        columnWrapperStyle={
+          numColumns > 1
+            ? {
+                gap: isTablet ? 12 : 10,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              }
+            : undefined
+        }
+        renderItem={({ item }) => {
+          if ('isFiller' in item && item.isFiller) {
+            return (
+              <View
+                style={{
+                  flex: 1,
+                  marginBottom: isTablet ? 12 : 10,
+                  backgroundColor: 'transparent',
+                }}
+                pointerEvents="none"
+              />
+            );
+          }
+          const product = item as Product;
+          return (
+            <CheckPriceRow
+              product={product}
+              layout={isGridView ? 'grid' : 'list'}
+              onPress={() => setInspectedProduct(product)}
+            />
+          );
+        }}
+        contentContainerStyle={[
+          styles.list,
+          isTablet && contentContainerStyle,
+          { paddingBottom: isTablet ? 120 : 90 },
+        ]}
         onScrollBeginDrag={() => Keyboard.dismiss()}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -208,6 +290,16 @@ export default function CheckPriceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  layoutToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.24)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerScanBtn: {
     flexDirection: 'row',

@@ -19,7 +19,7 @@ import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
 import { LTRNumber } from '@/components/ui/LTRNumber';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
@@ -52,6 +52,7 @@ const NUMBER_LTR = { textAlign: 'left' as const, writingDirection: 'ltr' as cons
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: HistoryTab }>();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, writingDirection } = useRTL();
@@ -65,10 +66,22 @@ export default function HistoryScreen() {
   const { suppliers, isLoading: supLoading, loadSuppliers } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts } = useDebtStore();
 
-  const [tab, setTab] = useState<HistoryTab>('report');
+  const [tab, setTab] = useState<HistoryTab>(() => {
+    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers')) {
+      return params.tab;
+    }
+    return 'report';
+  });
+
+  useEffect(() => {
+    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers')) {
+      setTab(params.tab);
+    }
+  }, [params.tab]);
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
+  const filterScrollRef = useRef<ScrollView>(null);
 
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);
@@ -79,6 +92,15 @@ export default function HistoryScreen() {
   const [customOpen, setCustomOpen] = useState(false);
   const [fromVal, setFromVal] = useState('');
   const [toVal, setToVal] = useState('');
+
+  useEffect(() => {
+    if (isRTL && filterScrollRef.current) {
+      const timer = setTimeout(() => {
+        filterScrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isRTL, tab]);
 
   const isGridView = historyGridLayout;
   const numColumns = isGridView
@@ -598,32 +620,56 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.filterRowContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            {/* Search Icon Button - positioned on the right of هەمووی in Kurdish RTL */}
+          <View
+            style={[
+              styles.filterRowContainer,
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                gap: isTablet ? 10 : 8,
+              },
+            ]}
+          >
+            {/* Search Icon Button - positioned on the right of ئەمڕۆ in Kurdish RTL */}
             <TouchableOpacity
               onPress={handleExpandSearch}
               style={[
                 styles.searchIconBtn,
                 {
-                  backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.gray100),
+                  backgroundColor: query ? colors.primary + '18' : (isDark ? colors.gray100 : colors.gray100),
                   borderColor: query ? colors.primary : colors.gray200,
+                  marginHorizontal: 0,
                 },
               ]}
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Search"
             >
               <Ionicons
                 name="search"
-                size={16}
-                color={query ? '#0F172A' : (isDark ? colors.gray600 : colors.gray700)}
+                size={isTablet ? 20 : 16}
+                color={query ? colors.primary : (isDark ? colors.gray600 : colors.gray700)}
               />
             </TouchableOpacity>
 
             {/* Period Filter ScrollView */}
             <ScrollView
+              ref={filterScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
+              onContentSizeChange={() => {
+                if (isRTL) {
+                  filterScrollRef.current?.scrollToEnd({ animated: false });
+                }
+              }}
               style={{ flex: 1 }}
-              contentContainerStyle={[styles.filterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              contentContainerStyle={[
+                styles.filterRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexGrow: 1,
+                  justifyContent: 'flex-start',
+                },
+              ]}
             >
               {periodKeys.map((key) => {
                 const active = periodKey === key;
@@ -1097,16 +1143,16 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     },
     filterRowContainer: {
       alignItems: 'center',
-      paddingHorizontal: 12,
+      paddingHorizontal: isTabletLandscape ? 24 : 12,
     },
     searchIconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: isTablet ? 42 : 36,
+      height: isTablet ? 42 : 36,
+      borderRadius: isTablet ? 21 : 18,
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      marginHorizontal: 4,
+      marginHorizontal: 0,
     },
     expandedSearchContainer: {
       paddingHorizontal: 12,
@@ -1137,18 +1183,19 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       justifyContent: 'center',
     },
     filterRow: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      gap: 8,
+      paddingHorizontal: 0,
+      paddingVertical: isTablet ? 12 : 8,
+      gap: isTablet ? 10 : 8,
+      alignItems: 'center',
     },
     filterPill: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 18,
+      paddingHorizontal: isTablet ? 18 : 14,
+      paddingVertical: isTablet ? 9 : 6,
+      borderRadius: isTablet ? 22 : 18,
       borderWidth: 1,
     },
     filterPillText: {
-      fontSize: 12.5,
+      fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 12.5,
       fontWeight: '600',
     },
     rangeLabel: {

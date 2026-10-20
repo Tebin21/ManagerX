@@ -16,6 +16,7 @@ interface SettingsState {
   baseCurrency:            BaseCurrency;
   settingsGridLayout:      boolean;
   salesProductGridLayout:  boolean;
+  checkPriceGridLayout:    boolean;
   historyGridLayout:       boolean;
   dashboardActivityGridLayout: boolean;
 
@@ -27,6 +28,7 @@ interface SettingsState {
   setBaseCurrency:            (currency: BaseCurrency) => void;
   setSettingsGridLayout:      (val: boolean) => void;
   setSalesProductGridLayout:  (val: boolean) => void;
+  setCheckPriceGridLayout:    (val: boolean) => void;
   setHistoryGridLayout:       (val: boolean) => void;
   setDashboardActivityGridLayout: (val: boolean) => void;
 }
@@ -63,6 +65,7 @@ export const useSettingsStore = create<SettingsState>()(
       baseCurrency:            'IQD',
       settingsGridLayout:      false,
       salesProductGridLayout:  false,
+      checkPriceGridLayout:    true,
       historyGridLayout:       false,
       dashboardActivityGridLayout: false,
 
@@ -73,6 +76,7 @@ export const useSettingsStore = create<SettingsState>()(
       setBaseCurrency:            (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
       setSettingsGridLayout:      (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
       setSalesProductGridLayout:  (val) => { set({ salesProductGridLayout: val }); notifyPreferencesChanged(); },
+      setCheckPriceGridLayout:    (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
       setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
 
@@ -103,6 +107,7 @@ export const useSettingsStore = create<SettingsState>()(
           baseCurrency:            (p?.baseCurrency === 'USD' ? 'USD' : 'IQD') as BaseCurrency,
           settingsGridLayout:      p?.settingsGridLayout ?? false,
           salesProductGridLayout:  p?.salesProductGridLayout ?? false,
+          checkPriceGridLayout:    p?.checkPriceGridLayout ?? true,
           historyGridLayout:       p?.historyGridLayout ?? false,
           dashboardActivityGridLayout: p?.dashboardActivityGridLayout ?? false,
         };

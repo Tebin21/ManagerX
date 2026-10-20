@@ -1,5 +1,9 @@
 import '../global.css';
 import '../lib/i18n';
+import { installAutoEnglishDigits } from '@/lib/autoEnglishDigits';
+
+// Auto-converts any Eastern/Persian numerals typed into TextInput to English digits across the system (except login)
+installAutoEnglishDigits();
 
 import React, { useEffect } from 'react';
 import { ActivityIndicator, I18nManager, Platform, View } from 'react-native';

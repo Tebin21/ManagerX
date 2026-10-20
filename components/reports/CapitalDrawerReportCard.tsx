@@ -120,37 +120,64 @@ export function CapitalDrawerReportCard() {
         </View>
 
         {/* Breakdown Grid */}
-        <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.grid, { gap: isTablet ? 14 : 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {/* Initial / Net Capital */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
               {t('capital.initialCapital')}
             </Text>
             <AmountText
               value={stats.netCapital}
-              style={[styles.gridValue, { color: colors.darkBlue, textAlign }]}
+              style={[styles.gridValue, { color: colors.darkBlue, textAlign, fontSize: isTablet ? 16 : 13.5 }]}
             />
           </View>
 
           {/* Cash Purchases */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
               {t('capital.purchasesCash')}
             </Text>
             <AmountText
               value={stats.purchasesCash}
-              style={[styles.gridValue, { color: colors.error, textAlign }]}
+              style={[styles.gridValue, { color: colors.error, textAlign, fontSize: isTablet ? 16 : 13.5 }]}
             />
           </View>
 
           {/* Expenses */}
-          <View style={[styles.gridItem, { backgroundColor: colors.white, borderColor: colors.gray100, minWidth: isTablet ? '31%' : '47%' }]}>
-            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign }]}>
+          <View style={[
+            styles.gridItem,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.gray50,
+              borderColor: colors.gray200,
+              minWidth: isTablet ? '30%' : '47%',
+              padding: isTablet ? 16 : 10,
+              borderRadius: isTablet ? 14 : 12,
+            }
+          ]}>
+            <Text style={[styles.gridLabel, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11 }]}>
               {t('capital.expensesCash')}
             </Text>
             <AmountText
               value={stats.expensesCash}
-              style={[styles.gridValue, { color: colors.warning, textAlign }]}
+              style={[styles.gridValue, { color: colors.warning, textAlign, fontSize: isTablet ? 16 : 13.5 }]}
             />
           </View>
         </View>
@@ -162,88 +189,89 @@ export function CapitalDrawerReportCard() {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
-    marginTop: 14,
-    borderRadius: 18,
+    marginTop: 18,
+    marginBottom: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
   },
   headerRow: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   titleGroup: {
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   subTitle: {
-    fontSize: 11.5,
-    marginTop: 1,
+    fontSize: 12,
+    marginTop: 2,
   },
   manageBtn: {
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   manageBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   balanceSection: {
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   balanceLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   balanceRow: {
     alignItems: 'baseline',
   },
   balanceAmt: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
   },
   balanceCurr: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   gridItem: {
     flex: 1,
     minWidth: '47%',
     borderWidth: 1,
     borderRadius: 12,
-    padding: 10,
+    padding: 12,
   },
   gridLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '600',
     marginBottom: 4,
   },
   gridValue: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '800',
   },
   disclaimer: {

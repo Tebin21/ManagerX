@@ -7,6 +7,8 @@ import { useHasHydrated } from '@/lib/useHasHydrated';
 
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 
+import { AuthInputContext } from '@/lib/autoEnglishDigits';
+
 export default function OnboardingLayout() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -31,6 +33,8 @@ export default function OnboardingLayout() {
   }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, pendingCloudConflict]);
 
   return (
-    <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
+    <AuthInputContext.Provider value={true}>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
+    </AuthInputContext.Provider>
   );
 }

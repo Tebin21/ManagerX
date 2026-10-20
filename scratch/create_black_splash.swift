@@ -60,13 +60,13 @@ func renderBlackSplash(svgPath: String, width: Int, height: Int, logoScale: CGFl
 }
 
 // 1x: 414 x 736 (standard iOS splash)
-renderBlackSplash(svgPath: "11111111111111.svg", width: 414, height: 736, logoScale: 0.38, outPath: "scratch/splash_1x.png")
+renderBlackSplash(svgPath: "assets/illustrations/11111111111111.svg", width: 414, height: 736, logoScale: 0.38, outPath: "scratch/splash_1x.png")
 
 // 2x: 828 x 1472
-renderBlackSplash(svgPath: "11111111111111.svg", width: 828, height: 1472, logoScale: 0.38, outPath: "scratch/splash_2x.png")
+renderBlackSplash(svgPath: "assets/illustrations/11111111111111.svg", width: 828, height: 1472, logoScale: 0.38, outPath: "scratch/splash_2x.png")
 
 // 3x: 1242 x 2208
-renderBlackSplash(svgPath: "11111111111111.svg", width: 1242, height: 2208, logoScale: 0.38, outPath: "scratch/splash_3x.png")
+renderBlackSplash(svgPath: "assets/illustrations/11111111111111.svg", width: 1242, height: 2208, logoScale: 0.38, outPath: "scratch/splash_3x.png")
 
 // Square 1024x1024 logo on transparent
 func renderTransparentLogo(svgPath: String, size: Int, outPath: String) {
@@ -112,4 +112,4 @@ func renderTransparentLogo(svgPath: String, size: Int, outPath: String) {
     print("Wrote \(outPath) (\(size)x\(size))")
 }
 
-renderTransparentLogo(svgPath: "11111111111111.svg", size: 1024, outPath: "scratch/froshiar_gold_logo_1024.png")
+renderTransparentLogo(svgPath: "assets/illustrations/11111111111111.svg", size: 1024, outPath: "scratch/froshiar_gold_logo_1024.png")

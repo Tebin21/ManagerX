@@ -31,6 +31,14 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 
+// Official multi-color Google 'G' icon SVG for compact mobile social login button
+const GOOGLE_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22">
+  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+</svg>`;
+
 // Localized strings for Kurdish and English
 const LOGIN_STRINGS = {
   ku: {
@@ -164,7 +172,7 @@ export default function LoginScreen() {
   };
 
   // Dimensions
-  const phoneSvgSize = Math.min(210, width * 0.52);
+  const phoneSvgSize = Math.min(168, width * 0.44);
   const tabletSvgSize = isTabletLandscape ? 360 : 300;
 
   // Render Top Header Controls (Language Flag Dropdown + Theme Switcher + Dev bypass)
@@ -387,58 +395,132 @@ export default function LoginScreen() {
       {/* Error Banner */}
       {authError && <AuthErrorBanner message={authError} style={{ marginVertical: 8 }} />}
 
-      {/* Gold Login Button */}
-      <TouchableOpacity
-        onPress={handleEmailSignIn}
-        activeOpacity={0.88}
-        disabled={isLoading}
-        style={[styles.goldLoginBtn, { height: isTabletLayout ? 60 : 54 }]}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#0F172A" size="small" />
-        ) : (
-          <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Ionicons
-              name="log-in-outline"
-              size={22}
-              color="#0F172A"
-              style={{ marginHorizontal: 8 }}
-            />
-            <Text
-              style={[
-                styles.goldLoginText,
-                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {strings.loginBtn}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-
-      {/* Divider */}
-      {Platform.OS !== 'android' && (
+      {isTabletLayout ? (
         <>
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-            <Text
+          {/* Gold Login Button (Tablet) */}
+          <TouchableOpacity
+            onPress={handleEmailSignIn}
+            activeOpacity={0.88}
+            disabled={isLoading}
+            style={[styles.goldLoginBtn, { height: 60 }]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0F172A" size="small" />
+            ) : (
+              <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="log-in-outline"
+                  size={22}
+                  color="#0F172A"
+                  style={{ marginHorizontal: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.goldLoginText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {strings.loginBtn}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          {Platform.OS !== 'android' && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+                <Text
+                  style={[
+                    styles.dividerText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
+                    { color: isDark ? '#64748B' : '#94A3B8' },
+                  ]}
+                >
+                  {strings.or}
+                </Text>
+                <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
+              </View>
+
+              {/* Social Logins */}
+              <View style={styles.socialBtnsWrapper}>
+                <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
+                <AppleSignInButton onPress={handleApple} loading={isLoading} />
+              </View>
+            </>
+          )}
+        </>
+      ) : (
+        /* Mobile: Unified Row with 50% Login Button + Google & Apple Buttons */
+        <View style={[styles.mobileActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Main Login Button (takes ~50%) */}
+          <TouchableOpacity
+            onPress={handleEmailSignIn}
+            activeOpacity={0.88}
+            disabled={isLoading}
+            style={styles.mobileHalfLoginBtn}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#0F172A" size="small" />
+            ) : (
+              <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="log-in-outline"
+                  size={20}
+                  color="#0F172A"
+                  style={{ marginHorizontal: 5 }}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.mobileHalfLoginText,
+                    curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {strings.loginBtn}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Social Icons Group (Google & Apple) */}
+          <View style={[styles.mobileSocialGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* Google Button */}
+            <TouchableOpacity
+              onPress={handleGoogle}
+              activeOpacity={0.82}
+              disabled={isLoading}
               style={[
-                styles.dividerText,
-                curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
-                { color: isDark ? '#64748B' : '#94A3B8' },
+                styles.mobileSocialBtn,
+                {
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
               ]}
             >
-              {strings.or}
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]} />
-          </View>
+              <SvgXml xml={GOOGLE_ICON_SVG} width={22} height={22} />
+            </TouchableOpacity>
 
-          {/* Social Logins */}
-          <View style={styles.socialBtnsWrapper}>
-            <GoogleSignInButton onPress={handleGoogle} loading={isLoading} label={strings.googleBtn} />
-            <AppleSignInButton onPress={handleApple} loading={isLoading} />
+            {/* Apple Button (iOS only) */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                onPress={handleApple}
+                activeOpacity={0.82}
+                disabled={isLoading}
+                style={[
+                  styles.mobileSocialBtn,
+                  {
+                    backgroundColor: isDark ? '#000000' : '#0F172A',
+                    borderColor: isDark ? '#334155' : '#0F172A',
+                  },
+                ]}
+              >
+                <Ionicons name="logo-apple" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           </View>
-        </>
+        </View>
       )}
 
       {/* Don't have an account -> Sign up link */}
@@ -712,17 +794,17 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   welcomeBox: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   mobileWelcomeTitle: {
-    fontSize: 24,
-    lineHeight: 36,
+    fontSize: 23,
+    lineHeight: 34,
     fontWeight: 'bold',
   },
   mobileWelcomeSub: {
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 4,
+    fontSize: 13.5,
+    lineHeight: 21,
+    marginTop: 3,
   },
   tabletWelcomeTitle: {
     fontSize: 30,
@@ -735,12 +817,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   pillInputWrapper: {
-    height: 54,
-    borderRadius: 27,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 1,
     alignItems: 'center',
     paddingHorizontal: 10,
-    marginBottom: 14,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
@@ -748,16 +830,16 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   inputIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillTextInput: {
     flex: 1,
     height: '100%',
-    fontSize: 15,
+    fontSize: 14.5,
     paddingHorizontal: 12,
   },
   eyeToggleBtn: {
@@ -765,11 +847,54 @@ const styles = StyleSheet.create({
   },
   forgotPasswordRow: {
     marginTop: -2,
-    marginBottom: 18,
+    marginBottom: 14,
     paddingHorizontal: 4,
   },
   forgotPasswordText: {
     fontSize: 13,
+  },
+  mobileActionsRow: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 2,
+  },
+  mobileHalfLoginBtn: {
+    flex: 1.15,
+    height: 50,
+    backgroundColor: '#F8C61E',
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    shadowColor: '#F8C61E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mobileHalfLoginText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  mobileSocialGroup: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobileSocialBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   goldLoginBtn: {
     width: '100%',
@@ -900,24 +1025,24 @@ const styles = StyleSheet.create({
   mobileIllustrationCard: {
     borderRadius: 22,
     borderWidth: 1,
-    paddingVertical: 20,
+    paddingVertical: 14,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   mobileIllustrationTitle: {
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 16.5,
+    lineHeight: 25,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   mobileIllustrationSub: {
-    fontSize: 12.5,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 19,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 3,
     paddingHorizontal: 8,
   },
 });
