@@ -438,26 +438,15 @@ export default function HistoryScreen() {
         }}
         rightAction={
           tab !== 'report' ? (
-            <TouchableOpacity
-              activeOpacity={0.75}
+            <HeaderActionButton
+              icon={historyGridLayout ? 'list-outline' : 'grid-outline'}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } catch {}
                 setHistoryGridLayout(!historyGridLayout);
               }}
-              style={[
-                styles.layoutToggleBtn,
-                isTablet && { width: 44, height: 44, borderRadius: 22 },
-              ]}
-              accessibilityLabel={historyGridLayout ? 'List View' : 'Grid View'}
-            >
-              <Ionicons
-                name={historyGridLayout ? 'list' : 'grid'}
-                size={isTablet ? 22 : 18}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+            />
           ) : undefined
         }
       />

@@ -122,8 +122,16 @@ export function useResponsive(): ResponsiveInfo {
     buttonHeight: isTabletLandscape ? 70 : isTablet ? 64 : 52,
     buttonFontSize: isTabletLandscape ? 21 : isTablet ? 19 : 16,
     inputHeight: isTabletLandscape ? 68 : isTablet ? 62 : 52,
-    headerButtonSize: isTabletLandscape ? 56 : isTablet ? 48 : 36,
-    headerIconSize: isTabletLandscape ? 30 : isTablet ? 26 : 20,
+    headerButtonSize: isTabletLandscape
+      ? (isLargeTablet ? 60 : 56)
+      : isTablet
+      ? (isLargeTablet ? 54 : 50)
+      : 38,
+    headerIconSize: isTabletLandscape
+      ? (isLargeTablet ? 34 : 32)
+      : isTablet
+      ? (isLargeTablet ? 30 : 28)
+      : 20,
     moduleCardHeight: isTabletLandscape ? 185 : isLargeTablet ? 168 : isTablet ? 152 : 102,
 
     fontScale,

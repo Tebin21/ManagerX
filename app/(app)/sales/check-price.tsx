@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Text } from '@/components/ui/AppText';
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { CheckPriceRow } from '@/components/sales/CheckPriceRow';
 import { ProductSearchBar } from '@/components/sales/ProductSearchBar';
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
@@ -32,7 +33,7 @@ export default function CheckPriceScreen() {
   const { t } = useTranslation();
   const { textAlign, isRTL } = useRTL();
   const { colors } = useAppTheme();
-  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle, headerButtonSize, headerIconSize } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { products, categories, loadInventory, isLoading } = useInventoryStore();
 
@@ -149,44 +150,37 @@ export default function CheckPriceScreen() {
       <AppHeader
         title={t('sales.checkPrice')}
         rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
             {/* Grid vs List Layout Toggle Button (گۆڕینی نێوان چوارگۆشە و درێژ) */}
-            <TouchableOpacity
-              activeOpacity={0.75}
+            <HeaderActionButton
+              icon={checkPriceGridLayout ? 'list-outline' : 'grid-outline'}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } catch {}
                 setCheckPriceGridLayout(!checkPriceGridLayout);
               }}
-              style={[
-                styles.layoutToggleBtn,
-                isTablet && { width: 44, height: 44, borderRadius: 22 },
-              ]}
-              accessibilityLabel={checkPriceGridLayout ? 'List View' : 'Grid View'}
-            >
-              <Ionicons
-                name={checkPriceGridLayout ? 'list' : 'grid'}
-                size={isTablet ? 22 : 18}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+            />
 
             {/* Scan Barcode Button */}
             <TouchableOpacity
               onPress={() => setScannerOpen(true)}
               style={[
                 styles.headerScanBtn,
-                isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+                isTablet && {
+                  height: headerButtonSize,
+                  paddingHorizontal: isTabletLandscape ? 20 : 16,
+                  borderRadius: Math.round(headerButtonSize * 0.28),
+                },
               ]}
               activeOpacity={0.8}
               hitSlop={6}
             >
-              <Ionicons name="barcode-outline" size={isTablet ? 22 : 19} color="#FFFFFF" />
+              <Ionicons name="barcode-outline" size={isTablet ? headerIconSize : 19} color="#FFFFFF" />
               <Text
                 style={[
                   styles.headerScanBtnText,
-                  isTablet && { fontSize: 14 },
+                  isTablet && { fontSize: isTabletLandscape ? 16 : 14 },
                   isKuLanguage && applyKurdishFont(true, { fontWeight: '700' }),
                 ]}
               >

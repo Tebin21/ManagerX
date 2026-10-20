@@ -48,8 +48,10 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { isRTL } = useRTL();
-  const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
+  const { isTablet, isTabletLandscape, headerMaxWidth, headerButtonSize } = useResponsive();
   const gradColors = gradient ?? [colors.gradientStart, colors.gradientMid];
+
+  const sideMinWidth = isTablet ? (isTabletLandscape ? headerButtonSize + 10 : headerButtonSize + 6) : 44;
 
   return (
     <LinearGradient
@@ -65,15 +67,15 @@ export function AppHeader({
           style={[
             styles.row,
             isTablet && {
-              minHeight: isTabletLandscape ? 78 : 70,
+              minHeight: isTabletLandscape ? 82 : 74,
               paddingHorizontal: isTabletLandscape ? 24 : 20,
-              paddingVertical: isTabletLandscape ? 20 : 18,
+              paddingVertical: isTabletLandscape ? 16 : 14,
             },
             { flexDirection: isRTL ? 'row-reverse' : 'row' },
           ]}
         >
           {/* Physically LEFT in English, RIGHT in Kurdish — back button or empty spacer */}
-          <View style={[styles.side, isTablet && { minWidth: isTabletLandscape ? 62 : 54 }]}>
+          <View style={[styles.side, { minWidth: sideMinWidth }]}>
             {showBack ? <BackButton onPress={onBack} /> : null}
           </View>
 
@@ -94,7 +96,7 @@ export function AppHeader({
           </Text>
 
           {/* Physically RIGHT in English, LEFT in Kurdish — action button or empty spacer */}
-          <View style={[styles.side, isTablet && { minWidth: isTabletLandscape ? 62 : 54 }]}>
+          <View style={[styles.side, { minWidth: sideMinWidth }]}>
             {rightAction ?? null}
           </View>
         </View>

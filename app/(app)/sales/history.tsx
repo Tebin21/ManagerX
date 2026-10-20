@@ -207,7 +207,7 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
         showBack
         onBack={() => router.back()}
         rightAction={
-          <View style={[styles.headerActions, { flexDirection }]}>
+          <View style={[styles.headerActions, { flexDirection, gap: isTablet ? 12 : 8 }]}>
             <HeaderActionButton
               icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
               onPress={handleToggleViewMode}

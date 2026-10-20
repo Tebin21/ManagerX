@@ -640,23 +640,17 @@ export default function InventoryScreen() {
           }
         }}
         rightAction={
-          <View style={{ flexDirection, gap: 8, alignItems: 'center' }}>
+          <View style={{ flexDirection, gap: isTablet ? 12 : 8, alignItems: 'center' }}>
             <HeaderActionButton
               icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-              size={36}
-              iconSize={19}
               onPress={handleToggleViewMode}
             />
             <HeaderActionButton
               icon="storefront-outline"
-              size={36}
-              iconSize={19}
               onPress={() => setBulkSyncModalVisible(true)}
             />
             <HeaderActionButton
               icon="document-text-outline"
-              size={36}
-              iconSize={19}
               onPress={() => setReportModalVisible(true)}
               loading={reportGenerating}
             />

@@ -59,7 +59,7 @@ export function BackButton({ onPress, style }: Props) {
           isTablet && {
             width: headerButtonSize,
             height: headerButtonSize,
-            borderRadius: 14,
+            borderRadius: Math.round(headerButtonSize * 0.28),
           },
         ]}
         hitSlop={12}
@@ -68,9 +68,9 @@ export function BackButton({ onPress, style }: Props) {
         {/* Points left in English, mirrors to point right in Kurdish */}
         <Ionicons
           name={chevronBack as never}
-          size={isTablet ? headerIconSize : 22}
+          size={isTablet ? (headerIconSize + 2) : 22}
           color="#FFFFFF"
-          style={styles.icon}
+          style={[styles.icon, isTablet && { marginRight: 2 }]}
         />
       </TouchableOpacity>
     </Animated.View>

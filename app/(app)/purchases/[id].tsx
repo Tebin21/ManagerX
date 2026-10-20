@@ -365,7 +365,7 @@ export default function PurchaseDetailScreen() {
       <AppHeader
         title={<IdText style={HEADER_TITLE_STYLE}>{purchase.purchaseNumber}</IdText>}
         rightAction={
-          <View style={{ flexDirection, gap: 4 }}>
+          <View style={{ flexDirection, gap: isTablet ? 12 : 6, alignItems: 'center' }}>
             <HeaderActionButton
               icon="create-outline"
               onPress={() => router.push(`/(app)/purchases/edit/${id}` as never)}

@@ -30,9 +30,16 @@ export function HeaderActionButton({
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
 
-  const btnSize = size ?? (isTablet ? headerButtonSize : 36);
-  const resolvedIconSize = iconSize ?? (isTablet ? headerIconSize : 20);
-  const borderRadius = size ? Math.round(size * 0.28) : (isTablet ? 14 : 11);
+  // On tablets and large screens, prioritize responsive header sizing tokens
+  const btnSize = isTablet
+    ? (size && size > headerButtonSize ? size : headerButtonSize)
+    : (size ?? 38);
+
+  const resolvedIconSize = isTablet
+    ? (iconSize && iconSize > headerIconSize ? iconSize : headerIconSize)
+    : (iconSize ?? 20);
+
+  const borderRadius = Math.round(btnSize * 0.28);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -62,7 +69,7 @@ export function HeaderActionButton({
         disabled={isDisabled}
       >
         {loading
-          ? <ActivityIndicator size="small" color="#FFFFFF" />
+          ? <ActivityIndicator size={isTablet ? 'large' : 'small'} color="#FFFFFF" />
           : <Ionicons name={icon} size={resolvedIconSize} color="#FFFFFF" />
         }
       </TouchableOpacity>

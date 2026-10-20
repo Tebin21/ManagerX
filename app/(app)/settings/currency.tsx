@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -108,13 +109,10 @@ export default function CurrencyScreen() {
           title={t('settings.currencyScreen.title')}
           showBack
           rightAction={
-            <TouchableOpacity
-              activeOpacity={0.75}
+            <HeaderActionButton
+              icon="information-circle-outline"
               onPress={() => setShowGuideModal(true)}
-              style={styles.headerInfoBtn}
-            >
-              <Ionicons name="information-circle" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+            />
           }
         />
 

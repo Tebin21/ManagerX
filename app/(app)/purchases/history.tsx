@@ -296,7 +296,7 @@ export default function PurchaseHistoryScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <View style={[styles.headerActions, { flexDirection }]}>
+          <View style={[styles.headerActions, { flexDirection, gap: isTablet ? 12 : 8 }]}>
             <HeaderActionButton
               icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
               onPress={() => setViewMode((m) => (m === 'grid' ? 'list' : 'grid'))}

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import * as Haptics from 'expo-haptics';
 import { SettingSection } from '@/components/settings/SettingSection';
 import { SettingRow } from '@/components/settings/SettingRow';
@@ -135,22 +136,15 @@ export default function SettingsScreen() {
       <AppHeader
         title={t('settings.title')}
         rightAction={
-          <TouchableOpacity
-            activeOpacity={0.75}
+          <HeaderActionButton
+            icon={settingsGridLayout ? 'list-outline' : 'grid-outline'}
             onPress={() => {
               try {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
               } catch { }
               setSettingsGridLayout(!settingsGridLayout);
             }}
-            style={styles.layoutToggleBtn}
-          >
-            <Ionicons
-              name={settingsGridLayout ? 'list' : 'grid'}
-              size={18}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
+          />
         }
       />
 

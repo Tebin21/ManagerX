@@ -68,7 +68,7 @@ export default function NewSaleScreen() {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle, headerButtonSize, headerIconSize } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
@@ -327,46 +327,49 @@ export default function NewSaleScreen() {
       <AppHeader
         title={t('sales.newSale')}
         rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
             {/* Grid vs List Layout Toggle Button */}
-            <TouchableOpacity
-              activeOpacity={0.75}
+            <HeaderActionButton
+              icon={salesProductGridLayout ? 'list-outline' : 'grid-outline'}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } catch {}
                 setSalesProductGridLayout(!salesProductGridLayout);
               }}
-              style={[
-                styles.layoutToggleBtn,
-                isTablet && { width: 44, height: 44, borderRadius: 22 },
-              ]}
-              accessibilityLabel={salesProductGridLayout ? 'List View' : 'Grid View'}
-            >
-              <Ionicons
-                name={salesProductGridLayout ? 'list' : 'grid'}
-                size={isTablet ? 22 : 18}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+            />
 
             <TouchableOpacity
               onPress={() => setScannerOpen(true)}
               style={[
                 styles.headerScanBtn,
-                isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+                isTablet && {
+                  height: headerButtonSize,
+                  paddingHorizontal: isTabletLandscape ? 20 : 16,
+                  borderRadius: Math.round(headerButtonSize * 0.28),
+                },
               ]}
               activeOpacity={0.8}
             >
-              <Ionicons name="barcode-outline" size={isTablet ? 22 : 19} color="#FFFFFF" />
-              <Text style={[styles.headerScanBtnText, isTablet && { fontSize: 14 }]}>
+              <Ionicons name="barcode-outline" size={isTablet ? headerIconSize : 19} color="#FFFFFF" />
+              <Text style={[styles.headerScanBtnText, isTablet && { fontSize: isTabletLandscape ? 16 : 14 }]}>
                 {isKuLanguage ? 'سکان' : 'Scan'}
               </Text>
             </TouchableOpacity>
 
             {itemCount > 0 && (
-              <TouchableOpacity onPress={() => setStep(2)} style={styles.cartBtn}>
-                <Ionicons name="cart" size={isTablet ? 24 : 22} color="#FFFFFF" />
+              <TouchableOpacity
+                onPress={() => setStep(2)}
+                style={[
+                  styles.cartBtn,
+                  isTablet && {
+                    width: headerButtonSize,
+                    height: headerButtonSize,
+                    borderRadius: Math.round(headerButtonSize * 0.28),
+                  },
+                ]}
+              >
+                <Ionicons name="cart" size={isTablet ? (headerIconSize + 2) : 22} color="#FFFFFF" />
                 <View style={styles.cartBadge}>
                   <Text style={styles.cartBadgeText}>{itemCount}</Text>
                 </View>
@@ -510,7 +513,7 @@ export default function NewSaleScreen() {
         title={t('sales.step2')}
         onBack={() => setStep(1)}
         rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
             <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
             <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
           </View>

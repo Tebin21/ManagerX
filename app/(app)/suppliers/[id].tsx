@@ -20,6 +20,7 @@ import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { useSupplierStore } from '@/store/supplierStore';
@@ -348,9 +349,10 @@ export default function SupplierDetailScreen() {
         onBack={() => router.back()}
         rightAction={
           isDirectSupplier ? undefined : (
-            <TouchableOpacity onPress={() => setEditing((v) => !v)} hitSlop={8}>
-              <Ionicons name={editing ? 'close-outline' : 'create-outline'} size={22} color="#fff" />
-            </TouchableOpacity>
+            <HeaderActionButton
+              icon={editing ? 'close-outline' : 'create-outline'}
+              onPress={() => setEditing((v) => !v)}
+            />
           )
         }
       >
