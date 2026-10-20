@@ -26,7 +26,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
+  const styles = useMemo(() => getStyles(colors, isDark, isTablet), [colors, isDark, isTablet]);
   const isPaid = purchase.paymentStatus === 'paid';
   const statusTint = useMemo(
     () => getStatusTint(isPaid ? 'success' : 'warning', colors, isDark),
@@ -123,13 +123,15 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   );
 }
 
-function getStyles(colors: AppColors, isTablet: boolean) {
+function getStyles(colors: AppColors, isDark: boolean, isTablet: boolean) {
   return StyleSheet.create({
     card: {
       flex: isTablet ? 1 : undefined,
       backgroundColor: colors.white,
       borderRadius: isTablet ? 16 : Theme.radius.card,
       marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
       ...Theme.shadow.soft,
       overflow: 'hidden',
     },
@@ -140,7 +142,7 @@ function getStyles(colors: AppColors, isTablet: boolean) {
       justifyContent: 'space-between',
       padding: 14,
       borderBottomWidth: 1,
-      borderBottomColor: colors.gray100,
+      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.14)' : colors.gray100,
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
     numBadge: {
@@ -172,7 +174,7 @@ function getStyles(colors: AppColors, isTablet: boolean) {
     detailItem: { flex: 1, alignItems: 'center' },
     detailLabel: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginBottom: 2 },
     detailValue: { fontSize: isTablet ? 16 : 13, fontWeight: '600', color: colors.black },
-    divider: { width: 1, backgroundColor: colors.gray100, marginVertical: 2 },
+    divider: { width: 1, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.22)' : colors.gray100, marginVertical: 2 },
 
     actions: {
       flexDirection: 'row',

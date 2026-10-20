@@ -27,7 +27,7 @@ interface Props {
 function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
-  const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
+  const styles = useMemo(() => getStyles(colors, isDark, isTablet, isTabletLandscape), [colors, isDark, isTablet, isTabletLandscape]);
   const okTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const lowTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -142,7 +142,7 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
 
 export const ProductCard = React.memo(ProductCardImpl);
 
-function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: boolean = false) {
+function getStyles(colors: AppColors, isDark: boolean, isTablet: boolean, isTabletLandscape: boolean = false) {
   const thumbDim = isTabletLandscape ? 72 : isTablet ? 58 : 48;
   return StyleSheet.create({
     card: {
@@ -152,6 +152,8 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       borderRadius: isTabletLandscape ? 20 : isTablet ? 18 : Theme.radius.card,
       padding: isTabletLandscape ? 20 : isTablet ? 18 : 16,
       marginBottom: isTabletLandscape ? 14 : 10,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
       ...Theme.shadow.card,
     },
     cardSold: {
@@ -246,8 +248,9 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     priceValue: { color: colors.black },
     divider: {
       width: 1,
-      backgroundColor: colors.gray200,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.24)' : colors.gray200,
       marginHorizontal: 4,
+      marginVertical: 2,
     },
 
     bottomRow: {

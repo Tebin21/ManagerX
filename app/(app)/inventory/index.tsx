@@ -995,7 +995,7 @@ export default function InventoryScreen() {
             style={[
               styles.summaryStatusLine,
               {
-                borderBottomColor: isDark ? colors.gray200 : colors.gray100,
+                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.16)' : colors.gray100,
                 flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
