@@ -1469,7 +1469,15 @@ export default function NewPurchaseScreen() {
       </View>
 
       {/* Payment Status */}
-      <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }]}>{t('purchases.paymentStatus')}</Text>
+      <Text
+        style={[
+          styles.fieldLabel,
+          { color: colors.gray600, textAlign, marginBottom: 10 },
+          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+        ]}
+      >
+        {t('purchases.paymentStatus')}
+      </Text>
       <View style={[styles.paymentRow, { flexDirection }]}>
         <TouchableOpacity
           style={[
@@ -1485,7 +1493,15 @@ export default function NewPurchaseScreen() {
           activeOpacity={0.8}
         >
           <Ionicons name="checkmark-circle" size={18} color={paymentStatus === 'paid' ? colors.success : colors.gray400} />
-          <Text style={[styles.payBtnText, { color: paymentStatus === 'paid' ? colors.success : colors.gray500 }]}>{t('purchases.paid')}</Text>
+          <Text
+            style={[
+              styles.payBtnText,
+              { color: paymentStatus === 'paid' ? colors.success : colors.gray500 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('purchases.paid')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -1501,12 +1517,20 @@ export default function NewPurchaseScreen() {
           activeOpacity={0.8}
         >
           <Ionicons name="alert-circle" size={18} color={paymentStatus === 'debt' ? colors.error : colors.gray400} />
-          <Text style={[styles.payBtnText, { color: paymentStatus === 'debt' ? colors.error : colors.gray500 }]}>{t('purchases.debt')}</Text>
+          <Text
+            style={[
+              styles.payBtnText,
+              { color: paymentStatus === 'debt' ? colors.error : colors.gray500 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('purchases.debt')}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {paymentStatus === 'debt' && (
-        <View style={{ marginTop: 12 }}>
+        <View style={{ marginBottom: 4 }}>
           <AppTextInput
             label={t('purchases.amountPaid')}
             value={amountPaid}
@@ -1523,6 +1547,7 @@ export default function NewPurchaseScreen() {
                 backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
                 borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
                 flexDirection,
+                marginBottom: 16,
               },
             ]}
           >
@@ -2273,20 +2298,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  paymentRow: { flexDirection: 'row', gap: 10 },
+  paymentRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
   payBtn: {
     flex:           1,
-    height:         46,
+    height:         48,
     borderWidth:    1.5,
     borderRadius:   Theme.radius.md,
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'center',
-    gap:            6,
+    gap:            8,
   },
   payBtnPaid: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
   payBtnDebt: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  payBtnText: { fontSize: 14, fontWeight: '600' },
+  payBtnText: { fontSize: 14, fontWeight: '700' },
 
   textarea: { height: 80, textAlignVertical: 'top', paddingTop: 12 },
   actions:  { gap: 10 },

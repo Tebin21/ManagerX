@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -15,13 +15,15 @@ const OPTIONS: { key: ReceiptCurrencyMode; labelKey: string }[] = [
   { key: 'both', labelKey: 'receiptCurrency.both' },
 ];
 
+
 interface Props {
   value: ReceiptCurrencyMode;
   onChange: (mode: ReceiptCurrencyMode) => void;
   inner?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function ReceiptCurrencySelector({ value, onChange, inner = false }: Props) {
+export function ReceiptCurrencySelector({ value, onChange, inner = false, style }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { textAlign, flexDirection } = useRTL();
@@ -42,7 +44,11 @@ export function ReceiptCurrencySelector({ value, onChange, inner = false }: Prop
               activeOpacity={0.85}
               style={[styles.pill, active && { backgroundColor: colors.primary }]}
             >
-              <Text style={[styles.pillText, { color: active ? Colors.white : colors.gray500 }]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.pillText, { color: active ? Colors.white : colors.gray500 }]}
+              >
                 {t(opt.labelKey)}
               </Text>
             </TouchableOpacity>
@@ -54,14 +60,14 @@ export function ReceiptCurrencySelector({ value, onChange, inner = false }: Prop
 
   if (inner) {
     return (
-      <View style={[styles.innerCard, { borderColor: colors.gray200, backgroundColor: colors.gray50 }]}>
+      <View style={[styles.innerCard, { borderColor: colors.gray200, backgroundColor: colors.gray50 }, style]}>
         {content}
       </View>
     );
   }
 
   return (
-    <PremiumCard style={styles.card}>
+    <PremiumCard style={[styles.card, style]}>
       {content}
     </PremiumCard>
   );
@@ -72,12 +78,13 @@ const styles = StyleSheet.create({
   innerCard: {
     borderWidth: 1,
     borderRadius: 14,
-    padding: 14,
+    padding: 13,
     marginBottom: 16,
   },
   titleRow: { alignItems: 'center', gap: 6, marginBottom: 10 },
-  title: { fontSize: 14, fontWeight: '700' },
-  toggleRow: { borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
-  pill: { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  pillText: { fontSize: 12.5, fontWeight: '700' },
+  title: { fontSize: 13.5, fontWeight: '700' },
+  toggleRow: { borderRadius: 9, borderWidth: 1, overflow: 'hidden' },
+  pill: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 4 },
+  pillText: { fontSize: 12, fontWeight: '700' },
 });
+
