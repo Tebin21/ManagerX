@@ -146,9 +146,9 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: loadingBg as string }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color="#F4C21A" />
         </View>
       </GestureHandlerRootView>
     );

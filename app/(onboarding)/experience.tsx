@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,14 +7,16 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { SvgXml } from 'react-native-svg';
 import { MotiView } from 'moti';
 import { Text } from '@/components/ui/AppText';
-import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
@@ -37,17 +39,43 @@ export default function ExperienceScreen() {
     router.replace('/(onboarding)/login');
   };
 
-  const handleBack = () => {
-    router.back();
-  };
+  const handleBack = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(onboarding)/protection');
+    }
+  }, [router]);
+
+  // Swipe from left to right (ڕاکێشان لە چەپەوە بۆ ڕاست) to go back simply
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dx > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          return gestureState.dx > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx > 35 || (gestureState.dx > 15 && gestureState.vx > 0.2)) {
+            handleBack();
+          }
+        },
+      }),
+    [handleBack]
+  );
 
   const handleBypassToDashboard = () => {
     router.replace('/(app)/dashboard');
   };
 
-  // Dimensions for the 750x500 (1.5:1 aspect ratio) Mobile Testing illustration
-  const phoneSvgWidth = Math.min(330, width * 0.86);
-  const phoneSvgHeight = Math.min(220, phoneSvgWidth * (500 / 750));
+  // Dimensions matching protection.tsx and other onboarding screens
+  const phoneSvgWidth = Math.min(320, width * 0.82);
+  const phoneSvgHeight = Math.min(270, height * 0.34);
 
   const tabletSvgWidth = isTabletLandscape ? 470 : 390;
   const tabletSvgHeight = isTabletLandscape ? 314 : 260;
@@ -55,17 +83,19 @@ export default function ExperienceScreen() {
   // Render Layout for iPads & Large Screens
   if (isLargeScreen) {
     return (
-      <View style={[styles.screen, { backgroundColor: isDark ? '#0B1120' : '#F8FAFC' }]}>
+      <View
+        style={[styles.screen, { backgroundColor: isDark ? '#0B1120' : '#F8FAFC' }]}
+        {...panResponder.panHandlers}
+      >
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <SafeAreaView style={styles.tabletCenterWrapper}>
           {DEV_FORCE_ONBOARDING_PREVIEW && (
             <TouchableOpacity
               onPress={handleBypassToDashboard}
-              style={[
-                styles.devBypassBtn,
-                { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(226, 232, 240, 0.8)' },
-              ]}
+              style={[styles.devBypassBadge, { top: insets.top + 16, right: 24 }]}
+              activeOpacity={0.8}
             >
+              <Ionicons name="flash" size={13} color="#F59E0B" />
               <Text style={styles.devBypassText}>چوونە داشبۆرد (تێست)</Text>
             </TouchableOpacity>
           )}
@@ -114,32 +144,21 @@ export default function ExperienceScreen() {
               ]}
             >
               <View>
-                {/* Back Link Row */}
-                <TouchableOpacity
-                  onPress={handleBack}
-                  activeOpacity={0.7}
-                  style={styles.backRow}
-                >
-                  <Feather
-                    name={isRTL ? "chevron-right" : "chevron-left"}
-                    size={22}
-                    color={isDark ? '#94A3B8' : '#64748B'}
-                  />
-                  <Text style={[styles.backText, { color: isDark ? '#94A3B8' : '#64748B' }]}>گەڕانەوە</Text>
-                </TouchableOpacity>
-
-                {/* Main Heading */}
+                {/* Main Heading (Strictly 1 line, 'بکە' included, '...' removed) */}
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
                   style={[
                     styles.tabletHeading,
                     {
-                      fontSize: isTabletLandscape ? 34 : 28,
-                      lineHeight: isTabletLandscape ? 48 : 40,
+                      fontSize: isTabletLandscape ? 32 : 26,
+                      lineHeight: isTabletLandscape ? 44 : 36,
                       color: isDark ? '#FFFFFF' : '#0F172A',
                     },
                   ]}
                 >
-                  لەگەڵ فرۆشیار، فرۆشتنەکەت ئاسانتر بکە...
+                  لەگەڵ فرۆشیار، فرۆشتنەکەت ئاسانتر بکە
                 </Text>
 
                 {/* Subtitle / Description */}
@@ -220,70 +239,90 @@ export default function ExperienceScreen() {
 
   // Render Layout for Mobile Phones
   return (
-    <View style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }]}>
+    <View
+      style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }]}
+      {...panResponder.panHandlers}
+    >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <SafeAreaView style={styles.mobileSafeContainer}>
-        {/* Top Header Row with Back and Dev Skip */}
-        <View style={styles.mobileTopBar}>
+        {DEV_FORCE_ONBOARDING_PREVIEW && (
           <TouchableOpacity
-            onPress={handleBack}
-            activeOpacity={0.7}
-            style={styles.mobileBackBtn}
+            onPress={handleBypassToDashboard}
+            style={[styles.devBypassBadge, { top: insets.top + 8, right: 16 }]}
+            activeOpacity={0.8}
           >
-            <Feather
-              name={isRTL ? "chevron-right" : "chevron-left"}
-              size={24}
-              color={isDark ? '#E2E8F0' : '#1E293B'}
-            />
+            <Ionicons name="flash" size={12} color="#F59E0B" />
+            <Text style={styles.devBypassText}>داشبۆرد</Text>
           </TouchableOpacity>
-
-          {DEV_FORCE_ONBOARDING_PREVIEW && (
-            <TouchableOpacity
-              onPress={handleBypassToDashboard}
-              style={[
-                styles.mobileDevBypassBtn,
-                { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(241, 245, 249, 0.9)' },
-              ]}
-            >
-              <Text style={styles.mobileDevBypassText}>چوونە داشبۆرد</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
 
         <ScrollView
-          contentContainerStyle={[styles.mobileScrollContent, { paddingBottom: Math.max(insets.bottom, 24) }]}
+          contentContainerStyle={[
+            styles.mobileScrollContent,
+            { paddingBottom: insets.bottom + 20 },
+          ]}
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Mobile Illustration */}
+          {/* Top Bar with Back Button */}
+          <View style={styles.mobileTopBar}>
+            <TouchableOpacity
+              onPress={handleBack}
+              activeOpacity={0.7}
+              style={[
+                styles.backButtonRow,
+                {
+                  alignSelf: isRTL ? 'flex-end' : 'flex-start',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Feather
+                name={isRTL ? "arrow-right" : "arrow-left"}
+                size={18}
+                color={isDark ? '#94A3B8' : '#64748B'}
+              />
+              <Text style={[styles.backButtonText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                گەڕانەوە
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Top Illustration (Mobile Testing) */}
           <MotiView
-            from={{ opacity: 0, scale: 0.92 }}
+            from={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'timing', duration: 400 }}
+            transition={{ type: 'spring', damping: 16, stiffness: 110, delay: 100 }}
             style={styles.mobileIllustrationBox}
           >
             <SvgXml xml={MOBILE_TESTING_PANA_SVG} width={phoneSvgWidth} height={phoneSvgHeight} />
           </MotiView>
 
-          {/* Texts Section */}
+          {/* Center Info Block */}
           <MotiView
-            from={{ opacity: 0, translateY: 15 }}
+            from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 450, delay: 100 }}
-            style={styles.mobileTextBox}
+            transition={{ type: 'spring', damping: 18, stiffness: 120, delay: 250 }}
+            style={styles.mobileInfoBox}
           >
+            {/* Title */}
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
               style={[
-                styles.mobileHeading,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                styles.mobileTitle,
+                { color: isDark ? '#F8FAFC' : '#0F172A' },
               ]}
             >
-              لەگەڵ فرۆشیار، فرۆشتنەکەت ئاسانتر بکە...
+              لەگەڵ فرۆشیار، فرۆشتنەکەت ئاسانتر بکە
             </Text>
 
+            {/* Description */}
             <Text
               style={[
-                styles.mobileSubText,
-                { color: isDark ? '#94A3B8' : '#475569' },
+                styles.mobileDescription,
+                { color: isDark ? '#94A3B8' : '#64748B' },
               ]}
             >
               ئەزموونی خۆت بە ئەکاونتی تایبەتی خۆت تاقی بکەرەوە، فرۆشتن و کڕین و کۆگا بە تەواوی تاقی بکەرەوە و لەگەڵ فرۆشیار کارەکانت خێراتر بەڕێوەببە.
@@ -354,20 +393,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  devBypassBtn: {
-    position: 'absolute',
-    top: 24,
-    left: 28,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    zIndex: 99,
-  },
-  devBypassText: {
-    fontSize: 13,
-    color: '#D4AF37',
-    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-  },
   tabletMasterCard: {
     width: '100%',
     borderRadius: 36,
@@ -391,17 +416,6 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'space-between',
   },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 15,
-    fontFamily: SETTINGS_KURDISH_FONT,
-    marginHorizontal: 4,
-  },
   tabletHeading: {
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
     fontWeight: 'bold',
@@ -409,42 +423,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tabletSubText: {
-    fontFamily: SETTINGS_KURDISH_FONT,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
     textAlign: 'right',
     marginBottom: 16,
   },
   tabletBottomArea: {
     marginTop: 24,
-    gap: 20,
+    gap: 16,
+    alignItems: 'center',
   },
   tabletDotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: 8,
   },
   tabletActiveDot: {
-    width: 28,
-    height: 9,
-    borderRadius: 5,
+    width: 38,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#F8C61E',
   },
   tabletInactiveDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   tabletGoldButton: {
     width: '100%',
+    maxWidth: 480,
     backgroundColor: '#F8C61E',
-    borderRadius: 18,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     shadowColor: '#F8C61E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38,
+    shadowRadius: 16,
     elevation: 6,
   },
   tabletGoldButtonText: {
@@ -457,62 +474,61 @@ const styles = StyleSheet.create({
   mobileSafeContainer: {
     flex: 1,
   },
-  mobileTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  mobileBackBtn: {
-    padding: 8,
-    borderRadius: 12,
-  },
-  mobileDevBypassBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  mobileDevBypassText: {
-    fontSize: 12,
-    color: '#D4AF37',
-    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-  },
   mobileScrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
     justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  mobileTopBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 4,
   },
   mobileIllustrationBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
+    paddingVertical: 8,
   },
-  mobileTextBox: {
+  mobileInfoBox: {
     alignItems: 'center',
-    marginVertical: 8,
+    paddingVertical: 8,
   },
-  mobileHeading: {
-    fontSize: 22,
-    lineHeight: 34,
+  mobileTitle: {
+    fontSize: 23,
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
   },
-  mobileSubText: {
-    fontSize: 14,
+  mobileDescription: {
+    fontSize: 14.5,
     lineHeight: 24,
-    fontFamily: SETTINGS_KURDISH_FONT,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
     textAlign: 'center',
-    marginBottom: 14,
-    paddingHorizontal: 8,
+    maxWidth: 380,
+    marginBottom: 18,
   },
   mobileBottomArea: {
-    marginTop: 'auto',
-    paddingTop: 12,
-    gap: 16,
+    width: '100%',
+    alignItems: 'center',
+    gap: 18,
+    marginTop: 8,
+  },
+
+  // --- Shared Elements ---
+  backButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -521,34 +537,52 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   activeDot: {
-    width: 24,
-    height: 7,
-    borderRadius: 4,
+    width: 26,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#F8C61E',
   },
   inactiveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   goldButton: {
     width: '100%',
-    height: 52,
+    maxWidth: 420,
+    height: 54,
     backgroundColor: '#F8C61E',
-    borderRadius: 14,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#F8C61E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 5,
   },
   goldButtonText: {
-    fontSize: 16,
-    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-    fontWeight: 'bold',
     color: '#0F172A',
+    fontSize: 17,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  devBypassBadge: {
+    position: 'absolute',
+    zIndex: 99,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  devBypassText: {
+    fontSize: 12,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    color: '#D97706',
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   useWindowDimensions,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -39,9 +41,35 @@ export default function SecurityOnboardingScreen() {
     router.push('/(onboarding)/protection');
   };
 
-  const handleBack = () => {
-    router.back();
-  };
+  const handleBack = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(onboarding)/features');
+    }
+  }, [router]);
+
+  // Swipe from left to right (ڕاکێشان لە چەپەوە بۆ ڕاست) to go back simply
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return gestureState.dx > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          return gestureState.dx > 15 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx > 35 || (gestureState.dx > 15 && gestureState.vx > 0.2)) {
+            handleBack();
+          }
+        },
+      }),
+    [handleBack]
+  );
 
   const handleBypassToDashboard = () => {
     router.replace('/(app)/dashboard');
@@ -57,7 +85,10 @@ export default function SecurityOnboardingScreen() {
   // Render Layout for iPads & Large Screens
   if (isLargeScreen) {
     return (
-      <View style={[styles.screen, { backgroundColor: isDark ? '#0B1120' : '#F8FAFC' }]}>
+      <View
+        style={[styles.screen, { backgroundColor: isDark ? '#0B1120' : '#F8FAFC' }]}
+        {...panResponder.panHandlers}
+      >
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <SafeAreaView style={styles.tabletCenterWrapper}>
           {DEV_FORCE_ONBOARDING_PREVIEW && (
@@ -233,7 +264,10 @@ export default function SecurityOnboardingScreen() {
 
   // Render Layout for Mobile Phones
   return (
-    <View style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }]}>
+    <View
+      style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }]}
+      {...panResponder.panHandlers}
+    >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <SafeAreaView style={styles.mobileSafeContainer}>
         {DEV_FORCE_ONBOARDING_PREVIEW && (

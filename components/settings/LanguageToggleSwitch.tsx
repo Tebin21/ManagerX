@@ -10,6 +10,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Rect, Circle, Path } from 'react-native-svg';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 // ─── Precomputed 21-Ray Path for Authentic Kurdistan Flag Sun ───────────────
 const KURDISTAN_RAYS_PATH = (() => {
@@ -79,21 +80,31 @@ interface Props {
   value: boolean; // true = Kurdish (Ku flag), false = English (UK flag)
   onToggle: (val: boolean) => void;
   disabled?: boolean;
+  isDark?: boolean;
 }
 
-const TRACK_WIDTH = 62;
-const TRACK_HEIGHT = 32;
+const TRACK_WIDTH = 66;
+const TRACK_HEIGHT = 34;
 const TRACK_PADDING = 3;
-const THUMB_SIZE = 26;
-const TRAVEL_DISTANCE = TRACK_WIDTH - THUMB_SIZE - TRACK_PADDING * 2; // 30px
+const THUMB_SIZE = 28;
+const TRAVEL_DISTANCE = TRACK_WIDTH - THUMB_SIZE - TRACK_PADDING * 2; // 32px
 
-export function LanguageToggleSwitch({ value, onToggle, disabled = false }: Props) {
+export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark: isDarkProp }: Props) {
+  let appThemeDark = true;
+  try {
+    const theme = useAppTheme();
+    appThemeDark = theme.isDark;
+  } catch {
+    appThemeDark = true;
+  }
+  const isDark = isDarkProp !== undefined ? isDarkProp : appThemeDark;
+
   const progress = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {
     progress.value = withSpring(value ? 1 : 0, {
-      damping: 16,
-      stiffness: 190,
+      damping: 18,
+      stiffness: 200,
       mass: 0.8,
     });
   }, [value]);
@@ -152,21 +163,37 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false }: Prop
     ],
   }));
 
+  const darkGradients: [string, string] = ['#0F172A', '#1E293B'];
+  const lightGradients: [string, string] = ['#FFFFFF', '#F1F5F9'];
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
       onPress={handlePress}
       disabled={disabled}
       style={styles.switchWrapper}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={value ? 'Switch to English' : 'گۆڕین بۆ کوردی'}
     >
-      <View style={styles.trackContainer}>
-        {/* Kurdish Active Background Layer (Deep Slate with subtle UK flag on left) */}
+      <View
+        style={[
+          styles.trackContainer,
+          {
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : '#E2E8F0',
+            shadowColor: isDark ? '#000000' : '#0F172A',
+            shadowOpacity: isDark ? 0.3 : 0.08,
+          },
+        ]}
+      >
+        {/* Kurdish Active Background Layer (Inactive UK flag on left) */}
         <Animated.View style={[StyleSheet.absoluteFill, kurdTrackStyle]}>
           <LinearGradient
-            colors={['#0F172A', '#1E293B']}
+            colors={isDark ? darkGradients : lightGradients}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.trackGradient, styles.goldBorder]}
+            style={styles.trackGradient}
           >
             {/* Inactive UK Flag on the left */}
             <View style={styles.inactiveLeftWrap}>
@@ -175,13 +202,13 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false }: Prop
           </LinearGradient>
         </Animated.View>
 
-        {/* English Active Background Layer (Deep Navy + Slate with subtle Kurdistan flag on right) */}
+        {/* English Active Background Layer (Inactive Kurdistan flag on right) */}
         <Animated.View style={[StyleSheet.absoluteFill, engTrackStyle]}>
           <LinearGradient
-            colors={['#0F172A', '#1E293B']}
+            colors={isDark ? darkGradients : lightGradients}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.trackGradient, styles.goldBorder]}
+            style={styles.trackGradient}
           >
             {/* Inactive Kurdistan Flag on the right */}
             <View style={styles.inactiveRightWrap}>
@@ -191,7 +218,18 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false }: Prop
         </Animated.View>
 
         {/* Animated Thumb Sphere */}
-        <Animated.View style={[styles.thumb, thumbAnimatedStyle]}>
+        <Animated.View
+          style={[
+            styles.thumb,
+            {
+              backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+              borderColor: '#D4AF37',
+              shadowColor: isDark ? '#D4AF37' : '#000000',
+              shadowOpacity: isDark ? 0.35 : 0.15,
+            },
+            thumbAnimatedStyle,
+          ]}
+        >
           {/* UK Flag View inside Thumb */}
           <Animated.View style={[styles.iconContainer, ukIconStyle]}>
             <View style={styles.thumbInner}>
@@ -214,20 +252,19 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false }: Prop
 const styles = StyleSheet.create({
   switchWrapper: {
     paddingVertical: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   trackContainer: {
     width: TRACK_WIDTH,
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
-    padding: TRACK_PADDING,
-    justifyContent: 'center',
+    borderWidth: 1.5,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowOpacity: 0.18,
-    shadowRadius: 2.5,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 3,
   },
   trackGradient: {
     flex: 1,
@@ -235,13 +272,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  goldBorder: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-  },
   inactiveLeftWrap: {
     position: 'absolute',
-    left: 8,
+    left: 7,
     top: 0,
     bottom: 0,
     alignItems: 'center',
@@ -250,7 +283,7 @@ const styles = StyleSheet.create({
   },
   inactiveRightWrap: {
     position: 'absolute',
-    right: 8,
+    right: 7,
     top: 0,
     bottom: 0,
     alignItems: 'center',
@@ -261,15 +294,13 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    position: 'relative',
+    position: 'absolute',
+    left: TRACK_PADDING,
+    top: TRACK_PADDING - 0.5,
     borderWidth: 1.5,
-    borderColor: '#D4AF37',
-    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
+    shadowRadius: 3.5,
     elevation: 4,
-    backgroundColor: '#0F172A',
     overflow: 'hidden',
   },
   iconContainer: {

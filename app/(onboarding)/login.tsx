@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,7 +26,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import { TABLET_LOGIN_BRO_SVG } from '@/constants/onboardingIllustrations';
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
-import { KurdistanFlagIcon, UKFlagIcon } from '@/components/settings/LanguageToggleSwitch';
+import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
@@ -84,7 +85,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;
@@ -94,11 +94,6 @@ export default function LoginScreen() {
 
   const handleToggleTheme = () => {
     setDarkMode(!isDarkMode);
-  };
-
-  const handleSelectLanguage = (lang: 'ku' | 'en') => {
-    setLanguage(lang);
-    setIsLangDropdownOpen(false);
   };
 
   const handleEmailSignIn = async () => {
@@ -137,6 +132,14 @@ export default function LoginScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(onboarding)/welcome' as never);
+    }
+  };
+
   const handleDevBypass = async () => {
     try {
       const { initializeDatabase } = await import('@/lib/sqlite');
@@ -165,95 +168,55 @@ export default function LoginScreen() {
   const tabletSvgSize = isTabletLandscape ? 360 : 300;
 
   // Render Top Header Controls (Language Flag Dropdown + Theme Switcher + Dev bypass)
-  const renderTopControls = () => (
-    <View style={styles.topControlsRow}>
-      {/* Dev Quick Login Bypass (if enabled) */}
-      {(DEV_FORCE_ONBOARDING_PREVIEW || __DEV__) && (
-        <TouchableOpacity
-          onPress={handleDevBypass}
-          activeOpacity={0.8}
-          style={[
-            styles.devBypassBtn,
-            { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(241, 245, 249, 0.9)' },
-          ]}
-        >
-          <Text style={[styles.devBypassText, curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-            {strings.devBypass}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.controlsGroup}>
-        {/* Language Flag Dropdown Button (NO TEXT, ONLY FLAG as requested) */}
-        <View style={styles.langPickerContainer}>
+  const renderTopControls = (showBack: boolean = false) => (
+    <View style={[styles.topControlsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      {/* Navigation / Dev Controls side (Right side in Kurdish RTL) */}
+      <View style={{ minWidth: 1, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+        {showBack && (
           <TouchableOpacity
-            onPress={() => setIsLangDropdownOpen((prev) => !prev)}
+            onPress={handleBack}
             activeOpacity={0.8}
             style={[
-              styles.languageFlagBtn,
+              styles.backBtn,
               {
                 backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: isLangDropdownOpen ? '#F8C61E' : (isDark ? '#334155' : '#E2E8F0'),
+                borderColor: isDark ? '#334155' : '#E2E8F0',
               },
             ]}
           >
-            {curLang === 'en' ? <UKFlagIcon size={22} /> : <KurdistanFlagIcon size={22} />}
             <Ionicons
-              name={isLangDropdownOpen ? 'chevron-forward' : 'chevron-back'}
-              size={13}
-              color={isDark ? '#94A3B8' : '#64748B'}
-              style={{ marginHorizontal: 3 }}
+              name={isRTL ? 'arrow-forward' : 'arrow-back'}
+              size={18}
+              color={isDark ? '#F8C61E' : '#475569'}
             />
           </TouchableOpacity>
+        )}
 
-          {/* Language Menu opening to the LEFT (not downwards) */}
-          {isLangDropdownOpen && (
-            <MotiView
-              from={{ opacity: 0, scale: 0.9, translateX: 10 }}
-              animate={{ opacity: 1, scale: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 160 }}
-              style={[
-                styles.langDropdownMenu,
-                {
-                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                  borderColor: isDark ? '#334155' : '#E2E8F0',
-                },
-              ]}
-            >
-              {/* Option 1: Kurdistan Flag */}
-              <TouchableOpacity
-                onPress={() => handleSelectLanguage('ku')}
-                activeOpacity={0.7}
-                style={[
-                  styles.langOptionItem,
-                  curLang === 'ku' && {
-                    backgroundColor: isDark ? 'rgba(248, 198, 30, 0.16)' : '#FEF9C3',
-                    borderColor: '#F8C61E',
-                  },
-                ]}
-              >
-                <KurdistanFlagIcon size={28} />
-                {curLang === 'ku' && <View style={styles.activeCheckDot} />}
-              </TouchableOpacity>
+        {/* Dev Quick Login Bypass (if enabled) */}
+        {(DEV_FORCE_ONBOARDING_PREVIEW || __DEV__) && (
+          <TouchableOpacity
+            onPress={handleDevBypass}
+            activeOpacity={0.8}
+            style={[
+              styles.devBypassBtn,
+              { backgroundColor: isDark ? 'rgba(51, 65, 85, 0.7)' : 'rgba(241, 245, 249, 0.9)' },
+            ]}
+          >
+            <Text style={[styles.devBypassText, curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              {strings.devBypass}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-              {/* Option 2: UK Flag */}
-              <TouchableOpacity
-                onPress={() => handleSelectLanguage('en')}
-                activeOpacity={0.7}
-                style={[
-                  styles.langOptionItem,
-                  curLang === 'en' && {
-                    backgroundColor: isDark ? 'rgba(248, 198, 30, 0.16)' : '#FEF9C3',
-                    borderColor: '#F8C61E',
-                  },
-                ]}
-              >
-                <UKFlagIcon size={28} />
-                {curLang === 'en' && <View style={styles.activeCheckDot} />}
-              </TouchableOpacity>
-            </MotiView>
-          )}
-        </View>
+      {/* Settings side: Language switch + Dark mode toggle (Left side in Kurdish RTL) */}
+      <View style={[styles.controlsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Language Toggle Switch (On/Off Style) */}
+        <LanguageToggleSwitch
+          value={curLang === 'ku'}
+          isDark={isDark}
+          onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+        />
 
         {/* Dark / Light Mode Toggle Button */}
         <TouchableOpacity
@@ -284,9 +247,7 @@ export default function LoginScreen() {
       <View
         style={[
           styles.welcomeBox,
-          isTabletLayout
-            ? { alignItems: isRTL ? 'flex-end' : 'flex-start' }
-            : { alignItems: 'center' },
+          { alignItems: isRTL ? 'flex-end' : 'flex-start' },
         ]}
       >
         <Text
@@ -295,7 +256,7 @@ export default function LoginScreen() {
             curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             {
               color: isDark ? '#FFFFFF' : '#0F172A',
-              textAlign: isTabletLayout ? (isRTL ? 'right' : 'left') : 'center',
+              textAlign: isRTL ? 'right' : 'left',
             },
           ]}
         >
@@ -307,7 +268,7 @@ export default function LoginScreen() {
             curLang === 'ku' && { fontFamily: SETTINGS_KURDISH_FONT },
             {
               color: isDark ? '#94A3B8' : '#64748B',
-              textAlign: isTabletLayout ? (isRTL ? 'right' : 'left') : 'center',
+              textAlign: isRTL ? 'right' : 'left',
             },
           ]}
         >
@@ -322,7 +283,7 @@ export default function LoginScreen() {
           {
             backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
             borderColor: isDark ? '#334155' : '#E2E8F0',
-            flexDirection: 'row',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
           },
         ]}
       >
@@ -361,7 +322,7 @@ export default function LoginScreen() {
           {
             backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
             borderColor: isDark ? '#334155' : '#E2E8F0',
-            flexDirection: 'row',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
           },
         ]}
       >
@@ -436,9 +397,9 @@ export default function LoginScreen() {
         {isLoading ? (
           <ActivityIndicator color="#0F172A" size="small" />
         ) : (
-          <View style={styles.buttonContentRow}>
+          <View style={[styles.buttonContentRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Ionicons
-              name={isRTL ? "log-in-outline" : "log-in-outline"}
+              name="log-in-outline"
               size={22}
               color="#0F172A"
               style={{ marginHorizontal: 8 }}
@@ -508,11 +469,9 @@ export default function LoginScreen() {
     </View>
   );
 
-  // Close dropdown when background is pressed
+  // Dismiss keyboard when background is pressed
   const handleDismissDropdown = () => {
-    if (isLangDropdownOpen) {
-      setIsLangDropdownOpen(false);
-    }
+    Keyboard.dismiss();
   };
 
   // ==========================================
@@ -697,7 +656,6 @@ const styles = StyleSheet.create({
 
   // --- Top Controls (Language, Theme, Dev) ---
   topControlsRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
@@ -705,11 +663,22 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   controlsGroup: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginStart: 'auto',
     zIndex: 100,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   devBypassBtn: {
     paddingHorizontal: 12,
@@ -723,62 +692,6 @@ const styles = StyleSheet.create({
   },
 
   // --- Flag Dropdown Picker ---
-  langPickerContainer: {
-    position: 'relative',
-    zIndex: 200,
-  },
-  languageFlagBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    minWidth: 58,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  langDropdownMenu: {
-    position: 'absolute',
-    right: '100%',
-    marginRight: 8,
-    top: -3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 22,
-    borderWidth: 1.5,
-    padding: 5,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: -2, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    elevation: 10,
-    zIndex: 9999,
-  },
-  langOptionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  activeCheckDot: {
-    position: 'absolute',
-    bottom: 3,
-    right: 3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F8C61E',
-  },
 
   themeBtn: {
     width: 38,
