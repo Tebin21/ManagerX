@@ -93,6 +93,7 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
 function getStyles(colors: AppColors, isTablet: boolean) {
   return StyleSheet.create({
     card: {
+      width: '100%',
       flex: isTablet ? 1 : undefined,
       flexDirection: 'row',
       alignItems: 'center',

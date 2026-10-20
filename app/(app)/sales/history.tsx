@@ -19,6 +19,7 @@ import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { SaleHistoryItem } from '@/components/sales/SaleHistoryItem';
+import { SaleGridCard } from '@/components/sales/SaleGridCard';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { useTranslation } from 'react-i18next';
 import { useSalesStore } from '@/store/salesStore';
@@ -30,20 +31,25 @@ import { useLanguageStore } from '@/store/languageStore';
 import { containsKurdishScript, applyKurdishFont } from '@/lib/settingsFont';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { attachItemsToSales } from '@/lib/sqlite';
 import { shareSalesAuditReport } from '@/lib/generateInvoice';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
+
+const VIEW_MODE_STORAGE_KEY = '@froshiar_sales_history_view_mode';
 
 export default function SalesHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle, cardColumns } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { sales, searchSales, loadSales, isLoading } = useSalesStore();
 
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [query, setQuery] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -58,6 +64,24 @@ export default function SalesHistoryScreen() {
 
   useEffect(() => {
     loadSales();
+    AsyncStorage.getItem(VIEW_MODE_STORAGE_KEY)
+      .then((saved) => {
+        if (saved === 'grid' || saved === 'list') {
+          setViewMode(saved);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleViewMode = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    setViewMode((prev) => {
+      const next = prev === 'grid' ? 'list' : 'grid';
+      AsyncStorage.setItem(VIEW_MODE_STORAGE_KEY, next).catch(() => {});
+      return next;
+    });
   }, []);
 
   // Filter sales by selected period bounds
@@ -120,13 +144,58 @@ export default function SalesHistoryScreen() {
   const searchIsRTL = query.length > 0 ? queryIsKurdish : isRTL;
   const inputFontIsKurdish = query.length > 0 ? queryIsKurdish : isKuLanguage;
 
+type SaleOrFiller = Sale | { id: string; isFiller: true };
+
+  const numColumns = useMemo(() => {
+    if (viewMode === 'list') {
+      return isTablet ? (isTabletLandscape ? 2 : 1) : 1;
+    }
+    // 'grid' mode (چوارگۆشە)
+    return isTabletLandscape ? 4 : isTablet ? 3 : 2;
+  }, [viewMode, isTablet, isTabletLandscape]);
+
+  // Balance out incomplete rows in grid view with transparent fillers
+  const gridFormattedSales: SaleOrFiller[] = useMemo(() => {
+    if (viewMode !== 'grid' || numColumns <= 1 || results.length === 0) {
+      return results;
+    }
+    const remainder = results.length % numColumns;
+    if (remainder === 0) return results;
+    const needed = numColumns - remainder;
+    const fillers: SaleOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__grid_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...results, ...fillers];
+  }, [results, viewMode, numColumns]);
+
   const renderItem = useCallback(
-    ({ item }: { item: Sale }) => (
-      <View style={{ flex: isTablet ? 1 : undefined }}>
-        <SaleHistoryItem sale={item} onPress={() => router.push(`/(app)/sales/${item.id}` as never)} />
-      </View>
-    ),
-    [router, isTablet]
+    ({ item, index }: { item: SaleOrFiller; index: number }) => {
+      if ('isFiller' in item && item.isFiller) {
+        return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
+      }
+      return (
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
+          style={{ flex: 1 }}
+        >
+          {viewMode === 'grid' ? (
+            <SaleGridCard
+              sale={item as Sale}
+              onPress={() => router.push(`/(app)/sales/${item.id}` as never)}
+            />
+          ) : (
+            <SaleHistoryItem
+              sale={item as Sale}
+              onPress={() => router.push(`/(app)/sales/${item.id}` as never)}
+            />
+          )}
+        </MotiView>
+      );
+    },
+    [router, viewMode]
   );
 
   const hasQuery = query.trim().length > 0;
@@ -138,10 +207,16 @@ export default function SalesHistoryScreen() {
         showBack
         onBack={() => router.back()}
         rightAction={
-          <HeaderActionButton
-            icon="options-outline"
-            onPress={() => setPeriodSheetVisible(true)}
-          />
+          <View style={[styles.headerActions, { flexDirection }]}>
+            <HeaderActionButton
+              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+              onPress={handleToggleViewMode}
+            />
+            <HeaderActionButton
+              icon="options-outline"
+              onPress={() => setPeriodSheetVisible(true)}
+            />
+          </View>
         }
       />
 
@@ -183,12 +258,12 @@ export default function SalesHistoryScreen() {
 
       {/* Sales Invoices List */}
       <FlatList
-        key={`sales-hist-${cardColumns}`}
-        data={results}
+        key={`sales-hist-${viewMode}-${numColumns}`}
+        data={gridFormattedSales}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
-        numColumns={cardColumns}
-        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, results.length === 0 && styles.listEmpty]}
         removeClippedSubviews
         initialNumToRender={15}
@@ -279,6 +354,11 @@ export default function SalesHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  headerActions: {
+    gap: 8,
+    alignItems: 'center',
+  },
 
   searchWrap: {
     alignItems:        'center',
