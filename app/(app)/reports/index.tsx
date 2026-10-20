@@ -73,7 +73,16 @@ function SectionHeader({
             <Ionicons name={icon} size={isTablet ? 17 : 14} color={colors.primary} />
           </View>
         )}
-        <Text style={[secStyles.title, { textAlign }]}>{title}</Text>
+        <Text
+          style={[
+            secStyles.title,
+            compact && !isTablet && { fontSize: 13.5 },
+            { textAlign },
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
       </View>
       {action && route && (
         <TouchableOpacity
@@ -118,16 +127,41 @@ function getSecStyles(colors: AppColors, isTablet: boolean = false) {
 // ─── Big Metric Row (icon + label + large value) ──────────────────────────────
 
 function BigMetricRow({
-  label, amount, sub, color, icon,
+  label, amount, sub, color, icon, isGrid = false,
 }: {
   label: string; amount: number; sub?: string;
   color?: string; icon: ComponentProps<typeof Ionicons>['name'];
+  isGrid?: boolean;
 }) {
   const { colors } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const { isTablet } = useResponsive();
   const bmStyles = useMemo(() => getBmStyles(colors, isTablet), [colors, isTablet]);
   const resolvedColor = color ?? colors.primary;
+
+  if (isGrid) {
+    return (
+      <View style={bmStyles.gridWrap}>
+        <View style={[bmStyles.gridTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[bmStyles.gridIconBox, { backgroundColor: `${resolvedColor}15` }]}>
+            <Ionicons name={icon} size={isTablet ? 22 : 18} color={resolvedColor} />
+          </View>
+        </View>
+        <Text style={[bmStyles.gridLabel, { textAlign }]} numberOfLines={2}>
+          {label}
+        </Text>
+        <CompactAmount
+          value={amount}
+          style={[bmStyles.gridValue, { color: resolvedColor, textAlign }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        />
+        {sub ? <Text style={[bmStyles.gridSub, { textAlign }]}>{sub}</Text> : null}
+      </View>
+    );
+  }
+
   return (
     <View style={[bmStyles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <View style={[
@@ -160,6 +194,41 @@ function getBmStyles(colors: AppColors, isTablet: boolean = false) {
     label: { fontSize: isTablet ? 16 : 13, fontWeight: '600', color: colors.black },
     sub: { fontSize: isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
     value: { fontSize: isTablet ? 18 : 15, fontWeight: '800', maxWidth: '52%' },
+
+    // ── Grid Layout (Vertical Stack for 2-column cards) ──
+    gridWrap: {
+      paddingVertical: isTablet ? 6 : 2,
+    },
+    gridTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: isTablet ? 10 : 8,
+    },
+    gridIconBox: {
+      width: isTablet ? 42 : 36,
+      height: isTablet ? 42 : 36,
+      borderRadius: isTablet ? 12 : 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gridLabel: {
+      fontSize: isTablet ? 14 : 12,
+      fontWeight: '600',
+      color: colors.gray500,
+      marginBottom: 6,
+      lineHeight: isTablet ? 20 : 17,
+      minHeight: isTablet ? 40 : 34,
+    },
+    gridValue: {
+      fontSize: isTablet ? 22 : 18,
+      fontWeight: '800',
+      lineHeight: isTablet ? 28 : 22,
+    },
+    gridSub: {
+      fontSize: isTablet ? 12 : 10.5,
+      color: colors.gray400,
+      marginTop: 3,
+    },
   });
 }
 
@@ -839,6 +908,7 @@ export default function ReportsScreen() {
             amount={purchaseData?.totalCost ?? 0}
             icon="bag-handle"
             color="#7C3AED"
+            isGrid={isGridCol}
           />
         </PremiumCard>
       </MotiView>
@@ -855,6 +925,7 @@ export default function ReportsScreen() {
             amount={potProfit}
             icon="bulb"
             color={potProfit >= 0 ? colors.warning : colors.error}
+            isGrid={isGridCol}
           />
         </PremiumCard>
       </MotiView>
@@ -1078,6 +1149,7 @@ export default function ReportsScreen() {
             amount={netProfit}
             icon="cash"
             color={netProfit >= 0 ? colors.success : colors.error}
+            isGrid={isGridCol}
           />
         </PremiumCard>
       </MotiView>
@@ -1364,6 +1436,7 @@ function getStyles(colors: AppColors, isTablet: boolean = false) {
       marginHorizontal: 0,
       marginBottom: 0,
       flex: 1,
+      padding: isTablet ? 18 : 12,
     },
 
     // ── Discount chip ──────────────────────────────────────────────────────────
