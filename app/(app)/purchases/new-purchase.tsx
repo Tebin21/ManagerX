@@ -44,9 +44,10 @@ import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
-import { fmtExchangeRate } from '@/utils/formatters';
+import { fmtExchangeRate, toEnglishDigits } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { resolveInterFont } from '@/constants/typography';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
@@ -871,7 +872,7 @@ export default function NewPurchaseScreen() {
                 ]}
                 activeOpacity={0.7}
               >
-                <Ionicons name="barcode-outline" size={16} color={colors.primary} />
+                <Ionicons name="barcode-outline" size={14} color={colors.primary} />
                 <Text
                   style={[
                     styles.itemActionBtnText,
@@ -896,26 +897,58 @@ export default function NewPurchaseScreen() {
               {
                 borderColor: colors.gray200,
                 backgroundColor: colors.white,
-                flexDirection: 'row',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
           >
             <View style={[styles.customIdInputIconBox, { backgroundColor: colors.softBlue }]}>
               <Ionicons name="barcode-outline" size={17} color={colors.primary} />
             </View>
-            <TextInput
-              style={[
-                styles.customIdInputNew,
-                { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: sharedId, forceLatin: true }), {}),
-              ]}
-              value={sharedId}
-              onChangeText={setSharedId}
-              placeholder={isKuLanguage ? 'کۆد یان بارکۆدی هاوبەش بنووسە یان سکان بکە' : 'e.g. SN-12345 or scan barcode'}
-              placeholderTextColor={colors.gray400}
-              returnKeyType="done"
-              onFocus={scrollIntoView}
-            />
+            <View style={styles.customIdInputInner}>
+              <TextInput
+                style={[
+                  styles.customIdInputNew,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontFamily: (sharedId && resolveInputIsKurdish({ isKuLanguage, value: sharedId }))
+                      ? SETTINGS_KURDISH_FONT_BOLD
+                      : resolveInterFont('600'),
+                  },
+                ]}
+                value={sharedId}
+                onChangeText={(val) => setSharedId(toEnglishDigits(val))}
+                returnKeyType="done"
+                onFocus={scrollIntoView}
+              />
+              {!sharedId && (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.customIdPlaceholderOverlay,
+                    {
+                      alignItems: isRTL ? 'flex-end' : 'flex-start',
+                      justifyContent: 'center',
+                    },
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.customIdPlaceholderText,
+                      {
+                        color: colors.gray400,
+                        textAlign: isRTL ? 'right' : 'left',
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                      },
+                    ]}
+                  >
+                    {isKuLanguage ? 'کۆد یان بارکۆدی هاوبەش بنووسە یان سکان بکە' : 'e.g. SN-12345 or scan barcode'}
+                  </Text>
+                </View>
+              )}
+            </View>
             {Boolean(sharedId) && (
               <TouchableOpacity
                 onPress={() => setSharedId('')}
@@ -932,9 +965,10 @@ export default function NewPurchaseScreen() {
       {idType === 'custom' && (
         <View style={styles.customIdsContainer}>
           <View style={[styles.customIdsHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="barcode" size={18} color={colors.primary} />
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+              <Ionicons name="barcode" size={17} color={colors.primary} />
               <Text
+                numberOfLines={1}
                 style={[
                   styles.customIdsHeaderTitle,
                   { color: colors.primary },
@@ -957,7 +991,7 @@ export default function NewPurchaseScreen() {
               ]}
               activeOpacity={0.7}
             >
-              <Ionicons name="add" size={15} color={colors.primary} />
+              <Ionicons name="add" size={14} color={colors.primary} />
               <Text
                 style={[
                   styles.addSlotBtnText,
@@ -1024,7 +1058,7 @@ export default function NewPurchaseScreen() {
                     ]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="barcode-outline" size={15} color={colors.primary} />
+                    <Ionicons name="barcode-outline" size={14} color={colors.primary} />
                     <Text
                       style={[
                         styles.itemActionBtnText,
@@ -1054,7 +1088,7 @@ export default function NewPurchaseScreen() {
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                      <Ionicons name="trash-outline" size={14} color={colors.error} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1067,26 +1101,58 @@ export default function NewPurchaseScreen() {
                   {
                     borderColor: colors.gray200,
                     backgroundColor: colors.white,
-                    flexDirection: 'row',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
                 ]}
               >
                 <View style={[styles.customIdInputIconBox, { backgroundColor: colors.softBlue }]}>
                   <Ionicons name="qr-code-outline" size={17} color={colors.primary} />
                 </View>
-                <TextInput
-                  style={[
-                    styles.customIdInputNew,
-                    { color: colors.black, textAlign: 'left', writingDirection: 'ltr' },
-                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: customIds[i] ?? '', forceLatin: true }), {}),
-                  ]}
-                  value={customIds[i] ?? ''}
-                  onChangeText={(val) => updateCustomId(i, val)}
-                  placeholder={isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
-                  placeholderTextColor={colors.gray400}
-                  returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
-                  onFocus={scrollIntoView}
-                />
+                <View style={styles.customIdInputInner}>
+                  <TextInput
+                    style={[
+                      styles.customIdInputNew,
+                      {
+                        color: colors.black,
+                        textAlign: isRTL ? 'right' : 'left',
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                        fontFamily: (customIds[i] && resolveInputIsKurdish({ isKuLanguage, value: customIds[i] }))
+                          ? SETTINGS_KURDISH_FONT_BOLD
+                          : resolveInterFont('600'),
+                      },
+                    ]}
+                    value={customIds[i] ?? ''}
+                    onChangeText={(val) => updateCustomId(i, toEnglishDigits(val))}
+                    returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
+                    onFocus={scrollIntoView}
+                  />
+                  {!customIds[i] && (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.customIdPlaceholderOverlay,
+                        {
+                          alignItems: isRTL ? 'flex-end' : 'flex-start',
+                          justifyContent: 'center',
+                        },
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.customIdPlaceholderText,
+                          {
+                            color: colors.gray400,
+                            textAlign: isRTL ? 'right' : 'left',
+                            writingDirection: isRTL ? 'rtl' : 'ltr',
+                          },
+                        ]}
+                      >
+                        {isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 {Boolean(customIds[i]) && (
                   <TouchableOpacity
                     onPress={() => updateCustomId(i, '')}
@@ -2015,14 +2081,13 @@ const genBtnStyles = StyleSheet.create({
   btn: {
     flexDirection:     'row',
     alignItems:        'center',
-    gap:               4,
-    height:            36,
-    paddingHorizontal: 10,
-    borderRadius:      8,
-    borderWidth:       1.5,
-    marginStart:       4,
+    gap:               3.5,
+    height:            30,
+    paddingHorizontal: 7,
+    borderRadius:      7,
+    borderWidth:       1.2,
   },
-  label: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+  label: { fontSize: 11, fontWeight: '700' },
 });
 
 const styles = StyleSheet.create({
@@ -2131,72 +2196,76 @@ const styles = StyleSheet.create({
   customIdsContainer: { marginBottom: 4 },
   customIdRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   customIdBadge: {
-    width:          28,
-    height:         28,
-    borderRadius:   14,
+    width:          24,
+    height:         24,
+    borderRadius:   12,
     alignItems:     'center',
     justifyContent: 'center',
   },
-  customIdBadgeText: { fontSize: 12, fontWeight: '700' },
+  customIdBadgeText: { fontSize: 11, fontWeight: '700' },
   customIdsHeader: {
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
     marginTop: 6,
+    gap: 8,
   },
   customIdsHeaderTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   addSlotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 7,
+    borderWidth: 1.2,
+    gap: 3,
+    flexShrink: 0,
   },
   addSlotBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   customIdCardBox: {
     borderRadius: 16,
     borderWidth: 1.5,
-    padding: 13,
+    padding: 12,
     marginBottom: 12,
     gap: 10,
   },
   customIdCardHeader: {
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   customIdCardTitleGroup: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 1,
   },
   customIdCardTitle: {
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   customIdActionsGroup: {
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    flexShrink: 0,
   },
   itemActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 34,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    gap: 3.5,
+    height: 30,
+    paddingHorizontal: 7,
+    borderRadius: 7,
+    borderWidth: 1.2,
   },
   itemActionBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
   },
   customIdInputWrapNew: {
     height: 48,
@@ -2204,8 +2273,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     overflow: 'hidden',
+    gap: 8,
   },
   customIdInputIconBox: {
     width: 32,
@@ -2213,15 +2283,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6,
+  },
+  customIdInputInner: {
+    flex: 1,
+    height: '100%',
+    position: 'relative',
+    justifyContent: 'center',
   },
   customIdInputNew: {
     flex: 1,
     height: '100%',
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '600',
     paddingVertical: 0,
-    letterSpacing: 0.5,
+    paddingHorizontal: 2,
+  },
+  customIdPlaceholderOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 2,
+  },
+  customIdPlaceholderText: {
+    fontSize: 13.5,
   },
   customIdInputWrap: {
     flex: 1,
@@ -2243,11 +2329,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   customIdDeleteBtn: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
   },
 
