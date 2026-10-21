@@ -2,22 +2,39 @@ import React from 'react';
 import * as ReactNative from 'react-native';
 import { toEnglishDigits } from '@/utils/formatters';
 
+let isInstalled = false;
+let isAuthScreenActive = false;
+
 /**
- * Context to designate auth/login screens where digit conversion should be skipped.
- * The login section (login, signup, forgot password, OTP) remains untouched so user
- * passwords and credentials are never altered.
+ * Sets whether the user is currently on an auth/login screen.
+ * When true, auto English digit conversion is paused so passwords
+ * and credentials are never altered.
+ */
+export function setAuthScreenActive(active: boolean): void {
+  isAuthScreenActive = active;
+}
+
+export function getAuthScreenActive(): boolean {
+  return isAuthScreenActive;
+}
+
+/**
+ * React Context for auth/login screens (also sets module-level flag for zero-hook JSX lookups).
  */
 export const AuthInputContext = React.createContext<boolean>(false);
-
-let isInstalled = false;
 
 // Patch globalThis.parseFloat and globalThis.parseInt to transparently handle Eastern/Persian numerals
 if (typeof globalThis !== 'undefined') {
   const origParseFloat = globalThis.parseFloat;
   if (typeof origParseFloat === 'function' && !(origParseFloat as any).__autoEnglishPatched) {
     const patchedParseFloat = function (string: any) {
-      if (typeof string === 'string' && /[٠-٩۰-۹٫٬]/.test(string)) {
-        return origParseFloat(toEnglishDigits(string).replace(/,/g, ''));
+      if (typeof string === 'string') {
+        if (/[٠-٩۰-۹٫٬،]/.test(string)) {
+          return origParseFloat(toEnglishDigits(string).replace(/,/g, ''));
+        }
+        if (/^\s*[+-]?\d{1,3}(,\d{3})+(\.\d+)?\s*$/.test(string)) {
+          return origParseFloat(string.replace(/,/g, ''));
+        }
       }
       return origParseFloat(string);
     };
@@ -28,8 +45,13 @@ if (typeof globalThis !== 'undefined') {
   const origParseInt = globalThis.parseInt;
   if (typeof origParseInt === 'function' && !(origParseInt as any).__autoEnglishPatched) {
     const patchedParseInt = function (string: any, radix?: number) {
-      if (typeof string === 'string' && /[٠-٩۰-۹٫٬]/.test(string)) {
-        return origParseInt(toEnglishDigits(string).replace(/,/g, ''), radix);
+      if (typeof string === 'string') {
+        if (/[٠-٩۰-۹٫٬،]/.test(string)) {
+          return origParseInt(toEnglishDigits(string).replace(/,/g, ''), radix);
+        }
+        if (/^\s*[+-]?\d{1,3}(,\d{3})+\s*$/.test(string)) {
+          return origParseInt(string.replace(/,/g, ''), radix);
+        }
       }
       return origParseInt(string, radix);
     };
@@ -38,19 +60,17 @@ if (typeof globalThis !== 'undefined') {
   }
 }
 
+/**
+ * Transforms props of any text input so that Kurdish/Eastern Arabic digits
+ * are seamlessly normalized to standard English ASCII digits (0-9).
+ * Contains NO React hooks so it can be called safely anywhere.
+ */
 export function transformInputProps(props: any): any {
-  if (!props) return props;
-
-  let isAuth = false;
-  try {
-    isAuth = React.useContext(AuthInputContext);
-  } catch {
-    isAuth = false;
-  }
+  if (!props || typeof props !== 'object') return props;
 
   // Skip conversion if inside login/auth flow, or password field, or explicitly opted out
   if (
-    isAuth ||
+    isAuthScreenActive ||
     props.skipEnglishDigitsConversion ||
     props.secureTextEntry ||
     props.textContentType === 'password' ||
@@ -69,13 +89,14 @@ export function transformInputProps(props: any): any {
     }
   };
 
-  // 1. Convert text as user types/pastes via onChangeText
+  // 1. Convert text as user types or pastes via onChangeText
   if (typeof props.onChangeText === 'function') {
     const origOnChangeText = props.onChangeText;
     if (!(origOnChangeText as any).__autoEnglishWrapped) {
       cloneIfNeeded();
       const wrapped = (text: string) => {
-        origOnChangeText(toEnglishDigits(text));
+        const clean = toEnglishDigits(text);
+        origOnChangeText(clean);
       };
       (wrapped as any).__autoEnglishWrapped = true;
       modifiedProps.onChangeText = wrapped;
@@ -88,7 +109,7 @@ export function transformInputProps(props: any): any {
     if (!(origOnChange as any).__autoEnglishWrapped) {
       cloneIfNeeded();
       const wrapped = (e: any) => {
-        if (e?.nativeEvent?.text && /[٠-٩۰-۹٫٬]/.test(e.nativeEvent.text)) {
+        if (e?.nativeEvent?.text && /[٠-٩۰-۹٫٬،]/.test(e.nativeEvent.text)) {
           e = {
             ...e,
             nativeEvent: {
@@ -105,19 +126,19 @@ export function transformInputProps(props: any): any {
   }
 
   // 3. Convert controlled value if it contains Eastern/Persian numerals
-  if (typeof props.value === 'string' && /[٠-٩۰-۹٫٬]/.test(props.value)) {
+  if (typeof props.value === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.value)) {
     cloneIfNeeded();
     modifiedProps.value = toEnglishDigits(props.value);
   }
 
   // 4. Convert defaultValue if it contains Eastern/Persian numerals
-  if (typeof props.defaultValue === 'string' && /[٠-٩۰-۹٫٬]/.test(props.defaultValue)) {
+  if (typeof props.defaultValue === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.defaultValue)) {
     cloneIfNeeded();
     modifiedProps.defaultValue = toEnglishDigits(props.defaultValue);
   }
 
   // 5. Convert placeholder if it contains Eastern/Persian numerals
-  if (typeof props.placeholder === 'string' && /[٠-٩۰-۹٫٬]/.test(props.placeholder)) {
+  if (typeof props.placeholder === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.placeholder)) {
     cloneIfNeeded();
     modifiedProps.placeholder = toEnglishDigits(props.placeholder);
   }
@@ -131,11 +152,11 @@ function patchJsxRuntime(mod: any) {
   for (const m of methods) {
     if (typeof mod[m] === 'function' && !mod[m].__autoEnglishPatched) {
       const orig = mod[m];
-      const patched = function (type: any, props: any, ...rest: any[]) {
+      const patched = function (this: any, type: any, props: any, ...rest: any[]) {
         if (props && typeof props === 'object') {
           if (
             typeof props.onChangeText === 'function' ||
-            (typeof props.value === 'string' && /[٠-٩۰-۹٫٬]/.test(props.value)) ||
+            (typeof props.value === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.value)) ||
             (typeof props.defaultValue === 'string' && /[٠-٩۰-۹٫٬]/.test(props.defaultValue))
           ) {
             props = transformInputProps(props);
@@ -157,7 +178,7 @@ function patchJsxRuntime(mod: any) {
  * - Keyboard typing via onChangeText
  * - Pasted values
  * - Controlled `value` and `defaultValue`
- * - Skips fields in auth/login screens (via AuthInputContext)
+ * - Skips fields in auth/login screens
  * - Skips password fields (secureTextEntry)
  * - Skips fields explicitly setting skipEnglishDigitsConversion={true}
  */
@@ -168,16 +189,7 @@ export function installAutoEnglishDigits(): void {
   const OriginalTextInput: any = ReactNative.TextInput;
   if (!OriginalTextInput) return;
 
-  // 1. If OriginalTextInput has a render method (legacy forwardRef/class), wrap it
-  if (typeof OriginalTextInput.render === 'function') {
-    const originalRender = OriginalTextInput.render;
-    OriginalTextInput.render = function (props: any, ref: any) {
-      const modifiedProps = transformInputProps(props);
-      return originalRender.call(this, modifiedProps, ref);
-    };
-  }
-
-  // 2. Wrap OriginalTextInput as a modern functional forwardRef component
+  // 1. Wrap OriginalTextInput as a functional forwardRef component
   const WrappedTextInput = React.forwardRef<any, any>(function WrappedTextInput(props: any, ref: any) {
     const modifiedProps = transformInputProps(props);
     return React.createElement(OriginalTextInput, { ...modifiedProps, ref });
@@ -187,7 +199,7 @@ export function installAutoEnglishDigits(): void {
   Object.assign(WrappedTextInput, OriginalTextInput);
   WrappedTextInput.displayName = 'TextInput';
 
-  // 3. Redefine property on ReactNative module
+  // 2. Redefine property on ReactNative module
   try {
     Object.defineProperty(ReactNative, 'TextInput', {
       configurable: true,
@@ -201,12 +213,49 @@ export function installAutoEnglishDigits(): void {
     } catch {}
   }
 
-  // 4. Also patch direct internal module require if resolved
+  // 3. Patch direct internal module require if resolved
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const directModule = require('react-native/Libraries/Components/TextInput/TextInput');
     if (directModule && directModule.default) {
       directModule.default = WrappedTextInput;
+    }
+  } catch {}
+
+  // 4. Patch react-native-css-interop components map so NativeWind styled inputs are wrapped
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const cssApi = require('react-native-css-interop/dist/runtime/api');
+    if (cssApi && cssApi.interopComponents) {
+      const origGet = cssApi.interopComponents.get.bind(cssApi.interopComponents);
+      cssApi.interopComponents.get = function (key: any) {
+        const comp = origGet(key);
+        if (!comp) return comp;
+        if (key === OriginalTextInput || key === WrappedTextInput || comp.displayName === 'TextInput') {
+          if (!(comp as any).__autoEnglishWrapped) {
+            const InteropWrapped = React.forwardRef<any, any>(function (props: any, ref: any) {
+              const modifiedProps = transformInputProps(props);
+              return React.createElement(comp, { ...modifiedProps, ref });
+            });
+            Object.assign(InteropWrapped, comp);
+            (InteropWrapped as any).__autoEnglishWrapped = true;
+            return InteropWrapped;
+          }
+        }
+        return comp;
+      };
+
+      const existing = origGet(OriginalTextInput);
+      if (existing && !(existing as any).__autoEnglishWrapped) {
+        const InteropWrapped = React.forwardRef<any, any>(function (props: any, ref: any) {
+          const modifiedProps = transformInputProps(props);
+          return React.createElement(existing, { ...modifiedProps, ref });
+        });
+        Object.assign(InteropWrapped, existing);
+        (InteropWrapped as any).__autoEnglishWrapped = true;
+        cssApi.interopComponents.set(OriginalTextInput, InteropWrapped);
+        cssApi.interopComponents.set(WrappedTextInput, InteropWrapped);
+      }
     }
   } catch {}
 

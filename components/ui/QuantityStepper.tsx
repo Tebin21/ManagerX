@@ -12,6 +12,7 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
+import { toEnglishDigits } from '@/utils/formatters';
 
 interface Props {
   /** Current quantity, as text — same contract as a plain TextInput's `value`. */
@@ -181,8 +182,8 @@ export function QuantityStepper({
             { color: colors.black },
             isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, keyboardType: 'number-pad' }), {})
           ]}
-          value={text}
-          onChangeText={(t2) => { setText(t2); onChangeText(t2); }}
+          value={toEnglishDigits(text)}
+          onChangeText={(t2) => { const clean = toEnglishDigits(t2); setText(clean); onChangeText(clean); }}
           onFocus={(e) => { setFocused(true); scrollIntoView(e); }}
           onBlur={() => setFocused(false)}
           keyboardType="number-pad"

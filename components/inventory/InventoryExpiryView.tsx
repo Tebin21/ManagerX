@@ -25,7 +25,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, toEnglishDigits } from '@/utils/formatters';
 import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { CustomAlertDaysModal } from '@/components/inventory/CustomAlertDaysModal';
@@ -2287,9 +2287,10 @@ export function InventoryExpiryView({
 
                     <TextInput
                       keyboardType="numeric"
-                      value={String(discardQuantity)}
+                      value={toEnglishDigits(String(discardQuantity))}
                       onChangeText={(val) => {
-                        const num = parseInt(val, 10);
+                        const clean = toEnglishDigits(val);
+                        const num = parseInt(clean, 10);
                         if (isNaN(num)) setDiscardQuantity(1);
                         else setDiscardQuantity(Math.min(targetProductToDiscard.quantity, Math.max(1, num)));
                       }}

@@ -29,7 +29,7 @@ import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
 import { useSavedProductStore } from '@/store/savedProductStore';
-import { fmtIQD, fmtUSD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toEnglishDigits } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
@@ -89,14 +89,16 @@ export default function EditPurchaseScreen() {
   }, [id]);
 
   const syncSellUSD = (iqd: string) => {
-    setSellPriceIQD(iqd);
-    const n = parseFloat(iqd);
+    const clean = toEnglishDigits(iqd);
+    setSellPriceIQD(clean);
+    const n = parseFloat(clean.replace(/,/g, ''));
     if (!isNaN(n) && exchangeRate > 0) setSellPriceUSD((n / exchangeRate).toFixed(2));
   };
 
   const syncSellIQD = (usd: string) => {
-    setSellPriceUSD(usd);
-    const n = parseFloat(usd);
+    const clean = toEnglishDigits(usd);
+    setSellPriceUSD(clean);
+    const n = parseFloat(clean.replace(/,/g, ''));
     if (!isNaN(n)) setSellPriceIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
@@ -111,8 +113,8 @@ export default function EditPurchaseScreen() {
       await updatePurchase(Number(id), {
         productName: productName.trim(),
         category: category.trim() || null,
-        sellPriceIQD: roundToNearest250(sellNum),
-        sellPriceUSD: parseFloat(sellPriceUSD) || 0,
+        sellPriceIQD: roundToNearest250(parseFloat(toEnglishDigits(sellPriceIQD).replace(/,/g, '')) || 0),
+        sellPriceUSD: parseFloat(toEnglishDigits(sellPriceUSD).replace(/,/g, '')) || 0,
         warranty: warranty.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,

@@ -476,7 +476,7 @@ function ExpenseFormModal({
   }, [visible, initial?.id]);
 
   function onAmountBlur() {
-    const clean = toEnglishDigits(amount);
+    const clean = toEnglishDigits(amount).replace(/,/g, '');
     const n = parseFloat(clean);
     if (!isNaN(n) && n > 0) {
       const r = roundToNearest250(n);
@@ -489,7 +489,8 @@ function ExpenseFormModal({
 
   function validate(): boolean {
     const errs: { amount?: string; reason?: string } = {};
-    const n = parseFloat(toEnglishDigits(amount));
+    const clean = toEnglishDigits(amount).replace(/,/g, '');
+    const n = parseFloat(clean);
     if (!amount || isNaN(n) || n <= 0) errs.amount = t('reports.amountRequired');
     if (!reason.trim()) errs.reason = t('reports.reasonRequired');
     setErrors(errs);
@@ -498,7 +499,8 @@ function ExpenseFormModal({
 
   async function handleSave() {
     if (!validate()) return;
-    const amt = roundToNearest250(parseFloat(toEnglishDigits(amount)));
+    const clean = toEnglishDigits(amount).replace(/,/g, '');
+    const amt = roundToNearest250(parseFloat(clean));
     const derivedCategory = selectedExample !== null
       ? EXPENSE_EXAMPLES[selectedExample].category
       : 'Other';
@@ -507,8 +509,8 @@ function ExpenseFormModal({
       await onSave({
         amount: amt,
         category: derivedCategory,
-        reason: reason.trim(),
-        note: note.trim() || undefined,
+        reason: toEnglishDigits(reason.trim()),
+        note: note.trim() ? toEnglishDigits(note.trim()) : undefined,
         date: toDateOnly(expenseDate),
       });
     } catch {
@@ -602,7 +604,17 @@ function ExpenseFormModal({
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
                   value={toEnglishDigits(amount)}
-                  onChangeText={(v) => { const clean = toEnglishDigits(v); setAmount(clean); setErrors((e) => ({ ...e, amount: undefined })); }}
+                  onChangeText={(v) => {
+                    const clean = toEnglishDigits(v).replace(/,/g, '');
+                    setAmount(clean);
+                    const n = parseFloat(clean);
+                    if (!isNaN(n) && n > 0) {
+                      setRounded(roundToNearest250(n));
+                    } else {
+                      setRounded(null);
+                    }
+                    setErrors((e) => ({ ...e, amount: undefined }));
+                  }}
                   onBlur={onAmountBlur}
                 />
                 <View style={[styles.amountBadge, { backgroundColor: isDark ? colors.gray300 : 'rgba(212,175,55,0.12)' }]}>
@@ -1068,12 +1080,20 @@ export default function ExpensesScreen() {
   }
 
   const handleSave = useCallback(async (data: { amount: number; category: string; reason: string; note?: string; date?: string }) => {
+    const cleanData = {
+      ...data,
+      amount: typeof data.amount === 'number' && !isNaN(data.amount)
+        ? data.amount
+        : parseFloat(toEnglishDigits(String(data.amount)).replace(/,/g, '')) || 0,
+      reason: toEnglishDigits(data.reason),
+      note: data.note ? toEnglishDigits(data.note) : undefined,
+    };
     if (editTarget) {
       const { updateExpense } = await import('@/lib/sqlite');
-      await updateExpense(editTarget.id, data);
+      await updateExpense(editTarget.id, cleanData);
     } else {
       const { createExpense } = await import('@/lib/sqlite');
-      await createExpense(data);
+      await createExpense(cleanData);
     }
     await reloadAfterMutation();
     setFormOpen(false);

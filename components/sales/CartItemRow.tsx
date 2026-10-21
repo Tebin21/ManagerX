@@ -10,7 +10,7 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD, fmtExchangeRate } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtExchangeRate, toEnglishDigits } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
@@ -74,31 +74,35 @@ export function CartItemRow({
   }, [item.discount, item.discountPct, item.discountType, isUSD, exchangeRate, discountFocused]);
 
   function onIqdChange(val: string) {
-    setIqdPriceText(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setIqdPriceText(clean);
+    const n = parseFloat(clean) || 0;
     setUsdPrice(n > 0 ? String(roundUSD(n / exchangeRate)) : '');
     onUpdatePrice(n);
   }
 
   function onIqdBlur() {
     setIqdFocused(false);
-    const r = roundToNearest250(parseFloat(iqdPriceText) || 0);
+    const clean = toEnglishDigits(iqdPriceText);
+    const r = roundToNearest250(parseFloat(clean) || 0);
     setIqdPriceText(String(r));
     setUsdPrice(r > 0 ? String(roundUSD(r / exchangeRate)) : '');
     onUpdatePrice(r);
   }
 
   function onUsdChange(val: string) {
-    setUsdPrice(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setUsdPrice(clean);
+    const n = parseFloat(clean) || 0;
     const iqd = n > 0 ? roundToNearest250(n * exchangeRate) : 0;
     setIqdPriceText(n > 0 ? String(iqd) : '');
     onUpdatePrice(iqd);
   }
 
   function onDiscountChange(val: string) {
-    setDiscountText(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setDiscountText(clean);
+    const n = parseFloat(clean) || 0;
     if (item.discountType === 'percentage') {
       onUpdateDiscountPct(n);
     } else {

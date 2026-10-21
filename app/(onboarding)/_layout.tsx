@@ -7,7 +7,7 @@ import { useHasHydrated } from '@/lib/useHasHydrated';
 
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 
-import { AuthInputContext } from '@/lib/autoEnglishDigits';
+import { AuthInputContext, setAuthScreenActive } from '@/lib/autoEnglishDigits';
 
 export default function OnboardingLayout() {
   const router = useRouter();
@@ -18,6 +18,13 @@ export default function OnboardingLayout() {
   const authHydrated = useHasHydrated(useAuthStore);
   const onboardingHydrated = useHasHydrated(useOnboardingStore);
   const businessHydrated = useHasHydrated(useBusinessStore);
+
+  useEffect(() => {
+    setAuthScreenActive(true);
+    return () => {
+      setAuthScreenActive(false);
+    };
+  }, []);
 
   // Mirrors (app)/_layout.tsx's guard in the opposite direction: self-heals if a
   // valid session/setup state becomes available while sitting on any onboarding

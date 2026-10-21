@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD, toDateOnly } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { useSavedProductStore } from '@/store/savedProductStore';
@@ -112,21 +112,23 @@ export default function EditProductScreen() {
   }, [id]);
 
   const syncSellIQD = (val: string) => {
-    setSellIQD(val);
-    const n = parseFloat(val);
+    const clean = toEnglishDigits(val);
+    setSellIQD(clean);
+    const n = parseFloat(clean.replace(/,/g, ''));
     if (!isNaN(n)) setSellUSD(String(roundUSD(n / exchangeRate)));
   };
 
   const syncSellUSD = (val: string) => {
-    setSellUSD(val);
-    const n = parseFloat(val);
+    const clean = toEnglishDigits(val);
+    setSellUSD(clean);
+    const n = parseFloat(clean.replace(/,/g, ''));
     if (!isNaN(n)) setSellIQD(String(roundToNearest250(n * exchangeRate)));
   };
 
   const handleSave = useCallback(async () => {
     if (!product) return;
     if (!name.trim()) { Alert.alert(t('common.required'), t('inventory.errorSave')); return; }
-    const sellPrice = roundToNearest250(parseFloat(sellIQD) || 0);
+    const sellPrice = roundToNearest250(parseFloat(toEnglishDigits(sellIQD).replace(/,/g, '')) || 0);
     if (isNaN(sellPrice) || sellPrice < 0) { Alert.alert(t('common.error'), t('inventory.errorSave')); return; }
 
     // Detect which fields changed
@@ -141,7 +143,8 @@ export default function EditProductScreen() {
     const initialImg = product.imageUri || product.imageRemoteUrl || null;
     if (imageUri !== initialImg)                             changed.add('imageUri');
     if (websiteDescription.trim() !== (product.websiteDescription ?? '')) changed.add('websiteDescription');
-    const parsedThreshold = lowStockThreshold.trim() ? parseInt(lowStockThreshold, 10) : null;
+    const cleanThreshold = toEnglishDigits(lowStockThreshold).trim();
+    const parsedThreshold = cleanThreshold ? parseInt(cleanThreshold, 10) : null;
     if (parsedThreshold !== (product.lowStockThreshold ?? null)) changed.add('lowStockThreshold');
     const prodStr = productionDate ? toDateOnly(productionDate) : null;
     const expStr = expiryDate ? toDateOnly(expiryDate) : null;
@@ -155,7 +158,7 @@ export default function EditProductScreen() {
         itemDescription:    itemDescription.trim() || null,
         category,
         sellingPrice:       sellPrice,
-        sellPriceUsd:       parseFloat(sellUSD) || 0,
+        sellPriceUsd:       parseFloat(toEnglishDigits(sellUSD).replace(/,/g, '')) || 0,
         warranty:           warranty.trim() || null,
         description:        description.trim() || null,
         notes:              notes.trim() || null,
@@ -427,8 +430,8 @@ export default function EditProductScreen() {
             <View style={[styles.alertInputRow, { flexDirection }]}>
               <TextInput
                 style={[styles.input, { flex: 1, borderColor: lowStockThreshold ? '#FDE68A' : colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign: 'left', writingDirection: 'ltr' }]}
-                value={lowStockThreshold}
-                onChangeText={setLowStockThreshold}
+                value={toEnglishDigits(lowStockThreshold)}
+                onChangeText={(v) => setLowStockThreshold(toEnglishDigits(v))}
                 keyboardType="number-pad"
                 placeholder={String(globalLowStockThreshold)}
                 placeholderTextColor={colors.gray300}

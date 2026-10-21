@@ -19,7 +19,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { toDateOnly } from '@/utils/formatters';
+import { toDateOnly, toEnglishDigits } from '@/utils/formatters';
 
 export interface DatePickerModalProps {
   visible: boolean;
@@ -210,11 +210,12 @@ export function DatePickerModal({
   };
 
   const handleManualInputChange = (text: string) => {
-    setManualInput(text);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-      const d = parseYMD(text);
+    const clean = toEnglishDigits(text);
+    setManualInput(clean);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const d = parseYMD(clean);
       if (!isNaN(d.getTime())) {
-        setSelectedYMD(text);
+        setSelectedYMD(clean);
         setViewYear(d.getFullYear());
         setViewMonth(d.getMonth());
       }

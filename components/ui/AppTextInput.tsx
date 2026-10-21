@@ -10,7 +10,7 @@ import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useResponsive } from '@/hooks/useResponsive';
 import { toEnglishDigits } from '@/utils/formatters';
-import { AuthInputContext } from '@/lib/autoEnglishDigits';
+import { AuthInputContext, getAuthScreenActive } from '@/lib/autoEnglishDigits';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
@@ -61,7 +61,11 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
     keyboardType: rest.keyboardType,
     forceLatin,
   });
-  const isAuth = React.useContext(AuthInputContext);
+  let isAuth = getAuthScreenActive();
+  try {
+    const ctxAuth = React.useContext(AuthInputContext);
+    if (ctxAuth) isAuth = true;
+  } catch {}
   const skipConversion =
     isAuth ||
     rest.secureTextEntry ||
@@ -78,7 +82,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
     : undefined;
 
   const valueToUse =
-    typeof rest.value === 'string' && !skipConversion && /[٠-٩۰-۹٫٬]/.test(rest.value)
+    typeof rest.value === 'string' && !skipConversion && /[٠-٩۰-۹٫٬،]/.test(rest.value)
       ? toEnglishDigits(rest.value)
       : rest.value;
 

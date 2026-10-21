@@ -33,6 +33,7 @@ import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { SalesDebtDetail, DebtPayment } from '@/types/debt';
 import type { Sale } from '@/types/sales';
 import { roundToNearest250 } from '@/utils/rounding';
+import { toEnglishDigits } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { useLanguageStore } from '@/store/languageStore';
@@ -171,7 +172,7 @@ export default function SalesDebtDetailScreen() {
   useEffect(() => { load(); }, [load]);
 
   async function handlePay() {
-    const amt = roundToNearest250(parseFloat(payValue) || 0);
+    const amt = roundToNearest250(parseFloat(toEnglishDigits(payValue).replace(/,/g, '')) || 0);
     if (!amt || amt <= 0) {
       Alert.alert(t('common.error'), t('debt.invalidAmount'));
       return;
@@ -395,9 +396,9 @@ export default function SalesDebtDetailScreen() {
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
                   value={payValue}
-                  onChangeText={setPayValue}
+                  onChangeText={(v) => setPayValue(toEnglishDigits(v))}
                   onEndEditing={() => {
-                    const r = roundToNearest250(parseFloat(payValue) || 0);
+                    const r = roundToNearest250(parseFloat(toEnglishDigits(payValue).replace(/,/g, '')) || 0);
                     setPayValue(r > 0 ? String(r) : '');
                   }}
                   onFocus={scrollIntoView}

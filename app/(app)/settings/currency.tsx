@@ -17,7 +17,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore, BaseCurrency } from '@/store/settingsStore';
 import { getExchangeRateHistory } from '@/lib/sqlite';
 import type { ExchangeRateEntry } from '@/lib/sqlite';
-import { fmtExchangeRate, formatDateTimeUI } from '@/utils/formatters';
+import { fmtExchangeRate, formatDateTimeUI, toEnglishDigits } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
@@ -62,7 +62,7 @@ export default function CurrencyScreen() {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   async function handleSave() {
-    const parsed = parseFloat(input.replace(/,/g, ''));
+    const parsed = parseFloat(toEnglishDigits(input).replace(/,/g, ''));
     if (isNaN(parsed) || parsed < 10000 || parsed > 9999900) {
       Alert.alert(t('common.error'), t('settings.currencyScreen.invalidRate'));
       return;
@@ -94,7 +94,7 @@ export default function CurrencyScreen() {
     setShowConfirmModal(false);
   };
 
-  const inputChanged = parseFloat(input.replace(/,/g, '')) / 100 !== exchangeRate;
+  const inputChanged = parseFloat(toEnglishDigits(input).replace(/,/g, '')) / 100 !== exchangeRate;
 
   return (
     <KeyboardAvoidingView
@@ -230,9 +230,9 @@ export default function CurrencyScreen() {
                   { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
                   isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: input, keyboardType: 'number-pad' }), {}),
                 ]}
-                value={input}
+                value={toEnglishDigits(input)}
                 onChangeText={(text) => {
-                  const raw = text.replace(/[^0-9]/g, '');
+                  const raw = toEnglishDigits(text).replace(/[^0-9]/g, '');
                   setInput(raw ? parseInt(raw, 10).toLocaleString('en-US') : '');
                 }}
                 keyboardType="number-pad"

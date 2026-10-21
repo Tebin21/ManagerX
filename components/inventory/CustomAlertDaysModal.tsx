@@ -20,6 +20,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { toEnglishDigits } from '@/utils/formatters';
 
 export interface CustomAlertDaysModalProps {
   visible: boolean;
@@ -170,8 +171,8 @@ export function CustomAlertDaysModal({
                   {/* Main Input Display */}
                   <View style={styles.numberInputBox}>
                     <TextInput
-                      value={daysText}
-                      onChangeText={(t) => setDaysText(t.replace(/[^0-9]/g, ''))}
+                      value={toEnglishDigits(daysText)}
+                      onChangeText={(t) => setDaysText(toEnglishDigits(t).replace(/[^0-9]/g, ''))}
                       keyboardType="number-pad"
                       maxLength={4}
                       selectTextOnFocus

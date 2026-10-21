@@ -37,6 +37,7 @@ import { Typography } from '@/constants/typography';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 import { roundToNearest250 } from '@/utils/rounding';
+import { toEnglishDigits } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
@@ -155,11 +156,12 @@ export default function EditInvoiceScreen() {
   }, [nameError]);
 
   const handleCustomerPhoneChange = useCallback(async (text: string) => {
-    setCustomerPhone(text);
-    if (phoneError && text.trim()) setPhoneError('');
-    if (text.trim().length < 4) { setCustomerSuggestions([]); setShowCustomerSuggestions(false); return; }
+    const cleanPhone = toEnglishDigits(text);
+    setCustomerPhone(cleanPhone);
+    if (phoneError && cleanPhone.trim()) setPhoneError('');
+    if (cleanPhone.trim().length < 4) { setCustomerSuggestions([]); setShowCustomerSuggestions(false); return; }
     try {
-      const results = await searchCustomersList(text.trim());
+      const results = await searchCustomersList(cleanPhone.trim());
       setCustomerSuggestions(results);
       setShowCustomerSuggestions(results.length > 0);
     } catch { /* noop */ }
@@ -419,9 +421,9 @@ export default function EditInvoiceScreen() {
                     <QuantityStepper
                       compact
                       min={1}
-                      value={String(item.quantity)}
+                      value={toEnglishDigits(String(item.quantity))}
                       onChangeText={(text) => {
-                        const n = parseInt(text, 10);
+                        const n = parseInt(toEnglishDigits(text), 10);
                         if (!isNaN(n) && n >= 1) updateItemField(idx, { quantity: n });
                       }}
                     />
@@ -432,8 +434,8 @@ export default function EditInvoiceScreen() {
                     <Text style={[styles.itemFieldLabel, { color: colors.gray400, textAlign }]}>{t('sales.price')}</Text>
                     <TextInput
                       style={[styles.itemInput, { borderColor: colors.gray200, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
-                      value={String(item.sellingPrice)}
-                      onChangeText={(v) => updateItemField(idx, { sellingPrice: parseFloat(v) || 0 })}
+                      value={toEnglishDigits(String(item.sellingPrice))}
+                      onChangeText={(v) => updateItemField(idx, { sellingPrice: parseFloat(toEnglishDigits(v).replace(/,/g, '')) || 0 })}
                       onEndEditing={() => updateItemField(idx, { sellingPrice: roundToNearest250(item.sellingPrice) })}
                       keyboardType="decimal-pad"
                       onFocus={scrollIntoView}
@@ -445,8 +447,8 @@ export default function EditInvoiceScreen() {
                     <Text style={[styles.itemFieldLabel, { color: colors.gray400, textAlign }]}>{t('sales.discount')}</Text>
                     <TextInput
                       style={[styles.itemInput, { borderColor: colors.gray200, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }]}
-                      value={String(item.discount)}
-                      onChangeText={(v) => updateItemField(idx, { discount: parseFloat(v) || 0 })}
+                      value={toEnglishDigits(String(item.discount))}
+                      onChangeText={(v) => updateItemField(idx, { discount: parseFloat(toEnglishDigits(v).replace(/,/g, '')) || 0 })}
                       onEndEditing={() => updateItemField(idx, { discount: roundToNearest250(item.discount) })}
                       keyboardType="decimal-pad"
                       onFocus={scrollIntoView}
@@ -560,10 +562,10 @@ export default function EditInvoiceScreen() {
               <AppTextInput
                 label={t('sales.paidNow')}
                 placeholder="0"
-                value={paidAmountStr}
-                onChangeText={setPaidAmountStr}
+                value={toEnglishDigits(paidAmountStr)}
+                onChangeText={(v) => setPaidAmountStr(toEnglishDigits(v))}
                 onEndEditing={() => {
-                  const r = roundToNearest250(parseFloat(paidAmountStr) || 0);
+                  const r = roundToNearest250(parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0);
                   setPaidAmountStr(String(r));
                 }}
                 keyboardType="decimal-pad"

@@ -252,11 +252,11 @@ export default function NewPurchaseScreen() {
 
   // ─── Derived ────────────────────────────────────────────────────────────────
   const qtyNum       = Math.max(1, parseInt(qty) || 1);
-  const buyIQDNum    = parseFloat(buyIQD) || 0;
-  const sellIQDNum   = parseFloat(sellIQD) || 0;
+  const buyIQDNum    = parseFloat(toEnglishDigits(buyIQD).replace(/,/g, '')) || 0;
+  const sellIQDNum   = parseFloat(toEnglishDigits(sellIQD).replace(/,/g, '')) || 0;
   const totalIQD     = qtyNum * buyIQDNum;
   const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
-  const amountPaidNum = roundToNearest250(Math.max(0, parseFloat(amountPaid) || 0));
+  const amountPaidNum = roundToNearest250(Math.max(0, parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0));
   const remainingDebt = Math.max(0, totalIQD - amountPaidNum);
   const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidNum : 0);
   const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
@@ -264,26 +264,30 @@ export default function NewPurchaseScreen() {
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
-    setBuyIQD(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setBuyIQD(clean);
+    const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setBuyUSD(n > 0 ? String(round(n / exchangeRate, 2)) : '');
   }
 
   function onBuyUSDChange(val: string) {
-    setBuyUSD(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setBuyUSD(clean);
+    const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setBuyIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
   }
 
   function onSellIQDChange(val: string) {
-    setSellIQD(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setSellIQD(clean);
+    const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setSellUSD(n > 0 ? String(round(n / exchangeRate, 2)) : '');
   }
 
   function onSellUSDChange(val: string) {
-    setSellUSD(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setSellUSD(clean);
+    const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setSellIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
   }
 
@@ -1817,8 +1821,8 @@ export default function NewPurchaseScreen() {
         <View style={{ marginBottom: 4 }}>
           <AppTextInput
             label={t('purchases.amountPaid')}
-            value={amountPaid}
-            onChangeText={setAmountPaid}
+            value={toEnglishDigits(amountPaid)}
+            onChangeText={(v) => setAmountPaid(toEnglishDigits(v))}
             keyboardType="decimal-pad"
             placeholder={t('purchases.amountPaidPlaceholder')}
             returnKeyType="done"
