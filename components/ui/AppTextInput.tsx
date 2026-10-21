@@ -9,6 +9,8 @@ import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useResponsive } from '@/hooks/useResponsive';
+import { toEnglishDigits } from '@/utils/formatters';
+import { AuthInputContext } from '@/lib/autoEnglishDigits';
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
@@ -59,6 +61,27 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
     keyboardType: rest.keyboardType,
     forceLatin,
   });
+  const isAuth = React.useContext(AuthInputContext);
+  const skipConversion =
+    isAuth ||
+    rest.secureTextEntry ||
+    (rest as any).skipEnglishDigitsConversion ||
+    rest.textContentType === 'password' ||
+    rest.textContentType === 'newPassword';
+
+  const origOnChangeText = rest.onChangeText;
+  const handleChangeText = origOnChangeText
+    ? (text: string) => {
+        const converted = skipConversion ? text : toEnglishDigits(text);
+        origOnChangeText(converted);
+      }
+    : undefined;
+
+  const valueToUse =
+    typeof rest.value === 'string' && !skipConversion && /[٠-٩۰-۹٫٬]/.test(rest.value)
+      ? toEnglishDigits(rest.value)
+      : rest.value;
+
   const scrollIntoView = useKeyboardAwareFocus();
   const showKuPlaceholderOverlay = !!kurdishPlaceholderFont && isKuLanguage && !rest.value;
   return (
@@ -90,6 +113,8 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
           <View style={styles.inputBox}>
             <TextInput
               {...rest}
+              value={valueToUse}
+              onChangeText={handleChangeText}
               placeholder={showKuPlaceholderOverlay ? undefined : rest.placeholder}
               style={applyKurdishFont(isKurdish, [
                 styles.input,

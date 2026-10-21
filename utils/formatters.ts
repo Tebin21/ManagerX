@@ -11,8 +11,10 @@ export function toEnglishDigits(value: string | number | null | undefined): stri
     '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
     '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
     '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+    '٫': '.',
+    '٬': ',',
   };
-  return String(value).replace(/[٠-٩۰-۹]/g, (char) => easternToWestern[char] ?? char);
+  return String(value).replace(/[٠-٩۰-۹٫٬]/g, (char) => easternToWestern[char] ?? char);
 }
 
 export function fmtIQD(n: number): string {

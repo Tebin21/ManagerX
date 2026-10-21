@@ -12,6 +12,7 @@ import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useSettingsStore } from '@/store/settingsStore';
+import { toEnglishDigits } from '@/utils/formatters';
 import type { GlobalDiscountType } from '@/types/sales';
 
 interface Props {
@@ -42,8 +43,9 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
   const [inputText, setInputText] = React.useState('');
 
   function handleValueChange(val: string) {
-    setInputText(val);
-    const n = parseFloat(val) || 0;
+    const clean = toEnglishDigits(val);
+    setInputText(clean);
+    const n = parseFloat(clean) || 0;
     if (type === 'percentage') {
       onValueChange(n);
     } else {
@@ -91,7 +93,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
         <View style={styles.inputSection}>
           <TextInput
             style={[styles.input, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: inputText, keyboardType: 'decimal-pad' }), {})]}
-            value={inputText}
+            value={toEnglishDigits(inputText)}
             onChangeText={handleValueChange}
             keyboardType="decimal-pad"
             placeholder={type === 'percentage' ? '0%' : (isUSD ? '0.00 USD' : '0 IQD')}

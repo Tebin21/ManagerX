@@ -39,6 +39,54 @@ async function migrateDatabaseFile(): Promise<void> {
   oldFile.copy(newFile);
 }
 
+function sanitizeSqlParam(param: any): any {
+  if (typeof param === 'string') {
+    return /[٠-٩۰-۹٫٬]/.test(param) ? toEnglishDigits(param) : param;
+  }
+  if (Array.isArray(param)) {
+    return param.map(sanitizeSqlParam);
+  }
+  if (param && typeof param === 'object' && !(param instanceof Date)) {
+    const res: any = {};
+    for (const k of Object.keys(param)) {
+      res[k] = sanitizeSqlParam(param[k]);
+    }
+    return res;
+  }
+  return param;
+}
+
+function wrapDatabaseWithAutoEnglishDigits(rawDb: SQLite.SQLiteDatabase): SQLite.SQLiteDatabase {
+  const origRunAsync = rawDb.runAsync.bind(rawDb);
+  const origGetAllAsync = rawDb.getAllAsync.bind(rawDb);
+  const origGetFirstAsync = rawDb.getFirstAsync.bind(rawDb);
+
+  (rawDb as any).runAsync = async function (source: string, ...params: any[]) {
+    const cleanParams = params.map(sanitizeSqlParam);
+    return (origRunAsync as any)(source, ...cleanParams);
+  };
+
+  (rawDb as any).getAllAsync = async function (source: string, ...params: any[]) {
+    const cleanParams = params.map(sanitizeSqlParam);
+    return (origGetAllAsync as any)(source, ...cleanParams);
+  };
+
+  (rawDb as any).getFirstAsync = async function (source: string, ...params: any[]) {
+    const cleanParams = params.map(sanitizeSqlParam);
+    return (origGetFirstAsync as any)(source, ...cleanParams);
+  };
+
+  if (typeof (rawDb as any).getEachAsync === 'function') {
+    const origGetEachAsync = (rawDb as any).getEachAsync.bind(rawDb);
+    (rawDb as any).getEachAsync = function (source: string, ...params: any[]) {
+      const cleanParams = params.map(sanitizeSqlParam);
+      return origGetEachAsync(source, ...cleanParams);
+    };
+  }
+
+  return rawDb;
+}
+
 const dbPromise = (async () => {
   try {
     await migrateDatabaseFile();
@@ -48,7 +96,8 @@ const dbPromise = (async () => {
     console.error('[Froshiar] Database migration failed:', err);
   }
   try {
-    return await SQLite.openDatabaseAsync(DB_NAME);
+    const db = await SQLite.openDatabaseAsync(DB_NAME);
+    return wrapDatabaseWithAutoEnglishDigits(db);
   } catch (err) {
     console.error('[Froshiar] SQLite open failed:', err);
     throw err;

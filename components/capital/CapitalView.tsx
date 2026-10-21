@@ -23,6 +23,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useCapitalStore, type DrawerFullStats } from '@/store/capitalStore';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { toEnglishDigits } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { formatDateShort } from '@/utils/formatters';
 
@@ -94,7 +95,7 @@ export function CapitalView() {
   };
 
   const handleConfirmActivate = () => {
-    const amt = parseFloat(initialAmountInput.replace(/[^0-9.]/g, '')) || 0;
+    const amt = parseFloat(toEnglishDigits(initialAmountInput).replace(/[^0-9.]/g, '')) || 0;
     if (amt <= 0) {
       Alert.alert(t('common.required'), t('capital.amountPlaceholder'));
       return;
@@ -112,14 +113,14 @@ export function CapitalView() {
     setAdjModalOpen(true);
   };
 
-  const parsedAdjAmt = parseFloat(adjAmountInput.replace(/[^0-9.]/g, '')) || 0;
+  const parsedAdjAmt = parseFloat(toEnglishDigits(adjAmountInput).replace(/[^0-9.]/g, '')) || 0;
   const isWithdrawalOverdraft =
     adjType === 'withdrawal' &&
     parsedAdjAmt > 0 &&
     parsedAdjAmt > stats.currentBalance;
 
   const handleConfirmAdjustment = () => {
-    const amt = parseFloat(adjAmountInput.replace(/[^0-9.]/g, '')) || 0;
+    const amt = parseFloat(toEnglishDigits(adjAmountInput).replace(/[^0-9.]/g, '')) || 0;
     if (amt <= 0) {
       Alert.alert(t('common.required'), t('capital.amountPlaceholder'));
       return;
@@ -429,8 +430,8 @@ export function CapitalView() {
                   },
                 ]}
                 keyboardType="numeric"
-                value={initialAmountInput}
-                onChangeText={setInitialAmountInput}
+                value={toEnglishDigits(initialAmountInput)}
+                onChangeText={(t) => setInitialAmountInput(toEnglishDigits(t))}
                 placeholder={t('capital.amountPlaceholder')}
                 placeholderTextColor={colors.gray400}
               />
@@ -990,8 +991,8 @@ export function CapitalView() {
                 },
               ]}
               keyboardType="numeric"
-              value={adjAmountInput}
-              onChangeText={setAdjAmountInput}
+              value={toEnglishDigits(adjAmountInput)}
+              onChangeText={(t) => setAdjAmountInput(toEnglishDigits(t))}
               placeholder={t('capital.amountPlaceholder')}
               placeholderTextColor={colors.gray400}
               autoFocus

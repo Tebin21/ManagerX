@@ -292,12 +292,14 @@ export function InventoryExpiryView({
     custom: isKu ? 'دەستنیشانکراو' : 'Custom',
   };
 
-  // ── 1. Compute status & days remaining for all products ──
+  // ── 1. Compute status & days remaining for all products in stock ──
   const enrichedProducts: ProductWithExpiryStatus[] = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return products.map((p) => {
+    return products
+      .filter((p) => p.isActive !== false && (p.quantity || 0) > 0)
+      .map((p) => {
       if (!p.expiryDate) {
         return { product: p, diffDays: null, status: 'noDate' };
       }
@@ -2052,80 +2054,74 @@ export function InventoryExpiryView({
               </Text>
             </View>
           ) : (
-            filteredDiscardedList.map((item) => (
-              <View
-                key={String(item.id)}
-                style={[
-                  styles.discardItemCard,
-                  {
-                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.75)' : '#FFFFFF',
-                    borderColor: isDark ? 'rgba(239, 68, 68, 0.28)' : '#FCA5A5',
-                  },
-                ]}
-              >
-                <View style={[styles.discardCardHeaderRow, { flexDirection }]}>
-                  {/* Thumb */}
-                  {item.imageUri ? (
-                    <Image source={{ uri: item.imageUri }} style={styles.productThumb} resizeMode="cover" />
-                  ) : (
-                    <View
-                      style={[
-                        styles.productThumbFallback,
-                        { backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12) },
-                      ]}
-                    >
-                      <Ionicons name="cube-outline" size={24} color={colors.primary} />
-                    </View>
-                  )}
+            filteredDiscardedList.map((item) => {
+              const productInStore = products.find((p) => p.id === item.productId);
+              const displayImg = getProductDisplayImage({
+                imageUri: item.imageUri || productInStore?.imageUri,
+                imageRemoteUrl: productInStore?.imageRemoteUrl,
+              });
 
-                  {/* Info */}
-                  <View style={[styles.cardInfoCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-                    <Text
-                      style={[
-                        styles.productName,
-                        { color: colors.black, textAlign },
-                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.productName}
-                    </Text>
+              return (
+                <View
+                  key={String(item.id)}
+                  style={[
+                    styles.discardItemCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.75)' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(239, 68, 68, 0.28)' : '#FCA5A5',
+                    },
+                  ]}
+                >
+                  {/* Top Row: Thumbnail, Info, and Loss Badge */}
+                  <View style={[styles.discardCardTopRow, { flexDirection }]}>
+                    {/* Thumb */}
+                    {displayImg ? (
+                      <Image
+                        source={{ uri: displayImg }}
+                        style={styles.productThumb}
+                        resizeMode="cover"
+                        fadeDuration={0}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.productThumbFallback,
+                          { backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12) },
+                        ]}
+                      >
+                        <Ionicons name="cube-outline" size={24} color={colors.primary} />
+                      </View>
+                    )}
 
-                    <View style={[styles.categoryQtyRow, { flexDirection }]}>
-                      {item.category ? (
-                        <View style={[styles.catBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 }]}>
-                          <Text style={[styles.catText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {item.category}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      <Text style={[styles.qtyText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                        {isKu ? `فڕێدراو: ${item.quantity} ${item.unit}` : `Discarded: ${item.quantity} ${item.unit}`}
+                    {/* Info */}
+                    <View style={[styles.cardInfoCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                      <Text
+                        style={[
+                          styles.productName,
+                          { color: colors.black, textAlign },
+                          isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.productName}
                       </Text>
-                    </View>
 
-                    {/* Expiry Date & Discarded Date */}
-                    <View style={[styles.expiryDateRow, { flexDirection, gap: 10 }]}>
-                      <View style={[{ flexDirection, alignItems: 'center', gap: 4 }]}>
-                        <Ionicons name="time-outline" size={13} color={colors.gray400} />
-                        <Text style={[styles.expiryDateLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {isKu ? `فڕێدان: ${item.discardedAt?.slice(0, 10)}` : `Discarded: ${item.discardedAt?.slice(0, 10)}`}
+                      <View style={[styles.categoryQtyRow, { flexDirection }]}>
+                        {item.category ? (
+                          <View style={[styles.catBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 }]}>
+                            <Text style={[styles.catText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                              {item.category}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        <Text style={[styles.qtyText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          {isKu ? `فڕێدراو: ${item.quantity} ${item.unit}` : `Discarded: ${item.quantity} ${item.unit}`}
                         </Text>
                       </View>
-                      {item.expiryDate ? (
-                        <View style={[{ flexDirection, alignItems: 'center', gap: 4 }]}>
-                          <Ionicons name="calendar-outline" size={13} color="#EF4444" />
-                          <Text style={[styles.expiryDateLabel, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بەسەرچوون: ${item.expiryDate}` : `Exp: ${item.expiryDate}`}
-                          </Text>
-                        </View>
-                      ) : null}
                     </View>
-                  </View>
 
-                  {/* Loss Badge and Restore Button */}
-                  <View style={[styles.badgeCol, { alignItems: 'flex-end', gap: 8 }]}>
+                    {/* Loss Badge */}
                     <View style={[styles.lossBadgeWrap, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
                       <Text style={[styles.lossBadgeText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {item.buyPriceUsd > 0 ? `$${item.totalLossUsd.toFixed(2)}` : fmtIQD(item.totalLossIqd)}
@@ -2133,6 +2129,34 @@ export function InventoryExpiryView({
                       <Text style={[styles.lossSubText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                         {isKu ? 'زەرەر' : 'Loss'}
                       </Text>
+                    </View>
+                  </View>
+
+                  {/* Divider line */}
+                  <View
+                    style={[
+                      styles.discardCardDivider,
+                      { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                    ]}
+                  />
+
+                  {/* Bottom Row: Dates and Restore Button (separated, zero overlap) */}
+                  <View style={[styles.discardCardFooterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View style={[styles.discardDatesWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <View style={[styles.discardDateChip, { flexDirection }]}>
+                        <Ionicons name="time-outline" size={13} color={colors.gray400} />
+                        <Text style={[styles.expiryDateLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isKu ? `فڕێدان: ${item.discardedAt?.slice(0, 10)}` : `Discarded: ${item.discardedAt?.slice(0, 10)}`}
+                        </Text>
+                      </View>
+                      {item.expiryDate ? (
+                        <View style={[styles.discardDateChip, { flexDirection }]}>
+                          <Ionicons name="calendar-outline" size={13} color="#EF4444" />
+                          <Text style={[styles.expiryDateLabel, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {isKu ? `بەسەرچوون: ${item.expiryDate}` : `Exp: ${item.expiryDate}`}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
 
                     {/* Restore Button */}
@@ -2155,8 +2179,8 @@ export function InventoryExpiryView({
                     </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
 
           <View style={{ height: 40 }} />
@@ -3081,28 +3105,48 @@ const styles = StyleSheet.create({
 
   // Discarded Item Card
   discardItemCard: {
-    borderRadius: 15,
-    borderWidth: 1,
-    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1.2,
+    padding: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
+    marginBottom: 10,
   },
-  discardCardHeaderRow: {
+  discardCardTopRow: {
     alignItems: 'center',
     gap: 12,
+  },
+  discardCardDivider: {
+    height: 1,
+    marginVertical: 10,
+  },
+  discardCardFooterRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  discardDatesWrap: {
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  discardDateChip: {
+    alignItems: 'center',
+    gap: 4,
   },
   lossBadgeWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
   },
   lossBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
   lossSubText: {
@@ -3113,13 +3157,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
     borderRadius: 8,
     borderWidth: 1,
   },
   restoreBtnText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
   },
   emptyDiscardCard: {

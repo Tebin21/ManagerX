@@ -26,7 +26,7 @@ import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
-import { toDateOnly } from '@/utils/formatters';
+import { toDateOnly, toEnglishDigits } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
@@ -217,7 +217,7 @@ function ExpenseFilterBar({
                   isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
                 ]}
                 value={searchQuery}
-                onChangeText={onSearchChange}
+                onChangeText={(v) => onSearchChange(toEnglishDigits(v))}
                 placeholder={t('reports.searchExpensesPlaceholder', 'گەڕان بەپێی هۆکار یان بڕی خەرجی...')}
                 placeholderTextColor={colors.gray400}
                 returnKeyType="search"
@@ -476,7 +476,8 @@ function ExpenseFormModal({
   }, [visible, initial?.id]);
 
   function onAmountBlur() {
-    const n = parseFloat(amount);
+    const clean = toEnglishDigits(amount);
+    const n = parseFloat(clean);
     if (!isNaN(n) && n > 0) {
       const r = roundToNearest250(n);
       setRounded(r);
@@ -488,7 +489,7 @@ function ExpenseFormModal({
 
   function validate(): boolean {
     const errs: { amount?: string; reason?: string } = {};
-    const n = parseFloat(amount);
+    const n = parseFloat(toEnglishDigits(amount));
     if (!amount || isNaN(n) || n <= 0) errs.amount = t('reports.amountRequired');
     if (!reason.trim()) errs.reason = t('reports.reasonRequired');
     setErrors(errs);
@@ -497,7 +498,7 @@ function ExpenseFormModal({
 
   async function handleSave() {
     if (!validate()) return;
-    const amt = roundToNearest250(parseFloat(amount));
+    const amt = roundToNearest250(parseFloat(toEnglishDigits(amount)));
     const derivedCategory = selectedExample !== null
       ? EXPENSE_EXAMPLES[selectedExample].category
       : 'Other';
@@ -600,8 +601,8 @@ function ExpenseFormModal({
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
-                  value={amount}
-                  onChangeText={(v) => { setAmount(v); setErrors((e) => ({ ...e, amount: undefined })); }}
+                  value={toEnglishDigits(amount)}
+                  onChangeText={(v) => { const clean = toEnglishDigits(v); setAmount(clean); setErrors((e) => ({ ...e, amount: undefined })); }}
                   onBlur={onAmountBlur}
                 />
                 <View style={[styles.amountBadge, { backgroundColor: isDark ? colors.gray300 : 'rgba(212,175,55,0.12)' }]}>
@@ -649,9 +650,10 @@ function ExpenseFormModal({
                   placeholderTextColor={colors.gray400}
                   value={reason}
                   onChangeText={(v) => {
-                    setReason(v);
+                    const clean = toEnglishDigits(v);
+                    setReason(clean);
                     const matchIdx = EXPENSE_EXAMPLES.findIndex(
-                      (e) => (isKuLanguage ? e.text : e.enText) === v.trim()
+                      (e) => (isKuLanguage ? e.text : e.enText) === clean.trim()
                     );
                     setExample(matchIdx >= 0 ? matchIdx : null);
                     setErrors((e) => ({ ...e, reason: undefined }));
@@ -788,7 +790,7 @@ function ExpenseFormModal({
                 placeholder={t('reports.notePlaceholder')}
                 placeholderTextColor={colors.gray400}
                 value={note}
-                onChangeText={setNote}
+                onChangeText={(v) => setNote(toEnglishDigits(v))}
                 returnKeyType="done"
               />
             </View>
