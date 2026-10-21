@@ -80,3 +80,35 @@ export interface InventoryHistoryItem {
   status: 'sold_out' | 'removed';
   archivedAt: string;
 }
+
+export interface DiscardedProduct {
+  id: number;
+  productId: number | null;
+  productName: string;
+  category: string;
+  itemId: string | null;
+  quantity: number;
+  unit: string;
+  purchasePrice: number;
+  buyPriceUsd: number;
+  sellingPrice: number;
+  sellPriceUsd: number;
+  totalLossIqd: number;
+  totalLossUsd: number;
+  expiryDate: string | null;
+  productionDate: string | null;
+  imageUri: string | null;
+  reason: string;
+  notes: string | null;
+  discardedAt: string;
+  restoredAt: string | null;
+  uuid?: string;
+}
+
+export interface DiscardedLossStats {
+  totalLossIqd: number;
+  totalLossUsd: number;
+  totalItemsCount: number;
+  totalUnitsCount: number;
+}
+

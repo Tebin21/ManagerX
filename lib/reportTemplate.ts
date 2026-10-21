@@ -362,6 +362,12 @@ export function buildFullReportHTML(
       <span class="pl-label" style="font-weight:600;">Total Expenses</span>
       <span class="pl-value" style="color:#DC2626;">&minus;${fmtMoney(plData?.totalExpenses ?? 0)}</span>
     </div>
+    ${(plData?.discardLoss ?? 0) > 0 ? `
+    <div class="pl-row">
+      <span class="pl-label" style="font-weight:600;color:#DC2626;">Discarded Products Loss</span>
+      <span class="pl-value" style="color:#DC2626;">&minus;${fmtMoney(plData?.discardLoss ?? 0)}</span>
+    </div>
+    ` : ''}
     <div class="pl-row pl-net">
       <span style="font-size:17px;font-weight:800;color:#1E293B;">Net Profit</span>
       <span style="font-size:17px;font-weight:800;color:${colorVal(plData?.netProfit ?? 0)};">${fmtMoney(plData?.netProfit ?? 0)}</span>

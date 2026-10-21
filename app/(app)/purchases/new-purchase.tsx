@@ -42,6 +42,7 @@ import { generateUniqueProductId } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { DatePickerModal } from '@/components/shared/DatePickerModal';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
@@ -1364,28 +1365,26 @@ export default function NewPurchaseScreen() {
       </View>
 
       {/* Production Date Picker Modal */}
-      {showProdPicker && (
-        <DateTimePicker
-          value={productionDate || new Date()}
-          onChange={(d) => {
-            setProductionDate(d);
-            setShowProdPicker(false);
-          }}
-          label={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Pick Production Date'}
-        />
-      )}
+      <DatePickerModal
+        visible={showProdPicker}
+        onClose={() => setShowProdPicker(false)}
+        currentDate={productionDate}
+        onSelect={(d) => setProductionDate(d)}
+        onClear={() => setProductionDate(null)}
+        mode="production"
+        title={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
+      />
 
       {/* Expiry Date Picker Modal */}
-      {showExpPicker && (
-        <DateTimePicker
-          value={expiryDate || new Date()}
-          onChange={(d) => {
-            setExpiryDate(d);
-            setShowExpPicker(false);
-          }}
-          label={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Pick Expiry Date'}
-        />
-      )}
+      <DatePickerModal
+        visible={showExpPicker}
+        onClose={() => setShowExpPicker(false)}
+        currentDate={expiryDate}
+        onSelect={(d) => setExpiryDate(d)}
+        onClear={() => setExpiryDate(null)}
+        mode="expiry"
+        title={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
+      />
     </PremiumCard>
   ) : null;
 

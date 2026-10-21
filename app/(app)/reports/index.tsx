@@ -1151,6 +1151,15 @@ export default function ReportsScreen() {
             color={netProfit >= 0 ? colors.success : colors.error}
             isGrid={isGridCol}
           />
+          {financialCards?.discardLoss && financialCards.discardLoss > 0 ? (
+            <BigMetricRow
+              label={t('inventory.discardLossReportTitle', { defaultValue: 'زیانی کاڵا فڕێدراوەکان' })}
+              amount={financialCards.discardLoss}
+              icon="trash-outline"
+              color={colors.error}
+              isGrid={isGridCol}
+            />
+          ) : null}
         </PremiumCard>
       </MotiView>
     </View>

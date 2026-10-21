@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -8,6 +8,9 @@ import {
   RefreshControl,
   StyleSheet,
   Image,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -27,7 +30,13 @@ import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/date
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { CustomAlertDaysModal } from '@/components/inventory/CustomAlertDaysModal';
 import { getProductDisplayImage } from '@/lib/imageStorage';
-import type { InventoryProduct } from '@/types/inventory';
+import {
+  discardProduct,
+  restoreDiscardedProduct,
+  getDiscardedProducts,
+  getDiscardedLossStats,
+} from '@/lib/sqlite';
+import type { InventoryProduct, DiscardedProduct, DiscardedLossStats } from '@/types/inventory';
 
 type ExpiryFilterType = 'all' | 'expired' | 'expiringSoon' | 'safe' | 'noDate';
 type SortOption = 'closestExpiry' | 'farthestExpiry' | 'quantity' | 'name';
@@ -38,7 +47,14 @@ interface Props {
   refreshing?: boolean;
   viewMode?: 'grid' | 'list';
   onViewModeChange?: (mode: 'grid' | 'list') => void;
-  initialTab?: 'report' | 'products';
+  initialTab?: 'report' | 'products' | 'discarded';
+  activeTab?: 'report' | 'products' | 'discarded';
+  onTabChange?: (tab: 'report' | 'products' | 'discarded') => void;
+  productPeriodKey?: PeriodKey;
+  onProductPeriodKeyChange?: (key: PeriodKey) => void;
+  productCustomRange?: { from: string; to: string } | null;
+  onProductCustomRangeChange?: (range: { from: string; to: string } | null) => void;
+  onOpenPeriodModal?: () => void;
 }
 
 interface ProductWithExpiryStatus {
@@ -56,6 +72,13 @@ export function InventoryExpiryView({
   viewMode = 'list',
   onViewModeChange,
   initialTab = 'report',
+  activeTab: propActiveTab,
+  onTabChange,
+  productPeriodKey: propProductPeriodKey,
+  onProductPeriodKeyChange,
+  productCustomRange: propProductCustomRange,
+  onProductCustomRangeChange,
+  onOpenPeriodModal,
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -66,15 +89,190 @@ export function InventoryExpiryView({
 
   const expiryAlertDays = useSettingsStore((s) => s.expiryAlertDays);
   const setExpiryAlertDays = useSettingsStore((s) => s.setExpiryAlertDays);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
 
-  // ── Two Main Tabs: 'report' (ڕاپۆرت) and 'products' (کاڵاکان) ──
-  // Default to 'report' as requested by the user, starting on the RIGHT in Kurdish RTL
-  const [activeTab, setActiveTab] = useState<'report' | 'products'>(initialTab);
+  // ── Three Main Tabs: 'report' (ڕاپۆرت), 'products' (کاڵاکان), and 'discarded' (فڕێدراوەکان) ──
+  const [internalActiveTab, setInternalActiveTab] = useState<'report' | 'products' | 'discarded'>(initialTab);
+  const activeTab = propActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: 'report' | 'products' | 'discarded') => {
+    setInternalActiveTab(tab);
+    onTabChange?.(tab);
+  };
+
+  // ── Discarded Products & Loss Dashboard State ──
+  const [discardedList, setDiscardedList] = useState<DiscardedProduct[]>([]);
+  const [discardedStats, setDiscardedStats] = useState<DiscardedLossStats | null>(null);
+  const [loadingDiscarded, setLoadingDiscarded] = useState(false);
+  const [discardSearchQuery, setDiscardSearchQuery] = useState('');
+
+  // ── Discard Modal State ──
+  const [discardModalVisible, setDiscardModalVisible] = useState(false);
+  const [targetProductToDiscard, setTargetProductToDiscard] = useState<InventoryProduct | null>(null);
+  const [discardQuantity, setDiscardQuantity] = useState(1);
+  const [discardNotes, setDiscardNotes] = useState('');
+  const [isSubmittingDiscard, setIsSubmittingDiscard] = useState(false);
+
+  const loadDiscardedData = useCallback(async () => {
+    try {
+      setLoadingDiscarded(true);
+      const [list, stats] = await Promise.all([
+        getDiscardedProducts(true),
+        getDiscardedLossStats(),
+      ]);
+      setDiscardedList(list);
+      setDiscardedStats(stats);
+    } catch (err) {
+      console.error('Failed to load discarded data:', err);
+    } finally {
+      setLoadingDiscarded(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDiscardedData();
+  }, [loadDiscardedData]);
+
+  const handleOpenDiscardModal = (product: InventoryProduct) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {}
+    setTargetProductToDiscard(product);
+    setDiscardQuantity(product.quantity > 0 ? product.quantity : 1);
+    setDiscardNotes('');
+    setDiscardModalVisible(true);
+  };
+
+  const handleConfirmDiscard = async () => {
+    if (!targetProductToDiscard) return;
+    try {
+      setIsSubmittingDiscard(true);
+      await discardProduct(
+        targetProductToDiscard.id,
+        discardQuantity,
+        'expired',
+        discardNotes.trim() || undefined
+      );
+
+      // Invalidate reports cache and trigger live reload
+      try {
+        const { useReportStore } = await import('@/store/reportStore');
+        useReportStore.getState().reloadAfterMutation?.();
+      } catch {}
+
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+
+      setDiscardModalVisible(false);
+      setTargetProductToDiscard(null);
+
+      // Refresh inventory and discarded list
+      onRefresh?.();
+      await loadDiscardedData();
+
+      Alert.alert(
+        isKu ? 'سەرکەوتوو بوو' : 'Success',
+        isKu
+          ? 'کاڵاکە بە سەرکەوتوویی فڕێدرا و زەرەرەکەی لە حسابات تۆمارکرا.'
+          : 'Product discarded and recorded as a financial loss in reports.',
+        [
+          { text: isKu ? 'باشە' : 'OK' },
+          {
+            text: isKu ? 'بینینی فڕێدراوەکان' : 'View Discarded',
+            onPress: () => setActiveTab('discarded'),
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Failed to discard product:', err);
+      Alert.alert(
+        isKu ? 'هەڵە' : 'Error',
+        isKu ? 'کرداری فڕێدان سەرکەوتوو نەبوو.' : 'Failed to discard product.'
+      );
+    } finally {
+      setIsSubmittingDiscard(false);
+    }
+  };
+
+  const handleRestoreDiscarded = (item: DiscardedProduct) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {}
+
+    Alert.alert(
+      isKu ? 'گەڕاندنەوە بۆ کۆگا' : 'Restore to Inventory',
+      isKu
+        ? `ئایا دڵنیایت لە گەڕاندنەوەی (${item.productName}) بە بڕی ${item.quantity} ${item.unit} بۆ ناو کۆگا؟ بڕی زەرەرەکەش لە حسابات کەم دەکرێتەوە.`
+        : `Are you sure you want to restore ${item.quantity} ${item.unit} of "${item.productName}" back to inventory stock? The financial loss will be reversed.`,
+      [
+        { text: isKu ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        {
+          text: isKu ? 'گەڕاندنەوە' : 'Restore',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const res = await restoreDiscardedProduct(item.id);
+              if (res.success) {
+                try {
+                  const { useReportStore } = await import('@/store/reportStore');
+                  useReportStore.getState().reloadAfterMutation?.();
+                } catch {}
+
+                try {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                } catch {}
+
+                onRefresh?.();
+                await loadDiscardedData();
+
+                Alert.alert(
+                  isKu ? 'سەرکەوتوو بوو' : 'Restored',
+                  isKu
+                    ? `کاڵای (${item.productName}) گەڕێندرایەوە بۆ کۆگا و زەرەرەکەی هەڵوەشایەوە.`
+                    : `"${item.productName}" has been restored to inventory.`
+                );
+              }
+            } catch (err) {
+              console.error('Failed to restore discarded product:', err);
+              Alert.alert(isKu ? 'هەڵە' : 'Error', isKu ? 'گەڕاندنەوە سەرکەوتوو نەبوو.' : 'Failed to restore item.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const filteredDiscardedList = useMemo(() => {
+    if (!discardSearchQuery.trim()) return discardedList;
+    const q = discardSearchQuery.toLowerCase().trim();
+    return discardedList.filter(
+      (item) =>
+        item.productName.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        (item.itemId && item.itemId.toLowerCase().includes(q))
+    );
+  }, [discardedList, discardSearchQuery]);
 
   // ── Period Filter (Report Tab) - ALWAYS defaults to 'all' ──
-  const [periodKey, setPeriodKey] = useState<PeriodKey>('all');
-  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
+  const [reportPeriodKey, setReportPeriodKey] = useState<PeriodKey>('all');
+  const [reportCustomRange, setReportCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [reportCustomOpen, setReportCustomOpen] = useState(false);
+
+  // ── Period Filter (Products Tab) - Controlled via Header Navigation Icon ──
+  const [internalProductPeriodKey, setInternalProductPeriodKey] = useState<PeriodKey>('all');
+  const [internalProductCustomRange, setInternalProductCustomRange] = useState<{ from: string; to: string } | null>(null);
+
+  const productPeriodKey = propProductPeriodKey ?? internalProductPeriodKey;
+  const setProductPeriodKey = (key: PeriodKey) => {
+    setInternalProductPeriodKey(key);
+    onProductPeriodKeyChange?.(key);
+  };
+
+  const productCustomRange = propProductCustomRange ?? internalProductCustomRange;
+  const setProductCustomRange = (range: { from: string; to: string } | null) => {
+    setInternalProductCustomRange(range);
+    onProductCustomRangeChange?.(range);
+  };
 
   // ── Custom Alert Days Modal State ──
   const [customAlertDaysModalOpen, setCustomAlertDaysModalOpen] = useState(false);
@@ -131,19 +329,19 @@ export function InventoryExpiryView({
   }, [products, expiryAlertDays]);
 
   // ── 2. Report Period Bounds & Filtered Products for Report ──
-  const periodBounds = useMemo(() => {
-    return getPeriodBounds(periodKey, customRange?.from, customRange?.to);
-  }, [periodKey, customRange]);
+  const reportPeriodBounds = useMemo(() => {
+    return getPeriodBounds(reportPeriodKey, reportCustomRange?.from, reportCustomRange?.to);
+  }, [reportPeriodKey, reportCustomRange]);
 
   const periodProducts = useMemo(() => {
-    if (periodKey === 'all') {
+    if (reportPeriodKey === 'all') {
       return enrichedProducts;
     }
     return enrichedProducts.filter((item) => {
       if (!item.product.expiryDate) return false;
-      return isDateWithinRange(item.product.expiryDate, periodBounds.from, periodBounds.to);
+      return isDateWithinRange(item.product.expiryDate, reportPeriodBounds.from, reportPeriodBounds.to);
     });
-  }, [enrichedProducts, periodKey, periodBounds]);
+  }, [enrichedProducts, reportPeriodKey, reportPeriodBounds]);
 
   // Report KPIs
   const reportKPIs = useMemo(() => {
@@ -195,15 +393,20 @@ export function InventoryExpiryView({
       .slice(0, 8);
   }, [periodProducts]);
 
+  // Product Period Bounds for Tab 2 (Products)
+  const productPeriodBounds = useMemo(() => {
+    return getPeriodBounds(productPeriodKey, productCustomRange?.from, productCustomRange?.to);
+  }, [productPeriodKey, productCustomRange]);
+
   // ── 3. Products Tab Filter & Search ──
   const filteredProducts = useMemo(() => {
     let list = enrichedProducts;
 
-    // Filter by period bounds (if not 'all')
-    if (periodKey !== 'all') {
+    // Filter by product period bounds (if not 'all')
+    if (productPeriodKey !== 'all') {
       list = list.filter((item) => {
         if (!item.product.expiryDate) return false;
-        return isDateWithinRange(item.product.expiryDate, periodBounds.from, periodBounds.to);
+        return isDateWithinRange(item.product.expiryDate, productPeriodBounds.from, productPeriodBounds.to);
       });
     }
 
@@ -253,15 +456,15 @@ export function InventoryExpiryView({
       }
       return 0;
     });
-  }, [enrichedProducts, activeFilter, searchQuery, sortBy, periodKey, periodBounds]);
+  }, [enrichedProducts, activeFilter, searchQuery, sortBy, productPeriodKey, productPeriodBounds]);
 
   // Status counts for Tab 2 filter chips (reflecting chosen period)
   const filterCounts = useMemo(() => {
-    const baseList = periodKey === 'all'
+    const baseList = productPeriodKey === 'all'
       ? enrichedProducts
       : enrichedProducts.filter((item) => {
           if (!item.product.expiryDate) return false;
-          return isDateWithinRange(item.product.expiryDate, periodBounds.from, periodBounds.to);
+          return isDateWithinRange(item.product.expiryDate, productPeriodBounds.from, productPeriodBounds.to);
         });
 
     let all = baseList.length;
@@ -278,7 +481,7 @@ export function InventoryExpiryView({
     }
 
     return { all, expired, expiringSoon, safe, noDate };
-  }, [enrichedProducts, periodKey, periodBounds]);
+  }, [enrichedProducts, productPeriodKey, productPeriodBounds]);
 
   const handleSelectFilter = (filter: ExpiryFilterType) => {
     try {
@@ -437,8 +640,38 @@ export function InventoryExpiryView({
             </View>
           </View>
 
-          {/* Status Badge */}
-          <View style={styles.badgeCol}>{renderBadge(item)}</View>
+          {/* Status Badge & Discard Action */}
+          <View style={styles.badgeCol}>
+            {renderBadge(item)}
+            {item.status === 'expired' && p.quantity > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  handleOpenDiscardModal(p);
+                }}
+                style={[
+                  styles.discardBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2',
+                    borderColor: isDark ? 'rgba(239, 68, 68, 0.45)' : '#FCA5A5',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                <Text
+                  style={[
+                    styles.discardBtnText,
+                    { color: '#EF4444' },
+                    isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKu ? 'فڕێدان' : 'Discard'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -540,6 +773,36 @@ export function InventoryExpiryView({
               {p.expiryDate || (isKu ? 'دیاری نەکراوە' : 'No date')}
             </Text>
           </View>
+
+          {/* Discard Button in Grid Item */}
+          {item.status === 'expired' && p.quantity > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                handleOpenDiscardModal(p);
+              }}
+              style={[
+                styles.gridDiscardBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2',
+                  borderColor: isDark ? 'rgba(239, 68, 68, 0.45)' : '#FCA5A5',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="trash-outline" size={12} color="#EF4444" />
+              <Text
+                style={[
+                  styles.discardBtnText,
+                  { color: '#EF4444' },
+                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isKu ? 'فڕێدان' : 'Discard'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -547,22 +810,27 @@ export function InventoryExpiryView({
 
   return (
     <View style={styles.container}>
-      {/* ── 1. Segmented Switcher (ڕاپۆرت vs کاڵاکان) ──────────────── */}
+      {/* ── 1. Segmented Switcher (ڕاپۆرت vs کاڵاکان vs فڕێدراوەکان) — Styled matching expenses.tsx ── */}
       <View
         style={[
           styles.segmentWrapper,
-          { backgroundColor: isDark ? colors.gray100 : colors.white, borderBottomColor: isDark ? colors.gray200 : colors.gray200 },
-          isTablet && { alignItems: 'center' },
+          { backgroundColor: colors.white, borderBottomColor: colors.gray200 },
+          isTablet && { alignItems: 'center', paddingVertical: isTabletLandscape ? 16 : 14 },
         ]}
       >
         <View
           style={[
             styles.segmentTrack,
-            { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
-            isTablet && { maxWidth: isTabletLandscape ? 960 : 760, width: '100%' },
+            { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              width: '100%',
+              padding: isTabletLandscape ? 6 : 5,
+              borderRadius: 18,
+            },
           ]}
         >
-          {/* Tab 1: ڕاپۆرت و ئامار (Report & Analytics) - Primary default, displays on the RIGHT in Kurdish RTL */}
+          {/* Tab 1: ڕاپۆرت و ئامار (Report & Analytics) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -574,18 +842,26 @@ export function InventoryExpiryView({
             style={[
               styles.segmentBtn,
               activeTab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={18}
-              color={activeTab === 'report' ? '#0F172A' : colors.gray500}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              color={activeTab === 'report' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeTab === 'report' ? '#0F172A' : colors.gray600 },
+                {
+                  color: activeTab === 'report' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -593,7 +869,7 @@ export function InventoryExpiryView({
             </Text>
           </TouchableOpacity>
 
-          {/* Tab 2: کاڵاکان (Products) - displays on the LEFT in Kurdish RTL */}
+          {/* Tab 2: کاڵاکان (Products) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -605,18 +881,26 @@ export function InventoryExpiryView({
             style={[
               styles.segmentBtn,
               activeTab === 'products' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
             ]}
           >
             <Ionicons
               name="cube-outline"
-              size={18}
-              color={activeTab === 'products' ? '#0F172A' : colors.gray500}
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              color={activeTab === 'products' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               style={[
                 styles.segmentBtnText,
-                { color: activeTab === 'products' ? '#0F172A' : colors.gray600 },
+                {
+                  color: activeTab === 'products' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
@@ -627,17 +911,75 @@ export function InventoryExpiryView({
                 style={[
                   styles.tabBadge,
                   {
-                    backgroundColor: activeTab === 'products' ? '#0F172A' : isDark ? colors.gray200 : colors.gray300,
+                    backgroundColor: activeTab === 'products' ? 'rgba(255, 255, 255, 0.25)' : isDark ? colors.gray200 : colors.gray300,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.tabBadgeText,
-                    { color: activeTab === 'products' ? colors.primary : colors.black },
+                    { color: activeTab === 'products' ? '#FFFFFF' : colors.black },
                   ]}
                 >
                   {enrichedProducts.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Tab 3: فڕێدراوەکان (Discarded Products) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              try {
+                Haptics.selectionAsync().catch(() => {});
+              } catch {}
+              setActiveTab('discarded');
+            }}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'discarded' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
+                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                borderRadius: isTablet ? 14 : 11,
+              },
+            ]}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              color={activeTab === 'discarded' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                {
+                  color: activeTab === 'discarded' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {isKu ? 'فڕێدراوەکان' : 'Discarded'}
+            </Text>
+            {discardedList.length > 0 && (
+              <View
+                style={[
+                  styles.tabBadge,
+                  {
+                    backgroundColor: activeTab === 'discarded' ? 'rgba(255, 255, 255, 0.25)' : '#EF4444',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabBadgeText,
+                    { color: '#FFFFFF' },
+                  ]}
+                >
+                  {discardedList.length}
                 </Text>
               </View>
             )}
@@ -682,27 +1024,29 @@ export function InventoryExpiryView({
               </View>
 
               <Text style={[styles.periodSubHint, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {periodKey === 'all'
+                {reportPeriodKey === 'all'
                   ? (isKu ? 'هەموو کات (سەرەکی)' : 'All Time (Default)')
-                  : periodLabels[periodKey]}
+                  : periodLabels[reportPeriodKey]}
               </Text>
             </View>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ marginHorizontal: -16 }}
+              style={[
+                { marginHorizontal: -16 },
+                isRTL && { transform: [{ scaleX: -1 }] },
+              ]}
               contentContainerStyle={[
                 styles.periodPillRow,
                 {
-                  flexDirection,
                   paddingHorizontal: 16,
                   gap: 8,
                 },
               ]}
             >
               {periodKeys.map((key) => {
-                const active = periodKey === key;
+                const active = reportPeriodKey === key;
                 const isCustom = key === 'custom';
                 return (
                   <TouchableOpacity
@@ -713,14 +1057,15 @@ export function InventoryExpiryView({
                         Haptics.selectionAsync().catch(() => {});
                       } catch {}
                       if (isCustom) {
-                        setCustomOpen(true);
+                        setReportCustomOpen(true);
                       } else {
-                        setPeriodKey(key);
-                        setCustomRange(null);
+                        setReportPeriodKey(key);
+                        setReportCustomRange(null);
                       }
                     }}
                     style={[
                       styles.periodPill,
+                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: active
                           ? colors.primary
@@ -752,16 +1097,16 @@ export function InventoryExpiryView({
                         isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isCustom && customRange
-                        ? `${customRange.from} → ${customRange.to}`
+                      {isCustom && reportCustomRange
+                        ? `${reportCustomRange.from} → ${reportCustomRange.to}`
                         : periodLabels[key]}
                     </Text>
-                    {isCustom && active && customRange && (
+                    {isCustom && active && reportCustomRange && (
                       <TouchableOpacity
                         onPress={(e) => {
                           e.stopPropagation?.();
-                          setPeriodKey('all');
-                          setCustomRange(null);
+                          setReportPeriodKey('all');
+                          setReportCustomRange(null);
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
@@ -1254,7 +1599,37 @@ export function InventoryExpiryView({
                     </Text>
                   </View>
 
-                  <View>{renderBadge(item)}</View>
+                  <View style={[styles.badgeCol, { alignItems: 'flex-end', gap: 6 }]}>
+                    {renderBadge(item)}
+                    {item.status === 'expired' && item.product.quantity > 0 && (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          handleOpenDiscardModal(item.product);
+                        }}
+                        style={[
+                          styles.discardBtn,
+                          {
+                            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2',
+                            borderColor: isDark ? 'rgba(239, 68, 68, 0.45)' : '#FCA5A5',
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                          },
+                        ]}
+                      >
+                        <Ionicons name="trash-outline" size={12} color="#EF4444" />
+                        <Text
+                          style={[
+                            styles.discardBtnText,
+                            { color: '#EF4444' },
+                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {isKu ? 'فڕێدان' : 'Discard'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1262,7 +1637,7 @@ export function InventoryExpiryView({
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      ) : (
+      ) : activeTab === 'products' ? (
         /* ── 3. TAB 2: کاڵاکان و بەروارەکانیان (PRODUCTS VIEW) ──────────────── */
         <FlatList
           data={filteredProducts}
@@ -1317,112 +1692,8 @@ export function InventoryExpiryView({
                 )}
               </View>
 
-              {/* Date Period Filter Bar (ماوەی بەروار: هەمووی، ئەمڕۆ، ئەم هەفتەیە، ئەم مانگە، دەستنیشانکراو) */}
-              <View style={[styles.periodSection, { marginBottom: 2 }]}>
-                <View style={[styles.periodSectionHeader, { flexDirection }]}>
-                  <View style={[styles.periodTitleRow, { flexDirection }]}>
-                    <Ionicons name="calendar-outline" size={15} color={colors.primary} />
-                    <Text style={[styles.periodSectionTitle, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                      {isKu ? 'ماوەی بەروار:' : 'Date Period:'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.periodSubHint, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {periodKey === 'all'
-                      ? (isKu ? 'هەموو کات' : 'All Time')
-                      : periodKey === 'custom' && customRange
-                      ? `${customRange.from} → ${customRange.to}`
-                      : periodLabels[periodKey]}
-                  </Text>
-                </View>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -16 }}
-                  contentContainerStyle={[
-                    styles.periodPillRow,
-                    {
-                      flexDirection,
-                      paddingHorizontal: 16,
-                      gap: 8,
-                    },
-                  ]}
-                >
-                  {periodKeys.map((key) => {
-                    const active = periodKey === key;
-                    const isCustom = key === 'custom';
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        activeOpacity={0.8}
-                        onPress={() => {
-                          try {
-                            Haptics.selectionAsync().catch(() => {});
-                          } catch {}
-                          if (isCustom) {
-                            setCustomOpen(true);
-                          } else {
-                            setPeriodKey(key);
-                            setCustomRange(null);
-                          }
-                        }}
-                        style={[
-                          styles.periodPill,
-                          {
-                            backgroundColor: active
-                              ? colors.primary
-                              : isDark
-                              ? colors.gray100
-                              : colors.white,
-                            borderColor: active
-                              ? colors.primary
-                              : isDark
-                              ? colors.gray200
-                              : colors.gray200,
-                            flexDirection,
-                            alignItems: 'center',
-                            gap: 5,
-                          },
-                        ]}
-                      >
-                        {isCustom && (
-                          <Ionicons
-                            name="calendar"
-                            size={12}
-                            color={active ? '#0F172A' : colors.primary}
-                          />
-                        )}
-                        <Text
-                          style={[
-                            styles.periodPillText,
-                            { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
-                            isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
-                          ]}
-                        >
-                          {isCustom && customRange
-                            ? `${customRange.from} → ${customRange.to}`
-                            : periodLabels[key]}
-                        </Text>
-                        {isCustom && active && customRange && (
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              setPeriodKey('all');
-                              setCustomRange(null);
-                            }}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Ionicons name="close-circle" size={13} color="#0F172A" />
-                          </TouchableOpacity>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* Active Custom Filter Badge / Indicator with Reset */}
-              {(periodKey !== 'all' || customRange !== null) && (
+              {/* Active Period Filter Indicator with Reset (when filtered by navigation icon) */}
+              {(productPeriodKey !== 'all' || productCustomRange !== null) && (
                 <View
                   style={[
                     styles.activeFilterBanner,
@@ -1433,24 +1704,28 @@ export function InventoryExpiryView({
                     },
                   ]}
                 >
-                  <View style={[styles.activeFilterLeft, { flexDirection }]}>
-                    <Ionicons name="funnel" size={14} color={colors.primary} />
+                  <TouchableOpacity
+                    onPress={onOpenPeriodModal}
+                    style={[styles.activeFilterLeft, { flexDirection }]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="calendar" size={14} color={colors.primary} />
                     <Text style={[styles.activeFilterText, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                      {isKu ? 'فلتەری دەستنیشانکراو:' : 'Selected Filter:'}{' '}
+                      {isKu ? 'ماوەی بەروار:' : 'Date Period:'}{' '}
                       <Text style={{ fontWeight: '700', color: colors.primary }}>
-                        {periodKey === 'custom' && customRange
-                          ? `${customRange.from} → ${customRange.to}`
-                          : periodLabels[periodKey]}
+                        {productPeriodKey === 'custom' && productCustomRange
+                          ? `${productCustomRange.from} → ${productCustomRange.to}`
+                          : periodLabels[productPeriodKey]}
                       </Text>
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
                       try {
                         Haptics.selectionAsync().catch(() => {});
                       } catch {}
-                      setPeriodKey('all');
-                      setCustomRange(null);
+                      setProductPeriodKey('all');
+                      setProductCustomRange(null);
                     }}
                     style={[styles.clearFilterBtn, { flexDirection }]}
                     activeOpacity={0.7}
@@ -1463,15 +1738,17 @@ export function InventoryExpiryView({
                 </View>
               )}
 
-              {/* Status Filter Chips (هەمووی، بەسەرچوو، بەم نزیکانە، سەلامەت، بێ بەروار + دەستنیشانکراو) */}
+              {/* Status Filter Chips (هەمووی، بەسەرچوو، بەم نزیکانە، سەلامەت، بێ بەروار) - RTL friendly */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={{ marginHorizontal: -16 }}
+                style={[
+                  { marginHorizontal: -16 },
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                ]}
                 contentContainerStyle={[
                   styles.filterChipsRow,
                   {
-                    flexDirection,
                     paddingHorizontal: 16,
                     gap: 8,
                   },
@@ -1482,6 +1759,7 @@ export function InventoryExpiryView({
                   onPress={() => handleSelectFilter('all')}
                   style={[
                     styles.filterChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
                     {
                       backgroundColor: activeFilter === 'all' ? colors.primary : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'all' ? colors.primary : isDark ? colors.gray200 : colors.gray200,
@@ -1504,6 +1782,7 @@ export function InventoryExpiryView({
                   onPress={() => handleSelectFilter('expired')}
                   style={[
                     styles.filterChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
                     {
                       backgroundColor: activeFilter === 'expired' ? '#EF4444' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'expired' ? '#EF4444' : isDark ? colors.gray200 : colors.gray200,
@@ -1526,6 +1805,7 @@ export function InventoryExpiryView({
                   onPress={() => handleSelectFilter('expiringSoon')}
                   style={[
                     styles.filterChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
                     {
                       backgroundColor: activeFilter === 'expiringSoon' ? '#F59E0B' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'expiringSoon' ? '#F59E0B' : isDark ? colors.gray200 : colors.gray200,
@@ -1548,6 +1828,7 @@ export function InventoryExpiryView({
                   onPress={() => handleSelectFilter('safe')}
                   style={[
                     styles.filterChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
                     {
                       backgroundColor: activeFilter === 'safe' ? '#10B981' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'safe' ? '#10B981' : isDark ? colors.gray200 : colors.gray200,
@@ -1570,6 +1851,7 @@ export function InventoryExpiryView({
                   onPress={() => handleSelectFilter('noDate')}
                   style={[
                     styles.filterChip,
+                    isRTL && { transform: [{ scaleX: -1 }] },
                     {
                       backgroundColor: activeFilter === 'noDate' ? colors.gray500 : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'noDate' ? colors.gray500 : isDark ? colors.gray200 : colors.gray200,
@@ -1584,43 +1866,6 @@ export function InventoryExpiryView({
                     ]}
                   >
                     {isKu ? `بێ بەروار (${filterCounts.noDate})` : `No Date (${filterCounts.noDate})`}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Quick Custom Range Chip in Status Row */}
-                <TouchableOpacity
-                  onPress={() => {
-                    try {
-                      Haptics.selectionAsync().catch(() => {});
-                    } catch {}
-                    setCustomOpen(true);
-                  }}
-                  style={[
-                    styles.filterChip,
-                    {
-                      backgroundColor: (periodKey === 'custom' && customRange) ? colors.primary : isDark ? colors.gray100 : colors.white,
-                      borderColor: (periodKey === 'custom' && customRange) ? colors.primary : isDark ? colors.gray200 : colors.gray200,
-                      flexDirection,
-                      alignItems: 'center',
-                      gap: 4,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="calendar"
-                    size={12}
-                    color={(periodKey === 'custom' && customRange) ? '#0F172A' : colors.primary}
-                  />
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: (periodKey === 'custom' && customRange) ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
-                      isKu && { fontFamily: (periodKey === 'custom' && customRange) ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
-                    ]}
-                  >
-                    {periodKey === 'custom' && customRange
-                      ? `${customRange.from} → ${customRange.to}`
-                      : (isKu ? 'دەستنیشانکراو' : 'Custom')}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1652,18 +1897,552 @@ export function InventoryExpiryView({
             </View>
           }
         />
+      ) : (
+        /* ── 4. TAB 3: کاڵا فڕێدراوەکان (DISCARDED VIEW) ──────────────── */
+        <ScrollView
+          style={styles.scrollFlex}
+          contentContainerStyle={[
+            styles.discardedScrollContent,
+            isTablet && { maxWidth: isTabletLandscape ? 960 : 760, alignSelf: 'center', width: '100%' },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loadingDiscarded}
+              onRefresh={loadDiscardedData}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
+          {/* Dashboard Card */}
+          <View
+            style={[
+              styles.discardDashboardCard,
+              {
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FCA5A5',
+              },
+            ]}
+          >
+            <View style={[styles.discardDashHeader, { flexDirection }]}>
+              <View style={[styles.discardDashTitleRow, { flexDirection }]}>
+                <View style={[styles.discardIconWrap, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
+                  <Ionicons name="trash-bin-outline" size={20} color="#EF4444" />
+                </View>
+                <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <Text style={[styles.discardDashTitle, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isKu ? 'داشبۆردی زەرەری کاڵا فڕێدراوەکان' : 'Discarded Products Loss Dashboard'}
+                  </Text>
+                  <Text style={[styles.discardDashSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'کۆی زیانی دارایی بەهۆی بەسەرچوون و فڕێدانەوە' : 'Total financial loss from expired write-offs'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 4 KPI Grid Cards */}
+            <View style={[styles.discardKpiGrid, { flexDirection }]}>
+              {/* Total Loss IQD */}
+              <View style={[styles.discardKpiCard, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2' }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }]}>
+                  <Ionicons name="cash-outline" size={15} color="#EF4444" />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'کۆی زەرەر (دینار)' : 'Total Loss (IQD)'}
+                  </Text>
+                </View>
+                <Text style={[styles.discardKpiVal, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {fmtIQD(discardedStats?.totalLossIqd ?? 0)}
+                </Text>
+              </View>
+
+              {/* Total Loss USD */}
+              <View style={[styles.discardKpiCard, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : '#FEF3C7' }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }]}>
+                  <Ionicons name="logo-usd" size={15} color={colors.primary} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'کۆی زەرەر (دۆلار)' : 'Total Loss (USD)'}
+                  </Text>
+                </View>
+                <Text style={[styles.discardKpiVal, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  ${(discardedStats?.totalLossUsd ?? 0).toFixed(2)}
+                </Text>
+              </View>
+
+              {/* Products Count */}
+              <View style={[styles.discardKpiCard, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }]}>
+                  <Ionicons name="cube-outline" size={15} color={colors.gray500} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'ژمارەی کاڵاکان' : 'Products Count'}
+                  </Text>
+                </View>
+                <Text style={[styles.discardKpiVal, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {discardedStats?.totalItemsCount ?? 0} {isKu ? 'کاڵا' : 'items'}
+                </Text>
+              </View>
+
+              {/* Total Units Discarded */}
+              <View style={[styles.discardKpiCard, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }]}>
+                  <Ionicons name="layers-outline" size={15} color={colors.gray500} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'کۆی دانەی فڕێدراو' : 'Total Units'}
+                  </Text>
+                </View>
+                <Text style={[styles.discardKpiVal, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {discardedStats?.totalUnitsCount ?? 0} {isKu ? 'دانە' : 'pcs'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Search bar inside Discarded tab */}
+          <View
+            style={[
+              styles.searchInputBox,
+              {
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                flexDirection,
+                marginBottom: 12,
+              },
+            ]}
+          >
+            <Ionicons name="search" size={18} color={colors.gray400} />
+            <TextInput
+              value={discardSearchQuery}
+              onChangeText={setDiscardSearchQuery}
+              placeholder={isKu ? 'گەڕان لە کاڵا فڕێدراوەکاندا...' : 'Search discarded items...'}
+              placeholderTextColor={colors.gray400}
+              style={[
+                styles.searchInput,
+                { color: colors.black, textAlign },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            />
+            {discardSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setDiscardSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color={colors.gray400} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* List of Discarded Items */}
+          {filteredDiscardedList.length === 0 ? (
+            <View
+              style={[
+                styles.emptyDiscardCard,
+                {
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.60)' : '#FFFFFF',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+                },
+              ]}
+            >
+              <View style={[styles.emptyDiscardIconWrap, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5' }]}>
+                <Ionicons name="checkmark-done-circle-outline" size={42} color="#10B981" />
+              </View>
+              <Text style={[styles.emptyDiscardTitle, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {isKu ? 'هیچ کاڵایەکی فڕێدراو بوونی نییە' : 'No Discarded Products Found'}
+              </Text>
+              <Text style={[styles.emptyDiscardSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {isKu
+                  ? 'هەموو بەرهەمە بەسەرچووەکان لە کۆگادان یان هیچیان فڕێنەدراون.'
+                  : 'All expired products are in inventory or no write-offs have been recorded.'}
+              </Text>
+            </View>
+          ) : (
+            filteredDiscardedList.map((item) => (
+              <View
+                key={String(item.id)}
+                style={[
+                  styles.discardItemCard,
+                  {
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.75)' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(239, 68, 68, 0.28)' : '#FCA5A5',
+                  },
+                ]}
+              >
+                <View style={[styles.discardCardHeaderRow, { flexDirection }]}>
+                  {/* Thumb */}
+                  {item.imageUri ? (
+                    <Image source={{ uri: item.imageUri }} style={styles.productThumb} resizeMode="cover" />
+                  ) : (
+                    <View
+                      style={[
+                        styles.productThumbFallback,
+                        { backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12) },
+                      ]}
+                    >
+                      <Ionicons name="cube-outline" size={24} color={colors.primary} />
+                    </View>
+                  )}
+
+                  {/* Info */}
+                  <View style={[styles.cardInfoCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <Text
+                      style={[
+                        styles.productName,
+                        { color: colors.black, textAlign },
+                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.productName}
+                    </Text>
+
+                    <View style={[styles.categoryQtyRow, { flexDirection }]}>
+                      {item.category ? (
+                        <View style={[styles.catBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 }]}>
+                          <Text style={[styles.catText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {item.category}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      <Text style={[styles.qtyText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isKu ? `فڕێدراو: ${item.quantity} ${item.unit}` : `Discarded: ${item.quantity} ${item.unit}`}
+                      </Text>
+                    </View>
+
+                    {/* Expiry Date & Discarded Date */}
+                    <View style={[styles.expiryDateRow, { flexDirection, gap: 10 }]}>
+                      <View style={[{ flexDirection, alignItems: 'center', gap: 4 }]}>
+                        <Ionicons name="time-outline" size={13} color={colors.gray400} />
+                        <Text style={[styles.expiryDateLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isKu ? `فڕێدان: ${item.discardedAt?.slice(0, 10)}` : `Discarded: ${item.discardedAt?.slice(0, 10)}`}
+                        </Text>
+                      </View>
+                      {item.expiryDate ? (
+                        <View style={[{ flexDirection, alignItems: 'center', gap: 4 }]}>
+                          <Ionicons name="calendar-outline" size={13} color="#EF4444" />
+                          <Text style={[styles.expiryDateLabel, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {isKu ? `بەسەرچوون: ${item.expiryDate}` : `Exp: ${item.expiryDate}`}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* Loss Badge and Restore Button */}
+                  <View style={[styles.badgeCol, { alignItems: 'flex-end', gap: 8 }]}>
+                    <View style={[styles.lossBadgeWrap, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
+                      <Text style={[styles.lossBadgeText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {item.buyPriceUsd > 0 ? `$${item.totalLossUsd.toFixed(2)}` : fmtIQD(item.totalLossIqd)}
+                      </Text>
+                      <Text style={[styles.lossSubText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isKu ? 'زەرەر' : 'Loss'}
+                      </Text>
+                    </View>
+
+                    {/* Restore Button */}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleRestoreDiscarded(item)}
+                      style={[
+                        styles.restoreBtn,
+                        {
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5',
+                          borderColor: isDark ? 'rgba(16, 185, 129, 0.40)' : '#A7F3D0',
+                          flexDirection,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="return-up-back-outline" size={14} color="#10B981" />
+                      <Text style={[styles.restoreBtnText, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isKu ? 'گەڕاندنەوە' : 'Restore'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
       )}
 
-      {/* ── Custom Date Range Modal ── */}
+      {/* ── Discard Confirmation Modal ── */}
+      <Modal
+        visible={discardModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isSubmittingDiscard) setDiscardModalVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.discardModalCard,
+              {
+                backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.40)' : '#FCA5A5',
+              },
+            ]}
+          >
+            {/* Header */}
+            <View style={[styles.modalHeaderRow, { flexDirection }]}>
+              <View style={[styles.modalTitleRow, { flexDirection }]}>
+                <View style={[styles.modalTrashIconWrap, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2' }]}>
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </View>
+                <Text style={[styles.modalTitleText, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {isKu ? 'فڕێدانی کاڵای بەسەرچوو' : 'Discard Expired Product'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDiscardModalVisible(false)}
+                disabled={isSubmittingDiscard}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={22} color={colors.gray400} />
+              </TouchableOpacity>
+            </View>
+
+            {targetProductToDiscard && (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                {/* Product Summary Row */}
+                <View
+                  style={[
+                    styles.modalProductPreview,
+                    {
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray200,
+                      flexDirection,
+                    },
+                  ]}
+                >
+                  {(() => {
+                    const displayImg = getProductDisplayImage(targetProductToDiscard);
+                    return displayImg ? (
+                      <Image source={{ uri: displayImg }} style={styles.modalProductThumb} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.modalProductThumbFallback, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
+                        <Ionicons name="cube-outline" size={22} color={colors.primary} />
+                      </View>
+                    );
+                  })()}
+
+                  <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text
+                      style={[
+                        styles.modalProductName,
+                        { color: colors.black, textAlign },
+                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {targetProductToDiscard.name}
+                    </Text>
+                    <Text style={[styles.modalProductSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {targetProductToDiscard.category || 'General'} • {isKu ? `کۆگا: ${targetProductToDiscard.quantity} دانە` : `Stock: ${targetProductToDiscard.quantity} pcs`}
+                    </Text>
+                    {targetProductToDiscard.expiryDate ? (
+                      <Text style={[styles.modalExpiryText, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isKu ? `بەسەرچوون: ${targetProductToDiscard.expiryDate}` : `Expired: ${targetProductToDiscard.expiryDate}`}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Quantity Stepper */}
+                <View style={styles.modalFieldGroup}>
+                  <Text style={[styles.modalFieldLabel, { color: colors.gray600, textAlign }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isKu ? 'بڕی فڕێدان (دانە):' : 'Quantity to Discard:'}
+                  </Text>
+                  <View style={[styles.modalStepperRow, { flexDirection }]}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => setDiscardQuantity((q) => Math.max(1, q - 1))}
+                      style={[styles.modalStepBtn, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}
+                    >
+                      <Ionicons name="remove" size={20} color={colors.black} />
+                    </TouchableOpacity>
+
+                    <TextInput
+                      keyboardType="numeric"
+                      value={String(discardQuantity)}
+                      onChangeText={(val) => {
+                        const num = parseInt(val, 10);
+                        if (isNaN(num)) setDiscardQuantity(1);
+                        else setDiscardQuantity(Math.min(targetProductToDiscard.quantity, Math.max(1, num)));
+                      }}
+                      style={[
+                        styles.modalStepInput,
+                        {
+                          color: colors.black,
+                          backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
+                          borderColor: isDark ? colors.gray200 : colors.gray200,
+                        },
+                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    />
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => setDiscardQuantity((q) => Math.min(targetProductToDiscard.quantity, q + 1))}
+                      style={[styles.modalStepBtn, { backgroundColor: isDark ? colors.gray100 : colors.gray200 }]}
+                    >
+                      <Ionicons name="add" size={20} color={colors.black} />
+                    </TouchableOpacity>
+
+                    {targetProductToDiscard.quantity > 1 && (
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => setDiscardQuantity(targetProductToDiscard.quantity)}
+                        style={[
+                          styles.modalAllBtn,
+                          {
+                            backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12),
+                            borderColor: colors.primary,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.modalAllBtnText, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          {isKu ? `هەمووی (${targetProductToDiscard.quantity})` : `All (${targetProductToDiscard.quantity})`}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Financial Loss Calculation Card */}
+                {(() => {
+                  const buyIqd = targetProductToDiscard.purchasePrice || 0;
+                  const buyUsd = targetProductToDiscard.buyPriceUsd || 0;
+                  const totalIqd = buyIqd > 0 ? buyIqd * discardQuantity : buyUsd * discardQuantity * exchangeRate;
+                  const totalUsd = buyUsd > 0 ? buyUsd * discardQuantity : buyIqd > 0 ? (buyIqd * discardQuantity) / exchangeRate : 0;
+
+                  return (
+                    <View
+                      style={[
+                        styles.modalLossCard,
+                        {
+                          backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                          borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA',
+                        },
+                      ]}
+                    >
+                      <View style={[styles.modalLossHeader, { flexDirection }]}>
+                        <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                        <Text style={[styles.modalLossTitle, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          {isKu ? 'زیانی دارایی تۆمارکراو (زەرەر):' : 'Financial Loss to Record:'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.modalLossAmountsRow, { flexDirection }]}>
+                        {totalUsd > 0 && (
+                          <View style={styles.modalLossCol}>
+                            <Text style={[styles.modalLossVal, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                              ${totalUsd.toFixed(2)}
+                            </Text>
+                            <Text style={[styles.modalLossSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                              {isKu ? 'بە دۆلار' : 'in USD'}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.modalLossCol}>
+                          <Text style={[styles.modalLossVal, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                            {fmtIQD(totalIqd)}
+                          </Text>
+                          <Text style={[styles.modalLossSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {isKu ? 'بە دینار' : 'in IQD'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={[styles.modalLossHint, { color: colors.gray500, textAlign }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isKu
+                          ? 'ئەم بڕە لە کۆگای بەردەست کەم دەبێتەوە و لە راپۆرتی دارایی و قازانج/زەرەر بە نەگەتیڤ دادەنرێت.'
+                          : 'This amount will be deducted from inventory and reflected as an accounting loss in profit & loss.'}
+                      </Text>
+                    </View>
+                  );
+                })()}
+
+                {/* Optional Note */}
+                <View style={[styles.modalFieldGroup, { marginTop: 10 }]}>
+                  <Text style={[styles.modalFieldLabel, { color: colors.gray600, textAlign }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'تێبینی (ئارەزوومەندانە):' : 'Notes (Optional):'}
+                  </Text>
+                  <TextInput
+                    value={discardNotes}
+                    onChangeText={setDiscardNotes}
+                    placeholder={isKu ? 'هۆکاری فڕێدان، نموونە: بەسەرچوونی ماوەی بەکارهێنان...' : 'Reason or note...'}
+                    placeholderTextColor={colors.gray400}
+                    style={[
+                      styles.modalNotesInput,
+                      {
+                        color: colors.black,
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
+                        borderColor: isDark ? colors.gray200 : colors.gray200,
+                        textAlign,
+                      },
+                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                  />
+                </View>
+              </ScrollView>
+            )}
+
+            {/* Modal Actions */}
+            <View style={[styles.modalActionsRow, { flexDirection }]}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setDiscardModalVisible(false)}
+                disabled={isSubmittingDiscard}
+                style={[
+                  styles.modalCancelBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray100 : colors.gray200,
+                  },
+                ]}
+              >
+                <Text style={[styles.modalCancelBtnText, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleConfirmDiscard}
+                disabled={isSubmittingDiscard}
+                style={[
+                  styles.modalConfirmDiscardBtn,
+                  {
+                    backgroundColor: '#EF4444',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                {isSubmittingDiscard ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="trash" size={17} color="#FFFFFF" />
+                    <Text style={[styles.modalConfirmBtnText, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      {isKu ? 'فڕێدان و تۆمارکردنی زەرەر' : 'Discard & Record Loss'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Custom Date Range Modal (Report Tab) ── */}
       <CustomDateRangeModal
-        visible={customOpen}
-        onClose={() => setCustomOpen(false)}
-        initialFrom={customRange?.from}
-        initialTo={customRange?.to}
+        visible={reportCustomOpen}
+        onClose={() => setReportCustomOpen(false)}
+        initialFrom={reportCustomRange?.from}
+        initialTo={reportCustomRange?.to}
         onApply={(from, to) => {
-          setPeriodKey('custom');
-          setCustomRange({ from, to });
-          setCustomOpen(false);
+          setReportPeriodKey('custom');
+          setReportCustomRange({ from, to });
+          setReportCustomOpen(false);
         }}
       />
 
@@ -1704,33 +2483,34 @@ const styles = StyleSheet.create({
 
   // ── Segmented Tab Switcher ──
   segmentWrapper: {
-    borderBottomWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    borderBottomWidth: 1,
   },
   segmentTrack: {
+    flexDirection: 'row',
     borderRadius: 14,
     padding: 4,
-    width: '100%',
+    gap: 6,
   },
   segmentBtn: {
     flex: 1,
-    minHeight: 42,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    paddingVertical: 10,
     borderRadius: 11,
-    paddingHorizontal: 10,
+    gap: 8,
   },
   segmentBtnActive: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.12,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 2,
   },
   segmentBtnText: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
   },
   tabBadge: {
@@ -2205,4 +2985,353 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 280,
   },
+
+  // ── Discard Button on cards ──
+  discardBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  discardBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  gridDiscardBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+
+  // ── Tab 3: Discarded Products Styles ──
+  discardedScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 40,
+    gap: 12,
+  },
+  discardDashboardCard: {
+    borderRadius: 18,
+    borderWidth: 1.2,
+    padding: 16,
+    gap: 14,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  discardDashHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  discardDashTitleRow: {
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  discardIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discardDashTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  discardDashSub: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  discardKpiGrid: {
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  discardKpiCard: {
+    width: '48.2%',
+    borderRadius: 13,
+    borderWidth: 1,
+    padding: 12,
+    gap: 6,
+  },
+  kpiIconRow: {
+    alignItems: 'center',
+    gap: 5,
+  },
+  discardKpiLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  discardKpiVal: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  // Discarded Item Card
+  discardItemCard: {
+    borderRadius: 15,
+    borderWidth: 1,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  discardCardHeaderRow: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  lossBadgeWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+  },
+  lossBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  lossSubText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  restoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  restoreBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  emptyDiscardCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 44,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  emptyDiscardIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyDiscardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  emptyDiscardSub: {
+    fontSize: 12.5,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+
+  // ── Discard Modal Styles ──
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  discardModalCard: {
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  modalTitleRow: {
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  modalTrashIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalProductPreview: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 10,
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalProductThumb: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+  },
+  modalProductThumbFallback: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalProductName: {
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  modalProductSub: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  modalExpiryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  modalFieldGroup: {
+    gap: 6,
+    marginBottom: 10,
+  },
+  modalFieldLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  modalStepperRow: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  modalStepBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalStepInput: {
+    width: 70,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  modalAllBtn: {
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalAllBtnText: {
+    fontSize: 12.5,
+  },
+  modalLossCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 8,
+    marginVertical: 4,
+  },
+  modalLossHeader: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalLossTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  modalLossAmountsRow: {
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 4,
+  },
+  modalLossCol: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  modalLossVal: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  modalLossSub: {
+    fontSize: 10.5,
+  },
+  modalLossHint: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  modalNotesInput: {
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 12.5,
+  },
+  modalActionsRow: {
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  modalConfirmDiscardBtn: {
+    flex: 1.5,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
 });
+

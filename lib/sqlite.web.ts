@@ -93,3 +93,35 @@ export async function searchSuppliersList(_query: string): Promise<any[]> {
 export async function addManagedCategory(_name: string): Promise<void> {}
 
 export async function saveExchangeRateHistory(_rate: number): Promise<void> {}
+
+export async function discardProduct(
+  _productId: number,
+  _quantity: number,
+  _reason?: string,
+  _notes?: string
+): Promise<{ discardId: number; totalLossIqd: number; totalLossUsd: number }> {
+  return { discardId: 0, totalLossIqd: 0, totalLossUsd: 0 };
+}
+
+export async function restoreDiscardedProduct(_discardId: number): Promise<{
+  success: boolean;
+  restoredQuantity: number;
+  productId: number | null;
+}> {
+  return { success: false, restoredQuantity: 0, productId: null };
+}
+
+export async function permanentDeleteDiscardedProduct(_discardId: number): Promise<void> {}
+
+export async function getDiscardedProducts(_onlyActive: boolean = true): Promise<any[]> {
+  return [];
+}
+
+export async function getDiscardedLossStats(_from?: string, _to?: string): Promise<{
+  totalLossIqd: number;
+  totalLossUsd: number;
+  totalItemsCount: number;
+  totalUnitsCount: number;
+}> {
+  return { totalLossIqd: 0, totalLossUsd: 0, totalItemsCount: 0, totalUnitsCount: 0 };
+}

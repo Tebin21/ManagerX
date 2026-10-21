@@ -443,6 +443,9 @@ export function buildFinancialReportHTML(
         <tr class="kv-divider"><td colspan="2"></td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('totalPurchasesCost'))}</td><td class="kv-val">${lossMoney(purchaseCost)}</td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('businessExpenses'))}</td><td class="kv-val">${lossMoney(totalExpenses)}</td></tr>
+        ${(plData?.discardLoss ?? 0) > 0 ? `
+        <tr class="kv-row"><td class="kv-lbl" style="color:#DC2626;">${ku(isKurdish ? 'زیانی کاڵا فڕێدراوەکان' : 'Discarded Products Loss')}</td><td class="kv-val" style="color:#DC2626;">${lossMoney(plData?.discardLoss ?? 0)}</td></tr>
+        ` : ''}
         <tr class="kv-row"><td class="kv-lbl">${ku(t('inventoryValueSell'))}</td><td class="kv-val">${fmtMoney(stockValue)}</td></tr>
         <tr class="kv-row"><td class="kv-lbl">${ku(t('expectedProfitStock'))}</td><td class="kv-val">${fmtMoney(potentialProfit)}</td></tr>
 

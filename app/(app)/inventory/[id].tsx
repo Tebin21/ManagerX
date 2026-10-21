@@ -13,7 +13,7 @@ import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
@@ -76,7 +76,11 @@ export default function InventoryDetailScreen() {
     }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const confirmDelete = useCallback(() => {
     if (!product) return;

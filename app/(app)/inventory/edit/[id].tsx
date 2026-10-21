@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
@@ -34,15 +34,17 @@ import { fmtIQD, fmtUSD, toDateOnly } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { useSavedProductStore } from '@/store/savedProductStore';
-import { DateTimePicker } from '@/components/shared/DateTimePicker';
+import { DatePickerModal } from '@/components/shared/DatePickerModal';
 
 
 type FieldKey =
   | 'name' | 'category'
   | 'sellPriceIQD' | 'sellPriceUSD' | 'lowStockThreshold'
-  | 'warranty' | 'description' | 'notes' | 'imageUri' | 'websiteDescription' | 'itemDescription';
+  | 'warranty' | 'description' | 'notes' | 'imageUri' | 'websiteDescription' | 'itemDescription'
+  | 'productionDate' | 'expiryDate';
 
 export default function EditProductScreen() {
+  const router = useRouter();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { editProduct, categories: availableCategories } = useInventoryStore();
@@ -141,6 +143,10 @@ export default function EditProductScreen() {
     if (websiteDescription.trim() !== (product.websiteDescription ?? '')) changed.add('websiteDescription');
     const parsedThreshold = lowStockThreshold.trim() ? parseInt(lowStockThreshold, 10) : null;
     if (parsedThreshold !== (product.lowStockThreshold ?? null)) changed.add('lowStockThreshold');
+    const prodStr = productionDate ? toDateOnly(productionDate) : null;
+    const expStr = expiryDate ? toDateOnly(expiryDate) : null;
+    if (prodStr !== (product.productionDate ?? null)) changed.add('productionDate');
+    if (expStr !== (product.expiryDate ?? null)) changed.add('expiryDate');
 
     setSaving(true);
     try {
@@ -158,10 +164,18 @@ export default function EditProductScreen() {
         lowStockThreshold:  (!isNaN(parsedThreshold as number) && parsedThreshold !== null && (parsedThreshold as number) > 0) ? parsedThreshold : null,
         lowStockEnabled:    null,
         websiteDescription: websiteDescription.trim() || null,
-        productionDate:     productionDate ? toDateOnly(productionDate) : null,
-        expiryDate:         expiryDate ? toDateOnly(expiryDate) : null,
+        productionDate:     prodStr,
+        expiryDate:         expStr,
       };
       await editProduct(product.id, data);
+
+      // Update local product state so it reflects immediately
+      setProduct((prev) => prev ? ({
+        ...prev,
+        ...data,
+        productionDate: prodStr,
+        expiryDate: expStr,
+      }) : null);
 
       if (category.trim()) {
         try {
@@ -190,14 +204,46 @@ export default function EditProductScreen() {
         highlightTimer.current = setTimeout(() => setChangedFields(new Set()), 2000);
       }
 
-      Alert.alert(t('common.done'), t('inventory.saveChanges'), [{ text: t('common.done') }]);
+      Alert.alert(
+        t('common.done'),
+        isKuLanguage ? 'گۆڕانکارییەکان بەسەرکەوتوویی پاشەکەوت کران' : t('inventory.saveChanges'),
+        [
+          {
+            text: isKuLanguage ? 'گەڕانەوە' : t('common.back', 'Back'),
+            onPress: () => router.back(),
+          },
+          {
+            text: isKuLanguage ? 'مانەوە لەم پەڕەیە' : t('common.done', 'Done'),
+            style: 'cancel',
+          },
+        ]
+      );
     } catch (err) {
       console.error('Failed to save product:', err);
       Alert.alert(t('common.error'), t('inventory.errorSave'));
     } finally {
       setSaving(false);
     }
-  }, [product, name, itemDescription, category, sellIQD, sellUSD, warranty, description, notes, imageUri, lowStockThreshold, websiteDescription, editProduct]);
+  }, [
+    product,
+    name,
+    itemDescription,
+    category,
+    sellIQD,
+    sellUSD,
+    warranty,
+    description,
+    notes,
+    imageUri,
+    lowStockThreshold,
+    websiteDescription,
+    productionDate,
+    expiryDate,
+    editProduct,
+    router,
+    t,
+    isKuLanguage,
+  ]);
 
   const fieldBg = (key: FieldKey) =>
     changedFields.has(key) ? colors.softBlue : 'transparent';
@@ -420,16 +466,19 @@ export default function EditProductScreen() {
                 <TouchableOpacity
                   onPress={() => setShowProdPicker(true)}
                   style={[styles.dateBtn, { borderColor: colors.gray200, flexDirection }]}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="construct-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.dateBtnText, { color: productionDate ? colors.black : colors.gray400 }]}>
+                  <Text style={[styles.dateBtnText, { color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
                     {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                   </Text>
+                  <Ionicons name="calendar-outline" size={15} color={colors.gray400} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => setProductionDate(new Date())}
                   style={[styles.quickBtn, { backgroundColor: colors.gray100 }]}
+                  activeOpacity={0.7}
                 >
                   <Text style={[styles.quickBtnText, { color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
@@ -440,6 +489,7 @@ export default function EditProductScreen() {
                   <TouchableOpacity
                     onPress={() => setProductionDate(null)}
                     style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="close" size={14} color="#EF4444" />
                   </TouchableOpacity>
@@ -456,6 +506,7 @@ export default function EditProductScreen() {
                 <TouchableOpacity
                   onPress={() => setShowExpPicker(true)}
                   style={[styles.dateBtn, { borderColor: expiryDate ? '#F59E0B' : colors.gray200, flexDirection }]}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
                   <Text
@@ -464,17 +515,21 @@ export default function EditProductScreen() {
                       {
                         color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400,
                         fontWeight: expiryDate ? '700' : 'normal',
+                        flex: 1,
+                        textAlign: isRTL ? 'right' : 'left',
                       },
                     ]}
                   >
                     {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                   </Text>
+                  <Ionicons name="create-outline" size={15} color={colors.gray400} />
                 </TouchableOpacity>
 
                 {expiryDate && (
                   <TouchableOpacity
                     onPress={() => setExpiryDate(null)}
                     style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="close" size={14} color="#EF4444" />
                   </TouchableOpacity>
@@ -513,26 +568,27 @@ export default function EditProductScreen() {
               </View>
             </View>
 
-            {showProdPicker && (
-              <DateTimePicker
-                value={productionDate || new Date()}
-                onChange={(d) => {
-                  setProductionDate(d);
-                  setShowProdPicker(false);
-                }}
-                label={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Pick Production Date'}
-              />
-            )}
-            {showExpPicker && (
-              <DateTimePicker
-                value={expiryDate || new Date()}
-                onChange={(d) => {
-                  setExpiryDate(d);
-                  setShowExpPicker(false);
-                }}
-                label={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Pick Expiry Date'}
-              />
-            )}
+            {/* Production Date Modal */}
+            <DatePickerModal
+              visible={showProdPicker}
+              onClose={() => setShowProdPicker(false)}
+              currentDate={productionDate}
+              onSelect={(d) => setProductionDate(d)}
+              onClear={() => setProductionDate(null)}
+              mode="production"
+              title={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
+            />
+
+            {/* Expiry Date Modal */}
+            <DatePickerModal
+              visible={showExpPicker}
+              onClose={() => setShowExpPicker(false)}
+              currentDate={expiryDate}
+              onSelect={(d) => setExpiryDate(d)}
+              onClear={() => setExpiryDate(null)}
+              mode="expiry"
+              title={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
+            />
           </View>
         )}
 
@@ -627,7 +683,9 @@ export default function EditProductScreen() {
           ) : (
             <>
               <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>Save Changes</Text>
+              <Text style={[styles.saveBtnText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {isKuLanguage ? 'پاشەکەوتکردنی گۆڕانکارییەکان' : 'Save Changes'}
+              </Text>
             </>
           )}
         </TouchableOpacity>

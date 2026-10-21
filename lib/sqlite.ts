@@ -5,7 +5,7 @@ import type {
   UpdateSaleCompleteInput, GlobalDiscountType,
 } from '@/types/sales';
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
-import type { InventoryProduct, InventoryStats, NewProductData } from '@/types/inventory';
+import type { InventoryProduct, InventoryStats, NewProductData, DiscardedProduct, DiscardedLossStats } from '@/types/inventory';
 import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary, FinancialLedgerEvent, LedgerEventType, DebtType } from '@/types/debt';
 import type { SoldProductRecord } from '@/types/soldProducts';
@@ -84,7 +84,7 @@ export async function wipeAllBusinessData(): Promise<void> {
       'invoice_counter', 'purchase_counter',
       'inventory_history', 'categories',
       'settings', 'businesses',
-      'sync_queue',
+      'sync_queue', 'discarded_products',
     ]) {
       await database.runAsync(`DELETE FROM ${table}`);
     }
@@ -658,6 +658,33 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_products_expiry_date ON products(expiry_date)`,
     // Ensure existing remote images are mirrored to image_uri if image_uri is missing
     `UPDATE products SET image_uri = image_remote_url WHERE (image_uri IS NULL OR image_uri = '') AND image_remote_url IS NOT NULL AND image_remote_url != ''`,
+    // Discarded products table for tracking expired/written-off items and their financial loss
+    `CREATE TABLE IF NOT EXISTS discarded_products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER,
+      product_name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'General',
+      item_id TEXT,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      unit TEXT NOT NULL DEFAULT 'pcs',
+      purchase_price REAL NOT NULL DEFAULT 0,
+      buy_price_usd REAL NOT NULL DEFAULT 0,
+      selling_price REAL NOT NULL DEFAULT 0,
+      sell_price_usd REAL NOT NULL DEFAULT 0,
+      total_loss_iqd REAL NOT NULL DEFAULT 0,
+      total_loss_usd REAL NOT NULL DEFAULT 0,
+      expiry_date TEXT,
+      production_date TEXT,
+      image_uri TEXT,
+      reason TEXT NOT NULL DEFAULT 'expired',
+      notes TEXT,
+      discarded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      restored_at TEXT,
+      uuid TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_discarded_products_date ON discarded_products(discarded_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_discarded_products_product ON discarded_products(product_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_discarded_products_restored ON discarded_products(restored_at)`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -680,7 +707,7 @@ const UUID_TABLES = [
   'businesses', 'categories', 'products', 'inventory_history',
   'customers', 'suppliers', 'sales', 'sale_items', 'debts',
   'purchases', 'purchase_items', 'purchase_debts', 'debt_payments',
-  'expenses', 'exchange_rates', 'purchase_audit_log',
+  'expenses', 'exchange_rates', 'purchase_audit_log', 'discarded_products',
 ] as const;
 
 // Cloud-sync (Firestore) table scope — a deliberately narrower set than
@@ -1110,7 +1137,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
       data.name !== undefined || data.category !== undefined ||
       data.purchasePrice !== undefined || data.buyPriceUsd !== undefined ||
       data.sellingPrice !== undefined || data.sellPriceUsd !== undefined ||
-      data.warranty !== undefined || data.description !== undefined || data.notes !== undefined;
+      data.warranty !== undefined || data.description !== undefined || data.notes !== undefined ||
+      data.productionDate !== undefined || data.expiryDate !== undefined;
     if (sharedField) {
       const row = await database.getFirstAsync<{ purchase_id: number | null }>(
         'SELECT purchase_id FROM products WHERE id = ?', [id]
@@ -1126,6 +1154,8 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
           warranty: data.warranty,
           description: data.description,
           notes: data.notes,
+          productionDate: data.productionDate,
+          expiryDate: data.expiryDate,
         });
       }
     }
@@ -1442,6 +1472,231 @@ export async function getAllInventoryHistory(): Promise<import('@/types/inventor
     status: r.status as 'sold_out' | 'removed',
     archivedAt: r.archived_at as string,
   }));
+}
+
+// ─── Discarded Products (Expiry Write-offs) ─────────────────────────────────
+
+export async function discardProduct(
+  productId: number,
+  quantity: number,
+  reason: string = 'expired',
+  notes?: string
+): Promise<{ discardId: number; totalLossIqd: number; totalLossUsd: number }> {
+  const database = await getDatabase();
+  const product = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM products WHERE id = ?',
+    [productId]
+  );
+  if (!product) {
+    throw new Error(`Product with ID ${productId} not found`);
+  }
+
+  const currentQty = Number(product.quantity) || 0;
+  const discardQty = Math.max(1, Math.min(quantity, currentQty > 0 ? currentQty : quantity));
+  const purchasePriceIqd = Number(product.purchase_price) || 0;
+  let buyPriceUsd = Number(product.buy_price_usd) || 0;
+
+  // Retrieve exchange rate if conversion is needed
+  let exchangeRate = 1310;
+  try {
+    const rateRow = await database.getFirstAsync<{ rate: number }>(
+      'SELECT rate FROM exchange_rates ORDER BY created_at DESC LIMIT 1'
+    );
+    if (rateRow && rateRow.rate > 0) {
+      exchangeRate = rateRow.rate;
+    }
+  } catch {}
+
+  let totalLossIqd = purchasePriceIqd * discardQty;
+  let totalLossUsd = buyPriceUsd * discardQty;
+
+  if (totalLossIqd === 0 && totalLossUsd > 0) {
+    totalLossIqd = totalLossUsd * exchangeRate;
+  } else if (totalLossUsd === 0 && totalLossIqd > 0) {
+    totalLossUsd = totalLossIqd / exchangeRate;
+  }
+
+  const newQty = Math.max(0, currentQty - discardQty);
+
+  // Update product quantity in inventory
+  await database.runAsync(
+    'UPDATE products SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [newQty, productId]
+  );
+
+  // Insert into discarded_products
+  const uuid = await newUuid();
+  const result = await database.runAsync(
+    `INSERT INTO discarded_products (
+      product_id, product_name, category, item_id, quantity, unit,
+      purchase_price, buy_price_usd, selling_price, sell_price_usd,
+      total_loss_iqd, total_loss_usd, expiry_date, production_date,
+      image_uri, reason, notes, discarded_at, uuid
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`,
+    [
+      productId,
+      String(product.name ?? ''),
+      String(product.category ?? 'General'),
+      (product.item_id as string | null) ?? null,
+      discardQty,
+      String(product.unit ?? 'pcs'),
+      purchasePriceIqd,
+      buyPriceUsd,
+      Number(product.selling_price) || 0,
+      Number(product.sell_price_usd) || 0,
+      totalLossIqd,
+      totalLossUsd,
+      (product.expiry_date as string | null) ?? null,
+      (product.production_date as string | null) ?? null,
+      ((product.image_uri as string | null)?.trim() || (product.image_remote_url as string | null)?.trim() || null),
+      reason,
+      notes ?? null,
+      uuid,
+    ]
+  );
+
+  await clearReportsCache();
+  return {
+    discardId: result.lastInsertRowId,
+    totalLossIqd,
+    totalLossUsd,
+  };
+}
+
+export async function restoreDiscardedProduct(discardId: number): Promise<{
+  success: boolean;
+  restoredQuantity: number;
+  productId: number | null;
+}> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM discarded_products WHERE id = ?',
+    [discardId]
+  );
+  if (!row) {
+    return { success: false, restoredQuantity: 0, productId: null };
+  }
+
+  const qty = Math.max(1, Number(row.quantity) || 1);
+  const productId = row.product_id ? Number(row.product_id) : null;
+
+  if (productId) {
+    const existing = await database.getFirstAsync<{ id: number; quantity: number }>(
+      'SELECT id, quantity FROM products WHERE id = ?',
+      [productId]
+    );
+    if (existing) {
+      await database.runAsync(
+        'UPDATE products SET quantity = quantity + ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [qty, productId]
+      );
+    } else {
+      // Re-create the product if it was deleted
+      const uuid = await newUuid();
+      await database.runAsync(
+        `INSERT INTO products (
+          name, category, item_id, purchase_price, buy_price_usd, selling_price, sell_price_usd,
+          quantity, unit, expiry_date, production_date, image_uri, is_active, uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        [
+          String(row.product_name ?? ''),
+          String(row.category ?? 'General'),
+          (row.item_id as string | null) ?? null,
+          Number(row.purchase_price) || 0,
+          Number(row.buy_price_usd) || 0,
+          Number(row.selling_price) || 0,
+          Number(row.sell_price_usd) || 0,
+          qty,
+          String(row.unit ?? 'pcs'),
+          (row.expiry_date as string | null) ?? null,
+          (row.production_date as string | null) ?? null,
+          (row.image_uri as string | null) ?? null,
+          uuid,
+        ]
+      );
+    }
+  }
+
+  // Mark discarded_products as restored
+  await database.runAsync(
+    'UPDATE discarded_products SET restored_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [discardId]
+  );
+
+  await clearReportsCache();
+  return { success: true, restoredQuantity: qty, productId };
+}
+
+export async function permanentDeleteDiscardedProduct(discardId: number): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM discarded_products WHERE id = ?', [discardId]);
+  await clearReportsCache();
+}
+
+export async function getDiscardedProducts(onlyActive: boolean = true): Promise<DiscardedProduct[]> {
+  const database = await getDatabase();
+  const where = onlyActive ? 'WHERE d.restored_at IS NULL' : '';
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT d.*,
+            COALESCE(NULLIF(d.image_uri, ''), NULLIF(p.image_uri, ''), NULLIF(p.image_remote_url, '')) AS effective_image_uri
+     FROM discarded_products d
+     LEFT JOIN products p ON d.product_id = p.id
+     ${where}
+     ORDER BY d.discarded_at DESC`
+  );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    productId: r.product_id ? Number(r.product_id) : null,
+    productName: String(r.product_name ?? ''),
+    category: String(r.category ?? 'General'),
+    itemId: (r.item_id as string | null) ?? null,
+    quantity: Number(r.quantity) || 1,
+    unit: String(r.unit ?? 'pcs'),
+    purchasePrice: Number(r.purchase_price) || 0,
+    buyPriceUsd: Number(r.buy_price_usd) || 0,
+    sellingPrice: Number(r.selling_price) || 0,
+    sellPriceUsd: Number(r.sell_price_usd) || 0,
+    totalLossIqd: Number(r.total_loss_iqd) || 0,
+    totalLossUsd: Number(r.total_loss_usd) || 0,
+    expiryDate: (r.expiry_date as string | null) ?? null,
+    productionDate: (r.production_date as string | null) ?? null,
+    imageUri: (r.effective_image_uri as string | null) ?? (r.image_uri as string | null) ?? null,
+    reason: String(r.reason ?? 'expired'),
+    notes: (r.notes as string | null) ?? null,
+    discardedAt: String(r.discarded_at ?? ''),
+    restoredAt: (r.restored_at as string | null) ?? null,
+    uuid: (r.uuid as string | null) ?? undefined,
+  }));
+}
+
+export async function getDiscardedLossStats(
+  from?: string,
+  to?: string
+): Promise<DiscardedLossStats> {
+  const database = await getDatabase();
+  const dateFilter = from && to ? `AND discarded_at >= '${from}' AND discarded_at <= '${to}'` : '';
+  const row = await database.getFirstAsync<{
+    lossIqd: number;
+    lossUsd: number;
+    itemsCount: number;
+    unitsCount: number;
+  }>(`
+    SELECT
+      COALESCE(SUM(total_loss_iqd), 0) AS lossIqd,
+      COALESCE(SUM(total_loss_usd), 0) AS lossUsd,
+      COUNT(*) AS itemsCount,
+      COALESCE(SUM(quantity), 0) AS unitsCount
+    FROM discarded_products
+    WHERE restored_at IS NULL
+    ${dateFilter}
+  `);
+
+  return {
+    totalLossIqd: row?.lossIqd ?? 0,
+    totalLossUsd: row?.lossUsd ?? 0,
+    totalItemsCount: row?.itemsCount ?? 0,
+    totalUnitsCount: row?.unitsCount ?? 0,
+  };
 }
 
 export async function getAllInventoryProducts(): Promise<InventoryProduct[]> {
@@ -3849,6 +4104,8 @@ export interface ProfitLossData {
   grossProfit: number;
   grossMarginPct: number;
   totalExpenses: number;
+  discardLoss?: number;
+  discardLossUsd?: number;
   netProfit: number;
   netMarginPct: number;
   expenseBreakdown: { category: string; total: number }[];
@@ -3865,6 +4122,35 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
   const expWhere = from && to
     ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
     : '';
+
+  // Check if expiry tracking is enabled
+  let isExpiryEnabled = false;
+  try {
+    const settingVal = await loadSetting('expiry_tracking_enabled');
+    if (settingVal !== null) {
+      isExpiryEnabled = settingVal === '1';
+    } else {
+      const { useSettingsStore } = await import('@/store/settingsStore');
+      isExpiryEnabled = !!useSettingsStore.getState().expiryTrackingEnabled;
+    }
+  } catch {}
+
+  let discardLossIqd = 0;
+  let discardLossUsd = 0;
+  if (isExpiryEnabled) {
+    const discardWhere = from && to
+      ? `WHERE restored_at IS NULL AND discarded_at >= '${from}' AND discarded_at <= '${to}'`
+      : `WHERE restored_at IS NULL`;
+    const discardRow = await database.getFirstAsync<{ lossIqd: number; lossUsd: number }>(`
+      SELECT
+        COALESCE(SUM(total_loss_iqd), 0) AS lossIqd,
+        COALESCE(SUM(total_loss_usd), 0) AS lossUsd
+      FROM discarded_products
+      ${discardWhere}
+    `);
+    discardLossIqd = discardRow?.lossIqd ?? 0;
+    discardLossUsd = discardRow?.lossUsd ?? 0;
+  }
 
   const [revenueRow, cogsRow] = await Promise.all([
     database.getFirstAsync<{ grossRevenue: number }>(
@@ -3892,7 +4178,7 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
   const totalCOGS    = salesRow?.totalCOGS    ?? 0;
   const grossProfit  = grossRevenue - totalCOGS;
   const totalExpenses = expRow?.total ?? 0;
-  const netProfit    = grossProfit - totalExpenses;
+  const netProfit    = grossProfit - totalExpenses - discardLossIqd;
 
   return {
     grossRevenue,
@@ -3900,6 +4186,8 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
     grossProfit,
     grossMarginPct: grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0,
     totalExpenses,
+    discardLoss: discardLossIqd,
+    discardLossUsd: discardLossUsd,
     netProfit,
     netMarginPct: grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0,
     expenseBreakdown: expBreakdown,
@@ -3911,6 +4199,8 @@ export interface FinancialSummaryCards {
   netProfit: number;
   totalLoss: number;
   remainingCustomerDebt: number;
+  discardLoss?: number;
+  discardLossUsd?: number;
 }
 
 export async function getFinancialSummaryCards(
@@ -3928,6 +4218,35 @@ export async function getFinancialSummaryCards(
   const expWhere = from && to
     ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
     : '';
+
+  // Check if expiry tracking is enabled
+  let isExpiryEnabled = false;
+  try {
+    const settingVal = await loadSetting('expiry_tracking_enabled');
+    if (settingVal !== null) {
+      isExpiryEnabled = settingVal === '1';
+    } else {
+      const { useSettingsStore } = await import('@/store/settingsStore');
+      isExpiryEnabled = !!useSettingsStore.getState().expiryTrackingEnabled;
+    }
+  } catch {}
+
+  let discardLossIqd = 0;
+  let discardLossUsd = 0;
+  if (isExpiryEnabled) {
+    const discardWhere = from && to
+      ? `WHERE restored_at IS NULL AND discarded_at >= '${from}' AND discarded_at <= '${to}'`
+      : `WHERE restored_at IS NULL`;
+    const discardRow = await database.getFirstAsync<{ lossIqd: number; lossUsd: number }>(`
+      SELECT
+        COALESCE(SUM(total_loss_iqd), 0) AS lossIqd,
+        COALESCE(SUM(total_loss_usd), 0) AS lossUsd
+      FROM discarded_products
+      ${discardWhere}
+    `);
+    discardLossIqd = discardRow?.lossIqd ?? 0;
+    discardLossUsd = discardRow?.lossUsd ?? 0;
+  }
 
   const [totalsRow, profitRow, debtRow, expRow] = await Promise.all([
     database.getFirstAsync<{ totalSales: number }>(
@@ -3957,13 +4276,16 @@ export async function getFinancialSummaryCards(
 
   const rawProfit = profitRow?.netProfit ?? 0;
   const expensesTotal = expRow?.totalExpenses ?? 0;
-  const netProfit = rawProfit - expensesTotal;
+  const netProfit = rawProfit - expensesTotal - discardLossIqd;
+  const totalLoss = (profitRow?.totalLoss ?? 0) + discardLossIqd;
 
   return {
     totalSales:            totalsRow?.totalSales   ?? 0,
     netProfit:             netProfit,
-    totalLoss:             profitRow?.totalLoss    ?? 0,
+    totalLoss:             totalLoss,
     remainingCustomerDebt: debtRow?.remaining       ?? 0,
+    discardLoss:           discardLossIqd,
+    discardLossUsd:        discardLossUsd,
   };
 }
 

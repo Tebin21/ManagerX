@@ -88,7 +88,14 @@ export const useSettingsStore = create<SettingsState>()(
       setCheckPriceGridLayout:    (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
       setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
-      setExpiryTrackingEnabled:    (val) => { set({ expiryTrackingEnabled: val }); notifyPreferencesChanged(); },
+      setExpiryTrackingEnabled:    (val) => {
+        set({ expiryTrackingEnabled: val });
+        notifyPreferencesChanged();
+        import('@/lib/sqlite').then(async ({ saveSetting, clearReportsCache }) => {
+          await saveSetting('expiry_tracking_enabled', val ? '1' : '0');
+          await clearReportsCache();
+        }).catch(() => {});
+      },
       setExpiryAlertDays:          (val) => { set({ expiryAlertDays: Math.max(1, Math.round(val)) }); notifyPreferencesChanged(); },
       setExpiryTermsAccepted:      (val) => { set({ expiryTermsAccepted: val }); notifyPreferencesChanged(); },
 
