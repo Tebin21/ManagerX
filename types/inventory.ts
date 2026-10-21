@@ -58,6 +58,7 @@ export interface NewProductData {
   warranty: string | null;
   notes: string | null;
   imageUri: string | null;
+  imageRemoteUrl?: string | null;
   lowStockThreshold?: number | null;
   lowStockEnabled?: 1 | 0 | null;
   websiteDescription?: string | null;

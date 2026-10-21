@@ -26,3 +26,35 @@ export async function copyToPermanentStorage(
   await FileSystem.copyAsync({ from: tempUri, to: dest });
   return dest;
 }
+
+/**
+ * Resolves a product image URI safely across platforms, remote URLs, and iOS container reinstalls.
+ */
+export function resolveImageUri(uri: string | null | undefined): string | null {
+  if (!uri) return null;
+  const trimmed = uri.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (!FileSystem.documentDirectory) return trimmed;
+
+  // Extract relative path inside document directory if present (e.g. product_images/media_123.jpg)
+  const match = trimmed.match(/((?:product_images|saved_presets|logo_images|dashboard_banners|header_videos)\/[^?#]+)/);
+  if (match) {
+    return `${FileSystem.documentDirectory}${match[1]}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Gets the best display image URI for a product, checking both local imageUri and imageRemoteUrl.
+ */
+export function getProductDisplayImage(product: {
+  imageUri?: string | null;
+  imageRemoteUrl?: string | null;
+} | null | undefined): string | null {
+  if (!product) return null;
+  const candidate = (product.imageUri && product.imageUri.trim()) ||
+                    (product.imageRemoteUrl && product.imageRemoteUrl.trim()) ||
+                    null;
+  return resolveImageUri(candidate);
+}

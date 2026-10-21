@@ -19,6 +19,7 @@ export interface ModuleState {
   setShowDashboardNavigation: (show: boolean) => void;
   setDashboardStyle: (style: DashboardStyle) => void;
   toggleModule: (id: ModuleId) => void;
+  setModuleEnabled: (id: ModuleId, enabled: boolean) => void;
   reorderModules: (orderedIds: ModuleId[]) => void;
   setModuleLayout: (id: ModuleId, layout: ModuleLayout) => void;
   setAllLayouts: (layout: ModuleLayout) => void;
@@ -37,7 +38,7 @@ const defaultModules: Record<ModuleId, ModuleConfig> = {
   history:   { enabled: true, order: 5, layout: 'half' },
   expenses:  { enabled: true, order: 6, layout: 'half' },
   dashboard: { enabled: true, order: 7, layout: 'half' },
-  expiry:    { enabled: true, order: 8, layout: 'full' },
+  expiry:    { enabled: false, order: 8, layout: 'full' },
 };
 
 export const useModuleStore = create<ModuleState>()(
@@ -49,6 +50,17 @@ export const useModuleStore = create<ModuleState>()(
 
       setShowDashboardNavigation: (show) => set({ showDashboardNavigation: show }),
       setDashboardStyle: (style) => set({ dashboardStyle: style }),
+
+      setModuleEnabled: (id, enabled) =>
+        set((state) => {
+          const current = state.modules[id] ?? defaultModules[id] ?? { enabled: true, order: 99, layout: 'half' };
+          return {
+            modules: {
+              ...state.modules,
+              [id]: { ...current, enabled },
+            },
+          };
+        }),
 
       toggleModule: (id) =>
         set((state) => {

@@ -19,6 +19,7 @@ import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useModuleStore } from '@/store/moduleStore';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -54,6 +55,7 @@ export default function ExpirySettingsScreen() {
     // If user unchecks the checkbox, we also disable tracking
     if (!nextVal && expiryTrackingEnabled) {
       setExpiryTrackingEnabled(false);
+      useModuleStore.getState().setModuleEnabled('expiry', false);
     }
   };
 
@@ -75,6 +77,7 @@ export default function ExpirySettingsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
     setExpiryTrackingEnabled(value);
+    useModuleStore.getState().setModuleEnabled('expiry', value);
   };
 
   return (
@@ -542,6 +545,7 @@ export default function ExpirySettingsScreen() {
                         setTermsChecked(true);
                         setExpiryTermsAccepted(true);
                         setExpiryTrackingEnabled(true);
+                        useModuleStore.getState().setModuleEnabled('expiry', true);
                       },
                     },
                   ]

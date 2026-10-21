@@ -614,7 +614,6 @@ export default function HistoryScreen() {
               styles.filterRowContainer,
               {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: isTablet ? 10 : 8,
               },
             ]}
           >
@@ -626,7 +625,8 @@ export default function HistoryScreen() {
                 {
                   backgroundColor: query ? colors.primary + '18' : (isDark ? colors.gray100 : colors.gray100),
                   borderColor: query ? colors.primary : colors.gray200,
-                  marginHorizontal: 0,
+                  marginRight: isRTL ? (isTabletLandscape ? 24 : 12) : 6,
+                  marginLeft: isRTL ? 6 : (isTabletLandscape ? 24 : 12),
                 },
               ]}
               activeOpacity={0.7}
@@ -640,7 +640,7 @@ export default function HistoryScreen() {
               />
             </TouchableOpacity>
 
-            {/* Period Filter ScrollView */}
+            {/* Period Filter ScrollView - bleeds edge-to-edge across screen boundaries */}
             <ScrollView
               ref={filterScrollRef}
               horizontal
@@ -657,6 +657,8 @@ export default function HistoryScreen() {
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                   flexGrow: 1,
                   justifyContent: 'flex-start',
+                  paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
+                  paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
                 },
               ]}
             >
@@ -1132,7 +1134,8 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     },
     filterRowContainer: {
       alignItems: 'center',
-      paddingHorizontal: isTabletLandscape ? 24 : 12,
+      paddingHorizontal: 0,
+      width: '100%',
     },
     searchIconBtn: {
       width: isTablet ? 42 : 36,

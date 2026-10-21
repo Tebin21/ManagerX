@@ -94,7 +94,7 @@ export default function EditProductScreen() {
         setWarranty(p.warranty ?? '');
         setDescription(p.description ?? '');
         setNotes(p.notes ?? '');
-        setImageUri(p.imageUri ?? null);
+        setImageUri(p.imageUri || p.imageRemoteUrl || null);
         setLowStockThreshold(p.lowStockThreshold != null ? String(p.lowStockThreshold) : '');
         setWebsiteDescription(p.websiteDescription ?? '');
         if (p.productionDate) {
@@ -136,7 +136,8 @@ export default function EditProductScreen() {
     if (warranty.trim() !== (product.warranty ?? ''))       changed.add('warranty');
     if (description.trim() !== (product.description ?? '')) changed.add('description');
     if (notes.trim() !== (product.notes ?? ''))             changed.add('notes');
-    if (imageUri !== product.imageUri)           changed.add('imageUri');
+    const initialImg = product.imageUri || product.imageRemoteUrl || null;
+    if (imageUri !== initialImg)                             changed.add('imageUri');
     if (websiteDescription.trim() !== (product.websiteDescription ?? '')) changed.add('websiteDescription');
     const parsedThreshold = lowStockThreshold.trim() ? parseInt(lowStockThreshold, 10) : null;
     if (parsedThreshold !== (product.lowStockThreshold ?? null)) changed.add('lowStockThreshold');
@@ -153,6 +154,7 @@ export default function EditProductScreen() {
         description:        description.trim() || null,
         notes:              notes.trim() || null,
         imageUri,
+        imageRemoteUrl:     imageUri && (imageUri.startsWith('http://') || imageUri.startsWith('https://')) ? imageUri : (imageUri ? product.imageRemoteUrl : null),
         lowStockThreshold:  (!isNaN(parsedThreshold as number) && parsedThreshold !== null && (parsedThreshold as number) > 0) ? parsedThreshold : null,
         lowStockEnabled:    null,
         websiteDescription: websiteDescription.trim() || null,

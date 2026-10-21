@@ -268,7 +268,6 @@ function ExpenseFilterBar({
                 efbStyles.barRow,
                 {
                   flexDirection: isRTL ? 'row-reverse' : 'row',
-                  gap: isTablet ? 10 : 8,
                 },
               ]}
             >
@@ -279,7 +278,8 @@ function ExpenseFilterBar({
                   {
                     backgroundColor: searchQuery ? colors.primary + '18' : colors.gray100,
                     borderColor: searchQuery ? colors.primary : colors.gray200,
-                    marginHorizontal: 0,
+                    marginRight: isRTL ? (isTablet ? 24 : 12) : 6,
+                    marginLeft: isRTL ? 6 : (isTablet ? 24 : 12),
                   },
                   isTablet && { width: 44, height: 44, borderRadius: 22 },
                 ]}
@@ -298,7 +298,7 @@ function ExpenseFilterBar({
                 )}
               </TouchableOpacity>
 
-              {/* Filter Pills ScrollView */}
+              {/* Filter Pills ScrollView - bleeds edge-to-edge across screen boundaries */}
               <ScrollView
                 ref={scrollRef}
                 horizontal
@@ -314,6 +314,8 @@ function ExpenseFilterBar({
                     flexDirection: isRTL ? 'row-reverse' : 'row',
                     flexGrow: 1,
                     justifyContent: 'flex-start',
+                    paddingLeft: isRTL ? (isTablet ? 24 : 16) : 8,
+                    paddingRight: isRTL ? 8 : (isTablet ? 24 : 16),
                   },
                   isTablet && { paddingVertical: 14, gap: 12 },
                 ]}
@@ -397,7 +399,7 @@ function ExpenseFilterBar({
 const efbStyles = StyleSheet.create({
   wrapper:            { borderBottomWidth: 1 },
   container:          { width: '100%' },
-  barRow:             { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 },
+  barRow:             { alignItems: 'center', paddingHorizontal: 0, paddingVertical: 6, width: '100%' },
   scrollView:         { flex: 1 },
   row:                { paddingVertical: 4, gap: 8, alignItems: 'center' },
   pill:               { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },

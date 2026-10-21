@@ -14,7 +14,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
-import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { copyToPermanentStorage, resolveImageUri } from '@/lib/imageStorage';
 import { ensureCameraAccess, ensureGalleryAccess } from '@/lib/mediaAccess';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
 import { SavedImagesModal } from '@/components/purchases/SavedImagesModal';
@@ -171,7 +171,7 @@ export function ProductImagePicker({
             {/* ── Preview ── */}
             <View style={styles.previewWrap}>
               <Image
-                source={{ uri }}
+                source={{ uri: resolveImageUri(uri) || uri }}
                 style={styles.preview}
                 resizeMode="cover"
               />

@@ -20,6 +20,7 @@ export interface Product {
   itemDescription: string | null;
   isActive: boolean;
   imageUri?: string | null;
+  imageRemoteUrl?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
   createdAt: string;

@@ -28,6 +28,7 @@ import { Theme } from '@/constants/theme';
 import type { SoldProductRecord, SoldSortBy, SoldPaymentFilter } from '@/types/soldProducts';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL } from '@/lib/rtl';
+import { resolveImageUri } from '@/lib/imageStorage';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
 const SORT_KEYS: SoldSortBy[] = ['date', 'customer', 'product', 'profit'];
@@ -60,11 +61,14 @@ function SoldProductCardImpl({ item, colors, isDark, t }: CardProps) {
     <View style={[styles.card, { backgroundColor: colors.white, shadowColor: colors.black }]}>
       {/* Left: image */}
       <View style={[styles.cardImage, { backgroundColor: colors.gray100 }]}>
-        {item.imageUri ? (
-          <Image source={{ uri: item.imageUri }} style={styles.cardImg} resizeMode="cover" fadeDuration={0} />
-        ) : (
-          <Ionicons name="bag-outline" size={24} color={colors.gray400} />
-        )}
+        {(() => {
+          const displayImg = resolveImageUri(item.imageUri);
+          return displayImg ? (
+            <Image source={{ uri: displayImg }} style={styles.cardImg} resizeMode="cover" fadeDuration={0} />
+          ) : (
+            <Ionicons name="bag-outline" size={24} color={colors.gray400} />
+          );
+        })()}
       </View>
 
       {/* Center: details */}
@@ -278,7 +282,7 @@ export default function SoldProductsScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
+        contentContainerStyle={[styles.chipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
         style={[styles.chipsWrap, { borderBottomColor: colors.gray100 }]}
       >
         {SORT_KEYS.map((key) => {

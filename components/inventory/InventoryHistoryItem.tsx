@@ -11,6 +11,7 @@ import { getStatusTint } from '@/constants/statusTints';
 import { useTranslation } from 'react-i18next';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
+import { resolveImageUri } from '@/lib/imageStorage';
 
 interface Props {
   item: HistoryItem;
@@ -37,11 +38,14 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       {/* Top row: thumbnail + name + status badge */}
       <View style={[styles.topRow, { flexDirection, padding: isRTL ? RTL_SPACING.gap : 12, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         <View style={[styles.thumb, { backgroundColor: colors.gray100 }]}>
-          {item.imageUri ? (
-            <Image source={{ uri: item.imageUri }} style={styles.thumbImage} resizeMode="cover" fadeDuration={0} />
-          ) : (
-            <Ionicons name="cube-outline" size={22} color={colors.gray400} />
-          )}
+          {(() => {
+            const displayImg = resolveImageUri(item.imageUri);
+            return displayImg ? (
+              <Image source={{ uri: displayImg }} style={styles.thumbImage} resizeMode="cover" fadeDuration={0} />
+            ) : (
+              <Ionicons name="cube-outline" size={22} color={colors.gray400} />
+            );
+          })()}
         </View>
 
         <View style={[styles.nameBlock, { gap: isRTL ? RTL_SPACING.gapSm : 5 }]}>

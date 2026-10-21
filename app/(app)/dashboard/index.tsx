@@ -31,42 +31,12 @@ export default function DashboardScreen() {
 
       {/* Top Banner Header (Fixed at top, not inside the ScrollView) */}
       {showDashboardNavigation && (
-        <BusinessHeader />
+        <View style={styles.headerFixedWrapper}>
+          <BusinessHeader />
+        </View>
       )}
 
-      {/* Top Navigation Bar (Fixed below header, above scroller) */}
-      <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
-        <MotiView
-          from={{ opacity: 0, translateY: 16 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18, delay: 200 }}
-          style={[
-            styles.sectionHeader,
-            { paddingTop: safeTopPadding, paddingBottom: !showDashboardNavigation ? 14 : 10 },
-          ]}
-        >
-          <BexDreLogoButton />
-
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/settings' as never)}
-            style={[
-              styles.settingsBtn,
-              {
-                backgroundColor: colors.softBlue,
-                borderColor: colors.primary + '1F',
-                width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
-                height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
-                borderRadius: isTabletLandscape ? 20 : isTablet ? 16 : 14,
-              },
-            ]}
-            hitSlop={8}
-          >
-            <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
-          </TouchableOpacity>
-        </MotiView>
-      </View>
-
-      {/* Scrollable Content (Starts below the background & navigation) */}
+      {/* Scrollable Content (Logo, Settings, Modules and Store scroll under BusinessHeader) */}
       <ScrollView
         style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
@@ -76,6 +46,36 @@ export default function DashboardScreen() {
         ]}
       >
         <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
+          {/* Top Bar with BexDre Logo & Settings Button - scrolls smoothly with content */}
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, delay: 200 }}
+            style={[
+              styles.sectionHeader,
+              { paddingTop: safeTopPadding, paddingBottom: 10 },
+            ]}
+          >
+            <BexDreLogoButton />
+
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/settings' as never)}
+              style={[
+                styles.settingsBtn,
+                {
+                  backgroundColor: colors.softBlue,
+                  borderColor: colors.primary + '1F',
+                  width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                  height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
+                  borderRadius: isTabletLandscape ? 20 : isTablet ? 16 : 14,
+                },
+              ]}
+              hitSlop={8}
+            >
+              <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
+            </TouchableOpacity>
+          </MotiView>
+
           <MotiView
             from={{ opacity: 0, translateY: 24 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -101,6 +101,10 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   screen:  { flex: 1 },
+  headerFixedWrapper: {
+    zIndex: 10,
+    elevation: 8,
+  },
   scrollFlex: { flex: 1 },
   scroll:  { flexGrow: 1 },
   bodyWrapper: {

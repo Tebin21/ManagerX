@@ -24,7 +24,7 @@ import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/setting
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useResponsive } from '@/hooks/useResponsive';
-import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { copyToPermanentStorage, resolveImageUri } from '@/lib/imageStorage';
 import { ensureCameraAccess, ensureGalleryAccess } from '@/lib/mediaAccess';
 import {
   useSavedProductStore,
@@ -120,11 +120,19 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: isKurdish ? '📷 کامێرا' : '📷 Camera',
-          onPress: handleCaptureCamera,
+          onPress: () => {
+            setTimeout(() => {
+              handleCaptureCamera();
+            }, 120);
+          },
         },
         {
           text: isKurdish ? '🖼️ گەلەری' : '🖼️ Gallery',
-          onPress: handlePickGallery,
+          onPress: () => {
+            setTimeout(() => {
+              handlePickGallery();
+            }, 120);
+          },
         },
       ]
     );
@@ -153,8 +161,13 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
-      const perm = await copyToPermanentStorage(result.assets[0].uri, 'saved_presets');
-      setPendingNewImageUri(perm);
+      let finalUri = result.assets[0].uri;
+      try {
+        finalUri = await copyToPermanentStorage(result.assets[0].uri, 'saved_presets');
+      } catch (storageErr) {
+        console.warn('[SavedImagesModal] Could not copy to permanent storage, using raw uri:', storageErr);
+      }
+      setPendingNewImageUri(finalUri);
       setNewItemName('');
       setNewItemDesc('');
       setShowAddDetailsModal(true);
@@ -188,8 +201,13 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
-      const perm = await copyToPermanentStorage(result.assets[0].uri, 'saved_presets');
-      setPendingNewImageUri(perm);
+      let finalUri = result.assets[0].uri;
+      try {
+        finalUri = await copyToPermanentStorage(result.assets[0].uri, 'saved_presets');
+      } catch (storageErr) {
+        console.warn('[SavedImagesModal] Could not copy to permanent storage, using raw uri:', storageErr);
+      }
+      setPendingNewImageUri(finalUri);
       setNewItemName('');
       setNewItemDesc('');
       setShowAddDetailsModal(true);
@@ -453,7 +471,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     style={styles.imageWrap}
                   >
                     <Image
-                      source={{ uri: item.imageUri }}
+                      source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
                       style={styles.image}
                       resizeMode="cover"
                     />
@@ -571,21 +589,17 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
               )}
             />
           </View>
-        </View>
-      </Modal>
 
-      {/* ── Add Photo Details Modal (Optional Name & Description) ── */}
-      <Modal
-        visible={showAddDetailsModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAddDetailsModal(false)}
-        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.detailsModalBackdrop}
-        >
+          {/* ── In-Modal Overlay: Add Photo Details (Zero native modal collisions) ── */}
+          {showAddDetailsModal && (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={[
+                styles.detailsModalBackdrop,
+                StyleSheet.absoluteFillObject,
+                { zIndex: 999 },
+              ]}
+            >
           <View
             style={[
               styles.detailsModalCard,
@@ -749,18 +763,17 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      )}
 
-      {/* ── Full Photo Preview Modal ── */}
-      {previewPreset && (
-        <Modal
-          visible={Boolean(previewPreset)}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPreviewPreset(null)}
-          supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+      {/* ── In-Modal Overlay: Full Photo Preview (Zero native modal collisions) ── */}
+      {previewPreset !== null && (
+        <View
+          style={[
+            styles.previewBackdrop,
+            StyleSheet.absoluteFillObject,
+            { zIndex: 999 },
+          ]}
         >
-          <View style={styles.previewBackdrop}>
             <View
               style={[
                 styles.previewCard,
@@ -773,7 +786,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
               {/* Image */}
               <View style={styles.previewImageWrap}>
                 <Image
-                  source={{ uri: previewPreset.imageUri }}
+                  source={{ uri: resolveImageUri(previewPreset.imageUri) || previewPreset.imageUri }}
                   style={styles.previewImage}
                   resizeMode="contain"
                 />
@@ -860,8 +873,9 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
               </View>
             </View>
           </View>
-        </Modal>
-      )}
+        )}
+        </View>
+      </Modal>
     </>
   );
 }

@@ -809,6 +809,8 @@ export default function DebtScreen() {
                 {
                   backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.gray100),
                   borderColor: query ? colors.primary : colors.gray200,
+                  marginRight: isRTL ? (isTabletLandscape ? 24 : 12) : 6,
+                  marginLeft: isRTL ? 6 : (isTabletLandscape ? 24 : 12),
                 },
               ]}
               activeOpacity={0.7}
@@ -820,12 +822,19 @@ export default function DebtScreen() {
               />
             </TouchableOpacity>
 
-            {/* Period Filter ScrollView */}
+            {/* Period Filter ScrollView - bleeds edge-to-edge across screen boundaries */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.filterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              style={styles.periodScrollView}
+              contentContainerStyle={[
+                styles.filterRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
+                  paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+                },
+              ]}
             >
               {periodKeys.map((key) => {
                 const active = periodKey === key;
@@ -1323,7 +1332,11 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
     },
     filterRowContainer: {
       alignItems: 'center',
-      paddingHorizontal: 12,
+      paddingHorizontal: 0,
+      width: '100%',
+    },
+    periodScrollView: {
+      flex: 1,
     },
     searchIconBtn: {
       width: 36,
@@ -1332,7 +1345,6 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      marginHorizontal: 4,
     },
     expandedSearchContainer: {
       paddingHorizontal: 12,
@@ -1363,9 +1375,9 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       justifyContent: 'center',
     },
     filterRow: {
-      paddingHorizontal: 16,
       paddingVertical: 8,
       gap: 8,
+      alignItems: 'center',
     },
     filterPill: {
       paddingHorizontal: 14,

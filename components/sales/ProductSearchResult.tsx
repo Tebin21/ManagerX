@@ -12,6 +12,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { Product } from '@/types/sales';
+import { getProductDisplayImage } from '@/lib/imageStorage';
 
 interface Props {
   product: Product;
@@ -50,22 +51,25 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
         >
           {/* Top Media / Thumbnail Container */}
           <View style={styles.gridThumbContainer}>
-            {product.imageUri ? (
-              <Image
-                source={{ uri: product.imageUri }}
-                style={styles.gridThumb}
-                resizeMode="cover"
-                fadeDuration={0}
-              />
-            ) : (
-              <View style={styles.gridThumbPlaceholder}>
-                <Ionicons
-                  name="cube-outline"
-                  size={isTablet ? 38 : 30}
-                  color={isDark ? colors.gray300 : colors.gray400}
+            {(() => {
+              const displayImg = getProductDisplayImage(product);
+              return displayImg ? (
+                <Image
+                  source={{ uri: displayImg }}
+                  style={styles.gridThumb}
+                  resizeMode="cover"
+                  fadeDuration={0}
                 />
-              </View>
-            )}
+              ) : (
+                <View style={styles.gridThumbPlaceholder}>
+                  <Ionicons
+                    name="cube-outline"
+                    size={isTablet ? 38 : 30}
+                    color={isDark ? colors.gray300 : colors.gray400}
+                  />
+                </View>
+              );
+            })()}
 
             {/* In-Cart Badge (Top Left / Right based on RTL) */}
             {inCartQty > 0 && (
@@ -258,18 +262,21 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
         disabled={isDisabled}
         activeOpacity={0.75}
       >
-        {product.imageUri ? (
-          <Image
-            source={{ uri: product.imageUri }}
-            style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
-            resizeMode="contain"
-            fadeDuration={0}
-          />
-        ) : (
-          <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
-            <Ionicons name="cube-outline" size={28} color={colors.gray300} />
-          </View>
-        )}
+        {(() => {
+          const displayImg = getProductDisplayImage(product);
+          return displayImg ? (
+            <Image
+              source={{ uri: displayImg }}
+              style={[styles.thumb, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}
+              resizeMode="contain"
+              fadeDuration={0}
+            />
+          ) : (
+            <View style={[styles.thumbPlaceholder, { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? RTL_SPACING.gapLg : 0 }]}>
+              <Ionicons name="cube-outline" size={28} color={colors.gray300} />
+            </View>
+          );
+        })()}
       </TouchableOpacity>
       <View style={styles.left}>
         <View style={[styles.nameRow, { flexDirection }]}>

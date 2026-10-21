@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -18,7 +19,6 @@ import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { useTranslation } from 'react-i18next';
-import { LowStockBadge } from '@/components/inventory/LowStockBadge';
 import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
@@ -30,6 +30,7 @@ import { computeProductLowStock } from '@/lib/lowStock';
 import type { InventoryProduct } from '@/types/inventory';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getProductDisplayImage } from '@/lib/imageStorage';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -43,7 +44,13 @@ export default function InventoryDetailScreen() {
   const idAvailTint = getStatusTint('success', colors, isDark);
   const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, valueAlign, flexDirection, alignEnd } = useRTL();
-  const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
+
+  // Dynamic theme colors for cards and inner tiles
+  const cardBg = isDark ? colors.gray100 : colors.white;
+  const cardBorder = isDark ? colors.gray200 : '#E2E8F0';
+  const subTileBg = isDark ? colors.gray50 : colors.gray50;
+  const subTileBorder = isDark ? colors.gray200 : '#E2E8F0';
+  const sectionTitleStyle = [styles.sectionTitle, { color: isDark ? colors.gray600 : colors.gray500, textAlign, writingDirection }];
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [salesHistory, setSalesHistory] = useState<{
@@ -100,7 +107,7 @@ export default function InventoryDetailScreen() {
   if (!id || isNaN(numId)) {
     return (
       <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title={t('inventory.productDetails')} showBack />
+        <AppHeader title={t('inventory.productDetails', 'وردەکاریی کاڵا')} showBack />
       </View>
     );
   }
@@ -108,7 +115,7 @@ export default function InventoryDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title="" />
+        <AppHeader title="" showBack />
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       </View>
     );
@@ -117,7 +124,7 @@ export default function InventoryDetailScreen() {
   if (!product) {
     return (
       <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title={t('inventory.productNotFound')} />
+        <AppHeader title={t('inventory.productNotFound')} showBack />
         <Text style={[styles.notFound, { color: colors.gray500 }]}>{t('inventory.productNotFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.primary }]}>
           <Text style={[styles.backBtnText, { color: colors.white }]}>{t('common.goBack')}</Text>
@@ -130,125 +137,490 @@ export default function InventoryDetailScreen() {
   const isSold = !product.isActive || (product.idMode === 'unique' && product.quantity === 0);
   const totalValue = product.purchasePrice * product.quantity;
   const profitPerUnit = product.sellingPrice - product.purchasePrice;
+  const profitMargin = product.purchasePrice > 0 ? ((profitPerUnit / product.purchasePrice) * 100).toFixed(1) : null;
   const isCustom = product.idMode === 'unique';
+  const categoryLabel = t(`purchases.categories.${product.category}`, { defaultValue: product.category });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-      <AppHeader title={product.name} showBack>
-        {/* Category + status row inside gradient — centered & wrapped so it
-            never crowds the title or collides with the gradient's bottom edge */}
-        <View style={[styles.headerMeta, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-          <View style={styles.catChip}>
-            <Text style={styles.catText} numberOfLines={1}>{product.category}</Text>
-          </View>
-          {isLowStock && !isSold && <LowStockBadge />}
-          {isSold && (
-            <View style={styles.soldBadge}>
-              <Text style={styles.soldBadgeText}>{t('inventory.soldBadge')}</Text>
-            </View>
-          )}
-          <View style={[styles.payBadge, product.paymentStatus === 'paid' ? styles.payBadgePaid : styles.payBadgeDebt]}>
-            <Text style={[styles.payBadgeText, product.paymentStatus === 'paid' ? styles.payTextPaid : styles.payTextDebt]}>
-              {product.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
-            </Text>
-          </View>
-        </View>
-      </AppHeader>
+      {/* Clean Navigation Header — no cluttered badges inside header */}
+      <AppHeader title={product.name} showBack />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, isTablet && contentContainerStyle]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Key stats */}
+        {/* Product Hero & Badges Section (Brought down from navigation) */}
         <MotiView
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220 }}
-          style={[styles.statsCard, { backgroundColor: colors.white }]}
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+            },
+          ]}
         >
-          <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.quantity')}</Text>
-              <Text style={[styles.statValue, { color: isSold ? colors.gray400 : colors.black }]}>
-                {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
+          {/* Top row with Product Info / Image */}
+          <View style={[styles.heroHeaderRow, { flexDirection }]}>
+            {(() => {
+              const displayImg = getProductDisplayImage(product);
+              return displayImg ? (
+                <Image source={{ uri: displayImg }} style={[styles.heroImage, { borderColor: cardBorder }]} resizeMode="cover" />
+              ) : (
+                <View style={[styles.heroIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3' }]}>
+                  <Ionicons name="cube" size={26} color={colors.primary} />
+                </View>
+              );
+            })()}
+            <View style={[styles.heroTitleWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <Text style={[styles.heroTitleText, { color: colors.black, textAlign, writingDirection }]} numberOfLines={2}>
+                {product.name}
+              </Text>
+              {product.itemId ? (
+                <View style={[styles.heroBarcodeRow, { flexDirection }]}>
+                  <Ionicons name="barcode-outline" size={14} color={colors.gray400} />
+                  <IdText style={[styles.heroBarcodeText, { color: colors.gray500 }]}>{product.itemId}</IdText>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Badges strip (Category, Stock Status, Payment, Online Store) */}
+          <View style={[styles.heroBadgesRow, { flexDirection, borderTopColor: isDark ? colors.gray200 : colors.gray100 }]}>
+            {/* Category Pill */}
+            <View
+              style={[
+                styles.badgePill,
+                {
+                  flexDirection,
+                  backgroundColor: isDark ? 'rgba(212,175,55,0.12)' : '#F1F5F9',
+                  borderColor: isDark ? 'rgba(212,175,55,0.3)' : '#CBD5E1',
+                },
+              ]}
+            >
+              <Ionicons name="pricetag-outline" size={12} color={isDark ? colors.primary : '#475569'} />
+              <Text
+                style={[
+                  styles.badgePillText,
+                  { color: isDark ? colors.primary : '#334155' },
+                ]}
+                numberOfLines={1}
+              >
+                {categoryLabel}
               </Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.buyPrice')}</Text>
-              <AmountText value={product.purchasePrice} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
+
+            {/* Stock Status Pill */}
+            {isSold ? (
+              <View
+                style={[
+                  styles.badgePill,
+                  {
+                    flexDirection,
+                    backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9',
+                    borderColor: isDark ? 'rgba(100,116,139,0.4)' : '#CBD5E1',
+                  },
+                ]}
+              >
+                <Ionicons name="close-circle-outline" size={12} color={isDark ? '#94A3B8' : '#64748B'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  {t('inventory.soldBadge')}
+                </Text>
+              </View>
+            ) : isLowStock ? (
+              <View
+                style={[
+                  styles.badgePill,
+                  {
+                    flexDirection,
+                    backgroundColor: isDark ? 'rgba(245,158,11,0.18)' : '#FEF3C7',
+                    borderColor: isDark ? 'rgba(245,158,11,0.4)' : '#FDE68A',
+                  },
+                ]}
+              >
+                <Ionicons name="warning-outline" size={12} color={isDark ? '#FBBF24' : '#B45309'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                  {t('inventory.lowStock')}
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.badgePill,
+                  {
+                    flexDirection,
+                    backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5',
+                    borderColor: isDark ? 'rgba(16,185,129,0.4)' : '#A7F3D0',
+                  },
+                ]}
+              >
+                <Ionicons name="checkmark-circle-outline" size={12} color={isDark ? '#34D399' : '#047857'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#34D399' : '#047857' }]}>
+                  {t('inventory.availableBadge')}
+                </Text>
+              </View>
+            )}
+
+            {/* Payment Status Pill */}
+            <View
+              style={[
+                styles.badgePill,
+                { flexDirection },
+                product.paymentStatus === 'paid'
+                  ? {
+                      backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5',
+                      borderColor: isDark ? 'rgba(16,185,129,0.4)' : '#A7F3D0',
+                    }
+                  : {
+                      backgroundColor: isDark ? 'rgba(245,158,11,0.18)' : '#FFFBEB',
+                      borderColor: isDark ? 'rgba(245,158,11,0.4)' : '#FDE68A',
+                    },
+              ]}
+            >
+              <Ionicons
+                name={product.paymentStatus === 'paid' ? 'checkmark-done-circle-outline' : 'time-outline'}
+                size={12}
+                color={
+                  product.paymentStatus === 'paid'
+                    ? (isDark ? '#34D399' : '#047857')
+                    : (isDark ? '#FBBF24' : '#B45309')
+                }
+              />
+              <Text
+                style={[
+                  styles.badgePillText,
+                  {
+                    color:
+                      product.paymentStatus === 'paid'
+                        ? (isDark ? '#34D399' : '#047857')
+                        : (isDark ? '#FBBF24' : '#B45309'),
+                  },
+                ]}
+              >
+                {product.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
+              </Text>
+            </View>
+
+            {/* Online Store Pill (if enabled) */}
+            {product.storeVisible && (
+              <View
+                style={[
+                  styles.badgePill,
+                  {
+                    flexDirection,
+                    backgroundColor: isDark ? 'rgba(59,130,246,0.18)' : '#EFF6FF',
+                    borderColor: isDark ? 'rgba(59,130,246,0.4)' : '#BFDBFE',
+                  },
+                ]}
+              >
+                <Ionicons name="globe-outline" size={12} color={isDark ? '#60A5FA' : '#1D4ED8'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#60A5FA' : '#1D4ED8' }]}>
+                  {t('inventory.onlineStoreVisible', 'فرۆشگای ئۆنلاین')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </MotiView>
+
+        {/* Key Stats Card — Modern 2x2 KPI Grid + Full-Width Profit Margin Banner */}
+        <MotiView
+          from={{ opacity: 0, translateY: 10 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 40 }}
+          style={[
+            styles.statsCard,
+            {
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+            },
+          ]}
+        >
+          {/* Card Section Header */}
+          <View style={[styles.cardHeaderRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+            <View style={[styles.cardHeaderIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+              <Ionicons name="stats-chart" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.cardHeaderTitle, { color: isDark ? colors.gray600 : colors.gray700, textAlign }]}>
+              {t('inventory.pricing', 'نرخ و کۆگا')}
+            </Text>
+          </View>
+
+          {/* 2x2 Grid */}
+          <View style={styles.tilesGrid}>
+            {/* Row 1: Quantity & Buy Price */}
+            <View style={[styles.tilesRow, { flexDirection, gap: 10 }]}>
+              {/* Tile 1: Quantity */}
+              <View
+                style={[
+                  styles.statTile,
+                  {
+                    backgroundColor: subTileBg,
+                    borderColor: subTileBorder,
+                  },
+                ]}
+              >
+                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                  <View
+                    style={[
+                      styles.tileIconCircle,
+                      {
+                        backgroundColor: isSold
+                          ? (isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9')
+                          : isLowStock
+                          ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
+                          : (isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5'),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="cube-outline"
+                      size={13}
+                      color={isSold ? colors.gray400 : isLowStock ? colors.warning : colors.success}
+                    />
+                  </View>
+                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                    {t('inventory.quantity')}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.tileValue,
+                    {
+                      color: isSold ? colors.gray400 : colors.black,
+                      textAlign,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
+                </Text>
+              </View>
+
+              {/* Tile 2: Buy Price */}
+              <View
+                style={[
+                  styles.statTile,
+                  {
+                    backgroundColor: subTileBg,
+                    borderColor: subTileBorder,
+                  },
+                ]}
+              >
+                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                  <View
+                    style={[
+                      styles.tileIconCircle,
+                      { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
+                    ]}
+                  >
+                    <Ionicons name="cart-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
+                  </View>
+                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                    {t('inventory.buyPrice')}
+                  </Text>
+                </View>
+                <AmountText
+                  value={product.purchasePrice}
+                  currency="IQD"
+                  style={[styles.tileValue, { color: colors.black, textAlign }]}
+                />
+              </View>
+            </View>
+
+            {/* Row 2: Sell Price & Total Value */}
+            <View style={[styles.tilesRow, { flexDirection, gap: 10, marginTop: 10 }]}>
+              {/* Tile 3: Sell Price */}
+              <View
+                style={[
+                  styles.statTile,
+                  {
+                    backgroundColor: subTileBg,
+                    borderColor: subTileBorder,
+                  },
+                ]}
+              >
+                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                  <View
+                    style={[
+                      styles.tileIconCircle,
+                      { backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : '#FEF9C3' },
+                    ]}
+                  >
+                    <Ionicons name="pricetag-outline" size={13} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                    {t('inventory.sellPrice')}
+                  </Text>
+                </View>
+                <AmountText
+                  value={product.sellingPrice}
+                  currency="IQD"
+                  style={[styles.tileValue, { color: colors.primary, textAlign }]}
+                />
+              </View>
+
+              {/* Tile 4: Total Value */}
+              <View
+                style={[
+                  styles.statTile,
+                  {
+                    backgroundColor: subTileBg,
+                    borderColor: subTileBorder,
+                  },
+                ]}
+              >
+                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                  <View
+                    style={[
+                      styles.tileIconCircle,
+                      { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
+                    ]}
+                  >
+                    <Ionicons name="wallet-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
+                  </View>
+                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                    {t('inventory.totalValueLabel')}
+                  </Text>
+                </View>
+                <AmountText
+                  value={totalValue}
+                  currency="IQD"
+                  style={[styles.tileValue, { color: colors.black, textAlign }]}
+                />
+              </View>
             </View>
           </View>
-          <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
-          <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.sellPrice')}</Text>
-              <AmountText value={product.sellingPrice} currency="IQD" style={[styles.statValue, { color: colors.primary }]} />
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.gray100 }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.totalValueLabel')}</Text>
-              <AmountText value={totalValue} currency="IQD" style={[styles.statValue, { color: colors.black }]} />
-            </View>
-          </View>
+
+          {/* Row 3: Profit per Unit & Margin Banner */}
           {profitPerUnit !== 0 && (
-            <>
-              <View style={[styles.statsRowBorder, { backgroundColor: colors.gray100 }]} />
-              <View style={[styles.statsRow, { paddingVertical: isRTL ? RTL_SPACING.rowPadV : 14, paddingHorizontal: isRTL ? RTL_SPACING.gap : 16 }]}>
-                <View style={[styles.statItem, { flex: 1 }]}>
-                  <Text style={[styles.statLabel, { color: colors.gray400, marginBottom: isRTL ? RTL_SPACING.title : 4 }]}>{t('inventory.profitPerUnit')}</Text>
-                  <AmountText
-                    value={profitPerUnit}
-                    currency="IQD"
-                    prefix={profitPerUnit > 0 ? '+' : ''}
-                    style={[styles.statValue, { color: profitPerUnit > 0 ? colors.success : colors.error }]}
+            <View
+              style={[
+                styles.profitBanner,
+                {
+                  flexDirection,
+                  backgroundColor:
+                    profitPerUnit > 0
+                      ? (isDark ? 'rgba(16,185,129,0.14)' : '#ECFDF5')
+                      : (isDark ? 'rgba(239,68,68,0.14)' : '#FEF2F2'),
+                  borderColor:
+                    profitPerUnit > 0
+                      ? (isDark ? 'rgba(16,185,129,0.32)' : '#A7F3D0')
+                      : (isDark ? 'rgba(239,68,68,0.32)' : '#FECACA'),
+                },
+              ]}
+            >
+              <View style={[styles.profitLeft, { flexDirection, gap: 10 }]}>
+                <View
+                  style={[
+                    styles.profitIconCircle,
+                    {
+                      backgroundColor:
+                        profitPerUnit > 0
+                          ? (isDark ? 'rgba(16,185,129,0.25)' : '#D1FAE5')
+                          : (isDark ? 'rgba(239,68,68,0.25)' : '#FEE2E2'),
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={profitPerUnit > 0 ? 'trending-up' : 'trending-down'}
+                    size={16}
+                    color={profitPerUnit > 0 ? colors.success : colors.error}
                   />
                 </View>
+                <View>
+                  <Text style={[styles.profitLabel, { color: isDark ? colors.gray400 : colors.gray600, textAlign }]}>
+                    {t('inventory.profitPerUnit')}
+                  </Text>
+                  {profitMargin ? (
+                    <Text
+                      style={[
+                        styles.profitMarginText,
+                        { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign },
+                      ]}
+                    >
+                      {profitPerUnit > 0 ? `+${profitMargin}%` : `${profitMargin}%`} {t('reports.margin', 'قازانج')}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
-            </>
+
+              <AmountText
+                value={profitPerUnit}
+                currency="IQD"
+                prefix={profitPerUnit > 0 ? '+' : ''}
+                style={[
+                  styles.profitAmount,
+                  { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign: valueAlign },
+                ]}
+              />
+            </View>
           )}
         </MotiView>
 
-        {/* Supplier section */}
+        {/* Supplier & Purchase section */}
         {(product.supplierName || product.purchaseDate) && (
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 60 }}
-            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+            style={[
+              styles.section,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+                padding: isRTL ? RTL_SPACING.cardPad : 16,
+              },
+            ]}
           >
-            <Text style={sectionTitleStyle}>{t('inventory.supplierAndPurchase')}</Text>
+            <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+              <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+                <Ionicons name="business-outline" size={14} color={colors.primary} />
+              </View>
+              <Text style={sectionTitleStyle}>{t('inventory.supplierAndPurchase')}</Text>
+            </View>
+
             {product.supplierName && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.supplier')}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.supplier')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierName}</Text>
               </View>
             )}
             {product.supplierPhone && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="call-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.phone')}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.phone')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>{product.supplierPhone}</Text>
               </View>
             )}
             {product.supplierAddress && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="location-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.address')}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.address')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierAddress}</Text>
               </View>
             )}
             {product.purchaseDate && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
                 <DateText value={product.purchaseDate} style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]} />
               </View>
             )}
             {product.purchaseId && (
               <TouchableOpacity
-                style={[styles.linkRow, { borderTopColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}
+                style={[
+                  styles.linkRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : '#FEF9C3',
+                    borderColor: isDark ? 'rgba(212,175,55,0.25)' : '#FDE68A',
+                    flexDirection,
+                    gap: isRTL ? RTL_SPACING.gap : 8,
+                  },
+                ]}
                 onPress={() => router.push(`/(app)/purchases/${product.purchaseId}` as never)}
                 activeOpacity={0.75}
               >
@@ -266,12 +638,24 @@ export default function InventoryDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 90 }}
-            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+            style={[
+              styles.section,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+                padding: isRTL ? RTL_SPACING.cardPad : 16,
+              },
+            ]}
           >
             <View style={[styles.sectionHeaderRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }]}>
-              <Text style={[sectionTitleStyle, { marginBottom: 0 }]}>
-                {t('inventory.expiryDates', 'بەرواری بەسەرچوون و دەرچوون')}
-              </Text>
+              <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8, marginBottom: 0 }]}>
+                <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+                  <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+                </View>
+                <Text style={sectionTitleStyle}>
+                  {t('inventory.expiryDates', 'بەرواری بەسەرچوون و دەرچوون')}
+                </Text>
+              </View>
               {product.expiryDate && (() => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -287,10 +671,15 @@ export default function InventoryDetailScreen() {
                       styles.expiryBadge,
                       {
                         backgroundColor: isExpired
-                          ? (isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2')
+                          ? (isDark ? 'rgba(239,68,68,0.18)' : '#FEE2E2')
                           : isExpiring
-                          ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
-                          : (isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5'),
+                          ? (isDark ? 'rgba(245,158,11,0.18)' : '#FEF3C7')
+                          : (isDark ? 'rgba(16,185,129,0.18)' : '#D1FAE5'),
+                        borderColor: isExpired
+                          ? (isDark ? 'rgba(239,68,68,0.35)' : '#FECACA')
+                          : isExpiring
+                          ? (isDark ? 'rgba(245,158,11,0.35)' : '#FDE68A')
+                          : (isDark ? 'rgba(16,185,129,0.35)' : '#A7F3D0'),
                       },
                     ]}
                   >
@@ -312,9 +701,9 @@ export default function InventoryDetailScreen() {
             </View>
 
             {product.productionDate && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="construct-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
                   {t('inventory.productionDate', 'بەرواری دەرچوون')}
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>
@@ -324,9 +713,9 @@ export default function InventoryDetailScreen() {
             )}
 
             {product.expiryDate && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: 'transparent' }]}>
                 <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
                   {t('inventory.expiryDate', 'بەرواری بەسەرچوون')}
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign, fontWeight: '700' }]}>
@@ -343,35 +732,78 @@ export default function InventoryDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
-            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+            style={[
+              styles.section,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+                padding: isRTL ? RTL_SPACING.cardPad : 16,
+              },
+            ]}
           >
-            <Text style={sectionTitleStyle}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
+            <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+              <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+                <Ionicons name="barcode-outline" size={14} color={colors.primary} />
+              </View>
+              <Text style={sectionTitleStyle}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
+            </View>
             <View style={[styles.idChipWrap, { flexDirection }]}>
-              <View style={[styles.idChip, { backgroundColor: colors.softBlue }]}>
-                <IdText style={[styles.idChipText, { color: colors.primaryDark, lineHeight: undefined }]}>{product.itemId}</IdText>
+              <View
+                style={[
+                  styles.idChip,
+                  {
+                    backgroundColor: isDark ? colors.gray50 : colors.softBlue,
+                    borderColor: isDark ? colors.gray200 : '#BFDBFE',
+                  },
+                ]}
+              >
+                <IdText style={[styles.idChipText, { color: isDark ? colors.black : colors.primaryDark, lineHeight: undefined }]}>
+                  {product.itemId}
+                </IdText>
               </View>
               {isCustom && (
-                <View style={[styles.idChip, isSold ? { backgroundColor: colors.gray100 } : { backgroundColor: idAvailTint.bg }]}>
-                  <Text style={[styles.idChipText, { color: colors.primaryDark }]}>{isSold ? t('inventory.soldBadge') : t('inventory.availableBadge')}</Text>
+                <View
+                  style={[
+                    styles.idChip,
+                    isSold
+                      ? { backgroundColor: isDark ? colors.gray200 : colors.gray100, borderColor: cardBorder }
+                      : { backgroundColor: idAvailTint.bg, borderColor: isDark ? 'rgba(16,185,129,0.3)' : '#A7F3D0' },
+                  ]}
+                >
+                  <Text style={[styles.idChipText, { color: isDark ? colors.black : colors.primaryDark }]}>
+                    {isSold ? t('inventory.soldBadge') : t('inventory.availableBadge')}
+                  </Text>
                 </View>
               )}
             </View>
           </MotiView>
         )}
 
-        {/* Warranty / Notes */}
+        {/* Warranty / Description / Notes */}
         {(product.warranty || product.description || product.notes) && (
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
-            style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+            style={[
+              styles.section,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+                padding: isRTL ? RTL_SPACING.cardPad : 16,
+              },
+            ]}
           >
-            <Text style={sectionTitleStyle}>{t('inventory.details')}</Text>
+            <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+              <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+                <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+              </View>
+              <Text style={sectionTitleStyle}>{t('inventory.details')}</Text>
+            </View>
             {product.warranty && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
+              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
                 <Ionicons name="shield-checkmark-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray500, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.warranty')}</Text>
+                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.warranty')}</Text>
                 <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.warranty}</Text>
               </View>
             )}
@@ -395,16 +827,31 @@ export default function InventoryDetailScreen() {
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-          style={[styles.section, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}
+          style={[
+            styles.section,
+            {
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              padding: isRTL ? RTL_SPACING.cardPad : 16,
+            },
+          ]}
         >
-          <Text style={sectionTitleStyle}>{t('inventory.salesHistory')} ({salesHistory.length})</Text>
+          <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+            <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+              <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+            </View>
+            <Text style={sectionTitleStyle}>
+              {t('inventory.salesHistory')} ({salesHistory.length})
+            </Text>
+          </View>
+
           {salesHistory.length === 0 ? (
             <Text style={[styles.noSales, { color: colors.gray400, textAlign, writingDirection }]}>{t('inventory.noSales')}</Text>
           ) : (
             salesHistory.map((s) => (
               <TouchableOpacity
                 key={s.id}
-                style={[styles.saleRow, { borderTopColor: colors.gray100, flexDirection }]}
+                style={[styles.saleRow, { borderTopColor: isDark ? colors.gray200 : colors.gray100, flexDirection }]}
                 onPress={() => router.push(`/(app)/sales/${s.saleId}` as never)}
                 activeOpacity={0.75}
               >
@@ -413,7 +860,7 @@ export default function InventoryDetailScreen() {
                   <DateText value={s.saleCreatedAt} size="small" style={[styles.saleDate, { color: colors.gray400, textAlign }]} />
                 </View>
                 <View style={[styles.saleRight, { alignItems: alignEnd }]}>
-                  <Text style={[styles.saleQty, { color: colors.gray500 }]}>× {s.quantity}</Text>
+                  <Text style={[styles.saleQty, { color: colors.gray400 }]}>× {s.quantity}</Text>
                   <AmountText value={s.lineTotal} currency="IQD" style={[styles.saleTotal, { color: colors.primary }]} />
                 </View>
               </TouchableOpacity>
@@ -421,8 +868,19 @@ export default function InventoryDetailScreen() {
           )}
         </MotiView>
 
-        {/* Actions */}
-        <View style={[styles.storeVisRow, { backgroundColor: colors.white, flexDirection, gap: isRTL ? RTL_SPACING.gap : 12, padding: isRTL ? RTL_SPACING.cardPad : 16 }]}>
+        {/* Online Store Visible Row */}
+        <View
+          style={[
+            styles.storeVisRow,
+            {
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              flexDirection,
+              gap: isRTL ? RTL_SPACING.gap : 12,
+              padding: isRTL ? RTL_SPACING.cardPad : 16,
+            },
+          ]}
+        >
           <View style={{ flex: 1 }}>
             <Text style={[styles.storeVisLabel, { color: colors.black, textAlign, writingDirection }]}>{t('inventory.onlineStoreVisible')}</Text>
             <Text style={[styles.storeVisSub, { color: colors.gray400, textAlign, writingDirection }]}>
@@ -440,17 +898,26 @@ export default function InventoryDetailScreen() {
           />
         </View>
 
+        {/* Action Buttons */}
         <View style={[styles.actions, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 12 }]}>
           <TouchableOpacity
             style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}
             onPress={() => router.push(`/(app)/inventory/edit/${product.id}` as never)}
             activeOpacity={0.85}
           >
-            <Ionicons name="create-outline" size={18} color={colors.white} />
-            <Text style={[styles.editBtnText, { color: colors.white }]}>{t('inventory.editProduct')}</Text>
+            <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+            <Text style={[styles.editBtnText, { color: '#FFFFFF' }]}>{t('inventory.editProduct')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.deleteBtn, { borderColor: colors.error, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 6 }]}
+            style={[
+              styles.deleteBtn,
+              {
+                backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2',
+                borderColor: colors.error,
+                flexDirection,
+                gap: isRTL ? RTL_SPACING.gapSm : 6,
+              },
+            ]}
             onPress={confirmDelete}
             activeOpacity={0.85}
           >
@@ -470,79 +937,315 @@ const styles = StyleSheet.create({
   backBtn:   { paddingHorizontal: 20, paddingVertical: 10, borderRadius: Theme.radius.md },
   backBtnText: { fontWeight: '600', fontSize: 14 },
 
-  headerMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    rowGap: 8,
-    gap: 8,
-    paddingHorizontal: 20,
-    marginTop: 10,
-    paddingBottom: 16,
-  },
-  catChip: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  catText: { fontSize: 12, fontWeight: '600', color: '#fff' },
-
-  soldBadge: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  soldBadgeText: { fontSize: 12, fontWeight: '600', color: '#fff' },
-
-  payBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  payBadgePaid: { backgroundColor: 'rgba(16,185,129,0.25)' },
-  payBadgeDebt: { backgroundColor: 'rgba(245,158,11,0.25)' },
-  payBadgeText: { fontSize: 12, fontWeight: '600' },
-  payTextPaid:  { color: '#ECFDF5' },
-  payTextDebt:  { color: '#FFFBEB' },
-
   scroll: { padding: 16, paddingBottom: 40 },
 
-  statsCard:      { borderRadius: Theme.radius.card, marginBottom: 14, overflow: 'hidden', ...Theme.shadow.card },
-  statsRow:       { flexDirection: 'row', paddingVertical: 14, paddingHorizontal: 16 },
-  statsRowBorder: { height: 1 },
-  statDivider:    { width: 1, marginVertical: 4 },
-  statItem:       { flex: 1, alignItems: 'center' },
-  statLabel:      { fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  statValue:      { fontSize: 15, fontWeight: '700' },
-  section:        { borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.soft },
-  sectionTitle:   { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center' },
-  expiryBadge:    { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  expiryBadgeText: { fontSize: 11.5, fontWeight: '700' },
-  infoRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  infoLabel:      { fontSize: 13, width: 70 },
-  infoValue:      { flex: 1, fontSize: 13, fontWeight: '600' },
-  linkRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 12, marginTop: 4, borderTopWidth: 1 },
-  linkText:       { flex: 1, fontSize: 13, fontWeight: '600' },
-  noteRow:        { marginBottom: 10 },
-  noteLabel:      { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  noteText:       { fontSize: 13, lineHeight: 19 },
-  idChipWrap:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  idChip:         { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  idChipText:     { fontSize: 13, fontWeight: '600' },
-  noSales:        { fontSize: 13, fontStyle: 'italic' },
-  saleRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1 },
-  saleInvoice:    { fontSize: 13, fontWeight: '700' },
-  saleDate:       { fontSize: 12, marginTop: 2 },
-  saleRight:      { alignItems: 'flex-end' },
-  saleQty:        { fontSize: 12 },
-  saleTotal:      { fontSize: 13, fontWeight: '700' },
-  storeVisRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: Theme.radius.card, padding: 16, marginBottom: 14, ...Theme.shadow.card },
-  storeVisLabel:  { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  storeVisSub:    { fontSize: 12, lineHeight: 16 },
+  // Hero section styles
+  heroCard: {
+    borderRadius: Theme.radius.card,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+    ...Theme.shadow.card,
+  },
+  heroHeaderRow: {
+    alignItems: 'center',
+    gap: 14,
+  },
+  heroImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  heroIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitleWrap: {
+    flex: 1,
+  },
+  heroTitleText: {
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  heroBarcodeRow: {
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
+  heroBarcodeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  heroBadgesRow: {
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  badgePill: {
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  badgePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
-  actions:        { flexDirection: 'row', gap: 12, marginTop: 4 },
-  editBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Theme.radius.md, paddingVertical: 14, ...Theme.shadow.button },
-  editBtnText:    { fontSize: 15, fontWeight: '700' },
-  deleteBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderRadius: Theme.radius.md, paddingVertical: 14, paddingHorizontal: 18 },
-  deleteBtnText:  { fontSize: 15, fontWeight: '700' },
+  // Stats Card & 2x2 Grid
+  statsCard: {
+    borderRadius: Theme.radius.card,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+    ...Theme.shadow.card,
+  },
+  cardHeaderRow: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  cardHeaderIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  tilesGrid: {
+    width: '100%',
+  },
+  tilesRow: {
+    width: '100%',
+  },
+  statTile: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  tileHeader: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tileIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    flex: 1,
+  },
+  tileValue: {
+    fontSize: 16.5,
+    fontWeight: '800',
+  },
+
+  profitBanner: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  profitLeft: {
+    alignItems: 'center',
+  },
+  profitIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profitLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  profitMarginText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  profitAmount: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+
+  // Sections
+  section: {
+    borderRadius: Theme.radius.card,
+    borderWidth: 1,
+    marginBottom: 14,
+    ...Theme.shadow.soft,
+  },
+  sectionTitleRow: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionTitleIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionHeaderRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  expiryBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  expiryBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  infoRow: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  infoLabel: {
+    fontSize: 13,
+  },
+  infoValue: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  linkRow: {
+    alignItems: 'center',
+    padding: 12,
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  linkText: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  noteRow: {
+    marginBottom: 12,
+  },
+  noteLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  noteText: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  idChipWrap: {
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  idChip: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  idChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  noSales: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    paddingVertical: 8,
+  },
+  saleRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderTopWidth: 1,
+  },
+  saleInvoice: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  saleDate: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  saleRight: {
+    alignItems: 'flex-end',
+  },
+  saleQty: {
+    fontSize: 12,
+  },
+  saleTotal: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  storeVisRow: {
+    alignItems: 'center',
+    borderRadius: Theme.radius.card,
+    borderWidth: 1,
+    marginBottom: 14,
+    ...Theme.shadow.card,
+  },
+  storeVisLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  storeVisSub: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  actions: {
+    marginTop: 4,
+  },
+  editBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Theme.radius.md,
+    paddingVertical: 14,
+    ...Theme.shadow.button,
+  },
+  editBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  deleteBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Theme.radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderWidth: 1.5,
+  },
+  deleteBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

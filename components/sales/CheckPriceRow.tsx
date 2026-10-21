@@ -11,6 +11,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont } from '@/lib/settingsFont';
 import type { Product } from '@/types/sales';
+import { getProductDisplayImage } from '@/lib/imageStorage';
 
 interface Props {
   product: Product;
@@ -42,22 +43,25 @@ export function CheckPriceRow({ product, onPress, layout = 'list' }: Props) {
       >
         {/* Top Thumbnail Container */}
         <View style={styles.gridThumbContainer}>
-          {product.imageUri ? (
-            <Image
-              source={{ uri: product.imageUri }}
-              style={styles.gridThumb}
-              resizeMode="cover"
-              fadeDuration={0}
-            />
-          ) : (
-            <View style={[styles.gridThumbPlaceholder, { backgroundColor: colors.softBlue }]}>
-              <Ionicons
-                name="pricetag-outline"
-                size={isTablet ? 36 : 28}
-                color={colors.primary}
+          {(() => {
+            const displayImg = getProductDisplayImage(product);
+            return displayImg ? (
+              <Image
+                source={{ uri: displayImg }}
+                style={styles.gridThumb}
+                resizeMode="cover"
+                fadeDuration={0}
               />
-            </View>
-          )}
+            ) : (
+              <View style={[styles.gridThumbPlaceholder, { backgroundColor: colors.softBlue }]}>
+                <Ionicons
+                  name="pricetag-outline"
+                  size={isTablet ? 36 : 28}
+                  color={colors.primary}
+                />
+              </View>
+            );
+          })()}
 
           {/* Stock Badge - floating top corner */}
           <View

@@ -656,6 +656,8 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE purchase_items ADD COLUMN production_date TEXT`,
     `ALTER TABLE purchase_items ADD COLUMN expiry_date TEXT`,
     `CREATE INDEX IF NOT EXISTS idx_products_expiry_date ON products(expiry_date)`,
+    // Ensure existing remote images are mirrored to image_uri if image_uri is missing
+    `UPDATE products SET image_uri = image_remote_url WHERE (image_uri IS NULL OR image_uri = '') AND image_remote_url IS NOT NULL AND image_remote_url != ''`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -854,7 +856,8 @@ function rowToProduct(row: Record<string, unknown>): Product {
     description: row.description as string | null,
     itemDescription: (row.item_description as string | null) ?? null,
     isActive: (row.is_active as number) === 1,
-    imageUri: (row.image_uri as string | null) ?? null,
+    imageUri: ((row.image_uri as string | null)?.trim() || (row.image_remote_url as string | null)?.trim() || null),
+    imageRemoteUrl: (row.image_remote_url as string | null)?.trim() || null,
     productionDate: (row.production_date as string | null) ?? null,
     expiryDate: (row.expiry_date as string | null) ?? null,
     createdAt: row.created_at as string,
@@ -962,7 +965,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     paymentStatus: ((row.payment_status as string) ?? 'paid') as 'paid' | 'debt',
     warranty: (row.warranty as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
-    imageUri: (row.image_uri as string | null) ?? null,
+    imageUri: ((row.image_uri as string | null)?.trim() || (row.image_remote_url as string | null)?.trim() || null),
     imageRemoteUrl: (row.image_remote_url as string | null) ?? null,
     buyPriceUsd: (row.buy_price_usd as number) ?? 0,
     sellPriceUsd: (row.sell_price_usd as number) ?? 0,
@@ -1052,8 +1055,34 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   if (data.description !== undefined)    { fields.push('description = ?');      values.push(data.description); }
   if (data.warranty !== undefined)       { fields.push('warranty = ?');         values.push(data.warranty); }
   if (data.notes !== undefined)          { fields.push('notes = ?');            values.push(data.notes); }
-  if (data.imageUri !== undefined)       { fields.push('image_uri = ?');        values.push(data.imageUri);
-                                            fields.push('image_remote_url = NULL'); }
+  if (data.imageUri !== undefined || data.imageRemoteUrl !== undefined) {
+    const rawUri = (data.imageUri as string | null)?.trim() || null;
+    const rawRemote = (data.imageRemoteUrl as string | null)?.trim() || null;
+    const isRemote = rawUri && (rawUri.startsWith('http://') || rawUri.startsWith('https://'));
+    if (!rawUri && !rawRemote) {
+      fields.push('image_uri = NULL');
+      fields.push('image_remote_url = NULL');
+    } else if (isRemote) {
+      fields.push('image_uri = ?');
+      values.push(rawUri);
+      fields.push('image_remote_url = ?');
+      values.push(rawUri);
+    } else if (rawRemote && !rawUri) {
+      fields.push('image_uri = ?');
+      values.push(rawRemote);
+      fields.push('image_remote_url = ?');
+      values.push(rawRemote);
+    } else {
+      fields.push('image_uri = ?');
+      values.push(rawUri);
+      if (rawRemote) {
+        fields.push('image_remote_url = ?');
+        values.push(rawRemote);
+      } else {
+        fields.push('image_remote_url = NULL');
+      }
+    }
+  }
   if (data.paymentStatus !== undefined)  { fields.push('payment_status = ?');   values.push(data.paymentStatus); }
   if (data.supplierName !== undefined)   { fields.push('supplier_name = ?');    values.push(data.supplierName); }
   if (data.supplierPhone !== undefined)  { fields.push('supplier_phone = ?');   values.push(data.supplierPhone); }
@@ -1137,7 +1166,7 @@ async function archiveProductToHistory(
       productId,
       productRow.name as string,
       (productRow.category as string) ?? 'General',
-      (productRow.image_uri as string | null) ?? null,
+      ((productRow.image_uri as string | null)?.trim() || (productRow.image_remote_url as string | null)?.trim() || null),
       (productRow.item_id as string | null) ?? null,
       (productRow.purchase_price as number) ?? 0,
       (productRow.selling_price as number) ?? 0,
@@ -1505,7 +1534,7 @@ export async function getSoldProducts(): Promise<SoldProductRecord[]> {
       s.remaining_debt,
       s.grand_total,
       s.created_at     AS sold_date,
-      p.image_uri
+      COALESCE(p.image_uri, p.image_remote_url) AS image_uri
     FROM sale_items si
     JOIN sales s ON si.sale_id = s.id
     LEFT JOIN products p ON si.product_id = p.id
@@ -2845,10 +2874,10 @@ export async function getPurchaseById(id: number): Promise<Purchase | null> {
   if (!row) return null;
 
   const purchase = rowToPurchase(row);
-  const productRow = await database.getFirstAsync<{ image_uri: string | null; item_description: string | null }>(
-    'SELECT image_uri, item_description FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
+  const productRow = await database.getFirstAsync<{ image_uri: string | null; image_remote_url: string | null; item_description: string | null }>(
+    'SELECT image_uri, image_remote_url, item_description FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
   );
-  purchase.imageUri = productRow?.image_uri ?? null;
+  purchase.imageUri = productRow?.image_uri || productRow?.image_remote_url || null;
   purchase.itemDescription = productRow?.item_description ?? null;
   return purchase;
 }
@@ -2968,7 +2997,19 @@ async function propagateToProducts(
   if (fields.warranty !== undefined)      { setClauses.push('warranty = ?');       values.push(fields.warranty); }
   if (fields.description !== undefined)  { setClauses.push('description = ?');    values.push(fields.description); }
   if (fields.notes !== undefined)         { setClauses.push('notes = ?');          values.push(fields.notes); }
-  if (fields.imageUri !== undefined)      { setClauses.push('image_uri = ?', 'image_remote_url = NULL'); values.push(fields.imageUri); }
+  if (fields.imageUri !== undefined) {
+    const rawUri = (fields.imageUri as string | null)?.trim() || null;
+    const isRemote = rawUri && (rawUri.startsWith('http://') || rawUri.startsWith('https://'));
+    if (!rawUri) {
+      setClauses.push('image_uri = NULL', 'image_remote_url = NULL');
+    } else if (isRemote) {
+      setClauses.push('image_uri = ?', 'image_remote_url = ?');
+      values.push(rawUri, rawUri);
+    } else {
+      setClauses.push('image_uri = ?', 'image_remote_url = NULL');
+      values.push(rawUri);
+    }
+  }
   if (fields.productionDate !== undefined){ setClauses.push('production_date = ?');values.push(fields.productionDate); }
   if (fields.expiryDate !== undefined)    { setClauses.push('expiry_date = ?');    values.push(fields.expiryDate); }
   if (setClauses.length === 0) return;

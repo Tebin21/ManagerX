@@ -13,6 +13,7 @@ import { LowStockBadge } from './LowStockBadge';
 import i18n from '@/lib/i18n';
 import type { InventoryProduct } from '@/types/inventory';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getProductDisplayImage } from '@/lib/imageStorage';
 
 interface Props {
   product: InventoryProduct;
@@ -55,13 +56,16 @@ function ProductCardImpl({ product, onPress, isLowStock: isLowStockProp }: Props
       <View style={[styles.topRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 10 }]}>
         {/* Product thumbnail */}
         <View style={styles.thumbWrap}>
-          {product.imageUri ? (
-            <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" fadeDuration={0} />
-          ) : (
-            <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
-              <Ionicons name="cube-outline" size={20} color={colors.primary} />
-            </View>
-          )}
+          {(() => {
+            const displayImg = getProductDisplayImage(product);
+            return displayImg ? (
+              <Image source={{ uri: displayImg }} style={styles.thumb} resizeMode="cover" fadeDuration={0} />
+            ) : (
+              <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
+                <Ionicons name="cube-outline" size={20} color={colors.primary} />
+              </View>
+            );
+          })()}
         </View>
 
         <View style={styles.nameWrap}>

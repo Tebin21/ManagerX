@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { useSavedProductStore, SavedProductPreset } from '@/store/savedProductStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { resolveImageUri } from '@/lib/imageStorage';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
@@ -621,7 +622,7 @@ export default function NewPurchaseScreen() {
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: preset.imageUri }}
+                  source={{ uri: resolveImageUri(preset.imageUri) || preset.imageUri }}
                   style={styles.presetChipImage}
                 />
                 <View style={{ gap: 2 }}>

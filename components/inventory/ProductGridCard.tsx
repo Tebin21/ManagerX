@@ -15,6 +15,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { hexToRgba } from '@/lib/colorUtils';
+import { getProductDisplayImage } from '@/lib/imageStorage';
 
 interface Props {
   product: InventoryProduct;
@@ -56,18 +57,21 @@ function ProductGridCardImpl({ product, onPress, isLowStock: isLowStockProp }: P
     >
       {/* 1. Thumbnail & Floating Badges */}
       <View style={styles.thumbContainer}>
-        {product.imageUri ? (
-          <Image
-            source={{ uri: product.imageUri }}
-            style={styles.thumb}
-            resizeMode="cover"
-            fadeDuration={0}
-          />
-        ) : (
-          <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
-            <Ionicons name="cube-outline" size={28} color={colors.primary} />
-          </View>
-        )}
+        {(() => {
+          const displayImg = getProductDisplayImage(product);
+          return displayImg ? (
+            <Image
+              source={{ uri: displayImg }}
+              style={styles.thumb}
+              resizeMode="cover"
+              fadeDuration={0}
+            />
+          ) : (
+            <View style={[styles.thumbPlaceholder, { backgroundColor: colors.softBlue }]}>
+              <Ionicons name="cube-outline" size={28} color={colors.primary} />
+            </View>
+          );
+        })()}
 
         {/* Floating Stock Quantity Badge */}
         <View

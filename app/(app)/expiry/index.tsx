@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,9 @@ import { Text } from '@/components/ui/AppText';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { hexToRgba } from '@/lib/colorUtils';
 
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import * as Haptics from 'expo-haptics';
+
 export default function ExpiryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -28,6 +31,7 @@ export default function ExpiryScreen() {
   const loadInventory = useInventoryStore((s) => s.loadInventory);
 
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Reload inventory data on screen focus
   useFocusEffect(
@@ -43,20 +47,23 @@ export default function ExpiryScreen() {
         title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
         showBack
         rightAction={
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => router.push('/(app)/settings/expiry' as never)}
-            style={[
-              styles.headerActionBtn,
-              {
-                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : 'rgba(255, 255, 255, 0.20)',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.35)',
-              },
-            ]}
-            hitSlop={8}
-          >
-            <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 8, alignItems: 'center' }}>
+            {expiryTrackingEnabled && (
+              <HeaderActionButton
+                icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+                onPress={() => {
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  } catch {}
+                  setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'));
+                }}
+              />
+            )}
+            <HeaderActionButton
+              icon="information-circle-outline"
+              onPress={() => router.push('/(app)/settings/expiry' as never)}
+            />
+          </View>
         }
       />
 
@@ -130,6 +137,8 @@ export default function ExpiryScreen() {
           products={products}
           onRefresh={loadInventory}
           refreshing={isLoading}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
       )}
     </View>

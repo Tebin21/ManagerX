@@ -17,6 +17,7 @@ import { CompactModuleGrid } from './styles/CompactModuleGrid';
 import { LuxeModuleGrid } from './styles/LuxeModuleGrid';
 import { Text } from '@/components/ui/AppText';
 import { useModuleStore } from '@/store/moduleStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { MODULES, ModuleDefinition, ModuleId } from '@/constants/config';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -34,6 +35,8 @@ export function ModuleGrid() {
   const { isTablet, isTabletLandscape } = useResponsive();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+
+  const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
   const {
     modules,
@@ -56,8 +59,14 @@ export function ModuleGrid() {
   }, [modules]);
 
   const displayModules = useMemo(() => {
-    return sortedModules;
-  }, [sortedModules]);
+    return sortedModules.filter((item) => {
+      // Expiry module ONLY exists on dashboard when enabled from Expiry Settings
+      if (item.id === 'expiry' && !expiryTrackingEnabled) {
+        return false;
+      }
+      return true;
+    });
+  }, [sortedModules, expiryTrackingEnabled]);
 
   // On all screen sizes, identify layout row grouping to eliminate any empty/awkward space
   const { tabletPortraitPairSet, singleItemRowSet } = useMemo(() => {
