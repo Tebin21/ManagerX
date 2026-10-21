@@ -33,7 +33,6 @@ import { ProductGridCard } from '@/components/inventory/ProductGridCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { InventoryReportView } from '@/components/inventory/InventoryReportView';
-import { InventoryExpiryView } from '@/components/inventory/InventoryExpiryView';
 import {
   InventoryFilterModal,
   type StockStatusFilter,
@@ -54,7 +53,7 @@ import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } f
 import { useResponsive } from '@/hooks/useResponsive';
 import { toEnglishDigits } from '@/utils/formatters';
 
-type InventoryNavTab = 'report' | 'products' | 'expiry';
+type InventoryNavTab = 'report' | 'products';
 type ActiveCategoryTab = 'all' | 'categories';
 type ProductOrFiller = InventoryProduct | { id: string; isFiller: true };
 
@@ -84,7 +83,7 @@ export default function InventoryScreen() {
   const products = useInventoryStore((s) => s.products);
 
   const { colors, isDark } = useAppTheme();
-  const { globalLowStockEnabled, globalLowStockThreshold, expiryTrackingEnabled } = useSettingsStore();
+  const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT on open as requested!
@@ -746,46 +745,10 @@ export default function InventoryScreen() {
               {t('inventory.tabProducts')}
             </Text>
           </TouchableOpacity>
-
-          {/* Tab 3: بەسەرچوون / تەمەنی ئایتمەکان (Expiry) - Conditionally shown */}
-          {expiryTrackingEnabled && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setActiveNavTab('expiry')}
-              style={[
-                styles.segmentBtn,
-                activeNavTab === 'expiry' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
-                {
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
-                  paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
-                  borderRadius: isTablet ? 14 : 11,
-                },
-              ]}
-            >
-              <Ionicons
-                name="time-outline"
-                size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
-                color={activeNavTab === 'expiry' ? activeTabTextColor : colors.gray500}
-              />
-              <Text
-                style={[
-                  styles.segmentBtnText,
-                  {
-                    color: activeNavTab === 'expiry' ? activeTabTextColor : colors.gray600,
-                    fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
-                  },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('inventory.tabExpiry', 'بەسەرچوون')}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
-      {/* ── SCREEN BODY: Tab 1 = Report, Tab 2 = Products, Tab 3 = Expiry ── */}
+      {/* ── SCREEN BODY: Tab 1 = Report, Tab 2 = Products ── */}
       {activeNavTab === 'report' ? (
         /* ═══════════ TAB 1: REPORT VIEW (DASHBOARD STYLE) ═══════════ */
         <InventoryReportView
@@ -793,13 +756,6 @@ export default function InventoryScreen() {
           stats={stats}
           onExportPdf={() => setReportModalVisible(true)}
           isExporting={reportGenerating}
-          onRefresh={onRefresh}
-          refreshing={refreshing || isLoading}
-        />
-      ) : activeNavTab === 'expiry' ? (
-        /* ═══════════ TAB 3: EXPIRY VIEW (FULL EXPIRY AUDIT) ═══════════ */
-        <InventoryExpiryView
-          products={products}
           onRefresh={onRefresh}
           refreshing={refreshing || isLoading}
         />

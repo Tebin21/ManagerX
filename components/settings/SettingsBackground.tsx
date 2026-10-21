@@ -7,9 +7,7 @@ import { hexToRgba } from '@/lib/colorUtils';
 
 export function SettingsBackground({ children }: { children?: React.ReactNode }) {
   const { colors, isDark } = useAppTheme();
-  if (Platform.OS !== 'ios') return null;
-
-  return (
+  const bg = Platform.OS === 'ios' ? (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
       <LinearGradient
         colors={
@@ -52,12 +50,23 @@ export function SettingsBackground({ children }: { children?: React.ReactNode })
         end={{ x: 1, y: 0.2 }}
         style={styles.ambientOrbBottom}
       />
+    </View>
+  ) : null;
+
+  if (!children) return bg;
+
+  return (
+    <View style={styles.wrapper}>
+      {bg}
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   ambientOrbTop: {
     position: 'absolute',
     top: 50,

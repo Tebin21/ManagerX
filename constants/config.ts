@@ -18,7 +18,8 @@ export type ModuleId =
   | 'history'
   | 'debt'
   | 'expenses'
-  | 'dashboard';
+  | 'dashboard'
+  | 'expiry';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -84,6 +85,13 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'grid',
     descriptionKey: 'modules.dashboard.description',
     route: '/(app)/dashboard-view',
+  },
+  {
+    id: 'expiry',
+    labelKey: 'dashboard.expiry',
+    icon: 'time',
+    descriptionKey: 'modules.expiry.description',
+    route: '/(app)/expiry',
   },
 ];
 

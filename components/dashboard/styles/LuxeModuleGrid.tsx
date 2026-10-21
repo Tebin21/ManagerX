@@ -29,6 +29,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  isSingleLastItem?: boolean;
 }
 
 function LuxeItem({
@@ -37,6 +38,7 @@ function LuxeItem({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -173,7 +175,7 @@ function LuxeItem({
     outputRange: [0, -5],
   });
 
-  const cardWidth = isTabletLandscape ? '23.8%' : '48.5%';
+  const cardWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : '48.5%';
   const ringSize = isTabletLandscape ? 54 : isTablet ? 46 : 34;
 
   return (
@@ -359,16 +361,22 @@ export function LuxeModuleGrid({
         },
       ]}
     >
-      {modules.map((item) => (
-        <LuxeItem
-          key={item.id}
-          item={item}
-          isCustomizing={isCustomizing}
-          isSelected={selectedIdForSwap === item.id}
-          onStartCustomize={onStartCustomize}
-          onSelectForSwap={onSelectForSwap}
-        />
-      ))}
+      {modules.map((item, index) => {
+        const isSingleLastItem =
+          index === modules.length - 1 &&
+          (isTabletLandscape ? modules.length % 4 !== 0 : modules.length % 2 !== 0);
+        return (
+          <LuxeItem
+            key={item.id}
+            item={item}
+            isCustomizing={isCustomizing}
+            isSelected={selectedIdForSwap === item.id}
+            onStartCustomize={onStartCustomize}
+            onSelectForSwap={onSelectForSwap}
+            isSingleLastItem={isSingleLastItem}
+          />
+        );
+      })}
     </View>
   );
 }

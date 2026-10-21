@@ -30,6 +30,7 @@ interface Props {
   onToggleLayout?: () => void;
   onSelectForSwap?: () => void;
   isLastRowPair?: boolean;
+  isSingleLastItem?: boolean;
 }
 
 export interface ModuleVisualTheme {
@@ -133,6 +134,17 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     circleBorder: '#DDD6FE',
     glowColor: 'rgba(124, 58, 237, 0.28)',
   },
+  expiry: {
+    iconName: 'time-outline',
+    tagKu: 'بەسەرچوون',
+    tagEn: 'Expiry',
+    subtitleKu: 'چاودێری بەرواری بەسەرچوون',
+    subtitleEn: 'Track product expiry dates',
+    iconColor: '#F59E0B',
+    circleBg: '#FEF3C7',
+    circleBorder: '#FDE68A',
+    glowColor: 'rgba(245, 158, 11, 0.28)',
+  },
 };
 
 const DEFAULT_THEME: ModuleVisualTheme = {
@@ -159,6 +171,7 @@ export function ModuleCard({
   onToggleLayout,
   onSelectForSwap,
   isLastRowPair = false,
+  isSingleLastItem = false,
 }: Props) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
@@ -168,6 +181,7 @@ export function ModuleCard({
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
 
   const isFull = layout === 'full';
+  const isEffectivelyFull = isFull || isSingleLastItem;
   const theme = MODULE_THEMES[module.id] || DEFAULT_THEME;
 
   const [isLifted, setIsLifted] = useState(false);
@@ -352,8 +366,8 @@ export function ModuleCard({
   );
 
   const styles = useMemo(
-    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair),
-    [isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair]
+    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair),
+    [isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair]
   );
 
   return (
@@ -414,7 +428,7 @@ export function ModuleCard({
             isLifted && styles.cardLifted,
           ]}
         >
-          {isFull ? (
+          {isEffectivelyFull ? (
             /* WIDE (DRÊZH) BANNER LAYOUT */
             <View style={[styles.wideRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               {/* 1. Leading Colored Glow Circle */}

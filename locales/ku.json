@@ -313,6 +313,7 @@
     "customerDebt": "قەرزی کڕیار",
     "expensesCard": "خەرجییەکان",
     "dashboardModule": "داشبۆرد",
+    "expiry": "بەسەرچوون",
     "expensesSubtitle": "تۆمارکردن و بەڕێوەبردن",
     "addExpenseAction": "زیادکردنی خەرجی",
     "netCashBalance": "پارەی کاشی بەردەست",
@@ -465,6 +466,10 @@
     "dashboard": {
       "title": "داشبۆرد",
       "description": "داشبۆردی سەرەکی و ئامارەکان"
+    },
+    "expiry": {
+      "title": "بەسەرچوون",
+      "description": "چاودێریکردنی بەرواری بەسەرچوونی کاڵاکان"
     },
     "soldProducts": {
       "title": "بەرهەمە فرۆشراوەکان"

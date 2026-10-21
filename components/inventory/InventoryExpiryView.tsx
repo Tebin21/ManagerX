@@ -39,6 +39,8 @@ interface ProductWithExpiryStatus {
   status: 'expired' | 'expiringSoon' | 'safe' | 'noDate';
 }
 
+const PRESET_ALERT_DAYS = [7, 15, 30, 60, 90];
+
 export function InventoryExpiryView({ products, onRefresh, refreshing = false }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -48,6 +50,7 @@ export function InventoryExpiryView({ products, onRefresh, refreshing = false }:
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const expiryAlertDays = useSettingsStore((s) => s.expiryAlertDays);
+  const setExpiryAlertDays = useSettingsStore((s) => s.setExpiryAlertDays);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<ExpiryFilterType>('all');
@@ -447,6 +450,74 @@ export function InventoryExpiryView({ products, onRefresh, refreshing = false }:
               </TouchableOpacity>
             </View>
 
+            {/* Alert Days Threshold Quick Selector Bar */}
+            <View
+              style={[
+                styles.thresholdBar,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+                },
+              ]}
+            >
+              <View style={[styles.thresholdLabelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.thresholdLabelText,
+                    { color: colors.black },
+                    isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKu ? 'ماوەی هۆشداری:' : 'Alert Window:'}
+                </Text>
+              </View>
+
+              <View style={[styles.thresholdChipsWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {PRESET_ALERT_DAYS.map((days) => {
+                  const isSelected = expiryAlertDays === days;
+                  return (
+                    <TouchableOpacity
+                      key={days}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        try {
+                          Haptics.selectionAsync().catch(() => {});
+                        } catch {}
+                        setExpiryAlertDays(days);
+                      }}
+                      style={[
+                        styles.thresholdChip,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : isDark
+                            ? 'rgba(15, 23, 42, 0.60)'
+                            : colors.gray100,
+                          borderColor: isSelected
+                            ? colors.primary
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : colors.gray200,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.thresholdChipText,
+                          { color: isSelected ? '#0F172A' : colors.black },
+                          isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
+                        ]}
+                      >
+                        {isKu ? `${days} ڕۆژ` : `${days}d`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Smart Notice Banner if items expired or expiring soon */}
             {(kpis.expired > 0 || kpis.expiringSoon > 0) && (
               <View
@@ -690,6 +761,40 @@ const styles = StyleSheet.create({
   kpiLabel: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  thresholdBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  thresholdLabelRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  thresholdLabelText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  thresholdChipsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  thresholdChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9,
+    borderWidth: 1,
+  },
+  thresholdChipText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   noticeBanner: {
     padding: 12,

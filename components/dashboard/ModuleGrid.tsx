@@ -59,9 +59,13 @@ export function ModuleGrid() {
     return sortedModules;
   }, [sortedModules]);
 
-  // On portrait tablet (3 columns), identify rows with exactly 2 items so they can expand to 48.5% and fill empty space
-  const tabletPortraitPairSet = useMemo(() => {
-    if (!isTablet || isTabletLandscape) return new Set<ModuleId>();
+  // On all screen sizes, identify layout row grouping to eliminate any empty/awkward space
+  const { tabletPortraitPairSet, singleItemRowSet } = useMemo(() => {
+    const singleSet = new Set<ModuleId>();
+    const twoItemSet = new Set<ModuleId>();
+
+    // Slots per row: Phone = 2, Tablet Portrait = 3, Tablet Landscape = 4
+    const slotsPerRow = isTabletLandscape ? 4 : isTablet ? 3 : 2;
 
     const rows: ModuleId[][] = [];
     let currentRow: ModuleId[] = [];
@@ -69,7 +73,7 @@ export function ModuleGrid() {
 
     displayModules.forEach((item) => {
       const config = modules[item.id];
-      const isFull = (config?.layout ?? (item.id === 'expenses' ? 'full' : 'half')) === 'full';
+      const isFull = (config?.layout ?? (item.id === 'expiry' ? 'full' : item.id === 'expenses' ? 'full' : 'half')) === 'full';
 
       if (isFull) {
         if (currentRow.length > 0) {
@@ -81,7 +85,7 @@ export function ModuleGrid() {
       } else {
         currentRow.push(item.id);
         currentSlots += 1;
-        if (currentSlots === 3) {
+        if (currentSlots === slotsPerRow) {
           rows.push(currentRow);
           currentRow = [];
           currentSlots = 0;
@@ -93,15 +97,16 @@ export function ModuleGrid() {
       rows.push(currentRow);
     }
 
-    const twoItemSet = new Set<ModuleId>();
     rows.forEach((row) => {
-      if (row.length === 2) {
+      if (row.length === 1) {
+        singleSet.add(row[0]);
+      } else if (row.length === 2 && isTablet && !isTabletLandscape) {
         twoItemSet.add(row[0]);
         twoItemSet.add(row[1]);
       }
     });
 
-    return twoItemSet;
+    return { tabletPortraitPairSet: twoItemSet, singleItemRowSet: singleSet };
   }, [displayModules, modules, isTablet, isTabletLandscape]);
 
   const animateLayout = () => {
@@ -342,9 +347,10 @@ export function ModuleGrid() {
         <View style={styles.gridContainer}>
           {displayModules.map((item) => {
             const config = modules[item.id];
-            const layout = config?.layout ?? (item.id === 'expenses' ? 'full' : 'half');
+            const layout = config?.layout ?? (item.id === 'expiry' ? 'full' : item.id === 'expenses' ? 'full' : 'half');
             const isSelected = selectedIdForSwap === item.id;
             const isLastRowPair = tabletPortraitPairSet.has(item.id);
+            const isSingleLastItem = singleItemRowSet.has(item.id);
 
             return (
               <ModuleCard
@@ -356,6 +362,7 @@ export function ModuleGrid() {
                 isCustomizing={isCustomizing}
                 isSelectedForSwap={isSelected}
                 isLastRowPair={isLastRowPair}
+                isSingleLastItem={isSingleLastItem}
                 onStartCustomize={() => handleStartCustomize(item.id)}
                 onToggleLayout={() => handleToggleLayout(item.id)}
                 onSelectForSwap={() => handleSelectForSwap(item.id)}

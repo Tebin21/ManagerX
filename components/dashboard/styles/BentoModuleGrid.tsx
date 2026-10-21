@@ -29,6 +29,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  isSingleLastItem?: boolean;
 }
 
 function BentoHeroCard({
@@ -268,6 +269,7 @@ function BentoRegularTile({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -384,7 +386,7 @@ function BentoRegularTile({
     })
   );
 
-  const tileWidth = isTabletLandscape ? '23.8%' : isTablet ? '31.5%' : '48.5%';
+  const tileWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.5%' : '48.5%';
   const tileIconBoxSize = isTabletLandscape ? 62 : isTablet ? 54 : 38;
   const tileIconSize = isTabletLandscape ? 34 : isTablet ? 28 : 20;
 
@@ -525,16 +527,26 @@ export function BentoModuleGrid({
           },
         ]}
       >
-        {regularModules.map((item) => (
-          <BentoRegularTile
-            key={item.id}
-            item={item}
-            isCustomizing={isCustomizing}
-            isSelected={selectedIdForSwap === item.id}
-            onStartCustomize={onStartCustomize}
-            onSelectForSwap={onSelectForSwap}
-          />
-        ))}
+        {regularModules.map((item, index) => {
+          const isSingleLastItem =
+            index === regularModules.length - 1 &&
+            (isTabletLandscape
+              ? regularModules.length % 4 !== 0
+              : isTablet
+              ? regularModules.length % 3 !== 0
+              : regularModules.length % 2 !== 0);
+          return (
+            <BentoRegularTile
+              key={item.id}
+              item={item}
+              isCustomizing={isCustomizing}
+              isSelected={selectedIdForSwap === item.id}
+              onStartCustomize={onStartCustomize}
+              onSelectForSwap={onSelectForSwap}
+              isSingleLastItem={isSingleLastItem}
+            />
+          );
+        })}
       </View>
     </View>
   );

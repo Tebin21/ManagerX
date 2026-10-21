@@ -27,6 +27,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  isSingleLastItem?: boolean;
 }
 
 function ModernItem({
@@ -35,6 +36,7 @@ function ModernItem({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -171,7 +173,7 @@ function ModernItem({
     outputRange: [0, -5],
   });
 
-  const cardWidth = isTabletLandscape ? '23.8%' : isTablet ? '48.5%' : '48.5%';
+  const cardWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '48.5%' : '48.5%';
   const iconWrapSize = isTabletLandscape ? 62 : isTablet ? 54 : 38;
   const iconSize = isTabletLandscape ? 32 : isTablet ? 28 : 19;
 
@@ -314,16 +316,22 @@ export function ModernModuleGrid({
         },
       ]}
     >
-      {modules.map((item) => (
-        <ModernItem
-          key={item.id}
-          item={item}
-          isCustomizing={isCustomizing}
-          isSelected={selectedIdForSwap === item.id}
-          onStartCustomize={onStartCustomize}
-          onSelectForSwap={onSelectForSwap}
-        />
-      ))}
+      {modules.map((item, index) => {
+        const isSingleLastItem =
+          index === modules.length - 1 &&
+          (isTabletLandscape ? modules.length % 4 !== 0 : modules.length % 2 !== 0);
+        return (
+          <ModernItem
+            key={item.id}
+            item={item}
+            isCustomizing={isCustomizing}
+            isSelected={selectedIdForSwap === item.id}
+            onStartCustomize={onStartCustomize}
+            onSelectForSwap={onSelectForSwap}
+            isSingleLastItem={isSingleLastItem}
+          />
+        );
+      })}
     </View>
   );
 }

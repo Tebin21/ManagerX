@@ -313,6 +313,7 @@
     "customerDebt":      "Customer Debt",
     "expensesCard":      "Expenses",
     "dashboardModule":   "Dashboard",
+    "expiry":            "Expiry",
     "expensesSubtitle":  "Track and manage expenses",
     "addExpenseAction":  "Add Expense",
     "netCashBalance":    "Net Cash Balance",
@@ -440,6 +441,7 @@
     "debt":         { "title": "Debt System",     "description": "Manage who owes you and what you owe others" },
     "expenses":     { "title": "Expenses",        "description": "Record and manage operating expenses" },
     "dashboard":    { "title": "Dashboard",       "description": "Main dashboard and statistics" },
+    "expiry":       { "title": "Expiry Tracking", "description": "Track product shelf-life and expiration dates" },
     "soldProducts": { "title": "Sold Products" }
   },
   "support": {

@@ -37,6 +37,7 @@ const defaultModules: Record<ModuleId, ModuleConfig> = {
   history:   { enabled: true, order: 5, layout: 'half' },
   expenses:  { enabled: true, order: 6, layout: 'half' },
   dashboard: { enabled: true, order: 7, layout: 'half' },
+  expiry:    { enabled: true, order: 8, layout: 'full' },
 };
 
 export const useModuleStore = create<ModuleState>()(
@@ -94,7 +95,7 @@ export const useModuleStore = create<ModuleState>()(
       toggleModuleLayout: (id) =>
         set((state) => {
           const current = state.modules[id] ?? defaultModules[id] ?? { enabled: true, order: 99, layout: 'half' };
-          const currentLayout = current.layout ?? (id === 'expenses' ? 'full' : 'half');
+          const currentLayout = current.layout ?? (id === 'expiry' ? 'full' : id === 'expenses' ? 'full' : 'half');
           const nextLayout: ModuleLayout = currentLayout === 'half' ? 'full' : 'half';
           return {
             modules: {
@@ -162,7 +163,7 @@ export const useModuleStore = create<ModuleState>()(
               mergedModules[key] = {
                 ...defaultModules[key],
                 ...p.modules[key],
-                layout: p.modules[key].layout ?? defaultModules[key].layout ?? 'half',
+                layout: p.modules[key].layout ?? defaultModules[key].layout ?? (key === 'expiry' ? 'full' : 'half'),
               };
             }
           }

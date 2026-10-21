@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
+  ScrollView,
   TouchableOpacity,
   Switch,
   StyleSheet,
-  TextInput,
   Platform,
   Alert,
 } from 'react-native';
@@ -15,20 +15,15 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useInventoryStore } from '@/store/inventoryStore';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { toEnglishDigits } from '@/utils/formatters';
-
-const PRESET_ALERT_DAYS = [7, 15, 30, 60, 90];
 
 export default function ExpirySettingsScreen() {
   const router = useRouter();
@@ -41,46 +36,12 @@ export default function ExpirySettingsScreen() {
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
-  const expiryAlertDays = useSettingsStore((s) => s.expiryAlertDays);
   const expiryTermsAccepted = useSettingsStore((s) => s.expiryTermsAccepted);
   const setExpiryTrackingEnabled = useSettingsStore((s) => s.setExpiryTrackingEnabled);
-  const setExpiryAlertDays = useSettingsStore((s) => s.setExpiryAlertDays);
   const setExpiryTermsAccepted = useSettingsStore((s) => s.setExpiryTermsAccepted);
-
-  const products = useInventoryStore((s) => s.products);
 
   // Local state for the checkbox (سەح) at the bottom
   const [termsChecked, setTermsChecked] = useState(expiryTermsAccepted);
-  const [customDaysInput, setCustomDaysInput] = useState(String(expiryAlertDays));
-
-  // Compute live expiry statistics for items currently in inventory
-  const expiryStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let totalTracked = 0;
-    let expired = 0;
-    let expiringSoon = 0;
-    let safe = 0;
-
-    for (const p of products) {
-      if (!p.expiryDate) continue;
-      totalTracked++;
-      const exp = new Date(p.expiryDate);
-      exp.setHours(0, 0, 0, 0);
-      const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 0) {
-        expired++;
-      } else if (diffDays <= expiryAlertDays) {
-        expiringSoon++;
-      } else {
-        safe++;
-      }
-    }
-
-    return { totalTracked, expired, expiringSoon, safe };
-  }, [products, expiryAlertDays]);
 
   // Handle toggling the checkbox (سەح)
   const handleToggleTermsCheckbox = () => {
@@ -116,31 +77,15 @@ export default function ExpirySettingsScreen() {
     setExpiryTrackingEnabled(value);
   };
 
-  const handleSelectDays = (days: number) => {
-    try {
-      Haptics.selectionAsync().catch(() => {});
-    } catch {}
-    setExpiryAlertDays(days);
-    setCustomDaysInput(String(days));
-  };
-
-  const handleCustomDaysChange = (text: string) => {
-    const clean = toEnglishDigits(text).replace(/[^0-9]/g, '');
-    setCustomDaysInput(clean);
-    const parsed = parseInt(clean, 10);
-    if (!isNaN(parsed) && parsed > 0 && parsed <= 365) {
-      setExpiryAlertDays(parsed);
-    }
-  };
-
   return (
-    <SettingsBackground>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.black : colors.gray50 }]}>
+      <SettingsBackground />
       <AppHeader
         title={isKu ? 'بەسەرچوون' : 'Expiry Tracking'}
         showBack
       />
 
-      <KeyboardAwareScrollView
+      <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
@@ -151,6 +96,8 @@ export default function ExpirySettingsScreen() {
             paddingHorizontal: 24,
           },
         ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── 1. Hero / Purpose Card (بۆ چی بەکار دێت) ────────────────── */}
         <SettingsCard style={styles.heroCard}>
@@ -436,8 +383,8 @@ export default function ExpirySettingsScreen() {
                   ]}
                 >
                   {isKu
-                    ? 'لە دەستە چەپی دوگمەی بەرهەمەکان لە کۆگا، بەشی (بەسەرچوون) چالاک دەبێت. لەوێ ڕاپۆرتی تەواوی بەروارەکان، ڕۆژەکانی ماوە بۆ بەسەرچوون، فلتەری خێرا و ئاگادارییەکان پشان دەدرێت.'
-                    : 'A dedicated Expiry tab appears in Inventory next to Products, featuring full expiration audits, countdown days, and status filters.'}
+                    ? 'لە داشبۆردی سەرەکی دوگمەی تایبەتی (بەسەرچوون) لە خوارەوە چالاک دەبێت. لەوێ ئامار، ڕاپۆرتی تەواوی بەروارەکان، ڕۆژەکانی ماوە بۆ بەسەرچوون، فلتەری خێرا و ئاگادارییەکان نیشان دەدرێت.'
+                    : 'A dedicated Expiry module appears on your main Dashboard at the bottom, featuring full expiration audits, countdown days, and status filters.'}
                 </Text>
               </View>
             </View>
@@ -472,270 +419,14 @@ export default function ExpirySettingsScreen() {
                   ]}
                 >
                   {isKu
-                    ? 'دەتوانیت لە خوارەوە دیاری بکەیت کە سیستەمەکە چەند ڕۆژ پێش بەسەرچوون ئاگادارت بکاتەوە تاوەکو فریا بکەویت ڕێوشوێنی پێویست بگریتەبەر.'
-                    : 'Customize how many days before expiration you want warnings (e.g. 30 days) to prevent stock losses.'}
+                    ? 'لە بەشی بەسەرچوون دەتوانیت ژمارەی ئەو ڕۆژانە دیاری بکەیت کە سیستەمەکە پێشوەختە هۆشداریت پێ بدات پێش بەسەرچوونی کاڵاکان.'
+                    : 'Customize how many days before expiration you want warnings directly in the Expiry module.'}
                 </Text>
               </View>
             </View>
           </View>
         </SettingsCard>
 
-        {/* ── 3. Alert Days Threshold Card ───────────────────── */}
-        <SettingsCard style={styles.alertCard}>
-          <View style={[styles.sectionHeader, { flexDirection }]}>
-            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.black, textAlign },
-                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {isKu ? 'ماوەی ئاگادارکردنەوە پێش بەسەرچوون' : 'Alert Notice Threshold'}
-            </Text>
-          </View>
-
-          <Text
-            style={[
-              styles.guideIntro,
-              { color: colors.gray400, textAlign },
-              isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-            ]}
-          >
-            {isKu
-              ? 'چەند ڕۆژ پێش بەسەرچوون کاڵاکان بخرێنە لیستی هۆشداری نزیک لە بەسەرچوون؟'
-              : 'How many days before expiry should products trigger early warnings?'}
-          </Text>
-
-          {/* Quick Preset Buttons */}
-          <View style={[styles.presetsWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            {PRESET_ALERT_DAYS.map((days) => {
-              const isSelected = expiryAlertDays === days;
-              return (
-                <TouchableOpacity
-                  key={days}
-                  activeOpacity={0.8}
-                  onPress={() => handleSelectDays(days)}
-                  style={[
-                    styles.presetChip,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? 'rgba(30, 41, 59, 0.70)'
-                        : colors.gray100,
-                      borderColor: isSelected
-                        ? colors.primary
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.10)'
-                        : colors.gray200,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.presetChipText,
-                      {
-                        color: isSelected ? '#0F172A' : colors.black,
-                      },
-                      isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
-                    ]}
-                  >
-                    {isKu ? `${days} ڕۆژ` : `${days} Days`}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Custom Days Input */}
-          <View
-            style={[
-              styles.customInputRow,
-              {
-                flexDirection,
-                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.customInputLabel,
-                  { color: colors.black, textAlign },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-              >
-                {isKu ? 'ڕۆژی دڵخواز (١ تا ٣٦٥ ڕۆژ)' : 'Custom Days (1 to 365)'}
-              </Text>
-              <Text
-                style={[
-                  styles.customInputSub,
-                  { color: colors.gray400, textAlign },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                ]}
-              >
-                {isKu ? `ئێستا دیاریکراوە بۆ: ${expiryAlertDays} ڕۆژ` : `Currently set to: ${expiryAlertDays} days`}
-              </Text>
-            </View>
-
-            <View style={styles.inputBoxWrap}>
-              <TextInput
-                value={customDaysInput}
-                onChangeText={handleCustomDaysChange}
-                keyboardType="number-pad"
-                maxLength={3}
-                placeholder="30"
-                placeholderTextColor={colors.gray400}
-                style={[
-                  styles.daysInput,
-                  {
-                    color: colors.black,
-                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                    borderColor: isDark ? '#334155' : colors.gray300,
-                  },
-                ]}
-              />
-              <Text style={[styles.inputUnit, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {isKu ? 'ڕۆژ' : 'd'}
-              </Text>
-            </View>
-          </View>
-        </SettingsCard>
-
-        {/* ── 4. Live Statistics Summary Card ─────────────────── */}
-        <SettingsCard style={styles.statsCard}>
-          <View style={[styles.sectionHeader, { flexDirection }]}>
-            <Ionicons name="pie-chart" size={20} color={colors.primary} />
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.black, textAlign },
-                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {isKu ? 'ئاماری کاڵاکانی کۆگا بەپێی بەسەرچوون' : 'Current Inventory Expiry Stats'}
-            </Text>
-          </View>
-
-          <Text
-            style={[
-              styles.guideIntro,
-              { color: colors.gray400, textAlign },
-              isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-            ]}
-          >
-            {isKu
-              ? 'ئاماری ڕاستەوخۆی کاڵاکانی ئێستای ناو کۆگاکەت:'
-              : 'Live breakdown of products currently in your inventory:'}
-          </Text>
-
-          <View style={[styles.statsGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            {/* Total Tracked */}
-            <View
-              style={[
-                styles.statBox,
-                isTablet && { minWidth: '22%' },
-                {
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
-                },
-              ]}
-            >
-              <Text style={[styles.statValue, { color: colors.primary }]}>{expiryStats.totalTracked}</Text>
-              <Text
-                style={[styles.statLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}
-              >
-                {isKu ? 'کاڵای خاوەن بەروار' : 'Tracked Items'}
-              </Text>
-            </View>
-
-            {/* Expired */}
-            <View
-              style={[
-                styles.statBox,
-                isTablet && { minWidth: '22%' },
-                {
-                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEE2E2',
-                  borderColor: isDark ? 'rgba(239, 68, 68, 0.30)' : '#FECACA',
-                },
-              ]}
-            >
-              <Text style={[styles.statValue, { color: '#EF4444' }]}>{expiryStats.expired}</Text>
-              <Text
-                style={[styles.statLabel, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}
-              >
-                {isKu ? 'بەسەرچووە' : 'Expired'}
-              </Text>
-            </View>
-
-            {/* Expiring Soon */}
-            <View
-              style={[
-                styles.statBox,
-                isTablet && { minWidth: '22%' },
-                {
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
-                  borderColor: isDark ? 'rgba(245, 158, 11, 0.30)' : '#FDE68A',
-                },
-              ]}
-            >
-              <Text style={[styles.statValue, { color: '#F59E0B' }]}>{expiryStats.expiringSoon}</Text>
-              <Text
-                style={[styles.statLabel, { color: '#F59E0B' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}
-              >
-                {isKu ? 'بەم نزیکانە' : 'Expiring Soon'}
-              </Text>
-            </View>
-
-            {/* Safe */}
-            <View
-              style={[
-                styles.statBox,
-                isTablet && { minWidth: '22%' },
-                {
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#D1FAE5',
-                  borderColor: isDark ? 'rgba(16, 185, 129, 0.30)' : '#A7F3D0',
-                },
-              ]}
-            >
-              <Text style={[styles.statValue, { color: '#10B981' }]}>{expiryStats.safe}</Text>
-              <Text
-                style={[styles.statLabel, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}
-              >
-                {isKu ? 'سەلامەت' : 'Safe'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Quick link button to Inventory Expiry tab */}
-          {expiryTrackingEnabled && (
-            <TouchableOpacity
-              activeOpacity={0.82}
-              onPress={() => router.push('/(app)/inventory' as never)}
-              style={[
-                styles.viewInventoryBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : 'rgba(212, 175, 55, 0.12)',
-                  borderColor: colors.primary,
-                  flexDirection,
-                },
-              ]}
-            >
-              <Ionicons name="arrow-forward-circle" size={20} color={colors.primary} />
-              <Text
-                style={[
-                  styles.viewInventoryBtnText,
-                  { color: colors.primary },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-              >
-                {isKu ? 'چوون بۆ بینینی بەشی بەسەرچوون لە کۆگا' : 'View Expiry Report in Inventory'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </SettingsCard>
 
         {/* ── 5. Bottom Agreement & Master Activation Card (پەسەندکردن و ۆن و ۆف لە خوارەوە) ── */}
         <SettingsCard
@@ -834,14 +525,38 @@ export default function ExpirySettingsScreen() {
           </TouchableOpacity>
 
           {/* Step 2: Master Switch (ۆن و ۆف لە خوار خوارەوە) */}
-          <View
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              if (!termsChecked) {
+                Alert.alert(
+                  isKu ? 'پەسەندکردنی ڕێنماییەکان' : 'Agreement Required',
+                  isKu
+                    ? 'بۆ چالاککردنی ئەم بەشە دەبێ سەرەتا سەحی خوێندنەوەی ڕێنماییەکان لێبدەیت. ئایا دەتەوێت پەسەندی بکەیت و چالاکی بکەیت؟'
+                    : 'Please confirm that you have read the guidelines before enabling.',
+                  [
+                    { text: isKu ? 'داخستن' : 'Cancel', style: 'cancel' },
+                    {
+                      text: isKu ? 'بەڵێ، پەسەندم کرد' : 'Agree & Enable',
+                      onPress: () => {
+                        setTermsChecked(true);
+                        setExpiryTermsAccepted(true);
+                        setExpiryTrackingEnabled(true);
+                      },
+                    },
+                  ]
+                );
+              } else {
+                handleToggleSwitch(!expiryTrackingEnabled);
+              }
+            }}
             style={[
               styles.bottomSwitchRow,
               {
                 flexDirection,
                 backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
-                opacity: termsChecked ? 1 : 0.55,
+                opacity: termsChecked ? 1 : 0.6,
               },
             ]}
           >
@@ -886,20 +601,22 @@ export default function ExpirySettingsScreen() {
             <Switch
               value={expiryTrackingEnabled}
               onValueChange={handleToggleSwitch}
-              disabled={!termsChecked}
               trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: colors.primary }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
-          </View>
+          </TouchableOpacity>
         </SettingsCard>
 
         <View style={{ height: 40 }} />
-      </KeyboardAwareScrollView>
-    </SettingsBackground>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   scroll: {
     flex: 1,
   },
@@ -1047,106 +764,6 @@ const styles = StyleSheet.create({
   tableDivider: {
     height: 1,
     width: '100%',
-  },
-
-  /* ── Alert Threshold Card ── */
-  alertCard: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 14,
-  },
-  presetsWrap: {
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  presetChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  presetChipText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-  },
-  customInputRow: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 12,
-  },
-  customInputLabel: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    lineHeight: 19,
-  },
-  customInputSub: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  inputBoxWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  daysInput: {
-    width: 58,
-    height: 38,
-    borderRadius: 10,
-    borderWidth: 1,
-    textAlign: 'center',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  inputUnit: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  /* ── Stats Summary Card ── */
-  statsCard: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 14,
-  },
-  statsGrid: {
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  statBox: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-  viewInventoryBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  viewInventoryBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
   },
 
   /* ── Bottom Activation & Agreement Card (لە خوار خوارەوە) ── */
