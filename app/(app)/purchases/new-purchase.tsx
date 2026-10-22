@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -259,9 +259,28 @@ export default function NewPurchaseScreen() {
   const sellIQDNum   = parseFloat(toEnglishDigits(sellIQD).replace(/,/g, '')) || 0;
   const totalIQD     = qtyNum * buyIQDNum;
   const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
+
+  const maxDownPayment = useMemo(() => {
+    if (isUSD) {
+      const totalUSD = Math.round((totalIQD / exchangeRate) * 100) / 100;
+      return totalUSD > 0.01 ? Math.round((totalUSD - 0.01) * 100) / 100 : 0;
+    }
+    return totalIQD > 250 ? totalIQD - 250 : 0;
+  }, [totalIQD, isUSD, exchangeRate]);
+
+  const maxDownPaymentIQD = useMemo(() => {
+    if (isUSD) {
+      return Math.min(roundToNearest250(maxDownPayment * exchangeRate), Math.max(0, totalIQD - 250));
+    }
+    return maxDownPayment;
+  }, [maxDownPayment, isUSD, exchangeRate, totalIQD]);
+
   const rawPaidNum   = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
-  const amountPaidIQD = isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
-  const remainingDebt = Math.max(0, totalIQD - amountPaidIQD);
+  const isPaidExceeded = paymentStatus === 'debt' && rawPaidNum > maxDownPayment;
+  const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
+  const rawPaidIQD = isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
+  const amountPaidIQD = paymentStatus === 'debt' ? Math.max(0, Math.min(rawPaidIQD, maxDownPaymentIQD)) : rawPaidIQD;
+  const remainingDebt = paymentStatus === 'debt' ? Math.max(0, totalIQD - amountPaidIQD) : 0;
   const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' && initialPaymentMethod === 'cash' ? amountPaidIQD : 0);
   const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
   const isInsufficientCash = isCapitalEnabled && drawerBalance !== null && cashNeeded > drawerBalance;
@@ -381,9 +400,11 @@ export default function NewPurchaseScreen() {
       Alert.alert(t('common.required'), t('purchases.validationIdType'));
       return false;
     }
-    if (paymentStatus === 'debt' && amountPaidIQD > totalIQD) {
-      Alert.alert(t('common.error'), t('purchases.validationAmountPaid'));
-      return false;
+    if (paymentStatus === 'debt') {
+      if (rawPaidNum > 0 && (rawPaidNum > maxDownPayment || rawPaidIQD >= totalIQD)) {
+        Alert.alert(t('common.error'), t('purchases.validationAmountPaidDebt'));
+        return false;
+      }
     }
     return true;
   }
@@ -1854,11 +1875,21 @@ export default function NewPurchaseScreen() {
             label={`${t('purchases.amountPaid')} (${isUSD ? 'USD' : 'IQD'})`}
             value={toEnglishDigits(amountPaid)}
             onChangeText={(v) => setAmountPaid(sanitizeNumericInput(v, 'decimal-pad'))}
+            onEndEditing={() => {
+              const n = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
+              if (n > maxDownPayment) {
+                setAmountPaid(maxDownPayment > 0 ? String(maxDownPayment) : '');
+              }
+            }}
             keyboardType="decimal-pad"
             placeholder={isUSD ? '0.00' : '0'}
             returnKeyType="done"
             forceLatin
+            error={isPaidExceeded ? t('purchases.downPaymentMustBeLess') : undefined}
           />
+          <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+            {t('purchases.maxDownPayment')} {maxDownPaymentDisplay}
+          </Text>
           {rawPaidNum > 0 && (
             <View style={{ marginBottom: 12 }}>
               <Text

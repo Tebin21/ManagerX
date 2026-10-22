@@ -78,6 +78,8 @@ export default function NewSaleScreen() {
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const salesProductGridLayout = useSettingsStore((s) => s.salesProductGridLayout);
   const setSalesProductGridLayout = useSettingsStore((s) => s.setSalesProductGridLayout);
+  const showSalesInvoicePreview = useSettingsStore((s) => s.showSalesInvoicePreview);
+  const setShowSalesInvoicePreview = useSettingsStore((s) => s.setShowSalesInvoicePreview);
   const isUSD = baseCurrency === 'USD';
 
   const isGridView = salesProductGridLayout;
@@ -121,6 +123,10 @@ export default function NewSaleScreen() {
   const discountTotal = cart.discountTotal();
   const globalDiscountAmount = cart.globalDiscountAmount();
   const grandTotal = cart.grandTotal();
+  const maxDownPayment = cart.maxDownPayment();
+  const rawPaidNum = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+  const isPaidExceeded = cart.paymentMethod === 'debt' && rawPaidNum > maxDownPayment;
+  const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
   const remainingDebt = cart.remainingDebt();
   const hasWarning = cart.hasAnyLossWarning();
   const subtotalUsd = subtotal / exchangeRate;
@@ -256,10 +262,10 @@ export default function NewSaleScreen() {
     }
 
     if (cart.paymentMethod === 'debt') {
+      const maxDown = cart.maxDownPayment();
       const rawPaid = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
-      const paidIQD = isUSD ? roundToNearest250(rawPaid * exchangeRate) : roundToNearest250(rawPaid);
-      if (paidIQD > cart.grandTotal()) {
-        Alert.alert(t('common.error'), t('sales.validationAmountPaid'));
+      if (rawPaid > 0 && (rawPaid > maxDown || cart.effectivePaidIQD() >= cart.grandTotal())) {
+        Alert.alert(t('common.error'), t('sales.validationAmountPaidDebt'));
         return;
       }
     }
@@ -826,6 +832,136 @@ export default function NewSaleScreen() {
 
   // ─── Step 3: Customer & Payment ───────────────────────────────────────────
 
+  const renderInvoicePreviewSection = (compact: boolean) => (
+    <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
+      <PremiumCard style={styles.sectionCard}>
+        <TouchableOpacity
+          style={[
+            styles.invoiceToggleRow,
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            showSalesInvoicePreview && { marginBottom: 14 },
+          ]}
+          onPress={() => {
+            try { Haptics.selectionAsync().catch(() => {}); } catch {}
+            setShowSalesInvoicePreview(!showSalesInvoicePreview);
+          }}
+          activeOpacity={0.75}
+        >
+          <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }]}>
+            <View
+              style={[
+                styles.invoiceToggleIconBox,
+                {
+                  backgroundColor: showSalesInvoicePreview
+                    ? colors.primary + '22'
+                    : (isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray50),
+                },
+              ]}
+            >
+              <Ionicons
+                name={showSalesInvoicePreview ? 'receipt' : 'receipt-outline'}
+                size={18}
+                color={showSalesInvoicePreview ? colors.primary : colors.gray400}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.black, textAlign, fontSize: 16, marginBottom: 2 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('sales.invoicePreview')}
+              </Text>
+              <Text
+                style={[
+                  { color: colors.gray400, fontSize: 12, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                {showSalesInvoicePreview ? t('sales.hideInvoicePreview') : t('sales.showInvoicePreview')}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.invoiceToggleBadge,
+              {
+                backgroundColor: showSalesInvoicePreview ? colors.primary + '18' : (isDark ? colors.gray200 : colors.gray100),
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                gap: 4,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                {
+                  fontSize: 12,
+                  color: showSalesInvoicePreview ? colors.primary : colors.gray500,
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {showSalesInvoicePreview ? (isKuLanguage ? 'شاردنەوە' : 'Hide') : (isKuLanguage ? 'پیشاندان' : 'Show')}
+            </Text>
+            <Ionicons
+              name={showSalesInvoicePreview ? 'chevron-up' : 'chevron-down'}
+              size={15}
+              color={showSalesInvoicePreview ? colors.primary : colors.gray400}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {showSalesInvoicePreview && (
+          <InvoiceView
+            sale={{
+              id: 0,
+              invoiceNumber: 'Preview',
+              customerId: null,
+              customerName: cart.customerInput.name || null,
+              customerPhone: cart.customerInput.phone || null,
+              customerAddress: cart.customerInput.address || null,
+              warranty: cart.customerInput.warranty || null,
+              notes: cart.saleNotes || null,
+              paymentMethod: cart.paymentMethod,
+              initialPaymentMethod: cart.initialPaymentMethod,
+              subtotal,
+              discountTotal,
+              globalDiscountType: cart.globalDiscountType,
+              globalDiscount: globalDiscountAmount,
+              grandTotal,
+              paidAmount: cart.paymentMethod === 'debt'
+                ? cart.effectivePaidIQD()
+                : grandTotal,
+              remainingDebt: cart.remainingDebt(),
+              status: 'completed',
+              exchangeRateUsed: exchangeRate,
+              date: saleDate.toISOString(),
+              createdAt: saleDate.toISOString(),
+              updatedAt: saleDate.toISOString(),
+              items: cart.items.map((ci, i) => ({
+                id: i,
+                saleId: 0,
+                productId: ci.product.id,
+                productName: ci.product.name,
+                itemId: ci.product.itemId,
+                idMode: ci.product.idMode,
+                purchasePrice: ci.product.purchasePrice,
+                sellingPrice: ci.sellingPrice,
+                quantity: ci.quantity,
+                discount: ci.discount,
+                lineTotal: ci.lineTotal,
+              })),
+            }}
+            compact={compact}
+          />
+        )}
+      </PremiumCard>
+    </MotiView>
+  );
+
   const renderStep3 = () => (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -877,52 +1013,7 @@ export default function NewSaleScreen() {
                   </PremiumCard>
                 </MotiView>
 
-                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-                  <PremiumCard style={styles.sectionCard}>
-                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.invoicePreview')}</Text>
-                    <InvoiceView
-                      sale={{
-                        id: 0,
-                        invoiceNumber: 'Preview',
-                        customerId: null,
-                        customerName: cart.customerInput.name || null,
-                        customerPhone: cart.customerInput.phone || null,
-                        customerAddress: cart.customerInput.address || null,
-                        warranty: cart.customerInput.warranty || null,
-                        notes: cart.saleNotes || null,
-                        paymentMethod: cart.paymentMethod,
-                        subtotal,
-                        discountTotal,
-                        globalDiscountType: cart.globalDiscountType,
-                        globalDiscount: globalDiscountAmount,
-                        grandTotal,
-                        paidAmount: cart.paymentMethod === 'debt'
-                          ? (isUSD ? roundToNearest250((parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) * exchangeRate) : roundToNearest250(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0))
-                          : grandTotal,
-                        remainingDebt,
-                        status: 'completed',
-                        exchangeRateUsed: exchangeRate,
-                        date: saleDate.toISOString(),
-                        createdAt: saleDate.toISOString(),
-                        updatedAt: saleDate.toISOString(),
-                        items: cart.items.map((ci, i) => ({
-                          id: i,
-                          saleId: 0,
-                          productId: ci.product.id,
-                          productName: ci.product.name,
-                          itemId: ci.product.itemId,
-                          idMode: ci.product.idMode,
-                          purchasePrice: ci.product.purchasePrice,
-                          sellingPrice: ci.sellingPrice,
-                          quantity: ci.quantity,
-                          discount: ci.discount,
-                          lineTotal: ci.lineTotal,
-                        })),
-                      }}
-                      compact={true}
-                    />
-                  </PremiumCard>
-                </MotiView>
+                {renderInvoicePreviewSection(true)}
               </KeyboardAwareScrollView>
             </View>
 
@@ -951,9 +1042,19 @@ export default function NewSaleScreen() {
                           placeholder={isUSD ? '0.00' : '0'}
                           value={cart.paidAmount}
                           onChangeText={(t) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(t), 'decimal-pad'))}
+                          onEndEditing={() => {
+                            const n = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+                            if (n > maxDownPayment) {
+                              cart.setPaidAmount(maxDownPayment > 0 ? String(maxDownPayment) : '');
+                            }
+                          }}
                           keyboardType="decimal-pad"
                           forceLatin
+                          error={isPaidExceeded ? t('sales.downPaymentMustBeLess') : undefined}
                         />
+                        <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {t('sales.maxDownPayment')} {maxDownPaymentDisplay}
+                        </Text>
                         {(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) > 0 && (
                           <View style={{ marginTop: 10, marginBottom: 12 }}>
                             <Text
@@ -1100,9 +1201,19 @@ export default function NewSaleScreen() {
                     placeholder={isUSD ? '0.00' : '0'}
                     value={cart.paidAmount}
                     onChangeText={(t) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(t), 'decimal-pad'))}
+                    onEndEditing={() => {
+                      const n = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+                      if (n > maxDownPayment) {
+                        cart.setPaidAmount(maxDownPayment > 0 ? String(maxDownPayment) : '');
+                      }
+                    }}
                     keyboardType="decimal-pad"
                     forceLatin
+                    error={isPaidExceeded ? t('sales.downPaymentMustBeLess') : undefined}
                   />
+                  <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {t('sales.maxDownPayment')} {maxDownPaymentDisplay}
+                  </Text>
                   {(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) > 0 && (
                     <View style={{ marginTop: 10, marginBottom: 12 }}>
                       <Text
@@ -1181,52 +1292,7 @@ export default function NewSaleScreen() {
             </PremiumCard>
           </MotiView>
 
-          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-            <PremiumCard style={styles.sectionCard}>
-              <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.invoicePreview')}</Text>
-              <InvoiceView
-                sale={{
-                  id: 0,
-                  invoiceNumber: 'Preview',
-                  customerId: null,
-                  customerName: cart.customerInput.name || null,
-                  customerPhone: cart.customerInput.phone || null,
-                  customerAddress: cart.customerInput.address || null,
-                  warranty: cart.customerInput.warranty || null,
-                  notes: cart.saleNotes || null,
-                  paymentMethod: cart.paymentMethod,
-                  subtotal,
-                  discountTotal,
-                  globalDiscountType: cart.globalDiscountType,
-                  globalDiscount: globalDiscountAmount,
-                  grandTotal,
-                  paidAmount: cart.paymentMethod === 'debt'
-                    ? (isUSD ? roundToNearest250((parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) * exchangeRate) : roundToNearest250(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0))
-                    : grandTotal,
-                  remainingDebt,
-                  status: 'completed',
-                  exchangeRateUsed: exchangeRate,
-                  date: saleDate.toISOString(),
-                  createdAt: saleDate.toISOString(),
-                  updatedAt: saleDate.toISOString(),
-                  items: cart.items.map((ci, i) => ({
-                    id: i,
-                    saleId: 0,
-                    productId: ci.product.id,
-                    productName: ci.product.name,
-                    itemId: ci.product.itemId,
-                    idMode: ci.product.idMode,
-                    purchasePrice: ci.product.purchasePrice,
-                    sellingPrice: ci.sellingPrice,
-                    quantity: ci.quantity,
-                    discount: ci.discount,
-                    lineTotal: ci.lineTotal,
-                  })),
-                }}
-                compact={false}
-              />
-            </PremiumCard>
-          </MotiView>
+          {renderInvoicePreviewSection(false)}
 
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
             <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
@@ -1475,5 +1541,23 @@ const styles = StyleSheet.create({
     flex: 0.95,
     height: '100%',
     overflow: 'hidden',
+  },
+  invoiceToggleRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  invoiceToggleIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoiceToggleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -40,7 +40,7 @@ import type { Customer } from '@/types/customers';
 import { roundToNearest250 } from '@/utils/rounding';
 import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
 
@@ -109,9 +109,28 @@ export default function EditInvoiceScreen() {
   const subtotal      = items.reduce((s, i) => s + i.lineTotal, 0);
   const discountTotal = items.reduce((s, i) => s + i.discount * i.quantity, 0);
   const grandTotal    = subtotal;
+
+  const maxDownPayment = useMemo(() => {
+    if (isUSD) {
+      const totalUSD = Math.round((grandTotal / exchangeRate) * 100) / 100;
+      return totalUSD > 0.01 ? Math.round((totalUSD - 0.01) * 100) / 100 : 0;
+    }
+    return grandTotal > 250 ? grandTotal - 250 : 0;
+  }, [grandTotal, isUSD, exchangeRate]);
+
+  const maxDownPaymentIQD = useMemo(() => {
+    if (isUSD) {
+      return Math.min(roundToNearest250(maxDownPayment * exchangeRate), Math.max(0, grandTotal - 250));
+    }
+    return maxDownPayment;
+  }, [maxDownPayment, isUSD, exchangeRate, grandTotal]);
+
   const rawPaidNum    = parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0;
+  const isPaidExceeded = paymentMethod === 'debt' && rawPaidNum > maxDownPayment;
+  const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
+  const rawPaidIQD    = isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
   const paidAmount    = paymentMethod === 'debt'
-    ? (isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum))
+    ? Math.max(0, Math.min(rawPaidIQD, maxDownPaymentIQD))
     : grandTotal;
   const remainingDebt = paymentMethod === 'debt' ? Math.max(0, grandTotal - paidAmount) : 0;
 
@@ -253,8 +272,8 @@ export default function EditInvoiceScreen() {
       return;
     }
 
-    if (paymentMethod === 'debt' && paidAmount > grandTotal) {
-      Alert.alert(t('common.error'), t('sales.validationAmountPaid'));
+    if (paymentMethod === 'debt' && rawPaidNum > 0 && (rawPaidNum > maxDownPayment || rawPaidIQD >= grandTotal)) {
+      Alert.alert(t('common.error'), t('sales.validationAmountPaidDebt'));
       return;
     }
 
@@ -586,16 +605,17 @@ export default function EditInvoiceScreen() {
                 onChangeText={(v) => setPaidAmountStr(sanitizeNumericInput(v, 'decimal-pad'))}
                 onEndEditing={() => {
                   const raw = parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0;
-                  if (raw <= 0) {
-                    setPaidAmountStr('');
-                    return;
+                  if (raw > maxDownPayment) {
+                    setPaidAmountStr(maxDownPayment > 0 ? String(maxDownPayment) : '');
                   }
-                  const r = isUSD ? Math.round(raw * 100) / 100 : roundToNearest250(raw);
-                  setPaidAmountStr(String(r));
                 }}
                 keyboardType="decimal-pad"
                 forceLatin
+                error={isPaidExceeded ? t('sales.downPaymentMustBeLess') : undefined}
               />
+              <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {t('sales.maxDownPayment')} {maxDownPaymentDisplay}
+              </Text>
               {remainingDebt > 0 && (
                 <View style={[styles.debtAlert, { backgroundColor: '#FEE2E2', flexDirection }]}>
                   <Ionicons name="time-outline" size={16} color={colors.error} />

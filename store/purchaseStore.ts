@@ -143,7 +143,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
           supplierAddress: data.supplierAddress,
           purchaseNumber,
           originalAmount:  totalIQD,
-          paidAmount:      input.initialAmountPaid ?? 0,
+          paidAmount:      Math.max(0, Math.min(input.initialAmountPaid ?? 0, Math.max(0, totalIQD - 250))),
           paymentMethod:   input.initialPaymentMethod ?? 'cash',
           notes:           data.notes,
         });

@@ -73,8 +73,17 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const isUSD = baseCurrency === 'USD';
     const exchangeRateUsed = rateSetting || 1310;
     const rawPaid = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
-    const paid = isUSD ? roundToNearest250(rawPaid * exchangeRateUsed) : roundToNearest250(rawPaid);
-    const remaining = cart.remainingDebt();
+    const enteredPaid = isUSD ? roundToNearest250(rawPaid * exchangeRateUsed) : roundToNearest250(rawPaid);
+    const maxPaidIQD = isUSD
+      ? Math.min(
+          roundToNearest250(Math.max(0, Math.round(((grandTotal / exchangeRateUsed) - 0.01) * 100) / 100) * exchangeRateUsed),
+          Math.max(0, grandTotal - 250)
+        )
+      : Math.max(0, grandTotal - 250);
+    const paid = cart.paymentMethod === 'debt'
+      ? Math.max(0, Math.min(enteredPaid, maxPaidIQD))
+      : grandTotal;
+    const remaining = cart.paymentMethod === 'debt' ? Math.max(0, grandTotal - paid) : 0;
 
     const customer = cart.customerInput;
     let customerId: number | null = null;

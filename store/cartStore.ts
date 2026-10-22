@@ -19,6 +19,8 @@ interface CartState {
   discountTotal: () => number;
   globalDiscountAmount: () => number;
   grandTotal: () => number;
+  maxDownPayment: () => number;
+  effectivePaidIQD: () => number;
   remainingDebt: () => number;
   hasAnyLossWarning: () => boolean;
 
@@ -80,15 +82,39 @@ export const useCartStore = create<CartState>((set, get) => ({
     return Math.max(0, s.subtotal() - s.discountTotal() - s.globalDiscountAmount());
   },
 
-  remainingDebt: () => {
+  maxDownPayment: () => {
     const s = get();
-    if (s.paymentMethod !== 'debt') return 0;
+    const gt = s.grandTotal();
+    const { baseCurrency, exchangeRate } = useSettingsStore.getState();
+    const rate = exchangeRate || 1310;
+    if (baseCurrency === 'USD') {
+      const gtUSD = Math.round((gt / rate) * 100) / 100;
+      return gtUSD > 0.01 ? Math.round((gtUSD - 0.01) * 100) / 100 : 0;
+    }
+    return gt > 250 ? gt - 250 : 0;
+  },
+
+  effectivePaidIQD: () => {
+    const s = get();
+    if (s.paymentMethod !== 'debt') return s.grandTotal();
+    const gt = s.grandTotal();
     const { baseCurrency, exchangeRate } = useSettingsStore.getState();
     const isUSD = baseCurrency === 'USD';
     const rate = exchangeRate || 1310;
     const rawPaid = parseFloat(toEnglishDigits(s.paidAmount).replace(/,/g, '')) || 0;
-    const paid = isUSD ? roundToNearest250(rawPaid * rate) : roundToNearest250(rawPaid);
-    return Math.max(0, s.grandTotal() - paid);
+    if (rawPaid <= 0) return 0;
+    const enteredIQD = isUSD ? roundToNearest250(rawPaid * rate) : roundToNearest250(rawPaid);
+    const maxPaid = s.maxDownPayment();
+    const maxPaidIQD = isUSD
+      ? Math.min(roundToNearest250(maxPaid * rate), Math.max(0, gt - 250))
+      : maxPaid;
+    return Math.max(0, Math.min(enteredIQD, maxPaidIQD));
+  },
+
+  remainingDebt: () => {
+    const s = get();
+    if (s.paymentMethod !== 'debt') return 0;
+    return Math.max(0, s.grandTotal() - s.effectivePaidIQD());
   },
 
   hasAnyLossWarning: () => get().items.some((i) => i.hasLossWarning),
