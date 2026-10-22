@@ -1019,6 +1019,13 @@ export default function ReportsScreen() {
             sub={`${purchaseData?.paidCount ?? 0} ${t('reports.salesCount')}`}
           />
           <BigMetricRow
+            label={`📱 ${t('sales.fib')}`}
+            amount={purchaseData?.fibCost ?? 0}
+            icon="phone-portrait"
+            color={colors.primary}
+            sub={`${purchaseData?.fibCount ?? 0} ${t('reports.salesCount')}`}
+          />
+          <BigMetricRow
             label={t('common.debt')}
             amount={purchaseData?.debtCost ?? 0}
             icon="time"
@@ -1030,6 +1037,22 @@ export default function ReportsScreen() {
             { value: String(purchaseData?.uniqueSuppliers ?? 0), label: t('reports.uniqueSuppliers') },
             { value: fmtIQD(purchaseData?.totalUnits ?? 0), label: t('inventory.totalQty') },
           ]} />
+
+          {(purchaseData?.totalCost ?? 0) > 0 && (
+            <View style={{ marginTop: 14 }}>
+              <DonutRing
+                segments={[
+                  { label: t('purchases.paid'), value: purchaseData?.paidCost ?? 0, color: colors.success },
+                  { label: t('sales.fib'),      value: purchaseData?.fibCost  ?? 0, color: colors.primary },
+                  { label: t('purchases.debt'), value: purchaseData?.debtCost ?? 0, color: colors.warning },
+                ]}
+                size={100}
+                strokeWidth={14}
+                centerLabel={String(purchaseData?.totalPurchases ?? 0)}
+                centerSub={t('reports.totalPurchasesCount')}
+              />
+            </View>
+          )}
           {purchaseData?.topSupplier && (
             <View style={[styles.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Ionicons name="star" size={12} color={colors.warning} />

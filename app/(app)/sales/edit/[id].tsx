@@ -30,6 +30,7 @@ import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useSalesStore } from '@/store/salesStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { getSaleById, searchCustomersList } from '@/lib/sqlite';
 import { Colors } from '@/constants/colors';
 import { Theme } from '@/constants/theme';
@@ -100,11 +101,18 @@ export default function EditInvoiceScreen() {
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [productQuery, setProductQuery]           = useState('');
 
+  const baseCurrency  = useSettingsStore((s) => s.baseCurrency);
+  const exchangeRate  = useSettingsStore((s) => s.exchangeRate) || 1310;
+  const isUSD         = baseCurrency === 'USD';
+
   // Computed
   const subtotal      = items.reduce((s, i) => s + i.lineTotal, 0);
   const discountTotal = items.reduce((s, i) => s + i.discount * i.quantity, 0);
   const grandTotal    = subtotal;
-  const paidAmount    = paymentMethod === 'debt' ? roundToNearest250(parseFloat(paidAmountStr) || 0) : grandTotal;
+  const rawPaidNum    = parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0;
+  const paidAmount    = paymentMethod === 'debt'
+    ? (isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum))
+    : grandTotal;
   const remainingDebt = paymentMethod === 'debt' ? Math.max(0, grandTotal - paidAmount) : 0;
 
   const visibleProducts = inventory.searchProducts(productQuery, 'all').filter(
@@ -124,7 +132,14 @@ export default function EditInvoiceScreen() {
         setWarranty(s.warranty ?? '');
         setNotes(s.notes ?? '');
         setPaymentMethod(s.paymentMethod);
-        setPaidAmountStr(String(s.paidAmount));
+        if (s.paymentMethod === 'debt') {
+          const displayedPaid = isUSD
+            ? (s.exchangeRateUsed ? Math.round((s.paidAmount / s.exchangeRateUsed) * 100) / 100 : Math.round((s.paidAmount / exchangeRate) * 100) / 100)
+            : s.paidAmount;
+          setPaidAmountStr(displayedPaid > 0 ? String(displayedPaid) : '');
+        } else {
+          setPaidAmountStr(String(s.paidAmount));
+        }
         setItems(
           (s.items ?? []).map((si) => ({
             productId:     si.productId,
@@ -235,6 +250,11 @@ export default function EditInvoiceScreen() {
 
     if (items.length === 0) {
       Alert.alert(t('common.error'), t('sales.cartEmpty'));
+      return;
+    }
+
+    if (paymentMethod === 'debt' && paidAmount > grandTotal) {
+      Alert.alert(t('common.error'), t('sales.validationAmountPaid'));
       return;
     }
 
@@ -560,21 +580,27 @@ export default function EditInvoiceScreen() {
           {paymentMethod === 'debt' && (
             <View style={styles.debtSection}>
               <AppTextInput
-                label={t('sales.paidNow')}
-                placeholder="0"
+                label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
+                placeholder={isUSD ? '0.00' : '0'}
                 value={toEnglishDigits(paidAmountStr)}
                 onChangeText={(v) => setPaidAmountStr(sanitizeNumericInput(v, 'decimal-pad'))}
                 onEndEditing={() => {
-                  const r = roundToNearest250(parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0);
+                  const raw = parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0;
+                  if (raw <= 0) {
+                    setPaidAmountStr('');
+                    return;
+                  }
+                  const r = isUSD ? Math.round(raw * 100) / 100 : roundToNearest250(raw);
                   setPaidAmountStr(String(r));
                 }}
                 keyboardType="decimal-pad"
+                forceLatin
               />
               {remainingDebt > 0 && (
                 <View style={[styles.debtAlert, { backgroundColor: '#FEE2E2', flexDirection }]}>
                   <Ionicons name="time-outline" size={16} color={colors.error} />
                   <Text style={[styles.debtText, { color: colors.error, textAlign }]}>
-                    {t('sales.remainingDebt')}: <AmountText value={remainingDebt} currency="IQD" variant="small" style={[styles.debtText, { color: colors.error }]} />
+                    {t('sales.remainingDebt')}: <AmountText value={remainingDebt} variant="small" style={[styles.debtText, { color: colors.error }]} />
                   </Text>
                 </View>
               )}

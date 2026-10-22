@@ -13,14 +13,14 @@ import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { Debt } from '@/types/sales';
 import { fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 
 interface Props {
   debt: Debt;
   invoiceNumber?: string;
-  onPayment: (debtId: number, amount: number) => Promise<void>;
+  onPayment: (debtId: number, amount: number, paymentMethod?: string) => Promise<void>;
 }
 
 export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
@@ -32,6 +32,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
   const cardPad = isRTL ? RTL_SPACING.cardPad : 14;
   const [expanded, setExpanded] = useState(false);
   const [payAmount, setPayAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [saving, setSaving] = useState(false);
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -53,8 +54,9 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
     }
     setSaving(true);
     try {
-      await onPayment(debt.id, amount);
+      await onPayment(debt.id, amount, paymentMethod);
       setPayAmount('');
+      setPaymentMethod('cash');
       setExpanded(false);
     } finally {
       setSaving(false);
@@ -131,6 +133,61 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
             autoFocus
             onFocus={scrollIntoView}
           />
+          <View style={[{ flexDirection, gap: 8, marginVertical: 2 }]}>
+            <TouchableOpacity
+              onPress={() => setPaymentMethod('cash')}
+              activeOpacity={0.8}
+              style={[
+                styles.methodBtn,
+                paymentMethod === 'cash'
+                  ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+                  : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                { flexDirection },
+              ]}
+            >
+              <Ionicons
+                name="cash-outline"
+                size={16}
+                color={paymentMethod === 'cash' ? colors.primary : colors.gray400}
+              />
+              <Text
+                style={[
+                  styles.methodBtnText,
+                  { color: paymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('debt.cash', 'کاش')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setPaymentMethod('fib')}
+              activeOpacity={0.8}
+              style={[
+                styles.methodBtn,
+                paymentMethod === 'fib'
+                  ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                  : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                { flexDirection },
+              ]}
+            >
+              <Ionicons
+                name="phone-portrait-outline"
+                size={15}
+                color={paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+              />
+              <Text
+                style={[
+                  styles.methodBtnText,
+                  { color: paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('debt.fib', 'FIB')}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={[styles.payBtn, saving && styles.payBtnDisabled]}
             onPress={handlePay}
@@ -224,6 +281,20 @@ function getStyles(colors: AppColors) {
       paddingHorizontal: 14,
       fontSize: 15,
       color: colors.black,
+    },
+    methodBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 10,
+      borderWidth: 1.5,
+    },
+    methodBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
     },
     payBtn: {
       backgroundColor: colors.success,

@@ -91,8 +91,8 @@ export default function CustomerProfileScreen() {
     }
   }, []);
 
-  const handlePayment = useCallback(async (debtId: number, amount: number) => {
-    await addDebtPayment(debtId, amount, Number(id));
+  const handlePayment = useCallback(async (debtId: number, amount: number, paymentMethod?: string) => {
+    await addDebtPayment(debtId, amount, Number(id), paymentMethod);
     await loadAll();
   }, [addDebtPayment, loadAll, id]);
 

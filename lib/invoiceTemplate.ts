@@ -133,6 +133,7 @@ function buildSalesCSS(isKurdish: boolean): string {
     border-radius: 999px;
   }
   .pill-paid    { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .pill-fib     { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .pill-partial { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
   .pill-debt    { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
@@ -345,9 +346,10 @@ export function buildInvoiceHTML(
 
   const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase);
 
+  const initialMethodTag = sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row">
-      <span>${ku(t('amountPaid'))}</span>
+      <span>${ku(t('amountPaid'))}${initialMethodTag}</span>
       <span class="fin-amount">${fmtRow(sale.paidAmount)}</span>
     </div>` : '';
 
@@ -544,6 +546,7 @@ function buildPurchaseCSS(isKurdish: boolean): string {
     border-radius: 999px;
   }
   .pill-paid { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .pill-fib  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
   .pill-debt { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
   /* ── Body ── */
@@ -732,7 +735,9 @@ export function buildPurchaseInvoiceHTML(
 
   const statusBadge = purchase.paymentStatus === 'paid'
     ? `<span class="pill pill-paid">${ku(t('statusPaid'))}</span>`
-    : `<span class="pill pill-debt">${ku(t('statusDebt'))}</span>`;
+    : (purchase.paymentStatus === 'fib'
+        ? `<span class="pill pill-fib">FIB</span>`
+        : `<span class="pill pill-debt">${ku(t('statusDebt'))}</span>`);
 
   // ── Supplier (rendered inside the header's middle column) ──
   const supplierColumn = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
@@ -786,9 +791,11 @@ export function buildPurchaseInvoiceHTML(
   const paidAmount = purchaseDebt?.paidAmount ?? 0;
   const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
 
-  const paidRows = purchase.paymentStatus === 'paid'
+  const initialMethod = purchase.initialPaymentMethod || purchaseDebt?.initialPaymentMethod;
+  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
+  const paidRows = (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib')
     ? ''
-    : `<div class="fin-row"><span>${ku(t('amountPaid'))}</span><span class="fin-amount">${fmtRow(paidAmount)}</span></div>
+    : `<div class="fin-row"><span>${ku(t('amountPaid'))}${initialMethodTag}</span><span class="fin-amount">${fmtRow(paidAmount)}</span></div>
        <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount" style="font-weight:700;">${fmtRow(remainingAmount)}</span></div>`;
 
   const financialCard = `

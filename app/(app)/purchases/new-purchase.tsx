@@ -68,7 +68,9 @@ export default function NewPurchaseScreen() {
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const useThreeColumns = isTablet && isTabletLandscape;
   const { createPurchase } = usePurchaseStore();
-  const exchangeRate = useSettingsStore((s) => s.exchangeRate);
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isUSD = baseCurrency === 'USD';
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
   const { isEnabled: isCapitalEnabled, getDrawerBalance } = useCapitalStore();
   const { colors, isDark } = useAppTheme();
@@ -207,6 +209,7 @@ export default function NewPurchaseScreen() {
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
   const [paymentStatus, setPaymentStatus]   = useState<PurchasePaymentStatus>('paid');
   const [amountPaid, setAmountPaid]         = useState('');
+  const [initialPaymentMethod, setInitialPaymentMethod] = useState<'cash' | 'fib'>('cash');
 
   const [imageUri, setImageUri]             = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting]     = useState(false);
@@ -256,9 +259,10 @@ export default function NewPurchaseScreen() {
   const sellIQDNum   = parseFloat(toEnglishDigits(sellIQD).replace(/,/g, '')) || 0;
   const totalIQD     = qtyNum * buyIQDNum;
   const profitIQD    = (sellIQDNum - buyIQDNum) * qtyNum;
-  const amountPaidNum = roundToNearest250(Math.max(0, parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0));
-  const remainingDebt = Math.max(0, totalIQD - amountPaidNum);
-  const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidNum : 0);
+  const rawPaidNum   = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
+  const amountPaidIQD = isUSD ? roundToNearest250(rawPaidNum * exchangeRate) : roundToNearest250(rawPaidNum);
+  const remainingDebt = Math.max(0, totalIQD - amountPaidIQD);
+  const cashNeeded    = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' && initialPaymentMethod === 'cash' ? amountPaidIQD : 0);
   const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
   const isInsufficientCash = isCapitalEnabled && drawerBalance !== null && cashNeeded > drawerBalance;
 
@@ -377,7 +381,7 @@ export default function NewPurchaseScreen() {
       Alert.alert(t('common.required'), t('purchases.validationIdType'));
       return false;
     }
-    if (paymentStatus === 'debt' && amountPaidNum > totalIQD) {
+    if (paymentStatus === 'debt' && amountPaidIQD > totalIQD) {
       Alert.alert(t('common.error'), t('purchases.validationAmountPaid'));
       return false;
     }
@@ -391,7 +395,7 @@ export default function NewPurchaseScreen() {
     // Cash drawer balance check when Capital system is enabled
     const capitalStore = useCapitalStore.getState();
     if (capitalStore.isEnabled) {
-      const needed = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' ? amountPaidNum : 0);
+      const needed = paymentStatus === 'paid' ? totalIQD : (paymentStatus === 'debt' && initialPaymentMethod === 'cash' ? amountPaidIQD : 0);
       if (needed > 0) {
         const availableBalance = await capitalStore.getDrawerBalance();
         if (needed > availableBalance) {
@@ -437,7 +441,8 @@ export default function NewPurchaseScreen() {
         websiteDescription,
         itemDescription,
         paymentStatus,
-        initialAmountPaid: paymentStatus === 'debt' ? amountPaidNum : 0,
+        initialAmountPaid: paymentStatus === 'debt' ? amountPaidIQD : 0,
+        initialPaymentMethod: paymentStatus === 'debt' ? initialPaymentMethod : (paymentStatus === 'fib' ? 'fib' : 'cash'),
         imageUri,
         selectedSupplierId: isDirectSupplier ? undefined : selectedSupplierId,
         productionDate: productionDate ? toDateOnly(productionDate) : null,
@@ -471,6 +476,7 @@ export default function NewPurchaseScreen() {
         setCategory(''); setWarranty(''); setNotes('');
         setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined); setPaymentStatus('paid');
         setAmountPaid('');
+        setInitialPaymentMethod('cash');
         setImageUri(null);
         setReceiptCurrency('iqd');
         scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -1795,6 +1801,30 @@ export default function NewPurchaseScreen() {
         <TouchableOpacity
           style={[
             styles.payBtn,
+            paymentStatus === 'fib'
+              ? (isDark
+                  ? { backgroundColor: hexToRgba('#3B82F6', 0.2), borderColor: '#60A5FA' }
+                  : styles.payBtnFib)
+              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+            { flexDirection },
+          ]}
+          onPress={() => setPaymentStatus('fib')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="phone-portrait" size={17} color={paymentStatus === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400} />
+          <Text
+            style={[
+              styles.payBtnText,
+              { color: paymentStatus === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('purchases.fib', 'FIB')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.payBtn,
             paymentStatus === 'debt'
               ? (isDark
                   ? { backgroundColor: hexToRgba(colors.error, 0.18), borderColor: colors.error }
@@ -1821,14 +1851,78 @@ export default function NewPurchaseScreen() {
       {paymentStatus === 'debt' && (
         <View style={{ marginBottom: 4 }}>
           <AppTextInput
-            label={t('purchases.amountPaid')}
+            label={`${t('purchases.amountPaid')} (${isUSD ? 'USD' : 'IQD'})`}
             value={toEnglishDigits(amountPaid)}
             onChangeText={(v) => setAmountPaid(sanitizeNumericInput(v, 'decimal-pad'))}
             keyboardType="decimal-pad"
-            placeholder={t('purchases.amountPaidPlaceholder')}
+            placeholder={isUSD ? '0.00' : '0'}
             returnKeyType="done"
             forceLatin
           />
+          {rawPaidNum > 0 && (
+            <View style={{ marginBottom: 12 }}>
+              <Text
+                style={[
+                  styles.fieldLabel,
+                  { color: colors.gray500, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('purchases.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
+              </Text>
+              <View style={[styles.paymentRow, { flexDirection, gap: 8 }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.payBtn,
+                    initialPaymentMethod === 'cash'
+                      ? (isDark
+                          ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
+                          : styles.payBtnPaid)
+                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+                    { flexDirection, flex: 1, paddingVertical: 10 },
+                  ]}
+                  onPress={() => setInitialPaymentMethod('cash')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="cash-outline" size={17} color={initialPaymentMethod === 'cash' ? colors.success : colors.gray400} />
+                  <Text
+                    style={[
+                      styles.payBtnText,
+                      { color: initialPaymentMethod === 'cash' ? colors.success : colors.gray500 },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {t('purchases.cash', 'کاش')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.payBtn,
+                    initialPaymentMethod === 'fib'
+                      ? (isDark
+                          ? { backgroundColor: hexToRgba('#3B82F6', 0.2), borderColor: '#60A5FA' }
+                          : styles.payBtnFib)
+                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
+                    { flexDirection, flex: 1, paddingVertical: 10 },
+                  ]}
+                  onPress={() => setInitialPaymentMethod('fib')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="phone-portrait" size={16} color={initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400} />
+                  <Text
+                    style={[
+                      styles.payBtnText,
+                      { color: initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {t('purchases.fib', 'FIB')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           <View
             style={[
               styles.totalBox,
@@ -1841,7 +1935,7 @@ export default function NewPurchaseScreen() {
             ]}
           >
             <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
-            <AmountText value={remainingDebt} currency="IQD" style={[styles.totalValue, { color: colors.error }]} />
+            <AmountText value={remainingDebt} style={[styles.totalValue, { color: colors.error }]} />
           </View>
         </View>
       )}
@@ -2626,8 +2720,9 @@ const styles = StyleSheet.create({
     gap:            8,
   },
   payBtnPaid: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
+  payBtnFib:  { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
   payBtnDebt: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  payBtnText: { fontSize: 14, fontWeight: '700' },
+  payBtnText: { fontSize: 13, fontWeight: '700' },
 
   textarea: { height: 80, textAlignVertical: 'top', paddingTop: 12 },
   actions:  { gap: 10 },

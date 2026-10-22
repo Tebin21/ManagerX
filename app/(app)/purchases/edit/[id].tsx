@@ -309,7 +309,7 @@ export default function EditPurchaseScreen() {
         <Text style={[styles.cardTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.paymentInfo')}</Text>
         <LockedFieldRow
           label={t('purchases.paymentInfo')}
-          value={purchase.paymentStatus === 'paid' ? t('common.paid') : t('common.debt')}
+          value={purchase.paymentStatus === 'fib' ? 'FIB' : (purchase.paymentStatus === 'paid' ? t('common.paid') : t('common.debt'))}
           caption={t('purchases.paymentStatusLockedNote')}
         />
         {purchase.paymentStatus === 'debt' && (

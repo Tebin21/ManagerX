@@ -8,7 +8,7 @@ export interface InventoryProduct extends Product {
   supplierPhone: string | null;
   supplierAddress: string | null;
   purchaseDate: string | null;
-  paymentStatus: 'paid' | 'debt';
+  paymentStatus: 'paid' | 'fib' | 'debt';
   warranty: string | null;
   notes: string | null;
   imageUri: string | null;
@@ -54,7 +54,7 @@ export interface NewProductData {
   supplierPhone: string | null;
   supplierAddress: string | null;
   purchaseDate: string | null;
-  paymentStatus: 'paid' | 'debt';
+  paymentStatus: 'paid' | 'fib' | 'debt';
   warranty: string | null;
   notes: string | null;
   imageUri: string | null;

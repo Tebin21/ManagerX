@@ -14,6 +14,7 @@ import {
 import { useInventoryStore } from './inventoryStore';
 import { useSettingsStore } from './settingsStore';
 import { roundToNearest250 } from '@/utils/rounding';
+import { toEnglishDigits } from '@/utils/formatters';
 import type { Sale, SaleItem, CartItem, CustomerInput, PaymentMethod, UpdateSaleCompleteInput, GlobalDiscountType } from '@/types/sales';
 
 interface CartStateArg {
@@ -21,6 +22,7 @@ interface CartStateArg {
   customerInput: CustomerInput;
   paymentMethod: PaymentMethod;
   paidAmount: string;
+  initialPaymentMethod?: 'cash' | 'fib';
   saleNotes: string;
   saleDate?: Date;
   subtotal: () => number;
@@ -70,7 +72,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const { baseCurrency, exchangeRate: rateSetting } = useSettingsStore.getState();
     const isUSD = baseCurrency === 'USD';
     const exchangeRateUsed = rateSetting || 1310;
-    const rawPaid = parseFloat(cart.paidAmount) || 0;
+    const rawPaid = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
     const paid = isUSD ? roundToNearest250(rawPaid * exchangeRateUsed) : roundToNearest250(rawPaid);
     const remaining = cart.remainingDebt();
 
@@ -114,6 +116,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       warranty: customer.warranty.trim() || null,
       notes: cart.saleNotes.trim() || null,
       paymentMethod: cart.paymentMethod,
+      initialPaymentMethod: cart.paymentMethod === 'debt' && paid > 0 ? (cart.initialPaymentMethod ?? 'cash') : null,
       subtotal,
       discountTotal,
       globalDiscountType: cart.globalDiscountType,

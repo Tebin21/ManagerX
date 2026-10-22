@@ -75,6 +75,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       description:     input.description.trim()     || null,
       notes:           input.notes.trim()           || null,
       paymentStatus:   input.paymentStatus,
+      initialPaymentMethod: input.initialPaymentMethod ?? null,
       productionDate:  input.productionDate ?? null,
       expiryDate:      input.expiryDate ?? null,
     };
@@ -143,6 +144,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
           purchaseNumber,
           originalAmount:  totalIQD,
           paidAmount:      input.initialAmountPaid ?? 0,
+          paymentMethod:   input.initialPaymentMethod ?? 'cash',
           notes:           data.notes,
         });
         try {

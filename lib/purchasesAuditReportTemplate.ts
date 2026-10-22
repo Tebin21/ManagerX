@@ -25,6 +25,9 @@ function statusBadge(status: string, isKurdish: boolean): string {
   if (s === 'paid') {
     return `<span style="background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isKurdish ? ku('پارەدراوە') : 'Paid'}</span>`;
   }
+  if (s === 'fib') {
+    return `<span style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">FIB</span>`;
+  }
   if (s === 'debt') {
     return `<span style="background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isKurdish ? ku('قەرز') : 'Debt'}</span>`;
   }
@@ -58,6 +61,10 @@ export function buildPurchasesAuditReportHTML(
   const paidPurchases = purchases.filter((p) => p.paymentStatus === 'paid');
   const paidTotalIQD = paidPurchases.reduce((sum, p) => sum + (p.totalIQD || 0), 0);
   const paidCount = paidPurchases.length;
+
+  const fibPurchases = purchases.filter((p) => p.paymentStatus === 'fib');
+  const fibTotalIQD = fibPurchases.reduce((sum, p) => sum + (p.totalIQD || 0), 0);
+  const fibCount = fibPurchases.length;
 
   const debtPurchases = purchases.filter((p) => p.paymentStatus === 'debt');
   const debtTotalIQD = debtPurchases.reduce((sum, p) => sum + (p.totalIQD || 0), 0);
@@ -209,7 +216,7 @@ export function buildPurchasesAuditReportHTML(
   /* KPI Grid */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 24px;
   }
@@ -356,10 +363,16 @@ export function buildPurchasesAuditReportHTML(
       <div class="kpi-sub"><span class="en-num" dir="ltr">${totalPurchases}</span> ${isKurdish ? ku('پسوولەی کڕین') : 'Purchases'}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">${isKurdish ? ku('کڕینی پارەدراو (نەختینە)') : 'Paid Purchases'}</div>
+      <div class="kpi-label">${isKurdish ? ku('کڕینی نەختینە (کاش)') : 'Paid Purchases'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtMoney(paidTotalIQD)}</span></div>
       <div class="kpi-sub"><span class="en-num" dir="ltr">${paidCount}</span> ${isKurdish ? ku('کڕین پارەدراوە') : 'Paid Orders'}</div>
     </div>
+    ${fibCount > 0 ? `
+    <div class="kpi-card">
+      <div class="kpi-label">${isKurdish ? ku('کڕینی ئەلیکترۆنی (FIB)') : 'FIB Purchases'}</div>
+      <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#2563EB;display:inline-block;unicode-bidi:isolate;">${fmtMoney(fibTotalIQD)}</span></div>
+      <div class="kpi-sub"><span class="en-num" dir="ltr">${fibCount}</span> ${isKurdish ? ku('کڕین بە FIB') : 'FIB Orders'}</div>
+    </div>` : ''}
     <div class="kpi-card">
       <div class="kpi-label">${isKurdish ? ku('کڕینی قەرز') : 'Debt Purchases'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${debtTotalIQD > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtMoney(debtTotalIQD)}</span></div>

@@ -36,11 +36,12 @@ import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
 import { fmtIQD, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 
 interface DebtCardProps {
   debt: PurchaseDebt;
-  onPay: (debtId: number, amount: number) => Promise<void>;
+  onPay: (debtId: number, amount: number, paymentMethod?: string) => Promise<void>;
 }
 
 function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
@@ -49,7 +50,9 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [paying, setPaying] = useState(false);
   const scrollIntoView = useKeyboardAwareFocus();
 
@@ -66,21 +69,21 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
     }
     Alert.alert(
       t('suppliers.payConfirm'),
-      `${fmtIQD(val)} IQD → ${debt.purchaseNumber ?? t('common.notFound')}`,
+      `${fmtIQD(val)} IQD (${paymentMethod === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')}) → ${debt.purchaseNumber ?? t('common.notFound')}`,
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.confirm'),
           onPress: async () => {
             setPaying(true);
-            try { await onPay(debt.id, val); setAmount(''); }
+            try { await onPay(debt.id, val, paymentMethod); setAmount(''); setPaymentMethod('cash'); }
             catch { Alert.alert(t('common.error'), t('common.tryAgain')); }
             finally { setPaying(false); }
           },
         },
       ]
     );
-  }, [amount, debt, onPay, t]);
+  }, [amount, debt, onPay, paymentMethod, isKuLanguage, t]);
 
   return (
     <View style={[debtStyles.card, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
@@ -111,6 +114,62 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
       {/* Line 6 — progress bar */}
       <View style={[debtStyles.progressTrack, { backgroundColor: colors.gray100 }]}>
         <View style={[debtStyles.progressFill, { width: `${percent}%` as never, backgroundColor: colors.success }]} />
+      </View>
+
+      <View style={[{ flexDirection, gap: 8, marginTop: 4, marginBottom: 8 }]}>
+        <TouchableOpacity
+          onPress={() => setPaymentMethod('cash')}
+          activeOpacity={0.8}
+          style={[
+            debtStyles.methodBtn,
+            paymentMethod === 'cash'
+              ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+            { flexDirection },
+          ]}
+        >
+          <Ionicons
+            name="cash-outline"
+            size={16}
+            color={paymentMethod === 'cash' ? colors.primary : colors.gray400}
+          />
+          <Text
+            style={[
+              debtStyles.methodBtnText,
+              { color: paymentMethod === 'cash' ? colors.primary : colors.gray500 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('debt.cash', 'کاش')}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setPaymentMethod('fib')}
+          activeOpacity={0.8}
+          style={[
+            debtStyles.methodBtn,
+            paymentMethod === 'fib'
+              ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+            { flexDirection },
+          ]}
+        >
+          <Ionicons
+            name="phone-portrait-outline"
+            size={15}
+            color={paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+          />
+          <Text
+            style={[
+              debtStyles.methodBtnText,
+              { color: paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+            ]}
+          >
+            {t('debt.fib', 'FIB')}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[debtStyles.payRow, { borderTopColor: colors.gray100, flexDirection }]}>
@@ -155,6 +214,8 @@ function getDebtStyles(colors: AppColors) {
   progressFill:  { height: '100%', borderRadius: 3 },
   payRow:        { flexDirection: 'row', gap: 8, marginTop: 2, paddingTop: 12, borderTopWidth: 1, alignItems: 'center' },
   payInput:      { flex: 1, height: 40, borderWidth: 1.5, borderRadius: Theme.radius.md, paddingHorizontal: 12, fontSize: 14 },
+  methodBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
+  methodBtnText: { fontSize: 12, fontWeight: '700' },
   payBtn:        { height: 40, paddingHorizontal: 16, borderRadius: Theme.radius.md, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
   payBtnText:    { fontSize: 14, fontWeight: '700' },
   });
@@ -233,8 +294,8 @@ export default function SupplierDetailScreen() {
 
   const canDelete = purchases.length === 0 && activeDebts.length === 0 && !isDirectSupplier;
 
-  const handlePay = useCallback(async (debtId: number, amount: number) => {
-    await payPurchaseDebt(debtId, amount);
+  const handlePay = useCallback(async (debtId: number, amount: number, paymentMethod?: string) => {
+    await payPurchaseDebt(debtId, amount, undefined, paymentMethod);
     await loadDebts();
     await loadAll();
   }, [payPurchaseDebt, loadDebts, loadAll]);

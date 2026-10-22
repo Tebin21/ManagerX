@@ -1,4 +1,4 @@
-export type PurchasePaymentStatus = 'paid' | 'debt';
+export type PurchasePaymentStatus = 'paid' | 'fib' | 'debt';
 export type PurchaseIdType = 'shared' | 'custom';
 
 export interface Purchase {
@@ -24,6 +24,7 @@ export interface Purchase {
   description: string | null;
   notes: string | null;
   paymentStatus: PurchasePaymentStatus;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   /** Derived from the linked product's image, not a column on `purchases` — only populated by getPurchaseById. */
   imageUri?: string | null;
   /** Derived from the linked product's item_description, not a column on `purchases` — only populated by getPurchaseById. */
@@ -56,6 +57,7 @@ export interface NewPurchaseInput {
   itemDescription: string;
   paymentStatus: PurchasePaymentStatus;
   initialAmountPaid?: number;
+  initialPaymentMethod?: 'cash' | 'fib';
   imageUri?: string | null;
   selectedSupplierId?: number;
   productionDate?: string | null;

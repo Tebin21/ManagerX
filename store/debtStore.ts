@@ -23,8 +23,8 @@ interface DebtState {
    *  debt queries for a single payment. */
   refreshSalesDebt: (id: number) => Promise<void>;
   refreshPurchaseDebt: (id: number) => Promise<void>;
-  paySalesDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
-  payPurchaseDebt: (id: number, amount: number, paymentDate?: string) => Promise<void>;
+  paySalesDebt: (id: number, amount: number, paymentDate?: string, paymentMethod?: string) => Promise<void>;
+  payPurchaseDebt: (id: number, amount: number, paymentDate?: string, paymentMethod?: string) => Promise<void>;
   searchSalesDebts: (q: string) => SalesDebtDetail[];
   searchPurchaseDebts: (q: string) => PurchaseDebt[];
 }
@@ -99,8 +99,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
     }
   },
 
-  paySalesDebt: async (id: number, amount: number, paymentDate?: string) => {
-    await addPaymentToDebt(id, amount, paymentDate);
+  paySalesDebt: async (id: number, amount: number, paymentDate?: string, paymentMethod?: string) => {
+    await addPaymentToDebt(id, amount, paymentDate, paymentMethod);
     await get().refreshSalesDebt(id);
     try {
       const { useReportStore } = await import('@/store/reportStore');
@@ -108,8 +108,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
     } catch {}
   },
 
-  payPurchaseDebt: async (id: number, amount: number, paymentDate?: string) => {
-    await addPaymentToPurchaseDebt(id, amount, paymentDate);
+  payPurchaseDebt: async (id: number, amount: number, paymentDate?: string, paymentMethod?: string) => {
+    await addPaymentToPurchaseDebt(id, amount, paymentDate, paymentMethod);
     await get().refreshPurchaseDebt(id);
     try {
       const { useReportStore } = await import('@/store/reportStore');

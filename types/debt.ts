@@ -14,6 +14,7 @@ export interface PurchaseDebt {
   status: 'active' | 'settled';
   notes: string | null;
   lastPaymentAt: string | null;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +29,7 @@ export interface SalesDebtDetail {
   remainingAmount: number;
   status: 'active' | 'settled';
   lastPaymentAt: string | null;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   createdAt: string;
   updatedAt: string;
   invoiceNumber: string;
@@ -42,6 +44,7 @@ export interface DebtPayment {
   debtType: DebtType;
   amount: number;
   remainingAfter: number;
+  paymentMethod?: string | null;
   note: string | null;
   createdAt: string;
 }

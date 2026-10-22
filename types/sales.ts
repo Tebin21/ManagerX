@@ -76,6 +76,7 @@ export interface Sale {
   warranty: string | null;
   notes: string | null;
   paymentMethod: PaymentMethod;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   subtotal: number;
   discountTotal: number;
   globalDiscountType: GlobalDiscountType;
@@ -99,6 +100,7 @@ export interface UpdateSaleCompleteInput {
   warranty?: string | null;
   notes?: string | null;
   paymentMethod: PaymentMethod;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   subtotal: number;
   discountTotal: number;
   globalDiscountType: GlobalDiscountType;
@@ -118,6 +120,7 @@ export interface Debt {
   originalAmount: number;
   paidAmount: number;
   remainingAmount: number;
+  initialPaymentMethod?: 'cash' | 'fib' | null;
   status: DebtStatus;
   createdAt: string;
   updatedAt: string;

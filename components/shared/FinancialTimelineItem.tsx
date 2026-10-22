@@ -56,23 +56,45 @@ export function FinancialTimelineItem({ event, isLast }: FinancialTimelineItemPr
 
         {event.type === 'payment' && (
           <>
-            <View style={[styles.timelineAmountRow, { flexDirection }]}>
+            <View style={[styles.timelineAmountRow, { flexDirection, alignItems: 'center' }]}>
               <View style={[styles.timelineAmountChip, { backgroundColor: paidTint.bg }]}>
                 <Text style={[styles.timelineAmountChipText, { color: paidTint.text }]}>
                   <AmountText value={event.amount} prefix="+" currency="IQD" variant="small" style={[styles.timelineAmountChipText, { color: paidTint.text }]} /> {t('debt.paidLabel')}
                 </Text>
               </View>
+              {event.paymentMethod ? (
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 6,
+                    backgroundColor: event.paymentMethod.toLowerCase() === 'fib'
+                      ? (isDark ? 'rgba(59, 130, 246, 0.2)' : '#EFF6FF')
+                      : (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5'),
+                    borderWidth: 1,
+                    borderColor: event.paymentMethod.toLowerCase() === 'fib'
+                      ? (isDark ? '#60A5FA' : '#93C5FD')
+                      : (isDark ? '#34D399' : '#A7F3D0'),
+                    marginHorizontal: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: event.paymentMethod.toLowerCase() === 'fib'
+                        ? (isDark ? '#93C5FD' : '#1D4ED8')
+                        : (isDark ? '#6EE7B7' : '#047857'),
+                    }}
+                  >
+                    {event.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <Text style={[styles.timelineRemaining, { textAlign }]}>
               {t('debt.remainingLabel')}: <AmountText value={event.remainingAfter} currency="IQD" variant="small" style={styles.timelineRemaining} />
             </Text>
-            {event.paymentMethod ? (
-              <Text style={[styles.timelineNote, { textAlign }]}>
-                {isKuLanguage
-                  ? (event.paymentMethod.toLowerCase() === 'cash' ? 'کاش' : event.paymentMethod.toLowerCase() === 'debt' ? 'قەرز' : event.paymentMethod)
-                  : event.paymentMethod}
-              </Text>
-            ) : null}
             {event.note ? (
               <Text style={[styles.timelineNote, { textAlign }]}>{event.note}</Text>
             ) : null}

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Theme } from '@/constants/theme';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { getStatusTint } from '@/constants/statusTints';
+import { getStatusTint, getBlueTint } from '@/constants/statusTints';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { isDirectSupplierName } from '@/lib/sqlite';
@@ -29,9 +29,10 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
   const { isTablet } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const isPaid = purchase.paymentStatus === 'paid';
+  const isFib = purchase.paymentStatus === 'fib';
   const statusTint = useMemo(
-    () => getStatusTint(isPaid ? 'success' : 'warning', colors, isDark),
-    [colors, isDark, isPaid]
+    () => isFib ? getBlueTint(isDark) : getStatusTint(isPaid ? 'success' : 'warning', colors, isDark),
+    [colors, isDark, isPaid, isFib]
   );
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const isDirectSupplier = isDirectSupplierName(purchase.supplierName);
@@ -55,7 +56,7 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusTint.bg }]}>
           <Text style={[styles.statusText, { color: statusTint.text }]}>
-            {isPaid ? t('common.paid') : t('common.debt')}
+            {isFib ? 'FIB' : (isPaid ? t('common.paid') : t('common.debt'))}
           </Text>
         </View>
       </View>

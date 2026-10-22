@@ -27,7 +27,7 @@ interface CustomerState {
 
   editCustomer: (id: number, data: Partial<{ name: string; phone: string; address: string; notes: string }>) => Promise<void>;
   deleteCustomer: (id: number) => Promise<void>;
-  addDebtPayment: (debtId: number, amount: number, customerId: number) => Promise<void>;
+  addDebtPayment: (debtId: number, amount: number, customerId: number, paymentMethod?: string) => Promise<void>;
   editSaleInfo: (saleId: number, data: UpdateSaleInput) => Promise<void>;
   /** Replaces one customer's row in place; falls back to a full reload if the
    *  row is missing (e.g. it was deleted from another device mid-session). */
@@ -94,8 +94,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     set({ customers: get().customers.filter((c) => c.id !== id) });
   },
 
-  addDebtPayment: async (debtId: number, amount: number, customerId: number) => {
-    await addPaymentToDebt(debtId, amount);
+  addDebtPayment: async (debtId: number, amount: number, customerId: number, paymentMethod?: string) => {
+    await addPaymentToDebt(debtId, amount, undefined, paymentMethod);
     await get().refreshCustomer(customerId);
   },
 

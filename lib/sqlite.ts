@@ -734,6 +734,11 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_discarded_products_date ON discarded_products(discarded_at)`,
     `CREATE INDEX IF NOT EXISTS idx_discarded_products_product ON discarded_products(product_id)`,
     `CREATE INDEX IF NOT EXISTS idx_discarded_products_restored ON discarded_products(restored_at)`,
+    // Initial payment method tracking for debt purchases & sales
+    `ALTER TABLE purchases ADD COLUMN initial_payment_method TEXT`,
+    `ALTER TABLE sales ADD COLUMN initial_payment_method TEXT`,
+    `ALTER TABLE debts ADD COLUMN initial_payment_method TEXT`,
+    `ALTER TABLE purchase_debts ADD COLUMN initial_payment_method TEXT`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -1038,7 +1043,7 @@ function rowToInventoryProduct(row: Record<string, unknown>): InventoryProduct {
     supplierPhone: (row.supplier_phone as string | null) ?? null,
     supplierAddress: (row.supplier_address as string | null) ?? null,
     purchaseDate: (row.purchase_date as string | null) ?? null,
-    paymentStatus: ((row.payment_status as string) ?? 'paid') as 'paid' | 'debt',
+    paymentStatus: ((row.payment_status as string) ?? 'paid') as PurchasePaymentStatus,
     warranty: (row.warranty as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
     imageUri: ((row.image_uri as string | null)?.trim() || (row.image_remote_url as string | null)?.trim() || null),
@@ -1779,7 +1784,7 @@ export async function getInventoryStats(): Promise<InventoryStats> {
       COALESCE(SUM(CASE WHEN is_active = 1 AND quantity > 0 THEN quantity END), 0)        AS totalQuantity,
       COALESCE(SUM(CASE WHEN is_active = 1 AND quantity > 0 THEN quantity * purchase_price END), 0) AS totalValueIQD,
       COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND quantity <= 3 THEN 1 END)        AS lowStockCount,
-      COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND payment_status = 'paid' THEN 1 END)  AS paidCount,
+      COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND (payment_status = 'paid' OR payment_status = 'fib') THEN 1 END)  AS paidCount,
       COUNT(CASE WHEN is_active = 1 AND quantity > 0 AND payment_status = 'debt' THEN 1 END)  AS debtCount
     FROM products
   `);
@@ -2150,7 +2155,7 @@ export async function getDebtsByCustomerId(customerId: number): Promise<Debt[]> 
   }));
 }
 
-export async function addPaymentToDebt(debtId: number, amount: number, paymentDate?: string): Promise<void> {
+export async function addPaymentToDebt(debtId: number, amount: number, paymentDate?: string, paymentMethod: string = 'cash'): Promise<void> {
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
@@ -2189,9 +2194,9 @@ export async function addPaymentToDebt(debtId: number, amount: number, paymentDa
     await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
-         event_type, customer_id, reference_number, original_amount
-       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?)`,
-      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount]
+         event_type, customer_id, reference_number, original_amount, payment_method
+       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod]
     );
   });
 }
@@ -2495,6 +2500,7 @@ function rowToSale(row: Record<string, unknown>): Sale {
     warranty: row.warranty as string | null,
     notes: row.notes as string | null,
     paymentMethod: row.payment_method as PaymentMethod,
+    initialPaymentMethod: (row.initial_payment_method as 'cash' | 'fib' | null) ?? null,
     subtotal: row.subtotal as number,
     discountTotal: row.discount_total as number,
     globalDiscountType: ((row.global_discount_type as string) ?? 'none') as GlobalDiscountType,
@@ -2554,8 +2560,9 @@ export async function insertSale(
         invoice_number, customer_id, customer_name, customer_phone,
         customer_address, warranty, notes, payment_method,
         subtotal, discount_total, global_discount_type, global_discount,
-        grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid,
+        initial_payment_method
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -2577,6 +2584,7 @@ export async function insertSale(
         saleData.date ?? new Date().toISOString(),
         saleData.date ?? new Date().toISOString(),
         await newUuid(),
+        saleData.initialPaymentMethod ?? null,
       ]
     );
 
@@ -2629,8 +2637,9 @@ export async function insertSale(
       const debtResult = await database.runAsync(
         `INSERT INTO debts (
           sale_id, customer_name, customer_phone,
-          original_amount, paid_amount, remaining_amount, status, uuid
-        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
+          original_amount, paid_amount, remaining_amount, status, uuid,
+          initial_payment_method
+        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
         [
           saleId,
           saleData.customerName ?? 'Unknown',
@@ -2639,6 +2648,7 @@ export async function insertSale(
           saleData.paidAmount,
           saleData.remainingDebt,
           await newUuid(),
+          saleData.paidAmount > 0 ? (saleData.initialPaymentMethod ?? 'cash') : null,
         ]
       );
 
@@ -2657,6 +2667,25 @@ export async function insertSale(
           saleData.grandTotal,
         ]
       );
+
+      if (saleData.paidAmount > 0) {
+        await database.runAsync(
+          `INSERT INTO debt_payments (
+             debt_id, debt_type, amount, remaining_after, note, created_at, uuid,
+             event_type, customer_id, reference_number, original_amount, payment_method
+           ) VALUES (?, 'sales', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?, 'payment', ?, ?, ?, ?)`,
+          [
+            debtResult.lastInsertRowId,
+            saleData.paidAmount,
+            saleData.remainingDebt,
+            await newUuid(),
+            saleData.customerId ?? null,
+            saleData.invoiceNumber,
+            saleData.grandTotal,
+            saleData.initialPaymentMethod ?? 'cash',
+          ]
+        );
+      }
     }
 
     if (saleData.customerId) {
@@ -3112,6 +3141,7 @@ function rowToPurchase(row: Record<string, unknown>): Purchase {
     description: row.description as string | null,
     notes: row.notes as string | null,
     paymentStatus: row.payment_status as PurchasePaymentStatus,
+    initialPaymentMethod: (row.initial_payment_method as 'cash' | 'fib' | null) ?? null,
     productionDate: (row.production_date as string | null) ?? null,
     expiryDate: (row.expiry_date as string | null) ?? null,
     createdAt: row.created_at as string,
@@ -3130,8 +3160,8 @@ export async function insertPurchase(
       buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd,
       total_iqd, profit_iqd, exchange_rate, id_type, item_ids,
       warranty, description, notes, payment_status, uuid,
-      production_date, expiry_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      production_date, expiry_date, initial_payment_method
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.purchaseNumber,
       data.date,
@@ -3157,6 +3187,7 @@ export async function insertPurchase(
       await newUuid(),
       data.productionDate ?? null,
       data.expiryDate ?? null,
+      data.initialPaymentMethod ?? null,
     ]
   );
   return result.lastInsertRowId;
@@ -3268,7 +3299,7 @@ export interface UpdatePurchaseInput {
   warranty?: string | null;
   description?: string | null;
   notes?: string | null;
-  paymentStatus?: 'paid' | 'debt';
+  paymentStatus?: PurchasePaymentStatus;
   imageUri?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
@@ -3700,6 +3731,7 @@ export async function createPurchaseDebt(
     purchaseNumber: string;
     originalAmount: number;
     paidAmount?: number;
+    paymentMethod?: string;
     notes: string | null;
   }
 ): Promise<number> {
@@ -3707,12 +3739,13 @@ export async function createPurchaseDebt(
   const actualPaid = Math.min(Math.max(0, data.paidAmount ?? 0), data.originalAmount);
   const remaining  = data.originalAmount - actualPaid;
   const status     = remaining <= 0 ? 'settled' : 'active';
+  const method     = actualPaid > 0 ? (data.paymentMethod ?? 'cash') : null;
 
   const result = await database.runAsync(
     `INSERT INTO purchase_debts
        (purchase_id, supplier_name, supplier_phone, supplier_address, purchase_number,
-        original_amount, paid_amount, remaining_amount, status, notes, uuid)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        original_amount, paid_amount, remaining_amount, status, notes, uuid, initial_payment_method)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseId,
       data.supplierName,
@@ -3725,6 +3758,7 @@ export async function createPurchaseDebt(
       status,
       data.notes,
       await newUuid(),
+      method,
     ]
   );
 
@@ -3740,9 +3774,9 @@ export async function createPurchaseDebt(
     await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, note, created_at, uuid,
-         event_type, supplier_name, reference_number, original_amount
-       ) VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?, 'payment', ?, ?, ?)`,
-      [result.lastInsertRowId, actualPaid, remaining, await newUuid(), data.supplierName, data.purchaseNumber, data.originalAmount]
+         event_type, supplier_name, reference_number, original_amount, payment_method
+       ) VALUES (?, 'purchase', ?, ?, 'Initial payment', CURRENT_TIMESTAMP, ?, 'payment', ?, ?, ?, ?)`,
+      [result.lastInsertRowId, actualPaid, remaining, await newUuid(), data.supplierName, data.purchaseNumber, data.originalAmount, data.paymentMethod ?? 'cash']
     );
   }
 
@@ -3763,6 +3797,7 @@ function rowToPurchaseDebt(row: Record<string, unknown>): PurchaseDebt {
     status:          row.status as 'active' | 'settled',
     notes:           (row.notes as string | null) ?? null,
     lastPaymentAt:   (row.last_payment_at as string | null) ?? null,
+    initialPaymentMethod: (row.initial_payment_method as 'cash' | 'fib' | null) ?? null,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
   };
@@ -3792,7 +3827,7 @@ export async function getPurchaseDebtByPurchaseId(purchaseId: number): Promise<P
   return row ? rowToPurchaseDebt(row) : null;
 }
 
-export async function addPaymentToPurchaseDebt(id: number, amount: number, paymentDate?: string): Promise<void> {
+export async function addPaymentToPurchaseDebt(id: number, amount: number, paymentDate?: string, paymentMethod: string = 'cash'): Promise<void> {
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
   await database.withTransactionAsync(async () => {
@@ -3825,9 +3860,9 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
     await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
-         event_type, supplier_name, reference_number, original_amount
-       ) VALUES (?, 'purchase', ?, ?, ?, ?, 'payment', ?, ?, ?)`,
-      [id, clamped, newRemaining, ts, await newUuid(), debt.supplier_name, debt.purchase_number, debt.original_amount]
+         event_type, supplier_name, reference_number, original_amount, payment_method
+       ) VALUES (?, 'purchase', ?, ?, ?, ?, 'payment', ?, ?, ?, ?)`,
+      [id, clamped, newRemaining, ts, await newUuid(), debt.supplier_name, debt.purchase_number, debt.original_amount, paymentMethod]
     );
 
     if (newRemaining <= 0 && debt.purchase_id != null) {
@@ -3856,6 +3891,7 @@ function rowToSalesDebtDetail(row: Record<string, unknown>): SalesDebtDetail {
     remainingAmount: row.remaining_amount as number,
     status:          row.status as 'active' | 'settled',
     lastPaymentAt:   (row.last_payment_at as string | null) ?? null,
+    initialPaymentMethod: (row.initial_payment_method as 'cash' | 'fib' | null) ?? null,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
     invoiceNumber:   row.invoice_number as string,
@@ -3910,6 +3946,7 @@ export async function getDebtPayments(
     debtType:       row.debt_type as 'sales' | 'purchase',
     amount:         row.amount as number,
     remainingAfter: row.remaining_after as number,
+    paymentMethod:  (row.payment_method as string | null) ?? null,
     note:           (row.note as string | null) ?? null,
     createdAt:      row.created_at as string,
   }));
@@ -4103,8 +4140,10 @@ export interface PurchaseReportData {
   totalPurchases: number;
   totalUnits: number;
   paidCost: number;
+  fibCost: number;
   debtCost: number;
   paidCount: number;
+  fibCount: number;
   debtCount: number;
   uniqueSuppliers: number;
   topSupplier: string | null;
@@ -4122,8 +4161,10 @@ export async function getPurchaseReportData(from?: string, to?: string): Promise
       COUNT(*)                                                                    AS totalPurchases,
       COALESCE(SUM(quantity), 0)                                                  AS totalUnits,
       COALESCE(SUM(CASE WHEN payment_status='paid' THEN total_iqd END), 0)       AS paidCost,
+      COALESCE(SUM(CASE WHEN payment_status='fib'  THEN total_iqd END), 0)       AS fibCost,
       COALESCE(SUM(CASE WHEN payment_status='debt' THEN total_iqd END), 0)       AS debtCost,
       COUNT(CASE WHEN payment_status='paid' THEN 1 END)                          AS paidCount,
+      COUNT(CASE WHEN payment_status='fib'  THEN 1 END)                          AS fibCount,
       COUNT(CASE WHEN payment_status='debt' THEN 1 END)                          AS debtCount,
       COUNT(DISTINCT supplier_name)                                               AS uniqueSuppliers
     FROM purchases ${where}
@@ -4138,8 +4179,10 @@ export async function getPurchaseReportData(from?: string, to?: string): Promise
     totalPurchases:  (row?.totalPurchases  as number) ?? 0,
     totalUnits:      (row?.totalUnits      as number) ?? 0,
     paidCost:        (row?.paidCost        as number) ?? 0,
+    fibCost:         (row?.fibCost         as number) ?? 0,
     debtCost:        (row?.debtCost        as number) ?? 0,
     paidCount:       (row?.paidCount       as number) ?? 0,
+    fibCount:        (row?.fibCount        as number) ?? 0,
     debtCount:       (row?.debtCount       as number) ?? 0,
     uniqueSuppliers: (row?.uniqueSuppliers as number) ?? 0,
     topSupplier:     topRow?.supplier_name ?? null,
@@ -4885,11 +4928,12 @@ export async function getCashDrawerStats(activatedAt?: string): Promise<CashDraw
        WHERE debt_type = 'sales' AND event_type = 'payment' ${activatedAt ? 'AND created_at >= ?' : ''}`,
       activatedAt ? [activatedAt] : []
     ),
-    // Upfront cash purchases (no credit/debt) since activation
+    // Upfront cash purchases (no credit/debt and not digital FIB) since activation
     database.getFirstAsync<{ v: number }>(
       `SELECT COALESCE(SUM(total_iqd), 0) AS v
        FROM purchases
-       WHERE id NOT IN (SELECT purchase_id FROM purchase_debts WHERE purchase_id IS NOT NULL)
+       WHERE payment_status != 'fib'
+         AND id NOT IN (SELECT purchase_id FROM purchase_debts WHERE purchase_id IS NOT NULL)
        ${activatedAt ? 'AND created_at >= ?' : ''}`,
       activatedAt ? [activatedAt] : []
     ),

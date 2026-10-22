@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useSettingsStore } from '@/store/settingsStore';
+import { toEnglishDigits } from '@/utils/formatters';
 import type { CartItem, CustomerInput, PaymentMethod, Product, DiscountType, GlobalDiscountType } from '@/types/sales';
 
 interface CartState {
   items: CartItem[];
   customerInput: CustomerInput;
   paymentMethod: PaymentMethod;
+  initialPaymentMethod: 'cash' | 'fib';
   paidAmount: string;
   saleNotes: string;
   globalDiscountType: GlobalDiscountType;
@@ -32,6 +34,7 @@ interface CartState {
   setGlobalDiscountValue: (value: number) => void;
   setCustomerInput: (patch: Partial<CustomerInput>) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
+  setInitialPaymentMethod: (method: 'cash' | 'fib') => void;
   setPaidAmount: (amount: string) => void;
   setSaleNotes: (notes: string) => void;
   clearCart: () => void;
@@ -53,6 +56,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   customerInput: { ...emptyCustomer },
   paymentMethod: 'cash',
+  initialPaymentMethod: 'cash',
   paidAmount: '',
   saleNotes: '',
   globalDiscountType: 'none',
@@ -82,7 +86,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     const { baseCurrency, exchangeRate } = useSettingsStore.getState();
     const isUSD = baseCurrency === 'USD';
     const rate = exchangeRate || 1310;
-    const rawPaid = parseFloat(s.paidAmount) || 0;
+    const rawPaid = parseFloat(toEnglishDigits(s.paidAmount).replace(/,/g, '')) || 0;
     const paid = isUSD ? roundToNearest250(rawPaid * rate) : roundToNearest250(rawPaid);
     return Math.max(0, s.grandTotal() - paid);
   },
@@ -230,6 +234,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   setPaymentMethod: (method) => set({ paymentMethod: method }),
+  setInitialPaymentMethod: (method) => set({ initialPaymentMethod: method }),
   setPaidAmount: (amount) => set({ paidAmount: amount }),
   setSaleNotes: (notes) => set({ saleNotes: notes }),
 
@@ -238,6 +243,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       items: [],
       customerInput: { ...emptyCustomer },
       paymentMethod: 'cash',
+      initialPaymentMethod: 'cash',
       paidAmount: '',
       saleNotes: '',
       globalDiscountType: 'none',

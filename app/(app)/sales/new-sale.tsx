@@ -54,7 +54,7 @@ import { useRTL } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useLanguageStore } from '@/store/languageStore';
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal';
-import { fmtUSD, fmtIQD } from '@/utils/formatters';
+import { fmtUSD, fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { roundUSD, roundToNearest250 } from '@/utils/rounding';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
@@ -255,6 +255,15 @@ export default function NewSaleScreen() {
       setPhoneError('');
     }
 
+    if (cart.paymentMethod === 'debt') {
+      const rawPaid = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+      const paidIQD = isUSD ? roundToNearest250(rawPaid * exchangeRate) : roundToNearest250(rawPaid);
+      if (paidIQD > cart.grandTotal()) {
+        Alert.alert(t('common.error'), t('sales.validationAmountPaid'));
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const sale = await createSale({
@@ -262,6 +271,7 @@ export default function NewSaleScreen() {
         customerInput: cart.customerInput,
         paymentMethod: cart.paymentMethod,
         paidAmount: cart.paidAmount,
+        initialPaymentMethod: cart.initialPaymentMethod,
         saleNotes: cart.saleNotes,
         saleDate,
         subtotal: cart.subtotal,
@@ -887,7 +897,7 @@ export default function NewSaleScreen() {
                         globalDiscount: globalDiscountAmount,
                         grandTotal,
                         paidAmount: cart.paymentMethod === 'debt'
-                          ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                          ? (isUSD ? roundToNearest250((parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) * exchangeRate) : roundToNearest250(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0))
                           : grandTotal,
                         remainingDebt,
                         status: 'completed',
@@ -940,9 +950,77 @@ export default function NewSaleScreen() {
                           label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
                           placeholder={isUSD ? '0.00' : '0'}
                           value={cart.paidAmount}
-                          onChangeText={(t) => cart.setPaidAmount(t)}
+                          onChangeText={(t) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(t), 'decimal-pad'))}
                           keyboardType="decimal-pad"
+                          forceLatin
                         />
+                        {(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) > 0 && (
+                          <View style={{ marginTop: 10, marginBottom: 12 }}>
+                            <Text
+                              style={[
+                                { color: colors.gray500, fontSize: 13, marginBottom: 8, textAlign },
+                                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              ]}
+                            >
+                              {t('sales.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
+                            </Text>
+                            <View style={[{ flexDirection, gap: 8 }]}>
+                              <TouchableOpacity
+                                onPress={() => cart.setInitialPaymentMethod('cash')}
+                                activeOpacity={0.8}
+                                style={[
+                                  styles.downPayBtn,
+                                  cart.initialPaymentMethod === 'cash'
+                                    ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+                                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                                  { flexDirection },
+                                ]}
+                              >
+                                <Ionicons
+                                  name="cash-outline"
+                                  size={18}
+                                  color={cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray400}
+                                />
+                                <Text
+                                  style={[
+                                    styles.downPayBtnText,
+                                    { color: cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                  ]}
+                                >
+                                  {t('sales.cash', 'کاش')}
+                                </Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                onPress={() => cart.setInitialPaymentMethod('fib')}
+                                activeOpacity={0.8}
+                                style={[
+                                  styles.downPayBtn,
+                                  cart.initialPaymentMethod === 'fib'
+                                    ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                                  { flexDirection },
+                                ]}
+                              >
+                                <Ionicons
+                                  name="phone-portrait-outline"
+                                  size={17}
+                                  color={cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+                                />
+                                <Text
+                                  style={[
+                                    styles.downPayBtnText,
+                                    { color: cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                  ]}
+                                >
+                                  {t('sales.fib', 'FIB')}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
                         {remainingDebt > 0 && (
                           <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
                             <Ionicons name="time-outline" size={16} color={errorTint.text} />
@@ -1021,9 +1099,77 @@ export default function NewSaleScreen() {
                     label={`${t('sales.paidNow')} (${isUSD ? 'USD' : 'IQD'})`}
                     placeholder={isUSD ? '0.00' : '0'}
                     value={cart.paidAmount}
-                    onChangeText={(t) => cart.setPaidAmount(t)}
+                    onChangeText={(t) => cart.setPaidAmount(sanitizeNumericInput(toEnglishDigits(t), 'decimal-pad'))}
                     keyboardType="decimal-pad"
+                    forceLatin
                   />
+                  {(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) > 0 && (
+                    <View style={{ marginTop: 10, marginBottom: 12 }}>
+                      <Text
+                        style={[
+                          { color: colors.gray500, fontSize: 13, marginBottom: 8, textAlign },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {t('sales.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
+                      </Text>
+                      <View style={[{ flexDirection, gap: 8 }]}>
+                        <TouchableOpacity
+                          onPress={() => cart.setInitialPaymentMethod('cash')}
+                          activeOpacity={0.8}
+                          style={[
+                            styles.downPayBtn,
+                            cart.initialPaymentMethod === 'cash'
+                              ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+                              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                            { flexDirection },
+                          ]}
+                        >
+                          <Ionicons
+                            name="cash-outline"
+                            size={18}
+                            color={cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray400}
+                          />
+                          <Text
+                            style={[
+                              styles.downPayBtnText,
+                              { color: cart.initialPaymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
+                            {t('sales.cash', 'کاش')}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => cart.setInitialPaymentMethod('fib')}
+                          activeOpacity={0.8}
+                          style={[
+                            styles.downPayBtn,
+                            cart.initialPaymentMethod === 'fib'
+                              ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                            { flexDirection },
+                          ]}
+                        >
+                          <Ionicons
+                            name="phone-portrait-outline"
+                            size={17}
+                            color={cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+                          />
+                          <Text
+                            style={[
+                              styles.downPayBtnText,
+                              { color: cart.initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
+                            {t('sales.fib', 'FIB')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                   {remainingDebt > 0 && (
                     <View style={[styles.debtAlert, { backgroundColor: errorTint.bg, flexDirection }]}>
                       <Ionicons name="time-outline" size={16} color={errorTint.text} />
@@ -1055,7 +1201,7 @@ export default function NewSaleScreen() {
                   globalDiscount: globalDiscountAmount,
                   grandTotal,
                   paidAmount: cart.paymentMethod === 'debt'
-                    ? (isUSD ? roundToNearest250((parseFloat(cart.paidAmount) || 0) * exchangeRate) : (parseFloat(cart.paidAmount) || 0))
+                    ? (isUSD ? roundToNearest250((parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0) * exchangeRate) : roundToNearest250(parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0))
                     : grandTotal,
                   remainingDebt,
                   status: 'completed',
@@ -1284,6 +1430,8 @@ const styles = StyleSheet.create({
   sectionCard:   { marginBottom: 14 },
   sectionTitle:  { fontSize: 15, fontWeight: '700', marginBottom: 14 },
   debtSection:   { marginTop: 14 },
+  downPayBtn:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },
+  downPayBtnText:{ fontSize: 14, fontWeight: '700' },
   debtAlert:     { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 10, marginTop: 4 },
   debtText:      { fontSize: 14, fontWeight: '600' },
   bottomSpacer:  { height: 24 },

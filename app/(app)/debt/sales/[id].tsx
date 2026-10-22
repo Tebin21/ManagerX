@@ -37,7 +37,7 @@ import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
@@ -105,12 +105,41 @@ function PaymentTimelineItem({
         <Text style={[styles.timelineDate, { textAlign }]}>
           <DateText value={payment.createdAt} size="small" /> · <TimeText value={payment.createdAt} style={styles.timelineDate} />
         </Text>
-        <View style={[styles.timelineAmountRow, { flexDirection }]}>
+        <View style={[styles.timelineAmountRow, { flexDirection, alignItems: 'center' }]}>
           <View style={[styles.timelineAmountChip, { backgroundColor: paidTint.bg }]}>
             <Text style={[styles.timelineAmountChipText, { color: paidTint.text }]}>
               <AmountText value={payment.amount} prefix="+" currency="IQD" variant="small" style={[styles.timelineAmountChipText, { color: paidTint.text }]} /> {i18n.t('debt.paidLabel')}
             </Text>
           </View>
+          {payment.paymentMethod ? (
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 6,
+                backgroundColor: payment.paymentMethod.toLowerCase() === 'fib'
+                  ? (isDark ? 'rgba(59, 130, 246, 0.2)' : '#EFF6FF')
+                  : (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5'),
+                borderWidth: 1,
+                borderColor: payment.paymentMethod.toLowerCase() === 'fib'
+                  ? (isDark ? '#60A5FA' : '#93C5FD')
+                  : (isDark ? '#34D399' : '#A7F3D0'),
+                marginHorizontal: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: payment.paymentMethod.toLowerCase() === 'fib'
+                    ? (isDark ? '#93C5FD' : '#1D4ED8')
+                    : (isDark ? '#6EE7B7' : '#047857'),
+                }}
+              >
+                {payment.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (i18n.language === 'ku' ? 'کاش' : 'Cash')}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Text style={[styles.timelineRemaining, { textAlign }]}>
           {i18n.t('debt.remainingLabel')}: <AmountText value={payment.remainingAfter} currency="IQD" variant="small" style={styles.timelineRemaining} />
@@ -144,6 +173,7 @@ export default function SalesDebtDetailScreen() {
 
   const [payValue, setPayValue]       = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date());
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [showPayForm, setShowPayForm] = useState(false);
   const [isPaying, setIsPaying]       = useState(false);
 
@@ -181,7 +211,7 @@ export default function SalesDebtDetailScreen() {
     setIsPaying(true);
     try {
       const ts = paymentDate.toISOString();
-      await paySalesDebt(debtId, amt, ts);
+      await paySalesDebt(debtId, amt, ts, paymentMethod);
 
       // Instant, optimistic patch so the screen reflects the payment in this
       // same tick — the silent reload below then reconciles payment history.
@@ -197,6 +227,7 @@ export default function SalesDebtDetailScreen() {
 
       setPayValue('');
       setPaymentDate(new Date());
+      setPaymentMethod('cash');
       setShowPayForm(false);
       await load({ silent: true });
     } catch {
@@ -410,6 +441,66 @@ export default function SalesDebtDetailScreen() {
                   label={t('debt.paymentDate')}
                   maxDate={new Date()}
                 />
+                <View style={{ marginBottom: 14 }}>
+                  <Text style={[{ fontSize: 13, color: colors.gray500, marginBottom: 8, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {t('debt.paymentMethod', 'شێوازی پارەدان')}
+                  </Text>
+                  <View style={[{ flexDirection, gap: 8 }]}>
+                    <TouchableOpacity
+                      onPress={() => setPaymentMethod('cash')}
+                      activeOpacity={0.8}
+                      style={[
+                        styles.methodBtn,
+                        paymentMethod === 'cash'
+                          ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
+                          : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                        { flexDirection },
+                      ]}
+                    >
+                      <Ionicons
+                        name="cash-outline"
+                        size={17}
+                        color={paymentMethod === 'cash' ? colors.primary : colors.gray400}
+                      />
+                      <Text
+                        style={[
+                          styles.methodBtnText,
+                          { color: paymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {t('debt.cash', 'کاش')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setPaymentMethod('fib')}
+                      activeOpacity={0.8}
+                      style={[
+                        styles.methodBtn,
+                        paymentMethod === 'fib'
+                          ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                          : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                        { flexDirection },
+                      ]}
+                    >
+                      <Ionicons
+                        name="phone-portrait-outline"
+                        size={16}
+                        color={paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+                      />
+                      <Text
+                        style={[
+                          styles.methodBtnText,
+                          { color: paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {t('debt.fib', 'FIB')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
                 <View style={[styles.payActions, { flexDirection }]}>
                   <TouchableOpacity
                     style={styles.payCancel}
@@ -572,6 +663,20 @@ function getStyles(colors: AppColors) {
     fontSize: 15,
     color: colors.black,
     marginBottom: 14,
+  },
+  methodBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  methodBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   payActions: { flexDirection: 'row', gap: 10 },
   payCancel: {

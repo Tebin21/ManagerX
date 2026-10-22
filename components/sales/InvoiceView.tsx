@@ -252,7 +252,10 @@ export function InvoiceView({ sale, compact = false }: Props) {
           <>
             {sale.paidAmount > 0 && (
               <View style={[styles.totalRow, { flexDirection }]}>
-                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>{t('invoicePreview.paid')}</Text>
+                <Text style={[styles.totalLabel, { color: colors.gray500, textAlign, writingDirection }]}>
+                  {t('invoicePreview.paid')}
+                  {sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKuLanguage ? 'کاش' : 'Cash')})` : ''}
+                </Text>
                 <Text style={[styles.totalValue, { color: colors.success, textAlign: valueAlign, writingDirection: 'ltr' }]}>{fmtMoney(sale.paidAmount)}</Text>
               </View>
             )}

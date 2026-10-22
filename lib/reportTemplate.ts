@@ -377,14 +377,18 @@ export function buildFullReportHTML(
   <!-- Purchases -->
   <div class="section">
     <div class="section-title">Purchases</div>
-    <div class="kpi-grid" style="margin-bottom:12px;">
+    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:12px;">
       <div class="kpi-cell">
         <div class="kpi-label">Total Cost</div>
         <div class="kpi-value">${fmtMoney(purchaseData?.totalCost ?? 0)}</div>
       </div>
       <div class="kpi-cell">
-        <div class="kpi-label">Paid</div>
+        <div class="kpi-label">Paid (Cash)</div>
         <div class="kpi-value green">${fmtMoney(purchaseData?.paidCost ?? 0)}</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-label">FIB</div>
+        <div class="kpi-value" style="color:#2563EB;">${fmtMoney(purchaseData?.fibCost ?? 0)}</div>
       </div>
       <div class="kpi-cell">
         <div class="kpi-label">On Credit</div>

@@ -192,6 +192,7 @@ export default function PurchaseDetailScreen() {
   }
 
   const isPaid = purchase.paymentStatus === 'paid';
+  const isFib = purchase.paymentStatus === 'fib';
   const hasIds = purchase.itemIds.some((v) => v.trim());
 
   const primaryCol = (
@@ -208,9 +209,9 @@ export default function PurchaseDetailScreen() {
               <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
               <IdText style={[styles.invoiceNumber, !isRTL && styles.invoiceNumberSpacing]}>{purchase.purchaseNumber}</IdText>
             </View>
-            <View style={[styles.statusPill, isPaid ? styles.statusPillPaid : styles.statusPillDebt]}>
-              <Text style={[styles.statusPillText, isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt]}>
-                {isPaid ? t('common.paid') : t('common.debt')}
+            <View style={[styles.statusPill, isFib ? styles.statusPillFib : (isPaid ? styles.statusPillPaid : styles.statusPillDebt)]}>
+              <Text style={[styles.statusPillText, isFib ? styles.statusPillTextFib : (isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt)]}>
+                {isFib ? 'FIB' : (isPaid ? t('common.paid') : t('common.debt'))}
               </Text>
             </View>
           </View>
@@ -417,9 +418,11 @@ const styles = StyleSheet.create({
   invoiceDate:       { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 16 },
   statusPill:        { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Theme.radius.full },
   statusPillPaid:    { backgroundColor: 'rgba(16,185,129,0.25)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)' },
+  statusPillFib:     { backgroundColor: 'rgba(59,130,246,0.3)', borderWidth: 1, borderColor: 'rgba(147,197,253,0.5)' },
   statusPillDebt:    { backgroundColor: 'rgba(245,158,11,0.25)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)' },
   statusPillText:    { fontSize: 12, fontWeight: '700' },
   statusPillTextPaid:{ color: '#D1FAE5' },
+  statusPillTextFib: { color: '#DBEAFE' },
   statusPillTextDebt:{ color: '#FEF3C7' },
   invoiceTotalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: Theme.radius.md, padding: 14 },
   invoiceTotalLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
