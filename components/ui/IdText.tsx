@@ -29,7 +29,26 @@ export function IdText({ style, size = 'default', ...props }: Props) {
     : phonePreset;
   const flat = StyleSheet.flatten([preset, style]) as TextStyle;
   const fontFamily = resolveInterFont(flat.fontWeight);
-  return <RNText style={[preset, styles.ltrTabular, style, { fontFamily }]} {...props} />;
+  const userSpecifiedLineHeight = flat.lineHeight !== undefined && flat.lineHeight !== preset.lineHeight;
+  const safeLineHeight =
+    userSpecifiedLineHeight
+      ? flat.lineHeight
+      : flat.fontSize && flat.fontSize > (preset.lineHeight ?? 16)
+      ? Math.round(flat.fontSize * 1.35)
+      : undefined;
+
+  return (
+    <RNText
+      style={[
+        preset,
+        styles.ltrTabular,
+        style,
+        safeLineHeight !== undefined ? { lineHeight: safeLineHeight } : null,
+        { fontFamily },
+      ]}
+      {...props}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

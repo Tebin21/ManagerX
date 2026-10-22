@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, ScrollView,
-  Alert, StyleSheet, InteractionManager,
+  Alert, StyleSheet, InteractionManager, TouchableOpacity,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -66,7 +66,7 @@ export default function PurchaseDetailScreen() {
   const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : (baseCurrency === 'USD' ? 'usd' : 'iqd');
   const router   = useRouter();
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const { isRTL, flexDirection, alignEnd } = useRTL();
   const { deletePurchase } = usePurchaseStore();
@@ -205,9 +205,9 @@ export default function PurchaseDetailScreen() {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         >
           <View style={[styles.invoiceHeaderTop, { flexDirection }]}>
-            <View>
-              <Text style={styles.invoiceLabel}>{t('purchases.purchaseInvoice')}</Text>
-              <IdText style={[styles.invoiceNumber, !isRTL && styles.invoiceNumberSpacing]}>{purchase.purchaseNumber}</IdText>
+            <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+              <Text style={[styles.invoiceLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.purchaseInvoice')}</Text>
+              <IdText style={styles.invoiceNumber}>{purchase.purchaseNumber}</IdText>
             </View>
             <View style={[styles.statusPill, isFib ? styles.statusPillFib : (isPaid ? styles.statusPillPaid : styles.statusPillDebt)]}>
               <Text style={[styles.statusPillText, isFib ? styles.statusPillTextFib : (isPaid ? styles.statusPillTextPaid : styles.statusPillTextDebt)]}>
@@ -343,13 +343,48 @@ export default function PurchaseDetailScreen() {
 
       {/* Actions */}
       <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
-        <PrimaryButton
-          label={isSharing ? t('purchases.preparingPdf') : t('purchases.shareInvoice')}
-          onPress={handleShare}
-          loading={isSharing}
-          disabled={isSharing || isDeleting}
-        />
-        <View style={styles.gap} />
+        {isNew === '1' ? (
+          <>
+            <PrimaryButton
+              label={isSharing ? t('purchases.preparingPdf') : t('purchases.shareInvoice')}
+              onPress={handleShare}
+              loading={isSharing}
+              disabled={isSharing || isDeleting}
+            />
+            <View style={styles.gap} />
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(app)/invoices' as never)}
+              style={[
+                styles.invoicesBanner,
+                {
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.14)',
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <View style={[styles.invoicesBannerIcon, { backgroundColor: colors.primary }]}>
+                <Ionicons name="receipt" size={16} color="#0F172A" />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.invoicesBannerTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isRTL ? 'چاپکردنی وەسڵ لە بەشی پسوڵەکان' : 'Print Invoice via Invoices Hub'}
+                </Text>
+                <Text style={[styles.invoicesBannerSub, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isRTL
+                    ? 'بۆ چاپکردن یان بینینی وەسڵەکە، کلیک لێرە بکە بۆ چوونە بەشی پسوڵەکان.'
+                    : 'To print or view this invoice, tap here to open Invoices Hub.'}
+                </Text>
+              </View>
+              <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <View style={styles.gap} />
+          </>
+        )}
         <PrimaryButton
           label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
           onPress={confirmDelete}
@@ -371,11 +406,13 @@ export default function PurchaseDetailScreen() {
               icon="create-outline"
               onPress={() => router.push(`/(app)/purchases/edit/${id}` as never)}
             />
-            <HeaderActionButton
-              icon="share-outline"
-              onPress={handleShare}
-              disabled={isSharing}
-            />
+            {isNew === '1' && (
+              <HeaderActionButton
+                icon="share-outline"
+                onPress={handleShare}
+                disabled={isSharing}
+              />
+            )}
           </View>
         }
       />
@@ -413,8 +450,7 @@ const styles = StyleSheet.create({
   invoiceHeaderCard: { borderRadius: Theme.radius.card, padding: 20, marginBottom: 14, ...Theme.shadow.button, shadowOpacity: 0.3 },
   invoiceHeaderTop:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   invoiceLabel:      { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
-  invoiceNumber:     { fontSize: 18, fontWeight: '700', color: '#fff' },
-  invoiceNumberSpacing: { lineHeight: 24, marginTop: 4 },
+  invoiceNumber:     { fontSize: 20, fontWeight: '800', color: '#fff', lineHeight: 28, marginTop: 2, paddingVertical: 2 },
   invoiceDate:       { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 16 },
   statusPill:        { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Theme.radius.full },
   statusPillPaid:    { backgroundColor: 'rgba(16,185,129,0.25)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)' },
@@ -461,4 +497,27 @@ const styles = StyleSheet.create({
 
   actionsWrap: { marginTop: 4 },
   gap:         { height: 10 },
+  invoicesBanner: {
+    padding: 14,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 12,
+  },
+  invoicesBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoicesBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  invoicesBannerSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
 });

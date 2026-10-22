@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, InteractionManager, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, InteractionManager, Alert, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -18,6 +19,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { getSaleById } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
+import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
@@ -31,8 +33,8 @@ export default function SaleDetailScreen() {
   const receiptCurrency: ReceiptCurrencyMode = currency === 'usd' || currency === 'both' ? currency : (baseCurrency === 'USD' ? 'usd' : 'iqd');
   const router   = useRouter();
   const { t } = useTranslation();
-  const { textAlign } = useRTL();
-  const { colors } = useAppTheme();
+  const { isRTL, textAlign } = useRTL();
+  const { colors, isDark } = useAppTheme();
   const { isTablet, contentContainerStyle } = useResponsive();
   const business = useBusinessStore();
 
@@ -108,7 +110,9 @@ export default function SaleDetailScreen() {
       <AppHeader
         title={<IdText style={HEADER_TITLE_STYLE}>{sale.invoiceNumber}</IdText>}
         rightAction={
-          <HeaderActionButton icon="share-outline" onPress={handleShare} disabled={isSharing} />
+          isNew === '1' ? (
+            <HeaderActionButton icon="share-outline" onPress={handleShare} disabled={isSharing} />
+          ) : undefined
         }
       />
 
@@ -124,8 +128,43 @@ export default function SaleDetailScreen() {
         </MotiView>
 
         <View style={styles.actions}>
-          <PrimaryButton label={isSharing ? t('sales.preparingPdf') : t('sales.shareInvoice')} onPress={handleShare} loading={isSharing} />
-          <View style={styles.spacer} />
+          {isNew === '1' ? (
+            <>
+              <PrimaryButton label={isSharing ? t('sales.preparingPdf') : t('sales.shareInvoice')} onPress={handleShare} loading={isSharing} />
+              <View style={styles.spacer} />
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(app)/invoices' as never)}
+                style={[
+                  styles.invoicesBanner,
+                  {
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.14)',
+                    borderColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <View style={[styles.invoicesBannerIcon, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="receipt" size={16} color="#0F172A" />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.invoicesBannerTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {isRTL ? 'چاپکردنی وەسڵ لە بەشی پسوڵەکان' : 'Print Invoice via Invoices Hub'}
+                  </Text>
+                  <Text style={[styles.invoicesBannerSub, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {isRTL
+                      ? 'بۆ چاپکردن یان بینینی وەسڵەکە، کلیک لێرە بکە بۆ چوونە بەشی پسوڵەکان.'
+                      : 'To print or view this invoice, tap here to open Invoices Hub.'}
+                  </Text>
+                </View>
+                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <View style={styles.spacer} />
+            </>
+          )}
           <PrimaryButton label={t('sales.editInvoice')} onPress={() => router.push(`/(app)/sales/edit/${id}` as never)} variant="outline" />
         </View>
       </ScrollView>
@@ -140,4 +179,27 @@ const styles = StyleSheet.create({
   spacer:    { height: 4 },
   empty:     { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 15 },
+  invoicesBanner: {
+    padding: 14,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 12,
+  },
+  invoicesBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoicesBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  invoicesBannerSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
 });

@@ -284,14 +284,15 @@ export default function InvoicesHubScreen() {
     try {
       Haptics.selectionAsync().catch(() => {});
     } catch {}
-    setSelectedPurchase(purchase);
+    const nextViewCount = (purchase.viewCount || 0) + 1;
+    setSelectedPurchase({ ...purchase, viewCount: nextViewCount });
     setPurchaseModalVisible(true);
     setLoadingPurchaseDetails(true);
 
     // Increment view count in database and update state
     incrementPurchaseViewCount(purchase.id).catch(() => {});
     setPurchases((prev) =>
-      prev.map((p) => (p.id === purchase.id ? { ...p, viewCount: (p.viewCount || 0) + 1 } : p))
+      prev.map((p) => (p.id === purchase.id ? { ...p, viewCount: nextViewCount } : p))
     );
 
     try {
@@ -308,10 +309,21 @@ export default function InvoicesHubScreen() {
     }
   };
 
-  const handlePrintPurchase = async (purchase: Purchase) => {
+  const handlePrintPurchase = async (purchase: Purchase | null) => {
+    if (!purchase) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {}
+
+    // Immediately increment print count in UI state and SQLite the instant print button is pressed
+    const nextPrintCount = (purchase.printCount || 0) + 1;
+    setPurchases((prev) =>
+      prev.map((p) => (p.id === purchase.id ? { ...p, printCount: nextPrintCount } : p))
+    );
+    setSelectedPurchase((p) => (p && p.id === purchase.id ? { ...p, printCount: nextPrintCount } : p));
+    incrementPurchasePrintCount(purchase.id).catch((err) => {
+      console.warn('[InvoicesHub] incrementPurchasePrintCount failed:', err);
+    });
 
     try {
       let items = await getPurchaseItemsByPurchaseId(purchase.id);
@@ -337,7 +349,7 @@ export default function InvoicesHubScreen() {
       const debt = purchaseDebtsMap[purchase.id] || (await getPurchaseDebtByPurchaseId(purchase.id));
 
       const receiptCurrency: ReceiptCurrencyMode = isUSD ? 'usd' : 'iqd';
-      const success = await directPrintPurchaseInvoice(
+      await directPrintPurchaseInvoice(
         purchase,
         items,
         {
@@ -349,16 +361,6 @@ export default function InvoicesHubScreen() {
         receiptCurrency,
         debt
       );
-
-      if (success) {
-        await incrementPurchasePrintCount(purchase.id);
-        setPurchases((prev) =>
-          prev.map((p) => (p.id === purchase.id ? { ...p, printCount: (p.printCount || 0) + 1 } : p))
-        );
-        if (selectedPurchase?.id === purchase.id) {
-          setSelectedPurchase((p) => (p ? { ...p, printCount: (p.printCount || 0) + 1 } : null));
-        }
-      }
     } catch (err) {
       console.error('[InvoicesHub] Failed to print purchase invoice:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -370,36 +372,49 @@ export default function InvoicesHubScreen() {
     try {
       Haptics.selectionAsync().catch(() => {});
     } catch {}
+    const nextViewCount = (sale.viewCount || 0) + 1;
+    setSelectedSale({ ...sale, viewCount: nextViewCount });
     setSaleModalVisible(true);
     setLoadingSaleDetails(true);
 
     // Increment view count in database and update state
     incrementSaleViewCount(sale.id).catch(() => {});
     setSales((prev) =>
-      prev.map((s) => (s.id === sale.id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s))
+      prev.map((s) => (s.id === sale.id ? { ...s, viewCount: nextViewCount } : s))
     );
 
     try {
       const fullSale = await getSaleById(sale.id);
-      setSelectedSale(fullSale ?? sale);
+      setSelectedSale(fullSale ? { ...fullSale, viewCount: Math.max(fullSale.viewCount || 0, nextViewCount) } : { ...sale, viewCount: nextViewCount });
     } catch (e) {
       console.warn('[InvoicesHub] Failed to fetch full sale:', e);
-      setSelectedSale(sale);
+      setSelectedSale({ ...sale, viewCount: nextViewCount });
     } finally {
       setLoadingSaleDetails(false);
     }
   };
 
-  const handlePrintSale = async (sale: Sale) => {
+  const handlePrintSale = async (sale: Sale | null) => {
+    if (!sale) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {}
+
+    // Immediately increment print count in UI state and SQLite the instant print button is pressed
+    const nextPrintCount = (sale.printCount || 0) + 1;
+    setSales((prev) =>
+      prev.map((s) => (s.id === sale.id ? { ...s, printCount: nextPrintCount } : s))
+    );
+    setSelectedSale((s) => (s && s.id === sale.id ? { ...s, printCount: nextPrintCount } : s));
+    incrementSalePrintCount(sale.id).catch((err) => {
+      console.warn('[InvoicesHub] incrementSalePrintCount failed:', err);
+    });
 
     try {
       const fullSale = sale.items && sale.items.length > 0 ? sale : (await getSaleById(sale.id)) ?? sale;
       const receiptCurrency: ReceiptCurrencyMode = isUSD ? 'usd' : 'iqd';
 
-      const success = await directPrintInvoice(
+      await directPrintInvoice(
         fullSale,
         {
           name: business.name,
@@ -409,16 +424,6 @@ export default function InvoicesHubScreen() {
         },
         receiptCurrency
       );
-
-      if (success) {
-        await incrementSalePrintCount(sale.id);
-        setSales((prev) =>
-          prev.map((s) => (s.id === sale.id ? { ...s, printCount: (s.printCount || 0) + 1 } : s))
-        );
-        if (selectedSale?.id === sale.id) {
-          setSelectedSale((s) => (s ? { ...s, printCount: (s.printCount || 0) + 1 } : null));
-        }
-      }
     } catch (err) {
       console.error('[InvoicesHub] Failed to print sales invoice:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -1658,6 +1663,26 @@ export default function InvoicesHubScreen() {
                         ? 'کاش'
                         : 'Cash'}
                     </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+                  </Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="eye-outline" size={13} color={colors.gray500} />
+                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isKu ? `بینین: ${selectedPurchase.viewCount || 0}` : `View: ${selectedPurchase.viewCount || 0}`}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="print-outline" size={13} color={colors.primary} />
+                      <Text style={[styles.modalDetailValue, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isKu ? `چاپ: ${selectedPurchase.printCount || 0}` : `Print: ${selectedPurchase.printCount || 0}`}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
