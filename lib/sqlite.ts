@@ -739,6 +739,11 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE sales ADD COLUMN initial_payment_method TEXT`,
     `ALTER TABLE debts ADD COLUMN initial_payment_method TEXT`,
     `ALTER TABLE purchase_debts ADD COLUMN initial_payment_method TEXT`,
+    // Print and view counters for sales and purchases invoices
+    `ALTER TABLE sales ADD COLUMN print_count INTEGER DEFAULT 0`,
+    `ALTER TABLE sales ADD COLUMN view_count INTEGER DEFAULT 0`,
+    `ALTER TABLE purchases ADD COLUMN print_count INTEGER DEFAULT 0`,
+    `ALTER TABLE purchases ADD COLUMN view_count INTEGER DEFAULT 0`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -2513,6 +2518,8 @@ function rowToSale(row: Record<string, unknown>): Sale {
     date: (row.date as string | null) ?? (row.created_at as string),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    printCount: (row.print_count as number) ?? 0,
+    viewCount: (row.view_count as number) ?? 0,
   };
 }
 
@@ -2724,6 +2731,32 @@ export async function getSaleById(id: number): Promise<Sale | null> {
   );
   sale.items = itemRows.map(rowToSaleItem);
   return sale;
+}
+
+export async function incrementSalePrintCount(saleId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE sales SET print_count = COALESCE(print_count, 0) + 1 WHERE id = ?',
+    [saleId]
+  );
+  const row = await database.getFirstAsync<{ print_count: number }>(
+    'SELECT print_count FROM sales WHERE id = ?',
+    [saleId]
+  );
+  return row?.print_count ?? 1;
+}
+
+export async function incrementSaleViewCount(saleId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE sales SET view_count = COALESCE(view_count, 0) + 1 WHERE id = ?',
+    [saleId]
+  );
+  const row = await database.getFirstAsync<{ view_count: number }>(
+    'SELECT view_count FROM sales WHERE id = ?',
+    [saleId]
+  );
+  return row?.view_count ?? 1;
 }
 
 export async function attachItemsToSales(sales: Sale[]): Promise<Sale[]> {
@@ -3146,6 +3179,8 @@ function rowToPurchase(row: Record<string, unknown>): Purchase {
     expiryDate: (row.expiry_date as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    printCount: (row.print_count as number) ?? 0,
+    viewCount: (row.view_count as number) ?? 0,
   };
 }
 
@@ -3215,6 +3250,32 @@ export async function getPurchaseById(id: number): Promise<Purchase | null> {
   purchase.imageUri = productRow?.image_uri || productRow?.image_remote_url || null;
   purchase.itemDescription = productRow?.item_description ?? null;
   return purchase;
+}
+
+export async function incrementPurchasePrintCount(purchaseId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE purchases SET print_count = COALESCE(print_count, 0) + 1 WHERE id = ?',
+    [purchaseId]
+  );
+  const row = await database.getFirstAsync<{ print_count: number }>(
+    'SELECT print_count FROM purchases WHERE id = ?',
+    [purchaseId]
+  );
+  return row?.print_count ?? 1;
+}
+
+export async function incrementPurchaseViewCount(purchaseId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE purchases SET view_count = COALESCE(view_count, 0) + 1 WHERE id = ?',
+    [purchaseId]
+  );
+  const row = await database.getFirstAsync<{ view_count: number }>(
+    'SELECT view_count FROM purchases WHERE id = ?',
+    [purchaseId]
+  );
+  return row?.view_count ?? 1;
 }
 
 // Sold quantity for a purchase = units sold from products still linked via purchase_id,

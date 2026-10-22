@@ -33,6 +33,8 @@ export interface Purchase {
   expiryDate?: string | null;
   createdAt: string;
   updatedAt: string;
+  printCount?: number;
+  viewCount?: number;
 }
 
 export interface NewPurchaseInput {

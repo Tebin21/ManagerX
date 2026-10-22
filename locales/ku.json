@@ -314,6 +314,7 @@
     "expensesCard": "خەرجییەکان",
     "dashboardModule": "داشبۆرد",
     "expiry": "بەسەرچوون",
+    "invoices": "پسوڵەکان",
     "expensesSubtitle": "تۆمارکردن و بەڕێوەبردن",
     "addExpenseAction": "زیادکردنی خەرجی",
     "netCashBalance": "پارەی کاشی بەردەست",
@@ -470,6 +471,10 @@
     "expiry": {
       "title": "بەسەرچوون",
       "description": "چاودێریکردنی بەرواری بەسەرچوونی کاڵاکان"
+    },
+    "invoices": {
+      "title": "پسوڵەکان",
+      "description": "ئەرشیف، بینین و چاپکردنی پسوڵەکان"
     },
     "soldProducts": {
       "title": "بەرهەمە فرۆشراوەکان"
@@ -1913,5 +1918,45 @@
       "insufficientBanner": "باڵانسی دەخیلە بەش ناکات - ناتوانیت کڕین ئەنجام بدەیت",
       "cannotPurchaseDueToBalance": "ناتوانیت کڕین ئەنجام بدەیت! بڕی پارەی پێویست لە دەخیلەدا بەردەست نییە.",
       "unifiedCashDisclaimer": "پارەی کاشی بەردەست (کاشی فرۆشتن و خەرجییەکان) لەگەڵ سەرمایەی داغڵکراو تێکەڵ کراوە بۆ دیاریکردنی باڵانسی دەخیلە."
+    },
+    "invoices": {
+      "title": "پسوڵەکان",
+      "reportsTab": "ڕاپۆرت و ئامار",
+      "purchasesTab": "وەسڵی کڕین",
+      "salesTab": "وەسڵی فرۆشتن",
+      "totalPurchases": "کۆی گشتی وەسڵی کڕین",
+      "totalSales": "کۆی گشتی وەسڵی فرۆشتن",
+      "totalInvoices": "کۆی گشتی هەموو وەسڵەکان",
+      "totalPaid": "کۆی گشتی پارەی دراو",
+      "totalDebt": "کۆی گشتی قەرزی نەدراو",
+      "totalFib": "کۆی گشتی وەسڵی FIB",
+      "totalCash": "کۆی گشتی وەسڵی کاش",
+      "totalDebtCount": "کۆی گشتی وەسڵی قەرز",
+      "discountedSales": "وەسڵەکانی داشکاندن (فرۆشتن)",
+      "searchPurchasesPlaceholder": "گەڕان بە ناوی دابینکەر، ژمارەی تەلەفۆن، پسوڵە...",
+      "searchSalesPlaceholder": "گەڕان بە ناوی کڕیار، ژمارەی تەلەفۆن، پسوڵە...",
+      "printCount": "چاپکراوە: {{count}} جار",
+      "viewCount": "بینراوە: {{count}} جار",
+      "directPrint": "چاپکردن",
+      "viewInvoice": "بینین",
+      "readOnlyNotice": "ئەم بەشە تەنها بۆ بینین و چاپکردنە و هیچ دەستکاری ناکرێت.",
+      "purchaseDetails": "وردەکاری وەسڵی کڕین",
+      "saleDetails": "وردەکاری وەسڵی فرۆشتن",
+      "close": "داخستن",
+      "directSupplier": "کڕینی ڕاستەوخۆ",
+      "directCustomer": "کڕیاری ڕاستەوخۆ",
+      "noInvoicesFound": "هیچ پسوڵەیەک نەدۆزرایەوە",
+      "allTime": "هەموو کات",
+      "invoiceNum": "ژمارەی پسوڵە",
+      "amount": "بڕ",
+      "discount": "داشکاندن",
+      "items": "بڕگەکان",
+      "date": "بەروار",
+      "time": "کات",
+      "status": "دۆخ",
+      "paid": "پارەدراو",
+      "unpaid": "نەدراو",
+      "debt": "قەرز",
+      "partial": "بەشێکی دراوە"
     }
   }

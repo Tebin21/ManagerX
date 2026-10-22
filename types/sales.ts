@@ -90,6 +90,8 @@ export interface Sale {
   createdAt: string;
   updatedAt: string;
   items?: SaleItem[];
+  printCount?: number;
+  viewCount?: number;
 }
 
 export interface UpdateSaleCompleteInput {

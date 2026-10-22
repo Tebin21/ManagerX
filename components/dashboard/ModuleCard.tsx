@@ -145,6 +145,17 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     circleBorder: '#FDE68A',
     glowColor: 'rgba(245, 158, 11, 0.28)',
   },
+  invoices: {
+    iconName: 'receipt-outline',
+    tagKu: 'پسوڵەکان',
+    tagEn: 'Invoices',
+    subtitleKu: 'ئەرشیف، بینین و چاپکردنی پسوڵەکان',
+    subtitleEn: 'Archive, view & print receipts',
+    iconColor: '#0284C7',
+    circleBg: '#F0F9FF',
+    circleBorder: '#BAE6FD',
+    glowColor: 'rgba(2, 132, 199, 0.28)',
+  },
 };
 
 const DEFAULT_THEME: ModuleVisualTheme = {
