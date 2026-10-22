@@ -25,7 +25,7 @@ interface CustomerState {
   searchCustomers: (query: string) => CustomerWithStats[];
   getCustomerById: (id: number) => CustomerWithStats | undefined;
 
-  editCustomer: (id: number, data: Partial<{ name: string; phone: string; address: string; notes: string }>) => Promise<void>;
+  editCustomer: (id: number, data: Partial<{ name: string; phone: string | null; address: string | null; notes: string | null }>) => Promise<void>;
   deleteCustomer: (id: number) => Promise<void>;
   addDebtPayment: (debtId: number, amount: number, customerId: number, paymentMethod?: string) => Promise<void>;
   editSaleInfo: (saleId: number, data: UpdateSaleInput) => Promise<void>;
@@ -86,7 +86,25 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   editCustomer: async (id, data) => {
     await updateCustomer(id, data);
-    await get().refreshCustomer(id);
+    await get().loadCustomers();
+    try {
+      const { useSalesStore } = await import('./salesStore');
+      await useSalesStore.getState().loadSales();
+    } catch (e) {
+      console.warn('Could not reload salesStore:', e);
+    }
+    try {
+      const { useDebtStore } = await import('./debtStore');
+      await useDebtStore.getState().loadAll();
+    } catch (e) {
+      console.warn('Could not reload debtStore:', e);
+    }
+    try {
+      const { useReportStore } = await import('./reportStore');
+      await useReportStore.getState().reload();
+    } catch (e) {
+      console.warn('Could not reload reportStore:', e);
+    }
   },
 
   deleteCustomer: async (id: number) => {

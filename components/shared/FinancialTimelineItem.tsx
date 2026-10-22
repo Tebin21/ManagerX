@@ -118,7 +118,7 @@ const getStyles = (colors: AppColors) =>
     timelineDotCol: { alignItems: 'center', width: 20 },
     timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 14 },
     timelineLine: { width: 2, flex: 1, backgroundColor: colors.gray100, marginTop: 4 },
-    timelineCard: { flex: 1, backgroundColor: colors.gray50, borderRadius: 12, padding: 12, gap: 4 },
+    timelineCard: { flex: 1, backgroundColor: colors.gray50, borderRadius: 12, padding: 12, gap: 4, borderWidth: 1, borderColor: colors.gray200 },
     headerRow: { justifyContent: 'space-between', alignItems: 'center' },
     reference: { fontSize: 12, fontWeight: '700' },
     timelineDate: { fontSize: 11, color: colors.gray400 },

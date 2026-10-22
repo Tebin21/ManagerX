@@ -11,14 +11,13 @@ import {
 import { Text } from '@/components/ui/AppText';
 import { CompactAmount } from '@/components/shared/CompactAmount';
 import { DateText } from '@/components/ui/DateText';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
 import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DebtCard } from '@/components/customers/DebtCard';
 import { SaleTimelineItem } from '@/components/customers/SaleTimelineItem';
 import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
@@ -50,6 +49,8 @@ export default function CustomerProfileScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
+  const cardBg = isDark ? colors.gray100 : colors.white;
+  const cardBorder = isDark ? colors.gray200 : colors.gray200;
   const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
   const customer: CustomerWithStats | undefined = customers.find((c) => c.id === Number(id));
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
@@ -73,23 +74,12 @@ export default function CustomerProfileScreen() {
     }
   }, [id]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
-
-  const handleShareInvoice = useCallback(async (sale: Sale) => {
-    try {
-      const { shareInvoice } = await import('@/lib/generateInvoice');
-      const { loadBusiness } = await import('@/lib/sqlite');
-      const biz = await loadBusiness();
-      await shareInvoice(sale, {
-        name: biz?.name ?? 'My Business',
-        phone: biz?.phone ?? '',
-        address: biz?.address ?? '',
-        logoUri: biz?.logoPath ?? null,
-      });
-    } catch {
-      Alert.alert(t('common.error'), t('common.tryAgain'));
-    }
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+      loadCustomers();
+    }, [loadAll, loadCustomers])
+  );
 
   const handlePayment = useCallback(async (debtId: number, amount: number, paymentMethod?: string) => {
     await addDebtPayment(debtId, amount, Number(id), paymentMethod);
@@ -189,7 +179,7 @@ export default function CustomerProfileScreen() {
   if (!id || isNaN(numId)) {
     return (
       <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title={t('customers.title')} showBack />
+        <AppHeader title={t('customers.title')} showBack onBack={() => router.back()} />
       </View>
     );
   }
@@ -197,7 +187,7 @@ export default function CustomerProfileScreen() {
   if (!customer && !loading) {
     return (
       <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title={t('customers.notFound')} />
+        <AppHeader title={t('customers.notFound')} showBack onBack={() => router.back()} />
         <Text style={[styles.notFound, { color: colors.gray500 }]}>{t('customers.notFound')}</Text>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.primary }]}>
           <Text style={[styles.backBtnText, { color: colors.white }]}>{t('common.goBack')}</Text>
@@ -215,39 +205,8 @@ export default function CustomerProfileScreen() {
       <AppHeader
         title={customer?.name ?? '…'}
         showBack
-        rightAction={
-          <HeaderActionButton
-            icon="create-outline"
-            onPress={() => router.push(`/(app)/customers/edit/${id}` as never)}
-          />
-        }
-      >
-
-        {/* Phone + address chips */}
-        {customer && (
-          <View style={styles.chipsRow}>
-            {isDirectCustomer && (
-              <View style={[styles.chip, { backgroundColor: '#D97706' }]}>
-                <Ionicons name="flash" size={12} color="#fff" />
-                <Text style={styles.chipText}>{isKuLanguage ? 'کڕیاری ڕاستەوخۆ (سیستەم)' : 'Direct Customer'}</Text>
-              </View>
-            )}
-            {customer.phone ? (
-              <View style={styles.chip}>
-                <Ionicons name="call-outline" size={12} color="#fff" />
-                <Text style={styles.chipText}>{customer.phone}</Text>
-              </View>
-            ) : null}
-            {customer.address ? (
-              <View style={styles.chip}>
-                <Ionicons name="location-outline" size={12} color="#fff" />
-                <Text style={styles.chipText} numberOfLines={1}>{customer.address}</Text>
-              </View>
-            ) : null}
-          </View>
-        )}
-
-      </AppHeader>
+        onBack={() => router.back()}
+      />
 
       {loading ? (
         <View style={styles.loadingCenter}>
@@ -255,6 +214,54 @@ export default function CustomerProfileScreen() {
         </View>
       ) : (
         <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Customer contact pills (phone, address, direct badge) */}
+          {customer && (customer.phone || customer.address || isDirectCustomer) ? (
+            <MotiView
+              from={{ opacity: 0, translateY: -6 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 220 }}
+              style={styles.contactContainer}
+            >
+              {isDirectCustomer && (
+                <View style={[styles.directCustomerChip, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB', borderColor: isDark ? '#D97706' : '#FDE68A', flexDirection }]}>
+                  <Ionicons name="flash" size={13} color="#D97706" />
+                  <Text style={[styles.directCustomerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                    {isKuLanguage ? 'کڕیاری ڕاستەوخۆ (سیستەم)' : 'Direct Customer'}
+                  </Text>
+                </View>
+              )}
+
+              {customer.phone ? (
+                <View
+                  style={[styles.phonePill, { backgroundColor: cardBg, borderColor: cardBorder, flexDirection }]}
+                >
+                  <View style={[styles.contactPillIcon, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#ECFDF5' }]}>
+                    <Ionicons name="call-outline" size={14} color={colors.success} />
+                  </View>
+                  <Text style={[styles.phonePillText, { color: colors.black }]}>
+                    {customer.phone}
+                  </Text>
+                </View>
+              ) : null}
+
+              {customer.address ? (
+                <View style={[styles.addressPill, { backgroundColor: cardBg, borderColor: cardBorder, flexDirection, alignItems: 'flex-start' }]}>
+                  <View style={[styles.contactPillIcon, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : 'rgba(212, 175, 55, 0.1)', marginTop: 2 }]}>
+                    <Ionicons name="location-outline" size={15} color={colors.primary} />
+                  </View>
+                  <View style={styles.addressContent}>
+                    <Text style={[styles.addressLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {isKuLanguage ? 'ناونیشان' : 'Address'}
+                    </Text>
+                    <Text style={[styles.addressText, { color: colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {customer.address}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </MotiView>
+          ) : null}
+
           {/* Stats grid */}
           {customer && (
             <MotiView
@@ -264,19 +271,23 @@ export default function CustomerProfileScreen() {
               style={styles.statsGrid}
             >
               <View style={styles.statsRow}>
-                <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+                <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
                   <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
                   <CompactAmount value={customer.totalPurchases} showCurrency={false} style={[styles.statVal, { color: colors.black }]} />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalSpent')}</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+                <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
                   <Ionicons name="receipt-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
                   <Text style={[styles.statVal, { color: colors.black }]}>{customer.saleCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.totalInvoices')}</Text>
                 </View>
               </View>
               <View style={styles.statsRow}>
-                <View style={[styles.statCard, { backgroundColor: colors.white }, customer.remainingDebt > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }]}>
+                <View style={[
+                  styles.statCard,
+                  { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder },
+                  customer.remainingDebt > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }
+                ]}>
                   <Ionicons name="alert-circle-outline" size={16} color={customer.remainingDebt > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
                   <CompactAmount
                     value={customer.remainingDebt}
@@ -285,7 +296,7 @@ export default function CustomerProfileScreen() {
                   />
                   <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('customers.remainingDebt')}</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+                <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
                   <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? colors.success : colors.gray300} style={{ marginBottom: 4 }} />
                   <CompactAmount
                     value={totalPaid}
@@ -296,10 +307,11 @@ export default function CustomerProfileScreen() {
                 </View>
               </View>
               {sales.length > 0 ? (
-                <View style={[styles.activityRow, { backgroundColor: colors.white, flexDirection }]}>
-                  <Ionicons name="time-outline" size={14} color={colors.gray400} />
+                <View style={[styles.activityRow, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, flexDirection }]}>
+                  <Ionicons name="time-outline" size={14} color={colors.primary} />
                   <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                    {t('customers.lastActivity')}: <DateText value={sales[0].date ?? sales[0].createdAt} size="small" />
+                    {t('customers.lastActivity')}:{' '}
+                    <DateText value={sales[0].date ?? sales[0].createdAt} size="small" style={{ color: colors.black, fontWeight: '600' }} />
                   </Text>
                 </View>
               ) : null}
@@ -312,7 +324,7 @@ export default function CustomerProfileScreen() {
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 60 }}
-              style={[styles.section, { backgroundColor: colors.white }]}
+              style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
             >
               <Text style={sectionTitleStyle}>{t('customers.outstandingDebts')}</Text>
               {activeDebts.map((debt) => {
@@ -335,7 +347,7 @@ export default function CustomerProfileScreen() {
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
-              style={[styles.section, { backgroundColor: colors.white }]}
+              style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
             >
               <Text style={sectionTitleStyle}>{t('customers.financialTimeline')}</Text>
               {timeline.map((event, i) => {
@@ -356,7 +368,7 @@ export default function CustomerProfileScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
             <Text style={sectionTitleStyle}>{t('customers.purchaseHistory')} ({sales.length})</Text>
             {sales.length === 0 ? (
@@ -369,7 +381,6 @@ export default function CustomerProfileScreen() {
                     sale={sale}
                     isLast={i === sales.length - 1}
                     onPress={() => router.push(`/(app)/sales/${sale.id}` as never)}
-                    onShare={() => handleShareInvoice(sale)}
                     onEdit={() => router.push(`/(app)/sales/edit/${sale.id}` as never)}
                     onDelete={() => handleDeleteSale(sale)}
                   />
@@ -384,7 +395,7 @@ export default function CustomerProfileScreen() {
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
-              style={[styles.section, { backgroundColor: colors.white }]}
+              style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
             >
               <Text style={sectionTitleStyle}>{t('customers.notesLabel')}</Text>
               <Text style={[styles.notesText, { color: colors.black }]}>{customer.notes}</Text>
@@ -425,7 +436,7 @@ export default function CustomerProfileScreen() {
                 from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-                style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
+                style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: cardBg }]}
               >
                 <Text style={sectionTitleStyle}>
                   {t('customers.deleteAccountSection')}
@@ -481,10 +492,16 @@ function getStyles(colors: AppColors) {
   notFound:               { fontSize: 15, marginBottom: 16 },
   backBtn:                { paddingHorizontal: 20, paddingVertical: 10, borderRadius: Theme.radius.md },
   backBtnText:            { fontWeight: '600', fontSize: 14 },
-  // chipsRow/chip sit inside AppHeader's gradient — theme-invariant.
-  chipsRow:               { flexDirection: 'row', paddingHorizontal: 20, gap: 8, flexWrap: 'wrap', marginBottom: 12 },
-  chip:                   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
-  chipText:               { fontSize: 12, color: '#fff', fontWeight: '500' },
+  contactContainer:       { marginBottom: 12, gap: 8 },
+  directCustomerChip:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  directCustomerText:     { fontSize: 12, fontWeight: '700' },
+  phonePill:              { width: '100%', minHeight: 46, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, alignItems: 'center', gap: 10, ...Theme.shadow.soft },
+  phonePillText:          { fontSize: 14, fontWeight: '700' },
+  addressPill:            { width: '100%', minHeight: 52, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, gap: 10, ...Theme.shadow.soft },
+  contactPillIcon:        { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  addressContent:         { flex: 1, justifyContent: 'center' },
+  addressLabel:           { fontSize: 10, fontWeight: '600', marginBottom: 2 },
+  addressText:            { fontSize: 13, lineHeight: 19, fontWeight: '500' },
   scroll:                 { padding: 16, paddingBottom: 40 },
   statsGrid:              { marginBottom: 14, gap: 10 },
   statsRow:               { flexDirection: 'row', gap: 10 },

@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Linking,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -86,7 +87,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   }, [amount, debt, onPay, paymentMethod, isKuLanguage, t]);
 
   return (
-    <View style={[debtStyles.card, { backgroundColor: colors.white, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
+    <View style={[debtStyles.card, { backgroundColor: isDark ? colors.gray100 : colors.white, borderWidth: 1, borderColor: isDark ? colors.gray200 : colors.gray200, padding: isRTL ? RTL_SPACING.cardPad : 14 }]}>
       {/* Line 1 — purchase ref + status badge */}
       <View style={[debtStyles.top, { flexDirection }]}>
         <IdText style={[debtStyles.ref, { color: colors.primary, textAlign }]} numberOfLines={1}>
@@ -228,6 +229,8 @@ export default function SupplierDetailScreen() {
   const { suppliers, loadSuppliers, editSupplier, deleteSupplier } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts, payPurchaseDebt } = useDebtStore();
   const { colors, isDark } = useAppTheme();
+  const cardBg = isDark ? colors.gray100 : colors.white;
+  const cardBorder = isDark ? colors.gray200 : colors.gray200;
   const styles = useMemo(() => getStyles(colors), [colors]);
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
@@ -416,31 +419,56 @@ export default function SupplierDetailScreen() {
             />
           )
         }
-      >
-        {/* Contact chips */}
-        <View style={styles.chipsRow}>
-          {isDirectSupplier && (
-            <View style={[styles.chip, { backgroundColor: '#D97706' }]}>
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.chipText}>{isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier'}</Text>
-            </View>
-          )}
-          {supplier.phone ? (
-            <View style={styles.chip}>
-              <Ionicons name="call-outline" size={12} color="#fff" />
-              <Text style={styles.chipText}>{supplier.phone}</Text>
-            </View>
-          ) : null}
-          {supplier.address ? (
-            <View style={styles.chip}>
-              <Ionicons name="location-outline" size={12} color="#fff" />
-              <Text style={styles.chipText} numberOfLines={1}>{supplier.address}</Text>
-            </View>
-          ) : null}
-        </View>
-      </AppHeader>
+      />
 
       <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Supplier contact pills (phone, address, direct badge) */}
+        {(supplier.phone || supplier.address || isDirectSupplier) ? (
+          <MotiView
+            from={{ opacity: 0, translateY: -6 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 220 }}
+            style={styles.contactContainer}
+          >
+            {isDirectSupplier && (
+              <View style={[styles.directCustomerChip, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB', borderColor: isDark ? '#D97706' : '#FDE68A', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="flash" size={13} color="#D97706" />
+                <Text style={[styles.directCustomerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier'}
+                </Text>
+              </View>
+            )}
+
+            {supplier.phone ? (
+              <View
+                style={[styles.phonePill, { backgroundColor: cardBg, borderColor: cardBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              >
+                <View style={[styles.contactPillIcon, { backgroundColor: isDark ? 'rgba(52, 211, 153, 0.15)' : '#ECFDF5' }]}>
+                  <Ionicons name="call-outline" size={14} color={colors.success} />
+                </View>
+                <Text style={[styles.phonePillText, { color: colors.black }]}>
+                  {supplier.phone}
+                </Text>
+              </View>
+            ) : null}
+
+            {supplier.address ? (
+              <View style={[styles.addressPill, { backgroundColor: cardBg, borderColor: cardBorder, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start' }]}>
+                <View style={[styles.contactPillIcon, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : 'rgba(212, 175, 55, 0.1)', marginTop: 2 }]}>
+                  <Ionicons name="location-outline" size={15} color={colors.primary} />
+                </View>
+                <View style={styles.addressContent}>
+                  <Text style={[styles.addressLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {isKuLanguage ? 'ناونیشان' : 'Address'}
+                  </Text>
+                  <Text style={[styles.addressText, { color: colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {supplier.address}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </MotiView>
+        ) : null}
 
         {/* Stats 2×2 grid */}
         <MotiView
@@ -450,19 +478,19 @@ export default function SupplierDetailScreen() {
           style={styles.statsGrid}
         >
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+            <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
               <Ionicons name="cart-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
               <Text style={[styles.statVal, { color: colors.black }]}>{supplier.purchaseCount}</Text>
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.purchaseCount')}</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+            <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
               <Ionicons name="cash-outline" size={16} color={colors.primary} style={{ marginBottom: 4 }} />
               <CompactAmount value={supplier.totalSpent} style={[styles.statVal, { color: colors.primary }]} />
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.totalSpent')}</Text>
             </View>
           </View>
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.white }, totalRemaining > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }]}>
+            <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }, totalRemaining > 0 && { backgroundColor: errorTint.bg, borderWidth: 1, borderColor: colors.error }]}>
               <Ionicons name="alert-circle-outline" size={16} color={totalRemaining > 0 ? colors.error : colors.gray300} style={{ marginBottom: 4 }} />
               {totalRemaining > 0 ? (
                 <CompactAmount value={totalRemaining} showCurrency={false} style={[styles.statVal, { color: colors.error }]} />
@@ -471,7 +499,7 @@ export default function SupplierDetailScreen() {
               )}
               <Text style={[styles.statLabel, { color: colors.gray400 }]}>{t('suppliers.remainingDebt')}</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.white }]}>
+            <View style={[styles.statCard, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
               <Ionicons name="checkmark-circle-outline" size={16} color={totalPaid > 0 ? colors.success : colors.gray300} style={{ marginBottom: 4 }} />
               {totalPaid > 0 ? (
                 <CompactAmount value={totalPaid} showCurrency={false} style={[styles.statVal, { color: colors.success }]} />
@@ -482,10 +510,10 @@ export default function SupplierDetailScreen() {
             </View>
           </View>
           {supplier.lastPurchaseDate ? (
-            <View style={[styles.activityRow, { backgroundColor: colors.white }]}>
-              <Ionicons name="time-outline" size={14} color={colors.gray400} />
+            <View style={[styles.activityRow, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
+              <Ionicons name="time-outline" size={14} color={colors.primary} />
               <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" />
+                {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" style={{ color: colors.black, fontWeight: '600' }} />
               </Text>
             </View>
           ) : null}
@@ -496,7 +524,7 @@ export default function SupplierDetailScreen() {
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 50 }}
-          style={[styles.section, { backgroundColor: colors.white }]}
+          style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
         >
           <Text style={sectionTitleStyle}>{t('suppliers.contactInfo')}</Text>
           {editing ? (
@@ -547,7 +575,7 @@ export default function SupplierDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 80 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
             <Text style={sectionTitleStyle}>
               {t('suppliers.activeDebts')} ({activeDebts.length})
@@ -564,7 +592,7 @@ export default function SupplierDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 100 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
             <Text style={sectionTitleStyle}>
               {t('suppliers.financialTimeline')}
@@ -587,7 +615,7 @@ export default function SupplierDetailScreen() {
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 120 }}
-          style={[styles.section, { backgroundColor: colors.white }]}
+          style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
         >
           <Text style={sectionTitleStyle}>
             {t('suppliers.purchaseHistory')} ({purchases.length})
@@ -635,7 +663,7 @@ export default function SupplierDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 160 }}
-            style={[styles.section, { backgroundColor: colors.white }]}
+            style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
             <Text style={sectionTitleStyle}>{t('suppliers.notes')}</Text>
             <Text style={[styles.notesText, { color: colors.black }]}>{supplier.notes}</Text>
@@ -672,7 +700,7 @@ export default function SupplierDetailScreen() {
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 220, delay: 200 }}
-            style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: colors.white }]}
+            style={[styles.section, { borderWidth: 1, borderColor: colors.error, backgroundColor: cardBg }]}
           >
             <Text style={sectionTitleStyle}>
               {t('customers.deleteAccountSection')}
@@ -714,10 +742,16 @@ function getStyles(colors: AppColors) {
   return StyleSheet.create({
   container:               { flex: 1 },
   centered:                { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // chipsRow/chip sit inside AppHeader's gradient — theme-invariant.
-  chipsRow:                { flexDirection: 'row', paddingHorizontal: 20, gap: 8, flexWrap: 'wrap', marginBottom: 12 },
-  chip:                    { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
-  chipText:                { fontSize: 12, color: '#fff', fontWeight: '500' },
+  contactContainer:        { marginBottom: 12, gap: 8 },
+  directCustomerChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  directCustomerText:      { fontSize: 12, fontWeight: '700' },
+  phonePill:               { width: '100%', minHeight: 46, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, alignItems: 'center', gap: 10, ...Theme.shadow.soft },
+  phonePillText:           { fontSize: 14, fontWeight: '700' },
+  addressPill:             { width: '100%', minHeight: 52, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, gap: 10, ...Theme.shadow.soft },
+  contactPillIcon:         { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  addressContent:          { flex: 1, justifyContent: 'center' },
+  addressLabel:            { fontSize: 10, fontWeight: '600', marginBottom: 2 },
+  addressText:             { fontSize: 13, lineHeight: 19, fontWeight: '500' },
   scroll:                  { padding: 16, paddingBottom: 40 },
   // Stats grid — matches customer screen exactly
   statsGrid:               { marginBottom: 14, gap: 10 },

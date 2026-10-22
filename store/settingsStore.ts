@@ -23,6 +23,8 @@ interface SettingsState {
   expiryAlertDays:             number;
   expiryTermsAccepted:         boolean;
   showSalesInvoicePreview:     boolean;
+  checkoutGridExpandedPurchase: boolean;
+  checkoutGridExpandedSale:     boolean;
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -39,6 +41,8 @@ interface SettingsState {
   setExpiryAlertDays:          (val: number) => void;
   setExpiryTermsAccepted:      (val: boolean) => void;
   setShowSalesInvoicePreview:  (val: boolean) => void;
+  setCheckoutGridExpandedPurchase: (val: boolean) => void;
+  setCheckoutGridExpandedSale:     (val: boolean) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -80,6 +84,8 @@ export const useSettingsStore = create<SettingsState>()(
       expiryAlertDays:             30,
       expiryTermsAccepted:         false,
       showSalesInvoicePreview:     false,
+      checkoutGridExpandedPurchase: false,
+      checkoutGridExpandedSale:     false,
 
       setDarkMode:                (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:             (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
@@ -92,6 +98,8 @@ export const useSettingsStore = create<SettingsState>()(
       setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
       setShowSalesInvoicePreview:  (val) => { set({ showSalesInvoicePreview: val }); notifyPreferencesChanged(); },
+      setCheckoutGridExpandedPurchase: (val) => { set({ checkoutGridExpandedPurchase: val }); notifyPreferencesChanged(); },
+      setCheckoutGridExpandedSale:     (val) => { set({ checkoutGridExpandedSale: val }); notifyPreferencesChanged(); },
       setExpiryTrackingEnabled:    (val) => {
         set({ expiryTrackingEnabled: val });
         notifyPreferencesChanged();
@@ -137,6 +145,8 @@ export const useSettingsStore = create<SettingsState>()(
           expiryAlertDays:             p?.expiryAlertDays ?? 30,
           expiryTermsAccepted:         p?.expiryTermsAccepted ?? false,
           showSalesInvoicePreview:     p?.showSalesInvoicePreview ?? false,
+          checkoutGridExpandedPurchase: p?.checkoutGridExpandedPurchase ?? false,
+          checkoutGridExpandedSale:     p?.checkoutGridExpandedSale ?? false,
         };
       },
     }

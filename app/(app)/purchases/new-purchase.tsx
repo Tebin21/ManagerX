@@ -722,8 +722,39 @@ export default function NewPurchaseScreen() {
         style={[styles.textarea, isRTL && { fontSize: 13 }]}
       />
 
+      <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign, marginBottom: 0 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          {t('purchases.websiteDescription')}
+        </Text>
+        <TouchableOpacity
+          style={{
+            flexDirection,
+            alignItems: 'center',
+            gap: 5,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 8,
+            borderWidth: 1,
+            backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
+            borderColor: isDark ? '#D97706' : '#FDE68A',
+          }}
+          onPress={() => {
+            if (itemDescription?.trim()) {
+              setWebsiteDescription(itemDescription.trim());
+            } else if (notes?.trim()) {
+              setWebsiteDescription(notes.trim().slice(0, 30));
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="copy-outline" size={13} color={isDark ? '#FBBF24' : '#B45309'} />
+          <Text style={[{ fontSize: 11, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+            {t('purchases.sameAsItemDescription')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <AppTextInput
-        label={t('purchases.websiteDescription')}
         value={websiteDescription}
         onChangeText={setWebsiteDescription}
         placeholder={t('purchases.websiteDescriptionPlaceholder')}
@@ -1241,18 +1272,29 @@ export default function NewPurchaseScreen() {
 
   // 2b. Expiry & Production Dates Card (shown when expiryTrackingEnabled is active)
   const cardExpiryDates = expiryTrackingEnabled ? (
-    <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
-      <View style={[styles.cardHeaderRow, { flexDirection }]}>
-        <View style={[styles.cardHeaderIconBox, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.22 : 0.12) }]}>
-          <Ionicons name="time-outline" size={isTablet ? 22 : 18} color="#F59E0B" />
+    <PremiumCard
+      padding={13}
+      style={[
+        styles.card,
+        {
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          backgroundColor: isDark ? '#1E293B' : colors.white,
+          borderRadius: 16,
+        },
+        isTablet && styles.cardTablet,
+      ]}
+    >
+      <View style={[styles.cardHeaderRow, { flexDirection, marginBottom: 10, gap: 10 }]}>
+        <View style={[styles.cardHeaderIconBox, { width: 34, height: 34, borderRadius: 10, backgroundColor: hexToRgba('#F59E0B', isDark ? 0.22 : 0.12) }]}>
+          <Ionicons name="time-outline" size={isTablet ? 20 : 17} color="#F59E0B" />
         </View>
         <View style={{ flex: 1 }}>
           <Text
             style={[
               styles.cardHeaderTitle,
-              isTablet && { fontSize: 17 },
+              { fontSize: isTablet ? 16 : 14.5, color: colors.black, textAlign },
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              { color: colors.black, textAlign },
             ]}
           >
             {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
@@ -1260,9 +1302,8 @@ export default function NewPurchaseScreen() {
           <Text
             style={[
               styles.cardHeaderSub,
-              isTablet && { fontSize: 13 },
+              { fontSize: isTablet ? 12 : 11, color: colors.gray400, textAlign, marginTop: 1 },
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-              { color: colors.gray400, textAlign },
             ]}
           >
             {isKuLanguage
@@ -1273,35 +1314,47 @@ export default function NewPurchaseScreen() {
       </View>
 
       {/* Production Date Section */}
-      <View style={{ gap: 8, marginTop: 4 }}>
-        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+      <View style={{ gap: 5, marginTop: 2 }}>
+        <Text style={[styles.fieldLabel, { fontSize: 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن (Production Date)' : 'Production Date'}
         </Text>
-        <View style={[styles.expiryDateActionRow, { flexDirection }]}>
+        <View style={[styles.expiryDateActionRow, { flexDirection, gap: 6 }]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setShowProdPicker(true)}
             style={[
               styles.datePickerBtn,
               {
+                height: 38,
+                borderRadius: 9,
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
                 flexDirection,
+                paddingHorizontal: 10,
               },
             ]}
           >
-            <Ionicons name="construct-outline" size={18} color={colors.primary} />
-            <Text style={[styles.datePickerBtnText, { color: productionDate ? colors.black : colors.gray400 }]}>
+            <Ionicons name="construct-outline" size={16} color={colors.primary} />
+            <Text style={[styles.datePickerBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400 }]}>
               {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
             </Text>
           </TouchableOpacity>
 
-          <View style={[styles.quickChipsWrap, { flexDirection }]}>
+          <View style={[styles.quickChipsWrap, { flexDirection, gap: 5 }]}>
             <TouchableOpacity
               onPress={() => handleSetProductionQuick('today')}
-              style={[styles.smallChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 }]}
+              style={[
+                styles.smallChip,
+                {
+                  height: 38,
+                  paddingVertical: 0,
+                  paddingHorizontal: 10,
+                  borderRadius: 9,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100,
+                },
+              ]}
             >
-              <Text style={[styles.smallChipText, { color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <Text style={[styles.smallChipText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                 {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
               </Text>
             </TouchableOpacity>
@@ -1309,9 +1362,19 @@ export default function NewPurchaseScreen() {
             {productionDate && (
               <TouchableOpacity
                 onPress={() => handleSetProductionQuick('clear')}
-                style={[styles.smallChip, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2' }]}
+                style={[
+                  styles.smallChip,
+                  {
+                    height: 38,
+                    width: 38,
+                    paddingHorizontal: 0,
+                    paddingVertical: 0,
+                    borderRadius: 9,
+                    backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2',
+                  },
+                ]}
               >
-                <Ionicons name="close" size={14} color="#EF4444" />
+                <Ionicons name="close" size={15} color="#EF4444" />
               </TouchableOpacity>
             )}
           </View>
@@ -1319,8 +1382,8 @@ export default function NewPurchaseScreen() {
       </View>
 
       {/* Expiry Date Section */}
-      <View style={{ gap: 8, marginTop: 14 }}>
-        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+      <View style={{ gap: 5, marginTop: 8 }}>
+        <Text style={[styles.fieldLabel, { fontSize: 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {isKuLanguage ? 'بەرواری بەسەرچوون (Expiry Date)' : 'Expiry Date'}
         </Text>
 
@@ -1330,17 +1393,20 @@ export default function NewPurchaseScreen() {
           style={[
             styles.datePickerBtn,
             {
+              height: 38,
+              borderRadius: 9,
               backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
               borderColor: expiryDate ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
               flexDirection,
+              paddingHorizontal: 10,
             },
           ]}
         >
-          <Ionicons name="calendar-outline" size={18} color={expiryDate ? '#F59E0B' : colors.primary} />
+          <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
           <Text
             style={[
               styles.datePickerBtnText,
-              { color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400 },
+              { fontSize: 13, color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400 },
               expiryDate && { fontWeight: '700' },
             ]}
           >
@@ -1352,17 +1418,17 @@ export default function NewPurchaseScreen() {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ marginStart: 'auto' }}
             >
-              <Ionicons name="close-circle" size={18} color="#EF4444" />
+              <Ionicons name="close-circle" size={16} color="#EF4444" />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
 
         {/* Quick Expiry Duration Shortcut Chips */}
-        <Text style={[styles.shortcutHint, { color: colors.gray400, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+        <Text style={[styles.shortcutHint, { fontSize: 11, color: colors.gray400, textAlign, marginTop: 3 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
           {isKuLanguage ? 'هەڵبژاردنی خێرا لە ئەمڕۆوە:' : 'Quick shortcuts from today:'}
         </Text>
 
-        <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: 5, marginTop: 1 }]}>
           {[
             { label: isKuLanguage ? '+١ مانگ' : '+1M', months: 1 },
             { label: isKuLanguage ? '+٣ مانگ' : '+3M', months: 3 },
@@ -1377,17 +1443,25 @@ export default function NewPurchaseScreen() {
               style={[
                 styles.durationChip,
                 {
+                  flex: 1,
+                  paddingHorizontal: 2,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
-                  borderColor: isDark ? 'rgba(245, 158, 11, 0.30)' : '#FDE68A',
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.28)' : '#FDE68A',
                 },
               ]}
             >
               <Text
                 style={[
                   styles.durationChipText,
-                  { color: isDark ? '#FBBF24' : '#B45309' },
+                  { fontSize: 11, color: isDark ? '#FBBF24' : '#B45309', textAlign: 'center' },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
               >
                 {chip.label}
               </Text>

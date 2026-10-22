@@ -28,6 +28,7 @@ import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBusinessStore } from '@/store/businessStore';
@@ -76,6 +77,16 @@ export default function InvoicesHubScreen() {
   // ─── Active Tab State ───
   const [activeTab, setActiveTab] = useState<TabKey>('reports');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+  const numColumns = useMemo(() => {
+    if (isTabletLandscape) {
+      return viewMode === 'grid' ? 3 : 2;
+    }
+    if (isTablet) {
+      return 2;
+    }
+    return viewMode === 'grid' ? 2 : 1;
+  }, [isTablet, isTabletLandscape, viewMode]);
 
   // ─── Data State ───
   const [sales, setSales] = useState<Sale[]>([]);
@@ -587,7 +598,16 @@ export default function InvoicesHubScreen() {
       />
 
       {/* ── Segmented Control Tabs (Matching Expiry Screen Design) ── */}
-      <View style={styles.segmentWrapper}>
+      <View
+        style={[
+          styles.segmentWrapper,
+          isTablet && {
+            maxWidth: isTabletLandscape ? 980 : 760,
+            alignSelf: 'center',
+            width: '100%',
+          },
+        ]}
+      >
         <View
           style={[
             styles.segmentBar,
@@ -792,7 +812,7 @@ export default function InvoicesHubScreen() {
               style={styles.scrollFlex}
               contentContainerStyle={[
                 styles.reportScrollContent,
-                isTablet && { maxWidth: isTabletLandscape ? 960 : 760, alignSelf: 'center', width: '100%' },
+                isTablet && { maxWidth: isTabletLandscape ? 1160 : 760, alignSelf: 'center', width: '100%' },
               ]}
               showsVerticalScrollIndicator={false}
               refreshControl={
@@ -802,385 +822,168 @@ export default function InvoicesHubScreen() {
               {/* Period Filter Pills */}
               {renderPeriodFilterSection()}
 
-              {/* KPI Cards Grid */}
-              <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {/* 1. Purchase Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(234, 88, 12, 0.14)' : '#FFF7ED',
-                      borderColor: isDark ? 'rgba(234, 88, 12, 0.35)' : '#FED7AA',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
+              {/* KPI Cards Grid (Responsive: 3 columns on landscape iPad, 2 on portrait tablet/phone) */}
+              <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10 }]}>
+                {[
+                  {
+                    id: 'purchases',
+                    icon: 'cart-outline' as const,
+                    color: '#EA580C',
+                    bgDark: 'rgba(234, 88, 12, 0.14)',
+                    bgLight: '#FFF7ED',
+                    borderDark: 'rgba(234, 88, 12, 0.35)',
+                    borderLight: '#FED7AA',
+                    label: isKu ? 'کۆی گشتی وەسڵی کڕین' : 'Purchase Invoices',
+                    count: reportStats.purchaseCount,
+                  },
+                  {
+                    id: 'sales',
+                    icon: 'receipt-outline' as const,
+                    color: '#10B981',
+                    bgDark: 'rgba(16, 185, 129, 0.14)',
+                    bgLight: '#ECFDF5',
+                    borderDark: 'rgba(16, 185, 129, 0.35)',
+                    borderLight: '#A7F3D0',
+                    label: isKu ? 'کۆی گشتی وەسڵی فرۆشتن' : 'Sales Invoices',
+                    count: reportStats.salesCount,
+                  },
+                  {
+                    id: 'all',
+                    icon: 'documents-outline' as const,
+                    color: '#0284C7',
+                    bgDark: 'rgba(2, 132, 199, 0.14)',
+                    bgLight: '#F0F9FF',
+                    borderDark: 'rgba(2, 132, 199, 0.35)',
+                    borderLight: '#BAE6FD',
+                    label: isKu ? 'کۆی گشتی هەموو وەسڵەکان' : 'All Invoices',
+                    count: reportStats.allCount,
+                  },
+                  {
+                    id: 'paid',
+                    icon: 'checkmark-circle-outline' as const,
+                    color: '#059669',
+                    bgDark: 'rgba(5, 150, 105, 0.14)',
+                    bgLight: '#F0FDF4',
+                    borderDark: 'rgba(5, 150, 105, 0.35)',
+                    borderLight: '#BBF7D0',
+                    label: isKu ? 'کۆی گشتی وەسڵی پارەدراو' : 'Paid Invoices',
+                    count: reportStats.paidInvoicesCount,
+                  },
+                  {
+                    id: 'unpaid',
+                    icon: 'hourglass-outline' as const,
+                    color: '#E11D48',
+                    bgDark: 'rgba(225, 29, 72, 0.14)',
+                    bgLight: '#FFF1F2',
+                    borderDark: 'rgba(225, 29, 72, 0.35)',
+                    borderLight: '#FECDD3',
+                    label: isKu ? 'کۆی وەسڵی قەرزی نەدراو' : 'Unpaid Debt Invoices',
+                    count: reportStats.unpaidDebtCount,
+                  },
+                  {
+                    id: 'fib',
+                    icon: 'card-outline' as const,
+                    color: '#6366F1',
+                    bgDark: 'rgba(99, 102, 241, 0.14)',
+                    bgLight: '#EEF2FF',
+                    borderDark: 'rgba(99, 102, 241, 0.35)',
+                    borderLight: '#C7D2FE',
+                    label: isKu ? 'کۆی گشتی وەسڵی FIB' : 'Total FIB Invoices',
+                    count: reportStats.fibCount,
+                  },
+                  {
+                    id: 'cash',
+                    icon: 'cash-outline' as const,
+                    color: '#0D9488',
+                    bgDark: 'rgba(13, 148, 136, 0.14)',
+                    bgLight: '#F0FDFA',
+                    borderDark: 'rgba(13, 148, 136, 0.35)',
+                    borderLight: '#99F6E4',
+                    label: isKu ? 'کۆی گشتی وەسڵی کاش' : 'Total Cash Invoices',
+                    count: reportStats.cashCount,
+                  },
+                  {
+                    id: 'debt',
+                    icon: 'wallet-outline' as const,
+                    color: '#8B5CF6',
+                    bgDark: 'rgba(139, 92, 246, 0.14)',
+                    bgLight: '#F5F3FF',
+                    borderDark: 'rgba(139, 92, 246, 0.35)',
+                    borderLight: '#DDD6FE',
+                    label: isKu ? 'کۆی گشتی وەسڵی قەرز' : 'Total Debt Invoices',
+                    count: reportStats.debtCount,
+                  },
+                  {
+                    id: 'discount',
+                    icon: 'pricetag-outline' as const,
+                    color: '#D946EF',
+                    bgDark: 'rgba(217, 70, 239, 0.14)',
+                    bgLight: '#FDF4FF',
+                    borderDark: 'rgba(217, 70, 239, 0.35)',
+                    borderLight: '#F5D0FE',
+                    label: isKu ? 'وەسڵەکانی داشکاندن' : 'Discounted Sales',
+                    count: reportStats.discountedSalesCount,
+                  },
+                ].map((kpi) => (
                   <View
+                    key={kpi.id}
                     style={[
-                      styles.kpiIconWrap,
+                      styles.kpiCard,
                       {
-                        backgroundColor: hexToRgba('#EA580C', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
+                        flexBasis: isTabletLandscape ? '31.8%' : '48%',
+                        maxWidth: isTabletLandscape ? '32.5%' : '49%',
+                        backgroundColor: isDark ? kpi.bgDark : kpi.bgLight,
+                        borderColor: isDark ? kpi.borderDark : kpi.borderLight,
+                        alignItems: isRTL ? 'flex-end' : 'flex-start',
+                        padding: isTablet ? 14 : 12,
+                        borderRadius: 16,
                       },
                     ]}
                   >
-                    <Ionicons name="cart-outline" size={18} color="#EA580C" />
+                    <View
+                      style={[
+                        styles.kpiIconWrap,
+                        {
+                          width: isTablet ? 42 : 36,
+                          height: isTablet ? 42 : 36,
+                          borderRadius: isTablet ? 12 : 10,
+                          backgroundColor: hexToRgba(kpi.color, isDark ? 0.25 : 0.15),
+                          alignSelf: isRTL ? 'flex-end' : 'flex-start',
+                        },
+                      ]}
+                    >
+                      <Ionicons name={kpi.icon} size={isTablet ? 20 : 17} color={kpi.color} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.kpiLabel,
+                        {
+                          fontSize: isTablet ? 15 : 12.5,
+                          color: kpi.color,
+                          textAlign: isRTL ? 'right' : 'left',
+                        },
+                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {kpi.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.kpiCountText,
+                        {
+                          fontSize: isTablet ? 22 : 16.5,
+                          color: kpi.color,
+                          textAlign: isRTL ? 'right' : 'left',
+                          writingDirection,
+                        },
+                        isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKu ? `\u200F${kpi.count} وەسڵ` : `${kpi.count} Invoices`}
+                    </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#EA580C', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی کڕین' : 'Purchase Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#EA580C', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.purchaseCount} وەسڵ` : `${reportStats.purchaseCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 2. Sales Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : '#ECFDF5',
-                      borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#A7F3D0',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#10B981', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="receipt-outline" size={18} color="#10B981" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#10B981', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی فرۆشتن' : 'Sales Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#10B981', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.salesCount} وەسڵ` : `${reportStats.salesCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 3. All Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(2, 132, 199, 0.14)' : '#F0F9FF',
-                      borderColor: isDark ? 'rgba(2, 132, 199, 0.35)' : '#BAE6FD',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#0284C7', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="documents-outline" size={18} color="#0284C7" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#0284C7', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی هەموو وەسڵەکان' : 'All Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#0284C7', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.allCount} وەسڵ` : `${reportStats.allCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 4. Total Paid Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.14)' : '#F0FDF4',
-                      borderColor: isDark ? 'rgba(5, 150, 105, 0.35)' : '#BBF7D0',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#059669', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={18} color="#059669" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#059669', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی پارەدراو' : 'Paid Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#059669', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.paidInvoicesCount} وەسڵ` : `${reportStats.paidInvoicesCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 5. Total Unpaid Debt Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(225, 29, 72, 0.14)' : '#FFF1F2',
-                      borderColor: isDark ? 'rgba(225, 29, 72, 0.35)' : '#FECDD3',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#E11D48', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="hourglass-outline" size={18} color="#E11D48" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#E11D48', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی وەسڵی قەرزی نەدراو' : 'Unpaid Debt Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#E11D48', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.unpaidDebtCount} وەسڵ` : `${reportStats.unpaidDebtCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 6. Total FIB */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(99, 102, 241, 0.14)' : '#EEF2FF',
-                      borderColor: isDark ? 'rgba(99, 102, 241, 0.35)' : '#C7D2FE',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#6366F1', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="card-outline" size={18} color="#6366F1" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#6366F1', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی FIB' : 'Total FIB Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#6366F1', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.fibCount} وەسڵ` : `${reportStats.fibCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 7. Total Cash */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(13, 148, 136, 0.14)' : '#F0FDFA',
-                      borderColor: isDark ? 'rgba(13, 148, 136, 0.35)' : '#99F6E4',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#0D9488', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="cash-outline" size={18} color="#0D9488" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#0D9488', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی کاش' : 'Total Cash Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#0D9488', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.cashCount} وەسڵ` : `${reportStats.cashCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 8. Total Debt Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(139, 92, 246, 0.14)' : '#F5F3FF',
-                      borderColor: isDark ? 'rgba(139, 92, 246, 0.35)' : '#DDD6FE',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#8B5CF6', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="wallet-outline" size={18} color="#8B5CF6" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#8B5CF6', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'کۆی گشتی وەسڵی قەرز' : 'Total Debt Invoices'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#8B5CF6', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.debtCount} وەسڵ` : `${reportStats.debtCount} Invoices`}
-                  </Text>
-                </View>
-
-                {/* 9. Discounted Sales Invoices */}
-                <View
-                  style={[
-                    styles.kpiCard,
-                    {
-                      backgroundColor: isDark ? 'rgba(217, 70, 239, 0.14)' : '#FDF4FF',
-                      borderColor: isDark ? 'rgba(217, 70, 239, 0.35)' : '#F5D0FE',
-                      alignItems: isRTL ? 'flex-end' : 'flex-start',
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.kpiIconWrap,
-                      {
-                        backgroundColor: hexToRgba('#D946EF', isDark ? 0.25 : 0.15),
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="pricetag-outline" size={18} color="#D946EF" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.kpiLabel,
-                      { color: '#D946EF', textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? 'وەسڵەکانی داشکاندن' : 'Discounted Sales'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.kpiCountText,
-                      { color: '#D946EF', textAlign: isRTL ? 'right' : 'left', writingDirection },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKu ? `\u200F${reportStats.discountedSalesCount} وەسڵ` : `${reportStats.discountedSalesCount} Invoices`}
-                  </Text>
-                </View>
+                ))}
               </View>
 
               <View style={{ height: 40 }} />
@@ -1193,12 +996,12 @@ export default function InvoicesHubScreen() {
           {activeTab === 'purchases' && (
             <View style={styles.flexOne}>
               {/* Period Filter Pills */}
-              <View style={styles.tabPeriodSectionWrap}>
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
                 {renderPeriodFilterSection()}
               </View>
 
               {/* Search Bar */}
-              <View style={styles.searchContainer}>
+              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
                 <View
                   style={[
                     styles.searchInputWrap,
@@ -1232,12 +1035,13 @@ export default function InvoicesHubScreen() {
               {/* Invoices List / Grid */}
               <FlatList
                 data={searchedPurchases}
-                key={viewMode === 'grid' ? 'grid-2' : 'list-1'}
-                numColumns={viewMode === 'grid' ? 2 : 1}
+                key={`purchases-${numColumns}-${viewMode}`}
+                numColumns={numColumns}
+                columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
                 keyExtractor={(item) => `pur-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
-                  viewMode === 'grid' && styles.gridContent,
+                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
                   searchedPurchases.length === 0 && styles.emptyListContent,
                 ]}
                 refreshControl={
@@ -1252,7 +1056,6 @@ export default function InvoicesHubScreen() {
                   </View>
                 }
                 renderItem={({ item }) => {
-                  const isGrid = viewMode === 'grid';
                   const debt = purchaseDebtsMap[item.id];
                   const isDebt = item.paymentStatus === 'debt';
                   const isFib = item.paymentStatus === 'fib' || item.initialPaymentMethod === 'fib';
@@ -1264,7 +1067,11 @@ export default function InvoicesHubScreen() {
                       activeOpacity={0.85}
                       onPress={() => handleOpenPurchaseDetails(item)}
                       style={[
-                        isGrid ? styles.gridCard : styles.listCard,
+                        numColumns > 1 ? styles.invoiceCard : styles.listCard,
+                        numColumns > 1 && {
+                          flex: 1,
+                          maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                        },
                         {
                           backgroundColor: isDark ? colors.gray100 : colors.white,
                           borderColor: colors.gray200,
@@ -1289,7 +1096,7 @@ export default function InvoicesHubScreen() {
                           numberOfLines={1}
                           style={[
                             styles.partyName,
-                            { color: colors.black, textAlign },
+                            { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
                             isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
@@ -1298,10 +1105,10 @@ export default function InvoicesHubScreen() {
                         {!!item.supplierPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                             <Ionicons name="call-outline" size={12} color={colors.gray400} />
-                            <Text style={[styles.partyPhone, { color: colors.gray500 }]}>{item.supplierPhone}</Text>
+                            <Text style={[styles.partyPhone, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11.5 }]}>{item.supplierPhone}</Text>
                           </View>
                         )}
-                        <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign }]}>
+                        <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
                           {item.productName} {item.quantity > 1 ? `(${item.quantity} دانە)` : ''}
                         </Text>
                       </View>
@@ -1334,12 +1141,12 @@ export default function InvoicesHubScreen() {
           {activeTab === 'sales' && (
             <View style={styles.flexOne}>
               {/* Period Filter Pills */}
-              <View style={styles.tabPeriodSectionWrap}>
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
                 {renderPeriodFilterSection()}
               </View>
 
               {/* Search Bar */}
-              <View style={styles.searchContainer}>
+              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
                 <View
                   style={[
                     styles.searchInputWrap,
@@ -1373,12 +1180,13 @@ export default function InvoicesHubScreen() {
               {/* Invoices List / Grid */}
               <FlatList
                 data={searchedSales}
-                key={viewMode === 'grid' ? 'grid-sales-2' : 'list-sales-1'}
-                numColumns={viewMode === 'grid' ? 2 : 1}
+                key={`sales-${numColumns}-${viewMode}`}
+                numColumns={numColumns}
+                columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
                 keyExtractor={(item) => `sale-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
-                  viewMode === 'grid' && styles.gridContent,
+                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
                   searchedSales.length === 0 && styles.emptyListContent,
                 ]}
                 refreshControl={
@@ -1393,7 +1201,6 @@ export default function InvoicesHubScreen() {
                   </View>
                 }
                 renderItem={({ item }) => {
-                  const isGrid = viewMode === 'grid';
                   const isDebt = item.paymentMethod === 'debt' || item.remainingDebt > 0;
                   const isFib = item.paymentMethod === 'fib' || item.initialPaymentMethod === 'fib';
                   const statusLabel = isDebt ? (isKu ? 'قەرز' : 'Debt') : isFib ? 'FIB' : (isKu ? 'کاش' : 'Cash');
@@ -1405,7 +1212,11 @@ export default function InvoicesHubScreen() {
                       activeOpacity={0.85}
                       onPress={() => handleOpenSaleDetails(item)}
                       style={[
-                        isGrid ? styles.gridCard : styles.listCard,
+                        numColumns > 1 ? styles.invoiceCard : styles.listCard,
+                        numColumns > 1 && {
+                          flex: 1,
+                          maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                        },
                         {
                           backgroundColor: isDark ? colors.gray100 : colors.white,
                           borderColor: colors.gray200,
@@ -1440,7 +1251,7 @@ export default function InvoicesHubScreen() {
                           numberOfLines={1}
                           style={[
                             styles.partyName,
-                            { color: colors.black, textAlign },
+                            { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
                             isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
@@ -1449,7 +1260,7 @@ export default function InvoicesHubScreen() {
                         {!!item.customerPhone && (
                           <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                             <Ionicons name="call-outline" size={12} color={colors.gray400} />
-                            <Text style={[styles.partyPhone, { color: colors.gray500 }]}>{item.customerPhone}</Text>
+                            <Text style={[styles.partyPhone, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11.5 }]}>{item.customerPhone}</Text>
                           </View>
                         )}
                       </View>
@@ -1486,6 +1297,7 @@ export default function InvoicesHubScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setPurchaseModalVisible(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
@@ -1840,6 +1652,7 @@ export default function InvoicesHubScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setSaleModalVisible(false)}
+        supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
@@ -2146,6 +1959,17 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
+    marginBottom: 10,
+  },
+  columnWrapper: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  invoiceCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    justifyContent: 'space-between',
   },
   gridCard: {
     flex: 1,

@@ -1,12 +1,18 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useSettingsStore } from '@/store/settingsStore';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { hexToRgba } from '@/lib/colorUtils';
 import * as Haptics from 'expo-haptics';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export type CheckoutMode = 'normal' | 'print' | 'empty1' | 'empty2';
 
@@ -22,6 +28,14 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
   const isSale = type === 'sale';
+  const isExpanded = useSettingsStore((s) => (isSale ? s.checkoutGridExpandedSale : s.checkoutGridExpandedPurchase));
+  const setExpanded = useSettingsStore((s) => (isSale ? s.setCheckoutGridExpandedSale : s.setCheckoutGridExpandedPurchase));
+
+  const toggleExpand = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!isExpanded);
+  };
 
   const handlePress = (targetMode: CheckoutMode) => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
@@ -35,6 +49,7 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
       return;
     }
     onSelectMode(targetMode);
+    // Persists open: do NOT auto-collapse. It only closes when the user taps the toggle button again.
   };
 
   const options: Array<{
@@ -74,132 +89,238 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
     },
   ];
 
+  const currentActiveOption = options.find((o) => o.id === mode) || options[0];
+
   return (
     <View style={styles.container}>
-      {/* Title */}
-      <View style={[styles.headerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <Ionicons name="options-outline" size={16} color={colors.primary} />
-        <Text
-          style={[
-            styles.sectionTitle,
-            { color: colors.black, textAlign },
-            isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-          ]}
-        >
-          {isKurdish
-            ? (isSale ? 'شێوازی تەواوکردنی فرۆشتن' : 'شێوازی تەواوکردنی کڕین')
-            : (isSale ? 'Sale Completion Mode' : 'Purchase Completion Mode')}
-        </Text>
-      </View>
+      {/* Interactive Collapsible Header Button */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={toggleExpand}
+        style={[
+          styles.headerButton,
+          {
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            backgroundColor: isDark ? '#1E293B' : colors.white,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          },
+        ]}
+      >
+        <View style={[styles.headerLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View
+            style={[
+              styles.headerIconBox,
+              { backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.12) },
+            ]}
+          >
+            <Ionicons name="options-outline" size={17} color={colors.primary} />
+          </View>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: colors.black, textAlign },
+              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+            ]}
+          >
+            {isKurdish
+              ? (isSale ? 'شێوازی تەواوکردنی فرۆشتن' : 'شێوازی تەواوکردنی کڕین')
+              : (isSale ? 'Sale Completion Mode' : 'Purchase Completion Mode')}
+          </Text>
+        </View>
 
-      {/* 4 Buttons Grid (2x2) */}
-      <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {options.map((opt) => {
-          const isSelected = mode === opt.id;
-          const isSlotEmpty = Boolean(opt.isEmpty);
-
-          return (
-            <TouchableOpacity
-              key={opt.id}
-              activeOpacity={0.75}
-              onPress={() => handlePress(opt.id)}
+        <View style={[styles.headerRight, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {/* Current Active Mode Badge */}
+          <View
+            style={[
+              styles.activeModePill,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons
+              name={currentActiveOption.icon}
+              size={13}
+              color={isDark ? '#FBBF24' : '#B45309'}
+            />
+            <Text
               style={[
-                styles.card,
-                {
-                  backgroundColor: isSelected
-                    ? colors.primary + (isDark ? '22' : '14')
-                    : (isDark ? colors.gray100 : colors.white),
-                  borderColor: isSelected
-                    ? colors.primary
-                    : (isSlotEmpty ? colors.gray200 + '80' : colors.gray200),
-                  borderStyle: isSlotEmpty ? 'dashed' : 'solid',
-                  opacity: isSlotEmpty ? 0.65 : 1,
-                },
+                styles.activeModePillText,
+                { color: isDark ? '#FBBF24' : '#B45309' },
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {/* Selected Badge */}
-              {isSelected && (
-                <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                </View>
-              )}
+              {currentActiveOption.title}
+            </Text>
+          </View>
 
-              <View style={[styles.iconRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.primary + '25'
-                        : (isDark ? colors.gray200 : colors.gray100),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={opt.icon}
-                    size={18}
-                    color={isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.gray600)}
-                  />
-                </View>
+          {/* Expand/Collapse Chevron Indicator */}
+          <View
+            style={[
+              styles.chevronCircle,
+              { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray100 },
+            ]}
+          >
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.primary}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
 
-                <View style={styles.textCol}>
-                  <Text
+      {/* 4 Option Buttons Grid (Shown only when expanded) */}
+      {isExpanded && (
+        <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {options.map((opt) => {
+            const isSelected = mode === opt.id;
+            const isSlotEmpty = Boolean(opt.isEmpty);
+
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                activeOpacity={0.75}
+                onPress={() => handlePress(opt.id)}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: isSelected
+                      ? colors.primary + (isDark ? '22' : '14')
+                      : (isDark ? colors.gray100 : colors.white),
+                    borderColor: isSelected
+                      ? colors.primary
+                      : (isSlotEmpty ? (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200 + '80') : (isDark ? 'rgba(255,255,255,0.12)' : colors.gray200)),
+                    borderStyle: isSlotEmpty ? 'dashed' : 'solid',
+                    opacity: isSlotEmpty ? 0.65 : 1,
+                  },
+                ]}
+              >
+                {/* Selected Badge */}
+                {isSelected && (
+                  <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                  </View>
+                )}
+
+                <View style={[styles.iconRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View
                     style={[
-                      styles.cardTitle,
+                      styles.iconCircle,
                       {
-                        color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
-                        textAlign,
+                        backgroundColor: isSelected
+                          ? colors.primary + '25'
+                          : (isDark ? colors.gray200 : colors.gray100),
                       },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
-                    numberOfLines={1}
                   >
-                    {opt.title}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.cardSubtitle,
-                      { color: isSelected ? colors.primary + 'CC' : colors.gray400, textAlign },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {opt.subtitle}
-                  </Text>
+                    <Ionicons
+                      name={opt.icon}
+                      size={18}
+                      color={isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.gray600)}
+                    />
+                  </View>
+
+                  <View style={styles.textCol}>
+                    <Text
+                      style={[
+                        styles.cardTitle,
+                        {
+                          color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
+                          textAlign,
+                        },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {opt.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.cardSubtitle,
+                        { color: isSelected ? colors.primary + 'CC' : colors.gray400, textAlign },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {opt.subtitle}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 12,
+    marginVertical: 10,
   },
-  headerRow: {
+  headerButton: {
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-    paddingHorizontal: 2,
+    justifyContent: 'space-between',
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  headerLeft: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  headerIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
+  },
+  headerRight: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  activeModePill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeModePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chevronCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   grid: {
     flexWrap: 'wrap',
     gap: 8,
     justifyContent: 'space-between',
+    marginTop: 8,
   },
   card: {
     width: '48.5%',
-    borderRadius: 14,
+    borderRadius: 13,
     borderWidth: 1.5,
     padding: 10,
-    minHeight: 64,
+    minHeight: 62,
     justifyContent: 'center',
     position: 'relative',
   },
@@ -234,7 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cardSubtitle: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '500',
   },
 });

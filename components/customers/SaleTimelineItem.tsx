@@ -16,35 +16,46 @@ interface Props {
   sale: Sale;
   isLast: boolean;
   onPress: () => void;
-  onShare: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-const METHOD_LABEL: Record<string, string> = {
-  cash: 'Cash',
-  fib:  'FIB',
-  debt: 'Debt',
-};
-
-export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDelete }: Props) {
+export function SaleTimelineItem({ sale, isLast, onPress, onEdit, onDelete }: Props) {
   const { colors, isDark } = useAppTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const debtTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { isRTL, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const hasDebt = sale.remainingDebt > 0;
+  const hasDebt = (sale.remainingDebt ?? 0) > 0;
 
-  const methodLabel = isKuLanguage
-    ? (sale.paymentMethod === 'cash' ? 'کاش' : sale.paymentMethod === 'debt' ? 'قەرز' : 'FIB')
-    : (METHOD_LABEL[sale.paymentMethod] ?? sale.paymentMethod);
+  const methodBadgeStyle = useMemo(() => {
+    switch (sale.paymentMethod) {
+      case 'debt':
+        return {
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+          border: isDark ? '#D97706' : '#FDE68A',
+          text: isDark ? '#FBBF24' : '#D97706',
+          label: isKuLanguage ? 'قەرز' : 'Debt',
+        };
+      case 'fib':
+        return {
+          bg: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+          border: isDark ? '#2563EB' : '#BFDBFE',
+          text: isDark ? '#60A5FA' : '#1D4ED8',
+          label: 'FIB',
+        };
+      case 'cash':
+      default:
+        return {
+          bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+          border: isDark ? '#059669' : '#A7F3D0',
+          text: isDark ? '#34D399' : '#059669',
+          label: isKuLanguage ? 'کاش' : 'Cash',
+        };
+    }
+  }, [sale.paymentMethod, isDark, isKuLanguage]);
 
-  const methodColor: Record<string, string> = {
-    cash: colors.success,
-    fib:  colors.primary,
-    debt: colors.warning,
-  };
   return (
     <View style={[styles.row, { flexDirection }]}>
       {/* Timeline spine */}
@@ -53,76 +64,144 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
         {!isLast && <View style={styles.line} />}
       </View>
 
-      {/* Card */}
-      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.82}>
-        {/* Header */}
-        <View style={[styles.cardTop, { flexDirection }]}>
-          <View>
-            <IdText style={styles.invoice}>{sale.invoiceNumber}</IdText>
-            <DateText value={sale.date ?? sale.createdAt} size="small" style={styles.date} />
+      {/* Main Invoice Card */}
+      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
+        {/* Header: Invoice #, Date, and Badges */}
+        <View style={[styles.cardHeader, { flexDirection }]}>
+          <View style={styles.headerInfo}>
+            <View style={[styles.invoiceRow, { flexDirection }]}>
+              <Ionicons name="receipt-outline" size={15} color={colors.primary} />
+              <IdText style={styles.invoiceNumber}>#{sale.invoiceNumber}</IdText>
+            </View>
+            <View style={[styles.dateRow, { flexDirection }]}>
+              <Ionicons name="calendar-outline" size={12} color={colors.gray400} />
+              <DateText value={sale.date ?? sale.createdAt} size="small" style={styles.dateText} />
+            </View>
           </View>
-          <View style={[styles.badges, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
-            <View style={[styles.methodBadge, { backgroundColor: `${methodColor[sale.paymentMethod]}20` }]}>
-              <Text style={[styles.methodText, { color: methodColor[sale.paymentMethod] }]}>
-                {methodLabel}
+
+          <View style={[styles.badgesContainer, { flexDirection }]}>
+            <View style={[styles.methodBadge, { backgroundColor: methodBadgeStyle.bg, borderColor: methodBadgeStyle.border }]}>
+              <Text style={[styles.methodText, { color: methodBadgeStyle.text }]}>
+                {methodBadgeStyle.label}
               </Text>
             </View>
             {hasDebt && (
-              <View style={[styles.debtBadge, { backgroundColor: debtTint.bg }]}>
-                <AmountText value={sale.remainingDebt} currency="IQD left" variant="small" style={[styles.debtText, { color: debtTint.text }]} />
+              <View style={[styles.debtBadge, { backgroundColor: debtTint.bg, borderColor: isDark ? colors.warning : '#FDE68A' }]}>
+                <AmountText
+                  value={sale.remainingDebt}
+                  currency={isKuLanguage ? 'قەرز' : 'Debt'}
+                  variant="small"
+                  style={[styles.debtBadgeText, { color: debtTint.text }]}
+                />
               </View>
             )}
           </View>
         </View>
 
-        {/* Items summary */}
+        {/* Product Items Summary */}
         {sale.items && sale.items.length > 0 && (
-          <View style={[styles.itemsRow, { flexDirection }]}>
-            <Ionicons name="cube-outline" size={12} color={colors.gray400} />
-            <Text style={styles.itemsSummary} numberOfLines={1}>
-              {sale.items.map((i) => i.productName).join(', ')}
-            </Text>
+          <View style={[styles.itemsBox, { flexDirection }]}>
+            <View style={styles.itemsIconWrap}>
+              <Ionicons name="cube-outline" size={13} color={colors.primary} />
+            </View>
+            <View style={styles.itemsTextContainer}>
+              <Text style={[styles.itemsSummary, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={2}>
+                {sale.items
+                  .map((i) => (i.quantity > 1 ? `${i.productName} (${i.quantity}x)` : i.productName))
+                  .join(' ، ')}
+              </Text>
+            </View>
           </View>
         )}
 
-        {/* Totals */}
-        <View style={[styles.totalsRow, { flexDirection }]}>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Grand Total</Text>
-            <AmountText value={sale.grandTotal} currency="IQD" style={styles.totalValue} />
+        {/* Financial Metrics Row */}
+        <View style={[styles.totalsBox, { flexDirection }]}>
+          {/* Grand Total */}
+          <View style={styles.totalCol}>
+            <Text style={[styles.totalLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {isKuLanguage ? 'کۆی گشتی' : 'Grand Total'}
+            </Text>
+            <AmountText
+              value={sale.grandTotal}
+              style={[styles.totalValue, { textAlign: isRTL ? 'right' : 'left' }]}
+            />
           </View>
+
+          {/* Paid Amount */}
+          <View style={styles.totalCol}>
+            <Text style={[styles.totalLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {isKuLanguage ? 'بڕی دراو' : 'Paid'}
+            </Text>
+            <AmountText
+              value={sale.paidAmount}
+              style={[styles.paidValue, { textAlign: isRTL ? 'right' : 'left' }]}
+            />
+          </View>
+
+          {/* Discount (if > 0) */}
           {sale.discountTotal > 0 && (
-            <View style={styles.totalItem}>
-              <Text style={styles.totalLabel}>Discount</Text>
-              <AmountText value={sale.discountTotal} currency="IQD" prefix="-" style={[styles.totalValue, styles.discountValue]} />
+            <View style={styles.totalCol}>
+              <Text style={[styles.totalLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                {isKuLanguage ? 'داشکاندن' : 'Discount'}
+              </Text>
+              <AmountText
+                value={sale.discountTotal}
+                prefix="-"
+                style={[styles.discountValue, { textAlign: isRTL ? 'right' : 'left' }]}
+              />
             </View>
           )}
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Paid</Text>
-            <AmountText value={sale.paidAmount} currency="IQD" style={[styles.totalValue, styles.paidValue]} />
-          </View>
+
+          {/* Remaining Debt (if > 0) */}
+          {hasDebt && (
+            <View style={styles.totalCol}>
+              <Text style={[styles.totalLabel, { color: colors.warning, textAlign: isRTL ? 'right' : 'left' }]}>
+                {isKuLanguage ? 'قەرزی ماوە' : 'Remaining'}
+              </Text>
+              <AmountText
+                value={sale.remainingDebt}
+                style={[styles.debtTotalValue, { textAlign: isRTL ? 'right' : 'left' }]}
+              />
+            </View>
+          )}
         </View>
 
-        {/* Actions */}
-        <View style={[styles.actions, { flexDirection }]}>
-          <TouchableOpacity style={[styles.actionBtn, { flexDirection }]} onPress={onShare} hitSlop={8}>
-            <Ionicons name="share-outline" size={14} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Share</Text>
-          </TouchableOpacity>
-          {onEdit && (
-            <TouchableOpacity style={[styles.actionBtn, { flexDirection }]} onPress={onEdit} hitSlop={8}>
-              <Ionicons name="create-outline" size={14} color={colors.primary} />
-              <Text style={[styles.actionText, { color: colors.primary }]}>Edit</Text>
-            </TouchableOpacity>
-          )}
-          {onDelete && (
-            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDelete]} onPress={onDelete} hitSlop={8}>
-              <Ionicons name="trash-outline" size={14} color={colors.error} />
-              <Text style={styles.actionTextDelete}>Delete</Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.actionRight}>
-            <Ionicons name={chevronForward as never} size={16} color={colors.gray300} />
+        {/* Actions Row: Edit & Delete (No Share button) + Details chevron */}
+        <View style={[styles.actionsRow, { flexDirection }]}>
+          <View style={[styles.actionButtons, { flexDirection }]}>
+            {onEdit && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { flexDirection }]}
+                onPress={onEdit}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="create-outline" size={14} color={colors.primary} />
+                <Text style={[styles.actionText, { color: colors.primary }]}>
+                  {isKuLanguage ? 'دەستکاریکردن' : 'Edit'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {onDelete && (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.deleteBtn, { flexDirection }]}
+                onPress={onDelete}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.error} />
+                <Text style={[styles.actionText, { color: colors.error }]}>
+                  {isKuLanguage ? 'سڕینەوە' : 'Delete'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={[styles.detailsLink, { flexDirection }]}>
+            <Text style={styles.detailsText}>
+              {isKuLanguage ? 'وردەکاری' : 'Details'}
+            </Text>
+            <Ionicons name={chevronForward as never} size={15} color={colors.gray400} />
           </View>
         </View>
       </TouchableOpacity>
@@ -130,97 +209,202 @@ export function SaleTimelineItem({ sale, isLast, onPress, onShare, onEdit, onDel
   );
 }
 
-function getStyles(colors: AppColors) {
+function getStyles(colors: AppColors, isDark: boolean) {
   return StyleSheet.create({
     row: {
       flexDirection: 'row',
-      gap: 12,
+      gap: 10,
+      marginBottom: 12,
     },
     spine: {
       alignItems: 'center',
       width: 16,
-      paddingTop: 4,
+      paddingTop: 8,
     },
     dot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: colors.white,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      borderWidth: 1.5,
+      borderColor: isDark ? colors.gray100 : colors.white,
     },
     dotPaid: { backgroundColor: colors.success },
     dotDebt: { backgroundColor: colors.warning },
     line: {
       width: 2,
       flex: 1,
-      backgroundColor: colors.gray200,
+      backgroundColor: isDark ? colors.gray300 : colors.gray200,
       marginTop: 4,
     },
 
     card: {
       flex: 1,
-      backgroundColor: colors.white,
+      backgroundColor: isDark ? colors.gray50 : colors.gray50,
       borderRadius: Theme.radius.md,
-      padding: 14,
-      marginBottom: 12,
+      padding: 13,
+      borderWidth: 1,
+      borderColor: colors.gray200,
       ...Theme.shadow.soft,
     },
 
-    cardTop: {
+    cardHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 8,
+      marginBottom: 10,
     },
-    invoice: { fontSize: 13, fontWeight: '700', color: colors.black },
-    date:    { fontSize: 11, color: colors.gray400, marginTop: 2 },
+    headerInfo: {
+      gap: 3,
+    },
+    invoiceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    invoiceNumber: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.black,
+    },
+    dateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    dateText: {
+      fontSize: 11,
+      color: colors.gray400,
+    },
 
-    badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' },
+    badgesContainer: {
+      flexDirection: 'row',
+      gap: 6,
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
     methodBadge: {
       borderRadius: 6,
       paddingHorizontal: 8,
       paddingVertical: 3,
+      borderWidth: 1,
     },
-    methodText: { fontSize: 11, fontWeight: '700' },
+    methodText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
     debtBadge: {
       borderRadius: 6,
       paddingHorizontal: 8,
       paddingVertical: 3,
+      borderWidth: 1,
     },
-    debtText: { fontSize: 11, fontWeight: '600' },
+    debtBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
 
-    itemsRow: {
+    itemsBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : colors.white,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      marginBottom: 10,
+    },
+    itemsIconWrap: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : 'rgba(212, 175, 55, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    itemsTextContainer: {
+      flex: 1,
+      marginHorizontal: 8,
+    },
+    itemsSummary: {
+      fontSize: 12,
+      color: colors.gray600,
+      lineHeight: 16,
+    },
+
+    totalsBox: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : colors.white,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      marginBottom: 10,
+      gap: 8,
+    },
+    totalCol: {
+      flex: 1,
+      gap: 2,
+    },
+    totalLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.gray400,
+    },
+    totalValue: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.black,
+    },
+    paidValue: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.success,
+    },
+    discountValue: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.error,
+    },
+    debtTotalValue: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.warning,
+    },
+
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? colors.gray200 : colors.gray200,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    actionBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      marginBottom: 8,
     },
-    itemsSummary: { flex: 1, fontSize: 12, color: colors.gray500 },
-
-    totalsRow: {
-      flexDirection: 'row',
-      gap: 12,
-      marginBottom: 10,
-      flexWrap: 'wrap',
+    deleteBtn: {},
+    actionText: {
+      fontSize: 12,
+      fontWeight: '600',
     },
-    totalItem: {},
-    totalLabel: { fontSize: 10, color: colors.gray400, fontWeight: '600' },
-    totalValue: { fontSize: 13, fontWeight: '700', color: colors.black },
-    discountValue: { color: colors.error },
-    paidValue: { color: colors.success },
-
-    actions: {
+    detailsLink: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 16,
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor: colors.gray100,
+      gap: 2,
     },
-    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    actionText: { fontSize: 12, fontWeight: '600' },
-    actionRight:       { marginStart: 'auto' },
-    actionBtnDelete:   { marginStart: 4 },
-    actionTextDelete:  { fontSize: 12, fontWeight: '600', color: colors.error },
+    detailsText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.gray400,
+    },
   });
 }

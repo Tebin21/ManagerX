@@ -24,7 +24,7 @@ export function DateText({ value, size = 'default', style, ...props }: Props) {
     : phonePreset;
   return (
     <Text style={[preset, styles.ltrTabular, style]} {...props}>
-      {formatDateShort(value)}
+      {`\u200E${formatDateShort(value)}\u200E`}
     </Text>
   );
 }

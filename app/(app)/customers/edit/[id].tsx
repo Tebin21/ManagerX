@@ -51,8 +51,10 @@ export default function EditCustomerScreen() {
     setSaving(true);
     try {
       await editCustomer(Number(id), {
-        name: name.trim(), phone: phone.trim() || undefined,
-        address: address.trim() || undefined, notes: notes.trim() || undefined,
+        name: name.trim(),
+        phone: phone.trim() ? phone.trim() : null,
+        address: address.trim() ? address.trim() : null,
+        notes: notes.trim() ? notes.trim() : null,
       });
       router.back();
     } catch (err) {

@@ -32,7 +32,7 @@ import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useSavedProductStore } from '@/store/savedProductStore';
 import { DatePickerModal } from '@/components/shared/DatePickerModal';
 
@@ -452,38 +452,67 @@ export default function EditProductScreen() {
 
         {/* Expiry & Production Dates */}
         {(expiryTrackingEnabled || (product && (product.expiryDate || product.productionDate))) && (
-          <View style={[styles.card, { backgroundColor: colors.white }]}>
-            <View style={[styles.sectionHeaderRow, { flexDirection }]}>
-              <Ionicons name="time-outline" size={18} color="#F59E0B" />
-              <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 0 }]}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? '#1E293B' : colors.white,
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                padding: 13,
+                borderRadius: 16,
+              },
+            ]}
+          >
+            <View style={[styles.sectionHeaderRow, { flexDirection, marginBottom: 8, gap: 8 }]}>
+              <Ionicons name="time-outline" size={17} color="#F59E0B" />
+              <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 0, fontSize: 13 }]}>
                 {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
               </Text>
             </View>
 
             {/* Production Date */}
-            <View style={[styles.fieldWrap, { marginTop: 10 }]}>
-              <Text style={[styles.label, { color: colors.gray500, textAlign }]}>
+            <View style={[styles.fieldWrap, { marginTop: 6, marginBottom: 8 }]}>
+              <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
                 {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
               </Text>
-              <View style={[styles.dateActionRow, { flexDirection }]}>
+              <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
                 <TouchableOpacity
                   onPress={() => setShowProdPicker(true)}
-                  style={[styles.dateBtn, { borderColor: colors.gray200, flexDirection }]}
+                  style={[
+                    styles.dateBtn,
+                    {
+                      height: 38,
+                      borderRadius: 9,
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
+                      flexDirection,
+                      paddingHorizontal: 10,
+                    },
+                  ]}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="construct-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.dateBtnText, { color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
+                  <Text style={[styles.dateBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
                     {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                   </Text>
-                  <Ionicons name="calendar-outline" size={15} color={colors.gray400} />
+                  <Ionicons name="calendar-outline" size={14} color={colors.gray400} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => setProductionDate(new Date())}
-                  style={[styles.quickBtn, { backgroundColor: colors.gray100 }]}
+                  style={[
+                    styles.quickBtn,
+                    {
+                      height: 38,
+                      borderRadius: 9,
+                      paddingHorizontal: 10,
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
+                    },
+                  ]}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.quickBtnText, { color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <Text style={[styles.quickBtnText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
                   </Text>
                 </TouchableOpacity>
@@ -491,7 +520,16 @@ export default function EditProductScreen() {
                 {productionDate && (
                   <TouchableOpacity
                     onPress={() => setProductionDate(null)}
-                    style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                    style={[
+                      styles.quickBtn,
+                      {
+                        height: 38,
+                        width: 38,
+                        borderRadius: 9,
+                        paddingHorizontal: 0,
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                      },
+                    ]}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="close" size={14} color="#EF4444" />
@@ -501,14 +539,24 @@ export default function EditProductScreen() {
             </View>
 
             {/* Expiry Date */}
-            <View style={[styles.fieldWrap, { marginTop: 12 }]}>
-              <Text style={[styles.label, { color: colors.gray500, textAlign }]}>
+            <View style={[styles.fieldWrap, { marginTop: 4, marginBottom: 4 }]}>
+              <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
                 {isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
               </Text>
-              <View style={[styles.dateActionRow, { flexDirection }]}>
+              <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
                 <TouchableOpacity
                   onPress={() => setShowExpPicker(true)}
-                  style={[styles.dateBtn, { borderColor: expiryDate ? '#F59E0B' : colors.gray200, flexDirection }]}
+                  style={[
+                    styles.dateBtn,
+                    {
+                      height: 38,
+                      borderRadius: 9,
+                      borderColor: expiryDate ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
+                      flexDirection,
+                      paddingHorizontal: 10,
+                    },
+                  ]}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
@@ -516,6 +564,7 @@ export default function EditProductScreen() {
                     style={[
                       styles.dateBtnText,
                       {
+                        fontSize: 13,
                         color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400,
                         fontWeight: expiryDate ? '700' : 'normal',
                         flex: 1,
@@ -525,13 +574,22 @@ export default function EditProductScreen() {
                   >
                     {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
                   </Text>
-                  <Ionicons name="create-outline" size={15} color={colors.gray400} />
+                  <Ionicons name="create-outline" size={14} color={colors.gray400} />
                 </TouchableOpacity>
 
                 {expiryDate && (
                   <TouchableOpacity
                     onPress={() => setExpiryDate(null)}
-                    style={[styles.quickBtn, { backgroundColor: '#FEE2E2' }]}
+                    style={[
+                      styles.quickBtn,
+                      {
+                        height: 38,
+                        width: 38,
+                        borderRadius: 9,
+                        paddingHorizontal: 0,
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                      },
+                    ]}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="close" size={14} color="#EF4444" />
@@ -540,7 +598,7 @@ export default function EditProductScreen() {
               </View>
 
               {/* Quick shortcut chips */}
-              <View style={[styles.quickExpiryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.quickExpiryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: 5, marginTop: 6 }]}>
                 {[
                   { label: isKuLanguage ? '+١ مانگ' : '+1M', m: 1 },
                   { label: isKuLanguage ? '+٣ مانگ' : '+3M', m: 3 },
@@ -558,12 +616,26 @@ export default function EditProductScreen() {
                     style={[
                       styles.expiryChip,
                       {
-                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
-                        borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+                        flex: 1,
+                        paddingHorizontal: 2,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
+                        borderColor: isDark ? 'rgba(245, 158, 11, 0.28)' : '#FDE68A',
                       },
                     ]}
                   >
-                    <Text style={[styles.expiryChipText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                    <Text
+                      style={[
+                        styles.expiryChipText,
+                        { fontSize: 11, color: isDark ? '#FBBF24' : '#B45309', textAlign: 'center' },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
                       {c.label}
                     </Text>
                   </TouchableOpacity>
@@ -654,7 +726,35 @@ export default function EditProductScreen() {
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('websiteDescription') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('inventory.websiteDescription')}</Text>
+            <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={[styles.label, { color: colors.gray500, textAlign, marginBottom: 0 }]}>{t('inventory.websiteDescription')}</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection,
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
+                  borderColor: isDark ? '#D97706' : '#FDE68A',
+                }}
+                onPress={() => {
+                  if (description?.trim()) {
+                    setWebsiteDescription(description.trim().slice(0, 30));
+                  } else if (notes?.trim()) {
+                    setWebsiteDescription(notes.trim().slice(0, 30));
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="copy-outline" size={12} color={isDark ? '#FBBF24' : '#B45309'} />
+                <Text style={[{ fontSize: 11, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }, isKuLanguage && applyKurdishFont(true, {})]}>
+                  {t('inventory.sameAsItemDescription')}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[
                 styles.input,

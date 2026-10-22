@@ -2043,44 +2043,63 @@ export async function searchCustomersList(query: string): Promise<Customer[]> {
 
 export async function updateCustomer(
   id: number,
-  data: Partial<{ name: string; phone: string; address: string; notes: string }>
+  data: Partial<{ name: string; phone: string | null; address: string | null; notes: string | null }>
 ): Promise<void> {
   const database = await getDatabase();
 
-  const cust = await database.getFirstAsync<{ name: string }>(
-    'SELECT name FROM customers WHERE id = ?',
+  const cust = await database.getFirstAsync<{ name: string; phone: string | null }>(
+    'SELECT name, phone FROM customers WHERE id = ?',
     [id]
   );
-  if (cust && isDirectCustomerName(cust.name) && data.name !== undefined && !isDirectCustomerName(data.name)) {
+  if (cust && isDirectCustomerName(cust.name) && data.name !== undefined && data.name !== null && !isDirectCustomerName(data.name)) {
     throw new Error('CANNOT_RENAME_DIRECT_CUSTOMER');
   }
 
-  if (data.name !== undefined) {
+  let finalName: string | undefined = undefined;
+  if (data.name !== undefined && data.name !== null) {
     const trimName = data.name.trim();
-    const byName = await database.getFirstAsync<{ id: number }>(
-      'SELECT id FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?',
-      [trimName, id]
-    );
-    if (byName) throw new Error('DUPLICATE_NAME');
-    data = { ...data, name: trimName };
+    if (trimName) {
+      const byName = await database.getFirstAsync<{ id: number }>(
+        'SELECT id FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?',
+        [trimName, id]
+      );
+      if (byName) throw new Error('DUPLICATE_NAME');
+      finalName = trimName;
+    }
   }
-  if (data.phone !== undefined && data.phone.trim()) {
-    const trimPhone = toEnglishDigits(data.phone.trim());
-    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
-      'SELECT id, name FROM customers WHERE phone = ? AND id != ?',
-      [trimPhone, id]
-    );
-    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
-    data = { ...data, phone: trimPhone };
+
+  let finalPhone: string | null | undefined = undefined;
+  if (data.phone !== undefined) {
+    if (data.phone && data.phone.trim()) {
+      const trimPhone = toEnglishDigits(data.phone.trim());
+      const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
+        'SELECT id, name FROM customers WHERE phone = ? AND id != ?',
+        [trimPhone, id]
+      );
+      if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+      finalPhone = trimPhone;
+    } else {
+      finalPhone = null;
+    }
+  }
+
+  let finalAddress: string | null | undefined = undefined;
+  if (data.address !== undefined) {
+    finalAddress = data.address && data.address.trim() ? data.address.trim() : null;
+  }
+
+  let finalNotes: string | null | undefined = undefined;
+  if (data.notes !== undefined) {
+    finalNotes = data.notes && data.notes.trim() ? data.notes.trim() : null;
   }
 
   const fields: string[] = [];
   const values: unknown[] = [];
 
-  if (data.name    !== undefined) { fields.push('name = ?');    values.push(data.name); }
-  if (data.phone   !== undefined) { fields.push('phone = ?');   values.push(data.phone); }
-  if (data.address !== undefined) { fields.push('address = ?'); values.push(data.address); }
-  if (data.notes   !== undefined) { fields.push('notes = ?');   values.push(data.notes); }
+  if (finalName !== undefined)    { fields.push('name = ?');    values.push(finalName); }
+  if (finalPhone !== undefined)   { fields.push('phone = ?');   values.push(finalPhone); }
+  if (finalAddress !== undefined) { fields.push('address = ?'); values.push(finalAddress); }
+  if (finalNotes !== undefined)   { fields.push('notes = ?');   values.push(finalNotes); }
   if (fields.length === 0) return;
 
   fields.push('updated_at = CURRENT_TIMESTAMP');
@@ -2089,6 +2108,47 @@ export async function updateCustomer(
     `UPDATE customers SET ${fields.join(', ')} WHERE id = ?`,
     values as SQLite.SQLiteBindValue[]
   );
+
+  const oldName = cust?.name;
+  if (finalName !== undefined) {
+    if (oldName) {
+      await database.runAsync(
+        'UPDATE sales SET customer_name = ? WHERE customer_id = ? OR (customer_id IS NULL AND customer_name = ?)',
+        [finalName, id, oldName]
+      );
+      await database.runAsync(
+        `UPDATE debts SET customer_name = ? WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = ? OR customer_name = ?) OR customer_name = ?`,
+        [finalName, id, finalName, oldName]
+      );
+    } else {
+      await database.runAsync(
+        'UPDATE sales SET customer_name = ? WHERE customer_id = ?',
+        [finalName, id]
+      );
+      await database.runAsync(
+        `UPDATE debts SET customer_name = ? WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = ?)`,
+        [finalName, id]
+      );
+    }
+  }
+
+  if (finalPhone !== undefined) {
+    await database.runAsync(
+      'UPDATE sales SET customer_phone = ? WHERE customer_id = ?',
+      [finalPhone, id]
+    );
+    await database.runAsync(
+      `UPDATE debts SET customer_phone = ? WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = ?)`,
+      [finalPhone, id]
+    );
+  }
+
+  if (finalAddress !== undefined) {
+    await database.runAsync(
+      'UPDATE sales SET customer_address = ? WHERE customer_id = ?',
+      [finalAddress, id]
+    );
+  }
 }
 
 export async function deleteCustomer(id: number): Promise<void> {
