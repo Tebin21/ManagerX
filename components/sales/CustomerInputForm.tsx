@@ -17,6 +17,7 @@ import { searchCustomersList, DIRECT_CUSTOMER_NAME, isDirectCustomerName } from 
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { useLanguageStore } from '@/store/languageStore';
 import * as Haptics from 'expo-haptics';
+import { sanitizeNumericInput } from '@/utils/formatters';
 import type { CustomerInput } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 
@@ -62,9 +63,10 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
   }, []);
 
   const handleSelectCustomer = useCallback((customer: Customer) => {
+    const cleanPhone = customer.phone ? sanitizeNumericInput(customer.phone, 'phone-pad') : '';
     onChange({
       name: customer.name,
-      phone: customer.phone ?? '',
+      phone: cleanPhone,
       address: customer.address ?? '',
       selectedCustomerId: customer.id,
     });
@@ -78,9 +80,10 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
   }, [onChange, fetchSuggestions]);
 
   const handlePhoneChange = useCallback((text: string) => {
-    onChange({ phone: text, selectedCustomerId: undefined });
-    if (text.trim().length >= 4) {
-      fetchSuggestions(text);
+    const cleanPhone = sanitizeNumericInput(text, 'phone-pad');
+    onChange({ phone: cleanPhone, selectedCustomerId: undefined });
+    if (cleanPhone.trim().length >= 4) {
+      fetchSuggestions(cleanPhone);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);

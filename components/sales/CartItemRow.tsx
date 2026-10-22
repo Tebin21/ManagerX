@@ -10,7 +10,7 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD, fmtExchangeRate, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtExchangeRate, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
@@ -74,7 +74,7 @@ export function CartItemRow({
   }, [item.discount, item.discountPct, item.discountType, isUSD, exchangeRate, discountFocused]);
 
   function onIqdChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setIqdPriceText(clean);
     const n = parseFloat(clean) || 0;
     setUsdPrice(n > 0 ? String(roundUSD(n / exchangeRate)) : '');
@@ -83,7 +83,7 @@ export function CartItemRow({
 
   function onIqdBlur() {
     setIqdFocused(false);
-    const clean = toEnglishDigits(iqdPriceText);
+    const clean = sanitizeNumericInput(iqdPriceText, 'decimal-pad');
     const r = roundToNearest250(parseFloat(clean) || 0);
     setIqdPriceText(String(r));
     setUsdPrice(r > 0 ? String(roundUSD(r / exchangeRate)) : '');
@@ -91,7 +91,7 @@ export function CartItemRow({
   }
 
   function onUsdChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setUsdPrice(clean);
     const n = parseFloat(clean) || 0;
     const iqd = n > 0 ? roundToNearest250(n * exchangeRate) : 0;
@@ -100,7 +100,7 @@ export function CartItemRow({
   }
 
   function onDiscountChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setDiscountText(clean);
     const n = parseFloat(clean) || 0;
     if (item.discountType === 'percentage') {

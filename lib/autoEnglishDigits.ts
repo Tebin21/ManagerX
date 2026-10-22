@@ -1,6 +1,6 @@
 import React from 'react';
 import * as ReactNative from 'react-native';
-import { toEnglishDigits } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 
 let isInstalled = false;
 let isAuthScreenActive = false;
@@ -95,7 +95,7 @@ export function transformInputProps(props: any): any {
     if (!(origOnChangeText as any).__autoEnglishWrapped) {
       cloneIfNeeded();
       const wrapped = (text: string) => {
-        const clean = toEnglishDigits(text);
+        const clean = sanitizeNumericInput(text, props.keyboardType, props.inputMode);
         origOnChangeText(clean);
       };
       (wrapped as any).__autoEnglishWrapped = true;
@@ -109,14 +109,17 @@ export function transformInputProps(props: any): any {
     if (!(origOnChange as any).__autoEnglishWrapped) {
       cloneIfNeeded();
       const wrapped = (e: any) => {
-        if (e?.nativeEvent?.text && /[٠-٩۰-۹٫٬،]/.test(e.nativeEvent.text)) {
-          e = {
-            ...e,
-            nativeEvent: {
-              ...e.nativeEvent,
-              text: toEnglishDigits(e.nativeEvent.text),
-            },
-          };
+        if (e?.nativeEvent?.text != null) {
+          const sanitizedText = sanitizeNumericInput(e.nativeEvent.text, props.keyboardType, props.inputMode);
+          if (sanitizedText !== e.nativeEvent.text) {
+            e = {
+              ...e,
+              nativeEvent: {
+                ...e.nativeEvent,
+                text: sanitizedText,
+              },
+            };
+          }
         }
         origOnChange(e);
       };
@@ -125,16 +128,22 @@ export function transformInputProps(props: any): any {
     }
   }
 
-  // 3. Convert controlled value if it contains Eastern/Persian numerals
-  if (typeof props.value === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.value)) {
-    cloneIfNeeded();
-    modifiedProps.value = toEnglishDigits(props.value);
+  // 3. Convert controlled value if it contains Eastern/Persian numerals or needs numeric sanitization
+  if (typeof props.value === 'string') {
+    const sanitizedVal = sanitizeNumericInput(props.value, props.keyboardType, props.inputMode);
+    if (sanitizedVal !== props.value) {
+      cloneIfNeeded();
+      modifiedProps.value = sanitizedVal;
+    }
   }
 
-  // 4. Convert defaultValue if it contains Eastern/Persian numerals
-  if (typeof props.defaultValue === 'string' && /[٠-٩۰-۹٫٬،]/.test(props.defaultValue)) {
-    cloneIfNeeded();
-    modifiedProps.defaultValue = toEnglishDigits(props.defaultValue);
+  // 4. Convert defaultValue if it contains Eastern/Persian numerals or needs numeric sanitization
+  if (typeof props.defaultValue === 'string') {
+    const sanitizedDef = sanitizeNumericInput(props.defaultValue, props.keyboardType, props.inputMode);
+    if (sanitizedDef !== props.defaultValue) {
+      cloneIfNeeded();
+      modifiedProps.defaultValue = sanitizedDef;
+    }
   }
 
   // 5. Convert placeholder if it contains Eastern/Persian numerals

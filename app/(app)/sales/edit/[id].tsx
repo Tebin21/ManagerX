@@ -37,7 +37,7 @@ import { Typography } from '@/constants/typography';
 import type { Sale, PaymentMethod, Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
 import { roundToNearest250 } from '@/utils/rounding';
-import { toEnglishDigits } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 
@@ -156,7 +156,7 @@ export default function EditInvoiceScreen() {
   }, [nameError]);
 
   const handleCustomerPhoneChange = useCallback(async (text: string) => {
-    const cleanPhone = toEnglishDigits(text);
+    const cleanPhone = sanitizeNumericInput(text, 'phone-pad');
     setCustomerPhone(cleanPhone);
     if (phoneError && cleanPhone.trim()) setPhoneError('');
     if (cleanPhone.trim().length < 4) { setCustomerSuggestions([]); setShowCustomerSuggestions(false); return; }
@@ -169,7 +169,7 @@ export default function EditInvoiceScreen() {
 
   const handleSelectCustomer = useCallback((c: Customer) => {
     setCustomerName(c.name);
-    setCustomerPhone(c.phone ?? '');
+    setCustomerPhone(c.phone ? sanitizeNumericInput(c.phone, 'phone-pad') : '');
     setCustomerAddress(c.address ?? '');
     setCustomerSuggestions([]);
     setShowCustomerSuggestions(false);
@@ -563,7 +563,7 @@ export default function EditInvoiceScreen() {
                 label={t('sales.paidNow')}
                 placeholder="0"
                 value={toEnglishDigits(paidAmountStr)}
-                onChangeText={(v) => setPaidAmountStr(toEnglishDigits(v))}
+                onChangeText={(v) => setPaidAmountStr(sanitizeNumericInput(v, 'decimal-pad'))}
                 onEndEditing={() => {
                   const r = roundToNearest250(parseFloat(toEnglishDigits(paidAmountStr).replace(/,/g, '')) || 0);
                   setPaidAmountStr(String(r));

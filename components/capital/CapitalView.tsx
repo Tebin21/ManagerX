@@ -23,7 +23,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useCapitalStore, type DrawerFullStats } from '@/store/capitalStore';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { toEnglishDigits } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { formatDateShort } from '@/utils/formatters';
 
@@ -431,7 +431,7 @@ export function CapitalView() {
                 ]}
                 keyboardType="numeric"
                 value={toEnglishDigits(initialAmountInput)}
-                onChangeText={(t) => setInitialAmountInput(toEnglishDigits(t))}
+                onChangeText={(t) => setInitialAmountInput(sanitizeNumericInput(t, 'numeric'))}
                 placeholder={t('capital.amountPlaceholder')}
                 placeholderTextColor={colors.gray400}
               />
@@ -992,7 +992,7 @@ export function CapitalView() {
               ]}
               keyboardType="numeric"
               value={toEnglishDigits(adjAmountInput)}
-              onChangeText={(t) => setAdjAmountInput(toEnglishDigits(t))}
+              onChangeText={(t) => setAdjAmountInput(sanitizeNumericInput(t, 'numeric'))}
               placeholder={t('capital.amountPlaceholder')}
               placeholderTextColor={colors.gray400}
               autoFocus

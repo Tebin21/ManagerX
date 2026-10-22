@@ -15,6 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { searchSuppliersList } from '@/lib/sqlite';
+import { sanitizeNumericInput } from '@/utils/formatters';
 import type { Supplier } from '@/types/suppliers';
 
 interface Props {
@@ -56,8 +57,9 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
   }, []);
 
   const handleSelectSupplier = useCallback((supplier: Supplier) => {
+    const cleanPhone = supplier.phone ? sanitizeNumericInput(supplier.phone, 'phone-pad') : '';
     onNameChange(supplier.name);
-    onPhoneChange(supplier.phone ?? '');
+    onPhoneChange(cleanPhone);
     onAddressChange(supplier.address ?? '');
     onSupplierSelect?.(supplier.id);
     setSuggestions([]);
@@ -71,10 +73,11 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
   }, [onNameChange, onSupplierSelect, fetchSuggestions]);
 
   const handlePhoneChange = useCallback((text: string) => {
-    onPhoneChange(text);
+    const cleanPhone = sanitizeNumericInput(text, 'phone-pad');
+    onPhoneChange(cleanPhone);
     onSupplierSelect?.(0);
-    if (text.trim().length >= 4) {
-      fetchSuggestions(text);
+    if (cleanPhone.trim().length >= 4) {
+      fetchSuggestions(cleanPhone);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);

@@ -46,7 +46,7 @@ import { DatePickerModal } from '@/components/shared/DatePickerModal';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
-import { fmtExchangeRate, toEnglishDigits, toDateOnly } from '@/utils/formatters';
+import { fmtExchangeRate, toEnglishDigits, toDateOnly, sanitizeNumericInput } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { resolveInterFont } from '@/constants/typography';
@@ -264,28 +264,28 @@ export default function NewPurchaseScreen() {
 
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setBuyIQD(clean);
     const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setBuyUSD(n > 0 ? String(round(n / exchangeRate, 2)) : '');
   }
 
   function onBuyUSDChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setBuyUSD(clean);
     const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setBuyIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
   }
 
   function onSellIQDChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setSellIQD(clean);
     const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setSellUSD(n > 0 ? String(round(n / exchangeRate, 2)) : '');
   }
 
   function onSellUSDChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setSellUSD(clean);
     const n = parseFloat(clean.replace(/,/g, '')) || 0;
     setSellIQD(n > 0 ? String(roundToNearest250(n * exchangeRate)) : '');
@@ -293,8 +293,9 @@ export default function NewPurchaseScreen() {
 
   // ─── Qty change → rebuild custom ID slots ─────────────────────────────────
   function onQtyChange(val: string) {
-    setQty(val);
-    const n = Math.min(100, Math.max(1, parseInt(val) || 1));
+    const clean = sanitizeNumericInput(val, 'number-pad');
+    setQty(clean);
+    const n = Math.min(100, Math.max(1, parseInt(clean) || 1));
     if (idType === 'custom') {
       setCustomIds((prev) => {
         const next = Array.from({ length: n }, (_, i) => prev[i] ?? '');
@@ -1822,7 +1823,7 @@ export default function NewPurchaseScreen() {
           <AppTextInput
             label={t('purchases.amountPaid')}
             value={toEnglishDigits(amountPaid)}
-            onChangeText={(v) => setAmountPaid(toEnglishDigits(v))}
+            onChangeText={(v) => setAmountPaid(sanitizeNumericInput(v, 'decimal-pad'))}
             keyboardType="decimal-pad"
             placeholder={t('purchases.amountPaidPlaceholder')}
             returnKeyType="done"

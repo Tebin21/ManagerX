@@ -34,7 +34,7 @@ import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
 import type { PurchaseDebt, DebtPayment } from '@/types/debt';
 import type { Purchase } from '@/types/purchases';
 import { roundToNearest250 } from '@/utils/rounding';
-import { toEnglishDigits } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { useLanguageStore } from '@/store/languageStore';
@@ -400,7 +400,7 @@ export default function PurchaseDebtDetailScreen() {
                   placeholderTextColor={colors.gray400}
                   keyboardType="decimal-pad"
                   value={payValue}
-                  onChangeText={(v) => setPayValue(toEnglishDigits(v))}
+                  onChangeText={(v) => setPayValue(sanitizeNumericInput(v, 'decimal-pad'))}
                   onEndEditing={() => {
                     const r = roundToNearest250(parseFloat(toEnglishDigits(payValue).replace(/,/g, '')) || 0);
                     setPayValue(r > 0 ? String(r) : '');

@@ -17,6 +17,7 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { sanitizeNumericInput } from '@/utils/formatters';
 
 export default function EditCustomerScreen() {
   const router  = useRouter();
@@ -110,7 +111,7 @@ export default function EditCustomerScreen() {
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.phone')}</Text>
           <TextInput
             style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
-            value={phone} onChangeText={setPhone}
+            value={phone} onChangeText={(t) => setPhone(sanitizeNumericInput(t, 'phone-pad'))}
             placeholder={t('sales.customerPhone')} placeholderTextColor={colors.gray300}
             keyboardType="phone-pad"
             onFocus={scrollIntoView}

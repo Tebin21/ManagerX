@@ -26,7 +26,7 @@ import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 // EXPENSE_CATEGORIES no longer used in form — examples replace the picker
 import type { Expense } from '@/types/reports';
-import { toDateOnly, toEnglishDigits } from '@/utils/formatters';
+import { toDateOnly, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { CompactAmount } from '@/components/shared/CompactAmount';
@@ -605,7 +605,7 @@ function ExpenseFormModal({
                   keyboardType="decimal-pad"
                   value={toEnglishDigits(amount)}
                   onChangeText={(v) => {
-                    const clean = toEnglishDigits(v).replace(/,/g, '');
+                    const clean = sanitizeNumericInput(v, 'decimal-pad');
                     setAmount(clean);
                     const n = parseFloat(clean);
                     if (!isNaN(n) && n > 0) {

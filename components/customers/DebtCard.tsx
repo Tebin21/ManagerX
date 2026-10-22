@@ -15,7 +15,7 @@ import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollVi
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import type { Debt } from '@/types/sales';
-import { fmtIQD, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 
 interface Props {
   debt: Debt;
@@ -124,7 +124,7 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           <TextInput
             style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payAmount, keyboardType: 'decimal-pad' }), {})]}
             value={toEnglishDigits(payAmount)}
-            onChangeText={(v) => setPayAmount(toEnglishDigits(v))}
+            onChangeText={(v) => setPayAmount(sanitizeNumericInput(v, 'decimal-pad'))}
             placeholder={t('suppliers.payAmountHint')}
             placeholderTextColor={colors.gray300}
             keyboardType="decimal-pad"

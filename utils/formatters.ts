@@ -17,6 +17,65 @@ export function toEnglishDigits(value: string | number | null | undefined): stri
   return String(value).replace(/[٠-٩۰-۹٫٬]/g, (char) => easternToWestern[char] ?? char);
 }
 
+/**
+ * Sanitizes input text according to keyboardType and inputMode:
+ * - 'phone-pad' / 'tel': Only digits (0-9) and optional leading '+'. Strictly disallows letters, spaces, and punctuation.
+ * - 'number-pad': Pure integers (0-9). Strictly disallows letters, decimals, and punctuation.
+ * - 'decimal-pad' / 'numeric' / 'decimal': Digits (0-9) and at most one decimal point ('.'). Commas are normalized to dots. Strictly disallows letters and words.
+ * - 'numbers-and-punctuation': Digits (0-9) and date/time characters ('-', '/', ':', '.', ' ').
+ * - Other / default: Converts Eastern Arabic/Persian digits to English ASCII without altering text/letters.
+ */
+export function sanitizeNumericInput(
+  text: string | number | null | undefined,
+  keyboardType?: string,
+  inputMode?: string
+): string {
+  if (text == null) return '';
+  const str = String(text);
+  if (!str) return '';
+
+  // 1. Convert any Eastern Arabic / Persian numerals to ASCII 0-9
+  let clean = toEnglishDigits(str);
+
+  const kb = (keyboardType || '').toLowerCase();
+  const mode = (inputMode || '').toLowerCase();
+
+  // 2. Phone numbers (digits 0-9, optional leading '+')
+  if (kb === 'phone-pad' || mode === 'tel') {
+    const hasLeadingPlus = clean.trim().startsWith('+');
+    const digitsOnly = clean.replace(/\D/g, '');
+    return hasLeadingPlus ? `+${digitsOnly}` : digitsOnly;
+  }
+
+  // 3. Integer numbers (number-pad)
+  if (kb === 'number-pad') {
+    return clean.replace(/\D/g, '');
+  }
+
+  // 4. Decimals, amounts, prices, currency, rates (decimal-pad, numeric)
+  if (kb === 'decimal-pad' || kb === 'numeric' || mode === 'decimal' || mode === 'numeric') {
+    // Normalize comma to dot
+    let normalized = clean.replace(/,/g, '.');
+    // Strip everything that isn't a digit or a dot
+    normalized = normalized.replace(/[^\d.]/g, '');
+    // Ensure only the first dot is preserved
+    const firstDotIndex = normalized.indexOf('.');
+    if (firstDotIndex !== -1) {
+      normalized =
+        normalized.slice(0, firstDotIndex + 1) +
+        normalized.slice(firstDotIndex + 1).replace(/\./g, '');
+    }
+    return normalized;
+  }
+
+  // 5. Date & time (numbers-and-punctuation)
+  if (kb === 'numbers-and-punctuation') {
+    return clean.replace(/[^\d\-/:\. ]/g, '');
+  }
+
+  return clean;
+}
+
 export function fmtIQD(n: number): string {
   return toEnglishDigits(n.toLocaleString('en-US', IQD_OPTS));
 }

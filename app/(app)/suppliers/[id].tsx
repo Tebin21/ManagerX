@@ -34,7 +34,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
-import { fmtIQD } from '@/utils/formatters';
+import { fmtIQD, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
 
@@ -117,7 +117,7 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
         <TextInput
           style={[debtStyles.payInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50 }]}
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(t) => setAmount(sanitizeNumericInput(t, 'numeric'))}
           placeholder={t('suppliers.payAmountHint')}
           placeholderTextColor={colors.gray400}
           keyboardType="numeric"
@@ -442,7 +442,7 @@ export default function SupplierDetailScreen() {
             <View>
               <AppTextInput label={t('suppliers.name')} value={editName} onChangeText={setEditName}
                 placeholder={t('suppliers.name')} autoCapitalize="words" />
-              <AppTextInput label={t('suppliers.phone')} value={editPhone} onChangeText={setEditPhone}
+              <AppTextInput label={t('suppliers.phone')} value={editPhone} onChangeText={(t) => setEditPhone(sanitizeNumericInput(t, 'phone-pad'))}
                 placeholder="e.g. 0770 123 4567" keyboardType="phone-pad" />
               <AppTextInput label={t('suppliers.address')} value={editAddress} onChangeText={setEditAddress}
                 placeholder="e.g. Sulaimani, Iraq" autoCapitalize="sentences" />

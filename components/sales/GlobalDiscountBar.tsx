@@ -12,7 +12,7 @@ import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useSettingsStore } from '@/store/settingsStore';
-import { toEnglishDigits } from '@/utils/formatters';
+import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import type { GlobalDiscountType } from '@/types/sales';
 
 interface Props {
@@ -43,7 +43,7 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
   const [inputText, setInputText] = React.useState('');
 
   function handleValueChange(val: string) {
-    const clean = toEnglishDigits(val);
+    const clean = sanitizeNumericInput(val, 'decimal-pad');
     setInputText(clean);
     const n = parseFloat(clean) || 0;
     if (type === 'percentage') {
