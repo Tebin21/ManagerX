@@ -26,7 +26,7 @@ function escHtml(str: string): string {
 function t(key: string, opts?: Record<string, unknown>): string {
   return i18n.t(`inventoryReportPdf.${key}`, opts) as string;
 }
-// Wraps an already-translated label in the Rudaw/RTL span. Never wraps
+// Wraps an already-translated label in the Bahij Janna/RTL span. Never wraps
 // numbers, dates, or raw product data (names, IDs, category/supplier text).
 const ku = kuSpan;
 
@@ -137,13 +137,13 @@ function reportCSS(isKurdish: boolean): string {
     body {
       direction: ${isKurdish ? 'rtl' : 'ltr'};
       text-align: ${isKurdish ? 'right' : 'left'};
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
       background: #ffffff;
       color: #000000;
       font-size: 13px;
       line-height: 1.5;
     }
-    .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; font-weight: 400; letter-spacing: normal; text-transform: none; }
+    .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; font-weight: 400; letter-spacing: normal; text-transform: none; }
     .page { max-width: 900px; margin: 0 auto; background: #fff; }
 
     /* ── Header ── */

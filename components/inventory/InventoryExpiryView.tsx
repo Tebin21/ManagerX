@@ -26,7 +26,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { fmtIQD, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, toEnglishDigits, formatExpiryCountdown } from '@/utils/formatters';
 import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { CustomAlertDaysModal } from '@/components/inventory/CustomAlertDaysModal';
@@ -501,9 +501,9 @@ export function InventoryExpiryView({
   };
 
   const renderBadge = (item: ProductWithExpiryStatus) => {
-    const badgeTextStyle = isTablet ? { fontSize: 12 } : null;
-    const badgeIconSize = isTablet ? 15 : 13;
-    const tabletBadgeStyle = isTablet ? { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 10 } : null;
+    const badgeTextStyle = isTablet ? { fontSize: 13 } : null;
+    const badgeIconSize = isTablet ? 16 : 13;
+    const tabletBadgeStyle = isTablet ? { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 } : null;
 
     if (item.status === 'noDate' || item.diffDays === null) {
       return (
@@ -516,12 +516,12 @@ export function InventoryExpiryView({
     }
 
     if (item.diffDays < 0) {
-      const daysAgo = Math.abs(item.diffDays);
+      const countdown = item.product.expiryDate ? formatExpiryCountdown(item.product.expiryDate, isKu) : null;
       return (
         <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2' }]}>
           <Ionicons name="alert-circle" size={badgeIconSize} color="#EF4444" />
           <Text style={[styles.badgeText, badgeTextStyle, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-            {isKu ? `بەسەرچووە (پێش ${daysAgo} ڕۆژ)` : `Expired (${daysAgo}d ago)`}
+            {countdown ? countdown.text : (isKu ? `بەسەرچووە` : `Expired`)}
           </Text>
         </View>
       );
@@ -538,12 +538,15 @@ export function InventoryExpiryView({
       );
     }
 
+    const countdown = item.product.expiryDate ? formatExpiryCountdown(item.product.expiryDate, isKu) : null;
+    const badgeLabel = countdown ? countdown.badgeText : (isKu ? `${item.diffDays} ڕۆژ ماوە` : `${item.diffDays}d left`);
+
     if (item.status === 'expiringSoon') {
       return (
         <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.22)' : '#FEF3C7' }]}>
           <Ionicons name="warning" size={badgeIconSize} color="#D97706" />
           <Text style={[styles.badgeText, badgeTextStyle, { color: '#D97706' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-            {isKu ? `${item.diffDays} ڕۆژ ماوە` : `${item.diffDays}d left`}
+            {badgeLabel}
           </Text>
         </View>
       );
@@ -554,7 +557,7 @@ export function InventoryExpiryView({
       <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5' }]}>
         <Ionicons name="checkmark-circle" size={badgeIconSize} color="#10B981" />
         <Text style={[styles.badgeText, badgeTextStyle, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-          {isKu ? `${item.diffDays} ڕۆژ ماوە` : `${item.diffDays}d left`}
+          {badgeLabel}
         </Text>
       </View>
     );
@@ -570,6 +573,7 @@ export function InventoryExpiryView({
         onPress={() => router.push(`/(app)/inventory/${p.id}` as never)}
         style={[
           styles.itemCardList,
+          isTablet && { borderRadius: 18, borderWidth: 1.2 },
           productNumColumns > 1 && {
             flex: 1,
             maxWidth: productNumColumns === 2 ? '49%' : '100%',
@@ -586,25 +590,25 @@ export function InventoryExpiryView({
           },
         ]}
       >
-        <View style={[styles.cardHeaderRow, { flexDirection }]}>
+        <View style={[styles.cardHeaderRow, isTablet && { padding: 16, gap: 14 }, { flexDirection }]}>
           {/* Product Image / Icon */}
           {(() => {
             const displayImg = getProductDisplayImage(p);
             return displayImg ? (
               <Image
                 source={{ uri: displayImg }}
-                style={[styles.productThumb, isTablet && { width: 56, height: 56, borderRadius: 16 }]}
+                style={[styles.productThumb, isTablet && { width: 62, height: 62, borderRadius: 16 }]}
                 resizeMode="cover"
               />
             ) : (
               <View
                 style={[
                   styles.productThumbFallback,
-                  isTablet && { width: 56, height: 56, borderRadius: 16 },
+                  isTablet && { width: 62, height: 62, borderRadius: 16 },
                   { backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12) },
                 ]}
               >
-                <Ionicons name="cube-outline" size={isTablet ? 28 : 24} color={colors.primary} />
+                <Ionicons name="cube-outline" size={isTablet ? 30 : 24} color={colors.primary} />
               </View>
             );
           })()}
@@ -614,7 +618,7 @@ export function InventoryExpiryView({
             <Text
               style={[
                 styles.productName,
-                { color: colors.black, textAlign, fontSize: isTablet ? 17 : 14.5 },
+                { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14.5 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
               numberOfLines={1}
@@ -622,16 +626,16 @@ export function InventoryExpiryView({
               {p.name}
             </Text>
 
-            <View style={[styles.categoryQtyRow, { flexDirection }]}>
+            <View style={[styles.categoryQtyRow, isTablet && { gap: 10 }, { flexDirection }]}>
               {p.category ? (
                 <View
                   style={[
                     styles.catBadge,
-                    isTablet && { paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 8 },
+                    isTablet && { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
                     { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 },
                   ]}
                 >
-                  <Text style={[styles.catText, { color: colors.gray500, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <Text style={[styles.catText, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {p.category}
                   </Text>
                 </View>
@@ -643,7 +647,7 @@ export function InventoryExpiryView({
             </View>
 
             {/* Expiry Date string */}
-            <View style={[styles.expiryDateRow, { flexDirection }]}>
+            <View style={[styles.expiryDateRow, isTablet && { gap: 6, marginTop: 3 }, { flexDirection }]}>
               <Ionicons
                 name="calendar-outline"
                 size={isTablet ? 15 : 13}
@@ -672,7 +676,7 @@ export function InventoryExpiryView({
           </View>
 
           {/* Status Badge & Discard Action */}
-          <View style={styles.badgeCol}>
+          <View style={[styles.badgeCol, isTablet && { gap: 8 }]}>
             {renderBadge(item)}
             {item.status === 'expired' && p.quantity > 0 && (
               <TouchableOpacity
@@ -856,9 +860,9 @@ export function InventoryExpiryView({
             styles.segmentTrack,
             { backgroundColor: colors.gray100, flexDirection: isRTL ? 'row-reverse' : 'row' },
             isTablet && {
-              maxWidth: isTabletLandscape ? 980 : 760,
+              maxWidth: isTabletLandscape ? 720 : 580,
               width: '100%',
-              padding: isTabletLandscape ? 6 : 5,
+              padding: isTabletLandscape ? 5 : 4,
               borderRadius: 18,
             },
           ]}
@@ -877,15 +881,15 @@ export function InventoryExpiryView({
               activeTab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
               {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
-                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
-                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                minHeight: isTabletLandscape ? 52 : isTablet ? 48 : 42,
+                paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 8,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              size={isTabletLandscape ? 22 : isTablet ? 20 : 16}
               color={activeTab === 'report' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -893,7 +897,7 @@ export function InventoryExpiryView({
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'report' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                  fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 14,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -916,15 +920,15 @@ export function InventoryExpiryView({
               activeTab === 'products' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
               {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
-                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
-                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                minHeight: isTabletLandscape ? 52 : isTablet ? 48 : 42,
+                paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 8,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="cube-outline"
-              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              size={isTabletLandscape ? 22 : isTablet ? 20 : 16}
               color={activeTab === 'products' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -932,7 +936,7 @@ export function InventoryExpiryView({
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'products' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                  fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 14,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -974,15 +978,15 @@ export function InventoryExpiryView({
               activeTab === 'discarded' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
               {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
-                minHeight: isTabletLandscape ? 56 : isTablet ? 50 : 42,
-                paddingVertical: isTabletLandscape ? 14 : isTablet ? 12 : 10,
+                minHeight: isTabletLandscape ? 52 : isTablet ? 48 : 42,
+                paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 8,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="trash-outline"
-              size={isTabletLandscape ? 24 : isTablet ? 22 : 16}
+              size={isTabletLandscape ? 22 : isTablet ? 20 : 16}
               color={activeTab === 'discarded' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -990,7 +994,7 @@ export function InventoryExpiryView({
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'discarded' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 17.5 : isTablet ? 16.5 : 14,
+                  fontSize: isTabletLandscape ? 16 : isTablet ? 15 : 14,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -1026,7 +1030,13 @@ export function InventoryExpiryView({
           style={styles.scrollFlex}
           contentContainerStyle={[
             styles.reportScrollContent,
-            isTablet && { maxWidth: isTabletLandscape ? 1160 : 760, alignSelf: 'center', width: '100%' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+              paddingBottom: 60,
+            },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -1040,14 +1050,24 @@ export function InventoryExpiryView({
             ) : undefined
           }
         >
-          {/* Period Filter Bar (Must always default to 'all') */}
-          <View style={styles.periodSection}>
+          {/* Period Filter Card (Inspired by ExpenseFilterBar in expenses.tsx) */}
+          <View
+            style={[
+              styles.periodSectionCard,
+              isTablet && { padding: 18, borderRadius: 20, gap: 14 },
+              {
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+              },
+            ]}
+          >
             <View style={[styles.periodSectionHeader, { flexDirection }]}>
-              <View style={[styles.periodTitleRow, { flexDirection }]}>
-                <Ionicons name="calendar" size={16} color={colors.primary} />
+              <View style={[styles.periodTitleRow, { flexDirection }, isTablet && { gap: 8 }]}>
+                <Ionicons name="calendar" size={isTablet ? 20 : 16} color={colors.primary} />
                 <Text
                   style={[
                     styles.periodSectionTitle,
+                    isTablet && { fontSize: isTabletLandscape ? 17 : 15.5 },
                     { color: colors.black },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -1056,7 +1076,7 @@ export function InventoryExpiryView({
                 </Text>
               </View>
 
-              <Text style={[styles.periodSubHint, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <Text style={[styles.periodSubHint, isTablet && { fontSize: isTabletLandscape ? 14.5 : 13.5 }, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                 {reportPeriodKey === 'all'
                   ? (isKu ? 'هەموو کات (سەرەکی)' : 'All Time (Default)')
                   : periodLabels[reportPeriodKey]}
@@ -1067,14 +1087,14 @@ export function InventoryExpiryView({
               horizontal
               showsHorizontalScrollIndicator={false}
               style={[
-                { marginHorizontal: -16 },
+                { marginHorizontal: -4 },
                 isRTL && { transform: [{ scaleX: -1 }] },
               ]}
               contentContainerStyle={[
                 styles.periodPillRow,
                 {
-                  paddingHorizontal: 16,
-                  gap: 8,
+                  paddingHorizontal: 4,
+                  gap: isTablet ? 12 : 8,
                 },
               ]}
             >
@@ -1099,6 +1119,11 @@ export function InventoryExpiryView({
                     style={[
                       styles.periodPill,
                       isRTL && { transform: [{ scaleX: -1 }] },
+                      isTablet && {
+                        paddingHorizontal: isTabletLandscape ? 22 : 18,
+                        paddingVertical: isTabletLandscape ? 11 : 9,
+                        borderRadius: isTablet ? 24 : 20,
+                      },
                       {
                         backgroundColor: active
                           ? colors.primary
@@ -1112,20 +1137,21 @@ export function InventoryExpiryView({
                           : colors.gray200,
                         flexDirection,
                         alignItems: 'center',
-                        gap: 5,
+                        gap: isTablet ? 7 : 5,
                       },
                     ]}
                   >
                     {isCustom && (
                       <Ionicons
                         name="calendar"
-                        size={12}
+                        size={isTablet ? 15 : 12}
                         color={active ? '#0F172A' : colors.primary}
                       />
                     )}
                     <Text
                       style={[
                         styles.periodPillText,
+                        isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
                         { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
                         isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
@@ -1143,7 +1169,7 @@ export function InventoryExpiryView({
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Ionicons name="close-circle" size={13} color="#0F172A" />
+                        <Ionicons name="close-circle" size={isTablet ? 16 : 13} color="#0F172A" />
                       </TouchableOpacity>
                     )}
                   </TouchableOpacity>
@@ -1153,7 +1179,7 @@ export function InventoryExpiryView({
           </View>
 
           {/* KPI Metric Cards */}
-          <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 14 }]}>
             {/* Expired */}
             <TouchableOpacity
               activeOpacity={0.85}
@@ -1164,9 +1190,10 @@ export function InventoryExpiryView({
               style={[
                 styles.kpiCard,
                 isTablet && {
-                  paddingVertical: 18,
-                  paddingHorizontal: 12,
-                  borderRadius: 18,
+                  paddingVertical: isTabletLandscape ? 22 : 18,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  gap: 6,
                 },
                 {
                   backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEF2F2',
@@ -1174,11 +1201,11 @@ export function InventoryExpiryView({
                 },
               ]}
             >
-              <View style={[styles.kpiIconWrap, isTablet && { width: 44, height: 44, borderRadius: 14 }, { backgroundColor: hexToRgba('#EF4444', isDark ? 0.25 : 0.15) }]}>
-                <Ionicons name="alert-circle" size={isTablet ? 24 : 18} color="#EF4444" />
+              <View style={[styles.kpiIconWrap, isTablet && { width: 48, height: 48, borderRadius: 16, marginBottom: 4 }, { backgroundColor: hexToRgba('#EF4444', isDark ? 0.25 : 0.15) }]}>
+                <Ionicons name="alert-circle" size={isTablet ? 26 : 18} color="#EF4444" />
               </View>
-              <Text style={[styles.kpiNum, isTablet && { fontSize: 28 }, { color: '#EF4444' }]}>{reportKPIs.expired}</Text>
-              <Text style={[styles.kpiLabel, isTablet && { fontSize: 14.5 }, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              <Text style={[styles.kpiNum, isTablet && { fontSize: isTabletLandscape ? 34 : 28 }, { color: '#EF4444' }]}>{reportKPIs.expired}</Text>
+              <Text style={[styles.kpiLabel, isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 }, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                 {isKu ? 'بەسەرچووە' : 'Expired'}
               </Text>
             </TouchableOpacity>
@@ -1193,9 +1220,10 @@ export function InventoryExpiryView({
               style={[
                 styles.kpiCard,
                 isTablet && {
-                  paddingVertical: 18,
-                  paddingHorizontal: 12,
-                  borderRadius: 18,
+                  paddingVertical: isTabletLandscape ? 22 : 18,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  gap: 6,
                 },
                 {
                   backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB',
@@ -1203,11 +1231,11 @@ export function InventoryExpiryView({
                 },
               ]}
             >
-              <View style={[styles.kpiIconWrap, isTablet && { width: 44, height: 44, borderRadius: 14 }, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.25 : 0.15) }]}>
-                <Ionicons name="time" size={isTablet ? 24 : 18} color="#D97706" />
+              <View style={[styles.kpiIconWrap, isTablet && { width: 48, height: 48, borderRadius: 16, marginBottom: 4 }, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.25 : 0.15) }]}>
+                <Ionicons name="time" size={isTablet ? 26 : 18} color="#D97706" />
               </View>
-              <Text style={[styles.kpiNum, isTablet && { fontSize: 28 }, { color: '#F59E0B' }]}>{reportKPIs.expiringSoon}</Text>
-              <Text style={[styles.kpiLabel, isTablet && { fontSize: 14.5 }, { color: '#D97706' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              <Text style={[styles.kpiNum, isTablet && { fontSize: isTabletLandscape ? 34 : 28 }, { color: '#F59E0B' }]}>{reportKPIs.expiringSoon}</Text>
+              <Text style={[styles.kpiLabel, isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 }, { color: '#D97706' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                 {isKu ? 'بەم نزیکانە' : 'Soon'}
               </Text>
             </TouchableOpacity>
@@ -1222,9 +1250,10 @@ export function InventoryExpiryView({
               style={[
                 styles.kpiCard,
                 isTablet && {
-                  paddingVertical: 18,
-                  paddingHorizontal: 12,
-                  borderRadius: 18,
+                  paddingVertical: isTabletLandscape ? 22 : 18,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  gap: 6,
                 },
                 {
                   backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#F0FDF4',
@@ -1232,11 +1261,11 @@ export function InventoryExpiryView({
                 },
               ]}
             >
-              <View style={[styles.kpiIconWrap, isTablet && { width: 44, height: 44, borderRadius: 14 }, { backgroundColor: hexToRgba('#10B981', isDark ? 0.25 : 0.15) }]}>
-                <Ionicons name="checkmark-circle" size={isTablet ? 24 : 18} color="#10B981" />
+              <View style={[styles.kpiIconWrap, isTablet && { width: 48, height: 48, borderRadius: 16, marginBottom: 4 }, { backgroundColor: hexToRgba('#10B981', isDark ? 0.25 : 0.15) }]}>
+                <Ionicons name="checkmark-circle" size={isTablet ? 26 : 18} color="#10B981" />
               </View>
-              <Text style={[styles.kpiNum, isTablet && { fontSize: 28 }, { color: '#10B981' }]}>{reportKPIs.safe}</Text>
-              <Text style={[styles.kpiLabel, isTablet && { fontSize: 14.5 }, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              <Text style={[styles.kpiNum, isTablet && { fontSize: isTabletLandscape ? 34 : 28 }, { color: '#10B981' }]}>{reportKPIs.safe}</Text>
+              <Text style={[styles.kpiLabel, isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 }, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                 {isKu ? 'سەلامەت' : 'Safe'}
               </Text>
             </TouchableOpacity>
@@ -1251,9 +1280,10 @@ export function InventoryExpiryView({
               style={[
                 styles.kpiCard,
                 isTablet && {
-                  paddingVertical: 18,
-                  paddingHorizontal: 12,
-                  borderRadius: 18,
+                  paddingVertical: isTabletLandscape ? 22 : 18,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  gap: 6,
                 },
                 {
                   backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
@@ -1261,11 +1291,11 @@ export function InventoryExpiryView({
                 },
               ]}
             >
-              <View style={[styles.kpiIconWrap, isTablet && { width: 44, height: 44, borderRadius: 14 }, { backgroundColor: hexToRgba(colors.primary, isDark ? 0.25 : 0.15) }]}>
-                <Ionicons name="calendar-outline" size={isTablet ? 24 : 18} color={colors.primary} />
+              <View style={[styles.kpiIconWrap, isTablet && { width: 48, height: 48, borderRadius: 16, marginBottom: 4 }, { backgroundColor: hexToRgba(colors.primary, isDark ? 0.25 : 0.15) }]}>
+                <Ionicons name="calendar-outline" size={isTablet ? 26 : 18} color={colors.primary} />
               </View>
-              <Text style={[styles.kpiNum, isTablet && { fontSize: 28 }, { color: colors.primary }]}>{reportKPIs.totalTracked}</Text>
-              <Text style={[styles.kpiLabel, isTablet && { fontSize: 14.5 }, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <Text style={[styles.kpiNum, isTablet && { fontSize: isTabletLandscape ? 34 : 28 }, { color: colors.primary }]}>{reportKPIs.totalTracked}</Text>
+              <Text style={[styles.kpiLabel, isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 }, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                 {isKu ? 'خاوەن بەروار' : 'Tracked'}
               </Text>
             </TouchableOpacity>
@@ -1276,9 +1306,10 @@ export function InventoryExpiryView({
             style={[
               styles.thresholdBar,
               isTablet && {
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                borderRadius: 18,
+                paddingHorizontal: 22,
+                paddingVertical: 18,
+                borderRadius: 20,
+                gap: 14,
               },
               {
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
@@ -1287,12 +1318,12 @@ export function InventoryExpiryView({
             ]}
           >
             <View style={[styles.thresholdHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.thresholdLabelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Ionicons name="notifications-outline" size={isTablet ? 20 : 16} color={colors.primary} />
+              <View style={[styles.thresholdLabelRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 10 }]}>
+                <Ionicons name="notifications-outline" size={isTablet ? 22 : 16} color={colors.primary} />
                 <Text
                   style={[
                     styles.thresholdLabelText,
-                    isTablet && { fontSize: 16 },
+                    isTablet && { fontSize: isTabletLandscape ? 17 : 15.5 },
                     { color: colors.black },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -1304,7 +1335,7 @@ export function InventoryExpiryView({
               <Text
                 style={[
                   styles.thresholdActiveHint,
-                  isTablet && { fontSize: 15 },
+                  isTablet && { fontSize: isTabletLandscape ? 16 : 15 },
                   { color: colors.primary },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
@@ -1320,7 +1351,7 @@ export function InventoryExpiryView({
                 styles.thresholdChipsWrap,
                 {
                   flexDirection,
-                  gap: 6,
+                  gap: isTablet ? 12 : 6,
                 },
               ]}
             >
@@ -1338,7 +1369,7 @@ export function InventoryExpiryView({
                     }}
                     style={[
                       styles.thresholdChip,
-                      isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 12 },
+                      isTablet && { paddingHorizontal: 22, paddingVertical: 10, borderRadius: 14 },
                       {
                         backgroundColor: isSelected
                           ? colors.primary
@@ -1356,7 +1387,7 @@ export function InventoryExpiryView({
                     <Text
                       style={[
                         styles.thresholdChipText,
-                        isTablet && { fontSize: 14.5 },
+                        isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
                         { color: isSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
                         isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
@@ -1381,7 +1412,7 @@ export function InventoryExpiryView({
                     }}
                     style={[
                       styles.thresholdChip,
-                      isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 12 },
+                      isTablet && { paddingHorizontal: 22, paddingVertical: 10, borderRadius: 14 },
                       {
                         backgroundColor: isCustomSelected
                           ? colors.primary
@@ -1395,19 +1426,19 @@ export function InventoryExpiryView({
                           : colors.gray200,
                         flexDirection,
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 5,
                       },
                     ]}
                   >
                     <Ionicons
                       name="pencil-sharp"
-                      size={11}
+                      size={isTablet ? 14 : 11}
                       color={isCustomSelected ? '#0F172A' : (isDark ? colors.gray500 : colors.gray500)}
                     />
                     <Text
                       style={[
                         styles.thresholdChipText,
-                        isTablet && { fontSize: 14.5 },
+                        isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
                         { color: isCustomSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
                         isKu && { fontFamily: isCustomSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
@@ -1427,7 +1458,7 @@ export function InventoryExpiryView({
             <View
               style={[
                 styles.noticeBanner,
-                isTablet && { padding: 18, borderRadius: 18 },
+                isTablet && { padding: 20, borderRadius: 20, gap: 14 },
                 {
                   flexDirection,
                   backgroundColor: reportKPIs.expired > 0 ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2') : isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
@@ -1444,7 +1475,7 @@ export function InventoryExpiryView({
                 <Text
                   style={[
                     styles.noticeTitle,
-                    isTablet && { fontSize: 16 },
+                    isTablet && { fontSize: 16.5 },
                     { color: reportKPIs.expired > 0 ? '#DC2626' : '#B45309', textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -1454,7 +1485,7 @@ export function InventoryExpiryView({
                 <Text
                   style={[
                     styles.noticeDesc,
-                    isTablet && { fontSize: 14 },
+                    isTablet && { fontSize: 14.5, lineHeight: 21 },
                     { color: reportKPIs.expired > 0 ? '#B91C1C' : '#92400E', textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -1472,14 +1503,14 @@ export function InventoryExpiryView({
                 }}
                 style={[
                   styles.noticeActionBtn,
-                  isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+                  isTablet && { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 14 },
                   { backgroundColor: reportKPIs.expired > 0 ? '#EF4444' : '#F59E0B' },
                 ]}
               >
                 <Text
                   style={[
                     styles.noticeActionText,
-                    isTablet && { fontSize: 14 },
+                    isTablet && { fontSize: 14.5 },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
@@ -1493,7 +1524,7 @@ export function InventoryExpiryView({
           <View
             style={[
               styles.healthCard,
-              isTablet && { padding: 18, borderRadius: 18 },
+              isTablet && { padding: 22, borderRadius: 20, gap: 16 },
               {
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
@@ -1501,12 +1532,12 @@ export function InventoryExpiryView({
             ]}
           >
             <View style={[styles.healthCardHeader, { flexDirection }]}>
-              <View style={[styles.healthTitleRow, { flexDirection }]}>
-                <Ionicons name="shield-checkmark-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+              <View style={[styles.healthTitleRow, { flexDirection }, isTablet && { gap: 10 }]}>
+                <Ionicons name="shield-checkmark-outline" size={isTablet ? 24 : 18} color={colors.primary} />
                 <Text
                   style={[
                     styles.healthCardTitle,
-                    isTablet && { fontSize: 16.5 },
+                    isTablet && { fontSize: isTabletLandscape ? 18 : 16.5 },
                     { color: colors.black },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -1516,18 +1547,18 @@ export function InventoryExpiryView({
               </View>
 
               {reportKPIs.totalValueRisk > 0 && (
-                <View style={[styles.riskValueBadge, isTablet && { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
-                  <Text style={[styles.riskValueText, isTablet && { fontSize: 15 }, { color: '#EF4444' }]}>
+                <View style={[styles.riskValueBadge, isTablet && { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
+                  <Text style={[styles.riskValueText, isTablet && { fontSize: 16 }, { color: '#EF4444' }]}>
                     {fmtIQD(reportKPIs.totalValueRisk)}
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* Health Segment Progress Bar */}
+            {/* Health Segment Progress Bar or Safe Empty State */}
             {reportKPIs.totalTracked > 0 ? (
-              <View style={styles.healthBarWrap}>
-                <View style={[styles.healthBarTrack, isTablet && { height: 14, borderRadius: 8 }]}>
+              <View style={[styles.healthBarWrap, isTablet && { gap: 12 }]}>
+                <View style={[styles.healthBarTrack, isTablet && { height: 16, borderRadius: 8 }]}>
                   {reportKPIs.safe > 0 && (
                     <View
                       style={[
@@ -1565,29 +1596,64 @@ export function InventoryExpiryView({
 
                 {/* Progress Indicators Legend */}
                 <View style={[styles.healthLegendRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.legendText, isTablet && { fontSize: 13.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 7 }]}>
+                    <View style={[styles.legendDot, isTablet && { width: 10, height: 10, borderRadius: 5 }, { backgroundColor: '#10B981' }]} />
+                    <Text style={[styles.legendText, isTablet && { fontSize: 14.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? `سەلامەت: %${Math.round((reportKPIs.safe / reportKPIs.totalTracked) * 100)}` : `Safe: ${Math.round((reportKPIs.safe / reportKPIs.totalTracked) * 100)}%`}
                     </Text>
                   </View>
 
-                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={[styles.legendText, isTablet && { fontSize: 13.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 7 }]}>
+                    <View style={[styles.legendDot, isTablet && { width: 10, height: 10, borderRadius: 5 }, { backgroundColor: '#F59E0B' }]} />
+                    <Text style={[styles.legendText, isTablet && { fontSize: 14.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? `بەم نزیکانە: %${Math.round((reportKPIs.expiringSoon / reportKPIs.totalTracked) * 100)}` : `Soon: ${Math.round((reportKPIs.expiringSoon / reportKPIs.totalTracked) * 100)}%`}
                     </Text>
                   </View>
 
-                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={[styles.legendText, isTablet && { fontSize: 13.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <View style={[styles.legendItem, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 7 }]}>
+                    <View style={[styles.legendDot, isTablet && { width: 10, height: 10, borderRadius: 5 }, { backgroundColor: '#EF4444' }]} />
+                    <Text style={[styles.legendText, isTablet && { fontSize: 14.5 }, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? `بەسەرچوو: %${Math.round((reportKPIs.expired / reportKPIs.totalTracked) * 100)}` : `Expired: ${Math.round((reportKPIs.expired / reportKPIs.totalTracked) * 100)}%`}
                     </Text>
                   </View>
                 </View>
               </View>
-            ) : null}
+            ) : (
+              /* Reassuring empty state when 0 tracked items have expiry dates (solves Screenshot 1) */
+              <View style={[styles.healthEmptyState, isTablet && { paddingVertical: 20, gap: 10 }]}>
+                <View
+                  style={[
+                    styles.healthEmptyIconWrap,
+                    { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#D1FAE5' },
+                    isTablet && { width: 56, height: 56, borderRadius: 18 },
+                  ]}
+                >
+                  <Ionicons name="shield-checkmark" size={isTablet ? 30 : 22} color="#10B981" />
+                </View>
+                <Text
+                  style={[
+                    styles.healthEmptyTitle,
+                    { color: colors.black },
+                    isTablet && { fontSize: 16.5 },
+                    isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKu ? 'سەرجەم کاڵاکان لە دۆخی سەلامەتیدان' : 'All Products Are Safe'}
+                </Text>
+                <Text
+                  style={[
+                    styles.healthEmptySub,
+                    { color: colors.gray400 },
+                    isTablet && { fontSize: 14, maxWidth: 440 },
+                    isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                  ]}
+                >
+                  {isKu
+                    ? 'هیچ کاڵایەکی بەسەرچوو یان نزیک لە بەسەرچوون لەم ماوەیەدا بوونی نییە.'
+                    : 'No expired or soon-to-expire products in the selected period.'}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Urgent Items List (If any items need attention in this period) */}
@@ -1718,11 +1784,17 @@ export function InventoryExpiryView({
           renderItem={viewMode === 'grid' ? renderProductGridItem : renderProductListItem}
           contentContainerStyle={[
             styles.listContent,
-            isTablet && { maxWidth: isTabletLandscape ? 1160 : 760, alignSelf: 'center', width: '100%' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+              paddingBottom: 60,
+            },
           ]}
           columnWrapperStyle={
             productNumColumns > 1
-              ? (viewMode === 'grid' ? styles.gridColumnWrapper : styles.listColumnWrapper)
+              ? (viewMode === 'grid' ? styles.gridColumnWrapper : [styles.listColumnWrapper, isTablet && { gap: 14, marginBottom: 14 }])
               : undefined
           }
           refreshControl={
@@ -1741,7 +1813,7 @@ export function InventoryExpiryView({
               <View
                 style={[
                   styles.searchInputBox,
-                  isTablet && { height: 50, borderRadius: 16 },
+                  isTablet && { height: 52, borderRadius: 18, paddingHorizontal: 16 },
                   {
                     flexDirection,
                     backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
@@ -1749,7 +1821,7 @@ export function InventoryExpiryView({
                   },
                 ]}
               >
-                <Ionicons name="search" size={isTablet ? 20 : 18} color={colors.gray400} />
+                <Ionicons name="search" size={isTablet ? 22 : 18} color={colors.gray400} />
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -1757,14 +1829,14 @@ export function InventoryExpiryView({
                   placeholderTextColor={colors.gray400}
                   style={[
                     styles.searchInput,
-                    isTablet && { fontSize: 15 },
+                    isTablet && { fontSize: 16 },
                     { color: colors.black, textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close-circle" size={16} color={colors.gray400} />
+                    <Ionicons name="close-circle" size={isTablet ? 18 : 16} color={colors.gray400} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -1774,7 +1846,7 @@ export function InventoryExpiryView({
                 <View
                   style={[
                     styles.activeFilterBanner,
-                    isTablet && { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
+                    isTablet && { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 16 },
                     {
                       flexDirection,
                       backgroundColor: isDark ? 'rgba(212,175,55,0.12)' : '#FEF9C3',
@@ -1784,11 +1856,11 @@ export function InventoryExpiryView({
                 >
                   <TouchableOpacity
                     onPress={onOpenPeriodModal}
-                    style={[styles.activeFilterLeft, { flexDirection }]}
+                    style={[styles.activeFilterLeft, { flexDirection }, isTablet && { gap: 8 }]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="calendar" size={isTablet ? 16 : 14} color={colors.primary} />
-                    <Text style={[styles.activeFilterText, isTablet && { fontSize: 13.5 }, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    <Ionicons name="calendar" size={isTablet ? 18 : 14} color={colors.primary} />
+                    <Text style={[styles.activeFilterText, isTablet && { fontSize: 14.5 }, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? 'ماوەی بەروار:' : 'Date Period:'}{' '}
                       <Text style={{ fontWeight: '700', color: colors.primary }}>
                         {productPeriodKey === 'custom' && productCustomRange
@@ -1808,8 +1880,8 @@ export function InventoryExpiryView({
                     style={[styles.clearFilterBtn, { flexDirection }]}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="close-circle" size={isTablet ? 17 : 15} color={colors.error} />
-                    <Text style={[styles.clearFilterText, isTablet && { fontSize: 13 }, { color: colors.error }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    <Ionicons name="close-circle" size={isTablet ? 18 : 15} color={colors.error} />
+                    <Text style={[styles.clearFilterText, isTablet && { fontSize: 13.5 }, { color: colors.error }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                       {isKu ? 'سڕینەوە' : 'Reset'}
                     </Text>
                   </TouchableOpacity>
@@ -1821,14 +1893,15 @@ export function InventoryExpiryView({
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={[
-                  { marginHorizontal: -16 },
+                  { marginHorizontal: -4 },
                   isRTL && { transform: [{ scaleX: -1 }] },
                 ]}
                 contentContainerStyle={[
                   styles.filterChipsRow,
                   {
-                    paddingHorizontal: 16,
-                    gap: 8,
+                    paddingHorizontal: 4,
+                    gap: isTablet ? 12 : 8,
+                    paddingVertical: isTablet ? 4 : 2,
                   },
                 ]}
               >
@@ -1838,7 +1911,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.filterChip,
                     isRTL && { transform: [{ scaleX: -1 }] },
-                    isTablet && { paddingVertical: 8.5, paddingHorizontal: 16, borderRadius: 24 },
+                    isTablet && { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 24 },
                     {
                       backgroundColor: activeFilter === 'all' ? colors.primary : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'all' ? colors.primary : isDark ? colors.gray200 : colors.gray200,
@@ -1848,7 +1921,7 @@ export function InventoryExpiryView({
                   <Text
                     style={[
                       styles.filterChipText,
-                      isTablet && { fontSize: 14 },
+                      isTablet && { fontSize: 15 },
                       { color: activeFilter === 'all' ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
                       isKu && { fontFamily: activeFilter === 'all' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                     ]}
@@ -1863,7 +1936,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.filterChip,
                     isRTL && { transform: [{ scaleX: -1 }] },
-                    isTablet && { paddingVertical: 8.5, paddingHorizontal: 16, borderRadius: 24 },
+                    isTablet && { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 24 },
                     {
                       backgroundColor: activeFilter === 'expired' ? '#EF4444' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'expired' ? '#EF4444' : isDark ? colors.gray200 : colors.gray200,
@@ -1873,7 +1946,7 @@ export function InventoryExpiryView({
                   <Text
                     style={[
                       styles.filterChipText,
-                      isTablet && { fontSize: 14 },
+                      isTablet && { fontSize: 15 },
                       { color: activeFilter === 'expired' ? '#FFFFFF' : '#EF4444' },
                       isKu && { fontFamily: activeFilter === 'expired' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                     ]}
@@ -1888,7 +1961,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.filterChip,
                     isRTL && { transform: [{ scaleX: -1 }] },
-                    isTablet && { paddingVertical: 8.5, paddingHorizontal: 16, borderRadius: 24 },
+                    isTablet && { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 24 },
                     {
                       backgroundColor: activeFilter === 'expiringSoon' ? '#F59E0B' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'expiringSoon' ? '#F59E0B' : isDark ? colors.gray200 : colors.gray200,
@@ -1898,7 +1971,7 @@ export function InventoryExpiryView({
                   <Text
                     style={[
                       styles.filterChipText,
-                      isTablet && { fontSize: 14 },
+                      isTablet && { fontSize: 15 },
                       { color: activeFilter === 'expiringSoon' ? '#0F172A' : '#D97706' },
                       isKu && { fontFamily: activeFilter === 'expiringSoon' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                     ]}
@@ -1913,7 +1986,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.filterChip,
                     isRTL && { transform: [{ scaleX: -1 }] },
-                    isTablet && { paddingVertical: 8.5, paddingHorizontal: 16, borderRadius: 24 },
+                    isTablet && { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 24 },
                     {
                       backgroundColor: activeFilter === 'safe' ? '#10B981' : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'safe' ? '#10B981' : isDark ? colors.gray200 : colors.gray200,
@@ -1923,7 +1996,7 @@ export function InventoryExpiryView({
                   <Text
                     style={[
                       styles.filterChipText,
-                      isTablet && { fontSize: 14 },
+                      isTablet && { fontSize: 15 },
                       { color: activeFilter === 'safe' ? '#FFFFFF' : '#10B981' },
                       isKu && { fontFamily: activeFilter === 'safe' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                     ]}
@@ -1938,7 +2011,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.filterChip,
                     isRTL && { transform: [{ scaleX: -1 }] },
-                    isTablet && { paddingVertical: 8.5, paddingHorizontal: 16, borderRadius: 24 },
+                    isTablet && { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 24 },
                     {
                       backgroundColor: activeFilter === 'noDate' ? colors.gray500 : isDark ? colors.gray100 : colors.white,
                       borderColor: activeFilter === 'noDate' ? colors.gray500 : isDark ? colors.gray200 : colors.gray200,
@@ -1948,7 +2021,7 @@ export function InventoryExpiryView({
                   <Text
                     style={[
                       styles.filterChipText,
-                      isTablet && { fontSize: 14 },
+                      isTablet && { fontSize: 15 },
                       { color: activeFilter === 'noDate' ? '#FFFFFF' : colors.gray500 },
                       isKu && { fontFamily: activeFilter === 'noDate' ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                     ]}
@@ -1960,12 +2033,21 @@ export function InventoryExpiryView({
             </View>
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="time-outline" size={48} color={colors.gray400} />
+            <View style={[styles.emptyContainer, isTablet && { paddingVertical: 80, gap: 14 }]}>
+              <View
+                style={[
+                  styles.emptyIconWrap,
+                  { backgroundColor: colors.gray100 },
+                  isTablet && { width: 90, height: 90, borderRadius: 45, marginBottom: 8 },
+                ]}
+              >
+                <Ionicons name="time-outline" size={isTablet ? 48 : 40} color={colors.gray400} />
+              </View>
               <Text
                 style={[
                   styles.emptyTitle,
                   { color: colors.black },
+                  isTablet && { fontSize: 18 },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
@@ -1975,6 +2057,7 @@ export function InventoryExpiryView({
                 style={[
                   styles.emptySub,
                   { color: colors.gray400 },
+                  isTablet && { fontSize: 14.5, maxWidth: 360 },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
@@ -1991,7 +2074,13 @@ export function InventoryExpiryView({
           style={styles.scrollFlex}
           contentContainerStyle={[
             styles.discardedScrollContent,
-            isTablet && { maxWidth: isTabletLandscape ? 1160 : 760, alignSelf: 'center', width: '100%' },
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+              paddingBottom: 60,
+            },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -2007,7 +2096,7 @@ export function InventoryExpiryView({
           <View
             style={[
               styles.discardDashboardCard,
-              isTablet && { padding: 18, borderRadius: 18 },
+              isTablet && { padding: 22, borderRadius: 22, gap: 18 },
               {
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.85)' : '#FFFFFF',
                 borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FCA5A5',
@@ -2015,15 +2104,15 @@ export function InventoryExpiryView({
             ]}
           >
             <View style={[styles.discardDashHeader, { flexDirection }]}>
-              <View style={[styles.discardDashTitleRow, { flexDirection }]}>
-                <View style={[styles.discardIconWrap, isTablet && { width: 44, height: 44, borderRadius: 14 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
-                  <Ionicons name="trash-bin-outline" size={isTablet ? 24 : 20} color="#EF4444" />
+              <View style={[styles.discardDashTitleRow, { flexDirection }, isTablet && { gap: 14 }]}>
+                <View style={[styles.discardIconWrap, isTablet && { width: 50, height: 50, borderRadius: 16 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
+                  <Ionicons name="trash-bin-outline" size={isTablet ? 26 : 20} color="#EF4444" />
                 </View>
                 <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={[styles.discardDashTitle, { color: colors.black, fontSize: isTablet ? 18 : 15 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  <Text style={[styles.discardDashTitle, { color: colors.black, fontSize: isTablet ? 20 : 15 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                     {isKu ? 'داشبۆردی زەرەری کاڵا فڕێدراوەکان' : 'Discarded Products Loss Dashboard'}
                   </Text>
-                  <Text style={[styles.discardDashSub, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11.5 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                  <Text style={[styles.discardDashSub, { color: colors.gray400, fontSize: isTablet ? 14 : 11.5 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKu ? 'کۆی زیانی دارایی بەهۆی بەسەرچوون و فڕێدانەوە' : 'Total financial loss from expired write-offs'}
                   </Text>
                 </View>
@@ -2031,55 +2120,55 @@ export function InventoryExpiryView({
             </View>
 
             {/* 4 KPI Grid Cards */}
-            <View style={[styles.discardKpiGrid, { flexDirection }]}>
+            <View style={[styles.discardKpiGrid, { flexDirection }, isTablet && { gap: 12 }]}>
               {/* Total Loss IQD */}
-              <View style={[styles.discardKpiCard, isTabletLandscape && { width: '23.8%' }, isTablet && { padding: 14, borderRadius: 16 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2' }]}>
-                <View style={[styles.kpiIconRow, { flexDirection }]}>
-                  <Ionicons name="cash-outline" size={isTablet ? 18 : 15} color="#EF4444" />
-                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <View style={[styles.discardKpiCard, isTabletLandscape ? { width: '23.8%' } : isTablet ? { width: '48.5%' } : { width: '48.2%' }, isTablet && { padding: 16, borderRadius: 16, gap: 8 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2' }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }, isTablet && { gap: 8 }]}>
+                  <Ionicons name="cash-outline" size={isTablet ? 20 : 15} color="#EF4444" />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKu ? 'کۆی زەرەر (دینار)' : 'Total Loss (IQD)'}
                   </Text>
                 </View>
-                <Text style={[styles.discardKpiVal, { color: '#EF4444', fontSize: isTablet ? 20 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Text style={[styles.discardKpiVal, { color: '#EF4444', fontSize: isTablet ? 22 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   {fmtIQD(discardedStats?.totalLossIqd ?? 0)}
                 </Text>
               </View>
 
               {/* Total Loss USD */}
-              <View style={[styles.discardKpiCard, isTabletLandscape && { width: '23.8%' }, isTablet && { padding: 14, borderRadius: 16 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : '#FEF3C7' }]}>
-                <View style={[styles.kpiIconRow, { flexDirection }]}>
-                  <Ionicons name="logo-usd" size={isTablet ? 18 : 15} color={colors.primary} />
-                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <View style={[styles.discardKpiCard, isTabletLandscape ? { width: '23.8%' } : isTablet ? { width: '48.5%' } : { width: '48.2%' }, isTablet && { padding: 16, borderRadius: 16, gap: 8 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : '#FEF3C7' }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }, isTablet && { gap: 8 }]}>
+                  <Ionicons name="logo-usd" size={isTablet ? 20 : 15} color={colors.primary} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKu ? 'کۆی زەرەر (دۆلار)' : 'Total Loss (USD)'}
                   </Text>
                 </View>
-                <Text style={[styles.discardKpiVal, { color: colors.primary, fontSize: isTablet ? 20 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Text style={[styles.discardKpiVal, { color: colors.primary, fontSize: isTablet ? 22 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   ${(discardedStats?.totalLossUsd ?? 0).toFixed(2)}
                 </Text>
               </View>
 
               {/* Products Count */}
-              <View style={[styles.discardKpiCard, isTabletLandscape && { width: '23.8%' }, isTablet && { padding: 14, borderRadius: 16 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
-                <View style={[styles.kpiIconRow, { flexDirection }]}>
-                  <Ionicons name="cube-outline" size={isTablet ? 18 : 15} color={colors.gray500} />
-                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <View style={[styles.discardKpiCard, isTabletLandscape ? { width: '23.8%' } : isTablet ? { width: '48.5%' } : { width: '48.2%' }, isTablet && { padding: 16, borderRadius: 16, gap: 8 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }, isTablet && { gap: 8 }]}>
+                  <Ionicons name="cube-outline" size={isTablet ? 20 : 15} color={colors.gray500} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKu ? 'ژمارەی کاڵاکان' : 'Products Count'}
                   </Text>
                 </View>
-                <Text style={[styles.discardKpiVal, { color: colors.black, fontSize: isTablet ? 20 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Text style={[styles.discardKpiVal, { color: colors.black, fontSize: isTablet ? 22 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   {discardedStats?.totalItemsCount ?? 0} {isKu ? 'کاڵا' : 'items'}
                 </Text>
               </View>
 
               {/* Total Units Discarded */}
-              <View style={[styles.discardKpiCard, isTabletLandscape && { width: '23.8%' }, isTablet && { padding: 14, borderRadius: 16 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
-                <View style={[styles.kpiIconRow, { flexDirection }]}>
-                  <Ionicons name="layers-outline" size={isTablet ? 18 : 15} color={colors.gray500} />
-                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <View style={[styles.discardKpiCard, isTabletLandscape ? { width: '23.8%' } : isTablet ? { width: '48.5%' } : { width: '48.2%' }, isTablet && { padding: 16, borderRadius: 16, gap: 8 }, { backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50, borderColor: isDark ? colors.gray200 : colors.gray200 }]}>
+                <View style={[styles.kpiIconRow, { flexDirection }, isTablet && { gap: 8 }]}>
+                  <Ionicons name="layers-outline" size={isTablet ? 20 : 15} color={colors.gray500} />
+                  <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                     {isKu ? 'کۆی دانەی فڕێدراو' : 'Total Units'}
                   </Text>
                 </View>
-                <Text style={[styles.discardKpiVal, { color: colors.black, fontSize: isTablet ? 20 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Text style={[styles.discardKpiVal, { color: colors.black, fontSize: isTablet ? 22 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                   {discardedStats?.totalUnitsCount ?? 0} {isKu ? 'دانە' : 'pcs'}
                 </Text>
               </View>
@@ -2090,7 +2179,7 @@ export function InventoryExpiryView({
           <View
             style={[
               styles.searchInputBox,
-              isTablet && { height: 50, borderRadius: 16 },
+              isTablet && { height: 52, borderRadius: 18, paddingHorizontal: 16, marginBottom: 14 },
               {
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : '#FFFFFF',
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
@@ -2099,7 +2188,7 @@ export function InventoryExpiryView({
               },
             ]}
           >
-            <Ionicons name="search" size={isTablet ? 20 : 18} color={colors.gray400} />
+            <Ionicons name="search" size={isTablet ? 22 : 18} color={colors.gray400} />
             <TextInput
               value={discardSearchQuery}
               onChangeText={setDiscardSearchQuery}
@@ -2107,14 +2196,14 @@ export function InventoryExpiryView({
               placeholderTextColor={colors.gray400}
               style={[
                 styles.searchInput,
-                isTablet && { fontSize: 15 },
+                isTablet && { fontSize: 16 },
                 { color: colors.black, textAlign },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             />
             {discardSearchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setDiscardSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={16} color={colors.gray400} />
+                <Ionicons name="close-circle" size={isTablet ? 18 : 16} color={colors.gray400} />
               </TouchableOpacity>
             )}
           </View>
@@ -2124,19 +2213,20 @@ export function InventoryExpiryView({
             <View
               style={[
                 styles.emptyDiscardCard,
+                isTablet && { paddingVertical: 64, paddingHorizontal: 32, borderRadius: 24, gap: 14 },
                 {
                   backgroundColor: isDark ? 'rgba(30, 41, 59, 0.60)' : '#FFFFFF',
                   borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
                 },
               ]}
             >
-              <View style={[styles.emptyDiscardIconWrap, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5' }]}>
-                <Ionicons name="checkmark-done-circle-outline" size={42} color="#10B981" />
+              <View style={[styles.emptyDiscardIconWrap, isTablet && { width: 84, height: 84, borderRadius: 28, marginBottom: 8 }, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5' }]}>
+                <Ionicons name="checkmark-done-circle-outline" size={isTablet ? 50 : 42} color="#10B981" />
               </View>
-              <Text style={[styles.emptyDiscardTitle, { color: colors.black }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+              <Text style={[styles.emptyDiscardTitle, { color: colors.black }, isTablet && { fontSize: 20 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                 {isKu ? 'هیچ کاڵایەکی فڕێدراو بوونی نییە' : 'No Discarded Products Found'}
               </Text>
-              <Text style={[styles.emptyDiscardSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <Text style={[styles.emptyDiscardSub, { color: colors.gray400 }, isTablet && { fontSize: 15, maxWidth: 440, lineHeight: 22 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                 {isKu
                   ? 'هەموو بەرهەمە بەسەرچووەکان لە کۆگادان یان هیچیان فڕێنەدراون.'
                   : 'All expired products are in inventory or no write-offs have been recorded.'}
@@ -2155,6 +2245,7 @@ export function InventoryExpiryView({
                   key={String(item.id)}
                   style={[
                     styles.discardItemCard,
+                    isTablet && { borderRadius: 20, padding: 18, marginBottom: 14 },
                     {
                       backgroundColor: isDark ? 'rgba(30, 41, 59, 0.75)' : '#FFFFFF',
                       borderColor: isDark ? 'rgba(239, 68, 68, 0.28)' : '#FCA5A5',
@@ -2162,12 +2253,12 @@ export function InventoryExpiryView({
                   ]}
                 >
                   {/* Top Row: Thumbnail, Info, and Loss Badge */}
-                  <View style={[styles.discardCardTopRow, { flexDirection }]}>
+                  <View style={[styles.discardCardTopRow, isTablet && { gap: 14 }, { flexDirection }]}>
                     {/* Thumb */}
                     {displayImg ? (
                       <Image
                         source={{ uri: displayImg }}
-                        style={[styles.productThumb, isTablet && { width: 56, height: 56, borderRadius: 16 }]}
+                        style={[styles.productThumb, isTablet && { width: 62, height: 62, borderRadius: 16 }]}
                         resizeMode="cover"
                         fadeDuration={0}
                       />
@@ -2175,11 +2266,11 @@ export function InventoryExpiryView({
                       <View
                         style={[
                           styles.productThumbFallback,
-                          isTablet && { width: 56, height: 56, borderRadius: 16 },
+                          isTablet && { width: 62, height: 62, borderRadius: 16 },
                           { backgroundColor: hexToRgba(colors.primary, isDark ? 0.2 : 0.12) },
                         ]}
                       >
-                        <Ionicons name="cube-outline" size={isTablet ? 28 : 24} color={colors.primary} />
+                        <Ionicons name="cube-outline" size={isTablet ? 30 : 24} color={colors.primary} />
                       </View>
                     )}
 
@@ -2196,16 +2287,16 @@ export function InventoryExpiryView({
                         {item.productName}
                       </Text>
 
-                      <View style={[styles.categoryQtyRow, { flexDirection }]}>
+                      <View style={[styles.categoryQtyRow, isTablet && { gap: 10 }, { flexDirection }]}>
                         {item.category ? (
                           <View
                             style={[
                               styles.catBadge,
-                              isTablet && { paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 8 },
+                              isTablet && { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
                               { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100 },
                             ]}
                           >
-                            <Text style={[styles.catText, { color: colors.gray500, fontSize: isTablet ? 13 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            <Text style={[styles.catText, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                               {item.category}
                             </Text>
                           </View>
@@ -2218,11 +2309,11 @@ export function InventoryExpiryView({
                     </View>
 
                     {/* Loss Badge */}
-                    <View style={[styles.lossBadgeWrap, isTablet && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
-                      <Text style={[styles.lossBadgeText, { color: '#EF4444', fontSize: isTablet ? 15 : 13 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    <View style={[styles.lossBadgeWrap, isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 }, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.20)' : '#FEE2E2' }]}>
+                      <Text style={[styles.lossBadgeText, { color: '#EF4444', fontSize: isTablet ? 16 : 13 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {item.buyPriceUsd > 0 ? `$${item.totalLossUsd.toFixed(2)}` : fmtIQD(item.totalLossIqd)}
                       </Text>
-                      <Text style={[styles.lossSubText, { color: '#EF4444', fontSize: isTablet ? 12 : 10 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      <Text style={[styles.lossSubText, { color: '#EF4444', fontSize: isTablet ? 11 : 9.5 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                         {isKu ? 'زەرەر' : 'Loss'}
                       </Text>
                     </View>
@@ -2239,16 +2330,16 @@ export function InventoryExpiryView({
                   {/* Bottom Row: Dates and Restore Button (separated, zero overlap) */}
                   <View style={[styles.discardCardFooterRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <View style={[styles.discardDatesWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <View style={[styles.discardDateChip, { flexDirection }]}>
-                        <Ionicons name="time-outline" size={13} color={colors.gray400} />
-                        <Text style={[styles.expiryDateLabel, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      <View style={[styles.discardDateChip, isTablet && { gap: 6 }, { flexDirection }]}>
+                        <Ionicons name="time-outline" size={isTablet ? 15 : 13} color={colors.gray400} />
+                        <Text style={[styles.expiryDateLabel, { color: colors.gray400, fontSize: isTablet ? 12.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                           {isKu ? `فڕێدان: ${item.discardedAt?.slice(0, 10)}` : `Discarded: ${item.discardedAt?.slice(0, 10)}`}
                         </Text>
                       </View>
                       {item.expiryDate ? (
-                        <View style={[styles.discardDateChip, { flexDirection }]}>
-                          <Ionicons name="calendar-outline" size={13} color="#EF4444" />
-                          <Text style={[styles.expiryDateLabel, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        <View style={[styles.discardDateChip, isTablet && { gap: 6 }, { flexDirection }]}>
+                          <Ionicons name="calendar-outline" size={isTablet ? 15 : 13} color="#EF4444" />
+                          <Text style={[styles.expiryDateLabel, { color: '#EF4444', fontSize: isTablet ? 12.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                             {isKu ? `بەسەرچوون: ${item.expiryDate}` : `Exp: ${item.expiryDate}`}
                           </Text>
                         </View>
@@ -2261,6 +2352,7 @@ export function InventoryExpiryView({
                       onPress={() => handleRestoreDiscarded(item)}
                       style={[
                         styles.restoreBtn,
+                        isTablet && { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
                         {
                           backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5',
                           borderColor: isDark ? 'rgba(16, 185, 129, 0.40)' : '#A7F3D0',
@@ -2268,8 +2360,8 @@ export function InventoryExpiryView({
                         },
                       ]}
                     >
-                      <Ionicons name="return-up-back-outline" size={14} color="#10B981" />
-                      <Text style={[styles.restoreBtnText, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                      <Ionicons name="return-up-back-outline" size={isTablet ? 16 : 14} color="#10B981" />
+                      <Text style={[styles.restoreBtnText, { color: '#10B981', fontSize: isTablet ? 13.5 : 12 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {isKu ? 'گەڕاندنەوە' : 'Restore'}
                       </Text>
                     </TouchableOpacity>
@@ -2650,6 +2742,12 @@ const styles = StyleSheet.create({
   },
 
   // ── Period Filter Section ──
+  periodSectionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+  },
   periodSection: {
     gap: 8,
   },
@@ -2844,6 +2942,30 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11.5,
+  },
+  healthEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
+  healthEmptyIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  healthEmptyTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  healthEmptySub: {
+    fontSize: 12,
+    textAlign: 'center',
+    maxWidth: 320,
+    lineHeight: 18,
   },
 
   // ── Urgent Items Section in Report ──
@@ -3101,6 +3223,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 60,
     gap: 10,
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   emptyTitle: {
     fontSize: 16,

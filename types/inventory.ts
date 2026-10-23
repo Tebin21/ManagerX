@@ -112,3 +112,21 @@ export interface DiscardedLossStats {
   totalUnitsCount: number;
 }
 
+export interface ProductPurchaseHistoryItem {
+  id: number;
+  purchaseId: number;
+  purchaseNumber: string;
+  date: string;
+  supplierName: string | null;
+  supplierPhone: string | null;
+  supplierAddress: string | null;
+  buyPriceIQD: number;
+  buyPriceUSD: number;
+  sellPriceIQD: number;
+  sellPriceUSD: number;
+  quantity: number;
+  lineTotalIQD: number;
+  paymentStatus: 'paid' | 'fib' | 'debt';
+  createdAt: string;
+}
+

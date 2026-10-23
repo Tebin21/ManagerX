@@ -134,7 +134,7 @@ export function buildInventoryReportHTML(
   body {
     direction: ${dir};
     text-align: ${isKurdish ? 'right' : 'left'};
-    font-family: ${isKurdish ? "'Rudaw', sans-serif" : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif"};
+    font-family: ${isKurdish ? "'Bahij Janna', 'Inter', sans-serif" : "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif"};
     font-weight: ${isKurdish ? 400 : 'normal'};
     background: #F0F4F8;
     color: #0F172A;

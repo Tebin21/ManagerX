@@ -7,9 +7,20 @@ export interface SavedProductPreset {
   id: string;
   name: string;
   description: string | null;
-  imageUri: string;
+  imageUri: string | null;
   itemId: string | null;
   category: string | null;
+  buyPriceIQD?: number;
+  buyPriceUSD?: number;
+  sellPriceIQD?: number;
+  sellPriceUSD?: number;
+  supplierName?: string | null;
+  supplierPhone?: string | null;
+  supplierAddress?: string | null;
+  selectedSupplierId?: number | null;
+  warranty?: string | null;
+  notes?: string | null;
+  websiteDescription?: string | null;
   updatedAt: string;
 }
 
@@ -18,9 +29,20 @@ export interface SavedProductState {
   savePreset: (preset: {
     name?: string | null;
     description?: string | null;
-    imageUri: string;
+    imageUri?: string | null;
     itemId?: string | null;
     category?: string | null;
+    buyPriceIQD?: number;
+    buyPriceUSD?: number;
+    sellPriceIQD?: number;
+    sellPriceUSD?: number;
+    supplierName?: string | null;
+    supplierPhone?: string | null;
+    supplierAddress?: string | null;
+    selectedSupplierId?: number | null;
+    warranty?: string | null;
+    notes?: string | null;
+    websiteDescription?: string | null;
   }) => void;
   deletePreset: (id: string) => void;
   syncFromInventory: (products: InventoryProduct[]) => void;
@@ -35,31 +57,44 @@ export const useSavedProductStore = create<SavedProductState>()(
       savedPresets: [],
 
       savePreset: (preset) => {
-        if (!preset.imageUri) return;
-
         const rawName = preset.name?.trim() || '';
+        const rawItemId = preset.itemId?.trim() || null;
+        if (!rawName && !rawItemId) return;
+
         const existing = get().savedPresets;
         const now = new Date().toISOString();
 
-        // If no name provided, generate a friendly fallback like "وێنەی پاشەکەوتکراو #1"
-        const finalName = rawName || `وێنەی پاشەکەوتکراو #${existing.length + 1}`;
+        const finalName = rawName || `بەرهەمی بێ ناو (${rawItemId})`;
         const normalizedName = finalName.toLowerCase();
 
-        // Check if an entry with this name already exists (case-insensitive)
-        const existingIdx = rawName
-          ? existing.findIndex((p) => p.name.trim().toLowerCase() === normalizedName)
-          : -1;
+        // Check if an entry with this name OR item_id already exists
+        const existingIdx = existing.findIndex((p) => {
+          if (rawName && p.name.trim().toLowerCase() === normalizedName) return true;
+          if (rawItemId && p.itemId && p.itemId.trim().toLowerCase() === rawItemId.toLowerCase()) return true;
+          return false;
+        });
 
         if (existingIdx !== -1) {
           const updated = [...existing];
           const curr = updated[existingIdx];
           updated[existingIdx] = {
             ...curr,
-            name: finalName,
+            name: rawName || curr.name,
             description: preset.description !== undefined ? (preset.description?.trim() || null) : curr.description,
-            imageUri: preset.imageUri,
-            itemId: preset.itemId?.trim() || curr.itemId,
+            imageUri: preset.imageUri !== undefined ? (preset.imageUri?.trim() || null) : curr.imageUri,
+            itemId: rawItemId || curr.itemId,
             category: preset.category?.trim() || curr.category,
+            buyPriceIQD: preset.buyPriceIQD !== undefined ? preset.buyPriceIQD : curr.buyPriceIQD,
+            buyPriceUSD: preset.buyPriceUSD !== undefined ? preset.buyPriceUSD : curr.buyPriceUSD,
+            sellPriceIQD: preset.sellPriceIQD !== undefined ? preset.sellPriceIQD : curr.sellPriceIQD,
+            sellPriceUSD: preset.sellPriceUSD !== undefined ? preset.sellPriceUSD : curr.sellPriceUSD,
+            supplierName: preset.supplierName !== undefined ? preset.supplierName : curr.supplierName,
+            supplierPhone: preset.supplierPhone !== undefined ? preset.supplierPhone : curr.supplierPhone,
+            supplierAddress: preset.supplierAddress !== undefined ? preset.supplierAddress : curr.supplierAddress,
+            selectedSupplierId: preset.selectedSupplierId !== undefined ? preset.selectedSupplierId : curr.selectedSupplierId,
+            warranty: preset.warranty !== undefined ? preset.warranty : curr.warranty,
+            notes: preset.notes !== undefined ? preset.notes : curr.notes,
+            websiteDescription: preset.websiteDescription !== undefined ? preset.websiteDescription : curr.websiteDescription,
             updatedAt: now,
           };
           // Move the updated one to top
@@ -70,9 +105,20 @@ export const useSavedProductStore = create<SavedProductState>()(
             id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             name: finalName,
             description: preset.description?.trim() || null,
-            imageUri: preset.imageUri,
-            itemId: preset.itemId?.trim() || null,
+            imageUri: preset.imageUri?.trim() || null,
+            itemId: rawItemId,
             category: preset.category?.trim() || null,
+            buyPriceIQD: preset.buyPriceIQD,
+            buyPriceUSD: preset.buyPriceUSD,
+            sellPriceIQD: preset.sellPriceIQD,
+            sellPriceUSD: preset.sellPriceUSD,
+            supplierName: preset.supplierName ?? null,
+            supplierPhone: preset.supplierPhone ?? null,
+            supplierAddress: preset.supplierAddress ?? null,
+            selectedSupplierId: preset.selectedSupplierId ?? null,
+            warranty: preset.warranty ?? null,
+            notes: preset.notes ?? null,
+            websiteDescription: preset.websiteDescription ?? null,
             updatedAt: now,
           };
           set({ savedPresets: [newPreset, ...existing] });
@@ -89,23 +135,47 @@ export const useSavedProductStore = create<SavedProductState>()(
         if (!Array.isArray(products) || products.length === 0) return;
 
         const current = get().savedPresets;
-        const nameMap = new Map<string, SavedProductPreset>();
+        const nameMap = new Map<string, number>();
+        const codeMap = new Map<string, number>();
 
-        // Index existing presets by normalized name
-        current.forEach((p) => {
-          nameMap.set(p.name.trim().toLowerCase(), p);
+        // Index existing presets
+        current.forEach((p, idx) => {
+          nameMap.set(p.name.trim().toLowerCase(), idx);
+          if (p.itemId) codeMap.set(p.itemId.trim().toLowerCase(), idx);
         });
 
         let hasNew = false;
         const additions: SavedProductPreset[] = [];
+        const updatedList = [...current];
 
         products.forEach((prod) => {
-          const uri = prod.imageUri || prod.imageRemoteUrl;
           const name = prod.name?.trim();
-          if (!uri || !name) return;
+          if (!name) return;
 
+          const uri = prod.imageUri || prod.imageRemoteUrl || null;
           const key = name.toLowerCase();
-          if (!nameMap.has(key)) {
+          const codeKey = prod.itemId?.trim().toLowerCase();
+
+          const existingIdx = nameMap.has(key) ? nameMap.get(key)! : (codeKey && codeMap.has(codeKey) ? codeMap.get(codeKey)! : -1);
+
+          if (existingIdx !== -1) {
+            // Enrich existing preset with prices or supplier if missing
+            const curr = updatedList[existingIdx];
+            let changed = false;
+            const updated = { ...curr };
+
+            if (!curr.imageUri && uri) { updated.imageUri = uri; changed = true; }
+            if (!curr.itemId && prod.itemId) { updated.itemId = prod.itemId.trim(); changed = true; }
+            if (!curr.category && prod.category) { updated.category = prod.category.trim(); changed = true; }
+            if (curr.buyPriceIQD === undefined && prod.purchasePrice > 0) { updated.buyPriceIQD = prod.purchasePrice; changed = true; }
+            if (curr.sellPriceIQD === undefined && prod.sellingPrice > 0) { updated.sellPriceIQD = prod.sellingPrice; changed = true; }
+            if (curr.supplierName === undefined && prod.supplierName) { updated.supplierName = prod.supplierName; changed = true; }
+
+            if (changed) {
+              updatedList[existingIdx] = updated;
+              hasNew = true;
+            }
+          } else {
             const desc = prod.itemDescription?.trim() || prod.description?.trim() || null;
             const newPreset: SavedProductPreset = {
               id: `inv_${prod.id}_${Date.now()}`,
@@ -114,16 +184,24 @@ export const useSavedProductStore = create<SavedProductState>()(
               imageUri: uri,
               itemId: prod.itemId?.trim() || null,
               category: prod.category?.trim() || null,
+              buyPriceIQD: prod.purchasePrice || undefined,
+              buyPriceUSD: prod.buyPriceUsd || undefined,
+              sellPriceIQD: prod.sellingPrice || undefined,
+              sellPriceUSD: prod.sellPriceUsd || undefined,
+              supplierName: prod.supplierName ?? null,
+              supplierPhone: prod.supplierPhone ?? null,
+              supplierAddress: prod.supplierAddress ?? null,
               updatedAt: new Date().toISOString(),
             };
-            nameMap.set(key, newPreset);
+            nameMap.set(key, additions.length);
+            if (codeKey) codeMap.set(codeKey, additions.length);
             additions.push(newPreset);
             hasNew = true;
           }
         });
 
         if (hasNew) {
-          set({ savedPresets: [...additions, ...current] });
+          set({ savedPresets: [...additions, ...updatedList] });
         }
       },
 

@@ -90,7 +90,7 @@ export function buildCustomerReportHTML(
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
     background: #F0F4F8;
     color: #1E293B;
     font-size: 13.5px;

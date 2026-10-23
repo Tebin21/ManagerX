@@ -5,7 +5,7 @@ import type {
   UpdateSaleCompleteInput, GlobalDiscountType,
 } from '@/types/sales';
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
-import type { InventoryProduct, InventoryStats, NewProductData, DiscardedProduct, DiscardedLossStats } from '@/types/inventory';
+import type { InventoryProduct, InventoryStats, NewProductData, DiscardedProduct, DiscardedLossStats, ProductPurchaseHistoryItem } from '@/types/inventory';
 import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary, FinancialLedgerEvent, LedgerEventType, DebtType } from '@/types/debt';
 import type { SoldProductRecord } from '@/types/soldProducts';
@@ -960,6 +960,33 @@ export async function getProductsByItemId(itemId: string): Promise<number[]> {
   return rows.map((r) => r.id);
 }
 
+export async function getProductByItemId(itemId: string): Promise<InventoryProduct | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM products WHERE item_id = ? AND is_active = 1 ORDER BY id DESC LIMIT 1',
+    [itemId]
+  );
+  return row ? rowToInventoryProduct(row) : null;
+}
+
+export async function getProductByItemIdAndName(itemId: string, name: string): Promise<InventoryProduct | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM products WHERE item_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) AND is_active = 1 ORDER BY id DESC LIMIT 1',
+    [itemId, name]
+  );
+  return row ? rowToInventoryProduct(row) : null;
+}
+
+export async function getRepeatableProductByName(name: string): Promise<InventoryProduct | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM products WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id_mode = 'repeatable' AND is_active = 1 ORDER BY id DESC LIMIT 1`,
+    [name]
+  );
+  return row ? rowToInventoryProduct(row) : null;
+}
+
 export async function getProductCategories(): Promise<string[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<{ name: string }>(
@@ -1228,6 +1255,93 @@ export async function updateProduct(id: number, data: Partial<NewProductData>): 
   });
 
   await enqueueSyncChange(id, 'upsert');
+}
+
+export interface RestockProductData {
+  quantity: number;
+  purchasePrice: number;
+  buyPriceUsd: number;
+  sellingPrice: number;
+  sellPriceUsd: number;
+  purchaseId?: number | null;
+  supplierName?: string | null;
+  supplierPhone?: string | null;
+  supplierAddress?: string | null;
+  purchaseDate?: string | null;
+  imageUri?: string | null;
+  itemDescription?: string | null;
+  category?: string | null;
+  productionDate?: string | null;
+  expiryDate?: string | null;
+}
+
+export async function restockExistingProduct(productId: number, data: RestockProductData): Promise<void> {
+  const database = await getDatabase();
+  const fields: string[] = [
+    'quantity = quantity + ?',
+    'purchase_price = ?',
+    'buy_price_usd = ?',
+    'selling_price = ?',
+    'sell_price_usd = ?',
+    'is_active = 1',
+    'updated_at = CURRENT_TIMESTAMP',
+  ];
+  const values: unknown[] = [
+    data.quantity,
+    data.purchasePrice,
+    data.buyPriceUsd,
+    data.sellingPrice,
+    data.sellPriceUsd,
+  ];
+
+  if (data.purchaseId !== undefined) {
+    fields.push('purchase_id = ?');
+    values.push(data.purchaseId);
+  }
+  if (data.purchaseDate !== undefined) {
+    fields.push('purchase_date = ?');
+    values.push(data.purchaseDate);
+  }
+  if (data.supplierName) {
+    fields.push('supplier_name = ?');
+    values.push(data.supplierName);
+  }
+  if (data.supplierPhone) {
+    fields.push('supplier_phone = ?');
+    values.push(data.supplierPhone);
+  }
+  if (data.supplierAddress) {
+    fields.push('supplier_address = ?');
+    values.push(data.supplierAddress);
+  }
+  if (data.imageUri) {
+    fields.push('image_uri = ?');
+    values.push(data.imageUri);
+  }
+  if (data.itemDescription) {
+    fields.push('item_description = ?');
+    values.push(data.itemDescription);
+  }
+  if (data.category) {
+    fields.push('category = ?');
+    values.push(data.category);
+  }
+  if (data.productionDate) {
+    fields.push('production_date = ?');
+    values.push(data.productionDate);
+  }
+  if (data.expiryDate) {
+    fields.push('expiry_date = ?');
+    values.push(data.expiryDate);
+  }
+
+  values.push(productId);
+  await database.runAsync(
+    `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
+    values as SQLite.SQLiteBindValue[]
+  );
+
+  await enqueueSyncChange(productId, 'upsert');
 }
 
 async function archiveProductToHistory(
@@ -1820,6 +1934,62 @@ export async function getSalesByProductId(productId: number): Promise<Array<Sale
     lineTotal: row.line_total as number,
     invoiceNumber: row.invoice_number as string,
     saleCreatedAt: row.sale_created_at as string,
+  }));
+}
+
+export async function getProductPurchaseHistory(
+  productId: number,
+  productName: string,
+  itemId?: string | null
+): Promise<ProductPurchaseHistoryItem[]> {
+  const database = await getDatabase();
+  const trimmedName = productName.trim().toLowerCase();
+
+  // Query from purchases and purchase_items
+  const rows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT 
+      p.id as purchase_id,
+      p.purchase_number,
+      p.date,
+      p.supplier_name,
+      p.supplier_phone,
+      p.supplier_address,
+      COALESCE(pi.buy_price_iqd, p.buy_price_iqd) as buy_price_iqd,
+      COALESCE(pi.buy_price_usd, p.buy_price_usd) as buy_price_usd,
+      COALESCE(pi.sell_price_iqd, p.sell_price_iqd) as sell_price_iqd,
+      COALESCE(pi.sell_price_usd, p.sell_price_usd) as sell_price_usd,
+      COALESCE(pi.quantity, p.quantity) as quantity,
+      COALESCE(pi.line_total_iqd, p.total_iqd) as line_total_iqd,
+      p.payment_status,
+      p.created_at
+    FROM purchases p
+    LEFT JOIN purchase_items pi ON pi.purchase_id = p.id
+    WHERE LOWER(TRIM(COALESCE(pi.product_name, p.product_name))) = ?
+       OR p.id = (SELECT purchase_id FROM products WHERE id = ?)
+       ${itemId ? `OR p.item_ids LIKE ? OR (pi.item_ids IS NOT NULL AND pi.item_ids LIKE ?)` : ''}
+    GROUP BY p.id
+    ORDER BY p.date DESC, p.created_at DESC
+  `, itemId 
+      ? [trimmedName, productId, `%"${itemId}"%`, `%"${itemId}"%`]
+      : [trimmedName, productId]
+  );
+
+  return rows.map((r) => ({
+    id: r.purchase_id as number,
+    purchaseId: r.purchase_id as number,
+    purchaseNumber: (r.purchase_number as string) || `P-${r.purchase_id}`,
+    date: r.date as string,
+    supplierName: (r.supplier_name as string | null) ?? null,
+    supplierPhone: (r.supplier_phone as string | null) ?? null,
+    supplierAddress: (r.supplier_address as string | null) ?? null,
+    buyPriceIQD: Number(r.buy_price_iqd) || 0,
+    buyPriceUSD: Number(r.buy_price_usd) || 0,
+    sellPriceIQD: Number(r.sell_price_iqd) || 0,
+    sellPriceUSD: Number(r.sell_price_usd) || 0,
+    quantity: Number(r.quantity) || 1,
+    lineTotalIQD: Number(r.line_total_iqd) || 0,
+    paymentStatus: ((r.payment_status as string) || 'paid') as 'paid' | 'fib' | 'debt',
+    createdAt: r.created_at as string,
   }));
 }
 

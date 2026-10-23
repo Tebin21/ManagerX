@@ -45,8 +45,17 @@ import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { DatePickerModal } from '@/components/shared/DatePickerModal';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
+import { PurchasePaymentOptionsAccordion } from '@/components/purchases/PurchasePaymentOptionsAccordion';
 import { useBusinessStore } from '@/store/businessStore';
-import { fmtExchangeRate, toEnglishDigits, toDateOnly, sanitizeNumericInput } from '@/utils/formatters';
+import {
+  fmtExchangeRate,
+  toEnglishDigits,
+  toDateOnly,
+  sanitizeNumericInput,
+  formatExpiryCountdown,
+  formatProductionAge,
+  formatShelfLife,
+} from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { resolveInterFont } from '@/constants/typography';
@@ -110,28 +119,101 @@ export default function NewPurchaseScreen() {
   const [buyIQD, setBuyIQD]                 = useState('');
   const [buyUSD, setBuyUSD]                 = useState('');
 
+  // ─── Bound Product Identity (Strict ID-Product Name Integrity) ────────────
+  // When an existing product is auto-filled (by name or barcode), this tracks its original name and ID.
+  // Rule: "کە ناوی بەرەهەمەکە گۆرا نابێ لەسەر هەمان ئایدی بمێنێ چونکە ئیتر ئەو ئایدە تایبەت دەبێ بەو بەرهەمە"
+  const [boundProductIdentity, setBoundProductIdentity] = useState<{ name: string; itemId: string } | null>(null);
+  const [idClearedNotice, setIdClearedNotice] = useState<string | null>(null);
+
   const handleSelectSavedItem = (preset: SavedProductPreset) => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch {}
-    setImageUri(preset.imageUri);
+
+    // 1. Basic details & photo
     setProductName(preset.name);
     if (preset.description) {
       setItemDescription(preset.description);
     }
-    if (preset.category && !category) {
+    if (preset.category) {
       setCategory(preset.category);
     }
-    if (preset.itemId && !sharedId) {
+    if (preset.imageUri) {
+      setImageUri(preset.imageUri);
+    }
+    if (preset.websiteDescription) {
+      setWebsiteDescription(preset.websiteDescription);
+    }
+    if (preset.warranty) {
+      setWarranty(preset.warranty);
+    }
+
+    // 2. Barcode / Item ID binding
+    if (preset.itemId) {
       setIdType('shared');
       setSharedId(preset.itemId);
+      setBoundProductIdentity({ name: preset.name, itemId: preset.itemId });
+      setIdClearedNotice(null);
+    }
+
+    // 3. Prices (Buy & Sell in IQD and USD)
+    if (preset.buyPriceIQD && preset.buyPriceIQD > 0) {
+      setBuyIQD(String(preset.buyPriceIQD));
+      if (preset.buyPriceUSD) {
+        setBuyUSD(String(preset.buyPriceUSD));
+      } else {
+        setBuyUSD(String(round(preset.buyPriceIQD / exchangeRate, 2)));
+      }
+    }
+    if (preset.sellPriceIQD && preset.sellPriceIQD > 0) {
+      setSellIQD(String(preset.sellPriceIQD));
+      if (preset.sellPriceUSD) {
+        setSellUSD(String(preset.sellPriceUSD));
+      } else {
+        setSellUSD(String(round(preset.sellPriceIQD / exchangeRate, 2)));
+      }
+    }
+
+    // 4. Supplier Auto-fill (can be freely edited by user anytime)
+    if (preset.supplierName) {
+      setSupplierName(preset.supplierName);
+      if (preset.supplierPhone) setSupplierPhone(preset.supplierPhone);
+      if (preset.supplierAddress) setSupplierAddress(preset.supplierAddress);
+      if (preset.selectedSupplierId) setSelectedSupplierId(preset.selectedSupplierId);
+    }
+  };
+
+  const handleProductNameChange = (val: string) => {
+    setProductName(val);
+    setIdClearedNotice(null);
+
+    // If this form had an ID bound to a specific product name:
+    // If the name is changed, detach the ID so it won't be hijacked for a different product!
+    if (boundProductIdentity && boundProductIdentity.itemId) {
+      const isDifferent = val.trim().toLowerCase() !== boundProductIdentity.name.trim().toLowerCase();
+      if (isDifferent) {
+        if (sharedId === boundProductIdentity.itemId) {
+          setSharedId('');
+        }
+        const prevName = boundProductIdentity.name;
+        const prevId = boundProductIdentity.itemId;
+        setBoundProductIdentity(null);
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        } catch {}
+        setIdClearedNotice(
+          isKuLanguage
+            ? `ئایدی (${prevId}) لادرا چونکە ناوی بەرهەمەکە گۆڕدرا و ئەو ئایدیە تایبەتە بە «${prevName}»`
+            : `ID (${prevId}) was removed because product name changed (dedicated to "${prevName}")`
+        );
+      }
     }
   };
 
   const matchingPresets = React.useMemo(() => {
     const q = productName.trim().toLowerCase();
     if (q.length < 1) return [];
-    return savedPresets.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 5);
+    return savedPresets.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 6);
   }, [savedPresets, productName]);
 
   // ─── ID type ────────────────────────────────────────────────────────────────
@@ -140,6 +222,84 @@ export default function NewPurchaseScreen() {
   const [customIds, setCustomIds]           = useState<string[]>(['']);
   const [isGeneratingShared,   setIsGeneratingShared]   = useState(false);
   const [generatingCustomIdxs, setGeneratingCustomIdxs] = useState<Set<number>>(new Set());
+
+  // ─── Existing Product Detection for Repurchase / Restock ───────────────────
+  const existingInventoryProduct = React.useMemo(() => {
+    const cleanName = productName.trim().toLowerCase();
+    if (!cleanName) return null;
+
+    // 1. By bound identity
+    if (boundProductIdentity?.name && boundProductIdentity.name.trim().toLowerCase() === cleanName) {
+      const match = inventoryProducts.find(
+        (p) => p.name.trim().toLowerCase() === cleanName ||
+               (boundProductIdentity.itemId && p.itemId && p.itemId.trim().toLowerCase() === boundProductIdentity.itemId.trim().toLowerCase())
+      );
+      if (match) return match;
+    }
+
+    // 2. By exact name in inventoryProducts
+    const matchByName = inventoryProducts.find(
+      (p) => p.name.trim().toLowerCase() === cleanName
+    );
+    if (matchByName) return matchByName;
+
+    // 3. By saved presets
+    const matchPreset = savedPresets.find(
+      (p) => p.name.trim().toLowerCase() === cleanName
+    );
+    if (matchPreset) {
+      const invP = inventoryProducts.find(
+        (p) => (matchPreset.itemId && p.itemId && p.itemId.trim().toLowerCase() === matchPreset.itemId.trim().toLowerCase()) ||
+               p.name.trim().toLowerCase() === matchPreset.name.trim().toLowerCase()
+      );
+      if (invP) return invP;
+      return {
+        id: 0,
+        name: matchPreset.name,
+        itemId: matchPreset.itemId ?? '',
+        quantity: 0,
+        purchasePrice: matchPreset.buyPriceIQD || 0,
+        sellingPrice: matchPreset.sellPriceIQD || 0,
+        category: matchPreset.category || 'General',
+      } as any;
+    }
+
+    return null;
+  }, [productName, boundProductIdentity, inventoryProducts, savedPresets]);
+
+  const isRepurchasingExisting = Boolean(existingInventoryProduct);
+  const existingProductLockedId = existingInventoryProduct?.itemId || boundProductIdentity?.itemId || sharedId;
+
+  // Auto-lock and auto-fill existing product ID when repurchasing
+  useEffect(() => {
+    if (existingInventoryProduct) {
+      const targetId = existingInventoryProduct.itemId || boundProductIdentity?.itemId;
+      if (targetId && sharedId !== targetId) {
+        setSharedId(targetId);
+      }
+      if (idType !== 'shared') {
+        setIdType('shared');
+      }
+      if (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== existingInventoryProduct.name.trim().toLowerCase()) {
+        setBoundProductIdentity({
+          name: existingInventoryProduct.name,
+          itemId: targetId || '',
+        });
+      }
+      // Auto-fill prices if empty
+      if (!buyIQD && existingInventoryProduct.purchasePrice > 0) {
+        setBuyIQD(String(existingInventoryProduct.purchasePrice));
+        setBuyUSD(String((existingInventoryProduct as any).buyPriceUsd || round(existingInventoryProduct.purchasePrice / exchangeRate, 2)));
+      }
+      if (!sellIQD && existingInventoryProduct.sellingPrice > 0) {
+        setSellIQD(String(existingInventoryProduct.sellingPrice));
+        setSellUSD(String((existingInventoryProduct as any).sellPriceUsd || round(existingInventoryProduct.sellingPrice / exchangeRate, 2)));
+      }
+      if (!category && existingInventoryProduct.category) {
+        setCategory(existingInventoryProduct.category);
+      }
+    }
+  }, [existingInventoryProduct]);
 
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -150,26 +310,124 @@ export default function NewPurchaseScreen() {
     setScannerVisible(true);
   };
 
+  const findProductPresetByCode = (code: string): SavedProductPreset | null => {
+    const clean = code.trim().toLowerCase();
+    if (!clean) return null;
+    const fromStore = findByCode(clean);
+    if (fromStore) return fromStore;
+
+    const fromInv = inventoryProducts.find(
+      (p) => p.itemId && p.itemId.trim().toLowerCase() === clean
+    );
+    if (fromInv) {
+      return {
+        id: `inv_${fromInv.id}`,
+        name: fromInv.name,
+        description: fromInv.itemDescription || fromInv.description || null,
+        imageUri: fromInv.imageUri || fromInv.imageRemoteUrl || null,
+        itemId: fromInv.itemId,
+        category: fromInv.category || null,
+        buyPriceIQD: fromInv.purchasePrice,
+        buyPriceUSD: fromInv.buyPriceUsd,
+        sellPriceIQD: fromInv.sellingPrice,
+        sellPriceUSD: fromInv.sellPriceUsd,
+        supplierName: fromInv.supplierName,
+        supplierPhone: fromInv.supplierPhone,
+        supplierAddress: fromInv.supplierAddress,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return null;
+  };
+
   const handleScanSingle = (code: string) => {
+    const cleanCode = toEnglishDigits(code).trim();
+    if (!cleanCode) return;
+
+    const matched = findProductPresetByCode(cleanCode);
+
+    if (matched) {
+      const currentTrimmedName = productName.trim().toLowerCase();
+      const matchedName = matched.name.trim();
+
+      // Case 1: Name is empty OR matches the existing product
+      if (!currentTrimmedName || currentTrimmedName === matchedName.toLowerCase()) {
+        handleSelectSavedItem(matched);
+        if (targetCustomIdx !== null) {
+          updateCustomId(targetCustomIdx, cleanCode);
+        } else {
+          setIdType('shared');
+          setSharedId(cleanCode);
+        }
+        return;
+      }
+
+      // Case 2: Name is already filled with a DIFFERENT product name!
+      // Strict ID dedication rule: prevent hijacking the ID!
+      Alert.alert(
+        isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
+        isKuLanguage
+          ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ بەرهەمی «${matchedName}» دیاریکراوە و تایبەتە پێی.\n\nناتوانرێت ئەم ئایدیە بۆ بەرهەمی «${productName.trim()}» دابنرێت چونکە ناوی جیاوازە.`
+          : `Barcode (${cleanCode}) is already dedicated to "${matchedName}". It cannot be assigned to "${productName.trim()}".`,
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
+            onPress: () => {
+              handleSelectSavedItem(matched);
+              if (targetCustomIdx !== null) {
+                updateCustomId(targetCustomIdx, cleanCode);
+              } else {
+                setIdType('shared');
+                setSharedId(cleanCode);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // New unknown barcode
     if (targetCustomIdx !== null) {
-      updateCustomId(targetCustomIdx, code);
+      updateCustomId(targetCustomIdx, cleanCode);
     } else {
       if (idType === 'shared') {
-        setSharedId(code);
+        setSharedId(cleanCode);
       } else {
         const firstEmpty = customIds.findIndex((val) => !val.trim());
         const idx = firstEmpty >= 0 ? firstEmpty : 0;
-        updateCustomId(idx, code);
+        updateCustomId(idx, cleanCode);
       }
     }
+  };
 
-    // Auto-match against saved presets by code/barcode
-    const matched = findByCode(code);
+  const handleSharedIdBlur = () => {
+    if (!sharedId.trim()) return;
+    const cleanCode = sharedId.trim();
+    const matched = findProductPresetByCode(cleanCode);
+
     if (matched) {
-      if (!productName.trim()) setProductName(matched.name);
-      if (!itemDescription.trim() && matched.description) setItemDescription(matched.description);
-      if (!imageUri && matched.imageUri) setImageUri(matched.imageUri);
-      if (!category.trim() && matched.category) setCategory(matched.category);
+      const currentTrimmedName = productName.trim().toLowerCase();
+      const matchedName = matched.name.trim();
+
+      if (!currentTrimmedName || currentTrimmedName === matchedName.toLowerCase()) {
+        handleSelectSavedItem(matched);
+      } else {
+        Alert.alert(
+          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
+          isKuLanguage
+            ? `ئەم ئایدیە (${cleanCode}) تایبەتە بە بەرهەمی «${matchedName}» و ناتوانرێت بۆ بەرهەمی «${productName.trim()}» بەکاربێت.`
+            : `ID (${cleanCode}) is dedicated to "${matchedName}" and cannot be used for "${productName.trim()}".`,
+          [
+            { text: t('common.cancel'), style: 'cancel', onPress: () => setSharedId('') },
+            {
+              text: isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
+              onPress: () => handleSelectSavedItem(matched),
+            },
+          ]
+        );
+      }
     }
   };
 
@@ -207,15 +465,44 @@ export default function NewPurchaseScreen() {
   const [supplierPhone, setSupplierPhone]   = useState('');
   const [supplierAddress, setSupplierAddress] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
-  const [paymentStatus, setPaymentStatus]   = useState<PurchasePaymentStatus>('paid');
+  const savedPaymentStatusPref = useSettingsStore((s) => s.purchasePaymentStatusPreference);
+  const savedReceiptCurrencyPref = useSettingsStore((s) => s.purchaseReceiptCurrencyPreference);
+  const savedCheckoutModePref = useSettingsStore((s) => s.purchaseCheckoutModePreference);
+  const savedDebtDownPaymentMethodPref = useSettingsStore((s) => s.purchaseDebtDownPaymentMethodPreference);
+  const setPaymentStatusPreference = useSettingsStore((s) => s.setPurchasePaymentStatusPreference);
+  const setReceiptCurrencyPreference = useSettingsStore((s) => s.setPurchaseReceiptCurrencyPreference);
+  const setCheckoutModePreference = useSettingsStore((s) => s.setPurchaseCheckoutModePreference);
+  const setDebtDownPaymentMethodPreference = useSettingsStore((s) => s.setPurchaseDebtDownPaymentMethodPreference);
+
+  const [paymentStatus, setPaymentStatusState] = useState<PurchasePaymentStatus>(savedPaymentStatusPref || 'paid');
   const [amountPaid, setAmountPaid]         = useState('');
-  const [initialPaymentMethod, setInitialPaymentMethod] = useState<'cash' | 'fib'>('cash');
+  const [initialPaymentMethod, setInitialPaymentMethodState] = useState<'cash' | 'fib'>(savedDebtDownPaymentMethodPref || 'cash');
 
   const [imageUri, setImageUri]             = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
-  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('normal');
+  const [receiptCurrency, setReceiptCurrencyState] = useState<ReceiptCurrencyMode>(savedReceiptCurrencyPref || 'iqd');
+  const [checkoutMode, setCheckoutModeState] = useState<CheckoutMode>(savedCheckoutModePref || 'normal');
+
+  const setPaymentStatus = (status: PurchasePaymentStatus) => {
+    setPaymentStatusState(status);
+    setPaymentStatusPreference(status);
+  };
+
+  const setInitialPaymentMethod = (method: 'cash' | 'fib') => {
+    setInitialPaymentMethodState(method);
+    setDebtDownPaymentMethodPreference(method);
+  };
+
+  const setReceiptCurrency = (curr: ReceiptCurrencyMode) => {
+    setReceiptCurrencyState(curr);
+    setReceiptCurrencyPreference(curr);
+  };
+
+  const setCheckoutMode = (mode: CheckoutMode) => {
+    setCheckoutModeState(mode);
+    setCheckoutModePreference(mode);
+  };
 
   // ─── Expiry & Production Dates ──────────────────────────────────────────────
   const [productionDate, setProductionDate] = useState<Date | null>(null);
@@ -400,6 +687,21 @@ export default function NewPurchaseScreen() {
       Alert.alert(t('common.required'), t('purchases.validationIdType'));
       return false;
     }
+    if (idType === 'shared' && sharedId.trim()) {
+      const cleanCode = sharedId.trim().toLowerCase();
+      const conflict = inventoryProducts.find(
+        (p) => p.itemId && p.itemId.trim().toLowerCase() === cleanCode
+      );
+      if (conflict && conflict.name.trim().toLowerCase() !== productName.trim().toLowerCase()) {
+        Alert.alert(
+          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
+          isKuLanguage
+            ? `ئەم ئایدیە (${sharedId.trim()}) پێشتر بۆ بەرهەمی «${conflict.name}» تۆمارکراوە و تایبەتە پێی. ناتوانرێت بۆ بەرهەمی «${productName.trim()}» بەکاربێت.`
+            : `ID (${sharedId.trim()}) is dedicated to "${conflict.name}" and cannot be used for "${productName.trim()}".`
+        );
+        return false;
+      }
+    }
     if (paymentStatus === 'debt') {
       if (rawPaidNum > 0 && (rawPaidNum > maxDownPayment || rawPaidIQD >= totalIQD)) {
         Alert.alert(t('common.error'), t('purchases.validationAmountPaidDebt'));
@@ -470,18 +772,27 @@ export default function NewPurchaseScreen() {
         expiryDate: expiryDate ? toDateOnly(expiryDate) : null,
       });
 
-      // Auto-persist to saved presets library
-      if (imageUri) {
-        try {
-          savePreset({
-            name: productName.trim() || undefined,
-            description: itemDescription.trim() || null,
-            imageUri,
-            itemId: sharedId.trim() || (customIds[0]?.trim()) || null,
-            category: category.trim() || null,
-          });
-        } catch { /* non-critical */ }
-      }
+      // Auto-persist complete product preset to saved library
+      try {
+        savePreset({
+          name: productName.trim() || undefined,
+          description: itemDescription.trim() || null,
+          imageUri: imageUri || null,
+          itemId: sharedId.trim() || (customIds[0]?.trim()) || null,
+          category: category.trim() || null,
+          buyPriceIQD: roundToNearest250(buyIQDNum),
+          buyPriceUSD: parseFloat(buyUSD) || round(buyIQDNum / exchangeRate, 2),
+          sellPriceIQD: roundToNearest250(sellIQDNum),
+          sellPriceUSD: parseFloat(sellUSD) || round(sellIQDNum / exchangeRate, 2),
+          supplierName: isDirectSupplier ? DIRECT_SUPPLIER_NAME : (supplierName.trim() || null),
+          supplierPhone: isDirectSupplier ? null : (supplierPhone.trim() || null),
+          supplierAddress: isDirectSupplier ? null : (supplierAddress.trim() || null),
+          selectedSupplierId: isDirectSupplier ? null : selectedSupplierId,
+          warranty: warranty.trim() || null,
+          notes: notes.trim() || null,
+          websiteDescription: websiteDescription.trim() || null,
+        });
+      } catch { /* non-critical */ }
 
       if (category.trim()) {
         try {
@@ -494,12 +805,16 @@ export default function NewPurchaseScreen() {
         setProductName(''); setPurchaseDate(new Date()); setSupplierName('');
         setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
         setIdType(null); setSharedId(''); setCustomIds(['']);
-        setCategory(''); setWarranty(''); setNotes('');
-        setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined); setPaymentStatus('paid');
+        setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined);
+        const currentPrefs = useSettingsStore.getState();
+        setPaymentStatusState(currentPrefs.purchasePaymentStatusPreference || 'paid');
         setAmountPaid('');
-        setInitialPaymentMethod('cash');
+        setInitialPaymentMethodState(currentPrefs.purchaseDebtDownPaymentMethodPreference || 'cash');
         setImageUri(null);
-        setReceiptCurrency('iqd');
+        setReceiptCurrencyState(currentPrefs.purchaseReceiptCurrencyPreference || 'iqd');
+        setCheckoutModeState(currentPrefs.purchaseCheckoutModePreference || 'normal');
+        setBoundProductIdentity(null);
+        setIdClearedNotice(null);
         scrollRef.current?.scrollTo({ y: 0, animated: true });
         col1ScrollRef.current?.scrollTo({ y: 0, animated: true });
         col2ScrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -539,7 +854,17 @@ export default function NewPurchaseScreen() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      if (msg.startsWith('DUPLICATE_ITEM_ID|')) {
+      if (msg.startsWith('ID_BELONGS_TO_ANOTHER_PRODUCT|')) {
+        const parts = msg.split('|');
+        const ownerName = parts[1] || '';
+        const idVal = parts[2] || '';
+        Alert.alert(
+          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
+          isKuLanguage
+            ? `ئەم ئایدیە (${idVal}) تایبەتە بە بەرهەمی «${ownerName}» و ناتوانرێت بۆ بەرهەمێکی تری جیاواز بەکاربێت.`
+            : `This ID (${idVal}) is dedicated to "${ownerName}" and cannot be used for another product.`
+        );
+      } else if (msg.startsWith('DUPLICATE_ITEM_ID|')) {
         const ids = msg.split('|')[1];
         Alert.alert(t('inventory.duplicateItemIdTitle'), t('inventory.duplicateItemIdBody', { id: ids }));
       } else if (msg.startsWith('DUPLICATE_PHONE:')) {
@@ -605,18 +930,12 @@ export default function NewPurchaseScreen() {
       <AppTextInput
         label={t('purchases.productName')}
         value={productName}
-        onChangeText={setProductName}
+        onChangeText={handleProductNameChange}
         onEndEditing={() => {
-          const match = findByName(productName);
-          if (match) {
-            if (!imageUri && match.imageUri) {
-              setImageUri(match.imageUri);
-            }
-            if (!itemDescription && match.description) {
-              setItemDescription(match.description);
-            }
-            if (!category && match.category) {
-              setCategory(match.category);
+          if (!boundProductIdentity) {
+            const match = findByName(productName);
+            if (match) {
+              handleSelectSavedItem(match);
             }
           }
         }}
@@ -624,15 +943,40 @@ export default function NewPurchaseScreen() {
         returnKeyType="next"
       />
 
+      {/* ID Detached Notice Banner if product name changed */}
+      {Boolean(idClearedNotice) && (
+        <View
+          style={[
+            styles.idNoticeBanner,
+            {
+              backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7',
+              borderColor: isDark ? 'rgba(245,158,11,0.35)' : '#FDE68A',
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
+          <Ionicons name="information-circle" size={17} color="#D97706" />
+          <Text
+            style={[
+              styles.idNoticeText,
+              { color: isDark ? '#FBBF24' : '#B45309', textAlign },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {idClearedNotice}
+          </Text>
+        </View>
+      )}
+
       {/* Quick Auto-Fill Suggestion Chips when typing product name */}
-      {matchingPresets.length > 0 && !imageUri && (
+      {matchingPresets.length > 0 && (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== productName.trim().toLowerCase()) && (
         <View style={styles.presetsSuggestionWrap}>
           <View style={[styles.presetsHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Ionicons name="sparkles" size={13} color={colors.primary} />
             <Text style={[styles.presetsHeaderText, { color: colors.primary }]}>
               {isKuLanguage
-                ? 'ئایتمە سەڤکراوەکان (داگرە بۆ پڕکردنەوەی وێنە و وەسف):'
-                : 'Saved items (tap to auto-fill photo & details):'}
+                ? 'بەرهەمە پاشەکەوتکراوەکان (داگرە بۆ پڕکردنەوەی خۆکارانەی نرخ و زانیاری):'
+                : 'Saved items (tap to auto-fill details & prices):'}
             </Text>
           </View>
           <ScrollView
@@ -654,10 +998,16 @@ export default function NewPurchaseScreen() {
                 onPress={() => handleSelectSavedItem(preset)}
                 activeOpacity={0.8}
               >
-                <Image
-                  source={{ uri: resolveImageUri(preset.imageUri) || preset.imageUri }}
-                  style={styles.presetChipImage}
-                />
+                {preset.imageUri ? (
+                  <Image
+                    source={{ uri: resolveImageUri(preset.imageUri) || preset.imageUri }}
+                    style={styles.presetChipImage}
+                  />
+                ) : (
+                  <View style={[styles.presetChipImage, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="cube-outline" size={16} color={colors.primary} />
+                  </View>
+                )}
                 <View style={{ gap: 2 }}>
                   <Text
                     style={[
@@ -668,11 +1018,18 @@ export default function NewPurchaseScreen() {
                   >
                     {preset.name}
                   </Text>
-                  {Boolean(preset.description) && (
-                    <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
-                      {preset.description}
-                    </Text>
-                  )}
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4, alignItems: 'center' }}>
+                    {Boolean(preset.itemId) && (
+                      <Text style={[styles.presetChipDesc, { color: colors.primary }]} numberOfLines={1}>
+                        #{preset.itemId}
+                      </Text>
+                    )}
+                    {Boolean(preset.buyPriceIQD && preset.buyPriceIQD > 0) && (
+                      <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
+                        · {preset.buyPriceIQD?.toLocaleString()} د.ع
+                      </Text>
+                    )}
+                  </View>
                 </View>
                 <Ionicons
                   name="checkmark-circle"
@@ -772,8 +1129,8 @@ export default function NewPurchaseScreen() {
   const cardQuantityAndIds = (
     <PremiumCard style={[styles.card, isTablet && styles.cardTablet]}>
       <View style={[styles.cardHeaderRow, { flexDirection }]}>
-        <View style={[styles.cardHeaderIconBox, { backgroundColor: colors.softBlue }]}>
-          <Ionicons name="barcode-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+        <View style={[styles.cardHeaderIconBox, { backgroundColor: isRepurchasingExisting ? (isDark ? 'rgba(212, 175, 55, 0.2)' : '#FEF3C7') : colors.softBlue }]}>
+          <Ionicons name={isRepurchasingExisting ? "cube-outline" : "barcode-outline"} size={isTablet ? 22 : 18} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text
@@ -794,7 +1151,9 @@ export default function NewPurchaseScreen() {
               { color: colors.gray400, textAlign },
             ]}
           >
-            {isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs'}
+            {isRepurchasingExisting
+              ? (isKuLanguage ? 'دیاریکردنی عەدەد بۆ کۆگاکردنەوەی کاڵای کۆن' : 'Set quantity to restock existing product')
+              : (isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs')}
           </Text>
         </View>
       </View>
@@ -807,6 +1166,147 @@ export default function NewPurchaseScreen() {
         max={100}
         placeholder={t('purchases.qtyPlaceholder')}
       />
+
+      {isRepurchasingExisting ? (
+        /* ── Locked Existing Product Card for Repurchasing / Restock ── */
+        <View
+          style={[
+            styles.existingProductBanner,
+            {
+              backgroundColor: isDark ? 'rgba(212, 175, 55, 0.08)' : '#FFFBEB',
+              borderColor: isDark ? 'rgba(212, 175, 55, 0.28)' : '#FDE68A',
+            },
+          ]}
+        >
+          {/* Header Row: Lock Icon + Title + Status Badge */}
+          <View style={[styles.existingProductHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={[styles.existingProductLockIcon, { backgroundColor: hexToRgba(colors.primary, 0.18) }]}>
+              <Ionicons name="lock-closed" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={[styles.existingProductTitleLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text
+                  style={[
+                    styles.existingProductTitle,
+                    { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage ? 'ئایدی کاڵای کۆن (نەگۆڕە)' : 'Existing Product ID (Locked)'}
+                </Text>
+                <View
+                  style={[
+                    styles.restockBadge,
+                    {
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5',
+                      borderColor: isDark ? 'rgba(16, 185, 129, 0.40)' : '#A7F3D0',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.restockBadgeText,
+                      { color: '#10B981' },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    ]}
+                  >
+                    {isKuLanguage ? 'دووبارە کڕینەوە' : 'Restock'}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.existingProductSub,
+                  { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                {isKuLanguage
+                  ? 'ئەم کاڵایە لە کۆگادا تۆمارە؛ تەنها عەدەد زیاد دەکرێت بە هەمان ئایدی و بارکۆدی کۆن.'
+                  : 'Product exists in inventory. Only quantity will be added using the same ID.'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Details Row: Barcode & Current Stock */}
+          <View style={[styles.existingProductDetailsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View
+              style={[
+                styles.existingIdDisplayBox,
+                {
+                  backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                  borderColor: isDark ? colors.gray200 : colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="barcode-outline" size={17} color={colors.primary} />
+              <Text
+                style={[
+                  styles.existingIdDisplayLabel,
+                  { color: colors.gray500 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                {isKuLanguage ? 'ئایدی / بارکۆد:' : 'ID / Barcode:'}
+              </Text>
+              <Text
+                style={[
+                  styles.existingIdDisplayValue,
+                  { color: colors.black },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+                numberOfLines={1}
+              >
+                {existingProductLockedId || (isKuLanguage ? 'دیاریکراو' : 'Assigned')}
+              </Text>
+            </View>
+
+            {existingInventoryProduct.quantity !== undefined && (
+              <View
+                style={[
+                  styles.existingStockDisplayBox,
+                  {
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
+                    borderColor: isDark ? 'rgba(16, 185, 129, 0.30)' : '#A7F3D0',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons name="cube-outline" size={15} color="#10B981" />
+                <Text
+                  style={[
+                    styles.existingStockDisplayText,
+                    { color: isDark ? '#34D399' : '#047857' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage
+                    ? `مەوجودی ئێستا: ${existingInventoryProduct.quantity} دانە`
+                    : `Stock: ${existingInventoryProduct.quantity} pcs`}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Stock Projection Info (Current + New) */}
+          <View style={[styles.stockProjectionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="trending-up-outline" size={14} color={colors.primary} />
+            <Text
+              style={[
+                styles.stockProjectionText,
+                { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            >
+              {isKuLanguage
+                ? `دوای کڕینی ئەم ${qtyNum} دانەیە، کۆی گشتی کۆگا دەبێتە ${(existingInventoryProduct.quantity || 0) + qtyNum} دانە.`
+                : `After purchasing ${qtyNum} units, total inventory will be ${(existingInventoryProduct.quantity || 0) + qtyNum} pcs.`}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <>
 
       {/* ID Type */}
       <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>{t('purchases.idType')}</Text>
@@ -1059,6 +1559,33 @@ export default function NewPurchaseScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Bound Product Indicator */}
+          {Boolean(boundProductIdentity && boundProductIdentity.itemId && sharedId === boundProductIdentity.itemId) && (
+            <View
+              style={[
+                styles.idBoundBanner,
+                {
+                  backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5',
+                  borderColor: isDark ? 'rgba(16,185,129,0.3)' : '#A7F3D0',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="shield-checkmark" size={15} color="#10B981" />
+              <Text
+                style={[
+                  styles.idBoundText,
+                  { color: isDark ? '#34D399' : '#047857', textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                {isKuLanguage
+                  ? `ئەم ئایدیە گرێدراوە و تایبەتە بە «${boundProductIdentity?.name ?? ''}»`
+                  : `This ID is dedicated and bound to "${boundProductIdentity?.name ?? ''}"`}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -1267,33 +1794,51 @@ export default function NewPurchaseScreen() {
           ))}
         </View>
       )}
+        </>
+      )}
     </PremiumCard>
   );
 
   // 2b. Expiry & Production Dates Card (shown when expiryTrackingEnabled is active)
-  const cardExpiryDates = expiryTrackingEnabled ? (
+  const cardExpiryDates = (() => {
+    if (!expiryTrackingEnabled) return null;
+    const prodAgeText = productionDate ? formatProductionAge(productionDate, isKuLanguage) : null;
+    const expiryCountdown = expiryDate ? formatExpiryCountdown(expiryDate, isKuLanguage) : null;
+    const shelfLifeText = productionDate && expiryDate ? formatShelfLife(productionDate, expiryDate, isKuLanguage) : null;
+
+    return (
     <PremiumCard
-      padding={13}
+      padding={isTablet ? 24 : 13}
       style={[
         styles.card,
         {
           borderWidth: 1,
           borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
           backgroundColor: isDark ? '#1E293B' : colors.white,
-          borderRadius: 16,
+          borderRadius: isTablet ? 22 : 16,
         },
         isTablet && styles.cardTablet,
       ]}
     >
-      <View style={[styles.cardHeaderRow, { flexDirection, marginBottom: 10, gap: 10 }]}>
-        <View style={[styles.cardHeaderIconBox, { width: 34, height: 34, borderRadius: 10, backgroundColor: hexToRgba('#F59E0B', isDark ? 0.22 : 0.12) }]}>
-          <Ionicons name="time-outline" size={isTablet ? 20 : 17} color="#F59E0B" />
+      <View style={[styles.cardHeaderRow, { flexDirection, marginBottom: isTablet ? 14 : 10, gap: isTablet ? 12 : 10 }]}>
+        <View
+          style={[
+            styles.cardHeaderIconBox,
+            {
+              width: isTablet ? 42 : 34,
+              height: isTablet ? 42 : 34,
+              borderRadius: isTablet ? 13 : 10,
+              backgroundColor: hexToRgba('#F59E0B', isDark ? 0.22 : 0.12),
+            },
+          ]}
+        >
+          <Ionicons name="time-outline" size={isTablet ? 22 : 17} color="#F59E0B" />
         </View>
         <View style={{ flex: 1 }}>
           <Text
             style={[
               styles.cardHeaderTitle,
-              { fontSize: isTablet ? 16 : 14.5, color: colors.black, textAlign },
+              { fontSize: isTablet ? 17 : 14.5, color: colors.black, textAlign },
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
           >
@@ -1302,7 +1847,7 @@ export default function NewPurchaseScreen() {
           <Text
             style={[
               styles.cardHeaderSub,
-              { fontSize: isTablet ? 12 : 11, color: colors.gray400, textAlign, marginTop: 1 },
+              { fontSize: isTablet ? 13 : 11, color: colors.gray400, textAlign, marginTop: 1 },
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
@@ -1314,47 +1859,48 @@ export default function NewPurchaseScreen() {
       </View>
 
       {/* Production Date Section */}
-      <View style={{ gap: 5, marginTop: 2 }}>
-        <Text style={[styles.fieldLabel, { fontSize: 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+      <View style={{ gap: isTablet ? 7 : 5, marginTop: 2 }}>
+        <Text style={[styles.fieldLabel, { fontSize: isTablet ? 13.5 : 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن (Production Date)' : 'Production Date'}
         </Text>
-        <View style={[styles.expiryDateActionRow, { flexDirection, gap: 6 }]}>
+        <View style={[styles.expiryDateActionRow, { flexDirection, gap: isTablet ? 8 : 6 }]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setShowProdPicker(true)}
             style={[
               styles.datePickerBtn,
               {
-                height: 38,
-                borderRadius: 9,
+                height: isTablet ? 46 : 38,
+                borderRadius: isTablet ? 12 : 9,
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
                 flexDirection,
-                paddingHorizontal: 10,
+                paddingHorizontal: isTablet ? 14 : 10,
+                gap: isTablet ? 10 : 8,
               },
             ]}
           >
-            <Ionicons name="construct-outline" size={16} color={colors.primary} />
-            <Text style={[styles.datePickerBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400 }]}>
+            <Ionicons name="construct-outline" size={isTablet ? 18 : 16} color={colors.primary} />
+            <Text style={[styles.datePickerBtnText, { fontSize: isTablet ? 14.5 : 13, color: productionDate ? colors.black : colors.gray400 }]}>
               {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
             </Text>
           </TouchableOpacity>
 
-          <View style={[styles.quickChipsWrap, { flexDirection, gap: 5 }]}>
+          <View style={[styles.quickChipsWrap, { flexDirection, gap: isTablet ? 8 : 5 }]}>
             <TouchableOpacity
               onPress={() => handleSetProductionQuick('today')}
               style={[
                 styles.smallChip,
                 {
-                  height: 38,
+                  height: isTablet ? 46 : 38,
                   paddingVertical: 0,
-                  paddingHorizontal: 10,
-                  borderRadius: 9,
+                  paddingHorizontal: isTablet ? 14 : 10,
+                  borderRadius: isTablet ? 12 : 9,
                   backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : colors.gray100,
                 },
               ]}
             >
-              <Text style={[styles.smallChipText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              <Text style={[styles.smallChipText, { fontSize: isTablet ? 13.5 : 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                 {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
               </Text>
             </TouchableOpacity>
@@ -1365,25 +1911,34 @@ export default function NewPurchaseScreen() {
                 style={[
                   styles.smallChip,
                   {
-                    height: 38,
-                    width: 38,
+                    height: isTablet ? 46 : 38,
+                    width: isTablet ? 46 : 38,
                     paddingHorizontal: 0,
                     paddingVertical: 0,
-                    borderRadius: 9,
+                    borderRadius: isTablet ? 12 : 9,
                     backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2',
                   },
                 ]}
               >
-                <Ionicons name="close" size={15} color="#EF4444" />
+                <Ionicons name="close" size={isTablet ? 18 : 15} color="#EF4444" />
               </TouchableOpacity>
             )}
           </View>
         </View>
+
+        {productionDate && prodAgeText && (
+          <View style={[styles.dateCountdownSubRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="construct-outline" size={12} color={colors.primary} />
+            <Text style={[styles.dateCountdownSubText, { color: colors.gray500, writingDirection: isKuLanguage ? 'rtl' : 'ltr' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              {prodAgeText}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Expiry Date Section */}
-      <View style={{ gap: 5, marginTop: 8 }}>
-        <Text style={[styles.fieldLabel, { fontSize: 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+      <View style={{ gap: isTablet ? 7 : 5, marginTop: isTablet ? 12 : 8 }}>
+        <Text style={[styles.fieldLabel, { fontSize: isTablet ? 13.5 : 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {isKuLanguage ? 'بەرواری بەسەرچوون (Expiry Date)' : 'Expiry Date'}
         </Text>
 
@@ -1393,42 +1948,182 @@ export default function NewPurchaseScreen() {
           style={[
             styles.datePickerBtn,
             {
-              height: 38,
-              borderRadius: 9,
+              height: isTablet ? 46 : 38,
+              borderRadius: isTablet ? 12 : 9,
               backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : colors.gray50,
-              borderColor: expiryDate ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+              borderColor: expiryDate
+                ? expiryCountdown?.status === 'expired'
+                  ? colors.error
+                  : expiryCountdown?.status === 'warning'
+                  ? '#F59E0B'
+                  : colors.primary
+                : isDark
+                ? 'rgba(255, 255, 255, 0.10)'
+                : colors.gray200,
               flexDirection,
-              paddingHorizontal: 10,
+              paddingHorizontal: isTablet ? 14 : 10,
+              gap: isTablet ? 10 : 8,
             },
           ]}
         >
-          <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
+          <Ionicons
+            name="calendar-outline"
+            size={isTablet ? 18 : 16}
+            color={
+              expiryDate
+                ? expiryCountdown?.status === 'expired'
+                  ? colors.error
+                  : expiryCountdown?.status === 'warning'
+                  ? '#F59E0B'
+                  : colors.primary
+                : colors.primary
+            }
+          />
           <Text
             style={[
               styles.datePickerBtnText,
-              { fontSize: 13, color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400 },
+              { fontSize: isTablet ? 14.5 : 13, color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400 },
               expiryDate && { fontWeight: '700' },
             ]}
           >
             {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
           </Text>
+
+          {/* Inline Badge right next to the date */}
+          {expiryCountdown && (
+            <View
+              style={[
+                styles.inlineCountdownBadge,
+                {
+                  paddingHorizontal: isTablet ? 10 : 7,
+                  paddingVertical: isTablet ? 4 : 2,
+                  borderRadius: isTablet ? 8 : 6,
+                  backgroundColor:
+                    expiryCountdown.status === 'expired'
+                      ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
+                      : expiryCountdown.status === 'warning'
+                      ? (isDark ? hexToRgba('#F59E0B', 0.18) : '#FEF3C7')
+                      : (isDark ? hexToRgba(colors.success, 0.18) : '#DCFCE7'),
+                  borderColor:
+                    expiryCountdown.status === 'expired'
+                      ? colors.error
+                      : expiryCountdown.status === 'warning'
+                      ? '#F59E0B'
+                      : colors.success,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.inlineCountdownBadgeText,
+                  {
+                    fontSize: isTablet ? 12 : 11,
+                    color:
+                      expiryCountdown.status === 'expired'
+                        ? colors.error
+                        : expiryCountdown.status === 'warning'
+                        ? (isDark ? '#FBBF24' : '#B45309')
+                        : colors.success,
+                    writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                  },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {expiryCountdown.badgeText}
+              </Text>
+            </View>
+          )}
+
           {expiryDate && (
             <TouchableOpacity
               onPress={handleClearExpiry}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{ marginStart: 'auto' }}
             >
-              <Ionicons name="close-circle" size={16} color="#EF4444" />
+              <Ionicons name="close-circle" size={isTablet ? 18 : 16} color="#EF4444" />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
 
+        {/* Clear, prominent helper banner right below the button */}
+        {expiryCountdown && (
+          <View
+            style={[
+              styles.expiryNoticeBanner,
+              isTablet && { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, gap: 8 },
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                backgroundColor:
+                  expiryCountdown.status === 'expired'
+                    ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
+                    : expiryCountdown.status === 'warning'
+                    ? (isDark ? hexToRgba('#F59E0B', 0.15) : '#FFFBEB')
+                    : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
+                borderColor:
+                  expiryCountdown.status === 'expired'
+                    ? (isDark ? hexToRgba(colors.error, 0.35) : '#FECACA')
+                    : expiryCountdown.status === 'warning'
+                    ? (isDark ? hexToRgba('#F59E0B', 0.35) : '#FDE68A')
+                    : (isDark ? hexToRgba(colors.success, 0.35) : '#BBF7D0'),
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                expiryCountdown.status === 'expired'
+                  ? 'alert-circle'
+                  : expiryCountdown.status === 'warning'
+                  ? 'hourglass-outline'
+                  : 'shield-checkmark-outline'
+              }
+              size={isTablet ? 16 : 14}
+              color={
+                expiryCountdown.status === 'expired'
+                  ? colors.error
+                  : expiryCountdown.status === 'warning'
+                  ? '#F59E0B'
+                  : colors.success
+              }
+            />
+            <Text
+              style={[
+                styles.expiryNoticeText,
+                {
+                  fontSize: isTablet ? 12.5 : 11.5,
+                  color:
+                    expiryCountdown.status === 'expired'
+                      ? colors.error
+                      : expiryCountdown.status === 'warning'
+                      ? (isDark ? '#FBBF24' : '#B45309')
+                      : (isDark ? '#34D399' : '#059669'),
+                  textAlign,
+                  writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {expiryCountdown.text}
+            </Text>
+            {shelfLifeText ? (
+              <Text
+                style={[
+                  styles.shelfLifeSubText,
+                  { fontSize: isTablet ? 12 : 11, color: colors.gray400, writingDirection: isKuLanguage ? 'rtl' : 'ltr' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              >
+                · {shelfLifeText}
+              </Text>
+            ) : null}
+          </View>
+        )}
+
         {/* Quick Expiry Duration Shortcut Chips */}
-        <Text style={[styles.shortcutHint, { fontSize: 11, color: colors.gray400, textAlign, marginTop: 3 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+        <Text style={[styles.shortcutHint, { fontSize: isTablet ? 12 : 11, color: colors.gray400, textAlign, marginTop: isTablet ? 5 : 3 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
           {isKuLanguage ? 'هەڵبژاردنی خێرا لە ئەمڕۆوە:' : 'Quick shortcuts from today:'}
         </Text>
 
-        <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: 5, marginTop: 1 }]}>
+        <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: isTablet ? 6 : 5, marginTop: 1 }]}>
           {[
             { label: isKuLanguage ? '+١ مانگ' : '+1M', months: 1 },
             { label: isKuLanguage ? '+٣ مانگ' : '+3M', months: 3 },
@@ -1444,9 +2139,9 @@ export default function NewPurchaseScreen() {
                 styles.durationChip,
                 {
                   flex: 1,
-                  paddingHorizontal: 2,
-                  paddingVertical: 6,
-                  borderRadius: 8,
+                  paddingHorizontal: isTablet ? 4 : 2,
+                  paddingVertical: isTablet ? 9 : 6,
+                  borderRadius: isTablet ? 10 : 8,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
@@ -1457,7 +2152,7 @@ export default function NewPurchaseScreen() {
               <Text
                 style={[
                   styles.durationChipText,
-                  { fontSize: 11, color: isDark ? '#FBBF24' : '#B45309', textAlign: 'center' },
+                  { fontSize: isTablet ? 12 : 11, color: isDark ? '#FBBF24' : '#B45309', textAlign: 'center' },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
                 numberOfLines={1}
@@ -1492,7 +2187,8 @@ export default function NewPurchaseScreen() {
         title={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
       />
     </PremiumCard>
-  ) : null;
+  );
+})();
 
   // 3. Supplier Card
   const cardSupplier = (
@@ -1858,420 +2554,34 @@ export default function NewPurchaseScreen() {
         </View>
       </View>
 
-      {/* Payment Status */}
-      <Text
-        style={[
-          styles.fieldLabel,
-          { color: colors.gray600, textAlign, marginBottom: 10 },
-          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-        ]}
-      >
-        {t('purchases.paymentStatus')}
-      </Text>
-      <View style={[styles.paymentRow, { flexDirection }]}>
-        <TouchableOpacity
-          style={[
-            styles.payBtn,
-            paymentStatus === 'paid'
-              ? (isDark
-                  ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
-                  : styles.payBtnPaid)
-              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-            { flexDirection },
-          ]}
-          onPress={() => setPaymentStatus('paid')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="checkmark-circle" size={18} color={paymentStatus === 'paid' ? colors.success : colors.gray400} />
-          <Text
-            style={[
-              styles.payBtnText,
-              { color: paymentStatus === 'paid' ? colors.success : colors.gray500 },
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            ]}
-          >
-            {t('purchases.paid')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.payBtn,
-            paymentStatus === 'fib'
-              ? (isDark
-                  ? { backgroundColor: hexToRgba('#3B82F6', 0.2), borderColor: '#60A5FA' }
-                  : styles.payBtnFib)
-              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-            { flexDirection },
-          ]}
-          onPress={() => setPaymentStatus('fib')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="phone-portrait" size={17} color={paymentStatus === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400} />
-          <Text
-            style={[
-              styles.payBtnText,
-              { color: paymentStatus === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            ]}
-          >
-            {t('purchases.fib', 'FIB')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.payBtn,
-            paymentStatus === 'debt'
-              ? (isDark
-                  ? { backgroundColor: hexToRgba(colors.error, 0.18), borderColor: colors.error }
-                  : styles.payBtnDebt)
-              : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-            { flexDirection },
-          ]}
-          onPress={() => setPaymentStatus('debt')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="alert-circle" size={18} color={paymentStatus === 'debt' ? colors.error : colors.gray400} />
-          <Text
-            style={[
-              styles.payBtnText,
-              { color: paymentStatus === 'debt' ? colors.error : colors.gray500 },
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-            ]}
-          >
-            {t('purchases.debt')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {paymentStatus === 'debt' && (
-        <View style={{ marginBottom: 4 }}>
-          <AppTextInput
-            label={`${t('purchases.amountPaid')} (${isUSD ? 'USD' : 'IQD'})`}
-            value={toEnglishDigits(amountPaid)}
-            onChangeText={(v) => setAmountPaid(sanitizeNumericInput(v, 'decimal-pad'))}
-            onEndEditing={() => {
-              const n = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
-              if (n > maxDownPayment) {
-                setAmountPaid(maxDownPayment > 0 ? String(maxDownPayment) : '');
-              }
-            }}
-            keyboardType="decimal-pad"
-            placeholder={isUSD ? '0.00' : '0'}
-            returnKeyType="done"
-            forceLatin
-            error={isPaidExceeded ? t('purchases.downPaymentMustBeLess') : undefined}
-          />
-          <Text style={[{ fontSize: 12, color: colors.gray400, marginTop: 4, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-            {t('purchases.maxDownPayment')} {maxDownPaymentDisplay}
-          </Text>
-          {rawPaidNum > 0 && (
-            <View style={{ marginBottom: 12 }}>
-              <Text
-                style={[
-                  styles.fieldLabel,
-                  { color: colors.gray500, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                ]}
-              >
-                {t('purchases.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
-              </Text>
-              <View style={[styles.paymentRow, { flexDirection, gap: 8 }]}>
-                <TouchableOpacity
-                  style={[
-                    styles.payBtn,
-                    initialPaymentMethod === 'cash'
-                      ? (isDark
-                          ? { backgroundColor: hexToRgba(colors.success, 0.18), borderColor: colors.success }
-                          : styles.payBtnPaid)
-                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-                    { flexDirection, flex: 1, paddingVertical: 10 },
-                  ]}
-                  onPress={() => setInitialPaymentMethod('cash')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="cash-outline" size={17} color={initialPaymentMethod === 'cash' ? colors.success : colors.gray400} />
-                  <Text
-                    style={[
-                      styles.payBtnText,
-                      { color: initialPaymentMethod === 'cash' ? colors.success : colors.gray500 },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {t('purchases.cash', 'کاش')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.payBtn,
-                    initialPaymentMethod === 'fib'
-                      ? (isDark
-                          ? { backgroundColor: hexToRgba('#3B82F6', 0.2), borderColor: '#60A5FA' }
-                          : styles.payBtnFib)
-                      : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.white },
-                    { flexDirection, flex: 1, paddingVertical: 10 },
-                  ]}
-                  onPress={() => setInitialPaymentMethod('fib')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="phone-portrait" size={16} color={initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400} />
-                  <Text
-                    style={[
-                      styles.payBtnText,
-                      { color: initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {t('purchases.fib', 'FIB')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-          <View
-            style={[
-              styles.totalBox,
-              {
-                backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
-                borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
-                flexDirection,
-                marginBottom: 16,
-              },
-            ]}
-          >
-            <Text style={[styles.totalLabel, { color: colors.gray500 }]}>{t('purchases.remainingDebt')}</Text>
-            <AmountText value={remainingDebt} style={[styles.totalValue, { color: colors.error }]} />
-          </View>
-        </View>
-      )}
-
-      <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} inner />
-
-      {/* Cash Drawer Live Indicator (Capital System) */}
-      {isCapitalEnabled && drawerBalance !== null && (
-        <View
-          style={[
-            styles.drawerCardInner,
-            {
-              borderColor: isInsufficientCash ? colors.error : colors.primary + '35',
-              backgroundColor: isDark ? colors.white : colors.gray50,
-            },
-          ]}
-        >
-          <View style={[styles.drawerCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={[styles.drawerCardTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View
-                style={[
-                  styles.drawerIconBox,
-                  { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '18') },
-                ]}
-              >
-                <Ionicons
-                  name="wallet"
-                  size={18}
-                  color={isInsufficientCash ? colors.error : colors.primary}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.drawerCardTitle,
-                  { color: colors.black, textAlign },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('capital.drawerStatusTitle')}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.drawerActivePill,
-                { backgroundColor: (isInsufficientCash ? colors.error : colors.primary) + (isDark ? '24' : '14') },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.drawerActivePillText,
-                  { color: isInsufficientCash ? colors.error : colors.primary },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {isInsufficientCash ? t('common.error') : t('capital.statusActive')}
-              </Text>
-            </View>
-          </View>
-
-          {/* 3 Metric Rows */}
-          <View style={styles.drawerMetricsContainer}>
-            {/* 1. Available Balance Now */}
-            <View
-              style={[
-                styles.drawerMetricRow,
-                {
-                  backgroundColor: isDark ? colors.white : colors.white,
-                  borderColor: colors.gray200,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={[styles.drawerMetricIconCircle, { backgroundColor: colors.softBlue }]}>
-                  <Ionicons name="wallet-outline" size={16} color={colors.primary} />
-                </View>
-                <Text
-                  style={[
-                    styles.drawerMetricRowLabel,
-                    { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {t('capital.drawerBalanceNow')}
-                </Text>
-              </View>
-              <AmountText
-                value={drawerBalance}
-                currency="IQD"
-                style={[styles.drawerMetricRowVal, { color: colors.black }]}
-              />
-            </View>
-
-            {/* 2. Cash Needed for this purchase */}
-            <View
-              style={[
-                styles.drawerMetricRow,
-                {
-                  backgroundColor: isDark ? colors.white : colors.white,
-                  borderColor: colors.gray200,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View
-                  style={[
-                    styles.drawerMetricIconCircle,
-                    {
-                      backgroundColor: isInsufficientCash
-                        ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
-                        : (isDark ? hexToRgba(colors.warning, 0.18) : '#FEF3C7'),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="cash-outline"
-                    size={16}
-                    color={isInsufficientCash ? colors.error : colors.warning}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.drawerMetricRowLabel,
-                    { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {t('capital.drawerCashNeeded')}
-                </Text>
-              </View>
-              <AmountText
-                value={cashNeeded}
-                currency="IQD"
-                style={[
-                  styles.drawerMetricRowVal,
-                  { color: isInsufficientCash ? colors.error : colors.warning },
-                ]}
-              />
-            </View>
-
-            {/* 3. Projected Balance After Purchase */}
-            <View
-              style={[
-                styles.drawerMetricRowHighlight,
-                {
-                  backgroundColor: isInsufficientCash
-                    ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
-                    : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
-                  borderColor: isInsufficientCash
-                    ? (isDark ? hexToRgba(colors.error, 0.5) : '#FECACA')
-                    : (isDark ? hexToRgba(colors.success, 0.5) : '#BBF7D0'),
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <View style={[styles.drawerMetricLabelGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View
-                  style={[
-                    styles.drawerMetricIconCircle,
-                    {
-                      backgroundColor: isInsufficientCash
-                        ? (isDark ? hexToRgba(colors.error, 0.25) : '#FEE2E2')
-                        : (isDark ? hexToRgba(colors.success, 0.25) : '#DCFCE7'),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={isInsufficientCash ? 'alert-circle-outline' : 'shield-checkmark-outline'}
-                    size={17}
-                    color={isInsufficientCash ? colors.error : colors.success}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.drawerMetricRowLabel,
-                    {
-                      color: isInsufficientCash ? colors.error : colors.success,
-                      textAlign: isRTL ? 'right' : 'left',
-                    },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  ]}
-                >
-                  {t('capital.drawerBalanceAfter')}
-                </Text>
-              </View>
-              <AmountText
-                value={projectedBalance}
-                currency="IQD"
-                variant="default"
-                style={[
-                  styles.drawerMetricRowValBold,
-                  { color: isInsufficientCash ? colors.error : colors.success },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* Insufficient Warning Banner */}
-          {isInsufficientCash && (
-            <View
-              style={[
-                styles.drawerWarningBanner,
-                {
-                  backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2',
-                  borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <Ionicons name="alert-circle" size={18} color={colors.error} />
-              <Text
-                style={[
-                  styles.drawerWarningText,
-                  { color: colors.error, textAlign },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('capital.insufficientBanner')}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Checkout Mode Action Grid */}
-      <CheckoutActionGrid
-        mode={checkoutMode}
-        onSelectMode={setCheckoutMode}
-        type="purchase"
+      <PurchasePaymentOptionsAccordion
+        paymentStatus={paymentStatus}
+        onSelectPaymentStatus={setPaymentStatus}
+        amountPaid={amountPaid}
+        onChangeAmountPaid={(v) => setAmountPaid(sanitizeNumericInput(v, 'decimal-pad'))}
+        onEndEditingAmountPaid={() => {
+          const n = parseFloat(toEnglishDigits(amountPaid).replace(/,/g, '')) || 0;
+          if (n > maxDownPayment) {
+            setAmountPaid(maxDownPayment > 0 ? String(maxDownPayment) : '');
+          }
+        }}
+        maxDownPayment={maxDownPayment}
+        maxDownPaymentDisplay={maxDownPaymentDisplay}
+        isPaidExceeded={isPaidExceeded}
+        initialPaymentMethod={initialPaymentMethod}
+        onSelectInitialPaymentMethod={setInitialPaymentMethod}
+        rawPaidNum={rawPaidNum}
+        remainingDebt={remainingDebt}
+        isUSD={isUSD}
+        receiptCurrency={receiptCurrency}
+        onSelectReceiptCurrency={setReceiptCurrency}
+        isCapitalEnabled={isCapitalEnabled}
+        drawerBalance={drawerBalance}
+        isInsufficientCash={isInsufficientCash}
+        cashNeeded={cashNeeded}
+        projectedBalance={projectedBalance}
+        checkoutMode={checkoutMode}
+        onSelectCheckoutMode={setCheckoutMode}
       />
 
       <View style={[styles.actions, isTablet && { gap: 14 }]}>
@@ -2294,10 +2604,14 @@ export default function NewPurchaseScreen() {
             setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
             setIdType(null); setSharedId(''); setCustomIds(['']);
             setCategory(''); setWarranty(''); setNotes('');
-            setSupplierPhone(''); setSupplierAddress(''); setPaymentStatus('paid');
+            setSupplierPhone(''); setSupplierAddress('');
+            const currentPrefs = useSettingsStore.getState();
+            setPaymentStatusState(currentPrefs.purchasePaymentStatusPreference || 'paid');
             setAmountPaid('');
+            setInitialPaymentMethodState(currentPrefs.purchaseDebtDownPaymentMethodPreference || 'cash');
             setImageUri(null);
-            setReceiptCurrency('iqd');
+            setReceiptCurrencyState(currentPrefs.purchaseReceiptCurrencyPreference || 'iqd');
+            setCheckoutModeState(currentPrefs.purchaseCheckoutModePreference || 'normal');
             scrollRef.current?.scrollTo({ y: 0, animated: true });
             col1ScrollRef.current?.scrollTo({ y: 0, animated: true });
             col2ScrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -2334,7 +2648,7 @@ export default function NewPurchaseScreen() {
                 { flexDirection: isRTL ? 'row-reverse' : 'row' },
               ]}
             >
-              {/* Column 1 (Right in RTL: Product Info & Supplier) - scrolls to content end and stops */}
+              {/* Column 1 (Right in RTL, Left in LTR: Product Info & Supplier) */}
               <View style={styles.threeColSide}>
                 <KeyboardAwareScrollView
                   ref={col1ScrollRef}
@@ -2353,29 +2667,12 @@ export default function NewPurchaseScreen() {
                 </KeyboardAwareScrollView>
               </View>
 
-              {/* Column 2 (Middle: Quantity & Item Barcodes / IDs) - independently scrollable */}
+              {/* Column 2 (Middle in both RTL & LTR: Pricing, Profit & Checkout/Save) */}
               <View style={styles.threeColMiddle}>
                 <KeyboardAwareScrollView
                   ref={col2ScrollRef}
                   style={styles.flex}
                   contentContainerStyle={styles.threeColMiddleScrollContent}
-                  showsVerticalScrollIndicator={true}
-                  keyboardShouldPersistTaps="handled"
-                  extraScrollSpace={30}
-                >
-                  <View style={styles.threeColMiddleCardsWrap}>
-                    {cardQuantityAndIds}
-                    {cardExpiryDates}
-                  </View>
-                </KeyboardAwareScrollView>
-              </View>
-
-              {/* Column 3 (Left in RTL: Pricing, Profit & Checkout/Save) - scrolls to content end and stops */}
-              <View style={styles.threeColSide}>
-                <KeyboardAwareScrollView
-                  ref={col3ScrollRef}
-                  style={styles.flex}
-                  contentContainerStyle={styles.threeColScrollContent}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   bounces={false}
@@ -2385,6 +2682,23 @@ export default function NewPurchaseScreen() {
                   <View style={styles.threeColCardsWrap}>
                     {cardPricing}
                     {cardCheckout}
+                  </View>
+                </KeyboardAwareScrollView>
+              </View>
+
+              {/* Column 3 (Left in RTL, Right in LTR: Quantity & Item Barcodes / IDs, Expiry Dates) */}
+              <View style={styles.threeColSide}>
+                <KeyboardAwareScrollView
+                  ref={col3ScrollRef}
+                  style={styles.flex}
+                  contentContainerStyle={styles.threeColScrollContent}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                  extraScrollSpace={30}
+                >
+                  <View style={styles.threeColCardsWrap}>
+                    {cardQuantityAndIds}
+                    {cardExpiryDates}
                   </View>
                 </KeyboardAwareScrollView>
               </View>
@@ -2606,6 +2920,94 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontSize: 13, fontWeight: '600' },
   totalValue: { fontSize: 18, fontWeight: '800' },
+
+  /* Existing Product Repurchase Locked Banner */
+  existingProductBanner: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+    marginTop: 8,
+  },
+  existingProductHeaderRow: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  existingProductLockIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  existingProductTitleLine: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  existingProductTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  restockBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  restockBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  existingProductSub: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  existingProductDetailsRow: {
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  existingIdDisplayBox: {
+    flex: 1,
+    minWidth: 160,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    gap: 6,
+  },
+  existingIdDisplayLabel: {
+    fontSize: 12,
+  },
+  existingIdDisplayValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  existingStockDisplayBox: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    gap: 6,
+  },
+  existingStockDisplayText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stockProjectionRow: {
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  stockProjectionText: {
+    fontSize: 11.5,
+    flex: 1,
+  },
 
   idTypeRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   idTypeBtn: {
@@ -3062,6 +3464,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   threeColMiddleCardsWrap: {
+    gap: 18,
     paddingBottom: 36,
   },
   datePickerBtn: {
@@ -3115,5 +3518,71 @@ const styles = StyleSheet.create({
   durationChipText: {
     fontSize: 12.5,
     fontWeight: '700',
+  },
+  idNoticeBanner: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 6,
+    alignItems: 'center',
+    gap: 8,
+  },
+  idNoticeText: {
+    fontSize: 12,
+    flex: 1,
+  },
+  idBoundBanner: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+  idBoundText: {
+    fontSize: 12,
+    flex: 1,
+    fontWeight: '600',
+  },
+  dateCountdownSubRow: {
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 3,
+    paddingHorizontal: 4,
+  },
+  dateCountdownSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  inlineCountdownBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginStart: 8,
+  },
+  inlineCountdownBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  expiryNoticeBanner: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  expiryNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  shelfLifeSubText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

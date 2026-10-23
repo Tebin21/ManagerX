@@ -7,7 +7,12 @@ import {
   generatePurchaseNumber,
   insertProduct,
   getProductsByItemId,
+  getProductByItemId,
+  getProductByItemIdAndName,
+  getRepeatableProductByName,
+  restockExistingProduct,
 } from '@/lib/sqlite';
+import type { InventoryProduct } from '@/types/inventory';
 import { useSettingsStore, DEFAULT_EXCHANGE_RATE } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import type { Purchase, NewPurchaseInput } from '@/types/purchases';
@@ -96,13 +101,25 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     // createPurchaseDebt, so hitting the item limit left a permanent purchase row (and
     // debt owed) with no matching product ever inserted — inventory silently short.
     const idsToCheck = (input.itemIds ?? []).filter(Boolean);
-    const duplicates: string[] = [];
-    for (const itemId of idsToCheck) {
-      const existing = await getProductsByItemId(itemId);
-      if (existing.length > 0) duplicates.push(itemId);
-    }
-    if (duplicates.length > 0) {
-      throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
+    if (input.idType === 'custom') {
+      const duplicates: string[] = [];
+      for (const itemId of idsToCheck) {
+        const existing = await getProductsByItemId(itemId);
+        if (existing.length > 0) duplicates.push(itemId);
+      }
+      if (duplicates.length > 0) {
+        throw new Error(`DUPLICATE_ITEM_ID|${duplicates.join(',')}`);
+      }
+    } else if (input.idType === 'shared' && idsToCheck.length > 0) {
+      const sharedCode = idsToCheck[0];
+      const existingProduct = await getProductByItemId(sharedCode);
+      if (existingProduct) {
+        const isSameName = existingProduct.name.trim().toLowerCase() === input.productName.trim().toLowerCase();
+        if (!isSameName) {
+          // Strict binding: barcode cannot be used for a different product name
+          throw new Error(`ID_BELONGS_TO_ANOTHER_PRODUCT|${existingProduct.name}|${sharedCode}`);
+        }
+      }
     }
 
     // The limit is on total stock QUANTITY: each custom id is inserted as its own row
@@ -187,12 +204,43 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         await insertProduct({ ...baseProduct, idMode: 'unique', quantity: 1, itemId });
       }
     } else {
-      await insertProduct({
-        ...baseProduct,
-        idMode: 'repeatable',
-        quantity: input.quantity,
-        itemId: input.itemIds[0] ?? null,
-      });
+      // Re-purchase algorithm:
+      // Check if product exists in inventory by (itemId + name) OR repeatable name
+      let existingProd: InventoryProduct | null = null;
+      if (input.itemIds && input.itemIds[0]) {
+        existingProd = await getProductByItemIdAndName(input.itemIds[0], input.productName);
+      }
+      if (!existingProd) {
+        existingProd = await getRepeatableProductByName(input.productName);
+      }
+
+      if (existingProd) {
+        // Restock existing product in inventory!
+        await restockExistingProduct(existingProd.id, {
+          quantity: input.quantity,
+          purchasePrice: data.buyPriceIQD,
+          buyPriceUsd: data.buyPriceUSD,
+          sellingPrice: data.sellPriceIQD,
+          sellPriceUsd: data.sellPriceUSD,
+          purchaseId,
+          supplierName: data.supplierName,
+          supplierPhone: data.supplierPhone,
+          supplierAddress: data.supplierAddress,
+          purchaseDate: data.date,
+          imageUri: input.imageUri ?? existingProd.imageUri,
+          itemDescription: input.itemDescription ?? existingProd.itemDescription,
+          category: data.category ?? existingProd.category,
+          productionDate: input.productionDate ?? existingProd.productionDate,
+          expiryDate: input.expiryDate ?? existingProd.expiryDate,
+        });
+      } else {
+        await insertProduct({
+          ...baseProduct,
+          idMode: 'repeatable',
+          quantity: input.quantity,
+          itemId: input.itemIds[0] ?? null,
+        });
+      }
     }
 
     // Trigger inventory reload if the store is already mounted

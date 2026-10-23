@@ -69,7 +69,7 @@ export function buildFinancialReportHTML(
     i18n.t(`financialReportPdf.${key}`, opts) as string;
   const tCat = (cat: string): string =>
     i18n.t(`reports.expenseCategories.${cat}`, { defaultValue: cat }) as string;
-  // Wraps already-translated label/title text in an RTL-shaped, Rudaw-fonted,
+  // Wraps already-translated label/title text in an RTL-shaped, Bahij Janna-fonted,
   // never-heavy span -- never changes the position/width of the surrounding
   // element it sits inside. `heading` swaps in a slightly larger size so
   // section titles stay visually distinct without relying on bold weight.
@@ -192,7 +192,7 @@ export function buildFinancialReportHTML(
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       direction: ltr;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
       background: #ffffff;
       color: #000000;
       font-size: 14px;
@@ -201,7 +201,7 @@ export function buildFinancialReportHTML(
       print-color-adjust: exact;
     }
     .ku-text {
-      font-family: 'Rudaw', sans-serif;
+      font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       direction: rtl;
       unicode-bidi: isolate;
       font-weight: 400;

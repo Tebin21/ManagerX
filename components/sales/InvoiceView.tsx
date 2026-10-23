@@ -122,11 +122,11 @@ export function InvoiceView({ sale, compact = false }: Props) {
         <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
           <IdText style={[styles.invoiceNumber, { color: colors.black, textAlign, writingDirection: 'ltr', lineHeight: undefined }]}>{sale.invoiceNumber}</IdText>
           <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-            <Text style={[styles.statusPillText, { color: statusText }, isKuLanguage && { fontFamily: 'RudawRegular' }]}>
+            <Text style={[styles.statusPillText, { color: statusText }, isKuLanguage && { fontFamily: 'BahijJanna-Regular' }]}>
               {paymentStatusLabel}
             </Text>
           </View>
-          <Text style={[styles.methodLabel, { color: colors.gray400 }, isKuLanguage && { fontFamily: 'RudawRegular' }]}>{paymentMethodLabel}</Text>
+          <Text style={[styles.methodLabel, { color: colors.gray400 }, isKuLanguage && { fontFamily: 'BahijJanna-Regular' }]}>{paymentMethodLabel}</Text>
         </View>
       </View>
 
@@ -210,7 +210,14 @@ export function InvoiceView({ sale, compact = false }: Props) {
                   ]}
                 >
                   <Text style={[styles.colNum, styles.tableCellMuted, { color: colors.gray500 }]}>{i + 1}</Text>
-                  <Text style={[styles.colProduct, styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
+                  <View style={styles.colProduct}>
+                    <Text style={[styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
+                    {item.itemDescription ? (
+                      <Text style={[{ fontSize: 10.5, fontWeight: '400', color: colors.black, marginTop: 2, textAlign, writingDirection }]}>
+                        {item.itemDescription}
+                      </Text>
+                    ) : null}
+                  </View>
                   <IdText style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</IdText>
                   <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
                   <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtMoney(item.sellingPrice)}</Text>

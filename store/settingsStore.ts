@@ -25,6 +25,10 @@ interface SettingsState {
   showSalesInvoicePreview:     boolean;
   checkoutGridExpandedPurchase: boolean;
   checkoutGridExpandedSale:     boolean;
+  purchasePaymentStatusPreference: 'paid' | 'fib' | 'debt';
+  purchaseReceiptCurrencyPreference: 'iqd' | 'usd' | 'both';
+  purchaseCheckoutModePreference: 'normal' | 'print' | 'empty1' | 'empty2';
+  purchaseDebtDownPaymentMethodPreference: 'cash' | 'fib';
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -43,6 +47,10 @@ interface SettingsState {
   setShowSalesInvoicePreview:  (val: boolean) => void;
   setCheckoutGridExpandedPurchase: (val: boolean) => void;
   setCheckoutGridExpandedSale:     (val: boolean) => void;
+  setPurchasePaymentStatusPreference: (val: 'paid' | 'fib' | 'debt') => void;
+  setPurchaseReceiptCurrencyPreference: (val: 'iqd' | 'usd' | 'both') => void;
+  setPurchaseCheckoutModePreference: (val: 'normal' | 'print' | 'empty1' | 'empty2') => void;
+  setPurchaseDebtDownPaymentMethodPreference: (val: 'cash' | 'fib') => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -86,6 +94,10 @@ export const useSettingsStore = create<SettingsState>()(
       showSalesInvoicePreview:     false,
       checkoutGridExpandedPurchase: false,
       checkoutGridExpandedSale:     false,
+      purchasePaymentStatusPreference: 'paid',
+      purchaseReceiptCurrencyPreference: 'iqd',
+      purchaseCheckoutModePreference: 'normal',
+      purchaseDebtDownPaymentMethodPreference: 'cash',
 
       setDarkMode:                (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:             (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
@@ -100,6 +112,10 @@ export const useSettingsStore = create<SettingsState>()(
       setShowSalesInvoicePreview:  (val) => { set({ showSalesInvoicePreview: val }); notifyPreferencesChanged(); },
       setCheckoutGridExpandedPurchase: (val) => { set({ checkoutGridExpandedPurchase: val }); notifyPreferencesChanged(); },
       setCheckoutGridExpandedSale:     (val) => { set({ checkoutGridExpandedSale: val }); notifyPreferencesChanged(); },
+      setPurchasePaymentStatusPreference: (val) => { set({ purchasePaymentStatusPreference: val }); notifyPreferencesChanged(); },
+      setPurchaseReceiptCurrencyPreference: (val) => { set({ purchaseReceiptCurrencyPreference: val }); notifyPreferencesChanged(); },
+      setPurchaseCheckoutModePreference: (val) => { set({ purchaseCheckoutModePreference: val }); notifyPreferencesChanged(); },
+      setPurchaseDebtDownPaymentMethodPreference: (val) => { set({ purchaseDebtDownPaymentMethodPreference: val }); notifyPreferencesChanged(); },
       setExpiryTrackingEnabled:    (val) => {
         set({ expiryTrackingEnabled: val });
         notifyPreferencesChanged();
@@ -147,6 +163,10 @@ export const useSettingsStore = create<SettingsState>()(
           showSalesInvoicePreview:     p?.showSalesInvoicePreview ?? false,
           checkoutGridExpandedPurchase: p?.checkoutGridExpandedPurchase ?? false,
           checkoutGridExpandedSale:     p?.checkoutGridExpandedSale ?? false,
+          purchasePaymentStatusPreference: (['paid', 'fib', 'debt'].includes(p?.purchasePaymentStatusPreference as string) ? p?.purchasePaymentStatusPreference : 'paid') as 'paid' | 'fib' | 'debt',
+          purchaseReceiptCurrencyPreference: (['iqd', 'usd', 'both'].includes(p?.purchaseReceiptCurrencyPreference as string) ? p?.purchaseReceiptCurrencyPreference : 'iqd') as 'iqd' | 'usd' | 'both',
+          purchaseCheckoutModePreference: (['normal', 'print', 'empty1', 'empty2'].includes(p?.purchaseCheckoutModePreference as string) ? p?.purchaseCheckoutModePreference : 'normal') as 'normal' | 'print' | 'empty1' | 'empty2',
+          purchaseDebtDownPaymentMethodPreference: (p?.purchaseDebtDownPaymentMethodPreference === 'fib' ? 'fib' : 'cash') as 'cash' | 'fib',
         };
       },
     }

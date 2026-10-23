@@ -32,7 +32,7 @@ function sharedCSS(dir: 'ltr' | 'rtl'): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       direction: ltr;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
       background: #F0F4F8;
       color: #111827;
       font-size: 14px;
@@ -812,7 +812,7 @@ export function buildDebtsAuditReportHTML(
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     direction: ${dir};
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Rudaw', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
     background: #F8FAFC;
     color: #0F172A;
     font-size: 12.5px;

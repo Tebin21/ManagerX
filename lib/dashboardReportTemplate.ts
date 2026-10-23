@@ -165,7 +165,7 @@ export function buildDashboardReportHTML(
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     direction: ${dir};
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Rudaw', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
     background: #F8FAFC;
     color: #0F172A;
     font-size: 12.5px;

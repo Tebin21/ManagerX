@@ -30,7 +30,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits, formatExpiryCountdown, formatProductionAge, formatShelfLife } from '@/utils/formatters';
+import { hexToRgba } from '@/lib/colorUtils';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useSavedProductStore } from '@/store/savedProductStore';
@@ -471,131 +472,283 @@ export default function EditProductScreen() {
               </Text>
             </View>
 
-            {/* Production Date */}
-            <View style={[styles.fieldWrap, { marginTop: 6, marginBottom: 8 }]}>
-              <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
-                {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
-              </Text>
-              <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
-                <TouchableOpacity
-                  onPress={() => setShowProdPicker(true)}
-                  style={[
-                    styles.dateBtn,
-                    {
-                      height: 38,
-                      borderRadius: 9,
-                      borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
-                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
-                      flexDirection,
-                      paddingHorizontal: 10,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="construct-outline" size={16} color={colors.primary} />
-                  <Text style={[styles.dateBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
-                    {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={14} color={colors.gray400} />
-                </TouchableOpacity>
+            {(() => {
+              const prodAgeText = productionDate ? formatProductionAge(productionDate, isKuLanguage) : null;
+              const expiryCountdown = expiryDate ? formatExpiryCountdown(expiryDate, isKuLanguage) : null;
+              const shelfLifeText = productionDate && expiryDate ? formatShelfLife(productionDate, expiryDate, isKuLanguage) : null;
 
-                <TouchableOpacity
-                  onPress={() => setProductionDate(new Date())}
-                  style={[
-                    styles.quickBtn,
-                    {
-                      height: 38,
-                      borderRadius: 9,
-                      paddingHorizontal: 10,
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickBtnText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
-                  </Text>
-                </TouchableOpacity>
+              return (
+                <>
+                  {/* Production Date */}
+                  <View style={[styles.fieldWrap, { marginTop: 6, marginBottom: 8 }]}>
+                    <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
+                      {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن' : 'Production Date'}
+                    </Text>
+                    <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
+                      <TouchableOpacity
+                        onPress={() => setShowProdPicker(true)}
+                        style={[
+                          styles.dateBtn,
+                          {
+                            height: 38,
+                            borderRadius: 9,
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
+                            flexDirection,
+                            paddingHorizontal: 10,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="construct-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.dateBtnText, { fontSize: 13, color: productionDate ? colors.black : colors.gray400, flex: 1, textAlign: isRTL ? 'right' : 'left' }]}>
+                          {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                        </Text>
+                        <Ionicons name="calendar-outline" size={14} color={colors.gray400} />
+                      </TouchableOpacity>
 
-                {productionDate && (
-                  <TouchableOpacity
-                    onPress={() => setProductionDate(null)}
-                    style={[
-                      styles.quickBtn,
-                      {
-                        height: 38,
-                        width: 38,
-                        borderRadius: 9,
-                        paddingHorizontal: 0,
-                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
-                      },
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="close" size={14} color="#EF4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+                      <TouchableOpacity
+                        onPress={() => setProductionDate(new Date())}
+                        style={[
+                          styles.quickBtn,
+                          {
+                            height: 38,
+                            borderRadius: 9,
+                            paddingHorizontal: 10,
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray100,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.quickBtnText, { fontSize: 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
+                        </Text>
+                      </TouchableOpacity>
 
-            {/* Expiry Date */}
-            <View style={[styles.fieldWrap, { marginTop: 4, marginBottom: 4 }]}>
-              <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
-                {isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
-              </Text>
-              <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
-                <TouchableOpacity
-                  onPress={() => setShowExpPicker(true)}
-                  style={[
-                    styles.dateBtn,
-                    {
-                      height: 38,
-                      borderRadius: 9,
-                      borderColor: expiryDate ? '#F59E0B' : isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
-                      backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
-                      flexDirection,
-                      paddingHorizontal: 10,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="calendar-outline" size={16} color={expiryDate ? '#F59E0B' : colors.primary} />
-                  <Text
-                    style={[
-                      styles.dateBtnText,
-                      {
-                        fontSize: 13,
-                        color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400,
-                        fontWeight: expiryDate ? '700' : 'normal',
-                        flex: 1,
-                        textAlign: isRTL ? 'right' : 'left',
-                      },
-                    ]}
-                  >
-                    {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
-                  </Text>
-                  <Ionicons name="create-outline" size={14} color={colors.gray400} />
-                </TouchableOpacity>
+                      {productionDate && (
+                        <TouchableOpacity
+                          onPress={() => setProductionDate(null)}
+                          style={[
+                            styles.quickBtn,
+                            {
+                              height: 38,
+                              width: 38,
+                              borderRadius: 9,
+                              paddingHorizontal: 0,
+                              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                            },
+                          ]}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
 
-                {expiryDate && (
-                  <TouchableOpacity
-                    onPress={() => setExpiryDate(null)}
-                    style={[
-                      styles.quickBtn,
-                      {
-                        height: 38,
-                        width: 38,
-                        borderRadius: 9,
-                        paddingHorizontal: 0,
-                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
-                      },
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="close" size={14} color="#EF4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
+                    {productionDate && prodAgeText && (
+                      <View style={[styles.dateCountdownSubRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Ionicons name="construct-outline" size={11} color={colors.primary} />
+                        <Text style={[styles.dateCountdownSubText, { color: colors.gray500, writingDirection: isKuLanguage ? 'rtl' : 'ltr' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {prodAgeText}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Expiry Date */}
+                  <View style={[styles.fieldWrap, { marginTop: 4, marginBottom: 4 }]}>
+                    <Text style={[styles.label, { fontSize: 12, color: colors.gray500, textAlign, marginBottom: 4 }]}>
+                      {isKuLanguage ? 'بەرواری بەسەرچوون' : 'Expiry Date'}
+                    </Text>
+                    <View style={[styles.dateActionRow, { flexDirection, gap: 6 }]}>
+                      <TouchableOpacity
+                        onPress={() => setShowExpPicker(true)}
+                        style={[
+                          styles.dateBtn,
+                          {
+                            height: 38,
+                            borderRadius: 9,
+                            borderColor: expiryDate
+                              ? expiryCountdown?.status === 'expired'
+                                ? colors.error
+                                : expiryCountdown?.status === 'warning'
+                                ? '#F59E0B'
+                                : colors.primary
+                              : isDark
+                              ? 'rgba(255, 255, 255, 0.10)'
+                              : colors.gray200,
+                            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.70)' : undefined,
+                            flexDirection,
+                            paddingHorizontal: 10,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="calendar-outline"
+                          size={16}
+                          color={
+                            expiryDate
+                              ? expiryCountdown?.status === 'expired'
+                                ? colors.error
+                                : expiryCountdown?.status === 'warning'
+                                ? '#F59E0B'
+                                : colors.primary
+                              : colors.primary
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.dateBtnText,
+                            {
+                              fontSize: 13,
+                              color: expiryDate ? (isDark ? '#FBBF24' : '#D97706') : colors.gray400,
+                              fontWeight: expiryDate ? '700' : 'normal',
+                              textAlign: isRTL ? 'right' : 'left',
+                            },
+                          ]}
+                        >
+                          {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+                        </Text>
+
+                        {/* Inline Badge right next to the date */}
+                        {expiryCountdown && (
+                          <View
+                            style={[
+                              styles.inlineCountdownBadge,
+                              {
+                                backgroundColor:
+                                  expiryCountdown.status === 'expired'
+                                    ? (isDark ? hexToRgba(colors.error, 0.18) : '#FEE2E2')
+                                    : expiryCountdown.status === 'warning'
+                                    ? (isDark ? hexToRgba('#F59E0B', 0.18) : '#FEF3C7')
+                                    : (isDark ? hexToRgba(colors.success, 0.18) : '#DCFCE7'),
+                                borderColor:
+                                  expiryCountdown.status === 'expired'
+                                    ? colors.error
+                                    : expiryCountdown.status === 'warning'
+                                    ? '#F59E0B'
+                                    : colors.success,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.inlineCountdownBadgeText,
+                                {
+                                  color:
+                                    expiryCountdown.status === 'expired'
+                                      ? colors.error
+                                      : expiryCountdown.status === 'warning'
+                                      ? (isDark ? '#FBBF24' : '#B45309')
+                                      : colors.success,
+                                  writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                                },
+                                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              ]}
+                            >
+                              {expiryCountdown.badgeText}
+                            </Text>
+                          </View>
+                        )}
+
+                        <Ionicons name="create-outline" size={14} color={colors.gray400} style={{ marginStart: 'auto' }} />
+                      </TouchableOpacity>
+
+                      {expiryDate && (
+                        <TouchableOpacity
+                          onPress={() => setExpiryDate(null)}
+                          style={[
+                            styles.quickBtn,
+                            {
+                              height: 38,
+                              width: 38,
+                              borderRadius: 9,
+                              paddingHorizontal: 0,
+                              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                            },
+                          ]}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Notice Banner */}
+                    {expiryCountdown && (
+                      <View
+                        style={[
+                          styles.expiryNoticeBanner,
+                          {
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            backgroundColor:
+                              expiryCountdown.status === 'expired'
+                                ? (isDark ? hexToRgba(colors.error, 0.15) : '#FEF2F2')
+                                : expiryCountdown.status === 'warning'
+                                ? (isDark ? hexToRgba('#F59E0B', 0.15) : '#FFFBEB')
+                                : (isDark ? hexToRgba(colors.success, 0.15) : '#F0FDF4'),
+                            borderColor:
+                              expiryCountdown.status === 'expired'
+                                ? (isDark ? hexToRgba(colors.error, 0.35) : '#FECACA')
+                                : expiryCountdown.status === 'warning'
+                                ? (isDark ? hexToRgba('#F59E0B', 0.35) : '#FDE68A')
+                                : (isDark ? hexToRgba(colors.success, 0.35) : '#BBF7D0'),
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={
+                            expiryCountdown.status === 'expired'
+                              ? 'alert-circle'
+                              : expiryCountdown.status === 'warning'
+                              ? 'hourglass-outline'
+                              : 'shield-checkmark-outline'
+                          }
+                          size={14}
+                          color={
+                            expiryCountdown.status === 'expired'
+                              ? colors.error
+                              : expiryCountdown.status === 'warning'
+                              ? '#F59E0B'
+                              : colors.success
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.expiryNoticeText,
+                            {
+                              color:
+                                expiryCountdown.status === 'expired'
+                                  ? colors.error
+                                  : expiryCountdown.status === 'warning'
+                                  ? (isDark ? '#FBBF24' : '#B45309')
+                                  : (isDark ? '#34D399' : '#059669'),
+                              textAlign,
+                              writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                            },
+                            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {expiryCountdown.text}
+                        </Text>
+                        {shelfLifeText ? (
+                          <Text
+                            style={[
+                              styles.shelfLifeSubText,
+                              { color: colors.gray400, writingDirection: isKuLanguage ? 'rtl' : 'ltr' },
+                              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                            ]}
+                          >
+                            · {shelfLifeText}
+                          </Text>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
+                </>
+              );
+            })()}
 
               {/* Quick shortcut chips */}
               <View style={[styles.quickExpiryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: 5, marginTop: 6 }]}>
@@ -641,7 +794,6 @@ export default function EditProductScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
 
             {/* Production Date Modal */}
             <DatePickerModal
@@ -830,4 +982,43 @@ const styles = StyleSheet.create({
   quickExpiryRow:   { flexWrap: 'wrap', gap: 6, marginTop: 8 },
   expiryChip:       { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
   expiryChipText:   { fontSize: 12, fontWeight: '700' },
+  dateCountdownSubRow: {
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  dateCountdownSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  inlineCountdownBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginStart: 8,
+  },
+  inlineCountdownBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  expiryNoticeBanner: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  expiryNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  shelfLifeSubText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
 });

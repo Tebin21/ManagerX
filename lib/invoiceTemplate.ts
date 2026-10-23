@@ -26,7 +26,7 @@ function escHtml(str: string): string {
 
 // PDF language follows the app's current language automatically. `t()`
 // reads from the invoicePdf i18n namespace; `ku()` (shared from lib/pdfFont)
-// wraps already-translated label text in an RTL-shaped, Rudaw-fonted span
+// wraps already-translated label text in an RTL-shaped, Bahij Janna-fonted span
 // without ever touching the position/width/alignment of the element it sits
 // inside -- numbers, IDs, dates, and user-entered data (names/addresses/etc.)
 // never pass through `ku()`, so they always keep rendering as plain
@@ -70,13 +70,13 @@ function buildSalesCSS(isKurdish: boolean): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
     background: #ffffff;
     color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
-  .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; }
   .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
 
   /* ── Header: 3-column (Business | Customer | Invoice Info) ── */
@@ -204,7 +204,7 @@ function buildSalesCSS(isKurdish: boolean): string {
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
   .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
-  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #94a3b8; margin-top: 2px; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #000000; margin-top: 2px; unicode-bidi: plaintext; }
   .id-chip {
     display: inline-block;
     font-size: 9.5px;
@@ -483,13 +483,13 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     direction: ltr;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'Rudaw', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
     background: #ffffff;
     color: #000000;
     font-size: 14px;
     line-height: 1.5;
   }
-  .ku-text { font-family: 'Rudaw', sans-serif; direction: rtl; unicode-bidi: isolate; }
+  .ku-text { font-family: 'Bahij Janna', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; direction: rtl; unicode-bidi: isolate; }
   .body .ku-text { font-weight: 400; letter-spacing: normal; text-transform: none; }
 
   /* ── Header: 3-column (Business | Supplier | Invoice Info) ── */
@@ -616,7 +616,7 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
   .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
-  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #94a3b8; margin-top: 2px; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #000000; margin-top: 2px; unicode-bidi: plaintext; }
   .item-id {
     display: inline-flex;
     flex-direction: ${isKurdish ? 'row-reverse' : 'row'};

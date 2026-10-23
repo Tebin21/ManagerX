@@ -30,10 +30,8 @@ import { toEnglishDigits } from '@/utils/formatters';
 
 const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
 const CUSTOM_STORAGE_KEY = '@froshiar_dashboard_custom_banners_v2';
-const HINT_DISMISSED_KEY = '@froshiar_banner_hint_dismissed_v2';
 const MAX_CUSTOM_IMAGES = 2; // User can add up to 2 custom images (Total 3 with default)
 const SLIDE_INTERVAL = 5000; // 5 seconds sliding interval
-const HINT_INTERVAL = 10000; // 10 seconds reminder cycle
 
 interface BannerSlide {
   id: string;
@@ -51,13 +49,6 @@ export function DashboardHeroSlider() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
-
-  // Periodic reminder hint states (10-second pulse)
-  const [hintDismissed, setHintDismissed] = useState(false);
-  const [hintVisible, setHintVisible] = useState(false);
-  const hintOpacity = useRef(new Animated.Value(0)).current;
-  const hintTranslateY = useRef(new Animated.Value(8)).current;
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flatListRef = useRef<FlatList<BannerSlide>>(null);
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -88,74 +79,16 @@ export function DashboardHeroSlider() {
         }
       })
       .catch(() => {});
-
-    AsyncStorage.getItem(HINT_DISMISSED_KEY)
-      .then((val) => {
-        if (val === 'true') {
-          setHintDismissed(true);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const saveCustomImages = useCallback(async (newCustom: string[]) => {
     setCustomImages(newCustom);
     try {
       await AsyncStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(newCustom));
-      if (newCustom.length > 0) {
-        // Once the user modifies/adds a custom image, never show the hint again
-        setHintDismissed(true);
-        setHintVisible(false);
-        await AsyncStorage.setItem(HINT_DISMISSED_KEY, 'true');
-      }
     } catch (e) {
       console.warn('[DashboardHeroSlider] failed to persist custom banners:', e);
     }
   }, []);
-
-  // 3. Periodic reminder hint (Shows every 10 seconds while no custom images are added)
-  useEffect(() => {
-    if (hintDismissed || customImages.length > 0) {
-      setHintVisible(false);
-      return;
-    }
-
-    const showTooltip = () => {
-      setHintVisible(true);
-      Animated.parallel([
-        Animated.timing(hintOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(hintTranslateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(hintOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-          Animated.timing(hintTranslateY, { toValue: 8, duration: 400, useNativeDriver: true }),
-        ]).start(() => {
-          setHintVisible(false);
-        });
-      }, 3800);
-    };
-
-    // First appearance shortly after opening dashboard (2.5s)
-    const initialTimer = setTimeout(showTooltip, 2500);
-
-    // Periodic reminder every 10 seconds
-    const interval = setInterval(showTooltip, HINT_INTERVAL);
-
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    };
-  }, [hintDismissed, customImages.length, hintOpacity, hintTranslateY]);
-
-  const dismissHintForever = () => {
-    setHintDismissed(true);
-    setHintVisible(false);
-    AsyncStorage.setItem(HINT_DISMISSED_KEY, 'true').catch(() => {});
-  };
 
   // 4. 5-second automatic sliding animation when more than 1 image is present
   useEffect(() => {
@@ -282,44 +215,6 @@ export function DashboardHeroSlider() {
             </View>
           )}
         />
-
-        {/* Periodic Reminder Hint (Floating Glassmorphism Tooltip) */}
-        {hintVisible && !hintDismissed && customImages.length === 0 && (
-          <Animated.View
-            pointerEvents="box-none"
-            style={[
-              styles.hintPillContainer,
-              {
-                opacity: hintOpacity,
-                transform: [{ translateY: hintTranslateY }],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleOpenManager}
-              style={[styles.hintPill, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-            >
-              <Ionicons name="sparkles" size={13} color={colors.primary} />
-              <Text
-                style={[
-                  styles.hintText,
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('dashboard.hintAddImages')}
-              </Text>
-              <TouchableOpacity
-                onPress={dismissHintForever}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={styles.hintCloseBtn}
-              >
-                <Ionicons name="close" size={12} color="rgba(255, 255, 255, 0.65)" />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
         {/* Pagination Dots (Displayed when there are 2 or 3 images) */}
         {slides.length > 1 && (
           <View style={styles.dotsRow}>
@@ -386,23 +281,9 @@ export function DashboardHeroSlider() {
               >
                 <View style={styles.slotImageWrap}>
                   <Image source={DEFAULT_BANNER_IMAGE} style={styles.slotPreview} />
-                  <View style={[styles.slotBadge, styles.lockedBadge]}>
-                    <Ionicons name="lock-closed" size={10} color={colors.primary} />
-                    <Text style={[styles.slotBadgeText, { color: colors.primary }]}>
-                      {t('dashboard.defaultBannerLocked')}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.lockedBannerNotice, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Ionicons name="shield-checkmark" size={13} color={colors.primary} />
-                    <Text
-                      style={[
-                        styles.lockedBannerNoticeText,
-                        { color: '#FFFFFF' },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                      ]}
-                    >
-                      {t('dashboard.defaultBannerFixed')}
+                  <View style={styles.slotBadge}>
+                    <Text style={[styles.slotBadgeText, { writingDirection: 'ltr' }]}>
+                      {toEnglishDigits(1)}
                     </Text>
                   </View>
                 </View>

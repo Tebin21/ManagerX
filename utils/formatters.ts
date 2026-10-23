@@ -284,3 +284,147 @@ export function formatRelativeTime(v: string | Date): string {
   if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
   return formatDateShort(date);
 }
+
+export interface DateDurationBreakdown {
+  years: number;
+  months: number;
+  days: number;
+}
+
+export function calculateDateDuration(startDate: Date, endDate: Date): DateDurationBreakdown {
+  let y = endDate.getFullYear() - startDate.getFullYear();
+  let m = endDate.getMonth() - startDate.getMonth();
+  let d = endDate.getDate() - startDate.getDate();
+
+  if (d < 0) {
+    const prevMonthLastDay = new Date(endDate.getFullYear(), endDate.getMonth(), 0).getDate();
+    d += prevMonthLastDay;
+    m -= 1;
+  }
+  if (m < 0) {
+    m += 12;
+    y -= 1;
+  }
+  return { years: Math.max(0, y), months: Math.max(0, m), days: Math.max(0, d) };
+}
+
+function formatDurationKurdish(duration: DateDurationBreakdown): string {
+  const parts: string[] = [];
+  if (duration.years > 0) {
+    parts.push(duration.years === 1 ? '١ ساڵ' : `\u200F${duration.years} ساڵ`);
+  }
+  if (duration.months > 0) {
+    parts.push(duration.months === 1 ? '١ مانگ' : `\u200F${duration.months} مانگ`);
+  }
+  if (duration.days > 0 || parts.length === 0) {
+    parts.push(`\u200F${duration.days} ڕۆژ`);
+  }
+  return parts.join(' و ');
+}
+
+function formatDurationEnglish(duration: DateDurationBreakdown): string {
+  const parts: string[] = [];
+  if (duration.years > 0) {
+    parts.push(`${duration.years} yr${duration.years > 1 ? 's' : ''}`);
+  }
+  if (duration.months > 0) {
+    parts.push(`${duration.months} mo${duration.months > 1 ? 's' : ''}`);
+  }
+  if (duration.days > 0 || parts.length === 0) {
+    parts.push(`${duration.days} day${duration.days > 1 ? 's' : ''}`);
+  }
+  return parts.join(' and ');
+}
+
+export function formatExpiryCountdown(
+  expiryInput: string | Date,
+  isKuLanguage: boolean = true
+): {
+  text: string;
+  badgeText: string;
+  status: 'safe' | 'warning' | 'expired';
+  daysDiff: number;
+} {
+  const expiry = parseDateSafe(expiryInput);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const expDay = new Date(expiry.getFullYear(), expiry.getMonth(), expiry.getDate());
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysDiff = Math.round((expDay.getTime() - today.getTime()) / msPerDay);
+
+  if (daysDiff < 0) {
+    const pastDuration = calculateDateDuration(expDay, today);
+    const durStr = isKuLanguage ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
+    return {
+      text: isKuLanguage ? `\u200Fبەسەرچووە (${durStr} لەمەوپێش)` : `Expired (${durStr} ago)`,
+      badgeText: isKuLanguage ? `بەسەرچووە` : `Expired`,
+      status: 'expired',
+      daysDiff,
+    };
+  }
+
+  if (daysDiff === 0) {
+    return {
+      text: isKuLanguage ? 'ئەمڕۆ بەسەردەچێت!' : 'Expires today!',
+      badgeText: isKuLanguage ? 'ئەمڕۆ بەسەردەچێت' : 'Expires today',
+      status: 'warning',
+      daysDiff: 0,
+    };
+  }
+
+  const futureDuration = calculateDateDuration(today, expDay);
+  const durStr = isKuLanguage ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
+
+  const status: 'safe' | 'warning' = daysDiff <= 30 ? 'warning' : 'safe';
+
+  return {
+    text: isKuLanguage ? `\u200F${durStr} ماوە بۆ بەسەرچوون` : `${durStr} left until expiry`,
+    badgeText: isKuLanguage ? `\u200F${durStr} ماوە` : `${durStr} left`,
+    status,
+    daysDiff,
+  };
+}
+
+export function formatProductionAge(
+  prodInput: string | Date,
+  isKuLanguage: boolean = true
+): string {
+  const prod = parseDateSafe(prodInput);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const prodDay = new Date(prod.getFullYear(), prod.getMonth(), prod.getDate());
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysDiff = Math.round((today.getTime() - prodDay.getTime()) / msPerDay);
+
+  if (daysDiff === 0) {
+    return isKuLanguage ? 'ئەمڕۆ دروستکراوە' : 'Produced today';
+  }
+  if (daysDiff < 0) {
+    const futureDuration = calculateDateDuration(today, prodDay);
+    const durStr = isKuLanguage ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
+    return isKuLanguage ? `\u200F${durStr} بۆ دەرچوون` : `${durStr} until production`;
+  }
+
+  const pastDuration = calculateDateDuration(prodDay, today);
+  const durStr = isKuLanguage ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
+  return isKuLanguage ? `\u200F${durStr} لەمەوپێش دروستکراوە` : `Produced ${durStr} ago`;
+}
+
+export function formatShelfLife(
+  prodInput: string | Date,
+  expiryInput: string | Date,
+  isKuLanguage: boolean = true
+): string | null {
+  const prod = parseDateSafe(prodInput);
+  const exp = parseDateSafe(expiryInput);
+  const prodDay = new Date(prod.getFullYear(), prod.getMonth(), prod.getDate());
+  const expDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate());
+
+  if (expDay.getTime() <= prodDay.getTime()) return null;
+
+  const dur = calculateDateDuration(prodDay, expDay);
+  const durStr = isKuLanguage ? formatDurationKurdish(dur) : formatDurationEnglish(dur);
+  return isKuLanguage ? `\u200Fماوەی سەلاحییەت: ${durStr}` : `Shelf life: ${durStr}`;
+}

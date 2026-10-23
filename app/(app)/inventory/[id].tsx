@@ -19,7 +19,7 @@ import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { useTranslation } from 'react-i18next';
-import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility } from '@/lib/sqlite';
+import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility, getProductPurchaseHistory } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -27,14 +27,16 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { computeProductLowStock } from '@/lib/lowStock';
-import type { InventoryProduct } from '@/types/inventory';
+import type { InventoryProduct, ProductPurchaseHistoryItem } from '@/types/inventory';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getProductDisplayImage } from '@/lib/imageStorage';
+import { formatExpiryCountdown, formatProductionAge, formatShelfLife } from '@/utils/formatters';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isKuLanguage = (i18n.language || 'ku').startsWith('ku');
   const { id } = useLocalSearchParams<{ id: string }>();
   const { removeProduct } = useInventoryStore();
   const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
@@ -57,6 +59,7 @@ export default function InventoryDetailScreen() {
     id: number; saleId: number; invoiceNumber: string;
     quantity: number; sellingPrice: number; lineTotal: number; saleCreatedAt: string;
   }[]>([]);
+  const [purchaseHistory, setPurchaseHistory] = useState<ProductPurchaseHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -69,6 +72,10 @@ export default function InventoryDetailScreen() {
       ]);
       setProduct(p);
       setSalesHistory(sales);
+      if (p) {
+        const purchases = await getProductPurchaseHistory(p.id, p.name, p.itemId);
+        setPurchaseHistory(purchases);
+      }
     } catch (err) {
       console.error('Failed to load product detail:', err);
     } finally {
@@ -564,8 +571,8 @@ export default function InventoryDetailScreen() {
           )}
         </MotiView>
 
-        {/* Supplier & Purchase section */}
-        {(product.supplierName || product.purchaseDate) && (
+        {/* Purchase Batches & Price History Section */}
+        {Boolean(purchaseHistory.length > 0 || product.purchaseDate || product.supplierName) && (
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -579,59 +586,262 @@ export default function InventoryDetailScreen() {
               },
             ]}
           >
-            <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-              <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
-                <Ionicons name="business-outline" size={14} color={colors.primary} />
+            {/* Section Header */}
+            <View style={[styles.sectionHeaderRow, { flexDirection, marginBottom: 14 }]}>
+              <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8, marginBottom: 0 }]}>
+                <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+                  <Ionicons name="receipt-outline" size={15} color={colors.primary} />
+                </View>
+                <Text style={sectionTitleStyle}>
+                  {isRTL ? 'مێژووی وەجبەکانی کڕین و نرخەکان' : 'Purchase Batches & Price History'}
+                </Text>
               </View>
-              <Text style={sectionTitleStyle}>{t('inventory.supplierAndPurchase')}</Text>
+
+              {purchaseHistory.length > 0 && (
+                <View
+                  style={[
+                    styles.batchCountPill,
+                    {
+                      backgroundColor: isDark ? 'rgba(212,175,55,0.12)' : '#FEF9C3',
+                      borderColor: isDark ? 'rgba(212,175,55,0.3)' : '#FDE68A',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.batchCountPillText, { color: colors.primary }]}>
+                    {purchaseHistory.length} {isRTL ? 'وەجبە' : 'Batches'}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {product.supplierName && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                <Ionicons name="business-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.supplier')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierName}</Text>
+            {/* List of Batches (Newest to Oldest) */}
+            {purchaseHistory.length > 0 ? (
+              purchaseHistory.map((batch, idx) => {
+                const batchNum = purchaseHistory.length - idx;
+                const prevBatch = idx < purchaseHistory.length - 1 ? purchaseHistory[idx + 1] : null;
+                const priceDiff = prevBatch ? batch.buyPriceIQD - prevBatch.buyPriceIQD : null;
+
+                return (
+                  <View
+                    key={batch.purchaseId + '_' + idx}
+                    style={[
+                      styles.batchCard,
+                      {
+                        backgroundColor: subTileBg,
+                        borderColor: subTileBorder,
+                      },
+                    ]}
+                  >
+                    {/* Batch Header: Batch #, Date, Payment pill */}
+                    <View style={[styles.batchTopRow, { flexDirection }]}>
+                      <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
+                        <View style={[styles.batchNumBadge, { backgroundColor: colors.primary }]}>
+                          <Text style={[styles.batchNumText, { color: colors.white }]}>
+                            {isRTL ? `وەجبەی #${batchNum}` : `Batch #${batchNum}`}
+                          </Text>
+                        </View>
+                        <View style={[styles.batchDateWrap, { flexDirection }]}>
+                          <Ionicons name="calendar-outline" size={13} color={colors.gray400} />
+                          <DateText value={batch.date} style={[styles.batchDateText, { color: colors.gray500 }]} />
+                        </View>
+                      </View>
+
+                      {/* Payment Status */}
+                      <View
+                        style={[
+                          styles.batchPaymentPill,
+                          {
+                            flexDirection,
+                            backgroundColor:
+                              batch.paymentStatus === 'paid'
+                                ? (isDark ? 'rgba(16,185,129,0.15)' : '#ECFDF5')
+                                : batch.paymentStatus === 'fib'
+                                ? (isDark ? 'rgba(59,130,246,0.15)' : '#EFF6FF')
+                                : (isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB'),
+                            borderColor:
+                              batch.paymentStatus === 'paid'
+                                ? (isDark ? 'rgba(16,185,129,0.35)' : '#A7F3D0')
+                                : batch.paymentStatus === 'fib'
+                                ? (isDark ? 'rgba(59,130,246,0.35)' : '#BFDBFE')
+                                : (isDark ? 'rgba(245,158,11,0.35)' : '#FDE68A'),
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.batchPaymentText,
+                            {
+                              color:
+                                batch.paymentStatus === 'paid'
+                                  ? colors.success
+                                  : batch.paymentStatus === 'fib'
+                                  ? '#3B82F6'
+                                  : '#D97706',
+                            },
+                          ]}
+                        >
+                          {batch.paymentStatus === 'paid'
+                            ? (isRTL ? 'نەقد' : 'Cash')
+                            : batch.paymentStatus === 'fib'
+                            ? 'FIB'
+                            : (isRTL ? 'قەرز' : 'Debt')}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Price and Quantity Grid */}
+                    <View style={[styles.batchGrid, { flexDirection, borderColor: isDark ? colors.gray200 : '#E2E8F0' }]}>
+                      {/* Buy Price */}
+                      <View style={styles.batchGridItem}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                          {t('inventory.purchasePrice', 'نرخی کڕین')}
+                        </Text>
+                        <AmountText
+                          value={batch.buyPriceIQD}
+                          currency="IQD"
+                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                        />
+                        {/* Price Delta Indicator vs previous batch */}
+                        {priceDiff !== null && (
+                          <View
+                            style={[
+                              styles.priceDeltaPill,
+                              {
+                                backgroundColor:
+                                  priceDiff > 0
+                                    ? (isDark ? 'rgba(239,68,68,0.18)' : '#FEE2E2')
+                                    : priceDiff < 0
+                                    ? (isDark ? 'rgba(16,185,129,0.18)' : '#D1FAE5')
+                                    : (isDark ? 'rgba(100,116,139,0.15)' : '#F1F5F9'),
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.priceDeltaText,
+                                {
+                                  color:
+                                    priceDiff > 0
+                                      ? colors.error
+                                      : priceDiff < 0
+                                      ? colors.success
+                                      : colors.gray400,
+                                },
+                              ]}
+                            >
+                              {priceDiff > 0
+                                ? `+${priceDiff.toLocaleString()} (گرانتر)`
+                                : priceDiff < 0
+                                ? `${priceDiff.toLocaleString()} (هەرزانتر)`
+                                : (isRTL ? 'هەمان نرخ' : 'Same Price')}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Sell Price */}
+                      <View style={styles.batchGridItem}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                          {t('inventory.sellingPrice', 'نرخی فرۆشتن')}
+                        </Text>
+                        <AmountText
+                          value={batch.sellPriceIQD}
+                          currency="IQD"
+                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                        />
+                      </View>
+
+                      {/* Quantity */}
+                      <View style={styles.batchGridItem}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                          {isRTL ? 'بڕی کڕدراو' : 'Quantity'}
+                        </Text>
+                        <Text style={[styles.batchGridValue, { color: colors.primary, textAlign: valueAlign }]}>
+                          {batch.quantity} {isRTL ? 'دانە' : 'pcs'}
+                        </Text>
+                      </View>
+
+                      {/* Total */}
+                      <View style={styles.batchGridItem}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                          {isRTL ? 'کۆی گشتی' : 'Total'}
+                        </Text>
+                        <AmountText
+                          value={batch.lineTotalIQD}
+                          currency="IQD"
+                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Batch Bottom Row: Supplier & Invoice Link */}
+                    <View style={[styles.batchBottomRow, { flexDirection }]}>
+                      <View style={[styles.batchSupplierWrap, { flexDirection }]}>
+                        <Ionicons name="business-outline" size={14} color={colors.gray400} />
+                        <Text style={[styles.batchSupplierText, { color: colors.gray600 }]} numberOfLines={1}>
+                          {batch.supplierName || (isRTL ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier')}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.batchLinkBtn,
+                          {
+                            backgroundColor: isDark ? 'rgba(212,175,55,0.1)' : '#FEF9C3',
+                            borderColor: isDark ? 'rgba(212,175,55,0.25)' : '#FDE68A',
+                            flexDirection,
+                          },
+                        ]}
+                        onPress={() => router.push(`/(app)/purchases/${batch.purchaseId}` as never)}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="receipt-outline" size={13} color={colors.primary} />
+                        <Text style={[styles.batchLinkText, { color: colors.primary }]}>
+                          #{batch.purchaseNumber}
+                        </Text>
+                        <Ionicons name={chevronForward as never} size={12} color={colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              /* Fallback single purchase view */
+              <View>
+                {product.supplierName && (
+                  <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
+                    <Ionicons name="business-outline" size={16} color={colors.gray400} />
+                    <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.supplier')}</Text>
+                    <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierName}</Text>
+                  </View>
+                )}
+                {product.purchaseDate && (
+                  <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
+                    <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
+                    <DateText value={product.purchaseDate} style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]} />
+                  </View>
+                )}
+                {product.purchaseId && (
+                  <TouchableOpacity
+                    style={[
+                      styles.linkRow,
+                      {
+                        backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : '#FEF9C3',
+                        borderColor: isDark ? 'rgba(212,175,55,0.25)' : '#FDE68A',
+                        flexDirection,
+                        gap: isRTL ? RTL_SPACING.gap : 8,
+                      },
+                    ]}
+                    onPress={() => router.push(`/(app)/purchases/${product.purchaseId}` as never)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="receipt-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.linkText, { color: colors.primary, textAlign, writingDirection }]}>{t('inventory.viewPurchaseInvoice')}</Text>
+                    <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-            {product.supplierPhone && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                <Ionicons name="call-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.phone')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]}>{product.supplierPhone}</Text>
-              </View>
-            )}
-            {product.supplierAddress && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                <Ionicons name="location-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.address')}</Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign, writingDirection }]}>{product.supplierAddress}</Text>
-              </View>
-            )}
-            {product.purchaseDate && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                <Ionicons name="calendar-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 88 : 70 }]}>{t('inventory.date')}</Text>
-                <DateText value={product.purchaseDate} style={[styles.infoValue, { color: colors.black, textAlign: valueAlign }]} />
-              </View>
-            )}
-            {product.purchaseId && (
-              <TouchableOpacity
-                style={[
-                  styles.linkRow,
-                  {
-                    backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : '#FEF9C3',
-                    borderColor: isDark ? 'rgba(212,175,55,0.25)' : '#FDE68A',
-                    flexDirection,
-                    gap: isRTL ? RTL_SPACING.gap : 8,
-                  },
-                ]}
-                onPress={() => router.push(`/(app)/purchases/${product.purchaseId}` as never)}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="receipt-outline" size={16} color={colors.primary} />
-                <Text style={[styles.linkText, { color: colors.primary, textAlign, writingDirection }]}>{t('inventory.viewPurchaseInvoice')}</Text>
-                <Ionicons name={chevronForward as never} size={14} color={colors.primary} />
-              </TouchableOpacity>
             )}
           </MotiView>
         )}
@@ -661,27 +871,20 @@ export default function InventoryDetailScreen() {
                 </Text>
               </View>
               {product.expiryDate && (() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const exp = new Date(product.expiryDate);
-                exp.setHours(0, 0, 0, 0);
-                const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                const isExpired = diffDays < 0;
-                const isExpiring = diffDays >= 0 && diffDays <= 30;
-
+                const countdown = formatExpiryCountdown(product.expiryDate, isKuLanguage);
                 return (
                   <View
                     style={[
                       styles.expiryBadge,
                       {
-                        backgroundColor: isExpired
+                        backgroundColor: countdown.status === 'expired'
                           ? (isDark ? 'rgba(239,68,68,0.18)' : '#FEE2E2')
-                          : isExpiring
+                          : countdown.status === 'warning'
                           ? (isDark ? 'rgba(245,158,11,0.18)' : '#FEF3C7')
                           : (isDark ? 'rgba(16,185,129,0.18)' : '#D1FAE5'),
-                        borderColor: isExpired
+                        borderColor: countdown.status === 'expired'
                           ? (isDark ? 'rgba(239,68,68,0.35)' : '#FECACA')
-                          : isExpiring
+                          : countdown.status === 'warning'
                           ? (isDark ? 'rgba(245,158,11,0.35)' : '#FDE68A')
                           : (isDark ? 'rgba(16,185,129,0.35)' : '#A7F3D0'),
                       },
@@ -691,13 +894,11 @@ export default function InventoryDetailScreen() {
                       style={[
                         styles.expiryBadgeText,
                         {
-                          color: isExpired ? '#EF4444' : isExpiring ? '#D97706' : '#10B981',
+                          color: countdown.status === 'expired' ? '#EF4444' : countdown.status === 'warning' ? '#D97706' : '#10B981',
                         },
                       ]}
                     >
-                      {isExpired
-                        ? `بەسەرچووە (پێش ${Math.abs(diffDays)} ڕۆژ)`
-                        : `${diffDays} ڕۆژ ماوە`}
+                      {countdown.badgeText}
                     </Text>
                   </View>
                 );
@@ -716,17 +917,33 @@ export default function InventoryDetailScreen() {
               </View>
             )}
 
-            {product.expiryDate && (
-              <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: 'transparent' }]}>
-                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-                <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
-                  {t('inventory.expiryDate', 'بەرواری بەسەرچوون')}
-                </Text>
-                <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign, fontWeight: '700' }]}>
-                  {product.expiryDate}
-                </Text>
-              </View>
-            )}
+            {product.expiryDate && (() => {
+              const countdown = formatExpiryCountdown(product.expiryDate, isKuLanguage);
+              const shelfLife = product.productionDate ? formatShelfLife(product.productionDate, product.expiryDate, isKuLanguage) : null;
+              return (
+                <View style={{ marginTop: 2 }}>
+                  <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: 'transparent' }]}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.infoLabel, { color: colors.gray400, textAlign, writingDirection, width: isRTL ? 110 : 90 }]}>
+                      {t('inventory.expiryDate', 'بەرواری بەسەرچوون')}
+                    </Text>
+                    <Text style={[styles.infoValue, { color: colors.black, textAlign: valueAlign, fontWeight: '700' }]}>
+                      {product.expiryDate}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection, alignItems: 'center', gap: 6, marginTop: -4, marginStart: isRTL ? 0 : 24, marginEnd: isRTL ? 24 : 0, paddingBottom: 6 }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: countdown.status === 'expired' ? '#EF4444' : countdown.status === 'warning' ? '#D97706' : '#10B981' }}>
+                      {countdown.text}
+                    </Text>
+                    {shelfLife ? (
+                      <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                        · {shelfLife}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })()}
           </MotiView>
         )}
 
@@ -1250,6 +1467,109 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     fontSize: 15,
+    fontWeight: '700',
+  },
+  batchCountPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  batchCountPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  batchCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  batchTopRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  batchNumBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  batchNumText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  batchDateWrap: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  batchDateText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  batchPaymentPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  batchPaymentText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  batchGrid: {
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  batchGridItem: {
+    flex: 1,
+    minWidth: 70,
+    gap: 2,
+  },
+  batchGridLabel: {
+    fontSize: 11,
+  },
+  batchGridValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  priceDeltaPill: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+  priceDeltaText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  batchBottomRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  batchSupplierWrap: {
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  batchSupplierText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  batchLinkBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  batchLinkText: {
+    fontSize: 11.5,
     fontWeight: '700',
   },
 });

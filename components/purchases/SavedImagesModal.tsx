@@ -470,11 +470,17 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     onPress={() => setPreviewPreset(item)}
                     style={styles.imageWrap}
                   >
-                    <Image
-                      source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
-                      style={styles.image}
-                      resizeMode="cover"
-                    />
+                    {item.imageUri ? (
+                      <Image
+                        source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
+                        style={styles.image}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.image, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', alignItems: 'center', justifyContent: 'center' }]}>
+                        <Ionicons name="cube-outline" size={32} color={colors.primary} />
+                      </View>
+                    )}
 
                     {/* Delete button (کەمی بکەین) */}
                     <TouchableOpacity
@@ -785,11 +791,17 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
             >
               {/* Image */}
               <View style={styles.previewImageWrap}>
-                <Image
-                  source={{ uri: resolveImageUri(previewPreset.imageUri) || previewPreset.imageUri }}
-                  style={styles.previewImage}
-                  resizeMode="contain"
-                />
+                {previewPreset.imageUri ? (
+                  <Image
+                    source={{ uri: resolveImageUri(previewPreset.imageUri) || previewPreset.imageUri }}
+                    style={styles.previewImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={[styles.previewImage, { alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
+                    <Ionicons name="cube-outline" size={60} color={colors.primary} />
+                  </View>
+                )}
               </View>
 
               {/* Title & Desc */}
