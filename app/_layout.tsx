@@ -6,7 +6,7 @@ import { installAutoEnglishDigits } from '@/lib/autoEnglishDigits';
 installAutoEnglishDigits();
 
 import React, { useEffect } from 'react';
-import { ActivityIndicator, I18nManager, Platform, View } from 'react-native';
+import { ActivityIndicator, I18nManager, Platform, View, Text, Image } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -150,9 +150,17 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0B111E' }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#F4C21A" />
+          <Image
+            source={require('@/assets/images/logo-icon.png')}
+            style={{ width: 68, height: 68, marginBottom: 20 }}
+            resizeMode="contain"
+          />
+          <ActivityIndicator size="large" color="#D4AF37" />
+          <Text style={{ color: '#D4AF37', fontSize: 16, marginTop: 14, fontWeight: '700' }}>
+            چاوەڕێ بە...
+          </Text>
         </View>
       </GestureHandlerRootView>
     );

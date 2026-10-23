@@ -520,7 +520,7 @@ export function InventoryExpiryView({
       return (
         <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2' }]}>
           <Ionicons name="alert-circle" size={badgeIconSize} color="#EF4444" />
-          <Text style={[styles.badgeText, badgeTextStyle, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          <Text style={[styles.badgeText, badgeTextStyle, { color: '#EF4444', writingDirection: isKu ? 'rtl' : 'ltr' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
             {countdown ? countdown.text : (isKu ? `بەسەرچووە` : `Expired`)}
           </Text>
         </View>
@@ -531,7 +531,7 @@ export function InventoryExpiryView({
       return (
         <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2' }]}>
           <Ionicons name="time" size={badgeIconSize} color="#EF4444" />
-          <Text style={[styles.badgeText, badgeTextStyle, { color: '#EF4444' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          <Text style={[styles.badgeText, badgeTextStyle, { color: '#EF4444', writingDirection: isKu ? 'rtl' : 'ltr' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
             {isKu ? 'ئەمڕۆ بەسەر دەچێت!' : 'Expires Today!'}
           </Text>
         </View>
@@ -539,13 +539,13 @@ export function InventoryExpiryView({
     }
 
     const countdown = item.product.expiryDate ? formatExpiryCountdown(item.product.expiryDate, isKu) : null;
-    const badgeLabel = countdown ? countdown.badgeText : (isKu ? `${item.diffDays} ڕۆژ ماوە` : `${item.diffDays}d left`);
+    const badgeLabel = countdown ? countdown.badgeText : (isKu ? `\u200F${item.diffDays} ڕۆژ ماوە` : `${item.diffDays}d left`);
 
     if (item.status === 'expiringSoon') {
       return (
         <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.22)' : '#FEF3C7' }]}>
           <Ionicons name="warning" size={badgeIconSize} color="#D97706" />
-          <Text style={[styles.badgeText, badgeTextStyle, { color: '#D97706' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+          <Text style={[styles.badgeText, badgeTextStyle, { color: '#D97706', writingDirection: isKu ? 'rtl' : 'ltr' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
             {badgeLabel}
           </Text>
         </View>
@@ -556,7 +556,7 @@ export function InventoryExpiryView({
     return (
       <View style={[styles.badge, tabletBadgeStyle, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5' }]}>
         <Ionicons name="checkmark-circle" size={badgeIconSize} color="#10B981" />
-        <Text style={[styles.badgeText, badgeTextStyle, { color: '#10B981' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+        <Text style={[styles.badgeText, badgeTextStyle, { color: '#10B981', writingDirection: isKu ? 'rtl' : 'ltr' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {badgeLabel}
         </Text>
       </View>

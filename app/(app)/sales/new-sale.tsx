@@ -58,7 +58,8 @@ import { fmtUSD, fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/f
 import { roundUSD, roundToNearest250 } from '@/utils/rounding';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
-import { DIRECT_CUSTOMER_NAME, isDirectCustomerName } from '@/lib/sqlite';
+import { DIRECT_CUSTOMER_NAME, isDirectCustomerName, getProductBatches } from '@/lib/sqlite';
+import type { Product } from '@/types/sales';
 
 type Step = 1 | 2 | 3;
 
@@ -163,6 +164,18 @@ export default function NewSaleScreen() {
     }
   }
 
+  const handleAddToCart = async (product: InventoryProduct | Product) => {
+    cart.addItem(product);
+    try {
+      const batches = await getProductBatches(product.id, product.name, product.itemId);
+      if (batches.length > 0) {
+        cart.setAvailableBatches(product.id, batches);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch batches on add:', err);
+    }
+  };
+
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
@@ -221,7 +234,7 @@ export default function NewSaleScreen() {
       };
     }
 
-    cart.addItem(found);
+    handleAddToCart(found);
 
     return {
       success: true,
@@ -483,11 +496,14 @@ export default function NewSaleScreen() {
               );
             }
             const product = item as ProductItem;
+            const cartItem = cart.items.find((ci) => ci.product.id === product.id);
             return (
               <ProductSearchResult
                 product={product}
                 inCartQty={getCartQty(product.id)}
-                onAdd={() => cart.addItem(product)}
+                selectedBatch={cartItem?.selectedBatch}
+                onSelectBatch={(batch) => cart.updateBatch(product.id, batch)}
+                onAdd={() => handleAddToCart(product)}
                 onDecrease={() => handleDecreaseQty(product.id)}
                 layout={isGridView ? 'grid' : 'list'}
               />
@@ -620,6 +636,7 @@ export default function NewSaleScreen() {
                     onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
                     onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
                     onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                    onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
                     onRemove={() => cart.removeItem(item.product.id)}
                   />
                 ))}
@@ -762,6 +779,7 @@ export default function NewSaleScreen() {
               onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
               onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
               onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+              onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
               onRemove={() => cart.removeItem(item.product.id)}
             />
           ))}

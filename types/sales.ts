@@ -27,6 +27,22 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface ProductBatch {
+  batchNum: number;
+  purchaseId?: number | null;
+  purchaseNumber?: string;
+  date: string;
+  buyPriceIQD: number;
+  buyPriceUSD: number;
+  sellPriceIQD: number;
+  sellPriceUSD: number;
+  quantity: number;
+  productionDate?: string | null;
+  expiryDate?: string | null;
+  supplierName?: string | null;
+  isOldest?: boolean;
+}
+
 export type DiscountType = 'percentage' | 'amount';
 export type GlobalDiscountType = 'none' | 'percentage' | 'amount';
 
@@ -39,6 +55,8 @@ export interface CartItem {
   discountPct: number;
   lineTotal: number;
   hasLossWarning: boolean;
+  selectedBatch?: ProductBatch | null;
+  availableBatches?: ProductBatch[];
 }
 
 export interface CustomerInput {
@@ -62,6 +80,8 @@ export interface SaleItem {
   quantity: number;
   discount: number;
   lineTotal: number;
+  batchNumber?: number | null;
+  purchaseId?: number | null;
   /** Live-joined from products.item_description at query time; not persisted in sale_items. */
   itemDescription?: string | null;
 }

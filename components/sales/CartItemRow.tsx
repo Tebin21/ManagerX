@@ -14,8 +14,11 @@ import { fmtIQD, fmtUSD, fmtExchangeRate, toEnglishDigits, sanitizeNumericInput 
 import { useTranslation } from 'react-i18next';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
-import type { CartItem, DiscountType } from '@/types/sales';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { hexToRgba } from '@/lib/colorUtils';
+import { BatchPickerModal } from '@/components/sales/BatchPickerModal';
+import { getProductBatches } from '@/lib/sqlite';
+import type { CartItem, DiscountType, ProductBatch } from '@/types/sales';
 
 interface Props {
   item: CartItem;
@@ -24,6 +27,7 @@ interface Props {
   onUpdateDiscount: (discount: number) => void;
   onUpdateDiscountType: (type: DiscountType) => void;
   onUpdateDiscountPct: (pct: number) => void;
+  onUpdateBatch?: (batch: ProductBatch) => void;
   onRemove: () => void;
 }
 
@@ -34,9 +38,10 @@ export function CartItemRow({
   onUpdateDiscount,
   onUpdateDiscountType,
   onUpdateDiscountPct,
+  onUpdateBatch,
   onRemove,
 }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
@@ -44,6 +49,26 @@ export function CartItemRow({
   const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
   const scrollIntoView = useKeyboardAwareFocus();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+
+  const [batchPickerOpen, setBatchPickerOpen] = useState(false);
+  const [batches, setBatches] = useState<ProductBatch[]>(item.availableBatches ?? []);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    if (!item.availableBatches || item.availableBatches.length === 0) {
+      getProductBatches(item.product.id, item.product.name, item.product.itemId).then((b) => {
+        if (isMounted && b.length > 0) {
+          setBatches(b);
+          if (!item.selectedBatch && onUpdateBatch) {
+            onUpdateBatch(b[0]);
+          }
+        }
+      });
+    } else {
+      setBatches(item.availableBatches);
+    }
+    return () => { isMounted = false; };
+  }, [item.product.id, item.availableBatches]);
 
   const [iqdPriceText, setIqdPriceText] = useState(String(item.sellingPrice));
   const [usdPrice, setUsdPrice] = useState(
@@ -151,13 +176,46 @@ export function CartItemRow({
       {/* Header */}
       <View style={[styles.header, { flexDirection }]}>
         <View style={styles.titleCol}>
-          <View style={[styles.titleRow, { flexDirection }]}>
+          <View style={[styles.titleRow, { flexDirection, flexWrap: 'wrap', alignItems: 'center', gap: 6 }]}>
             <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>{item.product.name}</Text>
             {item.product.itemId ? (
               <View style={[styles.idBadge, { backgroundColor: colors.softBlue }]}>
                 <IdText size="small" style={[styles.idText, { color: colors.primary }]}>#{item.product.itemId}</IdText>
               </View>
             ) : null}
+
+            {/* Interactive Batch Selector Pill */}
+            <TouchableOpacity
+              style={[
+                styles.batchSelectorBtn,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+              onPress={() => setBatchPickerOpen(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="layers-outline" size={13} color={isDark ? colors.primary : '#B45309'} />
+              <Text
+                style={[
+                  styles.batchSelectorText,
+                  { color: isDark ? colors.primary : '#92400E' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isKuLanguage
+                  ? `وەجبەی #${item.selectedBatch?.batchNum ?? 1}`
+                  : `Batch #${item.selectedBatch?.batchNum ?? 1}`}
+              </Text>
+              {item.selectedBatch?.isOldest && (
+                <View style={styles.batchFifoPill}>
+                  <Text style={styles.batchFifoText}>FIFO</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-down" size={12} color={isDark ? colors.primary : '#B45309'} />
+            </TouchableOpacity>
           </View>
           {item.product.itemDescription ? (
             <Text style={[styles.description, { color: colors.gray500, textAlign }]} numberOfLines={1}>
@@ -307,6 +365,22 @@ export function CartItemRow({
           )}
         </View>
       </View>
+
+      {/* Batch Picker Modal */}
+      {batchPickerOpen && (
+        <BatchPickerModal
+          visible={batchPickerOpen}
+          onClose={() => setBatchPickerOpen(false)}
+          batches={batches}
+          selectedBatchNum={item.selectedBatch?.batchNum ?? 1}
+          onSelectBatch={(batch) => {
+            if (onUpdateBatch) onUpdateBatch(batch);
+          }}
+          productName={item.product.name}
+          availableStock={item.product.quantity}
+          unit={item.product.unit}
+        />
+      )}
     </View>
   );
 }
@@ -325,6 +399,29 @@ const styles = StyleSheet.create({
   description: { fontSize: 12, fontWeight: '400', marginTop: 2 },
   idBadge: { borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   idText: {},
+  batchSelectorBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  batchSelectorText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  batchFifoPill: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  batchFifoText: {
+    color: '#FFFFFF',
+    fontSize: 8.5,
+    fontWeight: '800',
+  },
   deleteBtn: { padding: 4, marginStart: 8 },
   warningText: { fontSize: 11, fontWeight: '500', marginBottom: 8 },
 

@@ -316,7 +316,7 @@ export function buildInvoiceHTML(
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col">${i + 1}</td>
-      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
+      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.batchNumber ? `<span class="item-batch" style="display:block;font-size:10px;color:#d97706;font-weight:600;">${isKurdish ? `وەجبەی #${item.batchNumber}` : `Batch #${item.batchNumber}`}</span>` : ''}${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
       <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${fmtRow(item.sellingPrice)}</td>

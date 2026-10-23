@@ -62,6 +62,10 @@ export async function getProductsByItemId(_itemId: string): Promise<number[]> {
   return [];
 }
 
+export async function getProductBatches(_productId: number, _productName: string, _itemId?: string | null): Promise<any[]> {
+  return [];
+}
+
 export async function getAllPurchases(): Promise<any[]> {
   return [];
 }
@@ -80,6 +84,10 @@ export async function insertProduct(_data: any): Promise<number> {
 
 export async function upsertSupplier(_input: any): Promise<number> {
   return 0;
+}
+
+export async function findSupplierByNameOrPhone(_name?: string | null, _phone?: string | null): Promise<any | null> {
+  return null;
 }
 
 export async function insertPurchaseItem(_purchaseId: number, _data: any): Promise<void> {}

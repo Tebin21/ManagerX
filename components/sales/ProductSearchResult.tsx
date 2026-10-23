@@ -10,9 +10,12 @@ import { getStatusTint } from '@/constants/statusTints';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
+import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import type { Product } from '@/types/sales';
+import type { Product, ProductBatch } from '@/types/sales';
 import { getProductDisplayImage } from '@/lib/imageStorage';
+import { BatchPickerModal } from '@/components/sales/BatchPickerModal';
+import { getProductBatches } from '@/lib/sqlite';
 
 interface Props {
   product: Product;
@@ -20,9 +23,19 @@ interface Props {
   onAdd: () => void;
   onDecrease?: () => void;
   layout?: 'list' | 'grid';
+  selectedBatch?: ProductBatch | null;
+  onSelectBatch?: (batch: ProductBatch) => void;
 }
 
-export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, layout = 'list' }: Props) {
+export function ProductSearchResult({
+  product,
+  inCartQty,
+  onAdd,
+  onDecrease,
+  layout = 'list',
+  selectedBatch,
+  onSelectBatch,
+}: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
@@ -32,6 +45,21 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
   const isUniqueAndSold = product.idMode === 'unique' && (!product.isActive || product.quantity === 0);
   const atMaxStock = product.idMode === 'repeatable' && inCartQty >= product.quantity;
   const isDisabled = isUniqueAndSold || atMaxStock;
+
+  const [batchPickerOpen, setBatchPickerOpen] = React.useState(false);
+  const [batches, setBatches] = React.useState<ProductBatch[]>([]);
+
+  const handleOpenBatchPicker = async () => {
+    if (batches.length === 0) {
+      try {
+        const b = await getProductBatches(product.id, product.name, product.itemId);
+        setBatches(b);
+      } catch (err) {
+        console.warn('Failed to load product batches:', err);
+      }
+    }
+    setBatchPickerOpen(true);
+  };
 
   // ─── Square Grid Card Layout (چوار گۆشە) ──────────────────────────────────
   if (layout === 'grid') {
@@ -174,6 +202,28 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
                 variant="small"
                 style={[styles.gridPrice, { color: colors.primary }]}
               />
+              {inCartQty > 0 && (
+                <TouchableOpacity
+                  onPress={handleOpenBatchPicker}
+                  style={[
+                    styles.gridBatchPill,
+                    {
+                      backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+                      borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="layers-outline" size={10} color={isDark ? colors.primary : '#B45309'} />
+                  <Text style={[styles.gridBatchText, { color: isDark ? colors.primary : '#92400E' }]}>
+                    {isKurdish
+                      ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
+                      : `Batch #${selectedBatch?.batchNum ?? 1}`}
+                  </Text>
+                  <Ionicons name="chevron-down" size={9} color={isDark ? colors.primary : '#B45309'} />
+                </TouchableOpacity>
+              )}
             </View>
 
             {inCartQty > 0 ? (
@@ -250,6 +300,20 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
             )}
           </View>
         </View>
+        {batchPickerOpen && (
+          <BatchPickerModal
+            visible={batchPickerOpen}
+            onClose={() => setBatchPickerOpen(false)}
+            batches={batches}
+            selectedBatchNum={selectedBatch?.batchNum ?? 1}
+            onSelectBatch={(batch) => {
+              if (onSelectBatch) onSelectBatch(batch);
+            }}
+            productName={product.name}
+            availableStock={product.quantity}
+            unit={product.unit}
+          />
+        )}
       </View>
     );
   }
@@ -302,7 +366,7 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
           <Text style={[styles.itemDescription, { textAlign }]} numberOfLines={1}>{product.itemDescription}</Text>
         ) : null}
 
-        <View style={[styles.meta, { flexDirection }]}>
+        <View style={[styles.meta, { flexDirection, alignItems: 'center', gap: 6, flexWrap: 'wrap' }]}>
           <AmountText value={product.sellingPrice} variant="small" style={[styles.price, { color: colors.primary }]} />
           <Text style={styles.dot}>·</Text>
           {isUniqueAndSold ? (
@@ -318,6 +382,34 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
             ]}>
               {product.quantity} {product.unit}
             </Text>
+          )}
+
+          {inCartQty > 0 && (
+            <TouchableOpacity
+              onPress={handleOpenBatchPicker}
+              style={[
+                styles.listBatchPill,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="layers-outline" size={11} color={isDark ? colors.primary : '#B45309'} />
+              <Text style={[styles.listBatchText, { color: isDark ? colors.primary : '#92400E' }]}>
+                {isKurdish
+                  ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
+                  : `Batch #${selectedBatch?.batchNum ?? 1}`}
+              </Text>
+              {selectedBatch?.isOldest && (
+                <View style={styles.fifoMiniTag}>
+                  <Text style={styles.fifoMiniText}>FIFO</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-down" size={10} color={isDark ? colors.primary : '#B45309'} />
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -386,6 +478,21 @@ export function ProductSearchResult({ product, inCartQty, onAdd, onDecrease, lay
         >
           <Ionicons name="add" size={20} color={isDisabled ? colors.gray300 : colors.primary} />
         </TouchableOpacity>
+      )}
+
+      {batchPickerOpen && (
+        <BatchPickerModal
+          visible={batchPickerOpen}
+          onClose={() => setBatchPickerOpen(false)}
+          batches={batches}
+          selectedBatchNum={selectedBatch?.batchNum ?? 1}
+          onSelectBatch={(batch) => {
+            if (onSelectBatch) onSelectBatch(batch);
+          }}
+          productName={product.name}
+          availableStock={product.quantity}
+          unit={product.unit}
+        />
       )}
     </View>
   );
@@ -608,6 +715,42 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       borderRadius: isTablet ? 8 : 6,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    gridBatchPill: {
+      paddingHorizontal: 5,
+      paddingVertical: 1.5,
+      borderRadius: 6,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 3,
+      marginTop: 2,
+    },
+    gridBatchText: {
+      fontSize: 9.5,
+      fontWeight: '700',
+    },
+    listBatchPill: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 3,
+    },
+    listBatchText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+    },
+    fifoMiniTag: {
+      backgroundColor: '#10B981',
+      paddingHorizontal: 3,
+      paddingVertical: 0.5,
+      borderRadius: 3,
+    },
+    fifoMiniText: {
+      color: '#FFFFFF',
+      fontSize: 8,
+      fontWeight: '800',
     },
   });
 }

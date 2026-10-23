@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useSettingsStore } from '@/store/settingsStore';
 import { toEnglishDigits } from '@/utils/formatters';
-import type { CartItem, CustomerInput, PaymentMethod, Product, DiscountType, GlobalDiscountType } from '@/types/sales';
+import type { CartItem, CustomerInput, PaymentMethod, Product, DiscountType, GlobalDiscountType, ProductBatch } from '@/types/sales';
 
 interface CartState {
   items: CartItem[];
@@ -25,7 +25,9 @@ interface CartState {
   hasAnyLossWarning: () => boolean;
 
   // Mutations
-  addItem: (product: Product) => void;
+  addItem: (product: Product, batch?: ProductBatch | null, availableBatches?: ProductBatch[]) => void;
+  updateBatch: (productId: number, batch: ProductBatch) => void;
+  setAvailableBatches: (productId: number, batches: ProductBatch[]) => void;
   removeItem: (productId: number) => void;
   updateQuantity: (productId: number, qty: number) => void;
   updateSellingPrice: (productId: number, price: number) => void;
@@ -119,7 +121,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   hasAnyLossWarning: () => get().items.some((i) => i.hasLossWarning),
 
-  addItem: (product: Product) => {
+  addItem: (product: Product, batch?: ProductBatch | null, availableBatches?: ProductBatch[]) => {
     set((state) => {
       const existing = state.items.find((i) => i.product.id === product.id);
 
@@ -141,6 +143,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         };
       }
 
+      // Default to the provided batch, or if availableBatches provided use the FIFO oldest (index 0)
+      const selectedBatch = batch ?? (availableBatches && availableBatches.length > 0 ? availableBatches[0] : null);
+      const effectiveBuyPrice = selectedBatch?.buyPriceIQD || product.purchasePrice;
+
       const newItem: CartItem = {
         product,
         quantity: 1,
@@ -149,10 +155,43 @@ export const useCartStore = create<CartState>((set, get) => ({
         discountType: 'amount',
         discountPct: 0,
         lineTotal: product.sellingPrice,
-        hasLossWarning: product.sellingPrice < product.purchasePrice,
+        hasLossWarning: product.sellingPrice < effectiveBuyPrice,
+        selectedBatch: selectedBatch ?? null,
+        availableBatches: availableBatches ?? (selectedBatch ? [selectedBatch] : undefined),
       };
       return { items: [...state.items, newItem] };
     });
+  },
+
+  updateBatch: (productId: number, batch: ProductBatch) => {
+    set((state) => ({
+      items: state.items.map((i) => {
+        if (i.product.id !== productId) return i;
+        const effectiveBuyPrice = batch.buyPriceIQD || i.product.purchasePrice;
+        return {
+          ...i,
+          selectedBatch: batch,
+          hasLossWarning: (i.sellingPrice - i.discount) < effectiveBuyPrice,
+        };
+      }),
+    }));
+  },
+
+  setAvailableBatches: (productId: number, batches: ProductBatch[]) => {
+    set((state) => ({
+      items: state.items.map((i) => {
+        if (i.product.id !== productId) return i;
+        // If no selectedBatch yet, select the oldest (FIFO: index 0)
+        const selected = i.selectedBatch ?? (batches.length > 0 ? batches[0] : null);
+        const effectiveBuyPrice = selected?.buyPriceIQD || i.product.purchasePrice;
+        return {
+          ...i,
+          availableBatches: batches,
+          selectedBatch: selected,
+          hasLossWarning: (i.sellingPrice - i.discount) < effectiveBuyPrice,
+        };
+      }),
+    }));
   },
 
   removeItem: (productId: number) => {
@@ -185,12 +224,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         const newDiscount = i.discountType === 'percentage'
           ? calcDiscountFromPct(snapped, i.discountPct)
           : Math.min(i.discount, snapped);
+        const effectiveCost = i.selectedBatch?.buyPriceIQD || i.product.purchasePrice;
         return {
           ...i,
           sellingPrice: snapped,
           discount: newDiscount,
           lineTotal: calcLineTotal(snapped, newDiscount, i.quantity),
-          hasLossWarning: snapped < i.product.purchasePrice,
+          hasLossWarning: (snapped - newDiscount) < effectiveCost,
         };
       }),
     }));

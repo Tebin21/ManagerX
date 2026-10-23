@@ -2,7 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import type {
   Product, SaleItem, Sale, Debt,
   IdMode, PaymentMethod, SaleStatus, DebtStatus,
-  UpdateSaleCompleteInput, GlobalDiscountType,
+  UpdateSaleCompleteInput, GlobalDiscountType, ProductBatch,
 } from '@/types/sales';
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats, NewProductData, DiscardedProduct, DiscardedLossStats, ProductPurchaseHistoryItem } from '@/types/inventory';
@@ -292,7 +292,9 @@ async function runInitializeDatabase(): Promise<void> {
       selling_price   REAL    NOT NULL DEFAULT 0,
       quantity        INTEGER NOT NULL DEFAULT 1,
       discount        REAL    NOT NULL DEFAULT 0,
-      line_total      REAL    NOT NULL DEFAULT 0
+      line_total      REAL    NOT NULL DEFAULT 0,
+      batch_number    INTEGER,
+      purchase_id     INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS debts (
@@ -744,6 +746,9 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE sales ADD COLUMN view_count INTEGER DEFAULT 0`,
     `ALTER TABLE purchases ADD COLUMN print_count INTEGER DEFAULT 0`,
     `ALTER TABLE purchases ADD COLUMN view_count INTEGER DEFAULT 0`,
+    // Batch tracking for FIFO sales
+    `ALTER TABLE sale_items ADD COLUMN batch_number INTEGER`,
+    `ALTER TABLE sale_items ADD COLUMN purchase_id INTEGER`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -1993,6 +1998,82 @@ export async function getProductPurchaseHistory(
   }));
 }
 
+export async function getProductBatches(
+  productId: number,
+  productName: string,
+  itemId?: string | null
+): Promise<ProductBatch[]> {
+  const database = await getDatabase();
+  const trimmedName = (productName || '').trim().toLowerCase();
+
+  const productRow = await database.getFirstAsync<Record<string, unknown>>(
+    'SELECT * FROM products WHERE id = ?',
+    [productId]
+  );
+
+  const rows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT 
+      p.id as purchase_id,
+      p.purchase_number,
+      p.date,
+      p.supplier_name,
+      p.supplier_phone,
+      p.supplier_address,
+      COALESCE(pi.buy_price_iqd, p.buy_price_iqd) as buy_price_iqd,
+      COALESCE(pi.buy_price_usd, p.buy_price_usd) as buy_price_usd,
+      COALESCE(pi.sell_price_iqd, p.sell_price_iqd) as sell_price_iqd,
+      COALESCE(pi.sell_price_usd, p.sell_price_usd) as sell_price_usd,
+      COALESCE(pi.quantity, p.quantity) as quantity,
+      COALESCE(pi.production_date, p.production_date) as production_date,
+      COALESCE(pi.expiry_date, p.expiry_date) as expiry_date,
+      p.created_at
+    FROM purchases p
+    LEFT JOIN purchase_items pi ON pi.purchase_id = p.id
+    WHERE LOWER(TRIM(COALESCE(pi.product_name, p.product_name))) = ?
+       OR p.id = (SELECT purchase_id FROM products WHERE id = ?)
+       ${itemId ? `OR p.item_ids LIKE ? OR (pi.item_ids IS NOT NULL AND pi.item_ids LIKE ?)` : ''}
+    GROUP BY p.id
+    ORDER BY p.date ASC, p.created_at ASC, p.id ASC
+  `, itemId 
+      ? [trimmedName, productId, `%"${itemId}"%`, `%"${itemId}"%`]
+      : [trimmedName, productId]
+  );
+
+  if (!rows || rows.length === 0) {
+    return [{
+      batchNum: 1,
+      purchaseId: productRow?.purchase_id ? Number(productRow.purchase_id) : null,
+      purchaseNumber: 'B-1',
+      date: (productRow?.purchase_date || productRow?.created_at || new Date().toISOString()) as string,
+      buyPriceIQD: Number(productRow?.purchase_price) || 0,
+      buyPriceUSD: Number(productRow?.buy_price_usd) || 0,
+      sellPriceIQD: Number(productRow?.selling_price) || 0,
+      sellPriceUSD: Number(productRow?.sell_price_usd) || 0,
+      quantity: Number(productRow?.quantity) || 1,
+      productionDate: (productRow?.production_date as string) || null,
+      expiryDate: (productRow?.expiry_date as string) || null,
+      supplierName: (productRow?.supplier_name as string) || null,
+      isOldest: true,
+    }];
+  }
+
+  return rows.map((r, index) => ({
+    batchNum: index + 1,
+    purchaseId: Number(r.purchase_id),
+    purchaseNumber: (r.purchase_number as string) || `P-${r.purchase_id}`,
+    date: (r.date || r.created_at || new Date().toISOString()) as string,
+    buyPriceIQD: Number(r.buy_price_iqd) || 0,
+    buyPriceUSD: Number(r.buy_price_usd) || 0,
+    sellPriceIQD: Number(r.sell_price_iqd) || (Number(productRow?.selling_price) || 0),
+    sellPriceUSD: Number(r.sell_price_usd) || (Number(productRow?.sell_price_usd) || 0),
+    quantity: Number(r.quantity) || 1,
+    productionDate: (r.production_date as string) || null,
+    expiryDate: (r.expiry_date as string) || null,
+    supplierName: (r.supplier_name as string) || null,
+    isOldest: index === 0,
+  }));
+}
+
 export async function getSoldProducts(): Promise<SoldProductRecord[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(`
@@ -2563,8 +2644,9 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
       await database.runAsync(
         `INSERT INTO sale_items (
           sale_id, product_id, product_name, item_id, id_mode,
-          purchase_price, selling_price, quantity, discount, line_total, uuid
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          purchase_price, selling_price, quantity, discount, line_total, uuid,
+          batch_number, purchase_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           item.productId,
@@ -2577,6 +2659,8 @@ export async function updateSaleComplete(saleId: number, input: UpdateSaleComple
           item.discount,
           item.lineTotal,
           await newUuid(),
+          item.batchNumber ?? null,
+          item.purchaseId ?? null,
         ]
       );
 
@@ -2766,6 +2850,8 @@ function rowToSaleItem(row: Record<string, unknown>): SaleItem {
     quantity: row.quantity as number,
     discount: row.discount as number,
     lineTotal: row.line_total as number,
+    batchNumber: row.batch_number != null ? Number(row.batch_number) : null,
+    purchaseId: row.purchase_id != null ? Number(row.purchase_id) : null,
     itemDescription: (row.item_description as string | null | undefined) ?? null,
   };
 }
@@ -2831,8 +2917,9 @@ export async function insertSale(
       await database.runAsync(
         `INSERT INTO sale_items (
           sale_id, product_id, product_name, item_id, id_mode,
-          purchase_price, selling_price, quantity, discount, line_total, uuid
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          purchase_price, selling_price, quantity, discount, line_total, uuid,
+          batch_number, purchase_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           item.productId,
@@ -2845,6 +2932,8 @@ export async function insertSale(
           item.discount,
           item.lineTotal,
           await newUuid(),
+          item.batchNumber ?? null,
+          item.purchaseId ?? null,
         ]
       );
 
@@ -3166,41 +3255,123 @@ export async function getOrCreateDirectSupplier(): Promise<number> {
   return ensureDirectSupplier();
 }
 
+export async function findSupplierByNameOrPhone(name?: string | null, phone?: string | null): Promise<Supplier | null> {
+  const database = await getDatabase();
+  const trimName = name?.trim();
+  const trimPhone = phone ? toEnglishDigits(phone.trim()) : null;
+
+  if (trimName && !isDirectSupplierName(trimName)) {
+    const row = await database.getFirstAsync<Record<string, unknown>>(
+      'SELECT id, name, phone, address, notes, total_spent, created_at, updated_at FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+      [trimName]
+    );
+    if (row) {
+      return {
+        id: row.id as number,
+        name: row.name as string,
+        phone: (row.phone as string | null) ?? null,
+        address: (row.address as string | null) ?? null,
+        notes: (row.notes as string | null) ?? null,
+        totalSpent: (row.total_spent as number) ?? 0,
+        createdAt: row.created_at as string,
+        updatedAt: row.updated_at as string,
+      };
+    }
+  }
+
+  if (trimPhone) {
+    const row = await database.getFirstAsync<Record<string, unknown>>(
+      'SELECT id, name, phone, address, notes, total_spent, created_at, updated_at FROM suppliers WHERE phone = ?',
+      [trimPhone]
+    );
+    if (row) {
+      return {
+        id: row.id as number,
+        name: row.name as string,
+        phone: (row.phone as string | null) ?? null,
+        address: (row.address as string | null) ?? null,
+        notes: (row.notes as string | null) ?? null,
+        totalSpent: (row.total_spent as number) ?? 0,
+        createdAt: row.created_at as string,
+        updatedAt: row.updated_at as string,
+      };
+    }
+  }
+
+  return null;
+}
+
 export async function upsertSupplier(input: {
   name: string;
   phone?: string | null;
   address?: string | null;
   selectedId?: number;
 }): Promise<number> {
-  if (input.selectedId) return input.selectedId;
-
   const database = await getDatabase();
-  const trimName  = input.name.trim();
-  if (!trimName) throw new Error('Supplier name is required');
+  const trimName  = input.name ? input.name.trim() : '';
 
   if (isDirectSupplierName(trimName)) {
     return await ensureDirectSupplier(database);
   }
 
   const trimPhone = input.phone ? toEnglishDigits(input.phone.trim()) : null;
+  const trimAddress = input.address?.trim() ?? null;
 
-  if (trimPhone) {
-    const byPhone = await database.getFirstAsync<{ id: number; name: string }>(
-      'SELECT id, name FROM suppliers WHERE phone = ?',
-      [trimPhone]
+  // 1. If explicit selectedId was provided and exists in DB, update any missing details and return it
+  if (input.selectedId) {
+    const existing = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null }>(
+      'SELECT id, phone, address FROM suppliers WHERE id = ?',
+      [input.selectedId]
     );
-    if (byPhone) throw new Error(`DUPLICATE_PHONE:${byPhone.name}`);
+    if (existing) {
+      if ((trimPhone && !existing.phone) || (trimAddress && !existing.address)) {
+        await database.runAsync(
+          'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [trimPhone, trimAddress, existing.id]
+        );
+      }
+      return existing.id;
+    }
   }
 
-  const byName = await database.getFirstAsync<{ id: number }>(
-    'SELECT id FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+  if (!trimName) throw new Error('Supplier name is required');
+
+  // 2. Check if a supplier exists by exact or case-insensitive name
+  const byName = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null }>(
+    'SELECT id, phone, address FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
     [trimName]
   );
-  if (byName) throw new Error('DUPLICATE_NAME');
+  if (byName) {
+    if ((trimPhone && !byName.phone) || (trimAddress && !byName.address)) {
+      await database.runAsync(
+        'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [trimPhone, trimAddress, byName.id]
+      );
+    }
+    return byName.id;
+  }
 
+  // 3. Check if a supplier exists with this phone number
+  if (trimPhone) {
+    const byPhone = await database.getFirstAsync<{ id: number; name: string; address: string | null }>(
+      'SELECT id, name, address FROM suppliers WHERE phone = ?',
+      [trimPhone]
+    );
+    if (byPhone) {
+      if (trimAddress && !byPhone.address) {
+        await database.runAsync(
+          'UPDATE suppliers SET address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [trimAddress, byPhone.id]
+        );
+      }
+      return byPhone.id;
+    }
+  }
+
+  // 4. Truly new supplier: create fresh record
   const result = await database.runAsync(
     'INSERT INTO suppliers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
-    [trimName, trimPhone, input.address?.trim() ?? null, await newUuid()]
+    [trimName, trimPhone, trimAddress, await newUuid()]
   );
   return result.lastInsertRowId;
 }

@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '@/constants/theme';
 import type { InventoryProduct, NewProductData } from '@/types/inventory';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
-import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits, formatExpiryCountdown, formatProductionAge, formatShelfLife } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toDateOnly, toEnglishDigits, formatExpiryCountdown, formatProductionAge } from '@/utils/formatters';
 import { hexToRgba } from '@/lib/colorUtils';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -475,7 +475,6 @@ export default function EditProductScreen() {
             {(() => {
               const prodAgeText = productionDate ? formatProductionAge(productionDate, isKuLanguage) : null;
               const expiryCountdown = expiryDate ? formatExpiryCountdown(expiryDate, isKuLanguage) : null;
-              const shelfLifeText = productionDate && expiryDate ? formatShelfLife(productionDate, expiryDate, isKuLanguage) : null;
 
               return (
                 <>
@@ -732,17 +731,6 @@ export default function EditProductScreen() {
                         >
                           {expiryCountdown.text}
                         </Text>
-                        {shelfLifeText ? (
-                          <Text
-                            style={[
-                              styles.shelfLifeSubText,
-                              { color: colors.gray400, writingDirection: isKuLanguage ? 'rtl' : 'ltr' },
-                              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-                            ]}
-                          >
-                            · {shelfLifeText}
-                          </Text>
-                        ) : null}
                       </View>
                     )}
                   </View>
@@ -1016,9 +1004,5 @@ const styles = StyleSheet.create({
   expiryNoticeText: {
     fontSize: 11.5,
     fontWeight: '700',
-  },
-  shelfLifeSubText: {
-    fontSize: 11,
-    fontWeight: '500',
   },
 });

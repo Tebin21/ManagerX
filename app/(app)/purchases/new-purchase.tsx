@@ -54,7 +54,6 @@ import {
   sanitizeNumericInput,
   formatExpiryCountdown,
   formatProductionAge,
-  formatShelfLife,
 } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD, applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
@@ -179,7 +178,15 @@ export default function NewPurchaseScreen() {
       setSupplierName(preset.supplierName);
       if (preset.supplierPhone) setSupplierPhone(preset.supplierPhone);
       if (preset.supplierAddress) setSupplierAddress(preset.supplierAddress);
-      if (preset.selectedSupplierId) setSelectedSupplierId(preset.selectedSupplierId);
+      if (preset.selectedSupplierId) {
+        setSelectedSupplierId(preset.selectedSupplierId);
+      } else {
+        import('@/lib/sqlite').then(({ findSupplierByNameOrPhone }) => {
+          findSupplierByNameOrPhone(preset.supplierName, preset.supplierPhone).then((supp) => {
+            if (supp) setSelectedSupplierId(supp.id);
+          }).catch(() => {});
+        }).catch(() => {});
+      }
     }
   };
 
@@ -297,6 +304,21 @@ export default function NewPurchaseScreen() {
       }
       if (!category && existingInventoryProduct.category) {
         setCategory(existingInventoryProduct.category);
+      }
+
+      // Auto-fill previous supplier if empty
+      const existingSuppName = (existingInventoryProduct as any).supplierName;
+      if (!supplierName && existingSuppName) {
+        const existingSuppPhone = (existingInventoryProduct as any).supplierPhone || '';
+        const existingSuppAddr = (existingInventoryProduct as any).supplierAddress || '';
+        setSupplierName(existingSuppName);
+        if (existingSuppPhone) setSupplierPhone(existingSuppPhone);
+        if (existingSuppAddr) setSupplierAddress(existingSuppAddr);
+        import('@/lib/sqlite').then(({ findSupplierByNameOrPhone }) => {
+          findSupplierByNameOrPhone(existingSuppName, existingSuppPhone).then((supp) => {
+            if (supp) setSelectedSupplierId(supp.id);
+          }).catch(() => {});
+        }).catch(() => {});
       }
     }
   }, [existingInventoryProduct]);
@@ -1804,7 +1826,6 @@ export default function NewPurchaseScreen() {
     if (!expiryTrackingEnabled) return null;
     const prodAgeText = productionDate ? formatProductionAge(productionDate, isKuLanguage) : null;
     const expiryCountdown = expiryDate ? formatExpiryCountdown(expiryDate, isKuLanguage) : null;
-    const shelfLifeText = productionDate && expiryDate ? formatShelfLife(productionDate, expiryDate, isKuLanguage) : null;
 
     return (
     <PremiumCard
@@ -2104,17 +2125,6 @@ export default function NewPurchaseScreen() {
             >
               {expiryCountdown.text}
             </Text>
-            {shelfLifeText ? (
-              <Text
-                style={[
-                  styles.shelfLifeSubText,
-                  { fontSize: isTablet ? 12 : 11, color: colors.gray400, writingDirection: isKuLanguage ? 'rtl' : 'ltr' },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-                ]}
-              >
-                · {shelfLifeText}
-              </Text>
-            ) : null}
           </View>
         )}
 
@@ -3580,9 +3590,5 @@ const styles = StyleSheet.create({
   expiryNoticeText: {
     fontSize: 11.5,
     fontWeight: '700',
-  },
-  shelfLifeSubText: {
-    fontSize: 11,
-    fontWeight: '500',
   },
 });

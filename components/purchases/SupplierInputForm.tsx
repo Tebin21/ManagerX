@@ -15,7 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { searchSuppliersList } from '@/lib/sqlite';
-import { sanitizeNumericInput } from '@/utils/formatters';
+import { sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
 import type { Supplier } from '@/types/suppliers';
 
 interface Props {
@@ -49,12 +49,21 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
         const results = await searchSuppliersList(query.trim());
         setSuggestions(results);
         setShowSuggestions(results.length > 0);
+        const cleanQ = query.trim().toLowerCase();
+        const exact = results.find(
+          (s) => s.name.trim().toLowerCase() === cleanQ || (s.phone && toEnglishDigits(s.phone.trim()) === cleanQ)
+        );
+        if (exact) {
+          onSupplierSelect?.(exact.id);
+          if (!phone && exact.phone) onPhoneChange(exact.phone);
+          if (!address && exact.address) onAddressChange(exact.address);
+        }
       } catch {
         setSuggestions([]);
         setShowSuggestions(false);
       }
     }, 300);
-  }, []);
+  }, [onSupplierSelect, phone, address, onPhoneChange, onAddressChange]);
 
   const handleSelectSupplier = useCallback((supplier: Supplier) => {
     const cleanPhone = supplier.phone ? sanitizeNumericInput(supplier.phone, 'phone-pad') : '';

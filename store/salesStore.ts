@@ -109,11 +109,13 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       productName: ci.product.name,
       itemId: ci.product.itemId,
       idMode: ci.product.idMode,
-      purchasePrice: ci.product.purchasePrice,
+      purchasePrice: ci.selectedBatch?.buyPriceIQD || ci.product.purchasePrice,
       sellingPrice: ci.sellingPrice,
       quantity: ci.quantity,
       discount: ci.discount,
       lineTotal: ci.lineTotal,
+      batchNumber: ci.selectedBatch?.batchNum ?? 1,
+      purchaseId: ci.selectedBatch?.purchaseId ?? null,
     }));
 
     const saleData = {

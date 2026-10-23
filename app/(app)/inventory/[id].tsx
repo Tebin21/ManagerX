@@ -31,7 +31,7 @@ import type { InventoryProduct, ProductPurchaseHistoryItem } from '@/types/inven
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getProductDisplayImage } from '@/lib/imageStorage';
-import { formatExpiryCountdown, formatProductionAge, formatShelfLife } from '@/utils/formatters';
+import { formatExpiryCountdown, formatProductionAge } from '@/utils/formatters';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
@@ -692,14 +692,14 @@ export default function InventoryDetailScreen() {
                     {/* Price and Quantity Grid */}
                     <View style={[styles.batchGrid, { flexDirection, borderColor: isDark ? colors.gray200 : '#E2E8F0' }]}>
                       {/* Buy Price */}
-                      <View style={styles.batchGridItem}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                      <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
                           {t('inventory.purchasePrice', 'نرخی کڕین')}
                         </Text>
                         <AmountText
                           value={batch.buyPriceIQD}
                           currency="IQD"
-                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                          style={[styles.batchGridValue, { color: colors.black }]}
                         />
                         {/* Price Delta Indicator vs previous batch */}
                         {priceDiff !== null && (
@@ -740,36 +740,36 @@ export default function InventoryDetailScreen() {
                       </View>
 
                       {/* Sell Price */}
-                      <View style={styles.batchGridItem}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                      <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
                           {t('inventory.sellingPrice', 'نرخی فرۆشتن')}
                         </Text>
                         <AmountText
                           value={batch.sellPriceIQD}
                           currency="IQD"
-                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                          style={[styles.batchGridValue, { color: colors.black }]}
                         />
                       </View>
 
                       {/* Quantity */}
-                      <View style={styles.batchGridItem}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                      <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
                           {isRTL ? 'بڕی کڕدراو' : 'Quantity'}
                         </Text>
-                        <Text style={[styles.batchGridValue, { color: colors.primary, textAlign: valueAlign }]}>
+                        <Text style={[styles.batchGridValue, { color: colors.primary, writingDirection: isRTL ? 'rtl' : 'ltr' }]}>
                           {batch.quantity} {isRTL ? 'دانە' : 'pcs'}
                         </Text>
                       </View>
 
                       {/* Total */}
-                      <View style={styles.batchGridItem}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400, textAlign }]}>
+                      <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
                           {isRTL ? 'کۆی گشتی' : 'Total'}
                         </Text>
                         <AmountText
                           value={batch.lineTotalIQD}
                           currency="IQD"
-                          style={[styles.batchGridValue, { color: colors.black, textAlign: valueAlign }]}
+                          style={[styles.batchGridValue, { color: colors.black }]}
                         />
                       </View>
                     </View>
@@ -895,6 +895,7 @@ export default function InventoryDetailScreen() {
                         styles.expiryBadgeText,
                         {
                           color: countdown.status === 'expired' ? '#EF4444' : countdown.status === 'warning' ? '#D97706' : '#10B981',
+                          writingDirection: isKuLanguage ? 'rtl' : 'ltr',
                         },
                       ]}
                     >
@@ -919,7 +920,6 @@ export default function InventoryDetailScreen() {
 
             {product.expiryDate && (() => {
               const countdown = formatExpiryCountdown(product.expiryDate, isKuLanguage);
-              const shelfLife = product.productionDate ? formatShelfLife(product.productionDate, product.expiryDate, isKuLanguage) : null;
               return (
                 <View style={{ marginTop: 2 }}>
                   <View style={[styles.infoRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, borderBottomColor: 'transparent' }]}>
@@ -932,14 +932,9 @@ export default function InventoryDetailScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection, alignItems: 'center', gap: 6, marginTop: -4, marginStart: isRTL ? 0 : 24, marginEnd: isRTL ? 24 : 0, paddingBottom: 6 }}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: countdown.status === 'expired' ? '#EF4444' : countdown.status === 'warning' ? '#D97706' : '#10B981' }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: countdown.status === 'expired' ? '#EF4444' : countdown.status === 'warning' ? '#D97706' : '#10B981', writingDirection: isKuLanguage ? 'rtl' : 'ltr' }}>
                       {countdown.text}
                     </Text>
-                    {shelfLife ? (
-                      <Text style={{ fontSize: 11, color: colors.gray400 }}>
-                        · {shelfLife}
-                      </Text>
-                    ) : null}
                   </View>
                 </View>
               );
@@ -1519,33 +1514,43 @@ const styles = StyleSheet.create({
   },
   batchGrid: {
     flexWrap: 'wrap',
-    gap: 8,
-    paddingVertical: 8,
+    gap: 6,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderBottomWidth: 1,
+    alignItems: 'stretch',
   },
   batchGridItem: {
     flex: 1,
     minWidth: 70,
-    gap: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    gap: 3,
   },
   batchGridLabel: {
     fontSize: 11,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   batchGridValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
+    textAlign: 'center',
   },
   priceDeltaPill: {
     paddingHorizontal: 5,
-    paddingVertical: 1.5,
+    paddingVertical: 2,
     borderRadius: 4,
     marginTop: 2,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   priceDeltaText: {
     fontSize: 9.5,
     fontWeight: '700',
+    textAlign: 'center',
   },
   batchBottomRow: {
     justifyContent: 'space-between',

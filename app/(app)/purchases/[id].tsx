@@ -16,7 +16,7 @@ import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
@@ -174,7 +174,7 @@ export default function PurchaseDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('purchases.purchaseInvoice')} />
-        <LoadingSpinner />
+        <LoadingView />
       </View>
     );
   }
