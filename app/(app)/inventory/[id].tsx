@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { useTranslation } from 'react-i18next';
 import { getInventoryProductById, getSalesByProductId, setProductStoreVisibility, getProductPurchaseHistory } from '@/lib/sqlite';
 import { useInventoryStore } from '@/store/inventoryStore';
