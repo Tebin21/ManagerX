@@ -38,12 +38,13 @@ export function DebtPdfExportModal({
   const { isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
-  // Internal state for selected sections (now with includeStats for pure numbers summary)
+  // Internal state for selected sections (now with includeStats for pure numbers summary, and includeBatches)
   const [sections, setSections] = useState<DebtReportSections>({
     includeOverview: true,
     includeStats: true,
     includeSales: true,
     includePurchases: true,
+    includeBatches: true,
   });
 
   // Reset to all sections whenever modal becomes visible
@@ -54,6 +55,7 @@ export function DebtPdfExportModal({
         includeStats: true,
         includeSales: true,
         includePurchases: true,
+        includeBatches: true,
       });
     }
   }, [visible]);
@@ -69,7 +71,8 @@ export function DebtPdfExportModal({
     sections.includeOverview ||
     sections.includeStats ||
     sections.includeSales ||
-    sections.includePurchases;
+    sections.includePurchases ||
+    sections.includeBatches;
 
   const handleConfirm = () => {
     if (!hasSelection) {
@@ -290,6 +293,47 @@ export function DebtPdfExportModal({
                 name={sections.includePurchases ? 'checkbox' : 'square-outline'}
                 size={22}
                 color={sections.includePurchases ? colors.primary : colors.gray400}
+              />
+            </TouchableOpacity>
+
+            {/* 5. Batches & Items Linkage */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => toggleSection('includeBatches')}
+              style={[
+                styles.itemRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  backgroundColor: sections.includeBatches
+                    ? (isDark ? '#334155' : '#FFFDF5')
+                    : (isDark ? colors.gray200 : colors.gray50),
+                  borderColor: sections.includeBatches ? colors.primary : colors.gray200,
+                },
+              ]}
+            >
+              <View style={[styles.itemContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name="layers-outline"
+                  size={19}
+                  color={sections.includeBatches ? colors.primary : colors.gray500}
+                />
+                <Text
+                  style={[
+                    styles.itemText,
+                    {
+                      color: colors.black,
+                      fontFamily: sections.includeBatches ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    },
+                  ]}
+                >
+                  {isKuLanguage ? 'بەشی وەجبەکان و بەستنەوەی کاڵاکان' : 'Batches & Items Linkage'}
+                </Text>
+              </View>
+
+              <Ionicons
+                name={sections.includeBatches ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={sections.includeBatches ? colors.primary : colors.gray400}
               />
             </TouchableOpacity>
           </View>

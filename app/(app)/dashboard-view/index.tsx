@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -63,6 +64,11 @@ export default function DashboardViewScreen() {
     lowStockCount: 0,
     customerDebtTotal: 0,
     supplierDebtTotal: 0,
+    totalBatchesCount: 0,
+    activeBatchesCount: 0,
+    depletedBatchesCount: 0,
+    multiBatchProductsCount: 0,
+    expiringBatchesCount: 0,
   });
 
   const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
@@ -285,14 +291,8 @@ export default function DashboardViewScreen() {
           </View>
         </View>
 
-        {/* 3. 12 Square Metric Cards Grid */}
         {isLoading && !refreshing ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.gray400 }]}>
-              {t('common.loading')}
-            </Text>
-          </View>
+          <LoadingView showCard={false} message={t('common.pleaseWait')} style={{ paddingVertical: 40 }} />
         ) : (
           <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             {/* 1. Total Revenue / داهات */}
@@ -417,7 +417,56 @@ export default function DashboardViewScreen() {
               delay={270}
             />
 
-            {/* 10. Customer Receivables / قەرزی لای کڕیاران */}
+            {/* 10. Total Batches / کۆی گشتی وەجبەکان */}
+            <DashboardMetricSquare
+              title={t('dashboard.totalBatches')}
+              value={stats.totalBatchesCount}
+              icon="layers"
+              color="#6366F1"
+              subtitle={isKurdish ? 'وەجبە' : 'Batches'}
+              delay={290}
+            />
+
+            {/* 11. In-Stock Batches / وەجبە بەردەستەکان لە کۆگا */}
+            <DashboardMetricSquare
+              title={t('dashboard.activeBatches')}
+              value={stats.activeBatchesCount}
+              icon="cube"
+              color="#10B981"
+              subtitle={
+                stats.expiringBatchesCount > 0
+                  ? isKurdish
+                    ? `${stats.expiringBatchesCount} نزیک بەسەرچوون`
+                    : `${stats.expiringBatchesCount} Expiring`
+                  : isKurdish
+                  ? 'لە کۆگادا'
+                  : 'In Stock'
+              }
+              isAlert={stats.expiringBatchesCount > 0}
+              delay={310}
+            />
+
+            {/* 12. Sold-Out Batches / وەجبە تەواوبووەکان */}
+            <DashboardMetricSquare
+              title={t('dashboard.depletedBatches')}
+              value={stats.depletedBatchesCount}
+              icon="checkmark-done-circle"
+              color="#64748B"
+              subtitle={isKurdish ? 'فرۆشراو' : 'Sold Out'}
+              delay={330}
+            />
+
+            {/* 13. Multi-Batch Products / کاڵا فرە-وەجبەکان */}
+            <DashboardMetricSquare
+              title={t('dashboard.multiBatchItems')}
+              value={stats.multiBatchProductsCount}
+              icon="duplicate"
+              color="#F59E0B"
+              subtitle={isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
+              delay={350}
+            />
+
+            {/* 14. Customer Receivables / قەرزی لای کڕیاران */}
             <DashboardMetricSquare
               title={t('dashboard.customerDebts')}
               value={stats.customerDebtTotal}
@@ -425,10 +474,10 @@ export default function DashboardViewScreen() {
               icon="arrow-down-circle"
               color="#EA580C"
               subtitle={isKurdish ? 'لای کڕیار' : 'Receivables'}
-              delay={300}
+              delay={370}
             />
 
-            {/* 11. Supplier Payables / قەرزی دابینکەران */}
+            {/* 15. Supplier Payables / قەرزی دابینکەران */}
             <DashboardMetricSquare
               title={t('dashboard.supplierDebts')}
               value={stats.supplierDebtTotal}
@@ -436,10 +485,10 @@ export default function DashboardViewScreen() {
               icon="arrow-up-circle"
               color="#DC2626"
               subtitle={isKurdish ? 'قەرزی سەرشان' : 'Payables'}
-              delay={330}
+              delay={390}
             />
 
-            {/* 13. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
+            {/* 16. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
             <DashboardMetricSquare
               title={t('dashboard.totalDiscounts')}
               value={stats.totalDiscount}
@@ -447,7 +496,7 @@ export default function DashboardViewScreen() {
               icon="pricetag"
               color="#8B5CF6"
               subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
-              delay={360}
+              delay={410}
               isFullWidth
             />
           </View>

@@ -1,4 +1,6 @@
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
+import type { SaleItem } from '@/types/sales';
+import type { Purchase } from '@/types/purchases';
 import { fmtIQD, fmtUSD, fmtPct, formatDate, formatDateTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN, kuSpan, isKurdishPdfActive, pdfDevelopedByText } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -150,9 +152,12 @@ export function buildSalesDebtReportHTML(
   debt: SalesDebtDetail,
   payments: DebtPayment[],
   business: BusinessInfo,
-  dir: 'ltr' | 'rtl' = 'ltr'
+  dir: 'ltr' | 'rtl' = 'ltr',
+  items?: SaleItem[]
 ): string {
-  const lang = 'en';
+  const isKurdish = dir === 'rtl' || isKurdishPdfActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const ku = kuSpan;
   const pct = pctPaid(debt.paidAmount, debt.originalAmount);
 
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
@@ -167,12 +172,12 @@ export function buildSalesDebtReportHTML(
     : '';
 
   const paymentsRows = payments.length === 0
-    ? `<tr><td colspan="3" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No payments recorded yet</td></tr>`
+    ? `<tr><td colspan="3" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">${isKurdish ? ku('هیچ پارەدانێک تۆمار نەکراوە') : 'No payments recorded yet'}</td></tr>`
     : payments.map((p) => `
         <tr>
-          <td>${formatDateTime(p.createdAt)}</td>
-          <td style="color:#059669;font-weight:700;">+${fmtMoney(p.amount)}</td>
-          <td style="color:#5D4C14;font-weight:600;">${fmtMoney(p.remainingAfter)}</td>
+          <td><span class="en-num" dir="ltr">${formatDateTime(p.createdAt)}</span></td>
+          <td style="color:#059669;font-weight:700;"><span class="en-num" dir="ltr">+${fmtMoney(p.amount)}</span></td>
+          <td style="color:#5D4C14;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(p.remainingAfter)}</span></td>
         </tr>
       `).join('');
 
@@ -181,13 +186,72 @@ export function buildSalesDebtReportHTML(
   const statusStyle = settled
     ? 'background:#D1FAE5;color:#059669;'
     : 'background:#FEE2E2;color:#DC2626;';
+  const statusLabel = settled
+    ? (isKurdish ? ku('تەواوکراو') : 'SETTLED')
+    : (isKurdish ? ku('چالاک') : 'ACTIVE');
+
+  // Items & Batches Table HTML
+  let itemsSectionHTML = '';
+  if (items && items.length > 0) {
+    itemsSectionHTML = `
+      <div class="section">
+        <div class="section-title">${isKurdish ? ku('کاڵا و وەجبەکانی ئەم قەرزە (بەستنەوەی فرۆشتن)') : 'Items & Batches of this Debt'}</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30px;text-align:center;">#</th>
+                <th style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی کاڵا') : 'Product'}</th>
+                <th style="text-align:center;">${isKurdish ? ku('وەجبە') : 'Batch #'}</th>
+                <th style="text-align:center;">${isKurdish ? ku('بڕ') : 'Qty'}</th>
+                <th style="text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('نرخی دانە') : 'Unit Price'}</th>
+                <th style="text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((it, idx) => `
+                <tr>
+                  <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
+                  <td style="font-weight:700;color:#0F172A;">
+                    ${escHtml(it.productName)}
+                    ${it.itemId ? `<span style="font-size:10px;color:#94A3B8;display:block;">ID: <span class="en-num" dir="ltr">${escHtml(it.itemId)}</span></span>` : ''}
+                  </td>
+                  <td style="text-align:center;">
+                    <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700;">
+                      ${isKurdish ? ku(`وەجبەی #${it.batchNumber || 1}`) : `Batch #${it.batchNumber || 1}`}
+                    </span>
+                  </td>
+                  <td style="text-align:center;font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${it.quantity}</span></td>
+                  <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};"><span class="en-num" dir="ltr">${fmtMoney(it.sellingPrice || (it as any).unitPrice || 0)}</span></td>
+                  <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(it.lineTotal)}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="background:#FFFDF5;border:1px solid #FDE047;border-radius:8px;padding:9px 13px;margin-top:10px;font-size:11.5px;color:#854D0E;display:flex;align-items:center;gap:6px;">
+          <span>📦</span>
+          <span>${isKurdish ? ku(`ئەم قەرزە ڕاستەوخۆ پەیوەستە بە کاڵاکان و وەجبەکانی وەسڵی #${debt.invoiceNumber}.`) : `This debt is directly linked to the items and batches in invoice #${debt.invoiceNumber}.`}</span>
+        </div>
+      </div>
+    `;
+  } else if (debt.productsSummary) {
+    itemsSectionHTML = `
+      <div class="section">
+        <div class="section-title">${isKurdish ? ku('کاڵا و وەجبەکانی ئەم قەرزە') : 'Items & Batches of this Debt'}</div>
+        <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:12px 16px;color:#854D0E;font-size:12px;font-weight:600;line-height:1.6;">
+          📦 ${escHtml(debt.productsSummary)}
+        </div>
+      </div>
+    `;
+  }
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Debt Report — ${escHtml(debt.customerName)}</title>
+  <title>${isKurdish ? ku('ڕاپۆرتی قەرزی کڕیار') : 'Debt Report'} — ${escHtml(debt.customerName)}</title>
   <style>${sharedCSS(dir)}</style>
 </head>
 <body>
@@ -205,67 +269,69 @@ export function buildSalesDebtReportHTML(
         </div>
       </div>
       <div>
-        <div class="report-badge">DEBT REPORT</div>
-        <div class="report-date">Generated ${formatDate(new Date().toISOString())}</div>
+        <div class="report-badge">${isKurdish ? ku('ڕاپۆرتی قەرز') : 'DEBT REPORT'}</div>
+        <div class="report-date">${isKurdish ? ku('بەروار: ') : 'Generated '}<span class="en-num" dir="ltr">${formatDate(new Date().toISOString())}</span></div>
       </div>
     </div>
     <hr class="header-divider" />
     <div class="party-box">
       <div class="party-name">${escHtml(debt.customerName)}</div>
       <div class="party-meta">
-        ${debt.customerPhone   ? `<span>&#128222; ${escHtml(debt.customerPhone)}</span>` : ''}
+        ${debt.customerPhone   ? `<span>&#128222; <span class="en-num" dir="ltr">${escHtml(debt.customerPhone)}</span></span>` : ''}
         ${debt.customerAddress ? `<span>&#128205; ${escHtml(debt.customerAddress)}</span>` : ''}
-        <span>Invoice: <strong>${escHtml(debt.invoiceNumber)}</strong></span>
+        <span>${isKurdish ? ku('ژ. وەسڵ: ') : 'Invoice: '}<strong>#${escHtml(debt.invoiceNumber)}</strong></span>
       </div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Debt Summary</div>
+    <div class="section-title">${isKurdish ? ku('پوختەی قەرز') : 'Debt Summary'}</div>
     <div class="status-grid">
       <div class="stat-cell">
-        <div class="stat-label">Original Amount</div>
-        <div class="stat-value blue">${fmtMoneyVal(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('کۆی سەرەتایی') : 'Original Amount'}</div>
+        <div class="stat-value blue"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.originalAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
-        <div class="stat-label">Total Paid</div>
-        <div class="stat-value green">${fmtMoneyVal(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('کۆی دراو') : 'Total Paid'}</div>
+        <div class="stat-value green"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.paidAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
-        <div class="stat-label">Remaining</div>
-        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtMoneyVal(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('قەرزی ماوە') : 'Remaining'}</div>
+        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.remainingAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
     </div>
     <div class="progress-bar-bg">
       <div class="progress-bar-fill" style="width:${pct}%;background:${fillColor};"></div>
     </div>
     <div class="progress-row">
-      <span class="progress-label">${pct}% paid</span>
-      <span class="status-pill" style="${statusStyle}">${settled ? 'SETTLED' : 'ACTIVE'}</span>
+      <span class="progress-label"><span class="en-num" dir="ltr">${pct}%</span> ${isKurdish ? ku('دراوە') : 'paid'}</span>
+      <span class="status-pill" style="${statusStyle}">${statusLabel}</span>
     </div>
   </div>
 
+  ${itemsSectionHTML}
+
   <div class="section">
-    <div class="section-title">Invoice Details</div>
+    <div class="section-title">${isKurdish ? ku('وردەکاریی وەسڵ') : 'Invoice Details'}</div>
     <div class="table-wrap">
       <table class="detail-table">
-        <tr><td class="detail-label">Invoice #</td><td class="detail-value">${escHtml(debt.invoiceNumber)}</td></tr>
-        <tr><td class="detail-label">Date</td><td>${formatDate(debt.createdAt)}</td></tr>
-        ${debt.warranty  ? `<tr><td class="detail-label">Warranty</td><td>${escHtml(debt.warranty)}</td></tr>` : ''}
-        ${debt.saleNotes ? `<tr><td class="detail-label">Notes</td><td>${escHtml(debt.saleNotes)}</td></tr>` : ''}
+        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی وەسڵ') : 'Invoice #'}</td><td class="detail-value"><span class="en-num" dir="ltr">#${escHtml(debt.invoiceNumber)}</span></td></tr>
+        <tr><td class="detail-label">${isKurdish ? ku('بەروار') : 'Date'}</td><td><span class="en-num" dir="ltr">${formatDate(debt.createdAt)}</span></td></tr>
+        ${debt.warranty  ? `<tr><td class="detail-label">${isKurdish ? ku('گەڕانەوە / گەرەنتی') : 'Warranty'}</td><td>${escHtml(debt.warranty)}</td></tr>` : ''}
+        ${debt.saleNotes ? `<tr><td class="detail-label">${isKurdish ? ku('تێبینی') : 'Notes'}</td><td>${escHtml(debt.saleNotes)}</td></tr>` : ''}
       </table>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Payment History (${payments.length} payment${payments.length !== 1 ? 's' : ''})</div>
+    <div class="section-title">${isKurdish ? ku(`مێژووی پارەدان (${payments.length})`) : `Payment History (${payments.length} payment${payments.length !== 1 ? 's' : ''})`}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Date &amp; Time</th>
-            <th>Amount Paid</th>
-            <th>Remaining After</th>
+            <th>${isKurdish ? ku('بەروار و کات') : 'Date & Time'}</th>
+            <th>${isKurdish ? ku('بڕی دراو') : 'Amount Paid'}</th>
+            <th>${isKurdish ? ku('ماوە لە دوای پارەدان') : 'Remaining After'}</th>
           </tr>
         </thead>
         <tbody>${paymentsRows}</tbody>
@@ -274,7 +340,7 @@ export function buildSalesDebtReportHTML(
   </div>
 
   <div class="footer">
-    <p>Generated by <strong>${escHtml(business.name)}</strong> &middot; ${PDF_DEVELOPED_BY_EN} &middot; ${PDF_BRAND_WEBSITE} &middot; ${formatDateTime(new Date().toISOString())}</p>
+    <p>Generated by <strong>${escHtml(business.name)}</strong> &middot; ${PDF_DEVELOPED_BY_EN} &middot; ${PDF_BRAND_WEBSITE} &middot; <span class="en-num" dir="ltr">${formatDateTime(new Date().toISOString())}</span></p>
   </div>
 
 </div>
@@ -288,9 +354,12 @@ export function buildPurchaseDebtReportHTML(
   debt: PurchaseDebt,
   payments: DebtPayment[],
   business: BusinessInfo,
-  dir: 'ltr' | 'rtl' = 'ltr'
+  dir: 'ltr' | 'rtl' = 'ltr',
+  purchase?: Purchase | null
 ): string {
-  const lang = 'en';
+  const isKurdish = dir === 'rtl' || isKurdishPdfActive();
+  const lang = isKurdish ? 'ku' : 'en';
+  const ku = kuSpan;
   const pct = pctPaid(debt.paidAmount, debt.originalAmount);
 
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
@@ -305,12 +374,12 @@ export function buildPurchaseDebtReportHTML(
     : '';
 
   const paymentsRows = payments.length === 0
-    ? `<tr><td colspan="3" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No payments recorded yet</td></tr>`
+    ? `<tr><td colspan="3" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">${isKurdish ? ku('هیچ پارەدانێک تۆمار نەکراوە') : 'No payments recorded yet'}</td></tr>`
     : payments.map((p) => `
         <tr>
-          <td>${formatDateTime(p.createdAt)}</td>
-          <td style="color:#059669;font-weight:700;">+${fmtMoney(p.amount)}</td>
-          <td style="color:#DC2626;font-weight:600;">${fmtMoney(p.remainingAfter)}</td>
+          <td><span class="en-num" dir="ltr">${formatDateTime(p.createdAt)}</span></td>
+          <td style="color:#059669;font-weight:700;"><span class="en-num" dir="ltr">+${fmtMoney(p.amount)}</span></td>
+          <td style="color:#DC2626;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(p.remainingAfter)}</span></td>
         </tr>
       `).join('');
 
@@ -319,13 +388,21 @@ export function buildPurchaseDebtReportHTML(
   const statusStyle = settled
     ? 'background:#D1FAE5;color:#059669;'
     : 'background:#FEE2E2;color:#DC2626;';
+  const statusLabel = settled
+    ? (isKurdish ? ku('تەواوکراو') : 'SETTLED')
+    : (isKurdish ? ku('چالاک') : 'ACTIVE');
+
+  const prodName = debt.productName || purchase?.productName || '';
+  const batchNum = debt.batchNumber || 1;
+  const totalBatches = debt.totalBatches || 1;
+  const batchQty = debt.batchQuantity || purchase?.quantity;
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Supplier Debt Report — ${escHtml(debt.supplierName)}</title>
+  <title>${isKurdish ? ku('ڕاپۆرتی قەرزی دابینکەر') : 'Supplier Debt Report'} — ${escHtml(debt.supplierName)}</title>
   <style>${sharedCSS(dir)}</style>
 </head>
 <body>
@@ -343,66 +420,116 @@ export function buildPurchaseDebtReportHTML(
         </div>
       </div>
       <div>
-        <div class="report-badge">SUPPLIER DEBT REPORT</div>
-        <div class="report-date">Generated ${formatDate(new Date().toISOString())}</div>
+        <div class="report-badge">${isKurdish ? ku('قەرزی دابینکەر') : 'SUPPLIER DEBT REPORT'}</div>
+        <div class="report-date">${isKurdish ? ku('بەروار: ') : 'Generated '}<span class="en-num" dir="ltr">${formatDate(new Date().toISOString())}</span></div>
       </div>
     </div>
     <hr class="header-divider" />
     <div class="party-box">
       <div class="party-name">${escHtml(debt.supplierName)}</div>
       <div class="party-meta">
-        ${debt.supplierPhone   ? `<span>&#128222; ${escHtml(debt.supplierPhone)}</span>` : ''}
+        ${debt.supplierPhone   ? `<span>&#128222; <span class="en-num" dir="ltr">${escHtml(debt.supplierPhone)}</span></span>` : ''}
         ${debt.supplierAddress ? `<span>&#128205; ${escHtml(debt.supplierAddress)}</span>` : ''}
-        ${debt.purchaseNumber  ? `<span>Ref: <strong>${escHtml(debt.purchaseNumber)}</strong></span>` : ''}
+        ${debt.purchaseNumber  ? `<span>${isKurdish ? ku('ژ. کڕین: ') : 'Ref: '}<strong>#${escHtml(debt.purchaseNumber)}</strong></span>` : ''}
       </div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Payment Summary</div>
+    <div class="section-title">${isKurdish ? ku('پوختەی قەرز و پارەدان') : 'Payment Summary'}</div>
     <div class="status-grid">
       <div class="stat-cell">
-        <div class="stat-label">Total Owed</div>
-        <div class="stat-value" style="color:#1E293B;">${fmtMoneyVal(debt.originalAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('کۆی قەرز') : 'Total Owed'}</div>
+        <div class="stat-value" style="color:#1E293B;"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.originalAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
-        <div class="stat-label">Paid to Supplier</div>
-        <div class="stat-value green">${fmtMoneyVal(debt.paidAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('پارەی دراو') : 'Paid to Supplier'}</div>
+        <div class="stat-value green"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.paidAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
       <div class="stat-cell">
-        <div class="stat-label">Still Owe</div>
-        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}">${fmtMoneyVal(debt.remainingAmount)}<br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
+        <div class="stat-label">${isKurdish ? ku('قەرزی ماوە') : 'Still Owe'}</div>
+        <div class="stat-value ${debt.remainingAmount > 0 ? 'red' : 'green'}"><span class="en-num" dir="ltr">${fmtMoneyVal(debt.remainingAmount)}</span><br /><span style="font-size:11px;font-weight:600;"> ${curUnit}</span></div>
       </div>
     </div>
     <div class="progress-bar-bg">
       <div class="progress-bar-fill" style="width:${pct}%;background:${fillColor};"></div>
     </div>
     <div class="progress-row">
-      <span class="progress-label">${pct}% paid</span>
-      <span class="status-pill" style="${statusStyle}">${settled ? 'SETTLED' : 'ACTIVE'}</span>
+      <span class="progress-label"><span class="en-num" dir="ltr">${pct}%</span> ${isKurdish ? ku('دراوە') : 'paid'}</span>
+      <span class="status-pill" style="${statusStyle}">${statusLabel}</span>
     </div>
   </div>
 
+  <!-- Product & Batch Details -->
+  ${prodName ? `
+    <div class="section">
+      <div class="section-title">${isKurdish ? ku('زانیاریی بەرهەم و وەجبەی ئەم قەرزە (بەستنەوەی کڕین)') : 'Product & Batch Details (Purchase Linkage)'}</div>
+      <div class="table-wrap">
+        <table class="detail-table">
+          <tr>
+            <td class="detail-label">${isKurdish ? ku('ناوی بەرهەم') : 'Product'}</td>
+            <td class="detail-value" style="font-weight:700;color:#0F172A;">${escHtml(prodName)}</td>
+          </tr>
+          <tr>
+            <td class="detail-label">${isKurdish ? ku('وەجبەی کڕین') : 'Batch #'}</td>
+            <td class="detail-value">
+              <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:3px 10px;font-size:11.5px;font-weight:700;">
+                ${isKurdish ? ku(`وەجبەی #${batchNum}`) : `Batch #${batchNum}`}
+                ${totalBatches > 1 ? (isKurdish ? ku(` (لە کۆی ${totalBatches} وەجبە)`) : ` (of ${totalBatches} batches)`) : ''}
+              </span>
+            </td>
+          </tr>
+          ${batchQty ? `
+            <tr>
+              <td class="detail-label">${isKurdish ? ku('بڕی وەجبە') : 'Batch Quantity'}</td>
+              <td class="detail-value" style="font-weight:700;"><span class="en-num" dir="ltr">${batchQty}</span> ${isKurdish ? ku('دانە') : 'pcs'}</td>
+            </tr>
+          ` : ''}
+          ${purchase?.expiryDate ? `
+            <tr>
+              <td class="detail-label">${isKurdish ? ku('بەرواری بەسەرچوون') : 'Expiry Date'}</td>
+              <td class="detail-value" style="color:#D97706;font-weight:600;"><span class="en-num" dir="ltr">${formatDate(purchase.expiryDate)}</span></td>
+            </tr>
+          ` : ''}
+          <tr>
+            <td class="detail-label">${isKurdish ? ku('کۆی خەرجی وەجبە') : 'Batch Total Cost'}</td>
+            <td class="detail-value" style="font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(debt.originalAmount)}</span></td>
+          </tr>
+          <tr>
+            <td class="detail-label">${isKurdish ? ku('قەرزی ماوەی وەجبە') : 'Remaining Batch Debt'}</td>
+            <td class="detail-value" style="font-weight:700;color:#DC2626;"><span class="en-num" dir="ltr">${fmtMoney(debt.remainingAmount)}</span></td>
+          </tr>
+        </table>
+      </div>
+      <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:9px 13px;margin-top:10px;font-size:11.5px;color:#991B1B;display:flex;align-items:center;gap:6px;">
+        <span>📦</span>
+        <span>${isKurdish
+          ? ku(`ئەم قەرزە (${fmtMoney(debt.remainingAmount)}) تایبەتە بە کڕینی وەجبەی #${batchNum}ی بەرهەمی (${prodName}) لەم دابینکەرە.`)
+          : `This debt (${fmtMoney(debt.remainingAmount)}) is tied to Batch #${batchNum} of (${prodName}) from this supplier.`}</span>
+      </div>
+    </div>
+  ` : ''}
+
   <div class="section">
-    <div class="section-title">Purchase Reference</div>
+    <div class="section-title">${isKurdish ? ku('سەرچاوەی کڕین') : 'Purchase Reference'}</div>
     <div class="table-wrap">
       <table class="detail-table">
-        <tr><td class="detail-label">Reference #</td><td class="detail-value">${debt.purchaseNumber ? escHtml(debt.purchaseNumber) : '&mdash;'}</td></tr>
-        <tr><td class="detail-label">Date</td><td>${formatDate(debt.createdAt)}</td></tr>
-        ${debt.notes ? `<tr><td class="detail-label">Notes</td><td>${escHtml(debt.notes)}</td></tr>` : ''}
+        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی کڕین') : 'Reference #'}</td><td class="detail-value">${debt.purchaseNumber ? `<span class="en-num" dir="ltr">#${escHtml(debt.purchaseNumber)}</span>` : '&mdash;'}</td></tr>
+        <tr><td class="detail-label">${isKurdish ? ku('بەروار') : 'Date'}</td><td><span class="en-num" dir="ltr">${formatDate(debt.createdAt)}</span></td></tr>
+        ${debt.notes ? `<tr><td class="detail-label">${isKurdish ? ku('تێبینی') : 'Notes'}</td><td>${escHtml(debt.notes)}</td></tr>` : ''}
       </table>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Payments Made (${payments.length} payment${payments.length !== 1 ? 's' : ''})</div>
+    <div class="section-title">${isKurdish ? ku(`مێژووی پارەدان (${payments.length})`) : `Payments Made (${payments.length} payment${payments.length !== 1 ? 's' : ''})`}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Date &amp; Time</th>
-            <th>Amount Paid</th>
-            <th>Still Owed After</th>
+            <th>${isKurdish ? ku('بەروار و کات') : 'Date & Time'}</th>
+            <th>${isKurdish ? ku('بڕی دراو') : 'Amount Paid'}</th>
+            <th>${isKurdish ? ku('ماوە لە دوای پارەدان') : 'Still Owed After'}</th>
           </tr>
         </thead>
         <tbody>${paymentsRows}</tbody>
@@ -411,7 +538,7 @@ export function buildPurchaseDebtReportHTML(
   </div>
 
   <div class="footer">
-    <p>Generated by <strong>${escHtml(business.name)}</strong> &middot; ${PDF_DEVELOPED_BY_EN} &middot; ${PDF_BRAND_WEBSITE} &middot; ${formatDateTime(new Date().toISOString())}</p>
+    <p>Generated by <strong>${escHtml(business.name)}</strong> &middot; ${PDF_DEVELOPED_BY_EN} &middot; ${PDF_BRAND_WEBSITE} &middot; <span class="en-num" dir="ltr">${formatDateTime(new Date().toISOString())}</span></p>
   </div>
 
 </div>
@@ -426,6 +553,7 @@ export interface DebtReportSections {
   includeStats: boolean;
   includeSales: boolean;
   includePurchases: boolean;
+  includeBatches?: boolean;
 }
 
 export function buildDebtsAuditReportHTML(
@@ -455,19 +583,20 @@ export function buildDebtsAuditReportHTML(
       includeStats: target.includeStats ?? true,
       includeSales: target.includeSales ?? false,
       includePurchases: target.includePurchases ?? false,
+      includeBatches: target.includeBatches ?? true,
     };
   } else if (target === 'sales') {
-    sections = { includeOverview: false, includeStats: false, includeSales: true, includePurchases: false };
+    sections = { includeOverview: false, includeStats: false, includeSales: true, includePurchases: false, includeBatches: false };
   } else if (target === 'purchase') {
-    sections = { includeOverview: false, includeStats: false, includeSales: false, includePurchases: true };
+    sections = { includeOverview: false, includeStats: false, includeSales: false, includePurchases: true, includeBatches: false };
   } else {
-    // legacy 'report' tab: show overview + stats + both lists
-    sections = { includeOverview: true, includeStats: true, includeSales: true, includePurchases: true };
+    // legacy 'report' tab: show overview + stats + both lists + batches
+    sections = { includeOverview: true, includeStats: true, includeSales: true, includePurchases: true, includeBatches: true };
   }
 
   // Ensure at least one section is enabled
-  if (!sections.includeOverview && !sections.includeStats && !sections.includeSales && !sections.includePurchases) {
-    sections = { includeOverview: true, includeStats: true, includeSales: true, includePurchases: true };
+  if (!sections.includeOverview && !sections.includeStats && !sections.includeSales && !sections.includePurchases && !sections.includeBatches) {
+    sections = { includeOverview: true, includeStats: true, includeSales: true, includePurchases: true, includeBatches: true };
   }
 
   const now = new Date();
@@ -477,13 +606,16 @@ export function buildDebtsAuditReportHTML(
   let reportTitle = '';
   let reportPrefix = 'DAR';
 
-  if (!sections.includeSales && !sections.includePurchases) {
+  if (!sections.includeSales && !sections.includePurchases && !sections.includeBatches) {
     reportTitle = isKurdish ? 'ڕاپۆرتی ئاماری و پوختەی قەرزەکان' : 'Debt Statistical Summary Report';
     reportPrefix = 'DSR';
-  } else if (!sections.includeOverview && !sections.includeStats && sections.includeSales && !sections.includePurchases) {
+  } else if (!sections.includeOverview && !sections.includeStats && !sections.includeSales && !sections.includePurchases && sections.includeBatches) {
+    reportTitle = isKurdish ? 'ڕاپۆرتی وەجبەکانی قەرز' : 'Batches Debt Audit Report';
+    reportPrefix = 'BD';
+  } else if (!sections.includeOverview && !sections.includeStats && sections.includeSales && !sections.includePurchases && !sections.includeBatches) {
     reportTitle = isKurdish ? 'جەردی قەرزی کڕیاران' : 'Customer Debts Audit Report';
     reportPrefix = 'CSD';
-  } else if (!sections.includeOverview && !sections.includeStats && !sections.includeSales && sections.includePurchases) {
+  } else if (!sections.includeOverview && !sections.includeStats && !sections.includeSales && sections.includePurchases && !sections.includeBatches) {
     reportTitle = isKurdish ? 'جەردی قەرزی دابینکەران' : 'Supplier Debts Audit Report';
     reportPrefix = 'SPD';
   } else if (!sections.includeOverview && !sections.includeStats && sections.includeSales && sections.includePurchases) {
@@ -665,6 +797,7 @@ export function buildDebtsAuditReportHTML(
           <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">
             ${escHtml(d.customerName)}
             ${d.customerPhone ? `<div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${escHtml(d.customerPhone)}</span></div>` : ''}
+            ${d.productsSummary ? `<div style="font-size:10px;color:#854D0E;background:#FEF9C3;border:1px solid #FDE047;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productsSummary)}</div>` : ''}
           </td>
           <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.invoiceNumber)}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
@@ -710,7 +843,7 @@ export function buildDebtsAuditReportHTML(
             <thead>
               <tr style="background:#F1F5F9;border-bottom:1px solid #CBD5E1;">
                 <th style="padding:10px;text-align:center;width:35px;">#</th>
-                <th style="padding:10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی کڕیار') : 'Customer'}</th>
+                <th style="padding:10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی کڕیار و کاڵاکان') : 'Customer & Items'}</th>
                 <th style="padding:10px;text-align:center;">${isKurdish ? ku('ژ. وەسڵ') : 'Invoice #'}</th>
                 <th style="padding:10px;text-align:center;">${isKurdish ? ku('بەروار') : 'Date'}</th>
                 <th style="padding:10px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Original'}</th>
@@ -737,6 +870,7 @@ export function buildDebtsAuditReportHTML(
           <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">
             ${escHtml(d.supplierName)}
             ${d.supplierPhone ? `<div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${escHtml(d.supplierPhone)}</span></div>` : ''}
+            ${d.productName ? `<div style="font-size:10px;color:#991B1B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productName)} &bull; ${isKurdish ? `وەجبەی #${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}${d.batchQuantity ? ` (${d.batchQuantity} دانە)` : ''}${d.totalBatches && d.totalBatches > 1 ? ` (کۆی ${d.totalBatches})` : ''}</div>` : ''}
           </td>
           <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber || '—')}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
@@ -750,7 +884,7 @@ export function buildDebtsAuditReportHTML(
 
     sectionsHTML.push(`
       <!-- Section: Supplier Debts (Purchases) -->
-      <div style="margin-bottom:20px;">
+      <div style="margin-bottom:24px;">
         <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;">
           <span>${isKurdish ? ku('قەرزی دابینکەران (کڕین)') : 'Supplier Debts (Purchases)'}</span>
           <span style="font-size:12px;color:#64748B;font-weight:600;">${purchases.length} ${isKurdish ? ku('دابینکەر') : 'suppliers'}</span>
@@ -782,7 +916,7 @@ export function buildDebtsAuditReportHTML(
             <thead>
               <tr style="background:#F1F5F9;border-bottom:1px solid #CBD5E1;">
                 <th style="padding:10px;text-align:center;width:35px;">#</th>
-                <th style="padding:10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی دابینکەر') : 'Supplier'}</th>
+                <th style="padding:10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی دابینکەر و وەجبە') : 'Supplier & Batch'}</th>
                 <th style="padding:10px;text-align:center;">${isKurdish ? ku('ژ. کڕین') : 'Purchase #'}</th>
                 <th style="padding:10px;text-align:center;">${isKurdish ? ku('بەروار') : 'Date'}</th>
                 <th style="padding:10px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Original'}</th>
@@ -795,6 +929,128 @@ export function buildDebtsAuditReportHTML(
             <tbody>${purchaseRows}</tbody>
           </table>
         </div>
+      </div>
+    `);
+  }
+
+  // ── SECTION 4: Batches Linkage Breakdown (بەشی وەجبەکان و بەستنەوەی کاڵاکان) ──
+  if (sections.includeBatches) {
+    const supplierBatchesWithDebt = purchases.filter((d) => (d.productName || d.batchNumber));
+    const customerDebtsWithItems = sales.filter((d) => d.productsSummary);
+
+    const supplierBatchRows = supplierBatchesWithDebt.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:#94A3B8;padding:18px;">${isKurdish ? ku('هیچ وەجبەیەکی کڕین بە قەرز لەم ماوەیەدا نەدۆزرایەوە') : 'No supplier purchase batches with debt found'}</td></tr>`
+      : supplierBatchesWithDebt.map((d, idx) => `
+        <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
+          <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
+          <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">${escHtml(d.productName || '—')}</td>
+          <td style="text-align:center;">
+            <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700;">
+              ${isKurdish ? ku(`وەجبەی #${d.batchNumber || 1}`) : `Batch #${d.batchNumber || 1}`}
+              ${d.totalBatches && d.totalBatches > 1 ? ` (${isKurdish ? `لە ${d.totalBatches}` : `of ${d.totalBatches}`})` : ''}
+            </span>
+          </td>
+          <td style="text-align:center;font-weight:600;"><span class="en-num" dir="ltr">${d.batchQuantity || '—'}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};color:#475569;">
+            ${escHtml(d.supplierName)}
+            ${d.purchaseNumber ? `<div style="font-size:10px;color:#94A3B8;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber)}</span></div>` : ''}
+          </td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.remainingAmount)}</span></td>
+          <td style="text-align:center;">${getBadgeHTML(d.paidAmount, d.remainingAmount)}</td>
+        </tr>
+      `).join('');
+
+    const customerBatchRows = customerDebtsWithItems.length === 0
+      ? `<tr><td colspan="6" style="text-align:center;color:#94A3B8;padding:18px;">${isKurdish ? ku('هیچ وەجبەیەکی فرۆشراو بە قەرز نەدۆزرایەوە') : 'No credit sales with items/batches found'}</td></tr>`
+      : customerDebtsWithItems.map((d, idx) => `
+        <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
+          <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
+          <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">
+            ${escHtml(d.customerName)}
+            <div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">#${escHtml(d.invoiceNumber)}</span></div>
+          </td>
+          <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};font-weight:600;color:#854D0E;">
+            <div style="background:#FFFDF5;border:1px solid #FDE047;border-radius:6px;padding:3px 8px;font-size:11.5px;display:inline-block;">
+              📦 ${escHtml(d.productsSummary || '—')}
+            </div>
+          </td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.originalAmount)}</span></td>
+          <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.remainingAmount)}</span></td>
+          <td style="text-align:center;">${getBadgeHTML(d.paidAmount, d.remainingAmount)}</td>
+        </tr>
+      `).join('');
+
+    sectionsHTML.push(`
+      <!-- Section: Batches & Debts Linkage -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;">
+          <span>${isKurdish ? ku('بەشی وەجبەکانی قەرز (بەستنەوەی وەجبە بە کڕین و فرۆشتن)') : 'Batches & Debts Linkage (Purchase & Sales)'}</span>
+          <span style="font-size:11.5px;color:#64748B;font-weight:600;">${isKurdish ? ku('وەجبەکانی خاوەن قەرز') : 'Batches with Debt'}</span>
+        </div>
+
+        <!-- Batches KPI Cards -->
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:14px;">
+          <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:#B91C1C;">${isKurdish ? ku('وەجبەکانی کڕین بە قەرز') : 'Supplier Batches on Credit'}</div>
+            <div style="font-size:16px;font-weight:800;color:#991B1B;margin-top:4px;"><span class="en-num" dir="ltr">${supplierBatchesWithDebt.length}</span> ${isKurdish ? ku('وەجبە') : 'batches'}</div>
+          </div>
+          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:#B45309;">${isKurdish ? ku('فرۆشتنە فرە-وەجبەییەکان بە قەرز') : 'Credit Sales with Batches'}</div>
+            <div style="font-size:16px;font-weight:800;color:#92400E;margin-top:4px;"><span class="en-num" dir="ltr">${customerDebtsWithItems.length}</span> ${isKurdish ? ku('وەسڵ') : 'invoices'}</div>
+          </div>
+          <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:#15803D;">${isKurdish ? ku('کۆی قەرزی سەر وەجبەکان') : 'Total Batch Debt'}</div>
+            <div style="font-size:16px;font-weight:800;color:#166534;margin-top:4px;"><span class="en-num" dir="ltr">${fmtMoney(totalPurchaseRemaining + totalSalesRemaining)}</span></div>
+          </div>
+        </div>
+
+        <!-- Table 1: Supplier Purchase Batches -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+            <span>🏷️</span>
+            <span>${isKurdish ? ku('وەجبەکانی کڕین لە دابینکەران کە قەرزیان ماوە') : 'Supplier Purchase Batches with Remaining Debt'}</span>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:#F1F5F9;border-bottom:1px solid #CBD5E1;">
+                  <th style="padding:8px 10px;text-align:center;width:30px;">#</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی بەرهەم') : 'Product'}</th>
+                  <th style="padding:8px 10px;text-align:center;">${isKurdish ? ku('وەجبە') : 'Batch #'}</th>
+                  <th style="padding:8px 10px;text-align:center;">${isKurdish ? ku('بڕ') : 'Qty'}</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('دابینکەر') : 'Supplier'}</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('قەرزی ماوە') : 'Remaining'}</th>
+                  <th style="padding:8px 10px;text-align:center;">${isKurdish ? ku('دۆخ') : 'Status'}</th>
+                </tr>
+              </thead>
+              <tbody>${supplierBatchRows}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Table 2: Customer Sales Batches -->
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+            <span>🏷️</span>
+            <span>${isKurdish ? ku('وەجبە فرۆشراوەکان بە کڕیاران کە قەرزیان ماوە') : 'Customer Credit Sales Linked to Product Batches'}</span>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:#F1F5F9;border-bottom:1px solid #CBD5E1;">
+                  <th style="padding:8px 10px;text-align:center;width:30px;">#</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ناوی کڕیار') : 'Customer'}</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('کاڵا و وەجبەکان') : 'Items & Batches'}</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی وەسڵ') : 'Original'}</th>
+                  <th style="padding:8px 10px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('قەرزی ماوە') : 'Remaining'}</th>
+                  <th style="padding:8px 10px;text-align:center;">${isKurdish ? ku('دۆخ') : 'Status'}</th>
+                </tr>
+              </thead>
+              <tbody>${customerBatchRows}</tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     `);
   }

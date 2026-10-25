@@ -1063,6 +1063,13 @@ export default function ExpensesScreen() {
 
   const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount, 0);
 
+  const gridFormattedExpenses = useMemo(() => {
+    if (!isTablet || filteredExpenses.length === 0) return filteredExpenses;
+    const remainder = filteredExpenses.length % 2;
+    if (remainder === 0) return filteredExpenses;
+    return [...filteredExpenses, { id: '__expense_filler', isFiller: true } as unknown as Expense];
+  }, [filteredExpenses, isTablet]);
+
   function handleFilterChange(key: ExpenseFilterKey, range?: { from: string; to: string }) {
     setExpenseFilter(key);
     if (key === 'custom' && range) { setAppliedRange(range); }
@@ -1225,18 +1232,27 @@ export default function ExpensesScreen() {
           />
 
           <FlatList
-            key={isTablet ? 'expenses-grid-2' : 'expenses-list-1'}
-            data={filteredExpenses}
+            key={isTablet ? `expenses-grid-2-${isRTL ? 'rtl' : 'ltr'}` : 'expenses-list-1'}
+            data={gridFormattedExpenses}
             keyExtractor={(item) => String(item.id)}
             numColumns={isTablet ? 2 : 1}
-            columnWrapperStyle={isTablet ? { gap: 14 } : undefined}
-            renderItem={({ item }) => (
-              <ExpenseCard
-                expense={item}
-                onEdit={() => openEdit(item)}
-                onDelete={() => handleDelete(item.id)}
-              />
-            )}
+            columnWrapperStyle={
+              isTablet
+                ? { gap: 14, flexDirection: isRTL ? 'row-reverse' : 'row' }
+                : undefined
+            }
+            renderItem={({ item }) => {
+              if ('isFiller' in item && (item as any).isFiller) {
+                return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
+              }
+              return (
+                <ExpenseCard
+                  expense={item}
+                  onEdit={() => openEdit(item)}
+                  onDelete={() => handleDelete(item.id)}
+                />
+              );
+            }}
             contentContainerStyle={[
               styles.listContent,
               isTablet

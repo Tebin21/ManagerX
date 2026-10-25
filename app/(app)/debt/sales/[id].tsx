@@ -22,9 +22,13 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { getSalesDebtById, getDebtPayments, getSaleById } from '@/lib/sqlite';
+import { shareSalesDebtReport } from '@/lib/generateInvoice';
+import { useBusinessStore } from '@/store/businessStore';
 import { useDebtStore } from '@/store/debtStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
@@ -163,13 +167,15 @@ export default function SalesDebtDetailScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const paidTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const scrollIntoView = useKeyboardAwareFocus();
-  const { textAlign, flexDirection, valueAlign } = useRTL();
+  const { isRTL, textAlign, flexDirection, valueAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const business = useBusinessStore();
 
   const [debt, setDebt]         = useState<SalesDebtDetail | null>(null);
   const [sale, setSale]         = useState<Sale | null>(null);
   const [payments, setPayments] = useState<DebtPayment[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   const [payValue, setPayValue]       = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date());
@@ -200,6 +206,24 @@ export default function SalesDebtDetailScreen() {
   }, [debtId]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleShareReport() {
+    if (!debt) return;
+    setIsSharing(true);
+    try {
+      await shareSalesDebtReport(debt, payments, {
+        name: business.name,
+        phone: business.phone,
+        address: business.address,
+        logoUri: business.logoUri,
+      }, sale?.items);
+    } catch (err) {
+      console.error('Failed to share sales debt report:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsSharing(false);
+    }
+  }
 
   async function handlePay() {
     const amt = roundToNearest250(parseFloat(toEnglishDigits(payValue).replace(/,/g, '')) || 0);
@@ -239,17 +263,17 @@ export default function SalesDebtDetailScreen() {
 
   if (!id || isNaN(debtId)) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.gray50 }, styles.center]}>
-        <AppHeader title="" showBack />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('debt.debtDetails', 'وردەکاریی قەرز')} showBack />
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.gray50 }, styles.center]}>
-        <AppHeader title="" />
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('debt.debtDetails', 'وردەکاریی قەرز')} showBack />
+        <LoadingView />
       </View>
     );
   }
@@ -277,6 +301,13 @@ export default function SalesDebtDetailScreen() {
       <AppHeader
         title={debt.customerName}
         showBack
+        rightAction={
+          <HeaderActionButton
+            icon="share-outline"
+            onPress={handleShareReport}
+            disabled={isSharing}
+          />
+        }
       >
         {(debt.customerPhone || debt.customerAddress) ? (
           <View style={[styles.headerMeta, { flexDirection }]}>
@@ -354,6 +385,26 @@ export default function SalesDebtDetailScreen() {
                 <Text style={[styles.infoValue, { textAlign: 'right' }]}>{debt.saleNotes}</Text>
               </View>
             ) : null}
+
+            {debt.saleId ? (
+              <TouchableOpacity
+                style={[
+                  styles.viewSaleBtn,
+                  {
+                    flexDirection,
+                    borderColor: colors.primary,
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                  },
+                ]}
+                onPress={() => router.push(`/(app)/sales/${debt.saleId}` as never)}
+              >
+                <Ionicons name="receipt-outline" size={15} color={colors.primary} />
+                <Text style={[styles.viewSaleBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
+                  {isKuLanguage ? 'بینینی پسوولەی فرۆشتن' : 'View Sale Invoice'}
+                </Text>
+                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={15} color={colors.primary} />
+              </TouchableOpacity>
+            ) : null}
           </PremiumCard>
         </MotiView>
 
@@ -361,21 +412,64 @@ export default function SalesDebtDetailScreen() {
         {sale?.items && sale.items.length > 0 ? (
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 140 }}>
             <PremiumCard style={styles.section}>
-              <Text style={[styles.sectionTitle, { textAlign }]}>{t('sales.orderSummary')}</Text>
+              <View style={[styles.sectionHeaderRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }]}>
+                <Text style={[styles.sectionTitle, { textAlign, marginBottom: 0 }]}>{t('sales.orderSummary')}</Text>
+                <View style={[styles.itemBatchCountPill, { backgroundColor: colors.primary + '18' }]}>
+                  <Ionicons name="layers" size={11} color={colors.primary} />
+                  <Text style={[styles.itemBatchCountPillText, { color: colors.primary }]}>
+                    {sale.items.length} {isKuLanguage ? 'بەرهەم' : 'Items'}
+                  </Text>
+                </View>
+              </View>
+
               {sale.items.map((item) => (
-                <View key={item.id} style={styles.itemCard}>
-                  <View style={[styles.itemNameRow, { flexDirection }]}>
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={item.productId ? 0.75 : 1}
+                  onPress={() => {
+                    if (item.productId) {
+                      router.push(`/(app)/inventory/${item.productId}` as never);
+                    }
+                  }}
+                  style={styles.itemCard}
+                >
+                  <View style={[styles.itemNameRow, { flexDirection, justifyContent: 'space-between' }]}>
                     <Text style={[styles.itemName, { textAlign }]} numberOfLines={1}>{item.productName}</Text>
                     {item.quantity > 1 ? (
                       <Text style={styles.itemQtyBadge}>×{item.quantity}</Text>
                     ) : null}
                   </View>
                   <AmountText value={item.lineTotal} currency="IQD" style={[styles.itemPrice, { textAlign: valueAlign }]} />
-                  {item.itemId ? (
-                    <Text style={[styles.itemId, { textAlign: 'right' }]}>ID: <IdText size="small" style={styles.itemId}>{item.itemId}</IdText></Text>
-                  ) : null}
-                </View>
+                  <View style={[styles.itemMetaRow, { flexDirection, justifyContent: 'space-between', alignItems: 'center' }]}>
+                    <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
+                      <Ionicons name="layers" size={11} color={colors.primary} />
+                      <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
+                        {isKuLanguage ? `وەجبەی #${item.batchNumber || 1}` : `Batch #${item.batchNumber || 1}`}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {item.itemId ? (
+                        <Text style={[styles.itemId, { textAlign: 'right' }]}>ID: <IdText size="small" style={styles.itemId}>{item.itemId}</IdText></Text>
+                      ) : null}
+                      {item.productId ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                          <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                            {isKuLanguage ? 'کۆگا' : 'Stock'}
+                          </Text>
+                          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={colors.primary} />
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
               ))}
+
+              <View style={[styles.batchDebtNoticeBanner, { flexDirection, backgroundColor: isDark ? 'rgba(212, 175, 55, 0.08)' : '#FDFBF4', borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : '#F6E09E' }]}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+                <Text style={[styles.batchDebtNoticeText, { color: isDark ? '#F5E6B3' : '#854D0E', textAlign: isRTL ? 'right' : 'left' }]}>
+                  {t('debt.batchDebtNoticeCustomer')}
+                </Text>
+              </View>
             </PremiumCard>
           </MotiView>
         ) : null}
@@ -597,17 +691,83 @@ function getStyles(colors: AppColors) {
   infoValue: { fontSize: 13, fontWeight: '600', color: colors.black, flex: 1 },
 
   // Items
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  itemBatchCountPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  itemBatchCountPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   itemCard: {
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray100,
-    gap: 3,
+    gap: 4,
   },
   itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   itemName: { fontSize: 14, fontWeight: '700', color: colors.black, flexShrink: 1 },
   itemQtyBadge: { fontSize: 12, fontWeight: '600', color: colors.gray400 },
   itemPrice: { fontSize: 14, fontWeight: '700', color: colors.black },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  itemBatchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  itemBatchBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   itemId: { fontSize: 11, color: colors.gray400 },
+  batchDebtNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  viewSaleBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  viewSaleBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  batchDebtNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
 
   // Payment timeline
   noPayments: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 8 },

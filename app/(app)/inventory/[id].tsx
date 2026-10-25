@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -43,7 +43,7 @@ export default function InventoryDetailScreen() {
   const hasActiveSubscription = useOnlineStoreSubscriptionStore((s) => s.isActive);
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const idAvailTint = getStatusTint('success', colors, isDark);
   const { chevronForward } = useDirectionalChevron();
   const { isRTL, textAlign, writingDirection, valueAlign, flexDirection, alignEnd } = useRTL();
@@ -54,6 +54,17 @@ export default function InventoryDetailScreen() {
   const subTileBg = isDark ? colors.gray50 : colors.gray50;
   const subTileBorder = isDark ? colors.gray200 : '#E2E8F0';
   const sectionTitleStyle = [styles.sectionTitle, { color: isDark ? colors.gray600 : colors.gray500, textAlign, writingDirection }];
+
+  // Constrain content width on tablet for a compact, balanced look without empty space
+  const tabletScrollStyle = useMemo(() => {
+    if (!isTablet) return undefined;
+    return {
+      maxWidth: isTabletLandscape ? 1040 : 800,
+      width: '100%' as const,
+      alignSelf: 'center' as const,
+      paddingHorizontal: isTabletLandscape ? 24 : 16,
+    };
+  }, [isTablet, isTabletLandscape]);
 
   const [product, setProduct] = useState<InventoryProduct | null>(null);
   const [salesHistory, setSalesHistory] = useState<{
@@ -118,7 +129,7 @@ export default function InventoryDetailScreen() {
   const numId = Number(id);
   if (!id || isNaN(numId)) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('inventory.productDetails', 'وردەکاریی کاڵا')} showBack />
       </View>
     );
@@ -126,9 +137,9 @@ export default function InventoryDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title="" showBack />
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('inventory.productDetails', 'وردەکاریی کاڵا')} showBack />
+        <LoadingView />
       </View>
     );
   }
@@ -153,16 +164,251 @@ export default function InventoryDetailScreen() {
   const isCustom = product.idMode === 'unique';
   const categoryLabel = t(`purchases.categories.${product.category}`, { defaultValue: product.category });
 
+  // KPI tiles for responsive square cards
+  const qtyBadge = isSold
+    ? {
+        text: t('inventory.soldBadge', 'نەماوە'),
+        color: isDark ? '#94A3B8' : '#64748B',
+        bg: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9',
+        border: isDark ? 'rgba(100,116,139,0.35)' : '#CBD5E1',
+      }
+    : isLowStock
+    ? {
+        text: t('inventory.lowStock', 'کەمی ماوە'),
+        color: isDark ? '#FBBF24' : '#B45309',
+        bg: isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7',
+        border: isDark ? 'rgba(245,158,11,0.4)' : '#FDE68A',
+      }
+    : {
+        text: t('inventory.availableBadge', 'بەردەستە'),
+        color: isDark ? '#34D399' : '#047857',
+        bg: isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5',
+        border: isDark ? 'rgba(16,185,129,0.4)' : '#A7F3D0',
+      };
+
+  const profitPositive = profitPerUnit >= 0;
+
+  const kpiTiles = {
+    quantity: {
+      id: 'qty',
+      label: t('inventory.quantity', 'بڕی کۆگا'),
+      valueNode: (
+        <Text
+          style={[
+            styles.kpiSquareValue,
+            {
+              fontSize: isTablet ? 22 : 16.5,
+              color: isSold ? colors.gray400 : colors.black,
+              textAlign,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
+        </Text>
+      ),
+      icon: 'cube-outline' as const,
+      iconColor: isSold ? colors.gray400 : isLowStock ? colors.warning : colors.success,
+      iconBg: isSold
+        ? (isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9')
+        : isLowStock
+        ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
+        : (isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5'),
+      badge: qtyBadge,
+    },
+    buyPrice: {
+      id: 'buy',
+      label: t('inventory.buyPrice', 'نرخی کڕین'),
+      valueNode: (
+        <AmountText
+          value={product.purchasePrice}
+          currency="IQD"
+          style={[
+            styles.kpiSquareValue,
+            {
+              fontSize: isTablet ? 21 : 16.5,
+              color: colors.black,
+              textAlign,
+            },
+          ]}
+        />
+      ),
+      icon: 'cart-outline' as const,
+      iconColor: isDark ? colors.gray400 : '#64748B',
+      iconBg: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9',
+      badge: {
+        text: isRTL ? 'یەکە' : 'Unit',
+        color: isDark ? colors.gray400 : '#64748B',
+        bg: isDark ? 'rgba(100,116,139,0.15)' : '#F1F5F9',
+        border: isDark ? colors.gray200 : '#E2E8F0',
+      },
+    },
+    sellPrice: {
+      id: 'sell',
+      label: t('inventory.sellPrice', 'نرخی فرۆشتن'),
+      valueNode: (
+        <AmountText
+          value={product.sellingPrice}
+          currency="IQD"
+          style={[
+            styles.kpiSquareValue,
+            {
+              fontSize: isTablet ? 21 : 16.5,
+              color: colors.primary,
+              textAlign,
+            },
+          ]}
+        />
+      ),
+      icon: 'pricetag-outline' as const,
+      iconColor: colors.primary,
+      iconBg: isDark ? 'rgba(212,175,55,0.18)' : '#FEF9C3',
+      badge: {
+        text: isRTL ? 'دیاریکراو' : 'Retail',
+        color: colors.primary,
+        bg: isDark ? 'rgba(212,175,55,0.14)' : '#FEF9C3',
+        border: isDark ? 'rgba(212,175,55,0.35)' : '#FDE68A',
+      },
+    },
+    profit: {
+      id: 'profit',
+      label: t('inventory.profitPerUnit', 'قازانج / یەکە'),
+      valueNode: (
+        <AmountText
+          value={profitPerUnit}
+          currency="IQD"
+          prefix={profitPerUnit > 0 ? '+' : ''}
+          style={[
+            styles.kpiSquareValue,
+            {
+              fontSize: isTablet ? 21 : 16.5,
+              color: profitPositive ? colors.success : colors.error,
+              textAlign,
+            },
+          ]}
+        />
+      ),
+      icon: profitPositive ? ('trending-up' as const) : ('trending-down' as const),
+      iconColor: profitPositive ? colors.success : colors.error,
+      iconBg: profitPositive
+        ? (isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5')
+        : (isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2'),
+      badge: profitMargin
+        ? {
+            text: `${profitPerUnit > 0 ? '+' : ''}${profitMargin}%`,
+            color: profitPositive ? colors.success : colors.error,
+            bg: profitPositive
+              ? (isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5')
+              : (isDark ? 'rgba(239,68,68,0.18)' : '#FEF2F2'),
+            border: profitPositive
+              ? (isDark ? 'rgba(16,185,129,0.35)' : '#A7F3D0')
+              : (isDark ? 'rgba(239,68,68,0.35)' : '#FECACA'),
+          }
+        : undefined,
+    },
+    totalValue: {
+      id: 'total',
+      label: t('inventory.totalValueLabel', 'کۆی بەها'),
+      valueNode: (
+        <AmountText
+          value={totalValue}
+          currency="IQD"
+          style={[
+            styles.kpiSquareValue,
+            {
+              fontSize: isTablet ? 21 : 16.5,
+              color: colors.black,
+              textAlign,
+            },
+          ]}
+        />
+      ),
+      icon: 'wallet-outline' as const,
+      iconColor: isDark ? '#A78BFA' : '#7C3AED',
+      iconBg: isDark ? 'rgba(167,139,250,0.18)' : '#EDE9FE',
+      badge: {
+        text: isRTL ? 'سەرمایە' : 'Asset',
+        color: isDark ? '#C4B5FD' : '#6D28D9',
+        bg: isDark ? 'rgba(167,139,250,0.15)' : '#F5F3FF',
+        border: isDark ? 'rgba(167,139,250,0.35)' : '#DDD6FE',
+      },
+    },
+  };
+
+  const renderKpiSquareCard = (tile: NonNullable<typeof kpiTiles>[keyof NonNullable<typeof kpiTiles>]) => {
+    return (
+      <View
+        key={tile.id}
+        style={[
+          styles.kpiSquareCard,
+          {
+            backgroundColor: subTileBg,
+            borderColor: subTileBorder,
+          },
+        ]}
+      >
+        {/* Top row: Icon box + Badge */}
+        <View style={[styles.kpiSquareTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.kpiSquareIconBox, { backgroundColor: tile.iconBg, width: isTablet ? 42 : 34, height: isTablet ? 42 : 34 }]}>
+            <Ionicons name={tile.icon} size={isTablet ? 21 : 17} color={tile.iconColor} />
+          </View>
+          {tile.badge ? (
+            <View
+              style={[
+                styles.kpiSquareBadge,
+                {
+                  backgroundColor: tile.badge.bg,
+                  borderColor: tile.badge.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.kpiSquareBadgeText,
+                  { color: tile.badge.color, fontSize: isTablet ? 12 : 10.5 },
+                ]}
+                numberOfLines={1}
+              >
+                {tile.badge.text}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Bottom area: Label and Value */}
+        <View style={styles.kpiSquareBottomWrap}>
+          <Text
+            style={[
+              styles.kpiSquareLabel,
+              {
+                color: isDark ? colors.gray500 : colors.gray400,
+                textAlign,
+                writingDirection,
+                fontSize: isTablet ? 13.5 : 11.5,
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {tile.label}
+          </Text>
+          <View style={[styles.kpiSquareValueRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+            {tile.valueNode}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       {/* Clean Navigation Header — no cluttered badges inside header */}
       <AppHeader title={product.name} showBack />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, isTablet && contentContainerStyle]}
+        contentContainerStyle={[styles.scroll, tabletScrollStyle]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Product Hero & Badges Section (Brought down from navigation) */}
+        {/* Product Hero & Badges Section */}
         <MotiView
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -172,29 +418,66 @@ export default function InventoryDetailScreen() {
             {
               backgroundColor: cardBg,
               borderColor: cardBorder,
+              padding: isTablet ? 18 : 16,
             },
           ]}
         >
           {/* Top row with Product Info / Image */}
-          <View style={[styles.heroHeaderRow, { flexDirection }]}>
+          <View style={[styles.heroHeaderRow, { flexDirection, gap: isTablet ? 16 : 14 }]}>
             {(() => {
               const displayImg = getProductDisplayImage(product);
               return displayImg ? (
-                <Image source={{ uri: displayImg }} style={[styles.heroImage, { borderColor: cardBorder }]} resizeMode="cover" />
+                <Image
+                  source={{ uri: displayImg }}
+                  style={[
+                    styles.heroImage,
+                    {
+                      borderColor: cardBorder,
+                      width: isTablet ? 72 : 58,
+                      height: isTablet ? 72 : 58,
+                      borderRadius: isTablet ? 18 : 14,
+                    },
+                  ]}
+                  resizeMode="cover"
+                />
               ) : (
-                <View style={[styles.heroIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3' }]}>
-                  <Ionicons name="cube" size={26} color={colors.primary} />
+                <View
+                  style={[
+                    styles.heroIconBox,
+                    {
+                      backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3',
+                      width: isTablet ? 68 : 52,
+                      height: isTablet ? 68 : 52,
+                      borderRadius: isTablet ? 18 : 14,
+                    },
+                  ]}
+                >
+                  <Ionicons name="cube" size={isTablet ? 34 : 26} color={colors.primary} />
                 </View>
               );
             })()}
             <View style={[styles.heroTitleWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-              <Text style={[styles.heroTitleText, { color: colors.black, textAlign, writingDirection }]} numberOfLines={2}>
+              <Text
+                style={[
+                  styles.heroTitleText,
+                  {
+                    color: colors.black,
+                    textAlign,
+                    writingDirection,
+                    fontSize: isTablet ? 24 : 20,
+                    lineHeight: isTablet ? 32 : 28,
+                  },
+                ]}
+                numberOfLines={2}
+              >
                 {product.name}
               </Text>
               {product.itemId ? (
-                <View style={[styles.heroBarcodeRow, { flexDirection }]}>
-                  <Ionicons name="barcode-outline" size={14} color={colors.gray400} />
-                  <IdText style={[styles.heroBarcodeText, { color: colors.gray500 }]}>{product.itemId}</IdText>
+                <View style={[styles.heroBarcodeRow, { flexDirection, marginTop: isTablet ? 6 : 4 }]}>
+                  <Ionicons name="barcode-outline" size={isTablet ? 16 : 14} color={colors.gray400} />
+                  <IdText style={[styles.heroBarcodeText, { color: colors.gray500, fontSize: isTablet ? 14.5 : 13 }]}>
+                    {product.itemId}
+                  </IdText>
                 </View>
               ) : null}
             </View>
@@ -210,14 +493,16 @@ export default function InventoryDetailScreen() {
                   flexDirection,
                   backgroundColor: isDark ? 'rgba(212,175,55,0.12)' : '#F1F5F9',
                   borderColor: isDark ? 'rgba(212,175,55,0.3)' : '#CBD5E1',
+                  paddingHorizontal: isTablet ? 12 : 10,
+                  paddingVertical: isTablet ? 6.5 : 5,
                 },
               ]}
             >
-              <Ionicons name="pricetag-outline" size={12} color={isDark ? colors.primary : '#475569'} />
+              <Ionicons name="pricetag-outline" size={isTablet ? 14 : 12} color={isDark ? colors.primary : '#475569'} />
               <Text
                 style={[
                   styles.badgePillText,
-                  { color: isDark ? colors.primary : '#334155' },
+                  { color: isDark ? colors.primary : '#334155', fontSize: isTablet ? 13 : 12 },
                 ]}
                 numberOfLines={1}
               >
@@ -234,11 +519,13 @@ export default function InventoryDetailScreen() {
                     flexDirection,
                     backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9',
                     borderColor: isDark ? 'rgba(100,116,139,0.4)' : '#CBD5E1',
+                    paddingHorizontal: isTablet ? 12 : 10,
+                    paddingVertical: isTablet ? 6.5 : 5,
                   },
                 ]}
               >
-                <Ionicons name="close-circle-outline" size={12} color={isDark ? '#94A3B8' : '#64748B'} />
-                <Text style={[styles.badgePillText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                <Ionicons name="close-circle-outline" size={isTablet ? 14 : 12} color={isDark ? '#94A3B8' : '#64748B'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#94A3B8' : '#64748B', fontSize: isTablet ? 13 : 12 }]}>
                   {t('inventory.soldBadge')}
                 </Text>
               </View>
@@ -250,11 +537,13 @@ export default function InventoryDetailScreen() {
                     flexDirection,
                     backgroundColor: isDark ? 'rgba(245,158,11,0.18)' : '#FEF3C7',
                     borderColor: isDark ? 'rgba(245,158,11,0.4)' : '#FDE68A',
+                    paddingHorizontal: isTablet ? 12 : 10,
+                    paddingVertical: isTablet ? 6.5 : 5,
                   },
                 ]}
               >
-                <Ionicons name="warning-outline" size={12} color={isDark ? '#FBBF24' : '#B45309'} />
-                <Text style={[styles.badgePillText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+                <Ionicons name="warning-outline" size={isTablet ? 14 : 12} color={isDark ? '#FBBF24' : '#B45309'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#FBBF24' : '#B45309', fontSize: isTablet ? 13 : 12 }]}>
                   {t('inventory.lowStock')}
                 </Text>
               </View>
@@ -266,11 +555,13 @@ export default function InventoryDetailScreen() {
                     flexDirection,
                     backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5',
                     borderColor: isDark ? 'rgba(16,185,129,0.4)' : '#A7F3D0',
+                    paddingHorizontal: isTablet ? 12 : 10,
+                    paddingVertical: isTablet ? 6.5 : 5,
                   },
                 ]}
               >
-                <Ionicons name="checkmark-circle-outline" size={12} color={isDark ? '#34D399' : '#047857'} />
-                <Text style={[styles.badgePillText, { color: isDark ? '#34D399' : '#047857' }]}>
+                <Ionicons name="checkmark-circle-outline" size={isTablet ? 14 : 12} color={isDark ? '#34D399' : '#047857'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#34D399' : '#047857', fontSize: isTablet ? 13 : 12 }]}>
                   {t('inventory.availableBadge')}
                 </Text>
               </View>
@@ -280,7 +571,7 @@ export default function InventoryDetailScreen() {
             <View
               style={[
                 styles.badgePill,
-                { flexDirection },
+                { flexDirection, paddingHorizontal: isTablet ? 12 : 10, paddingVertical: isTablet ? 6.5 : 5 },
                 product.paymentStatus === 'paid'
                   ? {
                       backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#ECFDF5',
@@ -294,7 +585,7 @@ export default function InventoryDetailScreen() {
             >
               <Ionicons
                 name={product.paymentStatus === 'paid' ? 'checkmark-done-circle-outline' : 'time-outline'}
-                size={12}
+                size={isTablet ? 14 : 12}
                 color={
                   product.paymentStatus === 'paid'
                     ? (isDark ? '#34D399' : '#047857')
@@ -305,6 +596,7 @@ export default function InventoryDetailScreen() {
                 style={[
                   styles.badgePillText,
                   {
+                    fontSize: isTablet ? 13 : 12,
                     color:
                       product.paymentStatus === 'paid'
                         ? (isDark ? '#34D399' : '#047857')
@@ -325,11 +617,13 @@ export default function InventoryDetailScreen() {
                     flexDirection,
                     backgroundColor: isDark ? 'rgba(59,130,246,0.18)' : '#EFF6FF',
                     borderColor: isDark ? 'rgba(59,130,246,0.4)' : '#BFDBFE',
+                    paddingHorizontal: isTablet ? 12 : 10,
+                    paddingVertical: isTablet ? 6.5 : 5,
                   },
                 ]}
               >
-                <Ionicons name="globe-outline" size={12} color={isDark ? '#60A5FA' : '#1D4ED8'} />
-                <Text style={[styles.badgePillText, { color: isDark ? '#60A5FA' : '#1D4ED8' }]}>
+                <Ionicons name="globe-outline" size={isTablet ? 14 : 12} color={isDark ? '#60A5FA' : '#1D4ED8'} />
+                <Text style={[styles.badgePillText, { color: isDark ? '#60A5FA' : '#1D4ED8', fontSize: isTablet ? 13 : 12 }]}>
                   {t('inventory.onlineStoreVisible', 'فرۆشگای ئۆنلاین')}
                 </Text>
               </View>
@@ -337,7 +631,7 @@ export default function InventoryDetailScreen() {
           </View>
         </MotiView>
 
-        {/* Key Stats Card — Modern 2x2 KPI Grid + Full-Width Profit Margin Banner */}
+        {/* Key Stats Card — Modern Square KPI Cards (چوارگۆشە) */}
         <MotiView
           from={{ opacity: 0, translateY: 10 }}
           animate={{ opacity: 1, translateY: 0 }}
@@ -347,227 +641,257 @@ export default function InventoryDetailScreen() {
             {
               backgroundColor: cardBg,
               borderColor: cardBorder,
+              padding: isTablet ? 18 : 16,
             },
           ]}
         >
           {/* Card Section Header */}
-          <View style={[styles.cardHeaderRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-            <View style={[styles.cardHeaderIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
-              <Ionicons name="stats-chart" size={14} color={colors.primary} />
+          <View style={[styles.cardHeaderRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8, marginBottom: isTablet ? 16 : 14 }]}>
+            <View style={[styles.cardHeaderIconBox, { width: isTablet ? 30 : 26, height: isTablet ? 30 : 26, backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7' }]}>
+              <Ionicons name="stats-chart" size={isTablet ? 16 : 14} color={colors.primary} />
             </View>
-            <Text style={[styles.cardHeaderTitle, { color: isDark ? colors.gray600 : colors.gray700, textAlign }]}>
+            <Text style={[styles.cardHeaderTitle, { fontSize: isTablet ? 15 : 13, color: isDark ? colors.gray600 : colors.gray700, textAlign }]}>
               {t('inventory.pricing', 'نرخ و کۆگا')}
             </Text>
           </View>
 
-          {/* 2x2 Grid */}
-          <View style={styles.tilesGrid}>
-            {/* Row 1: Quantity & Buy Price */}
-            <View style={[styles.tilesRow, { flexDirection, gap: 10 }]}>
-              {/* Tile 1: Quantity */}
-              <View
-                style={[
-                  styles.statTile,
-                  {
-                    backgroundColor: subTileBg,
-                    borderColor: subTileBorder,
-                  },
-                ]}
-              >
-                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+          {/* Responsive KPI Grid: Square Cards (چوارگۆشە) on Tablet */}
+          {isTablet && kpiTiles ? (
+            isTabletLandscape ? (
+              /* Landscape iPad: 1 Row with 5 Square Cards */
+              <View style={[styles.kpiSquareRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 }]}>
+                {renderKpiSquareCard(kpiTiles.quantity)}
+                {renderKpiSquareCard(kpiTiles.buyPrice)}
+                {renderKpiSquareCard(kpiTiles.sellPrice)}
+                {renderKpiSquareCard(kpiTiles.profit)}
+                {renderKpiSquareCard(kpiTiles.totalValue)}
+              </View>
+            ) : (
+              /* Portrait iPad: 2 Rows (3 cards in row 1, 2 cards in row 2) */
+              <View style={{ gap: 12 }}>
+                <View style={[styles.kpiSquareRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 }]}>
+                  {renderKpiSquareCard(kpiTiles.quantity)}
+                  {renderKpiSquareCard(kpiTiles.buyPrice)}
+                  {renderKpiSquareCard(kpiTiles.sellPrice)}
+                </View>
+                <View style={[styles.kpiSquareRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 }]}>
+                  {renderKpiSquareCard(kpiTiles.profit)}
+                  {renderKpiSquareCard(kpiTiles.totalValue)}
+                </View>
+              </View>
+            )
+          ) : (
+            /* Mobile Phone: 2x2 Grid + Full-Width Profit Margin Banner */
+            <View>
+              <View style={styles.tilesGrid}>
+                {/* Row 1: Quantity & Buy Price */}
+                <View style={[styles.tilesRow, { flexDirection, gap: 10 }]}>
+                  {/* Tile 1: Quantity */}
                   <View
                     style={[
-                      styles.tileIconCircle,
+                      styles.statTile,
                       {
-                        backgroundColor: isSold
-                          ? (isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9')
-                          : isLowStock
-                          ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
-                          : (isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5'),
+                        backgroundColor: subTileBg,
+                        borderColor: subTileBorder,
                       },
                     ]}
                   >
-                    <Ionicons
-                      name="cube-outline"
-                      size={13}
-                      color={isSold ? colors.gray400 : isLowStock ? colors.warning : colors.success}
-                    />
-                  </View>
-                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
-                    {t('inventory.quantity')}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.tileValue,
-                    {
-                      color: isSold ? colors.gray400 : colors.black,
-                      textAlign,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
-                </Text>
-              </View>
-
-              {/* Tile 2: Buy Price */}
-              <View
-                style={[
-                  styles.statTile,
-                  {
-                    backgroundColor: subTileBg,
-                    borderColor: subTileBorder,
-                  },
-                ]}
-              >
-                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
-                  <View
-                    style={[
-                      styles.tileIconCircle,
-                      { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
-                    ]}
-                  >
-                    <Ionicons name="cart-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
-                  </View>
-                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
-                    {t('inventory.buyPrice')}
-                  </Text>
-                </View>
-                <AmountText
-                  value={product.purchasePrice}
-                  currency="IQD"
-                  style={[styles.tileValue, { color: colors.black, textAlign }]}
-                />
-              </View>
-            </View>
-
-            {/* Row 2: Sell Price & Total Value */}
-            <View style={[styles.tilesRow, { flexDirection, gap: 10, marginTop: 10 }]}>
-              {/* Tile 3: Sell Price */}
-              <View
-                style={[
-                  styles.statTile,
-                  {
-                    backgroundColor: subTileBg,
-                    borderColor: subTileBorder,
-                  },
-                ]}
-              >
-                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
-                  <View
-                    style={[
-                      styles.tileIconCircle,
-                      { backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : '#FEF9C3' },
-                    ]}
-                  >
-                    <Ionicons name="pricetag-outline" size={13} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
-                    {t('inventory.sellPrice')}
-                  </Text>
-                </View>
-                <AmountText
-                  value={product.sellingPrice}
-                  currency="IQD"
-                  style={[styles.tileValue, { color: colors.primary, textAlign }]}
-                />
-              </View>
-
-              {/* Tile 4: Total Value */}
-              <View
-                style={[
-                  styles.statTile,
-                  {
-                    backgroundColor: subTileBg,
-                    borderColor: subTileBorder,
-                  },
-                ]}
-              >
-                <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
-                  <View
-                    style={[
-                      styles.tileIconCircle,
-                      { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
-                    ]}
-                  >
-                    <Ionicons name="wallet-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
-                  </View>
-                  <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
-                    {t('inventory.totalValueLabel')}
-                  </Text>
-                </View>
-                <AmountText
-                  value={totalValue}
-                  currency="IQD"
-                  style={[styles.tileValue, { color: colors.black, textAlign }]}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Row 3: Profit per Unit & Margin Banner */}
-          {profitPerUnit !== 0 && (
-            <View
-              style={[
-                styles.profitBanner,
-                {
-                  flexDirection,
-                  backgroundColor:
-                    profitPerUnit > 0
-                      ? (isDark ? 'rgba(16,185,129,0.14)' : '#ECFDF5')
-                      : (isDark ? 'rgba(239,68,68,0.14)' : '#FEF2F2'),
-                  borderColor:
-                    profitPerUnit > 0
-                      ? (isDark ? 'rgba(16,185,129,0.32)' : '#A7F3D0')
-                      : (isDark ? 'rgba(239,68,68,0.32)' : '#FECACA'),
-                },
-              ]}
-            >
-              <View style={[styles.profitLeft, { flexDirection, gap: 10 }]}>
-                <View
-                  style={[
-                    styles.profitIconCircle,
-                    {
-                      backgroundColor:
-                        profitPerUnit > 0
-                          ? (isDark ? 'rgba(16,185,129,0.25)' : '#D1FAE5')
-                          : (isDark ? 'rgba(239,68,68,0.25)' : '#FEE2E2'),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={profitPerUnit > 0 ? 'trending-up' : 'trending-down'}
-                    size={16}
-                    color={profitPerUnit > 0 ? colors.success : colors.error}
-                  />
-                </View>
-                <View>
-                  <Text style={[styles.profitLabel, { color: isDark ? colors.gray400 : colors.gray600, textAlign }]}>
-                    {t('inventory.profitPerUnit')}
-                  </Text>
-                  {profitMargin ? (
+                    <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                      <View
+                        style={[
+                          styles.tileIconCircle,
+                          {
+                            backgroundColor: isSold
+                              ? (isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9')
+                              : isLowStock
+                              ? (isDark ? 'rgba(245,158,11,0.2)' : '#FEF3C7')
+                              : (isDark ? 'rgba(16,185,129,0.2)' : '#ECFDF5'),
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name="cube-outline"
+                          size={13}
+                          color={isSold ? colors.gray400 : isLowStock ? colors.warning : colors.success}
+                        />
+                      </View>
+                      <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                        {t('inventory.quantity')}
+                      </Text>
+                    </View>
                     <Text
                       style={[
-                        styles.profitMarginText,
-                        { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign },
+                        styles.tileValue,
+                        {
+                          color: isSold ? colors.gray400 : colors.black,
+                          textAlign,
+                        },
                       ]}
+                      numberOfLines={1}
                     >
-                      {profitPerUnit > 0 ? `+${profitMargin}%` : `${profitMargin}%`} {t('reports.margin', 'قازانج')}
+                      {isSold ? t('inventory.soldBadge') : `${product.quantity} ${product.unit}`}
                     </Text>
-                  ) : null}
+                  </View>
+
+                  {/* Tile 2: Buy Price */}
+                  <View
+                    style={[
+                      styles.statTile,
+                      {
+                        backgroundColor: subTileBg,
+                        borderColor: subTileBorder,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                      <View
+                        style={[
+                          styles.tileIconCircle,
+                          { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
+                        ]}
+                      >
+                        <Ionicons name="cart-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
+                      </View>
+                      <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                        {t('inventory.buyPrice')}
+                      </Text>
+                    </View>
+                    <AmountText
+                      value={product.purchasePrice}
+                      currency="IQD"
+                      style={[styles.tileValue, { color: colors.black, textAlign }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Row 2: Sell Price & Total Value */}
+                <View style={[styles.tilesRow, { flexDirection, gap: 10, marginTop: 10 }]}>
+                  {/* Tile 3: Sell Price */}
+                  <View
+                    style={[
+                      styles.statTile,
+                      {
+                        backgroundColor: subTileBg,
+                        borderColor: subTileBorder,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                      <View
+                        style={[
+                          styles.tileIconCircle,
+                          { backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : '#FEF9C3' },
+                        ]}
+                      >
+                        <Ionicons name="pricetag-outline" size={13} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                        {t('inventory.sellPrice')}
+                      </Text>
+                    </View>
+                    <AmountText
+                      value={product.sellingPrice}
+                      currency="IQD"
+                      style={[styles.tileValue, { color: colors.primary, textAlign }]}
+                    />
+                  </View>
+
+                  {/* Tile 4: Total Value */}
+                  <View
+                    style={[
+                      styles.statTile,
+                      {
+                        backgroundColor: subTileBg,
+                        borderColor: subTileBorder,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.tileHeader, { flexDirection, gap: 6 }]}>
+                      <View
+                        style={[
+                          styles.tileIconCircle,
+                          { backgroundColor: isDark ? 'rgba(100,116,139,0.2)' : '#F1F5F9' },
+                        ]}
+                      >
+                        <Ionicons name="wallet-outline" size={13} color={isDark ? colors.gray400 : '#64748B'} />
+                      </View>
+                      <Text style={[styles.tileLabel, { color: colors.gray400, textAlign }]} numberOfLines={1}>
+                        {t('inventory.totalValueLabel')}
+                      </Text>
+                    </View>
+                    <AmountText
+                      value={totalValue}
+                      currency="IQD"
+                      style={[styles.tileValue, { color: colors.black, textAlign }]}
+                    />
+                  </View>
                 </View>
               </View>
 
-              <AmountText
-                value={profitPerUnit}
-                currency="IQD"
-                prefix={profitPerUnit > 0 ? '+' : ''}
-                style={[
-                  styles.profitAmount,
-                  { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign: valueAlign },
-                ]}
-              />
+              {/* Row 3: Profit per Unit & Margin Banner */}
+              {profitPerUnit !== 0 && (
+                <View
+                  style={[
+                    styles.profitBanner,
+                    {
+                      flexDirection,
+                      backgroundColor:
+                        profitPerUnit > 0
+                          ? (isDark ? 'rgba(16,185,129,0.14)' : '#ECFDF5')
+                          : (isDark ? 'rgba(239,68,68,0.14)' : '#FEF2F2'),
+                      borderColor:
+                        profitPerUnit > 0
+                          ? (isDark ? 'rgba(16,185,129,0.32)' : '#A7F3D0')
+                          : (isDark ? 'rgba(239,68,68,0.32)' : '#FECACA'),
+                    },
+                  ]}
+                >
+                  <View style={[styles.profitLeft, { flexDirection, gap: 10 }]}>
+                    <View
+                      style={[
+                        styles.profitIconCircle,
+                        {
+                          backgroundColor:
+                            profitPerUnit > 0
+                              ? (isDark ? 'rgba(16,185,129,0.25)' : '#D1FAE5')
+                              : (isDark ? 'rgba(239,68,68,0.25)' : '#FEE2E2'),
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={profitPerUnit > 0 ? 'trending-up' : 'trending-down'}
+                        size={16}
+                        color={profitPerUnit > 0 ? colors.success : colors.error}
+                      />
+                    </View>
+                    <View>
+                      <Text style={[styles.profitLabel, { color: isDark ? colors.gray400 : colors.gray600, textAlign }]}>
+                        {t('inventory.profitPerUnit')}
+                      </Text>
+                      {profitMargin ? (
+                        <Text
+                          style={[
+                            styles.profitMarginText,
+                            { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign },
+                          ]}
+                        >
+                          {profitPerUnit > 0 ? `+${profitMargin}%` : `${profitMargin}%`} {t('reports.margin', 'قازانج')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  <AmountText
+                    value={profitPerUnit}
+                    currency="IQD"
+                    prefix={profitPerUnit > 0 ? '+' : ''}
+                    style={[
+                      styles.profitAmount,
+                      { color: profitPerUnit > 0 ? colors.success : colors.error, textAlign: valueAlign },
+                    ]}
+                  />
+                </View>
+              )}
             </View>
           )}
         </MotiView>
@@ -694,7 +1018,7 @@ export default function InventoryDetailScreen() {
                     <View style={[styles.batchGrid, { flexDirection, borderColor: isDark ? colors.gray200 : '#E2E8F0' }]}>
                       {/* Buy Price */}
                       <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]} numberOfLines={1}>
                           {t('inventory.purchasePrice', 'نرخی کڕین')}
                         </Text>
                         <AmountText
@@ -702,47 +1026,11 @@ export default function InventoryDetailScreen() {
                           currency="IQD"
                           style={[styles.batchGridValue, { color: colors.black }]}
                         />
-                        {/* Price Delta Indicator vs previous batch */}
-                        {priceDiff !== null && (
-                          <View
-                            style={[
-                              styles.priceDeltaPill,
-                              {
-                                backgroundColor:
-                                  priceDiff > 0
-                                    ? (isDark ? 'rgba(239,68,68,0.18)' : '#FEE2E2')
-                                    : priceDiff < 0
-                                    ? (isDark ? 'rgba(16,185,129,0.18)' : '#D1FAE5')
-                                    : (isDark ? 'rgba(100,116,139,0.15)' : '#F1F5F9'),
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.priceDeltaText,
-                                {
-                                  color:
-                                    priceDiff > 0
-                                      ? colors.error
-                                      : priceDiff < 0
-                                      ? colors.success
-                                      : colors.gray400,
-                                },
-                              ]}
-                            >
-                              {priceDiff > 0
-                                ? `+${priceDiff.toLocaleString()} (گرانتر)`
-                                : priceDiff < 0
-                                ? `${priceDiff.toLocaleString()} (هەرزانتر)`
-                                : (isRTL ? 'هەمان نرخ' : 'Same Price')}
-                            </Text>
-                          </View>
-                        )}
                       </View>
 
                       {/* Sell Price */}
                       <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]} numberOfLines={1}>
                           {t('inventory.sellingPrice', 'نرخی فرۆشتن')}
                         </Text>
                         <AmountText
@@ -754,17 +1042,17 @@ export default function InventoryDetailScreen() {
 
                       {/* Quantity */}
                       <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]} numberOfLines={1}>
                           {isRTL ? 'بڕی کڕدراو' : 'Quantity'}
                         </Text>
-                        <Text style={[styles.batchGridValue, { color: colors.primary, writingDirection: isRTL ? 'rtl' : 'ltr' }]}>
+                        <Text style={[styles.batchGridValue, { color: colors.primary, writingDirection: isRTL ? 'rtl' : 'ltr' }]} numberOfLines={1}>
                           {batch.quantity} {isRTL ? 'دانە' : 'pcs'}
                         </Text>
                       </View>
 
                       {/* Total */}
                       <View style={[styles.batchGridItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }]}>
-                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]}>
+                        <Text style={[styles.batchGridLabel, { color: colors.gray400 }]} numberOfLines={1}>
                           {isRTL ? 'کۆی گشتی' : 'Total'}
                         </Text>
                         <AmountText
@@ -774,6 +1062,66 @@ export default function InventoryDetailScreen() {
                         />
                       </View>
                     </View>
+
+                    {/* Price Delta Comparison Strip vs previous batch */}
+                    {priceDiff !== null && priceDiff !== 0 && (
+                      <View
+                        style={[
+                          styles.batchPriceDiffStrip,
+                          {
+                            flexDirection,
+                            backgroundColor:
+                              priceDiff < 0
+                                ? (isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5')
+                                : (isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2'),
+                            borderColor:
+                              priceDiff < 0
+                                ? (isDark ? 'rgba(16,185,129,0.25)' : '#A7F3D0')
+                                : (isDark ? 'rgba(239,68,68,0.25)' : '#FECACA'),
+                          },
+                        ]}
+                      >
+                        <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
+                          <View
+                            style={[
+                              styles.batchPriceDiffIconBox,
+                              {
+                                backgroundColor:
+                                  priceDiff < 0
+                                    ? (isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5')
+                                    : (isDark ? 'rgba(239,68,68,0.2)' : '#FEE2E2'),
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={priceDiff < 0 ? 'trending-down' : 'trending-up'}
+                              size={13}
+                              color={priceDiff < 0 ? colors.success : colors.error}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.batchPriceDiffLabel,
+                              { color: priceDiff < 0 ? colors.success : colors.error },
+                            ]}
+                          >
+                            {priceDiff < 0
+                              ? (isRTL ? 'هەرزانتر لە وەجبەی پێشوو' : 'Cheaper than previous batch')
+                              : (isRTL ? 'گرانتر لە وەجبەی پێشوو' : 'Higher than previous batch')}
+                          </Text>
+                        </View>
+
+                        <AmountText
+                          value={Math.abs(priceDiff)}
+                          currency="IQD"
+                          prefix={priceDiff < 0 ? '− ' : '+ '}
+                          style={[
+                            styles.batchPriceDiffAmount,
+                            { color: priceDiff < 0 ? colors.success : colors.error },
+                          ]}
+                        />
+                      </View>
+                    )}
 
                     {/* Batch Bottom Row: Supplier & Invoice Link */}
                     <View style={[styles.batchBottomRow, { flexDirection }]}>
@@ -943,8 +1291,8 @@ export default function InventoryDetailScreen() {
           </MotiView>
         )}
 
-        {/* Item IDs section */}
-        {product.itemId && (
+        {/* Item IDs section (on mobile; tablet pairs with online store below) */}
+        {!isTablet && product.itemId && (
           <MotiView
             from={{ opacity: 0, translateY: 10 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -1039,6 +1387,102 @@ export default function InventoryDetailScreen() {
           </MotiView>
         )}
 
+        {/* Secondary Info on Tablet: 2-Column Row for Item ID + Online Store */}
+        {isTablet && (
+          <View style={[styles.tabletTwoColRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 14, marginBottom: 14 }]}>
+            {/* Card 1: Item ID (if present) */}
+            {product.itemId ? (
+              <View
+                style={[
+                  styles.section,
+                  {
+                    flex: 1,
+                    marginBottom: 0,
+                    backgroundColor: cardBg,
+                    borderColor: cardBorder,
+                    padding: isRTL ? RTL_SPACING.cardPad : 18,
+                    justifyContent: 'center',
+                  },
+                ]}
+              >
+                <View style={[styles.sectionTitleRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8, marginBottom: 12 }]}>
+                  <View style={[styles.sectionTitleIconBox, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7', width: 28, height: 28 }]}>
+                    <Ionicons name="barcode-outline" size={15} color={colors.primary} />
+                  </View>
+                  <Text style={[sectionTitleStyle, { fontSize: 14 }]}>{isCustom ? t('inventory.itemIdUnique') : t('inventory.itemIdShared')}</Text>
+                </View>
+                <View style={[styles.idChipWrap, { flexDirection }]}>
+                  <View
+                    style={[
+                      styles.idChip,
+                      {
+                        backgroundColor: isDark ? colors.gray50 : colors.softBlue,
+                        borderColor: isDark ? colors.gray200 : '#BFDBFE',
+                        paddingHorizontal: 16,
+                        paddingVertical: 9,
+                      },
+                    ]}
+                  >
+                    <IdText style={[styles.idChipText, { color: isDark ? colors.black : colors.primaryDark, fontSize: 15, lineHeight: undefined }]}>
+                      {product.itemId}
+                    </IdText>
+                  </View>
+                  {isCustom && (
+                    <View
+                      style={[
+                        styles.idChip,
+                        isSold
+                          ? { backgroundColor: isDark ? colors.gray200 : colors.gray100, borderColor: cardBorder }
+                          : { backgroundColor: idAvailTint.bg, borderColor: isDark ? 'rgba(16,185,129,0.3)' : '#A7F3D0' },
+                        { paddingHorizontal: 16, paddingVertical: 9 },
+                      ]}
+                    >
+                      <Text style={[styles.idChipText, { color: isDark ? colors.black : colors.primaryDark, fontSize: 14 }]}>
+                        {isSold ? t('inventory.soldBadge') : t('inventory.availableBadge')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ) : null}
+
+            {/* Card 2: Online Store Visibility */}
+            <View
+              style={[
+                styles.storeVisRow,
+                {
+                  flex: 1,
+                  marginBottom: 0,
+                  backgroundColor: cardBg,
+                  borderColor: cardBorder,
+                  flexDirection,
+                  gap: isRTL ? RTL_SPACING.gap : 12,
+                  padding: isRTL ? RTL_SPACING.cardPad : 18,
+                  justifyContent: 'space-between',
+                },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.storeVisLabel, { color: colors.black, textAlign, writingDirection, fontSize: 15 }]}>
+                  {t('inventory.onlineStoreVisible')}
+                </Text>
+                <Text style={[styles.storeVisSub, { color: colors.gray400, textAlign, writingDirection, fontSize: 13, lineHeight: 18, marginTop: 2 }]}>
+                  {hasActiveSubscription
+                    ? t('inventory.onlineStoreVisibleSub')
+                    : t('dashboard.onlineStore.subscriptionRequired')}
+                </Text>
+              </View>
+              <Switch
+                value={product.storeVisible}
+                onValueChange={handleToggleStoreVisible}
+                disabled={!hasActiveSubscription}
+                trackColor={{ false: colors.gray200, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+          </View>
+        )}
+
         {/* Sales history */}
         <MotiView
           from={{ opacity: 0, translateY: 10 }}
@@ -1063,7 +1507,14 @@ export default function InventoryDetailScreen() {
           </View>
 
           {salesHistory.length === 0 ? (
-            <Text style={[styles.noSales, { color: colors.gray400, textAlign, writingDirection }]}>{t('inventory.noSales')}</Text>
+            <View style={styles.emptySalesWrap}>
+              <View style={[styles.emptySalesIconBox, { backgroundColor: isDark ? colors.gray50 : '#F8FAFC' }]}>
+                <Ionicons name="receipt-outline" size={isTablet ? 28 : 22} color={colors.gray400} />
+              </View>
+              <Text style={[styles.noSales, { color: colors.gray400, textAlign, writingDirection, fontSize: isTablet ? 14 : 13 }]}>
+                {t('inventory.noSales')}
+              </Text>
+            </View>
           ) : (
             salesHistory.map((s) => (
               <TouchableOpacity
@@ -1085,45 +1536,55 @@ export default function InventoryDetailScreen() {
           )}
         </MotiView>
 
-        {/* Online Store Visible Row */}
-        <View
-          style={[
-            styles.storeVisRow,
-            {
-              backgroundColor: cardBg,
-              borderColor: cardBorder,
-              flexDirection,
-              gap: isRTL ? RTL_SPACING.gap : 12,
-              padding: isRTL ? RTL_SPACING.cardPad : 16,
-            },
-          ]}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.storeVisLabel, { color: colors.black, textAlign, writingDirection }]}>{t('inventory.onlineStoreVisible')}</Text>
-            <Text style={[styles.storeVisSub, { color: colors.gray400, textAlign, writingDirection }]}>
-              {hasActiveSubscription
-                ? t('inventory.onlineStoreVisibleSub')
-                : t('dashboard.onlineStore.subscriptionRequired')}
-            </Text>
+        {/* Online Store Visible Row (Mobile only, on tablet it is paired above) */}
+        {!isTablet && (
+          <View
+            style={[
+              styles.storeVisRow,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+                flexDirection,
+                gap: isRTL ? RTL_SPACING.gap : 12,
+                padding: isRTL ? RTL_SPACING.cardPad : 16,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.storeVisLabel, { color: colors.black, textAlign, writingDirection }]}>{t('inventory.onlineStoreVisible')}</Text>
+              <Text style={[styles.storeVisSub, { color: colors.gray400, textAlign, writingDirection }]}>
+                {hasActiveSubscription
+                  ? t('inventory.onlineStoreVisibleSub')
+                  : t('dashboard.onlineStore.subscriptionRequired')}
+              </Text>
+            </View>
+            <Switch
+              value={product.storeVisible}
+              onValueChange={handleToggleStoreVisible}
+              disabled={!hasActiveSubscription}
+              trackColor={{ false: colors.gray200, true: colors.primary }}
+              thumbColor={colors.white}
+            />
           </View>
-          <Switch
-            value={product.storeVisible}
-            onValueChange={handleToggleStoreVisible}
-            disabled={!hasActiveSubscription}
-            trackColor={{ false: colors.gray200, true: colors.primary }}
-            thumbColor={colors.white}
-          />
-        </View>
+        )}
 
         {/* Action Buttons */}
         <View style={[styles.actions, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 12 }]}>
           <TouchableOpacity
-            style={[styles.editBtn, { backgroundColor: colors.primary, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}
+            style={[
+              styles.editBtn,
+              {
+                backgroundColor: colors.primary,
+                flexDirection,
+                gap: isRTL ? RTL_SPACING.gapSm : 8,
+                paddingVertical: isTablet ? 16 : 14,
+              },
+            ]}
             onPress={() => router.push(`/(app)/inventory/edit/${product.id}` as never)}
             activeOpacity={0.85}
           >
-            <Ionicons name="create-outline" size={18} color="#FFFFFF" />
-            <Text style={[styles.editBtnText, { color: '#FFFFFF' }]}>{t('inventory.editProduct')}</Text>
+            <Ionicons name="create-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
+            <Text style={[styles.editBtnText, { color: '#FFFFFF', fontSize: isTablet ? 16 : 15 }]}>{t('inventory.editProduct')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -1133,13 +1594,15 @@ export default function InventoryDetailScreen() {
                 borderColor: colors.error,
                 flexDirection,
                 gap: isRTL ? RTL_SPACING.gapSm : 6,
+                paddingVertical: isTablet ? 16 : 14,
+                paddingHorizontal: isTablet ? 24 : 20,
               },
             ]}
             onPress={confirmDelete}
             activeOpacity={0.85}
           >
-            <Ionicons name="trash-outline" size={18} color={colors.error} />
-            <Text style={[styles.deleteBtnText, { color: colors.error }]}>{t('common.delete')}</Text>
+            <Ionicons name="trash-outline" size={isTablet ? 20 : 18} color={colors.error} />
+            <Text style={[styles.deleteBtnText, { color: colors.error, fontSize: isTablet ? 16 : 15 }]}>{t('common.delete')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1304,6 +1767,73 @@ const styles = StyleSheet.create({
   profitAmount: {
     fontSize: 17,
     fontWeight: '800',
+  },
+
+  // Square KPI Cards (Tablet & Compact)
+  kpiSquareRow: {
+    width: '100%',
+  },
+  kpiSquareCard: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    minHeight: 148,
+    justifyContent: 'space-between',
+    ...Theme.shadow.soft,
+  },
+  kpiSquareTopRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  kpiSquareIconBox: {
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kpiSquareBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 7,
+    borderWidth: 1,
+  },
+  kpiSquareBadgeText: {
+    fontWeight: '700',
+  },
+  kpiSquareBottomWrap: {
+    marginTop: 10,
+    width: '100%',
+  },
+  kpiSquareLabel: {
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  kpiSquareValueRow: {
+    width: '100%',
+  },
+  kpiSquareValue: {
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+
+  // Tablet Two-Column Row & Empty Sales Wrap
+  tabletTwoColRow: {
+    width: '100%',
+    alignItems: 'stretch',
+  },
+  emptySalesWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
+  emptySalesIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Sections
@@ -1541,17 +2071,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  priceDeltaPill: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 2,
-    alignSelf: 'center',
+  batchPriceDiffStrip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  priceDeltaText: {
-    fontSize: 9.5,
+  batchPriceDiffIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  batchPriceDiffLabel: {
+    fontSize: 11.5,
     fontWeight: '700',
-    textAlign: 'center',
+  },
+  batchPriceDiffAmount: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   batchBottomRow: {
     justifyContent: 'space-between',

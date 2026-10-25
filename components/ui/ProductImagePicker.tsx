@@ -42,10 +42,12 @@ export function ProductImagePicker({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
-  const savedCount = useSavedProductStore((s) => s.savedPresets.length);
+  const savedCount = useSavedProductStore(
+    (s) => s.savedPresets.filter((p) => Boolean(p.imageUri && p.imageUri.trim())).length
+  );
 
   const [showModal, setShowModal] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);

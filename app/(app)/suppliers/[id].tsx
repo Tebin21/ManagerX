@@ -21,6 +21,7 @@ import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
@@ -398,9 +399,7 @@ export default function SupplierDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('suppliers.title')} showBack onBack={() => router.back()} />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingView />
       </View>
     );
   }

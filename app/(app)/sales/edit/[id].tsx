@@ -20,6 +20,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { AppTextInput } from '@/components/ui/AppTextInput';
@@ -308,26 +309,28 @@ export default function EditInvoiceScreen() {
   const numId = Number(id);
   if (!id || isNaN(numId)) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title="" showBack />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('sales.editSale')} showBack />
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title="" showBack />
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('sales.editSale')} showBack />
+        <LoadingView />
       </View>
     );
   }
 
   if (!sale) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('sales.saleNotFound')} showBack />
-        <Text style={{ color: colors.gray500, marginTop: 16 }}>{t('sales.saleNotFound')}</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: colors.gray500, marginTop: 16 }}>{t('sales.saleNotFound')}</Text>
+        </View>
       </View>
     );
   }

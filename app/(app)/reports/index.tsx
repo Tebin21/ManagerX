@@ -13,6 +13,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { PremiumCard } from '@/components/ui/PremiumCard';
@@ -1259,10 +1260,7 @@ export default function ReportsScreen() {
       />
 
       {isLoading ? (
-        <View style={styles.loadingCenter}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>{t('reports.loading')}</Text>
-        </View>
+        <LoadingView />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

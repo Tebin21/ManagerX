@@ -36,6 +36,7 @@ interface Props {
   /** Smaller footprint for tight layouts (e.g. a 3-column item row). Default false. */
   compact?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
+  wrapperStyle?: StyleProp<ViewStyle>;
   testID?: string;
 }
 
@@ -81,7 +82,7 @@ function StepButton({
       >
         <Ionicons
           name={icon}
-          size={compact ? 14 : (isTablet ? 22 : 18)}
+          size={compact ? 16 : (isTablet ? 22 : 18)}
           color={disabled ? colors.gray300 : colors.primary}
         />
       </TouchableOpacity>
@@ -109,6 +110,7 @@ export function QuantityStepper({
   placeholder,
   compact = false,
   containerStyle,
+  wrapperStyle,
   testID,
 }: Props) {
   const { colors } = useAppTheme();
@@ -164,6 +166,7 @@ export function QuantityStepper({
             flexDirection,
           },
           disabled && styles.disabledWrapper,
+          wrapperStyle,
         ]}
       >
         <StepButton
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     borderWidth:        1.5,
     borderRadius:       Theme.radius.sm,
-    height:             40,
+    height:             38,
     paddingHorizontal:  3,
     gap:                2,
     shadowOffset:       { width: 0, height: 0 },
@@ -250,9 +253,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepBtnCompact: {
-    width:          28,
-    height:         28,
-    borderRadius:   14,
+    width:          32,
+    height:         32,
+    borderRadius:   16,
     alignItems:     'center',
     justifyContent: 'center',
   },
@@ -266,9 +269,9 @@ const styles = StyleSheet.create({
   },
   inputCompact: {
     flex:       1,
-    minWidth:   24,
+    minWidth:   26,
     height:     '100%',
-    fontSize:   14,
+    fontSize:   15,
     fontWeight: '700',
     textAlign:  'center',
     paddingHorizontal: 0,

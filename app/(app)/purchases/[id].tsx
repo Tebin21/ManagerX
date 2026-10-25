@@ -235,6 +235,50 @@ export default function PurchaseDetailScreen() {
         </LinearGradient>
       </MotiView>
 
+      {/* Supplier Debt & Batch Link Banner */}
+      {purchaseDebt ? (
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 40 }}
+        >
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push(`/(app)/debt/purchase/${purchaseDebt.id}` as never)}
+            style={[
+              styles.debtBanner,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                borderColor: colors.primary,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <View style={[styles.debtBannerIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="card" size={18} color="#0F172A" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.debtBannerTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isRTL ? 'وردەکاریی قەرزی ئەم وەجبەیە لە دابینکەر' : 'Supplier Debt & Batch Details'}
+                </Text>
+                <View style={[styles.debtRemainingBadge, { backgroundColor: purchaseDebt.remainingAmount > 0 ? (isDark ? '#7F1D1D' : '#FEE2E2') : (isDark ? '#064E3B' : '#D1FAE5') }]}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: purchaseDebt.remainingAmount > 0 ? (isDark ? '#FCA5A5' : '#B91C1C') : (isDark ? '#6EE7B7' : '#047857') }}>
+                    {purchaseDebt.remainingAmount > 0 ? `${isRTL ? 'ماوە:' : 'Remaining:'} ${fmtIQD(purchaseDebt.remainingAmount)}` : (isRTL ? 'دراوەتەوە' : 'Settled')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.debtBannerSub, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>
+                {isRTL
+                  ? 'بۆ بینینی مێژووی پارەدان، وەجبە و وەسڵی قەرزی دابینکەر کرتە بکە.'
+                  : 'Tap to view supplier payment history, batch details, and debt PDF.'}
+              </Text>
+            </View>
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </MotiView>
+      ) : null}
+
       {/* Product */}
       <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 60 }}>
         <PremiumCard style={styles.section}>
@@ -255,6 +299,26 @@ export default function PurchaseDetailScreen() {
             </>
           )}
           {purchase.warranty ? <InfoRow label={t('purchases.warranty')} value={purchase.warranty} /> : null}
+
+          {purchaseDebt?.productId ? (
+            <TouchableOpacity
+              style={[
+                styles.viewInventoryBtn,
+                {
+                  flexDirection,
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                  borderColor: colors.primary,
+                },
+              ]}
+              onPress={() => router.push(`/(app)/inventory/${purchaseDebt.productId}` as never)}
+            >
+              <Ionicons name="layers" size={14} color={colors.primary} />
+              <Text style={[styles.viewInventoryBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
+                {isRTL ? 'بینینی وەجبەکانی ئەم بەرهەمە لە کۆگا' : 'View Product Batches in Inventory'}
+              </Text>
+              <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
+            </TouchableOpacity>
+          ) : null}
         </PremiumCard>
       </MotiView>
 
@@ -519,5 +583,48 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
     marginTop: 2,
+  },
+  debtBanner: {
+    padding: 14,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  debtBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  debtBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  debtBannerSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  debtRemainingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  viewInventoryBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  viewInventoryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -19,7 +19,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { Text } from '@/components/ui/AppText';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
@@ -86,13 +86,19 @@ export default function InventoryScreen() {
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
-  // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT on open as requested!
-  const [activeNavTab, setActiveNavTab] = useState<InventoryNavTab>('report');
+  const params = useLocalSearchParams<{ tab?: string }>();
+
+  // Navigation Tab: 'report' MUST ALWAYS BE DEFAULT on open as requested unless tab param specified!
+  const [activeNavTab, setActiveNavTab] = useState<InventoryNavTab>(params.tab === 'products' ? 'products' : 'report');
 
   useFocusEffect(
     useCallback(() => {
-      setActiveNavTab('report');
-    }, [])
+      if (params.tab === 'products') {
+        setActiveNavTab('products');
+      } else {
+        setActiveNavTab('report');
+      }
+    }, [params.tab])
   );
 
   const activeTabTextColor = useMemo(() => {
@@ -561,9 +567,9 @@ export default function InventoryScreen() {
     </MotiView>
   );
 
-  // Balance out incomplete rows in grid view with transparent fillers
+  // Balance out incomplete rows in multi-column view with transparent fillers
   const gridFormattedProducts: ProductOrFiller[] = useMemo(() => {
-    if (viewMode !== 'grid' || numColumns <= 1 || visible.length === 0) {
+    if (numColumns <= 1 || visible.length === 0) {
       return visible;
     }
     const remainder = visible.length % numColumns;
@@ -574,7 +580,7 @@ export default function InventoryScreen() {
       isFiller: true as const,
     }));
     return [...visible, ...fillers];
-  }, [visible, viewMode, numColumns]);
+  }, [visible, numColumns]);
 
   const handleProductPress = useCallback(
     (productId: number) => {
@@ -1042,12 +1048,19 @@ export default function InventoryScreen() {
 
           {/* 6. Products FlatList */}
           <FlatList
-            key={`inv-list-${viewMode}-${numColumns}`}
+            key={`inv-list-${viewMode}-${numColumns}-${isRTL ? 'rtl' : 'ltr'}`}
             data={gridFormattedProducts}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
             numColumns={numColumns}
-            columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
+            columnWrapperStyle={
+              numColumns > 1
+                ? {
+                    gap: 12,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
+                : undefined
+            }
             contentContainerStyle={[
               styles.list,
               isTablet && contentContainerStyle,

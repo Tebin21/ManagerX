@@ -2006,10 +2006,40 @@ export async function getProductBatches(
   const database = await getDatabase();
   const trimmedName = (productName || '').trim().toLowerCase();
 
+  // Check if expiry tracking is enabled
+  let isExpiryEnabled = false;
+  try {
+    const { useSettingsStore } = await import('@/store/settingsStore');
+    isExpiryEnabled = !!useSettingsStore.getState().expiryTrackingEnabled;
+    if (!isExpiryEnabled) {
+      const settingVal = await loadSetting('expiry_tracking_enabled');
+      isExpiryEnabled = settingVal === '1';
+    }
+  } catch {
+    try {
+      const settingVal = await loadSetting('expiry_tracking_enabled');
+      isExpiryEnabled = settingVal === '1';
+    } catch {}
+  }
+
   const productRow = await database.getFirstAsync<Record<string, unknown>>(
     'SELECT * FROM products WHERE id = ?',
     [productId]
   );
+
+  const orderByClause = isExpiryEnabled
+    ? `ORDER BY 
+         CASE 
+           WHEN COALESCE(pi.expiry_date, p.expiry_date) IS NOT NULL 
+                AND TRIM(COALESCE(pi.expiry_date, p.expiry_date)) != '' 
+           THEN 0 
+           ELSE 1 
+         END ASC,
+         COALESCE(pi.expiry_date, p.expiry_date) ASC,
+         p.date ASC, 
+         p.created_at ASC, 
+         p.id ASC`
+    : `ORDER BY p.date ASC, p.created_at ASC, p.id ASC`;
 
   const rows = await database.getAllAsync<Record<string, unknown>>(`
     SELECT 
@@ -2033,11 +2063,16 @@ export async function getProductBatches(
        OR p.id = (SELECT purchase_id FROM products WHERE id = ?)
        ${itemId ? `OR p.item_ids LIKE ? OR (pi.item_ids IS NOT NULL AND pi.item_ids LIKE ?)` : ''}
     GROUP BY p.id
-    ORDER BY p.date ASC, p.created_at ASC, p.id ASC
+    ${orderByClause}
   `, itemId 
       ? [trimmedName, productId, `%"${itemId}"%`, `%"${itemId}"%`]
       : [trimmedName, productId]
   );
+
+  const currentStock = Number(productRow?.quantity) || 0;
+  if (currentStock <= 0) {
+    return [];
+  }
 
   if (!rows || rows.length === 0) {
     return [{
@@ -2049,7 +2084,7 @@ export async function getProductBatches(
       buyPriceUSD: Number(productRow?.buy_price_usd) || 0,
       sellPriceIQD: Number(productRow?.selling_price) || 0,
       sellPriceUSD: Number(productRow?.sell_price_usd) || 0,
-      quantity: Number(productRow?.quantity) || 1,
+      quantity: currentStock,
       productionDate: (productRow?.production_date as string) || null,
       expiryDate: (productRow?.expiry_date as string) || null,
       supplierName: (productRow?.supplier_name as string) || null,
@@ -2057,7 +2092,71 @@ export async function getProductBatches(
     }];
   }
 
-  return rows.map((r, index) => ({
+  // 1. Sort purchases chronologically to calculate FIFO stock depletion
+  const chronologicalRows = [...rows].sort((a, b) => {
+    const dateA = (a.date || a.created_at || '') as string;
+    const dateB = (b.date || b.created_at || '') as string;
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return Number(a.purchase_id) - Number(b.purchase_id);
+  });
+
+  const totalPurchased = chronologicalRows.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
+  let totalSold = Math.max(0, totalPurchased - currentStock);
+
+  // 2. Deplete sold items from oldest purchases; drop any batch that is completely sold out
+  const activeBatchesRaw: Array<Record<string, unknown> & { availableQty: number }> = [];
+
+  for (const r of chronologicalRows) {
+    const origQty = Number(r.quantity) || 0;
+    if (totalSold >= origQty) {
+      // Entire batch already sold out -> DO NOT show in sales
+      totalSold -= origQty;
+      continue;
+    }
+
+    const remainingQty = origQty - totalSold;
+    totalSold = 0;
+
+    if (remainingQty > 0) {
+      activeBatchesRaw.push({
+        ...r,
+        availableQty: remainingQty,
+      });
+    }
+  }
+
+  // If manual stock was adjusted higher than purchases, assign the remainder to the newest batch
+  const totalActiveQty = activeBatchesRaw.reduce((sum, b) => sum + b.availableQty, 0);
+  if (currentStock > totalActiveQty && activeBatchesRaw.length > 0) {
+    activeBatchesRaw[activeBatchesRaw.length - 1].availableQty += (currentStock - totalActiveQty);
+  } else if (activeBatchesRaw.length === 0 && currentStock > 0) {
+    const latestPurchase = chronologicalRows[chronologicalRows.length - 1];
+    activeBatchesRaw.push({
+      ...latestPurchase,
+      availableQty: currentStock,
+    });
+  }
+
+  // 3. When expiry tracking is active, prioritize closest expiry date among the remaining in-stock batches
+  if (isExpiryEnabled && activeBatchesRaw.length > 1) {
+    activeBatchesRaw.sort((a, b) => {
+      const expA = (a.expiry_date as string | null)?.trim() || null;
+      const expB = (b.expiry_date as string | null)?.trim() || null;
+      if (expA && expB) {
+        if (expA !== expB) return expA.localeCompare(expB);
+      } else if (expA && !expB) {
+        return -1;
+      } else if (!expA && expB) {
+        return 1;
+      }
+      const dateA = (a.date || a.created_at || '') as string;
+      const dateB = (b.date || b.created_at || '') as string;
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return Number(a.purchase_id) - Number(b.purchase_id);
+    });
+  }
+
+  return activeBatchesRaw.map((r, index) => ({
     batchNum: index + 1,
     purchaseId: Number(r.purchase_id),
     purchaseNumber: (r.purchase_number as string) || `P-${r.purchase_id}`,
@@ -2066,7 +2165,7 @@ export async function getProductBatches(
     buyPriceUSD: Number(r.buy_price_usd) || 0,
     sellPriceIQD: Number(r.sell_price_iqd) || (Number(productRow?.selling_price) || 0),
     sellPriceUSD: Number(r.sell_price_usd) || (Number(productRow?.sell_price_usd) || 0),
-    quantity: Number(r.quantity) || 1,
+    quantity: r.availableQty,
     productionDate: (r.production_date as string) || null,
     expiryDate: (r.expiry_date as string) || null,
     supplierName: (r.supplier_name as string) || null,
@@ -2220,6 +2319,47 @@ export async function upsertCustomer(input: {
     'INSERT INTO customers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
     [trimName, trimPhone || null, input.address?.trim() || null, await newUuid()]
   );
+  return result.lastInsertRowId;
+}
+
+export async function getOrCreateCustomerAccount(input: {
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+  selectedId?: number | null;
+}): Promise<number> {
+  const database = await getDatabase();
+  const trimName = input.name.trim();
+  if (!trimName) return 0;
+  if (isDirectCustomerName(trimName)) {
+    return ensureDirectCustomer(database);
+  }
+
+  if (input.selectedId) {
+    return input.selectedId;
+  }
+
+  const trimPhone = input.phone ? toEnglishDigits(input.phone.trim()) : '';
+
+  if (trimPhone) {
+    const existing = await database.getFirstAsync<{ id: number }>(
+      'SELECT id FROM customers WHERE phone = ?',
+      [trimPhone]
+    );
+    if (existing) return existing.id;
+  }
+
+  const existingByName = await database.getFirstAsync<{ id: number }>(
+    'SELECT id FROM customers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+    [trimName]
+  );
+  if (existingByName) return existingByName.id;
+
+  const result = await database.runAsync(
+    'INSERT INTO customers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
+    [trimName, trimPhone || null, input.address?.trim() || null, await newUuid()]
+  );
+
   return result.lastInsertRowId;
 }
 
@@ -2850,7 +2990,9 @@ function rowToSaleItem(row: Record<string, unknown>): SaleItem {
     quantity: row.quantity as number,
     discount: row.discount as number,
     lineTotal: row.line_total as number,
-    batchNumber: row.batch_number != null ? Number(row.batch_number) : null,
+    batchNumber: row.resolved_batch_number != null
+      ? Number(row.resolved_batch_number)
+      : (row.batch_number != null ? Number(row.batch_number) : null),
     purchaseId: row.purchase_id != null ? Number(row.purchase_id) : null,
     itemDescription: (row.item_description as string | null | undefined) ?? null,
   };
@@ -3043,7 +3185,21 @@ export async function getSaleById(id: number): Promise<Sale | null> {
 
   const sale = rowToSale(row);
   const itemRows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT si.*, p.item_description AS item_description
+    `SELECT si.*, p.item_description AS item_description,
+            COALESCE(
+              si.batch_number,
+              CASE 
+                WHEN si.purchase_id IS NOT NULL THEN (
+                  SELECT COUNT(*)
+                  FROM purchases p2
+                  WHERE LOWER(TRIM(p2.product_name)) = LOWER(TRIM(si.product_name))
+                    AND (p2.date < (SELECT date FROM purchases WHERE id = si.purchase_id)
+                         OR (p2.date = (SELECT date FROM purchases WHERE id = si.purchase_id) AND p2.id <= si.purchase_id))
+                )
+                WHEN (SELECT COUNT(*) FROM purchases p3 WHERE LOWER(TRIM(p3.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN 1
+                ELSE NULL
+              END
+            ) AS resolved_batch_number
      FROM sale_items si
      LEFT JOIN products p ON p.id = si.product_id
      WHERE si.sale_id = ?`, [id]
@@ -4262,13 +4418,40 @@ function rowToPurchaseDebt(row: Record<string, unknown>): PurchaseDebt {
     initialPaymentMethod: (row.initial_payment_method as 'cash' | 'fib' | null) ?? null,
     createdAt:       row.created_at as string,
     updatedAt:       row.updated_at as string,
+    productName:     (row.product_name as string | null) ?? null,
+    batchNumber:     row.batch_number != null ? Number(row.batch_number) : null,
+    totalBatches:    row.total_batches != null ? Number(row.total_batches) : null,
+    batchQuantity:   row.batch_quantity != null ? Number(row.batch_quantity) : null,
+    purchaseDate:    (row.purchase_date as string | null) ?? null,
+    productId:       row.product_id != null ? Number(row.product_id) : null,
   };
 }
 
 export async function getAllPurchaseDebts(): Promise<PurchaseDebt[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM purchase_debts WHERE remaining_amount > 0 ORDER BY created_at DESC`
+    `SELECT pd.*,
+            p.product_name,
+            p.quantity AS batch_quantity,
+            p.date AS purchase_date,
+            (
+              SELECT COUNT(*)
+              FROM purchases p2
+              WHERE LOWER(TRIM(p2.product_name)) = LOWER(TRIM(p.product_name))
+                AND (p2.date < p.date OR (p2.date = p.date AND p2.id <= p.id))
+            ) AS batch_number,
+            (
+              SELECT COUNT(*)
+              FROM purchases p3
+              WHERE LOWER(TRIM(p3.product_name)) = LOWER(TRIM(p.product_name))
+            ) AS total_batches,
+            (
+              SELECT id FROM products pr WHERE LOWER(TRIM(pr.name)) = LOWER(TRIM(p.product_name)) LIMIT 1
+            ) AS product_id
+     FROM purchase_debts pd
+     LEFT JOIN purchases p ON p.id = pd.purchase_id
+     WHERE pd.remaining_amount > 0
+     ORDER BY pd.created_at DESC`
   );
   return rows.map(rowToPurchaseDebt);
 }
@@ -4276,7 +4459,28 @@ export async function getAllPurchaseDebts(): Promise<PurchaseDebt[]> {
 export async function getPurchaseDebtById(id: number): Promise<PurchaseDebt | null> {
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
-    `SELECT * FROM purchase_debts WHERE id = ?`, [id]
+    `SELECT pd.*,
+            p.product_name,
+            p.quantity AS batch_quantity,
+            p.date AS purchase_date,
+            (
+              SELECT COUNT(*)
+              FROM purchases p2
+              WHERE LOWER(TRIM(p2.product_name)) = LOWER(TRIM(p.product_name))
+                AND (p2.date < p.date OR (p2.date = p.date AND p2.id <= p.id))
+            ) AS batch_number,
+            (
+              SELECT COUNT(*)
+              FROM purchases p3
+              WHERE LOWER(TRIM(p3.product_name)) = LOWER(TRIM(p.product_name))
+            ) AS total_batches,
+            (
+              SELECT id FROM products pr WHERE LOWER(TRIM(pr.name)) = LOWER(TRIM(p.product_name)) LIMIT 1
+            ) AS product_id
+     FROM purchase_debts pd
+     LEFT JOIN purchases p ON p.id = pd.purchase_id
+     WHERE pd.id = ?`,
+    [id]
   );
   return row ? rowToPurchaseDebt(row) : null;
 }
@@ -4360,6 +4564,8 @@ function rowToSalesDebtDetail(row: Record<string, unknown>): SalesDebtDetail {
     customerAddress: (row.customer_address as string | null) ?? null,
     warranty:        (row.warranty as string | null) ?? null,
     saleNotes:       (row.sale_notes as string | null) ?? null,
+    productsSummary: (row.products_summary as string | null) ?? null,
+    itemsCount:      row.items_count != null ? Number(row.items_count) : undefined,
   };
 }
 
@@ -4367,7 +4573,24 @@ export async function getAllSalesDebtsDetailed(): Promise<SalesDebtDetail[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(
     `SELECT d.*, s.invoice_number, s.customer_address,
-            s.warranty, s.notes AS sale_notes
+            s.warranty, s.notes AS sale_notes,
+            (
+              SELECT GROUP_CONCAT(
+                si.product_name || CASE 
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  ELSE ''
+                END,
+                ' ، '
+              )
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS products_summary,
+            (
+              SELECT COUNT(DISTINCT si.product_id)
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS items_count
      FROM debts d
      JOIN sales s ON d.sale_id = s.id
      WHERE d.remaining_amount > 0
@@ -4380,11 +4603,58 @@ export async function getSalesDebtById(id: number): Promise<SalesDebtDetail | nu
   const database = await getDatabase();
   const row = await database.getFirstAsync<Record<string, unknown>>(
     `SELECT d.*, s.invoice_number, s.customer_address,
-            s.warranty, s.notes AS sale_notes
+            s.warranty, s.notes AS sale_notes,
+            (
+              SELECT GROUP_CONCAT(
+                si.product_name || CASE 
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  ELSE ''
+                END,
+                ' ، '
+              )
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS products_summary,
+            (
+              SELECT COUNT(DISTINCT si.product_id)
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS items_count
      FROM debts d
      JOIN sales s ON d.sale_id = s.id
      WHERE d.id = ?`,
     [id]
+  );
+  return row ? rowToSalesDebtDetail(row) : null;
+}
+
+export async function getSalesDebtBySaleId(saleId: number): Promise<SalesDebtDetail | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(
+    `SELECT d.*, s.invoice_number, s.customer_address,
+            s.warranty, s.notes AS sale_notes,
+            (
+              SELECT GROUP_CONCAT(
+                si.product_name || CASE 
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  ELSE ''
+                END,
+                ' ، '
+              )
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS products_summary,
+            (
+              SELECT COUNT(DISTINCT si.product_id)
+              FROM sale_items si
+              WHERE si.sale_id = d.sale_id
+            ) AS items_count
+     FROM debts d
+     JOIN sales s ON d.sale_id = s.id
+     WHERE d.sale_id = ?`,
+    [saleId]
   );
   return row ? rowToSalesDebtDetail(row) : null;
 }
@@ -5439,6 +5709,12 @@ export interface DashboardOverviewStats {
   lowStockCount: number;
   customerDebtTotal: number;
   supplierDebtTotal: number;
+  // Batch analytics
+  totalBatchesCount: number;
+  activeBatchesCount: number;
+  depletedBatchesCount: number;
+  multiBatchProductsCount: number;
+  expiringBatchesCount: number;
 }
 
 export interface DashboardActivityItem {
@@ -5494,6 +5770,8 @@ export async function getDashboardOverviewStats(
     lowStockRow,
     custDebtRow,
     supDebtRow,
+    allProductsRows,
+    allPurchasesRows,
   ] = await Promise.all([
     // Sales summary
     database.getFirstAsync<{
@@ -5556,12 +5834,90 @@ export async function getDashboardOverviewStats(
       SELECT COALESCE(SUM(remaining_amount), 0) AS total
       FROM purchase_debts WHERE status = 'active'
     `),
+    // Active Products with quantity for batch depletion calculation
+    database.getAllAsync<{ id: number; name: string; quantity: number }>(`
+      SELECT id, LOWER(TRIM(name)) AS name, quantity FROM products WHERE is_active = 1
+    `),
+    // All Purchases for batch analytics
+    database.getAllAsync<{
+      id: number;
+      product_name: string;
+      quantity: number;
+      expiry_date: string | null;
+      date: string;
+      created_at: string;
+    }>(`
+      SELECT id, LOWER(TRIM(product_name)) AS product_name, quantity, expiry_date, date, created_at
+      FROM purchases
+      WHERE archived_at IS NULL
+      ORDER BY date ASC, created_at ASC, id ASC
+    `),
   ]);
 
   const totalSales = salesRow?.totalSales ?? 0;
   const totalCOGS = cogsRow?.totalCOGS ?? 0;
   const totalExpenses = expRow?.totalExpenses ?? 0;
   const expectedProfit = totalSales - totalCOGS - totalExpenses;
+
+  // Batch analytics calculation (FIFO depletion)
+  const prodStockMap = new Map<string, number>();
+  for (const p of allProductsRows || []) {
+    prodStockMap.set(p.name, Number(p.quantity) || 0);
+  }
+
+  const purchasesByProd = new Map<string, Array<{ id: number; qty: number; expiry: string | null }>>();
+  for (const r of allPurchasesRows || []) {
+    if (!purchasesByProd.has(r.product_name)) {
+      purchasesByProd.set(r.product_name, []);
+    }
+    purchasesByProd.get(r.product_name)!.push({
+      id: Number(r.id),
+      qty: Number(r.quantity) || 0,
+      expiry: r.expiry_date ? String(r.expiry_date).trim() : null,
+    });
+  }
+
+  const totalBatchesCount = (allPurchasesRows || []).length;
+  let activeBatchesCount = 0;
+  let depletedBatchesCount = 0;
+  let multiBatchProductsCount = 0;
+  let expiringBatchesCount = 0;
+
+  const now = new Date();
+  const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  for (const [name, purchases] of purchasesByProd.entries()) {
+    const currentStock = prodStockMap.get(name) || 0;
+    const totalPurchased = purchases.reduce((sum, p) => sum + p.qty, 0);
+    let totalSold = Math.max(0, totalPurchased - currentStock);
+
+    let activeForThisProduct = 0;
+    for (const p of purchases) {
+      if (totalSold >= p.qty) {
+        totalSold -= p.qty;
+        depletedBatchesCount++;
+      } else {
+        const remaining = p.qty - totalSold;
+        totalSold = 0;
+        if (remaining > 0) {
+          activeBatchesCount++;
+          activeForThisProduct++;
+          if (p.expiry) {
+            const expDate = new Date(p.expiry);
+            if (!isNaN(expDate.getTime()) && expDate <= in30Days) {
+              expiringBatchesCount++;
+            }
+          }
+        } else {
+          depletedBatchesCount++;
+        }
+      }
+    }
+
+    if (activeForThisProduct >= 2) {
+      multiBatchProductsCount++;
+    }
+  }
 
   return {
     totalRevenue: totalSales,
@@ -5578,6 +5934,11 @@ export async function getDashboardOverviewStats(
     lowStockCount: lowStockRow?.count ?? 0,
     customerDebtTotal: custDebtRow?.total ?? 0,
     supplierDebtTotal: supDebtRow?.total ?? 0,
+    totalBatchesCount,
+    activeBatchesCount,
+    depletedBatchesCount,
+    multiBatchProductsCount,
+    expiringBatchesCount,
   };
 }
 

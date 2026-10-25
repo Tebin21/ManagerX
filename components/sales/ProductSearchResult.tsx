@@ -24,6 +24,7 @@ interface Props {
   onDecrease?: () => void;
   layout?: 'list' | 'grid';
   selectedBatch?: ProductBatch | null;
+  availableBatches?: ProductBatch[];
   onSelectBatch?: (batch: ProductBatch) => void;
 }
 
@@ -34,6 +35,7 @@ export function ProductSearchResult({
   onDecrease,
   layout = 'list',
   selectedBatch,
+  availableBatches,
   onSelectBatch,
 }: Props) {
   const { colors, isDark } = useAppTheme();
@@ -47,10 +49,38 @@ export function ProductSearchResult({
   const isDisabled = isUniqueAndSold || atMaxStock;
 
   const [batchPickerOpen, setBatchPickerOpen] = React.useState(false);
-  const [batches, setBatches] = React.useState<ProductBatch[]>([]);
+  const [batches, setBatches] = React.useState<ProductBatch[]>(availableBatches ?? []);
+
+  React.useEffect(() => {
+    if (availableBatches && availableBatches.length > 0) {
+      setBatches(availableBatches);
+    } else if (inCartQty > 0) {
+      let isMounted = true;
+      getProductBatches(product.id, product.name, product.itemId)
+        .then((b) => {
+          if (isMounted) {
+            setBatches(b);
+            const isSelectedValid = selectedBatch && b.some(
+              (batch) => batch.purchaseId === selectedBatch.purchaseId && (batch.quantity ?? 0) > 0
+            );
+            if (!isSelectedValid && b.length > 0 && onSelectBatch) {
+              onSelectBatch(b[0]);
+            }
+          }
+        })
+        .catch(() => {});
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [inCartQty, availableBatches, product.id, product.name, product.itemId]);
+
+  const effectiveBatches = (availableBatches && availableBatches.length > 0) ? availableBatches : batches;
+  const inStockBatches = effectiveBatches.filter((b) => (b.quantity ?? 0) > 0);
+  const hasMultipleBatches = inStockBatches.length >= 2;
 
   const handleOpenBatchPicker = async () => {
-    if (batches.length === 0) {
+    if (effectiveBatches.length === 0) {
       try {
         const b = await getProductBatches(product.id, product.name, product.itemId);
         setBatches(b);
@@ -195,39 +225,58 @@ export function ProductSearchResult({
 
         {/* Price & Quick Stepper Row */}
         <View style={styles.gridBottomContainer}>
-          <View style={[styles.gridBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-              <AmountText
-                value={product.sellingPrice}
-                variant="small"
-                style={[styles.gridPrice, { color: colors.primary }]}
-              />
-              {inCartQty > 0 && (
-                <TouchableOpacity
-                  onPress={handleOpenBatchPicker}
+          {hasMultipleBatches && inCartQty > 0 && (
+            <TouchableOpacity
+              onPress={handleOpenBatchPicker}
+              style={[
+                styles.gridBatchBar,
+                {
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.gridBatchInner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="layers-outline" size={11} color={isDark ? colors.primary : '#B45309'} />
+                <Text
                   style={[
-                    styles.gridBatchPill,
-                    {
-                      backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
-                      borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
+                    styles.gridBatchText,
+                    { color: isDark ? colors.primary : '#92400E' },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
-                  activeOpacity={0.75}
+                  numberOfLines={1}
                 >
-                  <Ionicons name="layers-outline" size={10} color={isDark ? colors.primary : '#B45309'} />
-                  <Text style={[styles.gridBatchText, { color: isDark ? colors.primary : '#92400E' }]}>
-                    {isKurdish
-                      ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
-                      : `Batch #${selectedBatch?.batchNum ?? 1}`}
-                  </Text>
-                  <Ionicons name="chevron-down" size={9} color={isDark ? colors.primary : '#B45309'} />
-                </TouchableOpacity>
-              )}
-            </View>
+                  {isKurdish
+                    ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
+                    : `Batch #${selectedBatch?.batchNum ?? 1}`}
+                </Text>
+                {selectedBatch?.isOldest && (
+                  <View style={styles.fifoMiniTag}>
+                    <Text style={styles.fifoMiniText}>
+                      {isKurdish ? 'سەرەکی' : 'Primary'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-down" size={10} color={isDark ? colors.primary : '#B45309'} />
+            </TouchableOpacity>
+          )}
 
-            {inCartQty > 0 ? (
-              <View style={[styles.gridStepper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {inCartQty > 0 ? (
+            <View style={styles.gridInCartContainer}>
+              {/* Dedicated Spacious Price Row */}
+              <View style={[styles.gridPriceRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <AmountText
+                  value={product.sellingPrice}
+                  variant="small"
+                  style={[styles.gridPrice, { color: colors.primary }]}
+                />
+              </View>
+
+              {/* Comfortable Stepper Row */}
+              <View style={[styles.gridStepperFull, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {/* Decrement (-) Button */}
                 <TouchableOpacity
                   onPress={onDecrease}
@@ -249,8 +298,8 @@ export function ProductSearchResult({
                   />
                 </TouchableOpacity>
 
-                {/* In-Cart Qty Pill */}
-                <View style={[styles.gridQtyPill, { backgroundColor: colors.softBlue }]}>
+                {/* In-Cart Qty Pill (takes middle space cleanly) */}
+                <View style={[styles.gridQtyPillFull, { backgroundColor: colors.softBlue }]}>
                   <Text style={[styles.gridQtyText, { color: colors.primary }]}>
                     {inCartQty}
                   </Text>
@@ -278,7 +327,15 @@ export function ProductSearchResult({
                   </TouchableOpacity>
                 ) : null}
               </View>
-            ) : (
+            </View>
+          ) : (
+            <View style={[styles.gridBottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <AmountText
+                value={product.sellingPrice}
+                variant="small"
+                style={[styles.gridPrice, { color: colors.primary }]}
+              />
+
               <TouchableOpacity
                 onPress={onAdd}
                 disabled={isDisabled}
@@ -297,14 +354,14 @@ export function ProductSearchResult({
                   color={isDisabled ? colors.gray300 : colors.primary}
                 />
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
         </View>
         {batchPickerOpen && (
           <BatchPickerModal
             visible={batchPickerOpen}
             onClose={() => setBatchPickerOpen(false)}
-            batches={batches}
+            batches={inStockBatches}
             selectedBatchNum={selectedBatch?.batchNum ?? 1}
             onSelectBatch={(batch) => {
               if (onSelectBatch) onSelectBatch(batch);
@@ -384,7 +441,7 @@ export function ProductSearchResult({
             </Text>
           )}
 
-          {inCartQty > 0 && (
+          {hasMultipleBatches && inCartQty > 0 && (
             <TouchableOpacity
               onPress={handleOpenBatchPicker}
               style={[
@@ -405,7 +462,9 @@ export function ProductSearchResult({
               </Text>
               {selectedBatch?.isOldest && (
                 <View style={styles.fifoMiniTag}>
-                  <Text style={styles.fifoMiniText}>FIFO</Text>
+                  <Text style={styles.fifoMiniText}>
+                    {isKurdish ? 'سەرەکی' : 'Primary'}
+                  </Text>
                 </View>
               )}
               <Ionicons name="chevron-down" size={10} color={isDark ? colors.primary : '#B45309'} />
@@ -484,7 +543,7 @@ export function ProductSearchResult({
         <BatchPickerModal
           visible={batchPickerOpen}
           onClose={() => setBatchPickerOpen(false)}
-          batches={batches}
+          batches={inStockBatches}
           selectedBatchNum={selectedBatch?.batchNum ?? 1}
           onSelectBatch={(batch) => {
             if (onSelectBatch) onSelectBatch(batch);
@@ -657,8 +716,28 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    gridInCartContainer: {
+      gap: 5,
+    },
+    gridPriceRow: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 20,
+    },
+    gridStepperFull: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    gridQtyPillFull: {
+      flex: 1,
+      height: isTablet ? 32 : 28,
+      borderRadius: isTablet ? 9 : 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginHorizontal: 6,
+    },
     gridPrice: {
-      fontSize: isTabletLandscape ? 17 : isTablet ? 15.5 : 13.5,
+      fontSize: isTabletLandscape ? 17 : isTablet ? 15.5 : 14,
       fontWeight: '800',
     },
     gridAddBtn: {
@@ -716,17 +795,24 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       alignItems: 'center',
       justifyContent: 'center',
     },
-    gridBatchPill: {
-      paddingHorizontal: 5,
-      paddingVertical: 1.5,
-      borderRadius: 6,
-      borderWidth: 1,
+    gridBatchBar: {
+      flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
-      marginTop: 2,
+      justifyContent: 'space-between',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 7,
+      borderWidth: 1,
+      marginBottom: 6,
+    },
+    gridBatchInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flex: 1,
     },
     gridBatchText: {
-      fontSize: 9.5,
+      fontSize: 10,
       fontWeight: '700',
     },
     listBatchPill: {

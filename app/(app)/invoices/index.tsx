@@ -26,6 +26,7 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { InvoiceView } from '@/components/sales/InvoiceView';
+import { LoadingView } from '@/components/ui/LoadingView';
 
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
@@ -796,12 +797,7 @@ export default function InvoicesHubScreen() {
 
       {/* ── Loading Spinner ── */}
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-            {isKu ? 'بارکردنی پسوڵەکان...' : 'Loading Invoices...'}
-          </Text>
-        </View>
+        <LoadingView message={isKu ? 'چاوەڕێ بە...' : 'Loading Invoices...'} />
       ) : (
         <>
           {/* ══════════════════════════════════════════════════════════════
@@ -1035,9 +1031,13 @@ export default function InvoicesHubScreen() {
               {/* Invoices List / Grid */}
               <FlatList
                 data={searchedPurchases}
-                key={`purchases-${numColumns}-${viewMode}`}
+                key={`purchases-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
-                columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
+                columnWrapperStyle={
+                  numColumns > 1
+                    ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
+                    : undefined
+                }
                 keyExtractor={(item) => `pur-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
@@ -1180,9 +1180,13 @@ export default function InvoicesHubScreen() {
               {/* Invoices List / Grid */}
               <FlatList
                 data={searchedSales}
-                key={`sales-${numColumns}-${viewMode}`}
+                key={`sales-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
-                columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
+                columnWrapperStyle={
+                  numColumns > 1
+                    ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
+                    : undefined
+                }
                 keyExtractor={(item) => `sale-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,

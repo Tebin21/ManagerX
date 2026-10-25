@@ -17,6 +17,13 @@ export interface PurchaseDebt {
   initialPaymentMethod?: 'cash' | 'fib' | null;
   createdAt: string;
   updatedAt: string;
+  // Product & Batch Linkage
+  productName?: string | null;
+  batchNumber?: number | null;
+  totalBatches?: number | null;
+  batchQuantity?: number | null;
+  purchaseDate?: string | null;
+  productId?: number | null;
 }
 
 export interface SalesDebtDetail {
@@ -36,6 +43,9 @@ export interface SalesDebtDetail {
   customerAddress: string | null;
   warranty: string | null;
   saleNotes: string | null;
+  // Products & Batches Linkage
+  productsSummary?: string | null;
+  itemsCount?: number;
 }
 
 export interface DebtPayment {

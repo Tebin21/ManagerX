@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, StatusBar } from 'react-native';
 import { Text } from '@/components/ui/AppText';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -123,10 +124,11 @@ export default function CloudDataConflictScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {processing ? (
-          <View style={styles.processingBox}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.processingText, { color: colors.gray600 }]}>{t('cloudConflict.processing')}</Text>
-          </View>
+          <LoadingView
+            message={t('cloudConflict.processing')}
+            submessage={t('common.pleaseWait')}
+            style={{ paddingVertical: 40 }}
+          />
         ) : (
           <>
             <TouchableOpacity

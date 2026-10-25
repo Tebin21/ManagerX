@@ -264,6 +264,82 @@ export default function SalesScreen() {
             </PremiumCard>
           </MotiView>
 
+          {/* 2.5: Sales Quotation Button (عەرزی فرۆشتن) */}
+          <MotiView
+            from={{ opacity: 0, translateY: 16 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 120 }}
+          >
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/sales/quotation' as never)}
+              activeOpacity={0.85}
+              style={[
+                styles.secondaryBtn,
+                isTablet && {
+                  padding: isTabletLandscape ? 28 : 24,
+                  borderRadius: 22,
+                },
+                { backgroundColor: colors.white, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+            >
+              <View
+                style={[
+                  styles.secondaryLeft,
+                  isTablet && { gap: 18 },
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.secondaryIcon,
+                    isTablet && {
+                      width: isTabletLandscape ? 64 : 56,
+                      height: isTabletLandscape ? 64 : 56,
+                      borderRadius: 18,
+                    },
+                    { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.2)' : '#FEF9C3' },
+                  ]}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={isTabletLandscape ? 30 : isTablet ? 26 : 20}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={{ flexShrink: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <Text
+                    style={[
+                      styles.secondaryTitle,
+                      isTablet && {
+                        fontSize: isTabletLandscape ? 21 : 19,
+                        marginBottom: 4,
+                      },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
+                    ]}
+                  >
+                    {t('sales.salesQuotation')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.secondarySub,
+                      isTablet && { fontSize: isTabletLandscape ? 15.5 : 14 },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
+                    ]}
+                  >
+                    {t('sales.salesQuotationSub')}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons
+                name={chevronForward as never}
+                size={isTabletLandscape ? 26 : isTablet ? 22 : 18}
+                color={colors.gray400}
+              />
+            </TouchableOpacity>
+          </MotiView>
+
           {/* 3. Next: Check Price Button (پشکنینی نرخ) */}
           <MotiView
             from={{ opacity: 0, translateY: 16 }}

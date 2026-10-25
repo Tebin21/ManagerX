@@ -1,5 +1,17 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -57,9 +69,12 @@ export function CartItemRow({
     let isMounted = true;
     if (!item.availableBatches || item.availableBatches.length === 0) {
       getProductBatches(item.product.id, item.product.name, item.product.itemId).then((b) => {
-        if (isMounted && b.length > 0) {
+        if (isMounted) {
           setBatches(b);
-          if (!item.selectedBatch && onUpdateBatch) {
+          const isSelectedValid = item.selectedBatch && b.some(
+            (batch) => batch.purchaseId === item.selectedBatch?.purchaseId && (batch.quantity ?? 0) > 0
+          );
+          if (!isSelectedValid && onUpdateBatch && b.length > 0) {
             onUpdateBatch(b[0]);
           }
         }
@@ -69,6 +84,10 @@ export function CartItemRow({
     }
     return () => { isMounted = false; };
   }, [item.product.id, item.availableBatches]);
+
+  const effectiveBatches = (item.availableBatches && item.availableBatches.length > 0) ? item.availableBatches : batches;
+  const inStockBatches = effectiveBatches.filter((b) => (b.quantity ?? 0) > 0);
+  const hasMultipleBatches = inStockBatches.length >= 2;
 
   const [iqdPriceText, setIqdPriceText] = useState(String(item.sellingPrice));
   const [usdPrice, setUsdPrice] = useState(
@@ -85,7 +104,24 @@ export function CartItemRow({
           : (item.discount > 0 ? String(item.discount) : ''))
   );
 
-  React.useEffect(() => {
+  const hasActiveDiscount =
+    item.discountType === 'percentage' ? item.discountPct > 0 : item.discount > 0;
+  const [showDiscountSection, setShowDiscountSection] = useState(hasActiveDiscount);
+
+  useEffect(() => {
+    if (hasActiveDiscount && !showDiscountSection) {
+      setShowDiscountSection(true);
+    }
+  }, [hasActiveDiscount]);
+
+  function toggleDiscountSection() {
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
+    setShowDiscountSection((prev) => !prev);
+  }
+
+  useEffect(() => {
     if (discountFocused) return;
     if (item.discountType === 'percentage') {
       setDiscountText(item.discountPct > 0 ? String(item.discountPct) : '');
@@ -171,8 +207,90 @@ export function CartItemRow({
   const effectivePrice = item.sellingPrice - item.discount;
   const showDiscountPreview = item.discount > 0;
 
+  const renderIqdField = () => (
+    <View
+      key="iqd"
+      style={[
+        styles.currencyFieldStacked,
+        {
+          borderColor: iqdFocused ? colors.primary : colors.gray200,
+          backgroundColor: isDark ? colors.gray100 : colors.gray50,
+          flexDirection,
+        },
+      ]}
+    >
+      <View style={[styles.currencyBadge, { backgroundColor: colors.softBlue }]}>
+        <Text style={[styles.currencyCode, { color: colors.primary }]}>IQD</Text>
+      </View>
+      <TextInput
+        style={[
+          styles.currencyInput,
+          { color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
+          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: iqdDisplay, keyboardType: 'decimal-pad' }), {}),
+        ]}
+        value={iqdDisplay}
+        onChangeText={onIqdChange}
+        onFocus={(e) => {
+          setIqdFocused(true);
+          scrollIntoView(e);
+        }}
+        onBlur={onIqdBlur}
+        keyboardType="decimal-pad"
+        placeholder="0"
+        placeholderTextColor={colors.gray400}
+        selectTextOnFocus
+      />
+    </View>
+  );
+
+  const renderUsdField = () => (
+    <View
+      key="usd"
+      style={[
+        styles.currencyFieldStacked,
+        {
+          borderColor: usdFocused ? colors.primary : colors.gray200,
+          backgroundColor: isDark ? colors.gray100 : colors.gray50,
+          flexDirection,
+        },
+      ]}
+    >
+      <View style={[styles.currencyBadge, { backgroundColor: colors.softBlue }]}>
+        <Text style={[styles.currencyCode, { color: colors.primary }]}>USD</Text>
+      </View>
+      <TextInput
+        style={[
+          styles.currencyInput,
+          { color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
+          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: usdDisplay, keyboardType: 'decimal-pad' }), {}),
+        ]}
+        value={usdDisplay}
+        onChangeText={onUsdChange}
+        onFocus={(e) => {
+          setUsdFocused(true);
+          scrollIntoView(e);
+        }}
+        onBlur={() => setUsdFocused(false)}
+        keyboardType="decimal-pad"
+        placeholder="0.00"
+        placeholderTextColor={colors.gray400}
+        selectTextOnFocus
+      />
+    </View>
+  );
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.white }, item.hasLossWarning && { borderStartWidth: 3, borderStartColor: colors.warning }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: isDark ? colors.gray100 : colors.white,
+          borderColor: isDark ? colors.gray200 : 'transparent',
+          borderWidth: isDark ? 1 : 0,
+        },
+        item.hasLossWarning && { borderStartWidth: 3, borderStartColor: colors.warning },
+      ]}
+    >
       {/* Header */}
       <View style={[styles.header, { flexDirection }]}>
         <View style={styles.titleCol}>
@@ -184,38 +302,42 @@ export function CartItemRow({
               </View>
             ) : null}
 
-            {/* Interactive Batch Selector Pill */}
-            <TouchableOpacity
-              style={[
-                styles.batchSelectorBtn,
-                {
-                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
-                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-              onPress={() => setBatchPickerOpen(true)}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="layers-outline" size={13} color={isDark ? colors.primary : '#B45309'} />
-              <Text
+            {/* Interactive Batch Selector Pill (Only if 2 or more batches exist) */}
+            {hasMultipleBatches && (
+              <TouchableOpacity
                 style={[
-                  styles.batchSelectorText,
-                  { color: isDark ? colors.primary : '#92400E' },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  styles.batchSelectorBtn,
+                  {
+                    backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+                    borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
                 ]}
+                onPress={() => setBatchPickerOpen(true)}
+                activeOpacity={0.75}
               >
-                {isKuLanguage
-                  ? `وەجبەی #${item.selectedBatch?.batchNum ?? 1}`
-                  : `Batch #${item.selectedBatch?.batchNum ?? 1}`}
-              </Text>
-              {item.selectedBatch?.isOldest && (
-                <View style={styles.batchFifoPill}>
-                  <Text style={styles.batchFifoText}>FIFO</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-down" size={12} color={isDark ? colors.primary : '#B45309'} />
-            </TouchableOpacity>
+                <Ionicons name="layers-outline" size={13} color={isDark ? colors.primary : '#B45309'} />
+                <Text
+                  style={[
+                    styles.batchSelectorText,
+                    { color: isDark ? colors.primary : '#92400E' },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage
+                    ? `وەجبەی #${item.selectedBatch?.batchNum ?? 1}`
+                    : `Batch #${item.selectedBatch?.batchNum ?? 1}`}
+                </Text>
+                {item.selectedBatch?.isOldest && (
+                  <View style={styles.batchFifoPill}>
+                    <Text style={styles.batchFifoText}>
+                      {isKuLanguage ? 'سەرەکی' : 'Primary'}
+                    </Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-down" size={12} color={isDark ? colors.primary : '#B45309'} />
+              </TouchableOpacity>
+            )}
           </View>
           {item.product.itemDescription ? (
             <Text style={[styles.description, { color: colors.gray500, textAlign }]} numberOfLines={1}>
@@ -232,120 +354,262 @@ export function CartItemRow({
         <Text style={[styles.warningText, { color: colors.warning, textAlign }]}>{t('sales.belowCost')}</Text>
       )}
 
-      {/* Quantity stepper */}
-      <View style={[styles.stepperRow, { flexDirection }]}>
-        <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>{t('sales.qty')}</Text>
-        <QuantityStepper
-          value={String(item.quantity)}
-          onChangeText={(text) => {
-            const n = parseInt(text, 10);
-            if (!isNaN(n)) onUpdateQty(n);
-          }}
-          min={1}
-          max={item.product.idMode === 'repeatable' ? item.product.quantity : undefined}
-          disabled={item.product.idMode === 'unique'}
-          containerStyle={styles.stepperContainer}
-        />
-        {item.product.idMode === 'repeatable' && (
-          <Text style={[styles.stockNote, { color: colors.gray400 }]}>/ {item.product.quantity}</Text>
-        )}
-      </View>
-
-      {/* Selling Price — IQD / USD dual input */}
-      <View style={styles.section}>
-        <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>{t('sales.sellingPrice')}</Text>
-        <View style={styles.dualInputRow}>
-          <View style={[styles.currencyField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-            <View style={[styles.currencyBadge, { backgroundColor: colors.softBlue }]}>
-              <Text style={[styles.currencyCode, { color: colors.primary }]}>IQD</Text>
-            </View>
-            <TextInput
-              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: iqdDisplay, keyboardType: 'decimal-pad' }), {})]}
-              value={iqdDisplay}
-              onChangeText={onIqdChange}
-              onFocus={(e) => { setIqdFocused(true); scrollIntoView(e); }}
-              onBlur={onIqdBlur}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={colors.gray400}
-              selectTextOnFocus
-            />
-          </View>
-          <View style={[styles.currencyField, { borderColor: colors.gray200, backgroundColor: colors.gray50, flexDirection }]}>
-            <View style={[styles.currencyBadge, { backgroundColor: colors.softBlue }]}>
-              <Text style={[styles.currencyCode, { color: colors.primary }]}>USD</Text>
-            </View>
-            <TextInput
-              style={[styles.currencyInput, { color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: usdDisplay, keyboardType: 'decimal-pad' }), {})]}
-              value={usdDisplay}
-              onChangeText={onUsdChange}
-              onFocus={(e) => { setUsdFocused(true); scrollIntoView(e); }}
-              onBlur={() => setUsdFocused(false)}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={colors.gray400}
-              selectTextOnFocus
-            />
-          </View>
-        </View>
-        <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>
-          100 USD = {fmtExchangeRate(exchangeRate)} IQD
-        </Text>
-      </View>
-
-      {/* Discount */}
-      <View style={styles.section}>
-        <View style={[styles.discountHeader, { flexDirection }]}>
-          <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>{t('sales.discount')}</Text>
-          {/* Toggle: % vs USD / IQD */}
-          <View style={[styles.typeToggle, { borderColor: colors.gray200 }]}>
-            <TouchableOpacity
-              style={[
-                styles.typePill,
-                item.discountType === 'percentage' && { backgroundColor: colors.primary },
-              ]}
-              onPress={() => switchDiscountType('percentage')}
-            >
-              <Text style={[styles.typePillText, { color: item.discountType === 'percentage' ? colors.white : colors.gray500 }]}>%</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.typePill,
-                item.discountType === 'amount' && { backgroundColor: colors.primary },
-              ]}
-              onPress={() => switchDiscountType('amount')}
-            >
-              <Text style={[styles.typePillText, { color: item.discountType === 'amount' ? colors.white : colors.gray500 }]}>
-                {isUSD ? 'USD' : 'IQD'}
+      {/* Main Row: Quantity & Discount on Right (in RTL), Stacked Selling Price on Left (in RTL) */}
+      <View style={[styles.mainRow, { flexDirection }]}>
+        {/* Right side in RTL: Quantity Stepper & Discount trigger */}
+        <View style={styles.qtyCol}>
+          <View style={[styles.labelRow, { flexDirection }]}>
+            <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>
+              {t('sales.qty')}
+            </Text>
+            {item.product.idMode === 'repeatable' && (
+              <Text style={[styles.stockNote, { color: colors.gray400 }]}>
+                / {item.product.quantity}
               </Text>
-            </TouchableOpacity>
+            )}
           </View>
+
+          <QuantityStepper
+            compact
+            value={String(item.quantity)}
+            onChangeText={(text) => {
+              const n = parseInt(text, 10);
+              if (!isNaN(n)) onUpdateQty(n);
+            }}
+            min={1}
+            max={item.product.idMode === 'repeatable' ? item.product.quantity : undefined}
+            disabled={item.product.idMode === 'unique'}
+            containerStyle={styles.stepperCompactContainer}
+            wrapperStyle={styles.stepperWrapper}
+          />
+
+          {/* Discount Trigger Button */}
+          <TouchableOpacity
+            style={[
+              styles.discountTriggerBtn,
+              showDiscountSection && {
+                borderColor: colors.primary,
+                backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : '#FEF3C7',
+              },
+              !showDiscountSection && hasActiveDiscount && {
+                borderColor: colors.primary,
+                backgroundColor: colors.softBlue,
+              },
+              !showDiscountSection && !hasActiveDiscount && {
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.gray200,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : colors.gray50,
+              },
+              { flexDirection },
+            ]}
+            onPress={toggleDiscountSection}
+            activeOpacity={0.75}
+          >
+            <Ionicons
+              name={hasActiveDiscount ? 'pricetag' : 'pricetag-outline'}
+              size={13}
+              color={hasActiveDiscount || showDiscountSection ? colors.primary : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.discountTriggerText,
+                {
+                  color: hasActiveDiscount || showDiscountSection ? colors.primary : colors.gray600,
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+              numberOfLines={1}
+            >
+              {hasActiveDiscount
+                ? (item.discountType === 'percentage'
+                    ? `${item.discountPct}%`
+                    : (isUSD ? fmtUSD(item.discount / exchangeRate) : fmtIQD(item.discount)))
+                : t('sales.discount')}
+            </Text>
+            <Ionicons
+              name={showDiscountSection ? 'chevron-up' : 'chevron-down'}
+              size={12}
+              color={hasActiveDiscount || showDiscountSection ? colors.primary : colors.gray400}
+            />
+          </TouchableOpacity>
         </View>
-        <TextInput
-          style={[
-            styles.discountInput,
-            { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
-            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: discountText, keyboardType: 'decimal-pad' }), {}),
-          ]}
-          value={discountText}
-          onChangeText={onDiscountChange}
-          onFocus={(e) => { setDiscountFocused(true); scrollIntoView(e); }}
-          onBlur={onDiscountBlur}
-          keyboardType="decimal-pad"
-          placeholder={item.discountType === 'percentage' ? '0%' : (isUSD ? '0.00' : '0')}
-          placeholderTextColor={colors.gray400}
-          selectTextOnFocus
-        />
+
+        {/* Left side in RTL: Stacked Selling Price inputs */}
+        <View style={styles.priceCol}>
+          <View style={[styles.labelRow, { flexDirection }]}>
+            <Text style={[styles.fieldLabel, { color: colors.gray500, textAlign }]}>
+              {t('sales.sellingPrice')}
+            </Text>
+          </View>
+          <View style={styles.priceStackedCol}>
+            {isUSD ? renderUsdField() : renderIqdField()}
+            {isUSD ? renderIqdField() : renderUsdField()}
+          </View>
+          <Text style={[styles.rateNote, { color: colors.gray400, textAlign }]}>
+            100 USD = {fmtExchangeRate(exchangeRate)} IQD
+          </Text>
+        </View>
       </View>
 
-      {/* Price preview (only when discount active) */}
-      {showDiscountPreview && (
-        <View style={[styles.previewRow, { backgroundColor: colors.gray50, borderColor: colors.gray100 }]}>
-          <AmountText value={item.sellingPrice} variant="small" style={[styles.previewLabel, { color: colors.gray500 }]} />
-          <AmountText value={item.discount} prefix="−" variant="small" style={[styles.previewMinus, { color: colors.error }]} />
-          <Text style={[styles.previewEq, { color: colors.gray400 }]}>=</Text>
-          <AmountText value={Math.max(0, effectivePrice)} variant="small" style={[styles.previewFinal, { color: colors.success }]} />
-          <Text style={[styles.previewPerUnit, { color: colors.gray400 }]}>/unit</Text>
+      {/* Expandable Discount Section */}
+      {showDiscountSection && (
+        <View
+          style={[
+            styles.discountExpandedCard,
+            {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.gray50,
+              borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.gray200,
+            },
+          ]}
+        >
+          <View style={[styles.discountExpandedHeader, { flexDirection }]}>
+            <View style={[styles.discountLabelRow, { flexDirection }]}>
+              <Ionicons name="pricetag" size={13} color={colors.primary} />
+              <Text
+                style={[
+                  styles.discountHeaderTitle,
+                  { color: colors.black, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('sales.discount')}
+              </Text>
+            </View>
+            {hasActiveDiscount && (
+              <TouchableOpacity
+                onPress={() => {
+                  onUpdateDiscount(0);
+                  onUpdateDiscountPct(0);
+                  setDiscountText('');
+                }}
+                hitSlop={8}
+                style={[styles.clearDiscountBtn, { flexDirection }]}
+              >
+                <Ionicons name="close-circle" size={14} color={colors.error} />
+                <Text
+                  style={[
+                    styles.clearDiscountText,
+                    { color: colors.error },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage ? 'لابردنی داشکاندن' : 'Remove'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={[styles.discountExpandedControls, { flexDirection }]}>
+            {/* Discount Numeric Input */}
+            <TextInput
+              style={[
+                styles.discountInputLarge,
+                {
+                  borderColor: discountFocused ? colors.primary : colors.gray200,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  color: colors.black,
+                  textAlign: 'right',
+                  writingDirection: 'ltr',
+                },
+                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: discountText, keyboardType: 'decimal-pad' }), {}),
+              ]}
+              value={discountText}
+              onChangeText={onDiscountChange}
+              onFocus={(e) => {
+                setDiscountFocused(true);
+                scrollIntoView(e);
+              }}
+              onBlur={onDiscountBlur}
+              keyboardType="decimal-pad"
+              placeholder={item.discountType === 'percentage' ? '0%' : (isUSD ? '0.00' : '0')}
+              placeholderTextColor={colors.gray400}
+              selectTextOnFocus
+            />
+
+            {/* Enlarged Toggle from Image 2 — easy to tap */}
+            <View
+              style={[
+                styles.typeToggleLarge,
+                {
+                  borderColor: isDark ? 'rgba(255,255,255,0.18)' : colors.gray200,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.typePillLarge,
+                  item.discountType === 'percentage' && {
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+                onPress={() => switchDiscountType('percentage')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.typePillTextLarge,
+                    {
+                      color:
+                        item.discountType === 'percentage'
+                          ? colors.white
+                          : isDark
+                          ? colors.gray300
+                          : '#475569',
+                    },
+                  ]}
+                >
+                  %
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.typePillLarge,
+                  item.discountType === 'amount' && {
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+                onPress={() => switchDiscountType('amount')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.typePillTextLarge,
+                    {
+                      color:
+                        item.discountType === 'amount'
+                          ? colors.white
+                          : isDark
+                          ? colors.gray300
+                          : '#475569',
+                    },
+                  ]}
+                >
+                  {isUSD ? 'USD' : 'IQD'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Price preview (only when discount active) */}
+          {showDiscountPreview && (
+            <View
+              style={[
+                styles.previewRow,
+                {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.white,
+                  borderColor: colors.gray200,
+                  flexDirection,
+                },
+              ]}
+            >
+              <AmountText value={item.sellingPrice} variant="small" style={[styles.previewLabel, { color: colors.gray500 }]} />
+              <AmountText value={item.discount} prefix="−" variant="small" style={[styles.previewMinus, { color: colors.error }]} />
+              <Text style={[styles.previewEq, { color: colors.gray400 }]}>=</Text>
+              <AmountText value={Math.max(0, effectivePrice)} variant="small" style={[styles.previewFinal, { color: colors.success }]} />
+              <Text style={[styles.previewPerUnit, { color: colors.gray400 }]}>/unit</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -371,7 +635,7 @@ export function CartItemRow({
         <BatchPickerModal
           visible={batchPickerOpen}
           onClose={() => setBatchPickerOpen(false)}
-          batches={batches}
+          batches={inStockBatches}
           selectedBatchNum={item.selectedBatch?.batchNum ?? 1}
           onSelectBatch={(batch) => {
             if (onUpdateBatch) onUpdateBatch(batch);
@@ -425,41 +689,145 @@ const styles = StyleSheet.create({
   deleteBtn: { padding: 4, marginStart: 8 },
   warningText: { fontSize: 11, fontWeight: '500', marginBottom: 8 },
 
-  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  stepperContainer: { flex: 1 },
-  stockNote: { fontSize: 12 },
-
-  section: { marginBottom: 12 },
-  fieldLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  dualInputRow: { flexDirection: 'row', gap: 8 },
-  currencyField: {
-    flex: 1,
-    flexDirection: 'row',
+  labelRow: {
+    height: 18,
     alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    overflow: 'hidden',
-    height: 40,
+    marginBottom: 6,
+    gap: 4,
   },
-  currencyBadge: { paddingHorizontal: 8, height: '100%', alignItems: 'center', justifyContent: 'center' },
-  currencyCode: { fontSize: 11, fontWeight: '700' },
-  currencyInput: { flex: 1, paddingHorizontal: 8, fontSize: 14, fontWeight: '600', height: '100%' },
-  rateNote: { fontSize: 11, marginTop: 4 },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  stockNote: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
 
-  discountHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  typeToggle: {
-    flexDirection: 'row',
-    borderRadius: 6,
-    borderWidth: 1,
+  mainRow: {
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 8,
+  },
+  qtyCol: {
+    flex: 1,
+  },
+  stepperCompactContainer: {
+    width: '100%',
+    height: 36,
+  },
+  stepperWrapper: {
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.2,
+  },
+  discountTriggerBtn: {
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    gap: 4,
+    marginTop: 6,
+  },
+  discountTriggerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  priceCol: {
+    flex: 1.25,
+  },
+  priceStackedCol: {
+    gap: 6,
+  },
+  currencyFieldStacked: {
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.2,
+    alignItems: 'center',
     overflow: 'hidden',
   },
-  typePill: { paddingHorizontal: 10, paddingVertical: 4 },
-  typePillText: { fontSize: 12, fontWeight: '700' },
-  discountInput: {
-    height: 40,
-    borderRadius: 8,
+  currencyBadge: {
+    paddingHorizontal: 7,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currencyCode: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  currencyInput: {
+    flex: 1,
+    paddingHorizontal: 7,
+    fontSize: 15,
+    fontWeight: '700',
+    height: '100%',
+  },
+  rateNote: {
+    fontSize: 10.5,
+    marginTop: 3,
+  },
+
+  discountExpandedCard: {
+    borderRadius: 12,
     borderWidth: 1,
+    padding: 10,
+    marginBottom: 10,
+    gap: 8,
+  },
+  discountExpandedHeader: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  discountLabelRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  discountHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  clearDiscountBtn: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  clearDiscountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  discountExpandedControls: {
+    gap: 8,
+    alignItems: 'center',
+  },
+  typeToggleLarge: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    height: 42,
+    alignItems: 'stretch',
+  },
+  typePillLarge: {
+    paddingHorizontal: 14,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 46,
+  },
+  typePillTextLarge: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  discountInputLarge: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.2,
     paddingHorizontal: 12,
     fontSize: 14,
     fontWeight: '600',
@@ -473,7 +841,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    marginBottom: 10,
+    marginTop: 4,
     flexWrap: 'wrap',
   },
   previewLabel: { fontSize: 13 },

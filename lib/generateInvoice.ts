@@ -37,12 +37,13 @@ import { buildSupplierReportHTML } from './supplierReportTemplate';
 import { buildSalesDebtReportHTML, buildPurchaseDebtReportHTML, type DebtReportSections } from './debtReportTemplate';
 import type { FullReportData } from './reportTemplate';
 import type { FinancialExportData } from './financialReportTemplate';
-import type { Sale, Debt } from '@/types/sales';
+import type { Sale, SaleItem, Debt } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
+import type { Quotation } from '@/types/quotation';
 import i18n from '@/lib/i18n';
 import { useLanguageStore } from '@/store/languageStore';
 
@@ -442,16 +443,18 @@ export async function shareInventoryReport(
 export async function shareSalesDebtReport(
   debt: SalesDebtDetail,
   payments: DebtPayment[],
-  business: BusinessInfo
+  business: BusinessInfo,
+  items?: SaleItem[]
 ): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildSalesDebtReportHTML(debt, payments, biz, getDir());
+    const html = buildSalesDebtReportHTML(debt, payments, biz, getDir(), items);
+    const isKu = i18n.language === 'ku' || !i18n.language;
     await generateAndShare(
       html,
-      `Debt Report — ${debt.customerName}`,
-      'Could not generate the debt report. Please try again.'
+      isKu ? `ڕاپۆرتی قەرزی کڕیار — ${debt.customerName}` : `Debt Report — ${debt.customerName}`,
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report. Please try again.'
     );
   } catch (err) {
     console.error('[PDF] shareSalesDebtReport unexpected error:', err);
@@ -464,16 +467,18 @@ export async function shareSalesDebtReport(
 export async function sharePurchaseDebtReport(
   debt: PurchaseDebt,
   payments: DebtPayment[],
-  business: BusinessInfo
+  business: BusinessInfo,
+  purchase?: Purchase | null
 ): Promise<void> {
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir());
+    const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir(), purchase);
+    const isKu = i18n.language === 'ku' || !i18n.language;
     await generateAndShare(
       html,
-      `Supplier Debt Report — ${debt.supplierName}`,
-      'Could not generate the supplier debt report. Please try again.'
+      isKu ? `ڕاپۆرتی قەرزی دابینکەر — ${debt.supplierName}` : `Supplier Debt Report — ${debt.supplierName}`,
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the supplier debt report. Please try again.'
     );
   } catch (err) {
     console.error('[PDF] sharePurchaseDebtReport unexpected error:', err);
@@ -796,5 +801,31 @@ export async function shareDebtsAuditReport(
     releaseGenerationLock();
   }
 }
+
+export async function shareQuotationInvoice(
+  quotation: Quotation,
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'both'
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildQuotationHTML } = await import('./quotationTemplate');
+    const html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    return await generateAndShare(
+      html,
+      isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
+      isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareQuotationInvoice unexpected error:', err);
+    Alert.alert('Error', 'Could not generate quotation PDF. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
 
 

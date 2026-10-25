@@ -120,10 +120,11 @@ export default function ThemeScreen() {
       <AppHeader title={t('settings.themeScreen.title')} showBack />
 
       <FlatList
+        key={`theme-presets-${COLS}-${isRTL ? 'rtl' : 'ltr'}`}
         data={THEME_PRESETS}
         keyExtractor={(item) => item.key}
         numColumns={COLS}
-        columnWrapperStyle={st.row}
+        columnWrapperStyle={[st.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
         contentContainerStyle={st.body}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}

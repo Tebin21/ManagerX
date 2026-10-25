@@ -10,6 +10,8 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +29,7 @@ export interface Props {
   onChange: (d: Date) => void;
   label?: string;
   maxDate?: Date;
+  style?: StyleProp<ViewStyle>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,7 +63,7 @@ const CARD_WIDTH = Math.min(Dimensions.get('window').width - 48, 360);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
+export function DateTimePicker({ value, onChange, label, maxDate, style }: Props) {
   const [open, setOpen]       = useState(false);
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
@@ -117,7 +120,7 @@ export function DateTimePicker({ value, onChange, label, maxDate }: Props) {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
 
       {/* Field label */}
       {label && (

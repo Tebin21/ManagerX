@@ -61,7 +61,10 @@ export function buildSupplierReportHTML(
     ? `<tr><td colspan="5" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No outstanding debts</td></tr>`
     : activeDebts.map((d) => `
         <tr>
-          <td style="font-weight:600;">${d.purchaseNumber ? escHtml(d.purchaseNumber) : '&mdash;'}</td>
+          <td style="font-weight:600;">
+            ${d.purchaseNumber ? escHtml(d.purchaseNumber) : '&mdash;'}
+            ${d.productName ? `<div style="font-size:11px;color:#5D4C14;margin-top:2px;">📦 ${escHtml(d.productName)} &bull; ${dir === 'rtl' ? `وەجبەی #${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}</div>` : ''}
+          </td>
           <td style="text-align:right;">${fmtMoney(d.originalAmount)}</td>
           <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(d.paidAmount)}</td>
           <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtMoney(d.remainingAmount)}</td>

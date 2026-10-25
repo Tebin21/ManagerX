@@ -498,6 +498,42 @@ export function buildDashboardReportHTML(
       </div>
       <div class="card-val en-num" dir="ltr" style="color:#DB2777;">${fmtEnNumber(stats.totalItems)}</div>
     </div>
+  <div class="cards-grid">
+    <!-- Total Batches -->
+    <div class="card" style="border-top: 3px solid #6366F1; background: #EEF2FF;">
+      <div class="card-top">
+        <span class="card-label">${isKurdish ? ku('کۆی گشتی وەجبەکان') : 'Total Batches'}</span>
+        <span class="card-pill" style="background:#E0E7FF; color:#4338CA;">#</span>
+      </div>
+      <div class="card-val en-num" dir="ltr" style="color:#4F46E5;">${fmtEnNumber(stats.totalBatchesCount)}</div>
+    </div>
+
+    <!-- Active In-Stock Batches -->
+    <div class="card" style="border-top: 3px solid #10B981; background: #F0FDF4;">
+      <div class="card-top">
+        <span class="card-label">${isKurdish ? ku('وەجبە بەردەستەکان') : 'In-Stock Batches'}</span>
+        <span class="card-pill" style="background:#DCFCE7; color:#15803D;">#</span>
+      </div>
+      <div class="card-val en-num" dir="ltr" style="color:#059669;">${fmtEnNumber(stats.activeBatchesCount)}</div>
+    </div>
+
+    <!-- Depleted Batches -->
+    <div class="card" style="border-top: 3px solid #64748B; background: #F8FAFC;">
+      <div class="card-top">
+        <span class="card-label">${isKurdish ? ku('وەجبە تەواوبووەکان') : 'Sold-Out Batches'}</span>
+        <span class="card-pill" style="background:#E2E8F0; color:#334155;">#</span>
+      </div>
+      <div class="card-val en-num" dir="ltr" style="color:#475569;">${fmtEnNumber(stats.depletedBatchesCount)}</div>
+    </div>
+
+    <!-- Multi-Batch Items -->
+    <div class="card" style="border-top: 3px solid #F59E0B; background: #FEFCE8;">
+      <div class="card-top">
+        <span class="card-label">${isKurdish ? ku('کاڵا فرە-وەجبەکان') : 'Multi-Batch Products'}</span>
+        <span class="card-pill" style="background:#FEF08A; color:#854D0E;">#</span>
+      </div>
+      <div class="card-val en-num" dir="ltr" style="color:#D97706;">${fmtEnNumber(stats.multiBatchProductsCount)}</div>
+    </div>
   </div>
 
   <div class="cards-grid-3">

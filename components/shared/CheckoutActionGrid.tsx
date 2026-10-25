@@ -9,6 +9,8 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { hexToRgba } from '@/lib/colorUtils';
 import * as Haptics from 'expo-haptics';
+import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
+import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -20,9 +22,17 @@ interface Props {
   mode: CheckoutMode;
   onSelectMode: (mode: CheckoutMode) => void;
   type?: 'sale' | 'purchase';
+  receiptCurrency?: ReceiptCurrencyMode;
+  onSelectReceiptCurrency?: (currency: ReceiptCurrencyMode) => void;
 }
 
-export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props) {
+export function CheckoutActionGrid({
+  mode,
+  onSelectMode,
+  type = 'sale',
+  receiptCurrency,
+  onSelectReceiptCurrency,
+}: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
@@ -172,86 +182,107 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
         </View>
       </TouchableOpacity>
 
-      {/* 4 Option Buttons Grid (Shown only when expanded) */}
+      {/* Expanded Container (Shown only when expanded) */}
       {isExpanded && (
-        <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          {options.map((opt) => {
-            const isSelected = mode === opt.id;
-            const isSlotEmpty = Boolean(opt.isEmpty);
+        <View style={styles.expandedWrapper}>
+          {/* 4 Option Buttons Grid */}
+          <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {options.map((opt) => {
+              const isSelected = mode === opt.id;
+              const isSlotEmpty = Boolean(opt.isEmpty);
 
-            return (
-              <TouchableOpacity
-                key={opt.id}
-                activeOpacity={0.75}
-                onPress={() => handlePress(opt.id)}
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  activeOpacity={0.75}
+                  onPress={() => handlePress(opt.id)}
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primary + (isDark ? '22' : '14')
+                        : (isDark ? colors.gray100 : colors.white),
+                      borderColor: isSelected
+                        ? colors.primary
+                        : (isSlotEmpty ? (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200 + '80') : (isDark ? 'rgba(255,255,255,0.12)' : colors.gray200)),
+                      borderStyle: isSlotEmpty ? 'dashed' : 'solid',
+                      opacity: isSlotEmpty ? 0.65 : 1,
+                    },
+                  ]}
+                >
+                  {/* Selected Badge */}
+                  {isSelected && (
+                    <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                    </View>
+                  )}
+
+                  <View style={[styles.iconRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <View
+                      style={[
+                        styles.iconCircle,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.primary + '25'
+                            : (isDark ? colors.gray200 : colors.gray100),
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={opt.icon}
+                        size={18}
+                        color={isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.gray600)}
+                      />
+                    </View>
+
+                    <View style={styles.textCol}>
+                      <Text
+                        style={[
+                          styles.cardTitle,
+                          {
+                            color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
+                            textAlign,
+                          },
+                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {opt.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardSubtitle,
+                          { color: isSelected ? colors.primary + 'CC' : colors.gray400, textAlign },
+                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {opt.subtitle}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Embedded Receipt Currency Selector (پیشاندانی دراو لە وەسڵ) */}
+          {receiptCurrency !== undefined && onSelectReceiptCurrency !== undefined && (
+            <View style={styles.receiptCurrencyWrapper}>
+              <ReceiptCurrencySelector
+                value={receiptCurrency}
+                onChange={onSelectReceiptCurrency}
+                inner
                 style={[
-                  styles.card,
+                  styles.innerReceiptCurrency,
                   {
-                    backgroundColor: isSelected
-                      ? colors.primary + (isDark ? '22' : '14')
-                      : (isDark ? colors.gray100 : colors.white),
-                    borderColor: isSelected
-                      ? colors.primary
-                      : (isSlotEmpty ? (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200 + '80') : (isDark ? 'rgba(255,255,255,0.12)' : colors.gray200)),
-                    borderStyle: isSlotEmpty ? 'dashed' : 'solid',
-                    opacity: isSlotEmpty ? 0.65 : 1,
+                    backgroundColor: isDark ? '#1E293B' : colors.white,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
-              >
-                {/* Selected Badge */}
-                {isSelected && (
-                  <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                  </View>
-                )}
-
-                <View style={[styles.iconRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <View
-                    style={[
-                      styles.iconCircle,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.primary + '25'
-                          : (isDark ? colors.gray200 : colors.gray100),
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={18}
-                      color={isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.gray600)}
-                    />
-                  </View>
-
-                  <View style={styles.textCol}>
-                    <Text
-                      style={[
-                        styles.cardTitle,
-                        {
-                          color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
-                          textAlign,
-                        },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {opt.title}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cardSubtitle,
-                        { color: isSelected ? colors.primary + 'CC' : colors.gray400, textAlign },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {opt.subtitle}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+              />
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -260,7 +291,21 @@ export function CheckoutActionGrid({ mode, onSelectMode, type = 'sale' }: Props)
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  expandedWrapper: {
+    marginTop: 10,
+    gap: 10,
+  },
+  receiptCurrencyWrapper: {
+    marginTop: 2,
+  },
+  innerReceiptCurrency: {
+    marginBottom: 0,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
   },
   headerButton: {
     alignItems: 'center',

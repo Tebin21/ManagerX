@@ -90,76 +90,83 @@ export function CustomerInputForm({ value, onChange, customerFound, nameError, p
     }
   }, [onChange, fetchSuggestions]);
 
+  const handleResetToCustomCustomer = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+    onChange({
+      name: '',
+      phone: '',
+      address: '',
+      warranty: '',
+      notes: '',
+      selectedCustomerId: undefined,
+    });
+  };
+
   if (isDirect) {
     return (
       <MotiView
         from={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'timing', duration: 250 }}
-        style={[
-          styles.directCustomerActiveCard,
-          {
-            backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF3C7',
-            borderColor: isDark ? 'rgba(212, 175, 55, 0.45)' : '#F59E0B',
-          },
-        ]}
       >
-        <View style={[styles.directCustomerActiveHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.directCustomerActiveBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Ionicons name="flash" size={14} color="#D4AF37" />
-            <Text
-              style={[
-                styles.directCustomerActiveTitle,
-                { color: isDark ? '#FCD34D' : '#B45309' },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {t('sales.directCustomerPermanent')}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => {
-              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
-              onChange({
-                name: '',
-                phone: '',
-                address: '',
-                warranty: '',
-                notes: '',
-                selectedCustomerId: undefined,
-              });
-            }}
-            style={[
-              styles.directCustomerChangeBtn,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
-                borderColor: colors.gray200,
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-          >
-            <Ionicons name="refresh-outline" size={13} color={colors.gray400} />
-            <Text
-              style={[
-                styles.directCustomerChangeBtnText,
-                { color: colors.gray400 },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-              ]}
-            >
-              {t('sales.changeCustomer')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={handleResetToCustomCustomer}
           style={[
-            styles.directCustomerActiveDesc,
-            { color: isDark ? '#E2E8F0' : '#475569', textAlign },
-            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            styles.directCustomerActiveCard,
+            {
+              backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF3C7',
+              borderColor: isDark ? 'rgba(212, 175, 55, 0.45)' : '#F59E0B',
+            },
           ]}
         >
-          {t('sales.directCustomerSelectedHint')}
-        </Text>
+          <View style={[styles.directCustomerActiveHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={[styles.directCustomerActiveBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons name="flash" size={14} color="#D4AF37" />
+              <Text
+                style={[
+                  styles.directCustomerActiveTitle,
+                  { color: isDark ? '#FCD34D' : '#B45309' },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('sales.directCustomerPermanent')}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.directCustomerChangeBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="refresh-outline" size={13} color={isDark ? '#FCD34D' : colors.gray500} />
+              <Text
+                style={[
+                  styles.directCustomerChangeBtnText,
+                  { color: isDark ? '#FCD34D' : colors.gray500 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {t('sales.changeCustomer')}
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={[
+              styles.directCustomerActiveDesc,
+              { color: isDark ? '#E2E8F0' : '#475569', textAlign },
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {t('sales.directCustomerSelectedHint')}
+          </Text>
+        </TouchableOpacity>
       </MotiView>
     );
   }
@@ -342,8 +349,8 @@ function getStyles(colors: AppColors, isDark: boolean) {
     directCustomerActiveCard: {
       borderWidth: 1.5,
       borderRadius: 14,
-      padding: 14,
-      gap: 10,
+      padding: 10,
+      gap: 6,
     },
     directCustomerActiveHeader: {
       alignItems: 'center',

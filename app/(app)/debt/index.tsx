@@ -133,11 +133,12 @@ function SalesDebtCardImpl({
   onPay: (debtId: number) => void;
 }) {
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
-  const { flexDirection, alignEnd } = useRTL();
+  const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -177,6 +178,33 @@ function SalesDebtCardImpl({
             <OverdueBadge level={overdueLevel} />
           </View>
         </View>
+
+        {debt.productsSummary ? (
+          <View
+            style={[
+              styles.cardBatchRow,
+              {
+                flexDirection,
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.08)' : '#FDFBF4',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : '#F6E09E',
+              },
+            ]}
+          >
+            <View style={[styles.cardBatchIconBadge, { backgroundColor: colors.primary + '20' }]}>
+              <Ionicons name="layers-outline" size={12} color={colors.primary} />
+            </View>
+            <Text
+              style={[
+                styles.cardBatchText,
+                { color: isDark ? '#F5E6B3' : '#854D0E', textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
+              {debt.productsSummary}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.primary }, NUMBER_LTR]} />
@@ -226,8 +254,9 @@ function PurchaseDebtCardImpl({
   const { isTablet, isTabletLandscape } = useResponsive();
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
-  const { flexDirection, alignEnd } = useRTL();
+  const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -267,6 +296,35 @@ function PurchaseDebtCardImpl({
             <OverdueBadge level={overdueLevel} />
           </View>
         </View>
+
+        {debt.productName ? (
+          <View
+            style={[
+              styles.cardBatchRow,
+              {
+                flexDirection,
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA',
+              },
+            ]}
+          >
+            <View style={[styles.cardBatchIconBadge, { backgroundColor: colors.error + '20' }]}>
+              <Ionicons name="layers" size={12} color={colors.error} />
+            </View>
+            <Text
+              style={[
+                styles.cardBatchText,
+                { color: isDark ? '#FCA5A5' : '#991B1B', textAlign: isRTL ? 'right' : 'left' },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
+              {debt.productName} • {isKuLanguage ? `وەجبەی #${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+              {debt.batchQuantity ? ` (${debt.batchQuantity} ${isKuLanguage ? 'دانە' : 'pcs'})` : ''}
+              {debt.totalBatches && debt.totalBatches > 1 ? ` · ${isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}` : ''}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.cardAmounts}>
           <AmountText value={debt.remainingAmount} currency="IQD" variant="large" style={[styles.amountRemaining, { color: colors.error }, NUMBER_LTR]} />
@@ -466,6 +524,7 @@ export default function DebtScreen() {
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
+  const filterScrollRef = useRef<ScrollView>(null);
 
   const handleExpandSearch = useCallback(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -488,7 +547,12 @@ export default function DebtScreen() {
       setQuery('');
     }
     Keyboard.dismiss();
-  }, []);
+    if (isRTL) {
+      setTimeout(() => {
+        filterScrollRef.current?.scrollToEnd({ animated: false });
+      }, 60);
+    }
+  }, [isRTL]);
 
   // Period filter state — defaults to 'today' (ئەمڕۆ)
   const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
@@ -505,10 +569,25 @@ export default function DebtScreen() {
     loadAll();
   }, [loadAll]);
 
+  useEffect(() => {
+    if (isRTL && filterScrollRef.current) {
+      const timer = setTimeout(() => {
+        filterScrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isRTL, tab, isSearchExpanded]);
+
   useFocusEffect(
     useCallback(() => {
       loadAll();
-    }, [loadAll])
+      if (isRTL) {
+        const timer = setTimeout(() => {
+          filterScrollRef.current?.scrollToEnd({ animated: false });
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }, [loadAll, isRTL])
   );
 
   const onRefresh = useCallback(() => {
@@ -617,13 +696,46 @@ export default function DebtScreen() {
     if (debt) setPayTarget({ id: debt.id, name: debt.supplierName, remaining: debt.remainingAmount, type: 'purchase' });
   }, [visiblePurchase]);
 
-  const renderSalesItem = useCallback(({ item }: { item: SalesDebtDetail }) => (
-    <SalesDebtCard debt={item} onPay={handlePaySalesPress} />
-  ), [handlePaySalesPress]);
+type SalesDebtOrFiller = SalesDebtDetail | { id: string | number; isFiller: true };
+type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true };
 
-  const renderPurchaseItem = useCallback(({ item }: { item: PurchaseDebt }) => (
-    <PurchaseDebtCard debt={item} onPay={handlePayPurchasePress} />
-  ), [handlePayPurchasePress]);
+  const gridFormattedSalesDebts: SalesDebtOrFiller[] = useMemo(() => {
+    if (cardColumns <= 1 || visibleSales.length === 0) return visibleSales;
+    const remainder = visibleSales.length % cardColumns;
+    if (remainder === 0) return visibleSales;
+    const needed = cardColumns - remainder;
+    const fillers: SalesDebtOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__debt_sale_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visibleSales, ...fillers];
+  }, [visibleSales, cardColumns]);
+
+  const gridFormattedPurchaseDebts: PurchaseDebtOrFiller[] = useMemo(() => {
+    if (cardColumns <= 1 || visiblePurchase.length === 0) return visiblePurchase;
+    const remainder = visiblePurchase.length % cardColumns;
+    if (remainder === 0) return visiblePurchase;
+    const needed = cardColumns - remainder;
+    const fillers: PurchaseDebtOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__debt_pur_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visiblePurchase, ...fillers];
+  }, [visiblePurchase, cardColumns]);
+
+  const renderSalesItem = useCallback(({ item }: { item: SalesDebtOrFiller }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
+    }
+    return <SalesDebtCard debt={item as SalesDebtDetail} onPay={handlePaySalesPress} />;
+  }, [handlePaySalesPress, isTablet]);
+
+  const renderPurchaseItem = useCallback(({ item }: { item: PurchaseDebtOrFiller }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
+    }
+    return <PurchaseDebtCard debt={item as PurchaseDebt} onPay={handlePayPurchasePress} />;
+  }, [handlePayPurchasePress, isTablet]);
 
   // Export PDF Report handler with user-selected sections
   const handleExportPdf = useCallback(async (sections: DebtReportSections) => {
@@ -887,8 +999,15 @@ export default function DebtScreen() {
 
             {/* Period Filter ScrollView - bleeds edge-to-edge across screen boundaries */}
             <ScrollView
+              ref={filterScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
+              contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
+              onContentSizeChange={() => {
+                if (isRTL) {
+                  filterScrollRef.current?.scrollToEnd({ animated: false });
+                }
+              }}
               style={styles.periodScrollView}
               contentContainerStyle={[
                 styles.filterRow,
@@ -1198,12 +1317,19 @@ export default function DebtScreen() {
 
           {/* Customer debts list */}
           <FlatList
-            key={`debt-sales-${cardColumns}`}
-            data={visibleSales}
+            key={`debt-sales-${cardColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+            data={gridFormattedSalesDebts}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderSalesItem}
             numColumns={cardColumns}
-            columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+            columnWrapperStyle={
+              cardColumns > 1
+                ? {
+                    gap: 12,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
+                : undefined
+            }
             contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle, { flexGrow: 1 }]}
             refreshControl={
               <RefreshControl
@@ -1266,12 +1392,19 @@ export default function DebtScreen() {
 
           {/* Supplier debts list */}
           <FlatList
-            key={`debt-purchase-${cardColumns}`}
-            data={visiblePurchase}
+            key={`debt-purchase-${cardColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+            data={gridFormattedPurchaseDebts}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderPurchaseItem}
             numColumns={cardColumns}
-            columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+            columnWrapperStyle={
+              cardColumns > 1
+                ? {
+                    gap: 12,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
+                : undefined
+            }
             contentContainerStyle={[styles.listContent, isTablet && contentContainerStyle, { flexGrow: 1 }]}
             refreshControl={
               <RefreshControl
@@ -1617,6 +1750,29 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
     cardSub: { fontSize: isTabletLandscape ? 14.5 : isTablet ? 14 : 12, color: colors.gray400 },
     cardSub2: { fontSize: isTabletLandscape ? 13.5 : isTablet ? 13 : 11, color: colors.gray400, marginTop: 2 },
     cardRight: { alignItems: 'flex-end', gap: 4 },
+
+    cardBatchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: isTabletLandscape ? 12 : 10,
+      paddingVertical: isTabletLandscape ? 7 : 5,
+      borderRadius: 10,
+      borderWidth: 1,
+      marginBottom: isTabletLandscape ? 12 : 9,
+      gap: 6,
+    },
+    cardBatchIconBadge: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardBatchText: {
+      flex: 1,
+      fontSize: isTabletLandscape ? 13.5 : 12,
+      fontWeight: '600',
+    },
 
     cardAmounts: { flexDirection: 'column', gap: 3, marginBottom: isTabletLandscape ? 12 : 8 },
     amountRemaining: { fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 17, fontWeight: '800' },

@@ -57,17 +57,24 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
   // Full-screen / enlarged preview state
   const [previewPreset, setPreviewPreset] = useState<SavedProductPreset | null>(null);
 
+  // Only include items that actually have a valid uploaded image
+  const validSavedImages = useMemo(() => {
+    return savedPresets.filter(
+      (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+    );
+  }, [savedPresets]);
+
   const filteredPresets = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return savedPresets;
+    if (!q) return validSavedImages;
 
-    return savedPresets.filter((p) => {
+    return validSavedImages.filter((p) => {
       const matchName = p.name.toLowerCase().includes(q);
       const matchDesc = p.description?.toLowerCase().includes(q) ?? false;
       const matchCode = p.itemId?.toLowerCase().includes(q) ?? false;
       return matchName || matchDesc || matchCode;
     });
-  }, [savedPresets, searchQuery]);
+  }, [validSavedImages, searchQuery]);
 
   // Pick / Select action
   const handlePick = (item: SavedProductPreset) => {
@@ -290,7 +297,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   </Text>
                   <View style={[styles.countBadge, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
                     <Text style={[styles.countBadgeText, { color: colors.primary }]}>
-                      {savedPresets.length}
+                      {validSavedImages.length}
                     </Text>
                   </View>
                 </View>
@@ -385,12 +392,15 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
 
             {/* Gallery Content */}
             <FlatList
-              key={`grid_${numColumns}`}
+              key={`grid_${numColumns}_${isRTL ? 'rtl' : 'ltr'}`}
               data={filteredPresets}
               keyExtractor={(item) => item.id}
               numColumns={numColumns}
               contentContainerStyle={styles.listContent}
-              columnWrapperStyle={[styles.columnWrapper, { gap: isTablet ? 16 : 12 }]}
+              columnWrapperStyle={[
+                styles.columnWrapper,
+                { gap: isTablet ? 16 : 12, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={

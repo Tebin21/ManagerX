@@ -52,9 +52,13 @@ export function buildCustomerReportHTML(
     ? `<tr><td colspan="5" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No outstanding debts</td></tr>`
     : activeDebts.map((d) => {
         const sale = sales.find((s) => s.id === d.saleId);
+        const itemsSummary = (sale?.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی #${i.batchNumber || 1}` : `Batch #${i.batchNumber || 1}`})`).join(', ');
         return `
           <tr>
-            <td style="font-weight:600;">${sale?.invoiceNumber ? escHtml(sale.invoiceNumber) : '&mdash;'}</td>
+            <td style="font-weight:600;">
+              ${sale?.invoiceNumber ? escHtml(sale.invoiceNumber) : '&mdash;'}
+              ${itemsSummary ? `<div style="font-size:11px;color:#5D4C14;margin-top:2px;">📦 ${itemsSummary}</div>` : ''}
+            </td>
             <td style="text-align:right;">${fmtMoney(d.originalAmount)}</td>
             <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(d.paidAmount)}</td>
             <td style="text-align:right;color:#DC2626;font-weight:700;">${fmtMoney(d.remainingAmount)}</td>
@@ -65,7 +69,7 @@ export function buildCustomerReportHTML(
   const purchaseRows = sales.length === 0
     ? `<tr><td colspan="6" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No purchases recorded</td></tr>`
     : sales.map((s) => {
-        const itemNames = (s.items ?? []).map((i) => escHtml(i.productName)).join(', ') || '&mdash;';
+        const itemNames = (s.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی #${i.batchNumber || 1}` : `Batch #${i.batchNumber || 1}`})`).join(', ') || '&mdash;';
         const debt = debts.find((d) => d.saleId === s.id);
         const remaining = debt ? debt.remainingAmount : 0;
         return `

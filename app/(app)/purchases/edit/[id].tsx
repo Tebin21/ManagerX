@@ -15,6 +15,7 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
 import { LockedFieldRow } from '@/components/ui/LockedFieldRow';
@@ -153,7 +154,7 @@ export default function EditPurchaseScreen() {
     return (
       <View style={[styles.wrap, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('purchases.editTitle')} showBack />
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        <LoadingView />
       </View>
     );
   }

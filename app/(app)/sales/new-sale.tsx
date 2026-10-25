@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  LayoutAnimation,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui/AppText';
@@ -37,7 +38,6 @@ import { GlobalDiscountBar } from '@/components/sales/GlobalDiscountBar';
 import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector';
 import { CustomerInputForm } from '@/components/sales/CustomerInputForm';
 import { InvoiceView } from '@/components/sales/InvoiceView';
-import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
 import * as Haptics from 'expo-haptics';
@@ -368,24 +368,6 @@ export default function NewSaleScreen() {
               }}
             />
 
-            <TouchableOpacity
-              onPress={() => setScannerOpen(true)}
-              style={[
-                styles.headerScanBtn,
-                isTablet && {
-                  height: headerButtonSize,
-                  paddingHorizontal: isTabletLandscape ? 20 : 16,
-                  borderRadius: Math.round(headerButtonSize * 0.28),
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="barcode-outline" size={isTablet ? headerIconSize : 19} color="#FFFFFF" />
-              <Text style={[styles.headerScanBtnText, isTablet && { fontSize: isTabletLandscape ? 16 : 14 }]}>
-                {isKuLanguage ? 'سکان' : 'Scan'}
-              </Text>
-            </TouchableOpacity>
-
             {itemCount > 0 && (
               <TouchableOpacity
                 onPress={() => setStep(2)}
@@ -409,18 +391,23 @@ export default function NewSaleScreen() {
       >
         <SaleStepIndicator step={1} />
 
-        {/* Large & Beautiful Barcode Scanner Banner in navigation header */}
+        {/* Simplified & Clean Barcode Scanner Banner with Single Icon */}
         <TouchableOpacity
           style={[
             styles.navBarScanBanner,
             {
               backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderColor: isDark ? colors.gray200 : 'transparent',
-              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? hexToRgba(colors.primary, 0.25) : 'rgba(0,0,0,0.06)',
+              borderWidth: 1,
             },
           ]}
-          onPress={() => setScannerOpen(true)}
-          activeOpacity={0.85}
+          onPress={() => {
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            } catch {}
+            setScannerOpen(true);
+          }}
+          activeOpacity={0.82}
         >
           <View style={[styles.navBarScanContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <View
@@ -428,6 +415,7 @@ export default function NewSaleScreen() {
                 styles.navBarScanIconCircle,
                 {
                   backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
+                  borderColor: isDark ? hexToRgba(colors.primary, 0.3) : '#FDE68A',
                 },
               ]}
             >
@@ -435,24 +423,10 @@ export default function NewSaleScreen() {
             </View>
             <View style={[styles.navBarScanTextCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
               <Text style={[styles.navBarScanTitle, { color: colors.black }]}>
-                {isKuLanguage ? 'سکانەری بارکۆد و QR بۆ فرۆشتن' : 'Barcode & QR Scanner for Sales'}
+                {isKuLanguage ? 'سکانەری بارکۆد و QR' : 'Barcode & QR Scanner'}
               </Text>
               <Text style={[styles.navBarScanSub, { color: colors.gray400 }]}>
-                {isKuLanguage ? 'بەرهەمەکان یەک لەدوای یەک سکان بکە بۆ سەبەتە' : 'Scan multiple items rapidly into cart'}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.navBarScanActionBadge,
-                {
-                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7',
-                  borderColor: isDark ? hexToRgba(colors.primary, 0.35) : '#FDE68A',
-                },
-              ]}
-            >
-              <Ionicons name="camera" size={16} color={isDark ? colors.primary : '#725D18'} style={{ marginRight: 4 }} />
-              <Text style={[styles.navBarScanActionText, { color: isDark ? colors.primary : '#725D18' }]}>
-                {isKuLanguage ? 'سکان' : 'Scan'}
+                {isKuLanguage ? 'بەرهەمەکان سکان بکە بۆ سەبەتە' : 'Scan items rapidly into cart'}
               </Text>
             </View>
           </View>
@@ -502,6 +476,7 @@ export default function NewSaleScreen() {
                 product={product}
                 inCartQty={getCartQty(product.id)}
                 selectedBatch={cartItem?.selectedBatch}
+                availableBatches={cartItem?.availableBatches}
                 onSelectBatch={(batch) => cart.updateBatch(product.id, batch)}
                 onAdd={() => handleAddToCart(product)}
                 onDecrease={() => handleDecreaseQty(product.id)}
@@ -588,12 +563,12 @@ export default function NewSaleScreen() {
                     onPress={() => setScannerOpen(true)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
+                    <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
                     <Text
                       style={[
                         styles.step2ScanBtnText,
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                        isTablet && { fontSize: 16 },
+                        isTablet && { fontSize: 14.5 },
                       ]}
                     >
                       {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
@@ -613,13 +588,13 @@ export default function NewSaleScreen() {
                     onPress={() => setStep(1)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} />
+                    <Ionicons name="add-circle-outline" size={isTablet ? 20 : 18} color={colors.primary} />
                     <Text
                       style={[
                         styles.step2AddBtnText,
                         { color: colors.primary },
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                        isTablet && { fontSize: 16 },
+                        isTablet && { fontSize: 14.5 },
                       ]}
                     >
                       {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
@@ -731,12 +706,12 @@ export default function NewSaleScreen() {
               onPress={() => setScannerOpen(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="barcode-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
+              <Ionicons name="barcode-outline" size={isTablet ? 20 : 18} color="#FFFFFF" />
               <Text
                 style={[
                   styles.step2ScanBtnText,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  isTablet && { fontSize: 16 },
+                  isTablet && { fontSize: 14.5 },
                 ]}
               >
                 {isKuLanguage ? 'سکانی زیاتر' : 'Scan More'}
@@ -756,13 +731,13 @@ export default function NewSaleScreen() {
               onPress={() => setStep(1)}
               activeOpacity={0.8}
             >
-              <Ionicons name="add-circle-outline" size={isTablet ? 24 : 20} color={colors.primary} />
+              <Ionicons name="add-circle-outline" size={isTablet ? 20 : 18} color={colors.primary} />
               <Text
                 style={[
                   styles.step2AddBtnText,
                   { color: colors.primary },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  isTablet && { fontSize: 16 },
+                  isTablet && { fontSize: 14.5 },
                 ]}
               >
                 {isKuLanguage ? 'زیادکردنی بەرهەم' : 'Add Items'}
@@ -770,19 +745,23 @@ export default function NewSaleScreen() {
             </TouchableOpacity>
           </View>
 
-          {cart.items.map((item) => (
-            <CartItemRow
-              key={item.product.id}
-              item={item}
-              onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
-              onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
-              onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
-              onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
-              onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
-              onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
-              onRemove={() => cart.removeItem(item.product.id)}
-            />
-          ))}
+          {/* Cart Items Grid: 2 columns on tablet/iPad, 1 column on mobile */}
+          <View style={[styles.cartGrid, isTablet && styles.cartGridTablet, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {cart.items.map((item) => (
+              <View key={item.product.id} style={[styles.cartGridCol, isTablet && styles.cartGridColTablet]}>
+                <CartItemRow
+                  item={item}
+                  onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+                  onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+                  onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+                  onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+                  onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                  onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
+                  onRemove={() => cart.removeItem(item.product.id)}
+                />
+              </View>
+            ))}
+          </View>
 
           <GlobalDiscountBar
             type={cart.globalDiscountType}
@@ -852,131 +831,165 @@ export default function NewSaleScreen() {
 
   const renderInvoicePreviewSection = (compact: boolean) => (
     <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 160 }}>
-      <PremiumCard style={styles.sectionCard}>
+      <View
+        style={[
+          styles.invoicePreviewCard,
+          {
+            backgroundColor: isDark ? '#1E293B' : colors.white,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          },
+        ]}
+      >
         <TouchableOpacity
           style={[
-            styles.invoiceToggleRow,
+            styles.accordionHeaderBtn,
             { flexDirection: isRTL ? 'row-reverse' : 'row' },
-            showSalesInvoicePreview && { marginBottom: 14 },
           ]}
           onPress={() => {
             try { Haptics.selectionAsync().catch(() => {}); } catch {}
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setShowSalesInvoicePreview(!showSalesInvoicePreview);
           }}
-          activeOpacity={0.75}
+          activeOpacity={0.8}
         >
-          <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }]}>
+          {/* Start: Icon + Title & Subtitle */}
+          <View style={[styles.accordionHeaderLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <View
               style={[
-                styles.invoiceToggleIconBox,
-                {
-                  backgroundColor: showSalesInvoicePreview
-                    ? colors.primary + '22'
-                    : (isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray50),
-                },
+                styles.accordionHeaderIconBox,
+                { backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.12) },
               ]}
             >
               <Ionicons
-                name={showSalesInvoicePreview ? 'receipt' : 'receipt-outline'}
-                size={18}
-                color={showSalesInvoicePreview ? colors.primary : colors.gray400}
+                name="receipt-outline"
+                size={17}
+                color={colors.primary}
               />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
               <Text
                 style={[
-                  styles.sectionTitle,
-                  { color: colors.black, textAlign, fontSize: 16, marginBottom: 2 },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  styles.accordionTitle,
+                  { color: colors.black, textAlign },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
+                numberOfLines={1}
               >
                 {t('sales.invoicePreview')}
               </Text>
               <Text
                 style={[
-                  { color: colors.gray400, fontSize: 12, textAlign },
+                  styles.accordionSub,
+                  { color: colors.gray400, textAlign },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
+                numberOfLines={1}
               >
-                {showSalesInvoicePreview ? t('sales.hideInvoicePreview') : t('sales.showInvoicePreview')}
+                {showSalesInvoicePreview
+                  ? (isKuLanguage ? 'داخستنی پێشبینین' : 'Hide Preview')
+                  : (isKuLanguage ? 'پیشاندانی پسوولە' : 'Show Preview')}
               </Text>
             </View>
           </View>
 
-          <View
-            style={[
-              styles.invoiceToggleBadge,
-              {
-                backgroundColor: showSalesInvoicePreview ? colors.primary + '18' : (isDark ? colors.gray200 : colors.gray100),
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                gap: 4,
-              },
-            ]}
-          >
-            <Text
+          {/* End: Status Pill + Circular Chevron */}
+          <View style={[styles.accordionHeaderRight, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View
               style={[
+                styles.accordionStatusPill,
                 {
-                  fontSize: 12,
-                  color: showSalesInvoicePreview ? colors.primary : colors.gray500,
+                  backgroundColor: showSalesInvoicePreview
+                    ? (isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7')
+                    : (isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray100),
+                  borderColor: showSalesInvoicePreview
+                    ? (isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A')
+                    : (isDark ? 'rgba(255, 255, 255, 0.12)' : colors.gray200),
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {showSalesInvoicePreview ? (isKuLanguage ? 'شاردنەوە' : 'Hide') : (isKuLanguage ? 'پیشاندان' : 'Show')}
-            </Text>
-            <Ionicons
-              name={showSalesInvoicePreview ? 'chevron-up' : 'chevron-down'}
-              size={15}
-              color={showSalesInvoicePreview ? colors.primary : colors.gray400}
-            />
+              <Ionicons
+                name={showSalesInvoicePreview ? 'eye-outline' : 'eye-off-outline'}
+                size={13}
+                color={showSalesInvoicePreview ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? colors.gray400 : colors.gray600)}
+              />
+              <Text
+                style={[
+                  styles.accordionStatusPillText,
+                  {
+                    color: showSalesInvoicePreview ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? colors.gray400 : colors.gray600),
+                  },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {showSalesInvoicePreview
+                  ? (isKuLanguage ? 'کراوەیە' : 'Visible')
+                  : (isKuLanguage ? 'پیشاندان' : 'Preview')}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.accordionChevronCircle,
+                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : colors.gray100 },
+              ]}
+            >
+              <Ionicons
+                name={showSalesInvoicePreview ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={colors.primary}
+              />
+            </View>
           </View>
         </TouchableOpacity>
 
         {showSalesInvoicePreview && (
-          <InvoiceView
-            sale={{
-              id: 0,
-              invoiceNumber: 'Preview',
-              customerId: null,
-              customerName: cart.customerInput.name || null,
-              customerPhone: cart.customerInput.phone || null,
-              customerAddress: cart.customerInput.address || null,
-              warranty: cart.customerInput.warranty || null,
-              notes: cart.saleNotes || null,
-              paymentMethod: cart.paymentMethod,
-              initialPaymentMethod: cart.initialPaymentMethod,
-              subtotal,
-              discountTotal,
-              globalDiscountType: cart.globalDiscountType,
-              globalDiscount: globalDiscountAmount,
-              grandTotal,
-              paidAmount: cart.paymentMethod === 'debt'
-                ? cart.effectivePaidIQD()
-                : grandTotal,
-              remainingDebt: cart.remainingDebt(),
-              status: 'completed',
-              exchangeRateUsed: exchangeRate,
-              date: saleDate.toISOString(),
-              createdAt: saleDate.toISOString(),
-              updatedAt: saleDate.toISOString(),
-              items: cart.items.map((ci, i) => ({
-                id: i,
-                saleId: 0,
-                productId: ci.product.id,
-                productName: ci.product.name,
-                itemId: ci.product.itemId,
-                idMode: ci.product.idMode,
-                purchasePrice: ci.product.purchasePrice,
-                sellingPrice: ci.sellingPrice,
-                quantity: ci.quantity,
-                discount: ci.discount,
-                lineTotal: ci.lineTotal,
-              })),
-            }}
-            compact={compact}
-          />
+          <View style={[styles.invoicePreviewExpandedWrapper, { borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200 }]}>
+            <InvoiceView
+              sale={{
+                id: 0,
+                invoiceNumber: 'Preview',
+                customerId: null,
+                customerName: cart.customerInput.name || null,
+                customerPhone: cart.customerInput.phone || null,
+                customerAddress: cart.customerInput.address || null,
+                warranty: cart.customerInput.warranty || null,
+                notes: cart.saleNotes || null,
+                paymentMethod: cart.paymentMethod,
+                initialPaymentMethod: cart.initialPaymentMethod,
+                subtotal,
+                discountTotal,
+                globalDiscountType: cart.globalDiscountType,
+                globalDiscount: globalDiscountAmount,
+                grandTotal,
+                paidAmount: cart.paymentMethod === 'debt'
+                  ? cart.effectivePaidIQD()
+                  : grandTotal,
+                remainingDebt: cart.remainingDebt(),
+                status: 'completed',
+                exchangeRateUsed: exchangeRate,
+                date: saleDate.toISOString(),
+                createdAt: saleDate.toISOString(),
+                updatedAt: saleDate.toISOString(),
+                items: cart.items.map((ci, i) => ({
+                  id: i,
+                  saleId: 0,
+                  productId: ci.product.id,
+                  productName: ci.product.name,
+                  itemId: ci.product.itemId,
+                  idMode: ci.product.idMode,
+                  purchasePrice: ci.product.purchasePrice,
+                  sellingPrice: ci.sellingPrice,
+                  quantity: ci.quantity,
+                  discount: ci.discount,
+                  lineTotal: ci.lineTotal,
+                })),
+              }}
+              compact={compact}
+            />
+          </View>
         )}
-      </PremiumCard>
+      </View>
     </MotiView>
   );
 
@@ -1004,19 +1017,20 @@ export default function NewSaleScreen() {
                 keyboardShouldPersistTaps="handled"
               >
                 <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-                  <PremiumCard style={styles.sectionCard}>
+                  <PremiumCard style={styles.sectionCard} padding={14}>
                     <DateTimePicker
                       value={saleDate}
                       onChange={setSaleDate}
                       label={t('sales.saleDate')}
                       maxDate={new Date()}
+                      style={{ marginBottom: 0 }}
                     />
                   </PremiumCard>
                 </MotiView>
 
                 <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
-                  <PremiumCard style={styles.sectionCard}>
-                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 12 }]}>{t('sales.customerInfo')}</Text>
+                  <PremiumCard style={styles.sectionCard} padding={14}>
+                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 8 }]}>{t('sales.customerInfo')}</Text>
                     <CustomerInputForm
                       value={cart.customerInput}
                       onChange={(patch) => {
@@ -1046,8 +1060,8 @@ export default function NewSaleScreen() {
                 overScrollMode="never"
               >
                 <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
-                  <PremiumCard style={styles.sectionCard}>
-                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 14 }]}>{t('sales.paymentMethod')}</Text>
+                  <PremiumCard style={styles.sectionCard} padding={14}>
+                    <Text style={[styles.sectionTitle, { color: colors.black, textAlign, fontSize: 18, marginBottom: 10 }]}>{t('sales.paymentMethod')}</Text>
                     <PaymentMethodSelector
                       selected={cart.paymentMethod}
                       onChange={(m) => cart.setPaymentMethod(m)}
@@ -1151,14 +1165,12 @@ export default function NewSaleScreen() {
                   </PremiumCard>
                 </MotiView>
 
-                <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-                  <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-                </MotiView>
-
                 <CheckoutActionGrid
                   mode={checkoutMode}
                   onSelectMode={setCheckoutMode}
                   type="sale"
+                  receiptCurrency={receiptCurrency}
+                  onSelectReceiptCurrency={setReceiptCurrency}
                 />
 
                 <PrimaryButton
@@ -1177,18 +1189,19 @@ export default function NewSaleScreen() {
       ) : (
         <KeyboardAwareScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]}>
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300 }}>
-            <PremiumCard style={styles.sectionCard}>
+            <PremiumCard style={styles.sectionCard} padding={12}>
               <DateTimePicker
                 value={saleDate}
                 onChange={setSaleDate}
                 label={t('sales.saleDate')}
                 maxDate={new Date()}
+                style={{ marginBottom: 0 }}
               />
             </PremiumCard>
           </MotiView>
 
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 40 }}>
-            <PremiumCard style={styles.sectionCard}>
+            <PremiumCard style={styles.sectionCard} padding={12}>
               <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.customerInfo')}</Text>
               <CustomerInputForm
                 value={cart.customerInput}
@@ -1205,7 +1218,7 @@ export default function NewSaleScreen() {
           </MotiView>
 
           <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 80 }}>
-            <PremiumCard style={styles.sectionCard}>
+            <PremiumCard style={styles.sectionCard} padding={12}>
               <Text style={[styles.sectionTitle, { color: colors.black, textAlign }]}>{t('sales.paymentMethod')}</Text>
               <PaymentMethodSelector
                 selected={cart.paymentMethod}
@@ -1312,14 +1325,12 @@ export default function NewSaleScreen() {
 
           {renderInvoicePreviewSection(false)}
 
-          <MotiView from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 300, delay: 200 }}>
-            <ReceiptCurrencySelector value={receiptCurrency} onChange={setReceiptCurrency} />
-          </MotiView>
-
           <CheckoutActionGrid
             mode={checkoutMode}
             onSelectMode={setCheckoutMode}
             type="sale"
+            receiptCurrency={receiptCurrency}
+            onSelectReceiptCurrency={setReceiptCurrency}
           />
 
           <PrimaryButton
@@ -1410,8 +1421,10 @@ const styles = StyleSheet.create({
   navBarScanIconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1419,29 +1432,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navBarScanTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
     color: '#1F2937',
   },
   navBarScanSub: {
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 2,
-  },
-  navBarScanActionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  navBarScanActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#725D18',
+    marginTop: 1.5,
   },
   step2ActionRow: {
     width: '100%',
@@ -1489,10 +1487,24 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   step2BtnTablet: {
-    minHeight: 52,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    minHeight: 42,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  cartGrid: {
+    width: '100%',
+  },
+  cartGridTablet: {
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+  },
+  cartGridCol: {
+    width: '100%',
+  },
+  cartGridColTablet: {
+    width: '48.8%',
   },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },
@@ -1510,9 +1522,9 @@ const styles = StyleSheet.create({
   summaryGrand:      { borderTopWidth: 1, paddingTop: 10, marginTop: 4, marginBottom: 0 },
   grandLabel:        { fontSize: 16, fontWeight: '700' },
   grandValue:        { fontSize: 18, fontWeight: '700' },
-  step3Body:     { padding: 16, paddingBottom: 40 },
-  sectionCard:   { marginBottom: 14 },
-  sectionTitle:  { fontSize: 15, fontWeight: '700', marginBottom: 14 },
+  step3Body:     { padding: 14, paddingBottom: 40 },
+  sectionCard:   { marginBottom: 8 },
+  sectionTitle:  { fontSize: 14.5, fontWeight: '700', marginBottom: 8 },
   debtSection:   { marginTop: 14 },
   downPayBtn:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5 },
   downPayBtnText:{ fontSize: 14, fontWeight: '700' },
@@ -1560,22 +1572,65 @@ const styles = StyleSheet.create({
     height: '100%',
     overflow: 'hidden',
   },
-  invoiceToggleRow: {
+  invoicePreviewCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginVertical: 6,
+    overflow: 'hidden',
+  },
+  accordionHeaderBtn: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
   },
-  invoiceToggleIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  accordionHeaderLeft: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  accordionHeaderIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  invoiceToggleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  accordionTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  accordionSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  accordionHeaderRight: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  accordionStatusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 5,
+  },
+  accordionStatusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  accordionChevronCircle: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoicePreviewExpandedWrapper: {
+    borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
 });

@@ -143,8 +143,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         };
       }
 
-      // Default to the provided batch, or if availableBatches provided use the FIFO oldest (index 0)
-      const selectedBatch = batch ?? (availableBatches && availableBatches.length > 0 ? availableBatches[0] : null);
+      // Default to the provided batch (if in stock), or the first available in-stock batch
+      const inStockBatches = (availableBatches || []).filter((b) => (b.quantity ?? 0) > 0);
+      const selectedBatch = (batch && (batch.quantity ?? 0) > 0)
+        ? batch
+        : (inStockBatches.length > 0 ? inStockBatches[0] : null);
       const effectiveBuyPrice = selectedBatch?.buyPriceIQD || product.purchasePrice;
 
       const newItem: CartItem = {
@@ -157,7 +160,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         lineTotal: product.sellingPrice,
         hasLossWarning: product.sellingPrice < effectiveBuyPrice,
         selectedBatch: selectedBatch ?? null,
-        availableBatches: availableBatches ?? (selectedBatch ? [selectedBatch] : undefined),
+        availableBatches: inStockBatches.length > 0 ? inStockBatches : (selectedBatch ? [selectedBatch] : undefined),
       };
       return { items: [...state.items, newItem] };
     });
@@ -181,12 +184,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({
       items: state.items.map((i) => {
         if (i.product.id !== productId) return i;
-        // If no selectedBatch yet, select the oldest (FIFO: index 0)
-        const selected = i.selectedBatch ?? (batches.length > 0 ? batches[0] : null);
+        const inStockBatches = (batches || []).filter((b) => (b.quantity ?? 0) > 0);
+        const isCurrentValid = i.selectedBatch && inStockBatches.some((b) => b.purchaseId === i.selectedBatch?.purchaseId);
+        const selected = isCurrentValid ? i.selectedBatch : (inStockBatches.length > 0 ? inStockBatches[0] : null);
         const effectiveBuyPrice = selected?.buyPriceIQD || i.product.purchasePrice;
         return {
           ...i,
-          availableBatches: batches,
+          availableBatches: inStockBatches,
           selectedBatch: selected,
           hasLossWarning: (i.sellingPrice - i.discount) < effectiveBuyPrice,
         };

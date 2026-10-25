@@ -140,7 +140,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
       (d) =>
         d.customerName.toLowerCase().includes(lower) ||
         (d.customerPhone?.toLowerCase().includes(lower) ?? false) ||
-        d.invoiceNumber.toLowerCase().includes(lower)
+        d.invoiceNumber.toLowerCase().includes(lower) ||
+        (d.productsSummary?.toLowerCase().includes(lower) ?? false)
     );
   },
 
@@ -151,7 +152,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
       (d) =>
         d.supplierName.toLowerCase().includes(lower) ||
         (d.supplierPhone?.toLowerCase().includes(lower) ?? false) ||
-        (d.purchaseNumber?.toLowerCase().includes(lower) ?? false)
+        (d.purchaseNumber?.toLowerCase().includes(lower) ?? false) ||
+        (d.productName?.toLowerCase().includes(lower) ?? false)
     );
   },
 }));

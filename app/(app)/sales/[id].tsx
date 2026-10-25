@@ -17,12 +17,14 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { getSaleById } from '@/lib/sqlite';
+import { getSaleById, getSalesDebtBySaleId } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
+import { fmtIQD } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
+import type { SalesDebtDetail } from '@/types/debt';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
 const HEADER_TITLE_STYLE = { ...Typography.title, color: '#FFFFFF', letterSpacing: 0.15 };
@@ -39,6 +41,7 @@ export default function SaleDetailScreen() {
   const business = useBusinessStore();
 
   const [sale, setSale]         = useState<Sale | null>(null);
+  const [saleDebt, setSaleDebt] = useState<SalesDebtDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
 
@@ -53,8 +56,13 @@ export default function SaleDetailScreen() {
 
   async function loadSale() {
     try {
-      const data = await getSaleById(Number(id));
+      const saleId = Number(id);
+      const data = await getSaleById(saleId);
       setSale(data);
+      if (data && (data.paymentMethod === 'debt' || data.paidAmount < data.grandTotal)) {
+        const debt = await getSalesDebtBySaleId(saleId);
+        setSaleDebt(debt);
+      }
     } catch (err) {
       console.error('Failed to load sale:', err);
     } finally {
@@ -126,6 +134,49 @@ export default function SaleDetailScreen() {
             <InvoiceView sale={sale} />
           </PremiumCard>
         </MotiView>
+
+        {saleDebt ? (
+          <MotiView
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 300, delay: 100 }}
+          >
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push(`/(app)/debt/sales/${saleDebt.id}` as never)}
+              style={[
+                styles.debtBanner,
+                {
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <View style={[styles.debtBannerIcon, { backgroundColor: colors.primary }]}>
+                <Ionicons name="card" size={18} color="#0F172A" />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[styles.debtBannerTitle, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {isRTL ? 'قەرزی ئەم فرۆشتنە و وەجبەکان' : 'Sale Debt & Linked Batches'}
+                  </Text>
+                  <View style={[styles.debtRemainingBadge, { backgroundColor: saleDebt.remainingAmount > 0 ? (isDark ? '#7F1D1D' : '#FEE2E2') : (isDark ? '#064E3B' : '#D1FAE5') }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: saleDebt.remainingAmount > 0 ? (isDark ? '#FCA5A5' : '#B91C1C') : (isDark ? '#6EE7B7' : '#047857') }}>
+                      {saleDebt.remainingAmount > 0 ? `${isRTL ? 'ماوە:' : 'Remaining:'} ${fmtIQD(saleDebt.remainingAmount)}` : (isRTL ? 'دراوەتەوە' : 'Settled')}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.debtBannerSub, { color: colors.gray600, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isRTL
+                    ? 'بۆ بینینی دۆخی پارەدان، وەجبەکانی کاڵاکان و وەسڵی قەرز کرتە بکە.'
+                    : 'Tap to view payment history, item batches breakdown, and debt PDF.'}
+                </Text>
+              </View>
+              <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </MotiView>
+        ) : null}
 
         <View style={styles.actions}>
           {isNew === '1' ? (
@@ -201,5 +252,34 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
     marginTop: 2,
+  },
+  debtBanner: {
+    padding: 14,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+  debtBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  debtBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  debtBannerSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  debtRemainingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
 });

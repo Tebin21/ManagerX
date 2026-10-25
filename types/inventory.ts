@@ -127,6 +127,8 @@ export interface ProductPurchaseHistoryItem {
   quantity: number;
   lineTotalIQD: number;
   paymentStatus: 'paid' | 'fib' | 'debt';
+  productionDate?: string | null;
+  expiryDate?: string | null;
   createdAt: string;
 }
 

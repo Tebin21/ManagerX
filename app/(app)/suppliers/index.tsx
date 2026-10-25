@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -131,19 +131,39 @@ export default function SuppliersScreen() {
     </MotiView>
   );
 
-  const renderItem = ({ item, index }: { item: SupplierWithStats; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
-      style={{ flex: isTablet ? 1 : undefined }}
-    >
-      <SupplierCard
-        supplier={item}
-        onPress={() => router.push(`/(app)/suppliers/${item.id}` as never)}
-      />
-    </MotiView>
-  );
+type SupplierOrFiller = SupplierWithStats | { id: string | number; isFiller: true };
+
+  const gridFormattedSuppliers: SupplierOrFiller[] = useMemo(() => {
+    if (cardColumns <= 1 || visible.length === 0) return visible;
+    const remainder = visible.length % cardColumns;
+    if (remainder === 0) return visible;
+    const needed = cardColumns - remainder;
+    const fillers: SupplierOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__sup_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visible, ...fillers];
+  }, [visible, cardColumns]);
+
+  const renderItem = ({ item, index }: { item: SupplierOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
+    }
+    const sup = item as SupplierWithStats;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 35, 350) }}
+        style={{ flex: isTablet ? 1 : undefined }}
+      >
+        <SupplierCard
+          supplier={sup}
+          onPress={() => router.push(`/(app)/suppliers/${sup.id}` as never)}
+        />
+      </MotiView>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -202,12 +222,19 @@ export default function SuppliersScreen() {
       </AppHeader>
 
       <FlatList
-        key={`sup-list-${cardColumns}`}
-        data={visible}
+        key={`sup-list-${cardColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+        data={gridFormattedSuppliers}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         numColumns={cardColumns}
-        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+        columnWrapperStyle={
+          cardColumns > 1
+            ? {
+                gap: 12,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              }
+            : undefined
+        }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews

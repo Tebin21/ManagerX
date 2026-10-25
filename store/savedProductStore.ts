@@ -176,12 +176,15 @@ export const useSavedProductStore = create<SavedProductState>()(
               hasNew = true;
             }
           } else {
+            // Only add to saved presets if it actually has an image
+            if (!uri || !uri.trim()) return;
+
             const desc = prod.itemDescription?.trim() || prod.description?.trim() || null;
             const newPreset: SavedProductPreset = {
               id: `inv_${prod.id}_${Date.now()}`,
               name,
               description: desc,
-              imageUri: uri,
+              imageUri: uri.trim(),
               itemId: prod.itemId?.trim() || null,
               category: prod.category?.trim() || null,
               buyPriceIQD: prod.purchasePrice || undefined,
@@ -201,7 +204,11 @@ export const useSavedProductStore = create<SavedProductState>()(
         });
 
         if (hasNew) {
-          set({ savedPresets: [...additions, ...updatedList] });
+          // Keep only presets with real images
+          const combined = [...additions, ...updatedList].filter(
+            (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+          );
+          set({ savedPresets: combined });
         }
       },
 
@@ -223,7 +230,9 @@ export const useSavedProductStore = create<SavedProductState>()(
 
       searchPresets: (query: string) => {
         const q = query.trim().toLowerCase();
-        const all = get().savedPresets;
+        const all = get().savedPresets.filter(
+          (p) => typeof p.imageUri === 'string' && p.imageUri.trim().length > 0
+        );
         if (!q) return all;
 
         return all.filter((p) => {
@@ -239,9 +248,14 @@ export const useSavedProductStore = create<SavedProductState>()(
       storage: createJSONStorage(() => migratedAsyncStorage),
       merge: (persistedState: unknown, currentState: SavedProductState): SavedProductState => {
         const p = persistedState as Partial<SavedProductState> | null;
+        const rawPresets = Array.isArray(p?.savedPresets) ? p.savedPresets : [];
+        // Only keep presets that actually have an image
+        const validPresets = rawPresets.filter(
+          (x) => typeof x?.imageUri === 'string' && x.imageUri.trim().length > 0
+        );
         return {
           ...currentState,
-          savedPresets: Array.isArray(p?.savedPresets) ? p.savedPresets : [],
+          savedPresets: validPresets,
         };
       },
     }

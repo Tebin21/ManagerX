@@ -50,6 +50,10 @@ export default function PurchasesScreen() {
   const { count, total } = useMemo(() => getTodayStats(purchases), [purchases]);
   const [showSavedImagesModal, setShowSavedImagesModal] = useState(false);
   const savedPresets = useSavedProductStore((s) => s.savedPresets);
+  const savedPhotosCount = useMemo(
+    () => savedPresets.filter((p) => Boolean(p.imageUri && p.imageUri.trim())).length,
+    [savedPresets]
+  );
 
 
 
@@ -488,7 +492,7 @@ export default function PurchasesScreen() {
                     >
                       {isKuLanguage ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos Library'}
                     </Text>
-                    {savedPresets.length > 0 && (
+                    {savedPhotosCount > 0 && (
                       <View
                         style={{
                           backgroundColor: hexToRgba(colors.primary, 0.15),
@@ -505,7 +509,7 @@ export default function PurchasesScreen() {
                             fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                           }}
                         >
-                          {savedPresets.length}
+                          {savedPhotosCount}
                         </Text>
                       </View>
                     )}

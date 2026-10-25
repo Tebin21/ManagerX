@@ -258,6 +258,8 @@ export default function PurchaseHistoryScreen() {
     </MotiView>
   );
 
+type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
+
   const numColumns = useMemo(() => {
     if (viewMode === 'list') {
       return isTablet ? (isTabletLandscape ? 2 : 1) : 1;
@@ -266,28 +268,49 @@ export default function PurchaseHistoryScreen() {
     return isTabletLandscape ? 4 : isTablet ? 3 : 2;
   }, [viewMode, isTablet, isTabletLandscape]);
 
-  const renderItem = ({ item, index }: { item: Purchase; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 12 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
-      style={{ flex: 1 }}
-    >
-      {viewMode === 'grid' ? (
-        <PurchaseGridCard
-          purchase={item}
-          onPress={() => router.push(`/(app)/purchases/${item.id}` as never)}
-          onDelete={() => confirmDelete(item)}
-        />
-      ) : (
-        <PurchaseHistoryItem
-          purchase={item}
-          onPress={() => router.push(`/(app)/purchases/${item.id}` as never)}
-          onDelete={() => confirmDelete(item)}
-        />
-      )}
-    </MotiView>
-  );
+  // Balance out incomplete rows in multi-column view with transparent fillers
+  const gridFormattedPurchases: PurchaseOrFiller[] = useMemo(() => {
+    if (numColumns <= 1 || visible.length === 0) {
+      return visible;
+    }
+    const remainder = visible.length % numColumns;
+    if (remainder === 0) return visible;
+    const needed = numColumns - remainder;
+    const fillers: PurchaseOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__purch_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visible, ...fillers];
+  }, [visible, numColumns]);
+
+  const renderItem = ({ item, index }: { item: PurchaseOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return <View style={{ flex: 1, marginBottom: 12, backgroundColor: 'transparent' }} />;
+    }
+    const purch = item as Purchase;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: Math.min(index * 25, 250) }}
+        style={{ flex: 1 }}
+      >
+        {viewMode === 'grid' ? (
+          <PurchaseGridCard
+            purchase={purch}
+            onPress={() => router.push(`/(app)/purchases/${purch.id}` as never)}
+            onDelete={() => confirmDelete(purch)}
+          />
+        ) : (
+          <PurchaseHistoryItem
+            purchase={purch}
+            onPress={() => router.push(`/(app)/purchases/${purch.id}` as never)}
+            onDelete={() => confirmDelete(purch)}
+          />
+        )}
+      </MotiView>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -388,12 +411,19 @@ export default function PurchaseHistoryScreen() {
 
       {/* Purchases List */}
       <FlatList
-        key={`purch-hist-${viewMode}-${numColumns}`}
-        data={visible}
+        key={`purch-hist-${viewMode}-${numColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+        data={gridFormattedPurchases}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
+        columnWrapperStyle={
+          numColumns > 1
+            ? {
+                gap: 12,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              }
+            : undefined
+        }
         contentContainerStyle={[
           styles.list,
           isTablet && contentContainerStyle,

@@ -30,14 +30,20 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { SupplierCard } from '@/components/suppliers/SupplierCard';
+import { QuotationCard } from '@/components/quotations/QuotationCard';
+import { QuotationPreviewModal } from '@/components/quotations/QuotationPreviewModal';
 import { useCustomerStore } from '@/store/customerStore';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useQuotationStore } from '@/store/quotationStore';
+import { useBusinessStore } from '@/store/businessStore';
+import { shareQuotationInvoice } from '@/lib/generateInvoice';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
+import type { Quotation } from '@/types/quotation';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { isDateWithinRange, getPeriodBounds, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
 import { useLanguageStore } from '@/store/languageStore';
@@ -45,7 +51,7 @@ import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } f
 import { useResponsive } from '@/hooks/useResponsive';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 
-type HistoryTab = 'report' | 'customers' | 'suppliers';
+type HistoryTab = 'report' | 'customers' | 'suppliers' | 'quotations';
 
 // Forces a numeric Text/AmountText to render LTR + left-aligned regardless of app language.
 const NUMBER_LTR = { textAlign: 'left' as const, writingDirection: 'ltr' as const };
@@ -65,16 +71,21 @@ export default function HistoryScreen() {
   const { customers, isLoading: custLoading, loadCustomers } = useCustomerStore();
   const { suppliers, isLoading: supLoading, loadSuppliers } = useSupplierStore();
   const { purchaseDebts, loadAll: loadDebts } = useDebtStore();
+  const { quotations, deleteQuotation } = useQuotationStore();
+  const business = useBusinessStore();
+
+  const [previewQuotation, setPreviewQuotation] = useState<Quotation | null>(null);
+  const [isSharingQuotation, setIsSharingQuotation] = useState(false);
 
   const [tab, setTab] = useState<HistoryTab>(() => {
-    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers')) {
+    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers' || params.tab === 'quotations')) {
       return params.tab;
     }
     return 'report';
   });
 
   useEffect(() => {
-    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers')) {
+    if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers' || params.tab === 'quotations')) {
       setTab(params.tab);
     }
   }, [params.tab]);
@@ -202,6 +213,13 @@ export default function HistoryScreen() {
     );
   }, [suppliers, periodKey, bounds]);
 
+  const periodFilteredQuotations = useMemo(() => {
+    if (periodKey === 'all') return quotations;
+    return quotations.filter((q) =>
+      isDateWithinRange(q.createdAt || q.date, bounds.from, bounds.to)
+    );
+  }, [quotations, periodKey, bounds]);
+
   // Search filter on top of date bounds
   const visibleCustomers = useMemo(() => {
     if (!query.trim()) return periodFilteredCustomers;
@@ -223,9 +241,23 @@ export default function HistoryScreen() {
     );
   }, [periodFilteredSuppliers, query]);
 
+  const visibleQuotations = useMemo(() => {
+    if (!query.trim()) return periodFilteredQuotations;
+    const q = query.trim().toLowerCase();
+    return periodFilteredQuotations.filter((item) => {
+      const matchCustomer = item.customerName?.toLowerCase().includes(q);
+      const matchNumber = item.quotationNumber?.toLowerCase().includes(q);
+      const matchPhone = item.customerPhone?.toLowerCase().includes(q);
+      const matchNotes = item.notes?.toLowerCase().includes(q);
+      const matchItem = item.items?.some((it) => it.productName.toLowerCase().includes(q));
+      return matchCustomer || matchNumber || matchPhone || matchNotes || matchItem;
+    });
+  }, [periodFilteredQuotations, query]);
+
   // Grid layout dummy fillers for equal sizing on incomplete rows
   type CustomerOrFiller = CustomerWithStats | { id: string; isFiller: true };
   type SupplierOrFiller = SupplierWithStats | { id: string; isFiller: true };
+  type QuotationOrFiller = Quotation | { id: string; isFiller: true };
 
   const gridFormattedCustomers: CustomerOrFiller[] = useMemo(() => {
     if (!isGridView || numColumns <= 1 || visibleCustomers.length === 0) {
@@ -254,6 +286,20 @@ export default function HistoryScreen() {
     }));
     return [...visibleSuppliers, ...fillers];
   }, [visibleSuppliers, isGridView, numColumns]);
+
+  const gridFormattedQuotations: QuotationOrFiller[] = useMemo(() => {
+    if (!isGridView || numColumns <= 1 || visibleQuotations.length === 0) {
+      return visibleQuotations;
+    }
+    const remainder = visibleQuotations.length % numColumns;
+    if (remainder === 0) return visibleQuotations;
+    const needed = numColumns - remainder;
+    const fillers: QuotationOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__quote_filler_${i}`,
+      isFiller: true,
+    }));
+    return [...visibleQuotations, ...fillers];
+  }, [visibleQuotations, isGridView, numColumns]);
 
   // ── Metrics & Calculations for Report Dashboard ──
   const reportTotalCustSpent = useMemo(
@@ -426,6 +472,102 @@ export default function HistoryScreen() {
     );
   }, [handleSupplierPress, isGridView, isTablet]);
 
+  // Quotation Handlers & Renderers
+  const handleQuotationPress = useCallback((q: Quotation) => {
+    setPreviewQuotation(q);
+  }, []);
+
+  const handleQuotationShare = useCallback(async (q: Quotation) => {
+    setIsSharingQuotation(true);
+    try {
+      await shareQuotationInvoice(
+        q,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        'both'
+      );
+      useQuotationStore.getState().incrementPrintCount(q.id);
+      setPreviewQuotation((prev) => (prev && prev.id === q.id ? { ...prev, printCount: (prev.printCount || 0) + 1 } : prev));
+    } catch (err) {
+      console.error('[Quotation] Share error:', err);
+    } finally {
+      setIsSharingQuotation(false);
+    }
+  }, [business]);
+
+  const handleQuotationDelete = useCallback((q: Quotation) => {
+    deleteQuotation(q.id);
+    if (previewQuotation?.id === q.id) {
+      setPreviewQuotation(null);
+    }
+  }, [deleteQuotation, previewQuotation]);
+
+  const renderQuotationEmpty = () => (
+    <MotiView
+      from={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ type: 'timing', duration: 300 }}
+      style={styles.emptyContainer}
+    >
+      <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
+        <Ionicons name="document-text-outline" size={isTablet ? 56 : 48} color={colors.gray300} />
+      </View>
+      {query.trim() || periodKey !== 'all' ? (
+        <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('history.noQuotations')}</Text>
+      ) : (
+        <>
+          <Text style={[styles.emptyTitle, { color: colors.black }]}>{t('history.noQuotations')}</Text>
+          <Text style={[styles.emptySub, { color: colors.gray400 }]}>{t('history.noQuotationsDetail')}</Text>
+          <TouchableOpacity
+            style={[styles.emptyAction, { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            onPress={() => router.push('/(app)/sales/quotation' as never)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.white} />
+            <Text style={styles.emptyActionText}>{t('history.newQuotation')}</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </MotiView>
+  );
+
+  const renderQuotation = useCallback(({ item, index }: { item: QuotationOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            marginBottom: isTablet ? 12 : 8,
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+          }}
+          pointerEvents="none"
+        />
+      );
+    }
+    const quotation = item as Quotation;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+        style={{ flex: 1 }}
+      >
+        <QuotationCard
+          quotation={quotation}
+          onPress={handleQuotationPress}
+          onShare={handleQuotationShare}
+          onDelete={handleQuotationDelete}
+          layout={isGridView ? 'grid' : 'list'}
+        />
+      </MotiView>
+    );
+  }, [handleQuotationPress, handleQuotationShare, handleQuotationDelete, isGridView, isTablet]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       {/* ── Top Header ── */}
@@ -548,6 +690,40 @@ export default function HistoryScreen() {
               </View>
             )}
           </TouchableOpacity>
+
+          {/* Tab 4: عەرزەکان (Quotations) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => { setTab('quotations'); handleCollapseSearch(true); }}
+            style={[
+              styles.segmentBtn,
+              tab === 'quotations' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={isTablet ? 17 : 15}
+              color={tab === 'quotations' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              style={[
+                styles.segmentBtnText,
+                { color: tab === 'quotations' ? '#FFFFFF' : colors.gray600 },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+              numberOfLines={1}
+            >
+              {t('history.quotationsTab')}
+            </Text>
+            {periodFilteredQuotations.length > 0 && (
+              <View style={[styles.tabBadge, tab === 'quotations' ? { backgroundColor: 'rgba(255,255,255,0.3)' } : { backgroundColor: colors.gray200 }]}>
+                <Text style={[styles.tabBadgeText, { color: tab === 'quotations' ? '#fff' : colors.gray700 }, NUMBER_LTR]}>
+                  {periodFilteredQuotations.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -586,7 +762,13 @@ export default function HistoryScreen() {
                   },
                   isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
                 ]}
-                placeholder={tab === 'suppliers' ? t('history.searchSuppliers') : t('history.searchCustomers')}
+                placeholder={
+                  tab === 'suppliers'
+                    ? t('history.searchSuppliers')
+                    : tab === 'quotations'
+                    ? t('history.searchQuotations')
+                    : t('history.searchCustomers')
+                }
                 placeholderTextColor={colors.gray400}
                 value={query}
                 onChangeText={setQuery}
@@ -962,7 +1144,7 @@ export default function HistoryScreen() {
           </View>
 
           <FlatList
-            key={`cust_${isGridView ? 'grid' : 'list'}_${numColumns}`}
+            key={`cust_${isGridView ? 'grid' : 'list'}_${numColumns}_${isRTL ? 'rtl' : 'ltr'}`}
             data={gridFormattedCustomers}
             renderItem={renderCustomer}
             keyExtractor={(item) => String(item.id)}
@@ -974,7 +1156,11 @@ export default function HistoryScreen() {
             ]}
             columnWrapperStyle={
               isGridView && numColumns > 1
-                ? { gap: isTablet ? 12 : 8, marginBottom: isTablet ? 12 : 8 }
+                ? {
+                    gap: isTablet ? 12 : 8,
+                    marginBottom: isTablet ? 12 : 8,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
                 : undefined
             }
             refreshControl={
@@ -993,7 +1179,7 @@ export default function HistoryScreen() {
             }}
           />
         </>
-      ) : (
+      ) : tab === 'suppliers' ? (
         /* ═══════════════════════════════════════════════════════════════
            TAB 3: دابینکەران (SUPPLIERS LIST)
            ═══════════════════════════════════════════════════════════════ */
@@ -1023,7 +1209,7 @@ export default function HistoryScreen() {
           </View>
 
           <FlatList
-            key={`sup_${isGridView ? 'grid' : 'list'}_${numColumns}`}
+            key={`sup_${isGridView ? 'grid' : 'list'}_${numColumns}_${isRTL ? 'rtl' : 'ltr'}`}
             data={gridFormattedSuppliers}
             renderItem={renderSupplier}
             keyExtractor={(item) => String(item.id)}
@@ -1035,7 +1221,11 @@ export default function HistoryScreen() {
             ]}
             columnWrapperStyle={
               isGridView && numColumns > 1
-                ? { gap: isTablet ? 12 : 8, marginBottom: isTablet ? 12 : 8 }
+                ? {
+                    gap: isTablet ? 12 : 8,
+                    marginBottom: isTablet ? 12 : 8,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
                 : undefined
             }
             refreshControl={
@@ -1046,6 +1236,84 @@ export default function HistoryScreen() {
               />
             }
             ListEmptyComponent={renderSupplierEmpty}
+            onScrollBeginDrag={() => {
+              Keyboard.dismiss();
+              if (isSearchExpanded && !query) {
+                handleCollapseSearch(false);
+              }
+            }}
+          />
+        </>
+      ) : (
+        /* ═══════════════════════════════════════════════════════════════
+           TAB 4: عەرزەکان (QUOTATIONS LIST)
+           ═══════════════════════════════════════════════════════════════ */
+        <>
+          {/* Quick summary strip with New Quote button */}
+          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1, flexWrap: 'wrap' }}>
+              <Text
+                style={[
+                  styles.summaryStripText,
+                  { color: colors.gray500 },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleQuotations.length} {t('history.quotationsCount')}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
+                <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
+                  {t('history.totalQuotationsValue')}
+                </Text>
+                <AmountText
+                  value={visibleQuotations.reduce((s, q) => s + (q.grandTotal || 0), 0)}
+                  currency="IQD"
+                  variant="small"
+                  style={[{ color: colors.primary, fontWeight: '700' }, NUMBER_LTR]}
+                />
+              </View>
+            </View>
+
+            {/* Quick button to create a new quotation */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(app)/sales/quotation' as never)}
+              style={[
+                styles.newQuoteSummaryBtn,
+                {
+                  backgroundColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="add-circle" size={15} color="#FFFFFF" />
+              <Text style={styles.newQuoteSummaryBtnText}>
+                {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            key={`quote_${isGridView ? 'grid' : 'list'}_${numColumns}_${isRTL ? 'rtl' : 'ltr'}`}
+            data={gridFormattedQuotations}
+            renderItem={renderQuotation}
+            keyExtractor={(item) => String(item.id)}
+            numColumns={numColumns}
+            contentContainerStyle={[
+              styles.listContent,
+              isTablet && contentContainerStyle,
+              visibleQuotations.length === 0 && styles.listEmpty,
+            ]}
+            columnWrapperStyle={
+              isGridView && numColumns > 1
+                ? {
+                    gap: isTablet ? 12 : 8,
+                    marginBottom: isTablet ? 12 : 8,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  }
+                : undefined
+            }
+            ListEmptyComponent={renderQuotationEmpty}
             onScrollBeginDrag={() => {
               Keyboard.dismiss();
               if (isSearchExpanded && !query) {
@@ -1067,6 +1335,15 @@ export default function HistoryScreen() {
           setCustomRange({ from, to });
           setCustomOpen(false);
         }}
+      />
+
+      {/* ── Quotation Preview Modal ── */}
+      <QuotationPreviewModal
+        visible={!!previewQuotation}
+        quotation={previewQuotation}
+        onClose={() => setPreviewQuotation(null)}
+        onShare={handleQuotationShare}
+        isSharing={isSharingQuotation}
       />
     </View>
   );
@@ -1096,16 +1373,16 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     segmentTrack: {
       borderRadius: isTabletLandscape ? 16 : 12,
       padding: isTabletLandscape ? 5 : 3,
-      gap: isTabletLandscape ? 8 : 4,
+      gap: isTabletLandscape ? 8 : 3,
     },
     segmentBtn: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: isTabletLandscape ? 13 : isTablet ? 11 : 9,
-      paddingHorizontal: isTabletLandscape ? 12 : 6,
+      paddingVertical: isTabletLandscape ? 13 : isTablet ? 11 : 8.5,
+      paddingHorizontal: isTabletLandscape ? 12 : isTablet ? 6 : 2,
       borderRadius: isTabletLandscape ? 12 : 9,
-      gap: 6,
+      gap: isTabletLandscape ? 6 : 4,
     },
     segmentBtnActive: {
       shadowColor: '#000',
@@ -1115,16 +1392,16 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       elevation: 2,
     },
     segmentBtnText: {
-      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 13,
+      fontSize: isTabletLandscape ? 15 : isTablet ? 13.5 : 12,
       fontWeight: '700',
     },
     tabBadge: {
       borderRadius: 10,
-      paddingHorizontal: 6,
-      paddingVertical: 1.5,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
     },
     tabBadgeText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
     },
 
@@ -1302,6 +1579,18 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
     summaryStripText: {
       fontSize: 12.5,
       fontWeight: '600',
+    },
+    newQuoteSummaryBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      alignItems: 'center',
+      gap: 4,
+    },
+    newQuoteSummaryBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
 
     listContent: {

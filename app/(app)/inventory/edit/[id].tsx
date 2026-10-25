@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { ProductImagePicker } from '@/components/ui/ProductImagePicker';
 import { LockedFieldRow } from '@/components/ui/LockedFieldRow';
@@ -255,7 +256,7 @@ export default function EditProductScreen() {
   const numId = Number(id);
   if (!id || isNaN(numId)) {
     return (
-      <View style={[styles.loadWrap, { backgroundColor: colors.gray50 }]}>
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('inventory.editProduct')} showBack />
       </View>
     );
@@ -263,8 +264,9 @@ export default function EditProductScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.loadWrap, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
+        <AppHeader title={t('inventory.editProduct')} showBack />
+        <LoadingView />
       </View>
     );
   }

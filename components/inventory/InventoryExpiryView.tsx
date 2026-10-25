@@ -1778,7 +1778,7 @@ export function InventoryExpiryView({
         /* ── 3. TAB 2: کاڵاکان و بەروارەکانیان (PRODUCTS VIEW) ──────────────── */
         <FlatList
           data={filteredProducts}
-          key={`products-${viewMode}-${productNumColumns}`}
+          key={`products-${viewMode}-${productNumColumns}-${isRTL ? 'rtl' : 'ltr'}`}
           numColumns={productNumColumns}
           keyExtractor={(item) => String(item.product.id)}
           renderItem={viewMode === 'grid' ? renderProductGridItem : renderProductListItem}
@@ -1794,7 +1794,9 @@ export function InventoryExpiryView({
           ]}
           columnWrapperStyle={
             productNumColumns > 1
-              ? (viewMode === 'grid' ? styles.gridColumnWrapper : [styles.listColumnWrapper, isTablet && { gap: 14, marginBottom: 14 }])
+              ? (viewMode === 'grid'
+                  ? [styles.gridColumnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
+                  : [styles.listColumnWrapper, isTablet && { gap: 14, marginBottom: 14 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }])
               : undefined
           }
           refreshControl={

@@ -17,6 +17,7 @@ import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
+import { LoadingView } from '@/components/ui/LoadingView';
 import { KeyboardAwareScrollView } from '@/components/common/KeyboardAwareScrollView';
 import { DebtCard } from '@/components/customers/DebtCard';
 import { SaleTimelineItem } from '@/components/customers/SaleTimelineItem';
@@ -209,9 +210,7 @@ export default function CustomerProfileScreen() {
       />
 
       {loading ? (
-        <View style={styles.loadingCenter}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingView />
       ) : (
         <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* Customer contact pills (phone, address, direct badge) */}

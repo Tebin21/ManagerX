@@ -94,16 +94,36 @@ export default function CustomersScreen() {
     router.push(`/(app)/customers/${customerId}` as never);
   }, [router]);
 
-  const renderItem = useCallback(({ item, index }: { item: CustomerWithStats; index: number }) => (
-    <MotiView
-      from={{ opacity: 0, translateY: 10 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
-      style={isTablet ? { flex: 1 } : undefined}
-    >
-      <CustomerCard customer={item} onPress={handleCustomerPress} />
-    </MotiView>
-  ), [handleCustomerPress, isTablet]);
+type CustomerOrFiller = CustomerWithStats | { id: string | number; isFiller: true };
+
+  const gridFormattedCustomers: CustomerOrFiller[] = useMemo(() => {
+    if (cardColumns <= 1 || visible.length === 0) return visible;
+    const remainder = visible.length % cardColumns;
+    if (remainder === 0) return visible;
+    const needed = cardColumns - remainder;
+    const fillers: CustomerOrFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__cust_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...visible, ...fillers];
+  }, [visible, cardColumns]);
+
+  const renderItem = useCallback(({ item, index }: { item: CustomerOrFiller; index: number }) => {
+    if ('isFiller' in item && item.isFiller) {
+      return <View style={isTablet ? { flex: 1, backgroundColor: 'transparent' } : undefined} />;
+    }
+    const cust = item as CustomerWithStats;
+    return (
+      <MotiView
+        from={{ opacity: 0, translateY: 10 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'spring', damping: 18, stiffness: 200, delay: index < 10 ? index * 35 : 0 }}
+        style={isTablet ? { flex: 1 } : undefined}
+      >
+        <CustomerCard customer={cust} onPress={handleCustomerPress} />
+      </MotiView>
+    );
+  }, [handleCustomerPress, isTablet]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -192,12 +212,19 @@ export default function CustomersScreen() {
       )}
 
       <FlatList
-        key={`cust-list-${cardColumns}`}
-        data={visible}
+        key={`cust-list-${cardColumns}-${isRTL ? 'rtl' : 'ltr'}`}
+        data={gridFormattedCustomers}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         numColumns={cardColumns}
-        columnWrapperStyle={isTablet ? { gap: 12 } : undefined}
+        columnWrapperStyle={
+          cardColumns > 1
+            ? {
+                gap: 12,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              }
+            : undefined
+        }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, visible.length === 0 && styles.listEmpty]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews

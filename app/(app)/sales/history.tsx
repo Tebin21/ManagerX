@@ -154,9 +154,9 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
     return isTabletLandscape ? 4 : isTablet ? 3 : 2;
   }, [viewMode, isTablet, isTabletLandscape]);
 
-  // Balance out incomplete rows in grid view with transparent fillers
+  // Balance out incomplete rows in multi-column view with transparent fillers
   const gridFormattedSales: SaleOrFiller[] = useMemo(() => {
-    if (viewMode !== 'grid' || numColumns <= 1 || results.length === 0) {
+    if (numColumns <= 1 || results.length === 0) {
       return results;
     }
     const remainder = results.length % numColumns;
@@ -167,7 +167,7 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
       isFiller: true as const,
     }));
     return [...results, ...fillers];
-  }, [results, viewMode, numColumns]);
+  }, [results, numColumns]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: SaleOrFiller; index: number }) => {
@@ -258,12 +258,19 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
 
       {/* Sales Invoices List */}
       <FlatList
-        key={`sales-hist-${viewMode}-${numColumns}`}
+        key={`sales-hist-${viewMode}-${numColumns}-${isRTL ? 'rtl' : 'ltr'}`}
         data={gridFormattedSales}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? { gap: 12 } : undefined}
+        columnWrapperStyle={
+          numColumns > 1
+            ? {
+                gap: 12,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              }
+            : undefined
+        }
         contentContainerStyle={[styles.list, isTablet && contentContainerStyle, results.length === 0 && styles.listEmpty]}
         removeClippedSubviews
         initialNumToRender={15}

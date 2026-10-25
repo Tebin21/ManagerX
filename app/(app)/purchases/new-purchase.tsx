@@ -594,6 +594,18 @@ export default function NewPurchaseScreen() {
   const projectedBalance = (drawerBalance ?? 0) - cashNeeded;
   const isInsufficientCash = isCapitalEnabled && drawerBalance !== null && cashNeeded > drawerBalance;
 
+  // Sample placeholders for pricing inputs (dynamically converted via system exchange rate)
+  const sampleBuyUSD = 20;
+  const sampleBuyIQDStr = useMemo(
+    () => roundToNearest250(sampleBuyUSD * exchangeRate).toLocaleString('en-US'),
+    [exchangeRate]
+  );
+  const sampleSellUSD = 25;
+  const sampleSellIQDStr = useMemo(
+    () => roundToNearest250(sampleSellUSD * exchangeRate).toLocaleString('en-US'),
+    [exchangeRate]
+  );
+
   // ─── Currency sync ──────────────────────────────────────────────────────────
   function onBuyIQDChange(val: string) {
     const clean = sanitizeNumericInput(val, 'decimal-pad');
@@ -2433,7 +2445,7 @@ export default function NewPurchaseScreen() {
               setBuyUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
             }}
             keyboardType="decimal-pad"
-            placeholder={t('purchases.buyPriceIQDPlaceholder')}
+            placeholder={sampleBuyIQDStr}
             placeholderTextColor={colors.gray400}
             returnKeyType="next"
             onFocus={scrollIntoView}
@@ -2446,7 +2458,7 @@ export default function NewPurchaseScreen() {
             value={buyUSD}
             onChangeText={onBuyUSDChange}
             keyboardType="decimal-pad"
-            placeholder={t('purchases.buyPriceUSDPlaceholder')}
+            placeholder={String(sampleBuyUSD)}
             placeholderTextColor={colors.gray400}
             returnKeyType="next"
             onFocus={scrollIntoView}
@@ -2476,7 +2488,7 @@ export default function NewPurchaseScreen() {
               setSellUSD(r > 0 ? String(round(r / exchangeRate, 2)) : '');
             }}
             keyboardType="decimal-pad"
-            placeholder="0"
+            placeholder={sampleSellIQDStr}
             placeholderTextColor={colors.gray400}
             returnKeyType="next"
             onFocus={scrollIntoView}
@@ -2489,7 +2501,7 @@ export default function NewPurchaseScreen() {
             value={sellUSD}
             onChangeText={onSellUSDChange}
             keyboardType="decimal-pad"
-            placeholder="0.00"
+            placeholder={String(sampleSellUSD)}
             placeholderTextColor={colors.gray400}
             returnKeyType="next"
             onFocus={scrollIntoView}
