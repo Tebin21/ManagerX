@@ -4581,8 +4581,8 @@ export async function getAllSalesDebtsDetailed(): Promise<SalesDebtDetail[]> {
             (
               SELECT GROUP_CONCAT(
                 si.product_name || CASE 
-                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
-                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی ' || si.batch_number || char(8207) || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی 1' || char(8207) || ')'
                   ELSE ''
                 END,
                 ' ، '
@@ -4611,8 +4611,8 @@ export async function getSalesDebtById(id: number): Promise<SalesDebtDetail | nu
             (
               SELECT GROUP_CONCAT(
                 si.product_name || CASE 
-                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
-                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی ' || si.batch_number || char(8207) || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی 1' || char(8207) || ')'
                   ELSE ''
                 END,
                 ' ، '
@@ -4641,8 +4641,8 @@ export async function getSalesDebtBySaleId(saleId: number): Promise<SalesDebtDet
             (
               SELECT GROUP_CONCAT(
                 si.product_name || CASE 
-                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی #' || si.batch_number || ')'
-                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی #1)'
+                  WHEN si.batch_number IS NOT NULL AND si.batch_number > 0 THEN ' (وەجبەی ' || si.batch_number || char(8207) || ')'
+                  WHEN (SELECT COUNT(*) FROM purchases p_sub WHERE LOWER(TRIM(p_sub.product_name)) = LOWER(TRIM(si.product_name))) > 0 THEN ' (وەجبەی 1' || char(8207) || ')'
                   ELSE ''
                 END,
                 ' ، '

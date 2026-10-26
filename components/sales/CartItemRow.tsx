@@ -325,7 +325,7 @@ export function CartItemRow({
                   ]}
                 >
                   {isKuLanguage
-                    ? `وەجبەی #${item.selectedBatch?.batchNum ?? 1}`
+                    ? `وەجبەی ${item.selectedBatch?.batchNum ?? 1}`
                     : `Batch #${item.selectedBatch?.batchNum ?? 1}`}
                 </Text>
                 {item.selectedBatch?.isOldest && (

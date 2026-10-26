@@ -214,7 +214,7 @@ export function InvoiceView({ sale, compact = false }: Props) {
                     <Text style={[styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
                     {item.batchNumber ? (
                       <Text style={[{ fontSize: 10, fontWeight: '600', color: colors.primary, marginTop: 1, textAlign, writingDirection }]}>
-                        {isRTL ? `وەجبەی #${item.batchNumber}` : `Batch #${item.batchNumber}`}
+                        {isRTL ? `وەجبەی ${item.batchNumber}` : `Batch #${item.batchNumber}`}
                       </Text>
                     ) : null}
                     {item.itemDescription ? (

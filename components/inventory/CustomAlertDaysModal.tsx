@@ -255,11 +255,15 @@ export function CustomAlertDaysModal({
                         <Text
                           style={[
                             styles.suggestionChipText,
-                            { color: isSelected ? '#0F172A' : colors.black },
+                            {
+                              color: isSelected ? '#0F172A' : colors.black,
+                              writingDirection: isRTL ? 'rtl' : 'ltr',
+                              textAlign: 'center',
+                            },
                             isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                           ]}
                         >
-                          {val} {isKu ? 'ڕۆژ' : 'd'}
+                          {isKu ? `\u200F${val} ڕۆژ` : `${val}d`}
                         </Text>
                       </TouchableOpacity>
                     );

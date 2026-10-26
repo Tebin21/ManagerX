@@ -249,7 +249,7 @@ export function ProductSearchResult({
                   numberOfLines={1}
                 >
                   {isKurdish
-                    ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
+                    ? `وەجبەی ${selectedBatch?.batchNum ?? 1}`
                     : `Batch #${selectedBatch?.batchNum ?? 1}`}
                 </Text>
                 {selectedBatch?.isOldest && (
@@ -457,7 +457,7 @@ export function ProductSearchResult({
               <Ionicons name="layers-outline" size={11} color={isDark ? colors.primary : '#B45309'} />
               <Text style={[styles.listBatchText, { color: isDark ? colors.primary : '#92400E' }]}>
                 {isKurdish
-                  ? `وەجبەی #${selectedBatch?.batchNum ?? 1}`
+                  ? `وەجبەی ${selectedBatch?.batchNum ?? 1}`
                   : `Batch #${selectedBatch?.batchNum ?? 1}`}
               </Text>
               {selectedBatch?.isOldest && (

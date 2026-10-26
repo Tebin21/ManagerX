@@ -962,7 +962,7 @@ export default function InventoryDetailScreen() {
                       <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
                         <View style={[styles.batchNumBadge, { backgroundColor: colors.primary }]}>
                           <Text style={[styles.batchNumText, { color: colors.white }]}>
-                            {isRTL ? `وەجبەی #${batchNum}` : `Batch #${batchNum}`}
+                            {isRTL ? `وەجبەی ${batchNum}` : `Batch #${batchNum}`}
                           </Text>
                         </View>
                         <View style={[styles.batchDateWrap, { flexDirection }]}>

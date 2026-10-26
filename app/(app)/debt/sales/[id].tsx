@@ -491,7 +491,7 @@ export default function SalesDebtDetailScreen() {
                     <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
                       <Ionicons name="layers" size={11} color={colors.primary} />
                       <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                        {isKuLanguage ? `وەجبەی #${item.batchNumber || 1}` : `Batch #${item.batchNumber || 1}`}
+                        {isKuLanguage ? `وەجبەی ${item.batchNumber || 1}` : `Batch #${item.batchNumber || 1}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

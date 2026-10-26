@@ -1324,7 +1324,7 @@ export function InventoryExpiryView({
                   style={[
                     styles.thresholdLabelText,
                     isTablet && { fontSize: isTabletLandscape ? 17 : 15.5 },
-                    { color: colors.black },
+                    { color: colors.black, writingDirection: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
@@ -1336,11 +1336,11 @@ export function InventoryExpiryView({
                 style={[
                   styles.thresholdActiveHint,
                   isTablet && { fontSize: isTabletLandscape ? 16 : 15 },
-                  { color: colors.primary },
+                  { color: colors.primary, writingDirection: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {expiryAlertDays} {isKu ? 'ڕۆژ پێش بەسەرچوون' : 'days before expiry'}
+                {isKu ? `\u200F${expiryAlertDays} ڕۆژ پێش بەسەرچوون` : `${expiryAlertDays} days before expiry`}
               </Text>
             </View>
 
@@ -1388,11 +1388,15 @@ export function InventoryExpiryView({
                       style={[
                         styles.thresholdChipText,
                         isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
-                        { color: isSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
+                        {
+                          color: isSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue,
+                          writingDirection: isRTL ? 'rtl' : 'ltr',
+                          textAlign: 'center',
+                        },
                         isKu && { fontFamily: isSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
                     >
-                      {isKu ? `${days} ڕۆژ` : `${days}d`}
+                      {isKu ? `\u200F${days} ڕۆژ` : `${days}d`}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1439,12 +1443,16 @@ export function InventoryExpiryView({
                       style={[
                         styles.thresholdChipText,
                         isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
-                        { color: isCustomSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
+                        {
+                          color: isCustomSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue,
+                          writingDirection: isRTL ? 'rtl' : 'ltr',
+                          textAlign: 'center',
+                        },
                         isKu && { fontFamily: isCustomSelected ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                       ]}
                     >
                       {isCustomSelected
-                        ? (isKu ? `${expiryAlertDays} ڕۆژ` : `${expiryAlertDays}d`)
+                        ? (isKu ? `\u200F${expiryAlertDays} ڕۆژ` : `${expiryAlertDays}d`)
                         : (isKu ? 'کەستەم' : 'Custom')}
                     </Text>
                   </TouchableOpacity>
@@ -1486,12 +1494,12 @@ export function InventoryExpiryView({
                   style={[
                     styles.noticeDesc,
                     isTablet && { fontSize: 14.5, lineHeight: 21 },
-                    { color: reportKPIs.expired > 0 ? '#B91C1C' : '#92400E', textAlign },
+                    { color: reportKPIs.expired > 0 ? '#B91C1C' : '#92400E', textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
                   {isKu
-                    ? `${reportKPIs.expired > 0 ? `${reportKPIs.expired} کاڵا بەسەرچووە! ` : ''}${reportKPIs.expiringSoon > 0 ? `${reportKPIs.expiringSoon} کاڵا لە ماوەی ${expiryAlertDays} ڕۆژدا بەسەر دەچێت.` : ''}`
+                    ? `${reportKPIs.expired > 0 ? `\u200F${reportKPIs.expired} کاڵا بەسەرچووە! ` : ''}${reportKPIs.expiringSoon > 0 ? `\u200F${reportKPIs.expiringSoon} کاڵا لە ماوەی \u200F${expiryAlertDays} ڕۆژدا بەسەر دەچێت.` : ''}`
                     : `${reportKPIs.expired > 0 ? `${reportKPIs.expired} items expired! ` : ''}${reportKPIs.expiringSoon > 0 ? `${reportKPIs.expiringSoon} items expiring soon within ${expiryAlertDays} days.` : ''}`}
                 </Text>
               </View>

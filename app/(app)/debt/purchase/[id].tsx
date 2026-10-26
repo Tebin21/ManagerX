@@ -375,7 +375,7 @@ export default function PurchaseDebtDetailScreen() {
               {debt.batchNumber ? (
                 <View style={[styles.batchNumPill, { backgroundColor: colors.primary }]}>
                   <Text style={[styles.batchNumPillText, { color: colors.white }]}>
-                    {isKuLanguage ? `وەجبەی #${debt.batchNumber}` : `Batch #${debt.batchNumber}`}
+                    {isKuLanguage ? `وەجبەی ${debt.batchNumber}` : `Batch #${debt.batchNumber}`}
                   </Text>
                 </View>
               ) : null}
@@ -412,7 +412,7 @@ export default function PurchaseDebtDetailScreen() {
                   <View style={[styles.itemBatchBadge, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3', borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE047' }]}>
                     <Ionicons name="layers" size={11} color={colors.primary} />
                     <Text style={[styles.itemBatchBadgeText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
-                      {isKuLanguage ? `وەجبەی #${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+                      {isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
                       {debt.totalBatches && debt.totalBatches > 1 ? ` (${isKuLanguage ? `لە کۆی ${debt.totalBatches}` : `of ${debt.totalBatches}`})` : ''}
                     </Text>
                   </View>
@@ -449,7 +449,7 @@ export default function PurchaseDebtDetailScreen() {
               <Ionicons name="information-circle-outline" size={16} color={colors.error} />
               <Text style={[styles.batchDebtNoticeText, { color: isDark ? '#FCA5A5' : '#991B1B', textAlign: isRTL ? 'right' : 'left' }]}>
                 {isKuLanguage
-                  ? `ئەم قەرزە (${fmtIQD(debt.remainingAmount)} دینار) تایبەتە بە وەجبەی #${debt.batchNumber || 1}ی ئەم بەرهەمە لە دابینکەر`
+                  ? `ئەم قەرزە (${fmtIQD(debt.remainingAmount)} دینار) تایبەتە بە وەجبەی ${debt.batchNumber || 1}ی ئەم بەرهەمە لە دابینکەر`
                   : `This debt (${fmtIQD(debt.remainingAmount)} IQD) belongs to Batch #${debt.batchNumber || 1} purchased from this supplier`}
               </Text>
             </View>

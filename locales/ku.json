@@ -1100,9 +1100,9 @@
     "debtCreated": "قەرز دروستکرا",
     "fullyPaid": "قەرز بە تەواوی دراوەتەوە",
     "batchInfo": "زانیاریی وەجبە",
-    "batchNumber": "وەجبەی #{{number}}",
-    "batchOfTotal": "وەجبەی #{{number}} (لە کۆی {{total}} وەجبە)",
-    "batchDebtNoticeSupplier": "ئەم قەرزە تایبەتە بە وەجبەی #{{number}}ی ئەم بەرهەمە لە دابینکەر",
+    "batchNumber": "وەجبەی {{number}}",
+    "batchOfTotal": "وەجبەی {{number}} (لە کۆی {{total}} وەجبە)",
+    "batchDebtNoticeSupplier": "ئەم قەرزە تایبەتە بە وەجبەی {{number}}ی ئەم بەرهەمە لە دابینکەر",
     "batchDebtNoticeCustomer": "ئەم کڕیارە قەرزدارە بۆ ئەو وەجبانەی بەرهەم کە بە قەرز بردوونی",
     "batchQuantity": "بڕی وەجبە",
     "productBatch": "وەجبەی بەرهەم"

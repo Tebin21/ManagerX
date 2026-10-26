@@ -52,7 +52,7 @@ export function buildCustomerReportHTML(
     ? `<tr><td colspan="5" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No outstanding debts</td></tr>`
     : activeDebts.map((d) => {
         const sale = sales.find((s) => s.id === d.saleId);
-        const itemsSummary = (sale?.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی #${i.batchNumber || 1}` : `Batch #${i.batchNumber || 1}`})`).join(', ');
+        const itemsSummary = (sale?.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی ${i.batchNumber || 1}\u200F` : `Batch #${i.batchNumber || 1}`})`).join(', ');
         return `
           <tr>
             <td style="font-weight:600;">
@@ -69,7 +69,7 @@ export function buildCustomerReportHTML(
   const purchaseRows = sales.length === 0
     ? `<tr><td colspan="6" style="text-align:center;color:#94A3B8;padding:18px;font-style:italic;">No purchases recorded</td></tr>`
     : sales.map((s) => {
-        const itemNames = (s.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی #${i.batchNumber || 1}` : `Batch #${i.batchNumber || 1}`})`).join(', ') || '&mdash;';
+        const itemNames = (s.items ?? []).map((i) => `${escHtml(i.productName)} (${dir === 'rtl' ? `وەجبەی ${i.batchNumber || 1}\u200F` : `Batch #${i.batchNumber || 1}`})`).join(', ') || '&mdash;';
         const debt = debts.find((d) => d.saleId === s.id);
         const remaining = debt ? debt.remainingAmount : 0;
         return `

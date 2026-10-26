@@ -218,7 +218,7 @@ export function buildSalesDebtReportHTML(
                   </td>
                   <td style="text-align:center;">
                     <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700;">
-                      ${isKurdish ? ku(`وەجبەی #${it.batchNumber || 1}`) : `Batch #${it.batchNumber || 1}`}
+                      ${isKurdish ? ku(`وەجبەی ${it.batchNumber || 1}`) : `Batch #${it.batchNumber || 1}`}
                     </span>
                   </td>
                   <td style="text-align:center;font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${it.quantity}</span></td>
@@ -474,7 +474,7 @@ export function buildPurchaseDebtReportHTML(
             <td class="detail-label">${isKurdish ? ku('وەجبەی کڕین') : 'Batch #'}</td>
             <td class="detail-value">
               <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:3px 10px;font-size:11.5px;font-weight:700;">
-                ${isKurdish ? ku(`وەجبەی #${batchNum}`) : `Batch #${batchNum}`}
+                ${isKurdish ? ku(`وەجبەی ${batchNum}`) : `Batch #${batchNum}`}
                 ${totalBatches > 1 ? (isKurdish ? ku(` (لە کۆی ${totalBatches} وەجبە)`) : ` (of ${totalBatches} batches)`) : ''}
               </span>
             </td>
@@ -504,7 +504,7 @@ export function buildPurchaseDebtReportHTML(
       <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:9px 13px;margin-top:10px;font-size:11.5px;color:#991B1B;display:flex;align-items:center;gap:6px;">
         <span>📦</span>
         <span>${isKurdish
-          ? ku(`ئەم قەرزە (${fmtMoney(debt.remainingAmount)}) تایبەتە بە کڕینی وەجبەی #${batchNum}ی بەرهەمی (${prodName}) لەم دابینکەرە.`)
+          ? ku(`ئەم قەرزە (${fmtMoney(debt.remainingAmount)}) تایبەتە بە کڕینی وەجبەی ${batchNum}ی بەرهەمی (${prodName}) لەم دابینکەرە.`)
           : `This debt (${fmtMoney(debt.remainingAmount)}) is tied to Batch #${batchNum} of (${prodName}) from this supplier.`}</span>
       </div>
     </div>
@@ -870,7 +870,7 @@ export function buildDebtsAuditReportHTML(
           <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">
             ${escHtml(d.supplierName)}
             ${d.supplierPhone ? `<div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${escHtml(d.supplierPhone)}</span></div>` : ''}
-            ${d.productName ? `<div style="font-size:10px;color:#991B1B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productName)} &bull; ${isKurdish ? `وەجبەی #${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}${d.batchQuantity ? ` (${d.batchQuantity} دانە)` : ''}${d.totalBatches && d.totalBatches > 1 ? ` (کۆی ${d.totalBatches})` : ''}</div>` : ''}
+            ${d.productName ? `<div style="font-size:10px;color:#991B1B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productName)} &bull; ${isKurdish ? `وەجبەی ${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}${d.batchQuantity ? ` (${d.batchQuantity} دانە)` : ''}${d.totalBatches && d.totalBatches > 1 ? ` (کۆی ${d.totalBatches})` : ''}</div>` : ''}
           </td>
           <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber || '—')}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
@@ -946,7 +946,7 @@ export function buildDebtsAuditReportHTML(
           <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">${escHtml(d.productName || '—')}</td>
           <td style="text-align:center;">
             <span style="background:#FEF9C3;color:#854D0E;border:1px solid #FDE047;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700;">
-              ${isKurdish ? ku(`وەجبەی #${d.batchNumber || 1}`) : `Batch #${d.batchNumber || 1}`}
+              ${isKurdish ? ku(`وەجبەی ${d.batchNumber || 1}`) : `Batch #${d.batchNumber || 1}`}
               ${d.totalBatches && d.totalBatches > 1 ? ` (${isKurdish ? `لە ${d.totalBatches}` : `of ${d.totalBatches}`})` : ''}
             </span>
           </td>

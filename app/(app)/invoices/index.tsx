@@ -1443,7 +1443,7 @@ export default function InvoicesHubScreen() {
                 }
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
-                    <Ionicons name="document-text-outline" size={48} color={colors.gray300} />
+                    <Ionicons name="receipt-outline" size={48} color={colors.gray300} />
                     <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? 'هیچ پسوڵەیەکی فرۆشتن نەدۆزرایەوە' : 'No sales invoices found'}
                     </Text>
