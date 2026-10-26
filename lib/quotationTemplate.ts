@@ -32,15 +32,41 @@ export function buildQuotationHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
 
+  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
+  const isSystemUsd = baseCurrency === 'USD';
+
   const effectiveMode = quotation.currencyMode || currencyMode || 'both';
   const isUsdOnly = effectiveMode === 'usd';
   const isIqdOnly = effectiveMode === 'iqd';
   const isBoth = effectiveMode === 'both';
   const rate = quotation.exchangeRate || useSettingsStore.getState().exchangeRate || 1310;
-  const fmtRow = (val: number) => isUsdOnly ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+
+  // When system is USD (or mode is usd), all item prices and subtotal are in USD!
+  const isItemUsd = isSystemUsd || isUsdOnly;
+  const fmtRow = (val: number) => isItemUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
 
   const totalUSD = fmtUSD(quotation.grandTotal / rate);
   const totalIQD = fmtIQD(quotation.grandTotal);
+
+  let grandTotalPrimary = `${totalIQD} IQD`;
+  let grandTotalSecondary = '';
+
+  if (isUsdOnly) {
+    grandTotalPrimary = `$${totalUSD} USD`;
+    grandTotalSecondary = '';
+  } else if (isIqdOnly) {
+    grandTotalPrimary = `${totalIQD} IQD`;
+    grandTotalSecondary = '';
+  } else {
+    // Both mode:
+    if (isSystemUsd) {
+      grandTotalPrimary = `$${totalUSD} USD`;
+      grandTotalSecondary = `≈ ${totalIQD} IQD`;
+    } else {
+      grandTotalPrimary = `${totalIQD} IQD`;
+      grandTotalSecondary = `≈ $${totalUSD} USD`;
+    }
+  }
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const logoHTML = business.logoUri
@@ -535,11 +561,11 @@ export function buildQuotationHTML(
       </div>` : ''}
       <div class="tot-line grand">
         <span class="tot-label">${isKurdish ? ku('کۆی گشتی:') : 'Grand Total:'}</span>
-        <span class="en-num" dir="ltr">${isUsdOnly ? `$${totalUSD} USD` : `${totalIQD} IQD`}</span>
+        <span class="en-num" dir="ltr">${grandTotalPrimary}</span>
       </div>
-      ${isBoth ? `
+      ${grandTotalSecondary ? `
       <div class="tot-usd-sub en-num" dir="ltr">
-        ≈ $${totalUSD} USD
+        ${grandTotalSecondary}
       </div>` : ''}
     </div>
   </div>

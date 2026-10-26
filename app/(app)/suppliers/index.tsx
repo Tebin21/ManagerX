@@ -167,7 +167,14 @@ type SupplierOrFiller = SupplierWithStats | { id: string | number; isFiller: tru
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-      <AppHeader title={t('suppliers.title')} showBack onBack={() => router.back()}>
+      <AppHeader
+        title={t('suppliers.title')}
+        showBack
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)/dashboard' as never);
+        }}
+      >
         {suppliers.length > 0 && (
           <MotiView
             from={{ opacity: 0, translateY: 6 }}

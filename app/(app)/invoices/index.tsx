@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -332,7 +332,7 @@ export default function InvoicesHubScreen() {
   }, [filteredQuotationsByPeriod, quotationSearch]);
 
   // ─── Purchase Actions ───
-  const handleOpenPurchaseDetails = async (purchase: Purchase) => {
+  const handleOpenPurchaseDetails = useCallback(async (purchase: Purchase) => {
     try {
       Haptics.selectionAsync().catch(() => {});
     } catch {}
@@ -359,7 +359,7 @@ export default function InvoicesHubScreen() {
     } finally {
       setLoadingPurchaseDetails(false);
     }
-  };
+  }, []);
 
   const handlePrintPurchase = async (purchase: Purchase | null) => {
     if (!purchase) return;
@@ -420,7 +420,7 @@ export default function InvoicesHubScreen() {
   };
 
   // ─── Sales Actions ───
-  const handleOpenSaleDetails = async (sale: Sale) => {
+  const handleOpenSaleDetails = useCallback(async (sale: Sale) => {
     try {
       Haptics.selectionAsync().catch(() => {});
     } catch {}
@@ -444,7 +444,7 @@ export default function InvoicesHubScreen() {
     } finally {
       setLoadingSaleDetails(false);
     }
-  };
+  }, []);
 
   const handlePrintSale = async (sale: Sale | null) => {
     if (!sale) return;
@@ -542,30 +542,54 @@ export default function InvoicesHubScreen() {
   }, [deleteQuotation, isKu]);
 
   // ─── Deep Navigation / Params Auto-Open Effect ───
+  const lastHandledTargetRef = useRef<string | null>(null);
+
+  // Reset handled target if route params target becomes empty
+  useEffect(() => {
+    const targetId = params.id || params.quotationId || params.saleId || params.purchaseId;
+    if (!targetId) {
+      lastHandledTargetRef.current = null;
+    }
+  }, [params.id, params.quotationId, params.saleId, params.purchaseId]);
+
   useEffect(() => {
     if (params.tab && (['reports', 'purchases', 'sales', 'quotations'] as TabKey[]).includes(params.tab)) {
-      setActiveTab(params.tab);
+      setActiveTab((prev) => (prev !== params.tab ? params.tab! : prev));
     }
     const targetId = params.id || params.quotationId || params.saleId || params.purchaseId;
-    if (targetId) {
-      if (params.tab === 'quotations' || params.quotationId) {
-        const q = quotations.find((item) => item.id === targetId || item.quotationNumber === targetId);
-        if (q) {
-          handleOpenQuotationDetails(q);
-        }
-      } else if (params.tab === 'sales' || params.saleId) {
-        const s = sales.find((item) => String(item.id) === String(targetId) || item.invoiceNumber === targetId);
-        if (s) {
-          handleOpenSaleDetails(s);
-        }
-      } else if (params.tab === 'purchases' || params.purchaseId) {
-        const p = purchases.find((item) => String(item.id) === String(targetId) || item.purchaseNumber === targetId);
-        if (p) {
-          handleOpenPurchaseDetails(p);
+    if (!targetId || lastHandledTargetRef.current === targetId) return;
+
+    if (params.tab === 'quotations' || params.quotationId) {
+      const allQuotes = useQuotationStore.getState().quotations;
+      const q = allQuotes.find((item) => item.id === targetId || item.quotationNumber === targetId);
+      if (q) {
+        lastHandledTargetRef.current = targetId;
+        handleOpenQuotationDetails(q);
+      }
+    } else if (params.tab === 'sales' || params.saleId) {
+      const s = sales.find((item) => String(item.id) === String(targetId) || item.invoiceNumber === targetId);
+      if (s) {
+        lastHandledTargetRef.current = targetId;
+        handleOpenSaleDetails(s);
+      } else {
+        const numId = Number(targetId);
+        if (!isNaN(numId) && numId > 0) {
+          getSaleById(numId).then((fetched) => {
+            if (fetched && lastHandledTargetRef.current !== targetId) {
+              lastHandledTargetRef.current = targetId;
+              handleOpenSaleDetails(fetched);
+            }
+          }).catch(() => {});
         }
       }
+    } else if (params.tab === 'purchases' || params.purchaseId) {
+      const p = purchases.find((item) => String(item.id) === String(targetId) || item.purchaseNumber === targetId);
+      if (p) {
+        lastHandledTargetRef.current = targetId;
+        handleOpenPurchaseDetails(p);
+      }
     }
-  }, [params.tab, params.id, params.quotationId, params.saleId, params.purchaseId, quotations, sales, purchases, handleOpenQuotationDetails]);
+  }, [params.tab, params.id, params.quotationId, params.saleId, params.purchaseId, sales, purchases, handleOpenQuotationDetails, handleOpenSaleDetails, handleOpenPurchaseDetails]);
 
   // ─── Period Labels for Pills ───
   const periodPillKeys: PeriodKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
@@ -1318,13 +1342,13 @@ export default function InvoicesHubScreen() {
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="eye-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${item.viewCount || 0}` : `View: ${item.viewCount || 0}`}
+                            {isKu ? `بینین: ${item.viewCount || 0} جار` : `Views: ${item.viewCount || 0}`}
                           </Text>
                         </View>
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="print-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${item.printCount || 0}` : `Print: ${item.printCount || 0}`}
+                            {isKu ? `چاپ: ${item.printCount || 0} جار` : `Prints: ${item.printCount || 0}`}
                           </Text>
                         </View>
                       </View>
@@ -1474,13 +1498,13 @@ export default function InvoicesHubScreen() {
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="eye-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${item.viewCount || 0}` : `View: ${item.viewCount || 0}`}
+                            {isKu ? `بینین: ${item.viewCount || 0} جار` : `Views: ${item.viewCount || 0}`}
                           </Text>
                         </View>
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="print-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${item.printCount || 0}` : `Print: ${item.printCount || 0}`}
+                            {isKu ? `چاپ: ${item.printCount || 0} جار` : `Prints: ${item.printCount || 0}`}
                           </Text>
                         </View>
                       </View>
@@ -1648,13 +1672,13 @@ export default function InvoicesHubScreen() {
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="eye-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${viewCount}` : `View: ${viewCount}`}
+                            {isKu ? `بینین: ${viewCount} جار` : `Views: ${viewCount}`}
                           </Text>
                         </View>
                         <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
                           <Ionicons name="print-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${printCount}` : `Print: ${printCount}`}
+                            {isKu ? `چاپ: ${printCount} جار` : `Prints: ${printCount}`}
                           </Text>
                         </View>
                       </View>
@@ -1864,13 +1888,13 @@ export default function InvoicesHubScreen() {
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="eye-outline" size={13} color={colors.gray500} />
                       <Text style={[styles.modalDetailValue, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isKu ? `بینین: ${selectedPurchase.viewCount || 0}` : `View: ${selectedPurchase.viewCount || 0}`}
+                        {isKu ? `بینین: ${selectedPurchase.viewCount || 0} جار` : `Views: ${selectedPurchase.viewCount || 0}`}
                       </Text>
                     </View>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="print-outline" size={13} color={colors.primary} />
                       <Text style={[styles.modalDetailValue, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                        {isKu ? `چاپ: ${selectedPurchase.printCount || 0}` : `Print: ${selectedPurchase.printCount || 0}`}
+                        {isKu ? `چاپ: ${selectedPurchase.printCount || 0} جار` : `Prints: ${selectedPurchase.printCount || 0}`}
                       </Text>
                     </View>
                   </View>
@@ -2115,6 +2139,39 @@ export default function InvoicesHubScreen() {
                     ? 'ئەم پسوڵەیە لە ئەرشیف پارێزراوە و تەنها بۆ بینین و چاپکردنە.'
                     : 'Archived receipt for viewing and printing.'}
                 </Text>
+              </View>
+
+              {/* Invoice Stats Card */}
+              <View
+                style={[
+                  styles.modalSectionCard,
+                  {
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: colors.gray200,
+                    marginHorizontal: 16,
+                    marginBottom: 10,
+                  },
+                ]}
+              >
+                <View style={[styles.modalDetailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Text style={[styles.modalDetailLabel, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                    {isKu ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+                  </Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="eye-outline" size={13} color={colors.gray500} />
+                      <Text style={[styles.modalDetailValue, { color: colors.gray600 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isKu ? `بینین: ${selectedSale.viewCount || 0} جار` : `Views: ${selectedSale.viewCount || 0}`}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="print-outline" size={13} color={colors.primary} />
+                      <Text style={[styles.modalDetailValue, { color: colors.primary }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isKu ? `چاپ: ${selectedSale.printCount || 0} جار` : `Prints: ${selectedSale.printCount || 0}`}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </View>
 
               {/* Standard Full Invoice View */}

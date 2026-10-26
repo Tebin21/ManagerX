@@ -22,7 +22,7 @@ import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
-import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId } from '@/lib/sqlite';
+import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount, incrementPurchasePrintCount } from '@/lib/sqlite';
 import { sharePurchaseInvoice } from '@/lib/generateInvoice';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
@@ -97,13 +97,18 @@ export default function PurchaseDetailScreen() {
     try {
       const purchaseId = Number(id);
       const data = await getPurchaseById(purchaseId);
+      if (data) {
+        incrementPurchaseViewCount(purchaseId).catch(() => {});
+        setPurchase({ ...data, viewCount: (data.viewCount || 0) + 1 });
+      } else {
+        setPurchase(null);
+      }
       const [items, debt] = await Promise.all([
         getPurchaseItemsByPurchaseId(purchaseId),
         data && data.paymentStatus === 'debt'
           ? getPurchaseDebtByPurchaseId(purchaseId)
           : Promise.resolve(null),
       ]);
-      setPurchase(data);
       setPurchaseItems(items);
       setPurchaseDebt(debt);
     } catch (err) {
@@ -116,6 +121,8 @@ export default function PurchaseDetailScreen() {
   async function handleShare() {
     if (!purchase) return;
     setIsSharing(true);
+    incrementPurchasePrintCount(purchase.id).catch(() => {});
+    setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
     try {
       const currentDebt = purchase.paymentStatus === 'debt'
         ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
@@ -197,6 +204,27 @@ export default function PurchaseDetailScreen() {
 
   const primaryCol = (
     <View style={{ flex: 1.15 }}>
+      {/* Invoice Stats Bar */}
+      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginBottom: 8 }}>
+        <Text style={{ fontSize: 12, color: colors.gray500 }}>
+          {isRTL ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+        </Text>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="eye-outline" size={13} color={colors.gray500} />
+            <Text style={{ fontSize: 12, color: colors.gray600 }}>
+              {isRTL ? `بینین: ${purchase.viewCount || 0} جار` : `Views: ${purchase.viewCount || 0}`}
+            </Text>
+          </View>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="print-outline" size={13} color={colors.primary} />
+            <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>
+              {isRTL ? `چاپ: ${purchase.printCount || 0} جار` : `Prints: ${purchase.printCount || 0}`}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Invoice header */}
       <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200 }}>
         <LinearGradient

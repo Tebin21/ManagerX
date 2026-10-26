@@ -39,19 +39,26 @@ export function BackButton({ onPress, style }: Props) {
     opacity.value = withTiming(1,  { duration: 140, easing: Easing.out(Easing.ease) });
   }
 
+  function handlePress() {
+    if (onPress) {
+      if (router.canGoBack()) {
+        onPress();
+      } else {
+        router.replace('/(app)/dashboard' as never);
+      }
+    } else {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(app)/dashboard' as never);
+      }
+    }
+  }
+
   return (
     <Animated.View style={[animatedStyle, style]}>
       <TouchableOpacity
-        onPress={
-          onPress ??
-          (() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/(app)' as never);
-            }
-          })
-        }
+        onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={[

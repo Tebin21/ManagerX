@@ -303,13 +303,13 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
         {viewMode === 'grid' ? (
           <PurchaseGridCard
             purchase={purch}
-            onPress={() => router.push(`/(app)/purchases/${purch.id}` as never)}
+            onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
             onDelete={() => confirmDelete(purch)}
           />
         ) : (
           <PurchaseHistoryItem
             purchase={purch}
-            onPress={() => router.push(`/(app)/purchases/${purch.id}` as never)}
+            onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(purch.id) } } as never)}
             onDelete={() => confirmDelete(purch)}
           />
         )}

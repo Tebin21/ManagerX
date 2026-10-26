@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -21,6 +21,13 @@ import { useSettingsStore } from '@/store/settingsStore';
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
 import { toEnglishDigits } from '@/utils/formatters';
 import { useResponsive } from '@/hooks/useResponsive';
+import {
+  getPeriodBounds,
+  isDateWithinRange,
+  formatDateShort,
+  type PeriodKey,
+} from '@/utils/dateRanges';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 
 interface Props {
   products: InventoryProduct[];
@@ -46,51 +53,94 @@ export function InventoryReportView({
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
-  // 1. Core financial and inventory metrics
+  // ── Period Filter States ──
+  const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const filterScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (isRTL && filterScrollRef.current) {
+      setTimeout(() => {
+        filterScrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+    }
+  }, [isRTL]);
+
+  const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const periodLabels: Record<PeriodKey, string> = useMemo(
+    () => ({
+      today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
+      week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+      month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
+      year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
+      all: isKuLanguage ? 'هەمووی' : 'All Time',
+      custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+    }),
+    [isKuLanguage]
+  );
+
+  const bounds = useMemo(() => {
+    if (periodKey === 'custom' && customRange) {
+      return getPeriodBounds('custom', customRange.from, customRange.to);
+    }
+    return getPeriodBounds(periodKey);
+  }, [periodKey, customRange]);
+
+  const filteredProducts = useMemo(() => {
+    if (periodKey === 'all') return products;
+    return products.filter((p) => {
+      const dateStr = (p.purchaseDate && p.purchaseDate.trim()) ? p.purchaseDate : p.createdAt;
+      const normalized = (dateStr && dateStr.length === 10) ? `${dateStr}T12:00:00` : dateStr;
+      return isDateWithinRange(normalized, bounds.from, bounds.to);
+    });
+  }, [products, periodKey, bounds]);
+
+  // 1. Core financial and inventory metrics based on filtered products
   const totalCostValue = useMemo(() => {
-    return products.reduce((acc, p) => acc + (p.purchasePrice || 0) * (p.quantity || 0), 0);
-  }, [products]);
+    return filteredProducts.reduce((acc, p) => acc + (p.purchasePrice || 0) * (p.quantity || 0), 0);
+  }, [filteredProducts]);
 
   const totalSellingValue = useMemo(() => {
-    return products.reduce((acc, p) => acc + (p.sellingPrice || 0) * (p.quantity || 0), 0);
-  }, [products]);
+    return filteredProducts.reduce((acc, p) => acc + (p.sellingPrice || 0) * (p.quantity || 0), 0);
+  }, [filteredProducts]);
 
   const expectedProfit = totalSellingValue - totalCostValue;
 
   const totalQuantity = useMemo(() => {
-    return products.reduce((acc, p) => acc + (p.quantity || 0), 0);
-  }, [products]);
+    return filteredProducts.reduce((acc, p) => acc + (p.quantity || 0), 0);
+  }, [filteredProducts]);
 
   const lowStockProducts = useMemo(() => {
-    return products.filter((p) =>
+    return filteredProducts.filter((p) =>
       computeProductLowStock(p, globalLowStockEnabled, globalLowStockThreshold)
     );
-  }, [products, globalLowStockEnabled, globalLowStockThreshold]);
+  }, [filteredProducts, globalLowStockEnabled, globalLowStockThreshold]);
 
   const outOfStockProducts = useMemo(() => {
-    return products.filter((p) => p.isActive && p.quantity === 0);
-  }, [products]);
+    return filteredProducts.filter((p) => p.isActive && p.quantity === 0);
+  }, [filteredProducts]);
 
   const suppliersCount = useMemo(() => {
-    return new Set(products.map((p) => p.supplierName).filter(Boolean)).size;
-  }, [products]);
+    return new Set(filteredProducts.map((p) => p.supplierName).filter(Boolean)).size;
+  }, [filteredProducts]);
 
   const debtValue = useMemo(() => {
-    return products
+    return filteredProducts
       .filter((p) => p.paymentStatus === 'debt')
       .reduce((acc, p) => acc + (p.purchasePrice || 0) * (p.quantity || 0), 0);
-  }, [products]);
+  }, [filteredProducts]);
 
   const paidValue = useMemo(() => {
-    return products
+    return filteredProducts
       .filter((p) => p.paymentStatus === 'paid')
       .reduce((acc, p) => acc + (p.purchasePrice || 0) * (p.quantity || 0), 0);
-  }, [products]);
+  }, [filteredProducts]);
 
-  // 2. Category distribution
+  // 2. Category distribution based on filtered products
   const categoryStats = useMemo(() => {
     const map: Record<string, { count: number; qty: number; cost: number }> = {};
-    products.forEach((p) => {
+    filteredProducts.forEach((p) => {
       const cat = p.category?.trim() || (isKuLanguage ? 'گشتی' : 'General');
       if (!map[cat]) map[cat] = { count: 0, qty: 0, cost: 0 };
       map[cat].count += 1;
@@ -99,21 +149,109 @@ export function InventoryReportView({
     });
 
     return Object.entries(map).sort((a, b) => b[1].cost - a[1].cost);
-  }, [products, isKuLanguage]);
+  }, [filteredProducts, isKuLanguage]);
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-      contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}
-    >
+    <View style={styles.container}>
+      {/* ── Period Filter Pills (Exact History style, NO search button) ── */}
+      <View style={[styles.filterWrapper, { backgroundColor: isDark ? colors.white : colors.gray50 }]}>
+        <ScrollView
+          ref={filterScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
+          onContentSizeChange={() => {
+            if (isRTL) {
+              filterScrollRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
+          contentContainerStyle={[
+            styles.filterRow,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
+              paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+            },
+          ]}
+        >
+          {periodKeys.map((key) => {
+            const active = periodKey === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.filterPill,
+                  isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22 },
+                  {
+                    backgroundColor: active ? colors.primary : (isDark ? colors.gray100 : colors.white),
+                    borderColor: active ? colors.primary : colors.gray200,
+                  },
+                ]}
+                onPress={() => {
+                  if (key === 'custom') {
+                    setCustomOpen(true);
+                  } else {
+                    setPeriodKey(key);
+                    setCustomRange(null);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    isTablet && { fontSize: isTabletLandscape ? 14 : 13 },
+                    { color: active ? '#FFFFFF' : (isDark ? colors.gray600 : colors.gray600) },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {periodLabels[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Selected date range info label when custom is chosen */}
+        {periodKey === 'custom' && customRange && (
+          <Text style={[styles.rangeLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+            {formatDateShort(customRange.from)} - {formatDateShort(customRange.to)}
+          </Text>
+        )}
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}
+      >
+        {/* Empty notice when filtered products count is 0 in the selected period */}
+        {filteredProducts.length === 0 && periodKey !== 'all' && (
+          <View
+            style={[
+              styles.emptyNotice,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: colors.gray200,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={[styles.emptyNoticeText, { color: colors.gray500, textAlign }]}>
+              {isKuLanguage
+                ? 'هیچ بەرهەمێک لەم ماوەیەدا تۆمار نەکراوە، دەتوانیت ماوەیەکی تر وەک (ئەم هەفتەیە یان هەمووی) هەڵبژێریت.'
+                : 'No products recorded in this period. You can choose another period like This Week or All Time.'}
+            </Text>
+          </View>
+        )}
       {/* ── Section Header Row (Dashboard Style) ── */}
       <View style={[styles.sectionHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <View style={[styles.sectionTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -197,7 +335,7 @@ export function InventoryReportView({
         {/* 4. Total Products Count / کۆی جۆری بەرهەمەکان */}
         <DashboardMetricSquare
           title={t('inventory.products')}
-          value={products.length}
+          value={filteredProducts.length}
           icon="cube"
           color="#06B6D4"
           subtitle={isKuLanguage ? 'بەرهەم' : 'Items'}
@@ -444,10 +582,70 @@ export function InventoryReportView({
       )}
       </View>
     </ScrollView>
+
+    {/* ── Custom Date Range Modal ── */}
+    <CustomDateRangeModal
+      visible={customOpen}
+      onClose={() => setCustomOpen(false)}
+      initialFrom={customRange?.from}
+      initialTo={customRange?.to}
+      onApply={(from, to) => {
+        setPeriodKey('custom');
+        setCustomRange({ from, to });
+        setCustomOpen(false);
+      }}
+    />
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  filterWrapper: {
+    borderBottomWidth: 0,
+    paddingBottom: 2,
+  },
+  filterRow: {
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+    gap: 8,
+    alignItems: 'center',
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  filterPillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  rangeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  emptyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 2,
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  emptyNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   scrollContent: {
     paddingTop: 14,
     paddingBottom: 40,

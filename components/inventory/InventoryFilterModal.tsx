@@ -13,7 +13,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export type StockStatusFilter = 'all' | 'inStock' | 'lowStock' | 'outOfStock' | 'paid' | 'debt';
 export type InventorySortBy =
@@ -54,6 +55,7 @@ export function InventoryFilterModal({
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const { isTablet, isTabletLandscape, sheetMaxWidth, width: screenWidth } = useResponsive();
 
   const stockOptions: { key: StockStatusFilter; label: string; icon: any }[] = [
     { key: 'all',        label: t('inventory.filterAll'),        icon: 'apps-outline' },
@@ -82,16 +84,57 @@ export function InventoryFilterModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType={isTablet ? 'fade' : 'slide'}
       transparent
       onRequestClose={onClose}
       supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
     >
-      <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: isDark ? colors.gray100 : colors.white }]}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            justifyContent: isTablet ? 'center' : 'flex-end',
+            alignItems: isTablet ? 'center' : undefined,
+            padding: isTablet ? 24 : 0,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              width: isTablet ? Math.min(sheetMaxWidth || 580, screenWidth - 48) : '100%',
+              maxWidth: isTablet ? 600 : '100%',
+              borderRadius: isTablet ? 24 : 0,
+              borderTopLeftRadius: isTablet ? 24 : 26,
+              borderTopRightRadius: isTablet ? 24 : 26,
+              borderBottomLeftRadius: isTablet ? 24 : 0,
+              borderBottomRightRadius: isTablet ? 24 : 0,
+              padding: isTablet ? 24 : 20,
+              maxHeight: isTablet ? '86%' : '84%',
+            },
+          ]}
+        >
+          {/* Top drag handle for mobile */}
+          {!isTablet && (
+            <View style={styles.handleWrap}>
+              <View style={[styles.handle, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]} />
+            </View>
+          )}
+
           {/* Header */}
           <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={styles.headerTitleGroup}>
+            <View style={[styles.headerTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.headerIconBox, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name="options-outline" size={18} color={colors.primary} />
+              </View>
               <Text
                 style={[
                   styles.title,
@@ -102,8 +145,8 @@ export function InventoryFilterModal({
                 {t('inventory.filterSort')}
               </Text>
               {activeFiltersCount > 0 && (
-                <View style={[styles.activeBadge, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[styles.activeBadgeText, { color: colors.primary }]}>
+                <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.activeBadgeText, { color: colors.white }]}>
                     {activeFiltersCount}
                   </Text>
                 </View>
@@ -113,6 +156,7 @@ export function InventoryFilterModal({
             <TouchableOpacity
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="close" size={20} color={colors.darkBlue} />
             </TouchableOpacity>
@@ -121,16 +165,19 @@ export function InventoryFilterModal({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
             {/* 1. Stock Status Section */}
             <View style={styles.section}>
-              <Text
-                style={[
-                  styles.sectionLabel,
-                  { color: colors.gray500, textAlign },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('inventory.stockStatus')}
-              </Text>
-              <View style={[styles.chipsWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.sectionTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="cube-outline" size={15} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.darkBlue, textAlign },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('inventory.stockStatus')}
+                </Text>
+              </View>
+              <View style={[styles.gridRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {stockOptions.map((opt) => {
                   const isSelected = stockStatus === opt.key;
                   return (
@@ -138,7 +185,7 @@ export function InventoryFilterModal({
                       key={opt.key}
                       onPress={() => onSelectStockStatus(opt.key)}
                       style={[
-                        styles.chip,
+                        styles.gridCard3,
                         {
                           backgroundColor: isSelected
                             ? colors.primary
@@ -157,8 +204,9 @@ export function InventoryFilterModal({
                         color={isSelected ? colors.white : colors.gray500}
                       />
                       <Text
+                        numberOfLines={1}
                         style={[
-                          styles.chipText,
+                          styles.cardText,
                           { color: isSelected ? colors.white : colors.darkBlue },
                           isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}
@@ -174,20 +222,23 @@ export function InventoryFilterModal({
             {/* 2. Categories Section */}
             {categories.length > 0 && (
               <View style={styles.section}>
-                <Text
-                  style={[
-                    styles.sectionLabel,
-                    { color: colors.gray500, textAlign },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                  ]}
-                >
-                  {t('inventory.category')}
-                </Text>
-                <View style={[styles.chipsWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.sectionTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="pricetag-outline" size={15} color={colors.primary} />
+                  <Text
+                    style={[
+                      styles.sectionLabel,
+                      { color: colors.darkBlue, textAlign },
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    ]}
+                  >
+                    {t('inventory.category')}
+                  </Text>
+                </View>
+                <View style={[styles.gridRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <TouchableOpacity
                     onPress={() => onSelectCategory('all')}
                     style={[
-                      styles.chip,
+                      isTablet ? styles.gridCard3 : styles.gridCard2,
                       {
                         backgroundColor:
                           selectedCategory === 'all'
@@ -195,6 +246,7 @@ export function InventoryFilterModal({
                             : isDark
                             ? colors.gray200
                             : colors.gray100,
+                        borderColor: selectedCategory === 'all' ? colors.primary : 'transparent',
                         flexDirection: isRTL ? 'row-reverse' : 'row',
                       },
                     ]}
@@ -206,8 +258,9 @@ export function InventoryFilterModal({
                       color={selectedCategory === 'all' ? colors.white : colors.gray500}
                     />
                     <Text
+                      numberOfLines={1}
                       style={[
-                        styles.chipText,
+                        styles.cardText,
                         { color: selectedCategory === 'all' ? colors.white : colors.darkBlue },
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                       ]}
@@ -223,21 +276,23 @@ export function InventoryFilterModal({
                         key={cat}
                         onPress={() => onSelectCategory(cat)}
                         style={[
-                          styles.chip,
+                          isTablet ? styles.gridCard3 : styles.gridCard2,
                           {
                             backgroundColor: isSelected
                               ? colors.primary
                               : isDark
                               ? colors.gray200
                               : colors.gray100,
+                            borderColor: isSelected ? colors.primary : 'transparent',
                             flexDirection: isRTL ? 'row-reverse' : 'row',
                           },
                         ]}
                         activeOpacity={0.8}
                       >
                         <Text
+                          numberOfLines={1}
                           style={[
-                            styles.chipText,
+                            styles.cardText,
                             { color: isSelected ? colors.white : colors.darkBlue },
                             isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                           ]}
@@ -253,24 +308,28 @@ export function InventoryFilterModal({
 
             {/* 3. Sorting Section */}
             <View style={styles.section}>
-              <Text
-                style={[
-                  styles.sectionLabel,
-                  { color: colors.gray500, textAlign },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('inventory.sortBy')}
-              </Text>
-              <View style={[styles.chipsWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {sortOptions.map((opt) => {
+              <View style={[styles.sectionTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="swap-vertical-outline" size={15} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.darkBlue, textAlign },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {t('inventory.sortBy')}
+                </Text>
+              </View>
+              <View style={[styles.gridRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {sortOptions.map((opt, idx) => {
                   const isSelected = sortBy === opt.key;
+                  const isLast = idx === sortOptions.length - 1;
                   return (
                     <TouchableOpacity
                       key={opt.key}
                       onPress={() => onSelectSortBy(opt.key)}
                       style={[
-                        styles.chip,
+                        isLast ? styles.gridCardFull : styles.gridCard2,
                         {
                           backgroundColor: isSelected
                             ? colors.primary
@@ -289,8 +348,9 @@ export function InventoryFilterModal({
                         color={isSelected ? colors.white : colors.gray500}
                       />
                       <Text
+                        numberOfLines={1}
                         style={[
-                          styles.chipText,
+                          styles.cardText,
                           { color: isSelected ? colors.white : colors.darkBlue },
                           isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}
@@ -312,7 +372,8 @@ export function InventoryFilterModal({
                 styles.resetBtn,
                 {
                   backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                  borderColor: colors.gray200,
+                  borderColor: isDark ? colors.gray300 : colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
               ]}
               activeOpacity={0.8}
@@ -354,13 +415,18 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    padding: 20,
-    maxHeight: '82%',
+    ...Theme.shadow.card,
+  },
+  handleWrap: {
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  handle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
   },
   header: {
     alignItems: 'center',
@@ -368,21 +434,30 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTitleGroup: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  headerIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 17,
     fontWeight: '700',
   },
   activeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activeBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   closeBtn: {
@@ -394,39 +469,63 @@ const styles = StyleSheet.create({
   },
   scrollBody: {
     paddingBottom: 16,
-    gap: 20,
+    gap: 18,
   },
   section: {
     gap: 10,
   },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  chipsWrap: {
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
+  sectionTitleRow: {
     alignItems: 'center',
     gap: 6,
   },
-  chipText: {
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gridRow: {
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  gridCard3: {
+    width: '31.5%',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  gridCard2: {
+    width: '48.6%',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  gridCardFull: {
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  cardText: {
     fontSize: 12.5,
     fontWeight: '600',
   },
   bottomActions: {
-    marginTop: 10,
+    marginTop: 12,
     gap: 10,
   },
   resetBtn: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,

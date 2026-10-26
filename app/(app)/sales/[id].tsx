@@ -17,7 +17,7 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
-import { getSaleById, getSalesDebtBySaleId } from '@/lib/sqlite';
+import { getSaleById, getSalesDebtBySaleId, incrementSaleViewCount, incrementSalePrintCount } from '@/lib/sqlite';
 import { shareInvoice } from '@/lib/generateInvoice';
 import { fmtIQD } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
@@ -58,10 +58,15 @@ export default function SaleDetailScreen() {
     try {
       const saleId = Number(id);
       const data = await getSaleById(saleId);
-      setSale(data);
-      if (data && (data.paymentMethod === 'debt' || data.paidAmount < data.grandTotal)) {
-        const debt = await getSalesDebtBySaleId(saleId);
-        setSaleDebt(debt);
+      if (data) {
+        incrementSaleViewCount(saleId).catch(() => {});
+        setSale({ ...data, viewCount: (data.viewCount || 0) + 1 });
+        if (data.paymentMethod === 'debt' || data.paidAmount < data.grandTotal) {
+          const debt = await getSalesDebtBySaleId(saleId);
+          setSaleDebt(debt);
+        }
+      } else {
+        setSale(null);
       }
     } catch (err) {
       console.error('Failed to load sale:', err);
@@ -73,6 +78,8 @@ export default function SaleDetailScreen() {
   async function handleShare() {
     if (!sale) return;
     setIsSharing(true);
+    incrementSalePrintCount(sale.id).catch(() => {});
+    setSale((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
     try {
       await shareInvoice(sale, {
         name: business.name, phone: business.phone,
@@ -130,6 +137,27 @@ export default function SaleDetailScreen() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 300 }}
         >
+          {/* Invoice Stats Row */}
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, marginBottom: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.gray500 }}>
+              {isRTL ? 'ئاماری پسوڵە:' : 'Invoice Stats:'}
+            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'center' }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="eye-outline" size={13} color={colors.gray500} />
+                <Text style={{ fontSize: 12, color: colors.gray600 }}>
+                  {isRTL ? `بینین: ${sale.viewCount || 0} جار` : `Views: ${sale.viewCount || 0}`}
+                </Text>
+              </View>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="print-outline" size={13} color={colors.primary} />
+                <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>
+                  {isRTL ? `چاپ: ${sale.printCount || 0} جار` : `Prints: ${sale.printCount || 0}`}
+                </Text>
+              </View>
+            </View>
+          </View>
+
           <PremiumCard>
             <InvoiceView sale={sale} />
           </PremiumCard>

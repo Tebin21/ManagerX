@@ -483,7 +483,7 @@ export default function SalesQuotationScreen() {
         discountTotal: totalDiscount,
         grandTotal,
         exchangeRate,
-        currencyMode: currencyMode || 'both',
+        currencyMode: useQuotationStore.getState().currencyMode || currencyMode || 'both',
         notes: notes.trim() || undefined,
         validityDays,
         printCount: 0,
@@ -565,7 +565,7 @@ export default function SalesQuotationScreen() {
         showBack
         onBack={() => {
           if (router.canGoBack()) router.back();
-          else router.replace('/(app)' as never);
+          else router.replace('/(app)/dashboard' as never);
         }}
         rightAction={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
@@ -970,41 +970,37 @@ export default function SalesQuotationScreen() {
           <View style={[styles.summaryTotalsBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderTopColor: colors.primary }]}>
             <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={{ fontSize: 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-              {currencyMode === 'usd' ? (
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
-                  ${fmtUSD(itemsSubtotalUSD)} USD
-                </Text>
-              ) : (
-                <AmountText value={itemsSubtotal} currency="IQD" variant="small" style={{ color: colors.gray600 }} />
-              )}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
+                {isUSD ? `$${fmtUSD(itemsSubtotalUSD)} USD` : `${fmtIQD(itemsSubtotal)} IQD`}
+              </Text>
             </View>
             {totalDiscount > 0 && (
               <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={{ fontSize: 12.5, color: colors.error }}>{isKuLanguage ? 'کۆی داشکاندن:' : 'Total Discount:'}</Text>
-                {currencyMode === 'usd' ? (
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
-                    −${fmtUSD(totalDiscountUSD)} USD
-                  </Text>
-                ) : (
-                  <AmountText value={totalDiscount} prefix="−" currency="IQD" variant="small" style={{ color: colors.error }} />
-                )}
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
+                  {isUSD ? `−$${fmtUSD(totalDiscountUSD)} USD` : `−${fmtIQD(totalDiscount)} IQD`}
+                </Text>
               </View>
             )}
             <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.gray300 }]}>
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
-              {currencyMode === 'usd' ? (
+              <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                 <Text style={{ fontSize: 18, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
-                  ${fmtUSD(grandTotalUSD)} USD
+                  {currencyMode === 'usd'
+                    ? `$${fmtUSD(grandTotalUSD)} USD`
+                    : currencyMode === 'iqd'
+                    ? `${fmtIQD(grandTotal)} IQD`
+                    : isUSD
+                    ? `$${fmtUSD(grandTotalUSD)} USD`
+                    : `${fmtIQD(grandTotal)} IQD`}
                 </Text>
-              ) : (
-                <AmountText value={grandTotal} currency="IQD" variant="large" style={{ color: colors.primary, fontWeight: '900' }} />
-              )}
+                {currencyMode === 'both' && (
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success, direction: 'ltr', marginTop: 2 }}>
+                    {isUSD ? `≈ ${fmtIQD(grandTotal)} IQD` : `≈ $${fmtUSD(grandTotalUSD)} USD`}
+                  </Text>
+                )}
+              </View>
             </View>
-            {currencyMode === 'both' && grandTotalUSD > 0 && (
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success, textAlign: isRTL ? 'left' : 'right' }}>
-                ≈ ${fmtUSD(grandTotalUSD)} USD
-              </Text>
-            )}
           </View>
         </PremiumCard>
 
@@ -1438,7 +1434,7 @@ export default function SalesQuotationScreen() {
                   ]}
                 >
                   {currencyMode === 'usd'
-                    ? (isKuLanguage ? 'تەنها دۆلار $' : 'USD Only $')
+                    ? (isKuLanguage ? 'تەنها دۆلار' : 'USD Only')
                     : currencyMode === 'iqd'
                     ? (isKuLanguage ? 'تەنها دینار' : 'IQD Only')
                     : (isKuLanguage ? 'دۆلار و دینار' : 'USD & IQD')}
@@ -1471,7 +1467,7 @@ export default function SalesQuotationScreen() {
                 {[
                   { id: 'both' as const, labelKu: 'دۆلار و دینار', labelEn: 'USD & IQD', icon: 'swap-horizontal' },
                   { id: 'iqd' as const, labelKu: 'تەنها دینار', labelEn: 'IQD Only', icon: 'wallet-outline' },
-                  { id: 'usd' as const, labelKu: 'تەنها دۆلار $', labelEn: 'USD Only $', icon: 'logo-usd' },
+                  { id: 'usd' as const, labelKu: 'تەنها دۆلار', labelEn: 'USD Only', icon: 'logo-usd' },
                 ].map((m) => {
                   const active = (currencyMode || 'both') === m.id;
                   return (
@@ -1534,7 +1530,44 @@ export default function SalesQuotationScreen() {
   const renderStep3 = () => {
     if (!generatedQuotation) return null;
     const q = generatedQuotation;
-    const qUsd = q.exchangeRate > 0 ? q.grandTotal / q.exchangeRate : 0;
+    const effMode = q.currencyMode || currencyMode || 'both';
+    const isUsdMode = effMode === 'usd';
+    const isIqdMode = effMode === 'iqd';
+    const isBothMode = effMode === 'both';
+    const rate = q.exchangeRate || exchangeRate || 1310;
+    const qUsd = rate > 0 ? q.grandTotal / rate : 0;
+    const totalUSD = fmtUSD(qUsd);
+    const totalIQD = fmtIQD(q.grandTotal);
+
+    // Items currency:
+    // When system is USD (or mode is usd), ALL items and subtotal are in USD!
+    const isItemUsd = isUSD || isUsdMode;
+    const formatRowPrice = (iqdVal: number) => {
+      if (isItemUsd) {
+        return `$${fmtUSD(iqdVal / rate)}`;
+      }
+      return `${fmtIQD(iqdVal)} IQD`;
+    };
+
+    let grandTotalPrimary = `${totalIQD} IQD`;
+    let grandTotalSecondary = '';
+
+    if (isUsdMode) {
+      grandTotalPrimary = `$${totalUSD} USD`;
+      grandTotalSecondary = '';
+    } else if (isIqdMode) {
+      grandTotalPrimary = `${totalIQD} IQD`;
+      grandTotalSecondary = '';
+    } else {
+      // Both mode
+      if (isUSD) {
+        grandTotalPrimary = `$${totalUSD} USD`;
+        grandTotalSecondary = `≈ ${totalIQD} IQD`;
+      } else {
+        grandTotalPrimary = `${totalIQD} IQD`;
+        grandTotalSecondary = `≈ $${totalUSD} USD`;
+      }
+    }
 
     return (
       <View style={styles.flex}>
@@ -1556,25 +1589,25 @@ export default function SalesQuotationScreen() {
           <PremiumCard style={styles.invoiceCard}>
             {/* Top Badge & Number */}
             <View style={[styles.invoiceTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.invoiceDocBadge, { backgroundColor: isDark ? colors.gray300 : '#F4F4F5' }]}>
-                <Ionicons name="document-text" size={14} color={colors.black} />
-                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.black }}>
+              <View style={[styles.invoiceDocBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', borderColor: colors.gray200, borderWidth: 1 }]}>
+                <Ionicons name="document-text" size={13} color={colors.primary} />
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                   {isKuLanguage ? 'وەسڵی عەرزی نرخ' : 'PRICE QUOTATION'}
                 </Text>
               </View>
               <IdText size="default">{q.quotationNumber}</IdText>
             </View>
 
-            {/* Official Prominent Disclaimer Notice (Delicate & Monochrome) */}
-            <View style={[styles.invoiceNoticeBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: isDark ? colors.gray300 : '#D4D4D4' }]}>
-              <Ionicons name="information-circle-outline" size={18} color={colors.black} />
+            {/* Official Disclaimer Notice (Sleek & Delicate) */}
+            <View style={[styles.invoiceNoticeBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.gray500} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'right' : 'left' }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'right' : 'left', fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                   {isKuLanguage
                     ? 'ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فەرمی فرۆشتن نییە'
                     : 'THIS DOCUMENT IS A PRICE QUOTATION ONLY AND NOT A SALES INVOICE'}
                 </Text>
-                <Text style={{ fontSize: 11, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
+                <Text style={{ fontSize: 10.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 1 }}>
                   {isKuLanguage
                     ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
                     : 'All prices are offered for quotation purposes.'}
@@ -1582,29 +1615,33 @@ export default function SalesQuotationScreen() {
               </View>
             </View>
 
-            {/* Client Information */}
+            {/* Client & Date Information */}
             <View style={[styles.invoiceClientBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200 }]}>
-              <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-                <Text style={{ fontSize: 11, color: colors.gray400 }}>{isKuLanguage ? 'پێشکەش دەکرێت بە:' : 'Presented To:'}</Text>
-                <Text style={{ fontSize: 11, color: colors.gray400 }}>{q.date} {q.time ? `• ${q.time}` : ''}</Text>
+              <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={{ fontSize: 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                  {isKuLanguage ? 'پێشکەش دەکرێت بە:' : 'Presented To:'}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.gray400, direction: 'ltr' }}>
+                  {q.date} {q.time ? `• ${q.time}` : ''}
+                </Text>
               </View>
 
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left' }}>
+                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left', fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {q.customerName}
                   </Text>
                   {q.customerPhone ? (
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                      <Ionicons name="call-outline" size={13} color={colors.gray400} />
+                      <Ionicons name="call-outline" size={12} color={colors.gray400} />
                       <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
                         {q.customerPhone}
                       </Text>
                     </View>
                   ) : null}
                   {q.customerAddress ? (
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                      <Ionicons name="location-outline" size={13} color={colors.gray400} />
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Ionicons name="location-outline" size={12} color={colors.gray400} />
                       <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
                         {q.customerAddress}
                       </Text>
@@ -1612,24 +1649,21 @@ export default function SalesQuotationScreen() {
                   ) : null}
                 </View>
 
-                {/* Large Prominent Validity Badge at Top */}
+                {/* Elegant Validity Badge */}
                 {q.validityDays ? (
                   <View
-                    style={{
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      borderRadius: 10,
-                      backgroundColor: isDark ? colors.gray300 : '#F4F4F5',
-                      borderWidth: 1.5,
-                      borderColor: colors.black,
-                    }}
+                    style={[
+                      styles.validityBadge,
+                      {
+                        backgroundColor: isDark ? colors.gray300 : '#FFFFFF',
+                        borderColor: colors.gray300,
+                      },
+                    ]}
                   >
-                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.gray500, marginBottom: 1 }}>
+                    <Text style={{ fontSize: 10, color: colors.gray500, marginBottom: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
                     </Text>
-                    <Text style={{ fontSize: 18, fontWeight: '900', color: colors.black }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                       {isKuLanguage ? `${q.validityDays} ڕۆژ` : `${q.validityDays} Days`}
                     </Text>
                   </View>
@@ -1639,31 +1673,58 @@ export default function SalesQuotationScreen() {
 
             {/* Items Table */}
             <View style={{ marginTop: 14 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left', marginBottom: 8 }}>
-                {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان:' : 'Quoted Items List:'}
-              </Text>
+              {/* Header Row */}
+              <View style={[styles.itemsHeaderRow, { borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                    {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان' : 'Quoted Items'}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                    ({q.items.length} {isKuLanguage ? 'کاڵا' : 'items'})
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                  {isKuLanguage ? 'کۆی نرخ' : 'Total'}
+                </Text>
+              </View>
+
               {q.items.map((it, idx) => (
                 <View
                   key={it.id || String(idx)}
                   style={[
                     styles.invoiceItemRow,
                     {
-                      borderBottomColor: colors.gray200,
+                      borderBottomColor: colors.gray100,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.black }}>#{idx + 1}</Text>
-                  <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black }} numberOfLines={1}>
+                  {/* Distinct Number Chip */}
+                  <View style={[styles.itemIndexPill, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
+                    <Text style={[styles.itemIndexText, { color: colors.gray500 }]}>{idx + 1}</Text>
+                  </View>
+
+                  {/* Product Details */}
+                  <View style={{ flex: 1, marginHorizontal: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.black }} numberOfLines={1}>
                       {it.productName}
                     </Text>
-                    <Text style={{ fontSize: 11, color: colors.gray500 }}>
-                      {it.quantity} × {fmtIQD(it.unitPrice)} IQD
-                      {it.discount > 0 ? ` (-${fmtIQD(it.discount)})` : ''}
-                    </Text>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Text style={{ fontSize: 11, color: colors.gray500, direction: 'ltr' }}>
+                        {it.quantity} × {formatRowPrice(it.unitPrice)}
+                      </Text>
+                      {it.discount > 0 && (
+                        <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                          (-{formatRowPrice(it.discount)})
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <AmountText value={it.lineTotal} currency="IQD" variant="small" style={{ fontWeight: '800', color: colors.black }} />
+
+                  {/* Line Total */}
+                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.black, direction: 'ltr' }}>
+                    {formatRowPrice(it.lineTotal)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -1671,56 +1732,55 @@ export default function SalesQuotationScreen() {
             {/* Notes Section (Positioned BEFORE Totals as requested) */}
             {q.notes ? (
               <View style={[styles.invoiceNotesBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, marginTop: 14 }]}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
-                  {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Terms & Conditions:'}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.black, lineHeight: 18, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                  <Ionicons name="document-text-outline" size={12} color={colors.gray500} />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                    {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Terms & Conditions:'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.black, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
                   {q.notes}
                 </Text>
               </View>
             ) : null}
 
-            {/* Totals Section (Positioned BELOW Notes as requested) */}
-            <View style={[styles.invoiceTotalsBox, { borderTopColor: colors.black, marginTop: 14 }]}>
+            {/* Totals Section */}
+            <View style={[styles.invoiceTotalsBox, { borderTopColor: colors.gray200, marginTop: 14 }]}>
               {q.discountTotal > 0 && (
                 <>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-                    {(q.currencyMode || currencyMode) === 'usd' ? (
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
-                        ${fmtUSD(q.subtotal / (q.exchangeRate || exchangeRate))} USD
-                      </Text>
-                    ) : (
-                      <AmountText value={q.subtotal} currency="IQD" variant="small" style={{ color: colors.black }} />
-                    )}
+                    <Text style={{ fontSize: 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                      {isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                      {formatRowPrice(q.subtotal)}
+                    </Text>
                   </View>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: 12.5, color: colors.gray600 }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
-                    {(q.currencyMode || currencyMode) === 'usd' ? (
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
-                        −${fmtUSD(q.discountTotal / (q.exchangeRate || exchangeRate))} USD
-                      </Text>
-                    ) : (
-                      <AmountText value={q.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.black }} />
-                    )}
+                    <Text style={{ fontSize: 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                      {isKuLanguage ? 'داشکاندن:' : 'Discount:'}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                      −{formatRowPrice(q.discountTotal)}
+                    </Text>
                   </View>
                 </>
               )}
-              <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4 }]}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
-                {(q.currencyMode || currencyMode) === 'usd' ? (
-                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
-                    ${fmtUSD(qUsd)} USD
-                  </Text>
-                ) : (
-                  <AmountText value={q.grandTotal} currency="IQD" variant="large" style={{ color: colors.black, fontWeight: '900' }} />
-                )}
-              </View>
-              {(q.currencyMode || currencyMode) === 'both' && qUsd > 0 && (
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'left' : 'right', marginTop: 2 }}>
-                  ≈ ${fmtUSD(qUsd)} USD
+              <View style={[styles.invoiceGrandTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                  {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
-              )}
+                <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                  <Text style={{ fontSize: 17.5, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
+                    {grandTotalPrimary}
+                  </Text>
+                  {grandTotalSecondary ? (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.gray500, direction: 'ltr', marginTop: 2 }}>
+                      {grandTotalSecondary}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
             </View>
           </PremiumCard>
 
@@ -2099,7 +2159,7 @@ const styles = StyleSheet.create({
   },
   invoiceCard: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 16,
   },
   invoiceTopRow: {
     justifyContent: 'space-between',
@@ -2109,54 +2169,79 @@ const styles = StyleSheet.create({
   invoiceDocBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   invoiceNoticeBox: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 12,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    borderWidth: 1.5,
-    marginBottom: 12,
+    borderWidth: 1,
+    marginBottom: 10,
   },
   invoiceClientBox: {
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    gap: 2,
+    gap: 4,
   },
   clientRow: {
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  validityBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  itemsHeaderRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    marginBottom: 4,
   },
   invoiceItemRow: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     alignItems: 'center',
   },
-  invoiceItemTag: {
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderStyle: 'dashed',
+  itemIndexPill: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemIndexText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   invoiceTotalsBox: {
     marginTop: 14,
     paddingTop: 10,
-    borderTopWidth: 2,
-    gap: 4,
+    borderTopWidth: 1,
+    gap: 5,
   },
   invoiceTotRow: {
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  invoiceGrandTotRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   invoiceNotesBox: {
     marginTop: 12,
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     borderWidth: 1,
   },

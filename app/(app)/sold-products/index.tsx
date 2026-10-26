@@ -213,7 +213,10 @@ export default function SoldProductsScreen() {
       <AppHeader
         title={t('soldProducts.title')}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)/dashboard' as never);
+        }}
         rightAction={
           <HeaderActionButton
             icon={showSearch ? 'close-outline' : 'search-outline'}

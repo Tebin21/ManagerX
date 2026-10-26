@@ -51,11 +51,14 @@ export default function AppLayout() {
   return (
     <ErrorBoundary>
       <Stack
+        initialRouteName="dashboard"
         screenOptions={{
           headerShown: false,
           animation: isRTL ? 'slide_from_left' : 'slide_from_right',
         }}
-      />
+      >
+        <Stack.Screen name="dashboard" />
+      </Stack>
     </ErrorBoundary>
   );
 }

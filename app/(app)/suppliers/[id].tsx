@@ -633,7 +633,7 @@ export default function SupplierDetailScreen() {
               >
                 <TouchableOpacity
                   style={[styles.purchaseRow, { borderBottomColor: colors.gray100 }]}
-                  onPress={() => router.push(`/(app)/purchases/${p.id}` as never)}
+                  onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(p.id) } } as never)}
                   activeOpacity={0.75}
                 >
                   <View style={styles.purchaseLeft}>

@@ -379,7 +379,7 @@ export default function CustomerProfileScreen() {
                     key={sale.id}
                     sale={sale}
                     isLast={i === sales.length - 1}
-                    onPress={() => router.push(`/(app)/sales/${sale.id}` as never)}
+                    onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'sales', id: String(sale.id) } } as never)}
                     onEdit={() => router.push(`/(app)/sales/edit/${sale.id}` as never)}
                     onDelete={() => handleDeleteSale(sale)}
                   />

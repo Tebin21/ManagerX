@@ -43,7 +43,8 @@ import { isDateWithinRange, getPeriodBounds, formatDateShort, type PeriodKey } f
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
-import { shareDebtsAuditReport } from '@/lib/generateInvoice';
+import { shareDebtsAuditReport, shareSalesDebtReport } from '@/lib/generateInvoice';
+import { getSalesDebtById, getDebtPayments, getSaleById } from '@/lib/sqlite';
 import { DebtPdfExportModal } from '@/components/debt/DebtPdfExportModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import type { DebtReportSections } from '@/lib/debtReportTemplate';
@@ -675,16 +676,60 @@ export default function DebtScreen() {
   const handlePay = useCallback(async (amount: number, paymentMethod: 'cash' | 'fib' = 'cash') => {
     if (!payTarget) return;
     try {
+      const isSettling = amount >= payTarget.remaining;
+      const target = payTarget;
       if (payTarget.type === 'sales') {
         await paySalesDebt(payTarget.id, amount, undefined, paymentMethod);
+        setPayTarget(null);
+        if (isSettling) {
+          Alert.alert(
+            isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
+            isKuLanguage
+              ? 'قەرزەکە بە سەرکەوتوویی تەواو کرا. ئایا دەتەوێت وەسڵی قەرزەکە پرینت بکەیت؟'
+              : 'The debt has been fully settled. Would you like to print the debt receipt?',
+            [
+              {
+                text: isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
+                style: 'cancel',
+                onPress: () => router.replace('/(app)/sales' as never),
+              },
+              {
+                text: isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
+                onPress: async () => {
+                  try {
+                    const [d, p] = await Promise.all([
+                      getSalesDebtById(target.id),
+                      getDebtPayments(target.id, 'sales'),
+                    ]);
+                    if (d) {
+                      const s = d.saleId ? await getSaleById(d.saleId) : null;
+                      const biz = useBusinessStore.getState();
+                      await shareSalesDebtReport(d, p, {
+                        name: biz.name,
+                        phone: biz.phone,
+                        address: biz.address,
+                        logoUri: biz.logoUri,
+                      }, s?.items);
+                    }
+                  } catch (e) {
+                    console.error('Quick pay print error:', e);
+                  } finally {
+                    router.replace('/(app)/sales' as never);
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
       } else {
         await payPurchaseDebt(payTarget.id, amount, undefined, paymentMethod);
+        setPayTarget(null);
       }
-      setPayTarget(null);
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     }
-  }, [payTarget, paySalesDebt, payPurchaseDebt, t]);
+  }, [payTarget, paySalesDebt, payPurchaseDebt, isKuLanguage, router, t]);
 
   const handlePaySalesPress = useCallback((debtId: number) => {
     const debt = visibleSales.find((d) => d.id === debtId);
@@ -806,7 +851,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
         showBack
         onBack={() => {
           if (router.canGoBack()) router.back();
-          else router.replace('/(app)' as never);
+          else router.replace('/(app)/dashboard' as never);
         }}
         rightAction={
           <HeaderActionButton

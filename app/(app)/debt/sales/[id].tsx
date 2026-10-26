@@ -217,6 +217,11 @@ export default function SalesDebtDetailScreen() {
         address: business.address,
         logoUri: business.logoUri,
       }, sale?.items);
+
+      if (debt.remainingAmount <= 0) {
+        // Debt is fully settled, immediately navigate back to sales home screen
+        router.replace('/(app)/sales' as never);
+      }
     } catch (err) {
       console.error('Failed to share sales debt report:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
@@ -241,19 +246,61 @@ export default function SalesDebtDetailScreen() {
       // same tick — the silent reload below then reconciles payment history.
       const clamped = Math.min(amt, debt.remainingAmount);
       const newRemaining = Math.max(0, debt.remainingAmount - clamped);
-      setDebt({
+      const isSettled = newRemaining <= 0;
+
+      const updatedDebt = {
         ...debt,
         paidAmount: debt.paidAmount + clamped,
         remainingAmount: newRemaining,
-        status: newRemaining <= 0 ? 'settled' : 'active',
+        status: isSettled ? ('settled' as const) : ('active' as const),
         lastPaymentAt: ts,
-      });
+      };
+      setDebt(updatedDebt);
 
       setPayValue('');
       setPaymentDate(new Date());
       setPaymentMethod('cash');
       setShowPayForm(false);
       await load({ silent: true });
+
+      if (isSettled) {
+        Alert.alert(
+          isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
+          isKuLanguage
+            ? 'قەرزەکە بە سەرکەوتوویی تەواو کرا. ئایا دەتەوێت وەسڵی قەرزەکە پرینت بکەیت؟'
+            : 'The debt has been fully settled. Would you like to print the debt receipt?',
+          [
+            {
+              text: isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
+              style: 'cancel',
+              onPress: () => router.replace('/(app)/sales' as never),
+            },
+            {
+              text: isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
+              onPress: async () => {
+                try {
+                  const updatedPayments = await getDebtPayments(debtId, 'sales');
+                  await shareSalesDebtReport(
+                    updatedDebt,
+                    updatedPayments,
+                    {
+                      name: business.name,
+                      phone: business.phone,
+                      address: business.address,
+                      logoUri: business.logoUri,
+                    },
+                    sale?.items
+                  );
+                } catch (e) {
+                  console.error('Print error after settle:', e);
+                } finally {
+                  router.replace('/(app)/sales' as never);
+                }
+              },
+            },
+          ]
+        );
+      }
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     } finally {
@@ -396,7 +443,7 @@ export default function SalesDebtDetailScreen() {
                     backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
                   },
                 ]}
-                onPress={() => router.push(`/(app)/sales/${debt.saleId}` as never)}
+                onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'sales', id: String(debt.saleId) } } as never)}
               >
                 <Ionicons name="receipt-outline" size={15} color={colors.primary} />
                 <Text style={[styles.viewSaleBtnText, { color: isDark ? '#FDE047' : '#854D0E' }]}>
@@ -617,9 +664,23 @@ export default function SalesDebtDetailScreen() {
             )}
           </MotiView>
         ) : (
-          <View style={[styles.settledBanner, { backgroundColor: paidTint.bg, flexDirection }]}>
-            <Ionicons name="checkmark-circle" size={20} color={paidTint.text} />
-            <Text style={[styles.settledText, { color: paidTint.text }]}>{t('debt.fullyPaidCustomer')}</Text>
+          <View style={{ gap: 10 }}>
+            <View style={[styles.settledBanner, { backgroundColor: paidTint.bg, flexDirection }]}>
+              <Ionicons name="checkmark-circle" size={20} color={paidTint.text} />
+              <Text style={[styles.settledText, { color: paidTint.text }]}>{t('debt.fullyPaidCustomer')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.addPayBtn, { backgroundColor: colors.primary, flexDirection }]}
+              onPress={async () => {
+                await handleShareReport();
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="print-outline" size={18} color="#FFFFFF" />
+              <Text style={[styles.addPayBtnText, { color: '#FFFFFF' }]}>
+                {isKuLanguage ? 'پرینتکردنی وەسڵی قەرز و گەڕانەوە بۆ فرۆشتن' : 'Print Debt Receipt & Return to Sales'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 

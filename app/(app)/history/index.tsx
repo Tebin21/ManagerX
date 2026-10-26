@@ -571,7 +571,7 @@ export default function HistoryScreen() {
         showBack
         onBack={() => {
           if (router.canGoBack()) router.back();
-          else router.replace('/(app)' as never);
+          else router.replace('/(app)/dashboard' as never);
         }}
         rightAction={
           tab !== 'report' ? (

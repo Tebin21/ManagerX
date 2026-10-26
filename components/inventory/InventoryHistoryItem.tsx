@@ -16,10 +16,9 @@ import { resolveImageUri } from '@/lib/imageStorage';
 interface Props {
   item: HistoryItem;
   onRestore?: () => void;
-  onPermanentDelete?: () => void;
 }
 
-export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Props) {
+export function InventoryHistoryItem({ item, onRestore }: Props) {
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
@@ -98,32 +97,18 @@ export function InventoryHistoryItem({ item, onRestore, onPermanentDelete }: Pro
       </View>
 
       {/* Action buttons */}
-      {(onRestore || onPermanentDelete) && (
-        <View style={[styles.actionsRow, { borderTopColor: colors.gray100, flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
-          {onRestore && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.restoreBtn, { borderColor: colors.success, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}
-              onPress={onRestore}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh-outline" size={14} color={colors.success} />
-              <Text style={[styles.actionBtnText, { color: colors.success }]}>
-                {t('inventoryHistory.restore')}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {onPermanentDelete && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.deleteBtn, { borderColor: colors.error, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}
-              onPress={onPermanentDelete}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="trash-outline" size={14} color={colors.error} />
-              <Text style={[styles.actionBtnText, { color: colors.error }]}>
-                {t('inventoryHistory.permanentDelete')}
-              </Text>
-            </TouchableOpacity>
-          )}
+      {onRestore && (
+        <View style={[styles.actionsRow, { borderTopColor: colors.gray100, flexDirection }]}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.restoreBtn, { borderColor: colors.success, flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 5 }]}
+            onPress={onRestore}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh-outline" size={14} color={colors.success} />
+            <Text style={[styles.actionBtnText, { color: colors.success }]}>
+              {t('inventoryHistory.restore')}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>

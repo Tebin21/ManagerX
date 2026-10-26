@@ -147,7 +147,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
         <View style={[styles.gridStatsBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
           <View style={styles.gridStatItem}>
             <Text style={[styles.gridStatLabel, { color: colors.gray400 }]}>
-              {isKuLanguage ? 'کۆی گشتی' : 'Total'} ({itemsCount} {isKuLanguage ? 'کاڵا' : 'items'})
+              {isKuLanguage ? 'کۆی گشتی' : 'Total'}
             </Text>
             {quotation.currencyMode === 'usd' ? (
               <Text style={[styles.gridStatValue, { color: colors.primary, fontWeight: '800', direction: 'ltr' }]}>
@@ -172,22 +172,14 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
         {/* Bottom Actions Row */}
         <View style={[styles.gridActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', borderTopColor: colors.gray100 }]}>
           <TouchableOpacity
-            style={[styles.gridActionBtn, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3' }]}
-            onPress={() => onShare(quotation)}
-            hitSlop={6}
-          >
-            <Ionicons name="share-outline" size={14} color={colors.primary} />
-            <Text style={[styles.gridActionBtnText, { color: colors.primary }]}>
-              PDF
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.gridActionBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+            style={[styles.gridActionBtn, { flex: 1, backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3' }]}
             onPress={() => onPress(quotation)}
             hitSlop={6}
           >
-            <Ionicons name="eye-outline" size={14} color={colors.gray600} />
+            <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+            <Text style={[styles.gridActionBtnText, { color: colors.primary }]}>
+              {isKuLanguage ? 'وەسڵ' : 'Invoice'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -292,11 +284,8 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
           </View>
         ) : null}
 
-        <View style={[styles.subRow, { flexDirection, gap: 6, flexWrap: 'wrap' }]}>
-          <Text style={[styles.sub, { color: colors.gray400, textAlign }]}>
-            {itemsCount} {isKuLanguage ? 'کاڵا' : 'items'}
-          </Text>
-          <Text style={[styles.subDot, { color: colors.gray400 }]}>·</Text>
+        <View style={[styles.subRow, { flexDirection, gap: 4, alignItems: 'center' }]}>
+          <Ionicons name="time-outline" size={12} color={colors.gray400} />
           <Text style={[styles.sub, { color: colors.gray400, textAlign }]}>
             {quotation.date} {quotation.time ? `• ${quotation.time}` : ''}
           </Text>
@@ -326,11 +315,13 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
         <View style={[styles.rowActions, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 6, gap: 6 }]}>
           <TouchableOpacity
             style={[styles.miniActionBtn, { backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3' }]}
-            onPress={() => onShare(quotation)}
+            onPress={() => onPress(quotation)}
             hitSlop={6}
           >
-            <Ionicons name="share-outline" size={13} color={colors.primary} />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>PDF</Text>
+            <Ionicons name="receipt-outline" size={13} color={colors.primary} />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>
+              {isKuLanguage ? 'وەسڵ' : 'Invoice'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity

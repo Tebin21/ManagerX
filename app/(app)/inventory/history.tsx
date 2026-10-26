@@ -31,7 +31,6 @@ export default function InventoryHistoryScreen() {
   const {
     inventoryHistory,
     loadInventoryHistory,
-    permanentDeleteHistoryItem,
     restoreFromHistory,
   } = useInventoryStore();
 
@@ -81,20 +80,7 @@ export default function InventoryHistoryScreen() {
     );
   }, [restoreFromHistory, t, router]);
 
-  const handlePermanentDelete = useCallback((item: HistoryItem) => {
-    Alert.alert(
-      t('inventoryHistory.permanentDeleteTitle'),
-      t('inventoryHistory.permanentDeleteMsg', { name: item.productName }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('inventoryHistory.permanentDeleteConfirm'),
-          style: 'destructive',
-          onPress: () => permanentDeleteHistoryItem(item.id),
-        },
-      ]
-    );
-  }, [permanentDeleteHistoryItem, t]);
+
 
   const filtered: HistoryItem[] =
     statusFilter === 'all'
@@ -146,7 +132,6 @@ export default function InventoryHistoryScreen() {
       <InventoryHistoryItem
         item={item}
         onRestore={item.status === 'removed' ? () => handleRestore(item) : undefined}
-        onPermanentDelete={() => handlePermanentDelete(item)}
       />
     </MotiView>
   );

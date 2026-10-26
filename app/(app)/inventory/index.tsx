@@ -47,7 +47,15 @@ import { CompactAmount } from '@/components/shared/CompactAmount';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
-import { getPeriodBounds, formatPeriodLabel, isWithinRange, type PeriodKey } from '@/utils/dateRanges';
+import {
+  getPeriodBounds,
+  formatPeriodLabel,
+  isWithinRange,
+  isDateWithinRange,
+  formatDateShort,
+  type PeriodKey,
+} from '@/utils/dateRanges';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -136,6 +144,37 @@ export default function InventoryScreen() {
   const [stockStatusFilter, setStockStatusFilter] = useState<StockStatusFilter>('all');
   const [sortBy, setSortBy] = useState<InventorySortBy>('newest');
 
+  // Toggle between Category Filter bar and Date/Time Period Filter bar
+  const [filterBarMode, setFilterBarMode] = useState<'category' | 'period'>('category');
+  const [productPeriodKey, setProductPeriodKey] = useState<PeriodKey>('today');
+  const [productCustomRange, setProductCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [productCustomOpen, setProductCustomOpen] = useState(false);
+  const productFilterScrollRef = useRef<ScrollView>(null);
+
+  const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const periodLabels: Record<PeriodKey, string> = useMemo(
+    () => ({
+      today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
+      week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+      month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
+      year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
+      all: isKuLanguage ? 'هەمووی' : 'All Time',
+      custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+    }),
+    [isKuLanguage]
+  );
+
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+
+  useEffect(() => {
+    if (isRTL && filterBarMode === 'period' && productFilterScrollRef.current) {
+      setTimeout(() => {
+        productFilterScrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+    }
+  }, [isRTL, filterBarMode]);
+
   // Layout View Mode (چوارگۆشە / درێژ) — Persisted in useSettingsStore
   const inventoryGridLayout = useSettingsStore((s) => s.inventoryGridLayout);
   const setInventoryGridLayout = useSettingsStore((s) => s.setInventoryGridLayout);
@@ -162,9 +201,6 @@ export default function InventoryScreen() {
   const [reportGenerating, setReportGenerating] = useState(false);
   const [periodModalVisible, setPeriodModalVisible] = useState(false);
   const [pendingReport, setPendingReport] = useState<PendingReport | null>(null);
-
-  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
-  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
   const numColumns = useMemo(() => {
     if (viewMode === 'list') {
@@ -399,9 +435,22 @@ export default function InventoryScreen() {
       });
     }
 
-    // 2. Category filter
-    if (selectedCategory !== 'all') {
+    // 2. Category filter (applied when in category mode)
+    if (filterBarMode === 'category' && selectedCategory !== 'all') {
       list = list.filter((p) => p.category === selectedCategory);
+    }
+
+    // 2b. Date Period filter (applied when in period mode)
+    if (filterBarMode === 'period' && productPeriodKey !== 'all') {
+      const bounds =
+        productPeriodKey === 'custom' && productCustomRange
+          ? getPeriodBounds('custom', productCustomRange.from, productCustomRange.to)
+          : getPeriodBounds(productPeriodKey);
+      list = list.filter((p) => {
+        const dateStr = (p.purchaseDate && p.purchaseDate.trim()) ? p.purchaseDate : p.createdAt;
+        const normalized = (dateStr && dateStr.length === 10) ? `${dateStr}T12:00:00` : dateStr;
+        return isDateWithinRange(normalized, bounds.from, bounds.to);
+      });
     }
 
     // 3. Stock Status Filter
@@ -436,6 +485,9 @@ export default function InventoryScreen() {
     products,
     query,
     selectedCategory,
+    filterBarMode,
+    productPeriodKey,
+    productCustomRange,
     stockStatusFilter,
     sortBy,
     globalLowStockEnabled,
@@ -461,17 +513,20 @@ export default function InventoryScreen() {
     setStockStatusFilter('all');
     setCategory('all');
     setSortBy('newest');
+    setProductPeriodKey('all');
+    setProductCustomRange(null);
     setQuery('');
   }, [setCategory]);
 
   const isFilterActive = useMemo(() => {
     return (
       stockStatusFilter !== 'all' ||
-      selectedCategory !== 'all' ||
+      (filterBarMode === 'category' && selectedCategory !== 'all') ||
+      (filterBarMode === 'period' && productPeriodKey !== 'all') ||
       sortBy !== 'newest' ||
       query.trim().length > 0
     );
-  }, [stockStatusFilter, selectedCategory, sortBy, query]);
+  }, [stockStatusFilter, selectedCategory, filterBarMode, productPeriodKey, sortBy, query]);
 
   const categoryChips = useMemo(() => {
     const list: {
@@ -630,7 +685,7 @@ export default function InventoryScreen() {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace('/(app)' as never);
+            router.replace('/(app)/dashboard' as never);
           }
         }}
         rightAction={
@@ -905,6 +960,37 @@ export default function InventoryScreen() {
                   <Ionicons name="time-outline" size={isTablet ? 20 : 18} color={colors.gray500} />
                 </TouchableOpacity>
 
+                {/* Date / Time Period Filter Toggle (Switches between Category & Time Filter) */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setFilterBarMode((prev) => (prev === 'period' ? 'category' : 'period'));
+                  }}
+                  style={[
+                    styles.actionSquareBtn,
+                    isTablet && { width: 50, height: 50, borderRadius: 14 },
+                    filterBarMode === 'period'
+                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                      : {
+                          backgroundColor: isDark ? colors.gray100 : colors.white,
+                          borderColor: isDark ? colors.gray200 : colors.gray200,
+                        },
+                  ]}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={isTablet ? 20 : 18}
+                    color={
+                      filterBarMode === 'period'
+                        ? colors.white
+                        : isDark ? colors.gray600 : colors.darkBlue
+                    }
+                  />
+                  {filterBarMode === 'period' && productPeriodKey !== 'all' && (
+                    <View style={[styles.filterActiveDot, { backgroundColor: colors.white }]} />
+                  )}
+                </TouchableOpacity>
+
                 {/* Category Management */}
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -924,59 +1010,127 @@ export default function InventoryScreen() {
             )}
           </View>
 
-          {/* 2. Category Filter Chips Row (Clean, dedicated categories bar) */}
-          <View style={styles.chipsStripWrap}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
-              contentContainerStyle={styles.chipsScrollContent}
-            >
-              {categoryChips.map((chip) => (
-                <TouchableOpacity
-                  key={chip.id}
-                  activeOpacity={0.8}
-                  onPress={chip.onPress}
-                  style={[
-                    styles.unifiedChip,
-                    isRTL && { transform: [{ scaleX: -1 }] },
-                    chip.isActive
-                      ? [styles.unifiedChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
-                      : {
-                          backgroundColor: isDark ? colors.gray100 : colors.white,
-                          borderColor: isDark ? colors.gray200 : colors.gray200,
+          {/* 2. Filter Bar: Either Period Filter or Category Filter */}
+          {filterBarMode === 'period' ? (
+            <View style={styles.periodFilterWrapper}>
+              <ScrollView
+                ref={productFilterScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
+                onContentSizeChange={() => {
+                  if (isRTL) {
+                    productFilterScrollRef.current?.scrollToEnd({ animated: false });
+                  }
+                }}
+                contentContainerStyle={[
+                  styles.filterPillRow,
+                  {
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
+                    paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+                  },
+                ]}
+              >
+                {periodKeys.map((key) => {
+                  const active = productPeriodKey === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.filterPill,
+                        isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22 },
+                        {
+                          backgroundColor: active ? colors.primary : (isDark ? colors.gray100 : colors.white),
+                          borderColor: active ? colors.primary : colors.gray200,
                         },
-                  ]}
-                >
-                  {chip.icon && (
-                    <Ionicons
-                      name={chip.icon}
-                      size={13}
-                      color={chip.isActive ? colors.white : colors.gray500}
-                    />
-                  )}
-                  <Text
+                      ]}
+                      onPress={() => {
+                        if (key === 'custom') {
+                          setProductCustomOpen(true);
+                        } else {
+                          setProductPeriodKey(key);
+                          setProductCustomRange(null);
+                        }
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.filterPillText,
+                          isTablet && { fontSize: isTabletLandscape ? 14 : 13 },
+                          { color: active ? '#FFFFFF' : (isDark ? colors.gray600 : colors.gray600) },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                        ]}
+                      >
+                        {periodLabels[key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Selected date range info label when custom is chosen */}
+              {productPeriodKey === 'custom' && productCustomRange && (
+                <Text style={[styles.periodRangeLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
+                  {formatDateShort(productCustomRange.from)} - {formatDateShort(productCustomRange.to)}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View style={styles.chipsStripWrap}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
+                contentContainerStyle={styles.chipsScrollContent}
+              >
+                {categoryChips.map((chip) => (
+                  <TouchableOpacity
+                    key={chip.id}
+                    activeOpacity={0.8}
+                    onPress={chip.onPress}
                     style={[
-                      styles.unifiedChipText,
-                      {
-                        color: chip.isActive
-                          ? colors.white
-                          : isDark
-                          ? colors.gray600
-                          : colors.darkBlue,
-                      },
-                      isKuLanguage && {
-                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                        fontWeight: 'normal',
-                      },
+                      styles.unifiedChip,
+                      isRTL && { transform: [{ scaleX: -1 }] },
+                      chip.isActive
+                        ? [styles.unifiedChipActive, { backgroundColor: colors.primary, borderColor: colors.primary }]
+                        : {
+                            backgroundColor: isDark ? colors.gray100 : colors.white,
+                            borderColor: isDark ? colors.gray200 : colors.gray200,
+                          },
                     ]}
                   >
-                    {chip.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+                    {chip.icon && (
+                      <Ionicons
+                        name={chip.icon}
+                        size={13}
+                        color={chip.isActive ? colors.white : colors.gray500}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.unifiedChipText,
+                        {
+                          color: chip.isActive
+                            ? colors.white
+                            : isDark
+                            ? colors.gray600
+                            : colors.darkBlue,
+                        },
+                        isKuLanguage && {
+                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                          fontWeight: 'normal',
+                        },
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* 3. Slim, Minimal Summary Line */}
           <View
@@ -1077,6 +1231,19 @@ export default function InventoryScreen() {
           />
         </View>
       )}
+
+      {/* ── Custom Date Range Modal (for products catalog period filter) ── */}
+      <CustomDateRangeModal
+        visible={productCustomOpen}
+        onClose={() => setProductCustomOpen(false)}
+        initialFrom={productCustomRange?.from}
+        initialTo={productCustomRange?.to}
+        onApply={(from, to) => {
+          setProductPeriodKey('custom');
+          setProductCustomRange({ from, to });
+          setProductCustomOpen(false);
+        }}
+      />
 
       {/* ── Enhanced Filter & Sort Modal ── */}
       <InventoryFilterModal
@@ -1387,26 +1554,54 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actionSquareBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 37,
+    height: 37,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
+  periodFilterWrapper: {
+    marginBottom: 6,
+  },
+  filterPillRow: {
+    paddingHorizontal: 16,
+    gap: 7,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  filterPill: {
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  periodRangeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 16,
+    paddingTop: 3,
+    paddingBottom: 2,
+  },
   filterActiveDot: {
     position: 'absolute',
-    top: 7,
-    right: 7,
+    top: 6,
+    right: 6,
     width: 6,
     height: 6,
     borderRadius: 3,
   },
   bellBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 3,
+    right: 3,
     minWidth: 15,
     height: 15,
     borderRadius: 7.5,

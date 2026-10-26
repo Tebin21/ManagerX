@@ -1241,7 +1241,10 @@ export default function ReportsScreen() {
       <AppHeader
         title={t('reports.title')}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)/dashboard' as never);
+        }}
         rightAction={
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 8, alignItems: 'center' }}>
             <HeaderActionButton

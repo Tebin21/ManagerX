@@ -175,12 +175,12 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
           {viewMode === 'grid' ? (
             <SaleGridCard
               sale={item as Sale}
-              onPress={() => router.push(`/(app)/sales/${item.id}` as never)}
+              onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'sales', id: String(item.id) } } as never)}
             />
           ) : (
             <SaleHistoryItem
               sale={item as Sale}
-              onPress={() => router.push(`/(app)/sales/${item.id}` as never)}
+              onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'sales', id: String(item.id) } } as never)}
             />
           )}
         </MotiView>

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { fmtIQD, fmtUSD } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import type { Quotation } from '@/types/quotation';
@@ -38,10 +39,48 @@ export function QuotationPreviewModal({
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency);
+  const isSystemUsd = baseCurrency === 'USD';
 
   if (!quotation) return null;
 
-  const usdValue = quotation.exchangeRate > 0 ? quotation.grandTotal / quotation.exchangeRate : 0;
+  const effMode = quotation.currencyMode || 'both';
+  const isUsdOnly = effMode === 'usd';
+  const isIqdOnly = effMode === 'iqd';
+  const isBoth = effMode === 'both';
+  const rate = quotation.exchangeRate || 1310;
+  const usdValue = rate > 0 ? quotation.grandTotal / rate : 0;
+  const isItemUsd = isSystemUsd || isUsdOnly;
+
+  const formatPrice = (val: number) => {
+    if (isItemUsd) {
+      return `$${fmtUSD(val / rate)}`;
+    }
+    return `${fmtIQD(val)} IQD`;
+  };
+
+  const totalUSD = fmtUSD(usdValue);
+  const totalIQD = fmtIQD(quotation.grandTotal);
+
+  let grandTotalPrimary = `${totalIQD} IQD`;
+  let grandTotalSecondary = '';
+
+  if (isUsdOnly) {
+    grandTotalPrimary = `$${totalUSD} USD`;
+    grandTotalSecondary = '';
+  } else if (isIqdOnly) {
+    grandTotalPrimary = `${totalIQD} IQD`;
+    grandTotalSecondary = '';
+  } else {
+    // Both
+    if (isSystemUsd) {
+      grandTotalPrimary = `$${totalUSD} USD`;
+      grandTotalSecondary = `≈ ${totalIQD} IQD`;
+    } else {
+      grandTotalPrimary = `${totalIQD} IQD`;
+      grandTotalSecondary = `≈ $${totalUSD} USD`;
+    }
+  }
 
   return (
     <Modal
@@ -148,41 +187,64 @@ export function QuotationPreviewModal({
                 </View>
               </View>
 
-              {/* Print Status & Count */}
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <View
-                  style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    backgroundColor: (quotation.printCount && quotation.printCount > 0)
-                      ? (isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7')
-                      : (isDark ? colors.gray300 : colors.gray200),
-                    borderColor: (quotation.printCount && quotation.printCount > 0)
-                      ? (isDark ? 'rgba(34, 197, 94, 0.3)' : '#86EFAC')
-                      : 'transparent',
-                  }}
-                >
-                  <Ionicons
-                    name={(quotation.printCount && quotation.printCount > 0) ? 'print' : 'print-outline'}
-                    size={12}
-                    color={(quotation.printCount && quotation.printCount > 0) ? (isDark ? '#4ADE80' : '#15803D') : colors.gray400}
-                  />
-                  <Text
+              {/* View & Print Status & Counts */}
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  {/* View Count Badge */}
+                  <View
                     style={{
-                      fontSize: 11,
-                      fontWeight: '700',
-                      color: (quotation.printCount && quotation.printCount > 0) ? (isDark ? '#4ADE80' : '#15803D') : colors.gray400,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray200,
+                      borderColor: 'transparent',
                     }}
                   >
-                    {(quotation.printCount && quotation.printCount > 0)
-                      ? (isKuLanguage ? `چاپکراوە (${quotation.printCount} جار)` : `Printed (${quotation.printCount} times)`)
-                      : (isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
-                  </Text>
+                    <Ionicons name="eye-outline" size={12} color={colors.gray500} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray500 }}>
+                      {isKuLanguage ? `بینراوە (${quotation.viewCount || 0} جار)` : `Views (${quotation.viewCount || 0})`}
+                    </Text>
+                  </View>
+
+                  {/* Print Status & Count Badge */}
+                  <View
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      backgroundColor: (quotation.printCount && quotation.printCount > 0)
+                        ? (isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7')
+                        : (isDark ? colors.gray300 : colors.gray200),
+                      borderColor: (quotation.printCount && quotation.printCount > 0)
+                        ? (isDark ? 'rgba(34, 197, 94, 0.3)' : '#86EFAC')
+                        : 'transparent',
+                    }}
+                  >
+                    <Ionicons
+                      name={(quotation.printCount && quotation.printCount > 0) ? 'print' : 'print-outline'}
+                      size={12}
+                      color={(quotation.printCount && quotation.printCount > 0) ? (isDark ? '#4ADE80' : '#15803D') : colors.gray400}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: (quotation.printCount && quotation.printCount > 0) ? (isDark ? '#4ADE80' : '#15803D') : colors.gray400,
+                      }}
+                    >
+                      {(quotation.printCount && quotation.printCount > 0)
+                        ? (isKuLanguage ? `چاپکراوە (${quotation.printCount} جار)` : `Printed (${quotation.printCount} times)`)
+                        : (isKuLanguage ? 'چاپ نەکراوە' : 'Not printed')}
+                    </Text>
+                  </View>
                 </View>
 
                 {quotation.lastPrintedAt ? (
@@ -227,18 +289,15 @@ export function QuotationPreviewModal({
                       <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black }} numberOfLines={2}>
                         {it.productName}
                       </Text>
-                      <Text style={{ fontSize: 11, color: colors.gray400, marginTop: 2 }}>
-                        {it.quantity} × {fmtIQD(it.unitPrice)} IQD
-                        {it.discount > 0 ? ` (-${fmtIQD(it.discount)})` : ''}
+                      <Text style={{ fontSize: 11, color: colors.gray400, marginTop: 2, direction: 'ltr' }}>
+                        {it.quantity} × {formatPrice(it.unitPrice)}
+                        {it.discount > 0 ? ` (-${formatPrice(it.discount)})` : ''}
                       </Text>
                     </View>
 
-                    <AmountText
-                      value={it.lineTotal}
-                      currency="IQD"
-                      variant="small"
-                      style={{ fontWeight: '700', color: colors.black }}
-                    />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                      {formatPrice(it.lineTotal)}
+                    </Text>
                   </View>
                 ))
               ) : (
@@ -261,28 +320,20 @@ export function QuotationPreviewModal({
             ) : null}
 
             {/* Totals Section (Positioned BELOW Notes as requested) */}
-            <View style={[styles.previewTotals, { borderTopColor: colors.black, backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
+            <View style={[styles.previewTotals, { borderTopColor: colors.gray200, backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
               {quotation.discountTotal > 0 && (
                 <>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={{ fontSize: 12, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-                    {quotation.currencyMode === 'usd' ? (
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
-                        ${fmtUSD(quotation.subtotal / (quotation.exchangeRate || 1310))} USD
-                      </Text>
-                    ) : (
-                      <AmountText value={quotation.subtotal} currency="IQD" variant="small" style={{ color: colors.black }} />
-                    )}
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                      {formatPrice(quotation.subtotal)}
+                    </Text>
                   </View>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={{ fontSize: 12, color: colors.gray600 }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
-                    {quotation.currencyMode === 'usd' ? (
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
-                        −${fmtUSD(quotation.discountTotal / (quotation.exchangeRate || 1310))} USD
-                      </Text>
-                    ) : (
-                      <AmountText value={quotation.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.black }} />
-                    )}
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                      −{formatPrice(quotation.discountTotal)}
+                    </Text>
                   </View>
                 </>
               )}
@@ -291,20 +342,17 @@ export function QuotationPreviewModal({
                 <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black }}>
                   {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
-                {quotation.currencyMode === 'usd' ? (
+                <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                   <Text style={{ fontSize: 17, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
-                    ${fmtUSD(usdValue)} USD
+                    {grandTotalPrimary}
                   </Text>
-                ) : (
-                  <AmountText value={quotation.grandTotal} currency="IQD" variant="large" style={{ color: colors.black, fontWeight: '900' }} />
-                )}
+                  {grandTotalSecondary ? (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.gray500, direction: 'ltr', marginTop: 2 }}>
+                      {grandTotalSecondary}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
-
-              {(!quotation.currencyMode || quotation.currencyMode === 'both') && usdValue > 0 && (
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'left' : 'right', marginTop: 4 }}>
-                  ≈ ${fmtUSD(usdValue)} USD
-                </Text>
-              )}
             </View>
           </ScrollView>
 

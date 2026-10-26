@@ -71,12 +71,15 @@ function AppStack() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         key={language ?? 'en'}
+        initialRouteName="index"
         screenOptions={{
           headerShown:  false,
           contentStyle: { backgroundColor: colors.gray50 },
           animation: isRTL ? 'slide_from_left' : 'slide_from_right',
         }}
-      />
+      >
+        <Stack.Screen name="index" />
+      </Stack>
     </>
   );
 }

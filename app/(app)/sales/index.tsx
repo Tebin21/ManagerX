@@ -49,7 +49,10 @@ export default function SalesScreen() {
       <AppHeader
         title={t('sales.title')}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)/dashboard' as never);
+        }}
       />
 
       <ScrollView

@@ -62,7 +62,10 @@ export default function PurchasesScreen() {
       <AppHeader
         title={t('purchases.title')}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/(app)/dashboard' as never);
+        }}
         rightAction={
           <HeaderActionButton
             icon="time-outline"
