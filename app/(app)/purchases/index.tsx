@@ -9,7 +9,6 @@ import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
 
 import { AppHeader } from '@/components/common/AppHeader';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useSavedProductStore } from '@/store/savedProductStore';
@@ -66,12 +65,6 @@ export default function PurchasesScreen() {
           if (router.canGoBack()) router.back();
           else router.replace('/(app)/dashboard' as never);
         }}
-        rightAction={
-          <HeaderActionButton
-            icon="time-outline"
-            onPress={() => router.push('/(app)/purchases/history' as never)}
-          />
-        }
       />
 
       <ScrollView

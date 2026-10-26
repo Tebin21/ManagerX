@@ -361,7 +361,7 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
             styles.searchInput,
             { color: colors.black, textAlign, writingDirection },
             isTablet && { fontSize: 17 },
-            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+            applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('purchases.searchPlaceholder') }), {}),
           ]}
           value={query}
           onChangeText={setQuery}

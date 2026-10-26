@@ -40,6 +40,7 @@ import { CustomerInputForm } from '@/components/sales/CustomerInputForm';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { useBusinessStore } from '@/store/businessStore';
+import { directPrintInvoice } from '@/lib/generateInvoice';
 import * as Haptics from 'expo-haptics';
 
 import { useTranslation } from 'react-i18next';
@@ -99,7 +100,10 @@ export default function NewSaleScreen() {
   const [phoneError, setPhoneError] = useState('');
   const [saleDate, setSaleDate] = useState(() => new Date());
   const [receiptCurrency, setReceiptCurrency] = useState<ReceiptCurrencyMode>('iqd');
-  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('normal');
+  const saleCheckoutModePref = useSettingsStore((s) => s.saleCheckoutModePreference);
+  const setSaleCheckoutModePref = useSettingsStore((s) => s.setSaleCheckoutModePreference);
+  const checkoutMode: CheckoutMode = saleCheckoutModePref || 'normal';
+  const setCheckoutMode = setSaleCheckoutModePref;
 
   // Derived
   const visibleProducts = inventory.searchProducts(query, selectedCategory);
@@ -301,10 +305,13 @@ export default function NewSaleScreen() {
         remainingDebt: cart.remainingDebt,
       });
 
+      cart.clearCart();
+      setIsSubmitting(false);
+
       if (checkoutMode === 'print') {
         const business = useBusinessStore.getState();
-        const { directPrintInvoice } = await import('@/lib/generateInvoice');
-        await directPrintInvoice(
+        // Fire print in background so checkout screen transitions instantly without blocking on printer modal
+        directPrintInvoice(
           sale,
           {
             name: business.name || 'My Store',
@@ -313,16 +320,16 @@ export default function NewSaleScreen() {
             logoUri: business.logoUri ?? null,
           },
           receiptCurrency
-        );
-        cart.clearCart();
+        ).catch((printErr) => {
+          console.error('[Sale] Direct print error:', printErr);
+        });
+
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
       } else if (checkoutMode === 'normal') {
-        cart.clearCart();
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
       } else {
-        cart.clearCart();
         router.replace(`/(app)/sales/${sale.id}?new=1&currency=${receiptCurrency}` as never);
       }
     } catch (err: unknown) {
@@ -345,6 +352,7 @@ export default function NewSaleScreen() {
       } else {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }
+    } finally {
       setIsSubmitting(false);
     }
   }

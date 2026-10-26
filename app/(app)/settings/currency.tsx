@@ -228,7 +228,7 @@ export default function CurrencyScreen() {
                 style={[
                   styles.inputField,
                   { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: input, keyboardType: 'number-pad' }), {}),
+                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: input, placeholder: 'e.g. 150,000', keyboardType: 'number-pad' }), {}),
                 ]}
                 value={toEnglishDigits(input)}
                 onChangeText={(text) => {

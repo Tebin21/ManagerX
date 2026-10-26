@@ -31,7 +31,7 @@ export function ProductSearchBar({
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const isKurdish = resolveInputIsKurdish({ isKuLanguage, value: query });
+  const isKurdish = resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('sales.searchProducts') });
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const allCategories = ['all', ...categories];
 
@@ -40,7 +40,7 @@ export function ProductSearchBar({
       <View style={[styles.searchBox, { flexDirection }]}>
         <Ionicons name="search" size={isTablet ? 22 : 18} color={colors.gray400} style={styles.icon} />
         <TextInput
-          style={[styles.input, { textAlign, writingDirection }, isKuLanguage && applyKurdishFont(isKurdish, {})]}
+          style={[styles.input, { textAlign, writingDirection }, applyKurdishFont(isKurdish, {})]}
           value={query}
           onChangeText={onQueryChange}
           placeholder={t('sales.searchProducts')}

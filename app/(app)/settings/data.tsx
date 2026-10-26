@@ -695,7 +695,7 @@ export default function DataScreen() {
 
             <TextInput
               style={applyKurdishFont(
-                resolveInputIsKurdish({ isKuLanguage, value: resetInput }),
+                resolveInputIsKurdish({ isKuLanguage, value: resetInput, placeholder: t('settings.dataScreen.resetInputPlaceholder') }),
                 [
                   styles.resetInput,
                   {

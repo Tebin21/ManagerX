@@ -211,7 +211,7 @@ type SupplierOrFiller = SupplierWithStats | { id: string | number; isFiller: tru
                 writingDirection,
               },
               isTablet && { fontSize: 17 },
-              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('suppliers.search') }), {}),
             ]}
             value={query}
             onChangeText={setQuery}

@@ -467,6 +467,11 @@ export function buildQuotationHTML(
         <span class="meta-lbl">${isKurdish ? ku('کات:') : 'Time:'}</span>
         <b class="en-num" dir="ltr">${escHtml(quotation.time)}</b>
       </div>
+      ${quotation.printCount && quotation.printCount > 0 ? `
+      <div class="doc-meta-item">
+        <span class="meta-lbl">${isKurdish ? ku('ژمارەی چاپ:') : 'Print Count:'}</span>
+        <b class="en-num" dir="ltr">${quotation.printCount} ${isKurdish ? ku('جار') : 'times'}</b>
+      </div>` : ''}
     </div>
 
     <!-- Left side in RTL (Business Info: Logo, Name, Phone, Address) -->

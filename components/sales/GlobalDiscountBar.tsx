@@ -92,7 +92,11 @@ export function GlobalDiscountBar({ type, value, discountAmount, subtotal, onTyp
       {type !== 'none' && (
         <View style={styles.inputSection}>
           <TextInput
-            style={[styles.input, { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: inputText, keyboardType: 'decimal-pad' }), {})]}
+            style={[
+              styles.input,
+              { borderColor: colors.gray200, backgroundColor: colors.gray50, color: colors.black, textAlign, writingDirection: 'ltr' },
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: inputText, placeholder: type === 'percentage' ? '0%' : (isUSD ? '0.00 USD' : '0 IQD'), keyboardType: 'decimal-pad' }), {}),
+            ]}
             value={toEnglishDigits(inputText)}
             onChangeText={handleValueChange}
             keyboardType="decimal-pad"

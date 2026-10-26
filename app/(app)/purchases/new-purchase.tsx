@@ -867,7 +867,7 @@ export default function NewPurchaseScreen() {
           idType: purchase.idType,
           itemIds: finalItemIds,
         }];
-        await directPrintPurchaseInvoice(
+        directPrintPurchaseInvoice(
           purchase,
           purchaseItems,
           {
@@ -877,7 +877,9 @@ export default function NewPurchaseScreen() {
             logoUri: business.logoUri ?? null,
           },
           receiptCurrency
-        );
+        ).catch((printErr) => {
+          console.error('[Purchase] Print error:', printErr);
+        });
         resetForm();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else if (checkoutMode === 'normal') {

@@ -59,6 +59,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
   const isKurdish = resolveInputIsKurdish({
     isKuLanguage,
     value: typeof rest.value === 'string' ? rest.value : undefined,
+    placeholder: typeof rest.placeholder === 'string' ? rest.placeholder : undefined,
     keyboardType: rest.keyboardType,
     forceLatin,
   });

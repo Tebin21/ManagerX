@@ -97,7 +97,7 @@ export const MODULES: ModuleDefinition[] = [
   {
     id: 'invoices',
     labelKey: 'dashboard.invoices',
-    icon: 'receipt',
+    icon: 'document-text',
     descriptionKey: 'modules.invoices.description',
     route: '/(app)/invoices',
   },

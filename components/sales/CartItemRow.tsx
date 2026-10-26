@@ -226,7 +226,7 @@ export function CartItemRow({
         style={[
           styles.currencyInput,
           { color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
-          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: iqdDisplay, keyboardType: 'decimal-pad' }), {}),
+          applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: iqdDisplay, placeholder: '0', keyboardType: 'decimal-pad' }), {}),
         ]}
         value={iqdDisplay}
         onChangeText={onIqdChange}
@@ -262,7 +262,7 @@ export function CartItemRow({
         style={[
           styles.currencyInput,
           { color: colors.black, textAlign: 'right', writingDirection: 'ltr' },
-          isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: usdDisplay, keyboardType: 'decimal-pad' }), {}),
+          applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: usdDisplay, placeholder: '0.00', keyboardType: 'decimal-pad' }), {}),
         ]}
         value={usdDisplay}
         onChangeText={onUsdChange}
@@ -510,7 +510,7 @@ export function CartItemRow({
                   textAlign: 'right',
                   writingDirection: 'ltr',
                 },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: discountText, keyboardType: 'decimal-pad' }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: discountText, placeholder: item.discountType === 'percentage' ? '0%' : (isUSD ? '0.00' : '0'), keyboardType: 'decimal-pad' }), {}),
               ]}
               value={discountText}
               onChangeText={onDiscountChange}

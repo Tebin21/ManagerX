@@ -179,7 +179,7 @@ type CustomerOrFiller = CustomerWithStats | { id: string | number; isFiller: tru
                 writingDirection,
               },
               isTablet && { fontSize: 17 },
-              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('customers.search') }), {}),
             ]}
             value={query}
             onChangeText={setQuery}

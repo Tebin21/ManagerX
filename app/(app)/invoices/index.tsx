@@ -500,10 +500,15 @@ export default function InvoicesHubScreen() {
     } catch {}
     useQuotationStore.getState().incrementPrintCount(q.id);
     const nextPrint = (q.printCount || 0) + 1;
-    setSelectedQuotation((prev) => (prev && prev.id === q.id ? { ...prev, printCount: nextPrint } : prev));
+    const updatedQuotation = {
+      ...q,
+      printCount: nextPrint,
+      lastPrintedAt: new Date().toISOString(),
+    };
+    setSelectedQuotation(updatedQuotation);
     try {
       await shareQuotationInvoice(
-        q,
+        updatedQuotation,
         {
           name: business.name,
           phone: business.phone,
@@ -763,10 +768,10 @@ export default function InvoicesHubScreen() {
             styles.segmentBar,
             {
               backgroundColor: isDark ? colors.gray100 : colors.white,
-              borderColor: colors.gray200,
-              padding: isTabletLandscape ? 6 : 4,
-              borderRadius: 18,
-              flexDirection: 'row-reverse',
+              borderColor: isDark ? colors.gray200 : colors.gray200,
+              padding: isTabletLandscape ? 6 : 3,
+              borderRadius: isTablet ? 18 : 14,
+              flexDirection: isRTL ? 'row-reverse' : 'row',
             },
           ]}
         >
@@ -786,15 +791,15 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 2,
-                gap: 3,
+                paddingHorizontal: isTablet ? 8 : 2,
+                gap: isTablet ? 5 : 2,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
+              size={isTabletLandscape ? 19 : isTablet ? 17 : 13}
               color={activeTab === 'reports' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -805,7 +810,8 @@ export default function InvoicesHubScreen() {
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'reports' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11,
+                  flexShrink: 1,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -830,15 +836,15 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 2,
-                gap: 3,
+                paddingHorizontal: isTablet ? 8 : 2,
+                gap: isTablet ? 5 : 2,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="cart-outline"
-              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
+              size={isTabletLandscape ? 19 : isTablet ? 17 : 13}
               color={activeTab === 'purchases' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -849,12 +855,13 @@ export default function InvoicesHubScreen() {
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'purchases' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11,
+                  flexShrink: 1,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKu ? 'وەسڵی کڕین' : 'Purchases'}
+              {isKu ? (isTablet ? 'وەسڵی کڕین' : 'کڕین') : 'Purchases'}
             </Text>
             {filteredPurchasesByPeriod.length > 0 && (
               <View
@@ -863,16 +870,20 @@ export default function InvoicesHubScreen() {
                   {
                     backgroundColor:
                       activeTab === 'purchases' ? 'rgba(255, 255, 255, 0.28)' : isDark ? colors.gray200 : colors.gray300,
+                    minWidth: filteredPurchasesByPeriod.length >= 1000 ? 25 : filteredPurchasesByPeriod.length >= 100 ? 20 : 16,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.tabBadgeText,
-                    { color: activeTab === 'purchases' ? '#FFFFFF' : colors.black },
+                    {
+                      color: activeTab === 'purchases' ? '#FFFFFF' : colors.black,
+                      fontSize: filteredPurchasesByPeriod.length >= 1000 ? 8.5 : filteredPurchasesByPeriod.length >= 100 ? 9.5 : 10.5,
+                    },
                   ]}
                 >
-                  {filteredPurchasesByPeriod.length}
+                  {filteredPurchasesByPeriod.length > 9999 ? '9999+' : filteredPurchasesByPeriod.length}
                 </Text>
               </View>
             )}
@@ -894,15 +905,15 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 2,
-                gap: 3,
+                paddingHorizontal: isTablet ? 8 : 2,
+                gap: isTablet ? 5 : 2,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="receipt-outline"
-              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
+              size={isTabletLandscape ? 19 : isTablet ? 17 : 13}
               color={activeTab === 'sales' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -913,12 +924,13 @@ export default function InvoicesHubScreen() {
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'sales' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11,
+                  flexShrink: 1,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKu ? 'وەسڵی فرۆشتن' : 'Sales'}
+              {isKu ? (isTablet ? 'وەسڵی فرۆشتن' : 'فرۆشتن') : 'Sales'}
             </Text>
             {filteredSalesByPeriod.length > 0 && (
               <View
@@ -927,16 +939,20 @@ export default function InvoicesHubScreen() {
                   {
                     backgroundColor:
                       activeTab === 'sales' ? 'rgba(255, 255, 255, 0.28)' : isDark ? colors.gray200 : colors.gray300,
+                    minWidth: filteredSalesByPeriod.length >= 1000 ? 25 : filteredSalesByPeriod.length >= 100 ? 20 : 16,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.tabBadgeText,
-                    { color: activeTab === 'sales' ? '#FFFFFF' : colors.black },
+                    {
+                      color: activeTab === 'sales' ? '#FFFFFF' : colors.black,
+                      fontSize: filteredSalesByPeriod.length >= 1000 ? 8.5 : filteredSalesByPeriod.length >= 100 ? 9.5 : 10.5,
+                    },
                   ]}
                 >
-                  {filteredSalesByPeriod.length}
+                  {filteredSalesByPeriod.length > 9999 ? '9999+' : filteredSalesByPeriod.length}
                 </Text>
               </View>
             )}
@@ -958,15 +974,15 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 2,
-                gap: 3,
+                paddingHorizontal: isTablet ? 8 : 2,
+                gap: isTablet ? 5 : 2,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="document-text-outline"
-              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
+              size={isTabletLandscape ? 19 : isTablet ? 17 : 13}
               color={activeTab === 'quotations' ? '#FFFFFF' : colors.gray500}
             />
             <Text
@@ -977,12 +993,13 @@ export default function InvoicesHubScreen() {
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'quotations' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11,
+                  flexShrink: 1,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKu ? 'وەسڵی عەرز' : 'Quotes'}
+              {isKu ? (isTablet ? 'وەسڵی عەرز' : 'عەرز') : 'Quotes'}
             </Text>
             {filteredQuotationsByPeriod.length > 0 && (
               <View
@@ -991,16 +1008,20 @@ export default function InvoicesHubScreen() {
                   {
                     backgroundColor:
                       activeTab === 'quotations' ? 'rgba(255, 255, 255, 0.28)' : isDark ? colors.gray200 : colors.gray300,
+                    minWidth: filteredQuotationsByPeriod.length >= 1000 ? 25 : filteredQuotationsByPeriod.length >= 100 ? 20 : 16,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.tabBadgeText,
-                    { color: activeTab === 'quotations' ? '#FFFFFF' : colors.black },
+                    {
+                      color: activeTab === 'quotations' ? '#FFFFFF' : colors.black,
+                      fontSize: filteredQuotationsByPeriod.length >= 1000 ? 8.5 : filteredQuotationsByPeriod.length >= 100 ? 9.5 : 10.5,
+                    },
                   ]}
                 >
-                  {filteredQuotationsByPeriod.length}
+                  {filteredQuotationsByPeriod.length > 9999 ? '9999+' : filteredQuotationsByPeriod.length}
                 </Text>
               </View>
             )}
@@ -1422,7 +1443,7 @@ export default function InvoicesHubScreen() {
                 }
                 ListEmptyComponent={
                   <View style={styles.emptyWrap}>
-                    <Ionicons name="receipt-outline" size={48} color={colors.gray300} />
+                    <Ionicons name="document-text-outline" size={48} color={colors.gray300} />
                     <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                       {isKu ? 'هیچ پسوڵەیەکی فرۆشتن نەدۆزرایەوە' : 'No sales invoices found'}
                     </Text>
@@ -2217,7 +2238,6 @@ export default function InvoicesHubScreen() {
         onClose={() => setQuotationModalVisible(false)}
         onShare={handlePrintQuotation}
         isSharing={isSharingQuotation}
-        onDelete={handleDeleteQuotation}
       />
     </View>
   );
@@ -2247,19 +2267,21 @@ const styles = StyleSheet.create({
 
   // Segmented Control
   segmentWrapper: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 6,
   },
   segmentBar: {
     flexDirection: 'row',
     borderWidth: 1,
+    overflow: 'hidden',
   },
   segmentBtn: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    overflow: 'hidden',
   },
   segmentBtnActive: {
     shadowColor: '#000',
@@ -2273,13 +2295,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tabBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 3.5,
     paddingVertical: 1,
-    borderRadius: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
+    textAlign: 'center',
+    writingDirection: 'ltr',
+    includeFontPadding: false,
   },
 
   // Period Section

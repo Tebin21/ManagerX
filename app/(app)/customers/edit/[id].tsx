@@ -103,7 +103,7 @@ export default function EditCustomerScreen() {
             style={[
               styles.input,
               { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name }), {}),
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name, placeholder: t('customers.name') }), {}),
             ]}
             value={name} onChangeText={setName}
             placeholder={t('customers.name')} placeholderTextColor={colors.gray300}
@@ -112,7 +112,11 @@ export default function EditCustomerScreen() {
 
           <Text style={[styles.label, { color: colors.gray500, textAlign }]}>{t('customers.phone')}</Text>
           <TextInput
-            style={[styles.input, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white }]}
+            style={[
+              styles.input,
+              { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: phone, placeholder: t('sales.customerPhone'), keyboardType: 'phone-pad' }), {}),
+            ]}
             value={phone} onChangeText={(t) => setPhone(sanitizeNumericInput(t, 'phone-pad'))}
             placeholder={t('sales.customerPhone')} placeholderTextColor={colors.gray300}
             keyboardType="phone-pad"
@@ -124,7 +128,7 @@ export default function EditCustomerScreen() {
             style={[
               styles.input,
               { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: address }), {}),
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: address, placeholder: t('sales.customerAddress') }), {}),
             ]}
             value={address} onChangeText={setAddress}
             placeholder={t('sales.customerAddress')} placeholderTextColor={colors.gray300}
@@ -137,7 +141,7 @@ export default function EditCustomerScreen() {
               styles.input,
               styles.textarea,
               { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-              isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes }), {}),
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes, placeholder: t('purchases.notes') }), {}),
             ]}
             value={notes} onChangeText={setNotes}
             placeholder={t('purchases.notes')} placeholderTextColor={colors.gray300}

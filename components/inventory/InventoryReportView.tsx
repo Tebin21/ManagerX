@@ -232,26 +232,7 @@ export function InventoryReportView({
         }
         contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}
       >
-        {/* Empty notice when filtered products count is 0 in the selected period */}
-        {filteredProducts.length === 0 && periodKey !== 'all' && (
-          <View
-            style={[
-              styles.emptyNotice,
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderColor: colors.gray200,
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-          >
-            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={[styles.emptyNoticeText, { color: colors.gray500, textAlign }]}>
-              {isKuLanguage
-                ? 'هیچ بەرهەمێک لەم ماوەیەدا تۆمار نەکراوە، دەتوانیت ماوەیەکی تر وەک (ئەم هەفتەیە یان هەمووی) هەڵبژێریت.'
-                : 'No products recorded in this period. You can choose another period like This Week or All Time.'}
-            </Text>
-          </View>
-        )}
+
       {/* ── Section Header Row (Dashboard Style) ── */}
       <View style={[styles.sectionHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <View style={[styles.sectionTitleGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -629,23 +610,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 4,
   },
-  emptyNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  emptyNoticeText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-  },
+
   scrollContent: {
     paddingTop: 14,
     paddingBottom: 40,

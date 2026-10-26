@@ -183,7 +183,7 @@ export function QuantityStepper({
             compact ? styles.inputCompact : styles.input,
             isTablet && !compact && { fontSize: 20 },
             { color: colors.black },
-            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, keyboardType: 'number-pad' }), {})
+            applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: text, placeholder, keyboardType: 'number-pad' }), {})
           ]}
           value={toEnglishDigits(text)}
           onChangeText={(t2) => {

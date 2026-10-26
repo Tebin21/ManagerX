@@ -31,6 +31,7 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { useDebtStore } from '@/store/debtStore';
 import { useBusinessStore } from '@/store/businessStore';
+import { useLanguageStore } from '@/store/languageStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
@@ -40,8 +41,7 @@ import { fmtIQD } from '@/utils/formatters';
 import { roundToNearest250 } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron, RTL_SPACING } from '@/lib/rtl';
 import { isDateWithinRange, getPeriodBounds, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
-import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { shareDebtsAuditReport, shareSalesDebtReport } from '@/lib/generateInvoice';
 import { getSalesDebtById, getDebtPayments, getSaleById } from '@/lib/sqlite';
@@ -384,119 +384,216 @@ function QuickPayModal({
   const [value, setValue] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
 
+  useEffect(() => {
+    if (visible) {
+      setValue('');
+      setPaymentMethod('cash');
+    }
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
-    <View style={styles.modalOverlay}>
-      <MotiView
-        from={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', damping: 18 }}
-        style={styles.modal}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+      supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
       >
-        <Text style={[styles.modalTitle, { textAlign }]}>{i18n.t('debt.recordPayment')}</Text>
-        <Text style={[styles.modalSub, { textAlign }]}>{name}</Text>
-        <Text style={[styles.modalRemaining, { color: colors.primary, textAlign }]}>
-          {i18n.t('debt.remainingLabel')}: <AmountText value={remaining} currency="IQD" variant="small" style={[styles.modalRemaining, { color: colors.primary }, NUMBER_LTR]} />
-        </Text>
-        <TextInput
-          style={[styles.modalInput, isRTL && { textAlign: 'right', writingDirection: 'ltr' }]}
-          placeholder={i18n.t('debt.amountPlaceholder')}
-          placeholderTextColor={colors.gray400}
-          keyboardType="decimal-pad"
-          value={value}
-          onChangeText={setValue}
-          onEndEditing={() => {
-            const r = roundToNearest250(parseFloat(value) || 0);
-            setValue(r > 0 ? String(r) : '');
-          }}
-          autoFocus
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={onCancel}
         />
-        <View style={{ marginBottom: 16 }}>
-          <Text style={[{ fontSize: 13, color: colors.gray500, marginBottom: 8, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-            {i18n.t('debt.paymentMethod', 'شێوازی پارەدان')}
-          </Text>
-          <View style={[{ flexDirection, gap: 8 }]}>
+        <MotiView
+          from={{ opacity: 0, scale: 0.94, translateY: 10 }}
+          animate={{ opacity: 1, scale: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 20 }}
+          style={styles.modal}
+        >
+          {/* Header Row */}
+          <View style={[styles.modalHeaderRow, { flexDirection }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.modalTitle, { textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {i18n.t('debt.recordPayment')}
+              </Text>
+              <Text style={[styles.modalSub, { textAlign }]} numberOfLines={1}>
+                {name}
+              </Text>
+            </View>
             <TouchableOpacity
-              onPress={() => setPaymentMethod('cash')}
-              activeOpacity={0.8}
+              onPress={onCancel}
+              hitSlop={10}
+              style={[styles.modalCloseBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+            >
+              <Ionicons name="close" size={18} color={colors.gray600} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Remaining Debt Banner */}
+          <View
+            style={[
+              styles.modalRemainingBanner,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9E7',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : 'rgba(212, 175, 55, 0.45)',
+                flexDirection,
+              },
+            ]}
+          >
+            <Ionicons name="wallet-outline" size={18} color={colors.primary} />
+            <Text style={[styles.modalRemainingLabel, { color: isDark ? colors.gray300 : colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+              {i18n.t('debt.remainingLabel')}:
+            </Text>
+            <AmountText
+              value={remaining}
+              currency="IQD"
+              variant="default"
+              style={[styles.modalRemainingValue, { color: colors.primary }, NUMBER_LTR]}
+            />
+          </View>
+
+          {/* Amount input */}
+          <TextInput
+            style={[
+              styles.modalInput,
+              {
+                borderColor: colors.gray200,
+                backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                color: colors.black,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: 'ltr',
+              },
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value, placeholder: i18n.t('debt.amountPlaceholder'), keyboardType: 'decimal-pad' }), {}),
+            ]}
+            placeholder={i18n.t('debt.amountPlaceholder')}
+            placeholderTextColor={colors.gray400}
+            keyboardType="decimal-pad"
+            value={value}
+            onChangeText={setValue}
+            onEndEditing={() => {
+              const r = roundToNearest250(parseFloat(value) || 0);
+              setValue(r > 0 ? String(r) : '');
+            }}
+            autoFocus
+          />
+
+          {/* Payment Method Selector */}
+          <View style={{ marginBottom: 16 }}>
+            <Text
               style={[
-                styles.modalMethodBtn,
-                paymentMethod === 'cash'
-                  ? { borderColor: colors.primary, backgroundColor: colors.softBlue }
-                  : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
-                { flexDirection },
+                { fontSize: 13, color: colors.gray500, marginBottom: 8, textAlign },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              <Ionicons
-                name="cash-outline"
-                size={16}
-                color={paymentMethod === 'cash' ? colors.primary : colors.gray400}
-              />
-              <Text
+              {i18n.t('debt.paymentMethod', 'شێوازی پارەدان')}
+            </Text>
+            <View style={[{ flexDirection, gap: 8 }]}>
+              <TouchableOpacity
+                onPress={() => setPaymentMethod('cash')}
+                activeOpacity={0.8}
                 style={[
-                  styles.modalMethodBtnText,
-                  { color: paymentMethod === 'cash' ? colors.primary : colors.gray500 },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  styles.modalMethodBtn,
+                  paymentMethod === 'cash'
+                    ? { borderColor: colors.primary, backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FFFDF5' }
+                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                  { flexDirection },
                 ]}
               >
-                {i18n.t('debt.cash', 'کاش')}
+                <Ionicons
+                  name="cash-outline"
+                  size={16}
+                  color={paymentMethod === 'cash' ? colors.primary : colors.gray400}
+                />
+                <Text
+                  style={[
+                    styles.modalMethodBtnText,
+                    { color: paymentMethod === 'cash' ? colors.primary : colors.gray500 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {i18n.t('debt.cash', 'کاش')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setPaymentMethod('fib')}
+                activeOpacity={0.8}
+                style={[
+                  styles.modalMethodBtn,
+                  paymentMethod === 'fib'
+                    ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
+                    : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
+                  { flexDirection },
+                ]}
+              >
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={15}
+                  color={paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
+                />
+                <Text
+                  style={[
+                    styles.modalMethodBtnText,
+                    { color: paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {i18n.t('debt.fib', 'FIB')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Action buttons */}
+          <View style={[styles.modalActions, { flexDirection }]}>
+            <TouchableOpacity
+              style={[styles.modalCancel, { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
+              onPress={() => {
+                setValue('');
+                setPaymentMethod('cash');
+                onCancel();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.modalCancelText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                {i18n.t('common.cancel')}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
-              onPress={() => setPaymentMethod('fib')}
-              activeOpacity={0.8}
-              style={[
-                styles.modalMethodBtn,
-                paymentMethod === 'fib'
-                  ? { borderColor: '#3B82F6', backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF' }
-                  : { borderColor: colors.gray200, backgroundColor: isDark ? colors.gray100 : colors.gray50 },
-                { flexDirection },
-              ]}
+              style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                const amt = roundToNearest250(parseFloat(value) || 0);
+                if (!amt || amt <= 0) {
+                  Alert.alert(i18n.t('common.error'), i18n.t('debt.invalidAmount'));
+                  return;
+                }
+                setValue('');
+                setPaymentMethod('cash');
+                onConfirm(amt, paymentMethod);
+              }}
+              activeOpacity={0.85}
             >
-              <Ionicons
-                name="phone-portrait-outline"
-                size={15}
-                color={paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray400}
-              />
               <Text
                 style={[
-                  styles.modalMethodBtnText,
-                  { color: paymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
+                  styles.modalConfirmText,
+                  { color: colors.white },
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {i18n.t('debt.fib', 'FIB')}
+                {i18n.t('common.confirm')}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-        <View style={[styles.modalActions, { flexDirection }]}>
-          <TouchableOpacity
-            style={styles.modalCancel}
-            onPress={() => { setValue(''); setPaymentMethod('cash'); onCancel(); }}
-          >
-            <Text style={styles.modalCancelText}>{i18n.t('common.cancel')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modalConfirm, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              const amt = roundToNearest250(parseFloat(value) || 0);
-              if (!amt || amt <= 0) {
-                Alert.alert(i18n.t('common.error'), i18n.t('debt.invalidAmount'));
-                return;
-              }
-              setValue('');
-              setPaymentMethod('cash');
-              onConfirm(amt, paymentMethod);
-            }}
-          >
-            <Text style={[styles.modalConfirmText, { color: colors.white }]}>{i18n.t('common.confirm')}</Text>
-          </TouchableOpacity>
-        </View>
-      </MotiView>
-    </View>
+        </MotiView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -565,6 +662,11 @@ export default function DebtScreen() {
   const [payTarget, setPayTarget] = useState<{
     id: number; name: string; remaining: number; type: 'sales' | 'purchase';
   } | null>(null);
+
+  // Dismiss any open QuickPayModal whenever user switches tabs (Sales, Purchases, Report)
+  useEffect(() => {
+    setPayTarget(null);
+  }, [tab]);
 
   useEffect(() => {
     loadAll();
@@ -868,7 +970,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
           {/* Tab 1: ڕاپۆرت (Report) - ALWAYS opens by default */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => { setTab('report'); handleCollapseSearch(true); }}
+            onPress={() => { setTab('report'); setPayTarget(null); handleCollapseSearch(true); }}
             style={[
               styles.segmentBtn,
               tab === 'report' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
@@ -895,7 +997,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
           {/* Tab 2: فرۆشتن (Sales / Customer Debts) */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => { setTab('sales'); handleCollapseSearch(true); }}
+            onPress={() => { setTab('sales'); setPayTarget(null); handleCollapseSearch(true); }}
             style={[
               styles.segmentBtn,
               tab === 'sales' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
@@ -929,7 +1031,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
           {/* Tab 3: کڕین (Purchases / Supplier Debts) */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => { setTab('purchase'); handleCollapseSearch(true); }}
+            onPress={() => { setTab('purchase'); setPayTarget(null); handleCollapseSearch(true); }}
             style={[
               styles.segmentBtn,
               tab === 'purchase' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
@@ -995,7 +1097,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                     textAlign: isRTL ? 'right' : 'left',
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: tab === 'purchase' ? t('debt.searchPurchases') : t('debt.searchSales') }), {}),
                 ]}
                 placeholder={tab === 'purchase' ? t('debt.searchPurchases') : t('debt.searchSales')}
                 placeholderTextColor={colors.gray400}
@@ -1237,7 +1339,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => { setTab('sales'); setQuery(''); }}
+                onPress={() => { setTab('sales'); setPayTarget(null); setQuery(''); }}
                 style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
               >
                 <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
@@ -1294,7 +1396,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => { setTab('purchase'); setQuery(''); }}
+                onPress={() => { setTab('purchase'); setPayTarget(null); setQuery(''); }}
                 style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
               >
                 <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
@@ -1862,67 +1964,90 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
     // ── Quick Pay Modal ──
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 16,
     },
     modal: {
       backgroundColor: colors.white,
-      borderRadius: 20,
-      padding: 24,
-      width: '85%',
-      maxWidth: isTablet ? 540 : undefined,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    modalTitle: { fontSize: isTablet ? 21 : 18, fontWeight: '800', color: colors.black, marginBottom: 4 },
-    modalSub: { fontSize: isTablet ? 16 : 14, color: colors.gray500, marginBottom: 2 },
-    modalRemaining: { fontSize: isTablet ? 16 : 14, fontWeight: '600', marginBottom: 16 },
-    modalInput: {
+      borderRadius: 22,
+      padding: isTablet ? 24 : 20,
+      width: '100%',
+      maxWidth: isTablet ? 480 : 380,
       borderWidth: 1,
       borderColor: colors.gray200,
-      borderRadius: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.22,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    modalHeaderRow: {
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    modalCloseBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginHorizontal: 4,
+    },
+    modalTitle: { fontSize: isTablet ? 21 : 18, fontWeight: '800', color: colors.black, marginBottom: 2 },
+    modalSub: { fontSize: isTablet ? 15 : 13, color: colors.gray500 },
+    modalRemainingBanner: {
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginBottom: 14,
+    },
+    modalRemainingLabel: { fontSize: isTablet ? 14 : 13, fontWeight: '600' },
+    modalRemainingValue: { fontSize: isTablet ? 16 : 14, fontWeight: '700' },
+    modalInput: {
+      borderWidth: 1,
+      borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: isTablet ? 14 : 10,
+      paddingVertical: isTablet ? 14 : 11,
       fontSize: isTablet ? 17 : 15,
-      color: colors.black,
-      marginBottom: 16,
+      marginBottom: 14,
     },
     modalMethodBtn: {
       flex: 1,
-      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      paddingVertical: 10,
-      borderRadius: 10,
+      paddingVertical: 11,
+      borderRadius: 12,
       borderWidth: 1.5,
     },
     modalMethodBtnText: {
       fontSize: 13,
       fontWeight: '700',
     },
-    modalActions: { flexDirection: 'row', gap: 10 },
+    modalActions: { gap: 10 },
     modalCancel: {
       flex: 1,
       borderWidth: 1,
-      borderColor: colors.gray200,
-      borderRadius: 10,
-      paddingVertical: isTablet ? 15 : 12,
+      borderRadius: 12,
+      paddingVertical: isTablet ? 14 : 12,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    modalCancelText: { fontSize: isTablet ? 16 : 14, fontWeight: '600', color: colors.gray500 },
+    modalCancelText: { fontSize: isTablet ? 15 : 14, fontWeight: '600', color: colors.gray600 },
     modalConfirm: {
       flex: 1,
-      borderRadius: 10,
-      paddingVertical: isTablet ? 15 : 12,
+      borderRadius: 12,
+      paddingVertical: isTablet ? 14 : 12,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    modalConfirmText: { fontSize: isTablet ? 16 : 14, fontWeight: '600' },
+    modalConfirmText: { fontSize: isTablet ? 15 : 14, fontWeight: '600' },
 
     // ── Custom Date Range Modal ──
     customModal: {

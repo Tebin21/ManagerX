@@ -142,24 +142,6 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
     const saleId = await insertSale(saleData, saleItems);
 
-    await useInventoryStore.getState().reloadAfterSale();
-
-    // Keep customer list in sync without a circular import
-    try {
-      const { useCustomerStore } = await import('@/store/customerStore');
-      await useCustomerStore.getState().reloadAfterSale();
-    } catch {}
-
-    try {
-      const { useDebtStore } = await import('@/store/debtStore');
-      await useDebtStore.getState().reloadAfterSale();
-    } catch {}
-
-    try {
-      const { useReportStore } = await import('@/store/reportStore');
-      await useReportStore.getState().reloadAfterMutation();
-    } catch {}
-
     const ts = (cart.saleDate ?? new Date()).toISOString();
     const newSale: Sale = {
       ...saleData,
@@ -177,6 +159,15 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       sales: [newSale, ...state.sales],
       saleItemsIndex: { ...state.saleItemsIndex, [saleId]: itemsText },
     }));
+
+    // Keep customer list, inventory, debt and reports in sync concurrently in background without blocking sale creation
+    Promise.all([
+      useInventoryStore.getState().reloadAfterSale().catch(() => {}),
+      import('@/store/customerStore').then(({ useCustomerStore }) => useCustomerStore.getState().reloadAfterSale()).catch(() => {}),
+      import('@/store/debtStore').then(({ useDebtStore }) => useDebtStore.getState().reloadAfterSale()).catch(() => {}),
+      import('@/store/reportStore').then(({ useReportStore }) => useReportStore.getState().reloadAfterMutation()).catch(() => {}),
+    ]).catch((err) => console.warn('[SalesStore] Background stores refresh error:', err));
+
     return newSale;
   },
 

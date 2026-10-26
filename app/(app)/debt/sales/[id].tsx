@@ -561,8 +561,8 @@ export default function SalesDebtDetailScreen() {
                 <TextInput
                   style={[
                     styles.payInput,
-                    { textAlign: 'right', writingDirection: 'ltr' },
-                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payValue, keyboardType: 'decimal-pad' }), {}),
+                    { textAlign: isRTL ? 'right' : 'left', writingDirection: 'ltr' },
+                    applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payValue, placeholder: t('debt.amountPlaceholder'), keyboardType: 'decimal-pad' }), {}),
                   ]}
                   placeholder={t('debt.amountPlaceholder')}
                   placeholderTextColor={colors.gray400}

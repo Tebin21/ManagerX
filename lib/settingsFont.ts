@@ -187,6 +187,7 @@ export function withSystemFontLatin(children: React.ReactNode, parentStyle?: Tex
 export interface LatinAwareInputStyleOptions {
   isKuLanguage: boolean;
   value?: string;
+  placeholder?: string;
   keyboardType?: TextInputProps['keyboardType'];
   forceLatin?: boolean;
 }
@@ -200,16 +201,35 @@ export const NUMERIC_KEYBOARD_TYPES = new Set<TextInputProps['keyboardType']>([
 
 /**
  * Decides whether an editable TextInput should use the Kurdish font for its
- * ENTIRE value. Unlike display text, an input can't split fonts per
- * character, so this picks one font for the whole field based on what's
- * actually been typed: a non-empty value containing zero Kurdish-script
- * characters (e.g. a barcode/SKU/email typed with a full keyboard) always
- * gets the Latin font, even when the app language is Kurdish.
+ * ENTIRE value:
+ * 1. If English language mode: returns false (always Inter / Latin font).
+ * 2. If forceLatin is true: returns false.
+ * 3. If a value is typed (non-empty):
+ *    - If numeric keyboard: returns false (clean Latin digits).
+ *    - If no Kurdish characters: returns false (Latin SKU / email / etc.).
+ *    - If contains Kurdish characters: returns true (Bahij Janna).
+ * 4. If value is empty or not typed yet (displaying placeholder):
+ *    - If placeholder is explicitly provided and contains NO Kurdish script (e.g. "0.00", "$0", "14:30"): returns false.
+ *    - Otherwise, in Kurdish mode, returns true so the placeholder renders in Bahij Janna!
  */
 export function resolveInputIsKurdish(opts: LatinAwareInputStyleOptions): boolean {
   if (!opts.isKuLanguage) return false;
   if (opts.forceLatin) return false;
-  if (NUMERIC_KEYBOARD_TYPES.has(opts.keyboardType)) return false;
-  if (opts.value && !containsKurdishScript(opts.value)) return false;
+
+  const hasTypedValue = opts.value != null && String(opts.value).trim().length > 0;
+  if (hasTypedValue) {
+    if (NUMERIC_KEYBOARD_TYPES.has(opts.keyboardType)) return false;
+    if (!containsKurdishScript(String(opts.value))) return false;
+    return true;
+  }
+
+  // When value is empty or whitespace-only, the input displays its placeholder.
+  // If an explicit placeholder has NO Kurdish script at all (e.g. pure numbers/English like "0.00"), use Latin.
+  if (opts.placeholder != null && opts.placeholder.trim().length > 0 && !containsKurdishScript(opts.placeholder)) {
+    return false;
+  }
+
+  // Otherwise, in Kurdish language mode, empty-state placeholder must render in Kurdish font (Bahij Janna).
   return true;
 }
+

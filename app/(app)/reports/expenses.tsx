@@ -656,7 +656,7 @@ function ExpenseFormModal({
                       color: colors.black,
                       textAlign,
                     },
-                    isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: reason }), {}),
+                    applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: reason, placeholder: t('reports.expenseReasonPlaceholder') }), {}),
                   ]}
                   placeholder={t('reports.expenseReasonPlaceholder')}
                   placeholderTextColor={colors.gray400}
@@ -797,7 +797,7 @@ function ExpenseFormModal({
                     color: colors.black,
                     textAlign,
                   },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: note }), {}),
+                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: note, placeholder: t('reports.notePlaceholder') }), {}),
                 ]}
                 placeholder={t('reports.notePlaceholder')}
                 placeholderTextColor={colors.gray400}

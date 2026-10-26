@@ -124,7 +124,11 @@ export function DebtCard({ debt, invoiceNumber, onPayment }: Props) {
           style={styles.payForm}
         >
           <TextInput
-            style={[styles.payInput, { textAlign: 'right', writingDirection: 'ltr' }, isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payAmount, keyboardType: 'decimal-pad' }), {})]}
+            style={[
+              styles.payInput,
+              { textAlign: isRTL ? 'right' : 'left', writingDirection: 'ltr' },
+              applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: payAmount, placeholder: t('suppliers.payAmountHint'), keyboardType: 'decimal-pad' }), {}),
+            ]}
             value={toEnglishDigits(payAmount)}
             onChangeText={(v) => setPayAmount(sanitizeNumericInput(v, 'decimal-pad'))}
             placeholder={t('suppliers.payAmountHint')}

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Animated,
@@ -17,11 +16,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import {
+  containsKurdishScript,
+  SETTINGS_KURDISH_FONT_REGULAR,
+  SETTINGS_KURDISH_FONT_BOLD,
+} from '@/lib/settingsFont';
+import { resolveInterFont } from '@/constants/typography';
 
 let NativeCameraView: any = null;
 let useNativeCameraPermissions: any = null;
@@ -328,21 +334,36 @@ export function BarcodeScannerModal({
               <View style={[styles.permIconCircle, { backgroundColor: colors.primary + '20' }]}>
                 <Ionicons name="camera" size={48} color={colors.primary} />
               </View>
-              <Text style={styles.permTitle}>
+              <Text
+                style={[
+                  styles.permTitle,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                ]}
+              >
                 {isKuLanguage ? 'مۆڵەتی کامێرا پێویستە' : 'Camera Permission Required'}
               </Text>
-              <Text style={styles.permText}>
+              <Text
+                style={[
+                  styles.permText,
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR, fontWeight: 'normal', lineHeight: 24 },
+                ]}
+              >
                 {isKuLanguage
                   ? 'بۆ سکانکردنی بارکۆد و کۆدەکان بە خێرایی، تکایە ڕێگە بە دەستپێگەیشتنی کامێرا بدە.'
                   : 'To quickly scan barcodes and QR codes, please allow Froshiar to use your device camera.'}
               </Text>
               <TouchableOpacity
-                style={[styles.permButton, { backgroundColor: colors.primary }]}
+                style={[styles.permButton, { backgroundColor: colors.primary, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                 onPress={requestPermission}
                 activeOpacity={0.8}
               >
-                <Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.permButtonText}>
+                <Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" style={{ marginHorizontal: 8 }} />
+                <Text
+                  style={[
+                    styles.permButtonText,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
                   {isKuLanguage ? 'ڕێگەپێدان بە کامێرا' : 'Grant Permission'}
                 </Text>
               </TouchableOpacity>
@@ -351,7 +372,12 @@ export function BarcodeScannerModal({
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <Text style={styles.permCancelText}>
+                <Text
+                  style={[
+                    styles.permCancelText,
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR, fontWeight: 'normal' },
+                  ]}
+                >
                   {isKuLanguage ? 'داخستن' : 'Cancel'}
                 </Text>
               </TouchableOpacity>
@@ -406,10 +432,29 @@ export function BarcodeScannerModal({
                 </TouchableOpacity>
 
                 <View style={styles.headerTitles}>
-                  <Text style={styles.headerTitleText} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.headerTitleText,
+                      isKuLanguage && {
+                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        fontWeight: 'normal',
+                        letterSpacing: 0,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {title || defaultTitle}
                   </Text>
-                  <Text style={styles.headerSubtitleText} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.headerSubtitleText,
+                      isKuLanguage && {
+                        fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+                        fontWeight: 'normal',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {subtitle || defaultSubtitle}
                   </Text>
                 </View>
@@ -434,7 +479,15 @@ export function BarcodeScannerModal({
                   <View style={[styles.floatingCornerHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
                       <View style={styles.floatingCornerPulseDot} />
-                      <Text style={styles.floatingCornerLabel}>
+                      <Text
+                        style={[
+                          styles.floatingCornerLabel,
+                          isKuLanguage && {
+                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            fontWeight: 'normal',
+                          },
+                        ]}
+                      >
                         {isKuLanguage ? 'کۆدی سکانکراو:' : 'Scanned Code:'}
                       </Text>
                     </View>
@@ -453,13 +506,21 @@ export function BarcodeScannerModal({
 
                     {/* Instant Delete Button right here in the corner card! */}
                     <TouchableOpacity
-                      style={styles.floatingDeleteBtn}
+                      style={[styles.floatingDeleteBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                       onPress={() => handleDeleteBatchCode(batchCodes.length - 1)}
                       activeOpacity={0.75}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="close-circle" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                      <Text style={styles.floatingDeleteText}>
+                      <Ionicons name="close-circle" size={16} color="#FFFFFF" style={{ marginHorizontal: 4 }} />
+                      <Text
+                        style={[
+                          styles.floatingDeleteText,
+                          isKuLanguage && {
+                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            fontWeight: 'normal',
+                          },
+                        ]}
+                      >
                         {isKuLanguage ? 'سڕینەوە' : 'Delete'}
                       </Text>
                     </TouchableOpacity>
@@ -498,9 +559,17 @@ export function BarcodeScannerModal({
                 </View>
 
                 {/* Subtitle / Tip under target */}
-                <View style={styles.hintPill}>
-                  <Ionicons name="scan-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.hintText}>
+                <View style={[styles.hintPill, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Ionicons name="scan-outline" size={16} color="#FFFFFF" style={{ marginHorizontal: 6 }} />
+                  <Text
+                    style={[
+                      styles.hintText,
+                      isKuLanguage && {
+                        fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+                        fontWeight: 'normal',
+                      },
+                    ]}
+                  >
                     {mode === 'multi'
                       ? (isKuLanguage ? 'سکان بەردەوامە — هەرچەندت دەوێ بیگرە بەرامبەری' : 'Continuous scan — scan multiple barcodes sequentially')
                       : (isKuLanguage ? 'بارکۆدەکە ڕابگرە لە ناو چوارچێوەکەدا' : 'Center barcode inside the frame')}
@@ -518,6 +587,7 @@ export function BarcodeScannerModal({
                   <View
                     style={[
                       styles.feedbackBanner,
+                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
                       lastScannedFeedback.type === 'success' && styles.feedbackSuccess,
                       lastScannedFeedback.type === 'warning' && styles.feedbackWarning,
                     ]}
@@ -530,9 +600,18 @@ export function BarcodeScannerModal({
                       }
                       size={20}
                       color="#FFFFFF"
-                      style={{ marginRight: 8 }}
+                      style={{ marginHorizontal: 8 }}
                     />
-                    <Text style={styles.feedbackText} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.feedbackText,
+                        isKuLanguage && {
+                          fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                          fontWeight: 'normal',
+                        },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {lastScannedFeedback.text}
                     </Text>
                   </View>
@@ -541,35 +620,59 @@ export function BarcodeScannerModal({
                 {/* Batch IDs mode bottom action (Purchases) */}
                 {mode === 'batch_ids' ? (
                   <View style={styles.batchFooter}>
-                    <View style={styles.batchHeaderRow}>
-                      <View style={styles.countBadge}>
-                        <Ionicons name="barcode" size={16} color="#FFD700" style={{ marginRight: 6 }} />
-                        <Text style={styles.countBadgeText}>
+                    <View style={[styles.batchHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <View style={[styles.countBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Ionicons name="barcode" size={16} color="#FFD700" style={{ marginHorizontal: 6 }} />
+                        <Text
+                          style={[
+                            styles.countBadgeText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              fontWeight: 'normal',
+                            },
+                          ]}
+                        >
                           {isKuLanguage
                             ? `${batchCodes.length} کۆد تۆمارکراوە`
                             : `${batchCodes.length} codes recorded`}
                         </Text>
                       </View>
 
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
                         {batchCodes.length > 0 && (
                           <TouchableOpacity
                             style={styles.batchClearBtn}
                             onPress={() => setBatchCodes([])}
                             activeOpacity={0.7}
                           >
-                            <Text style={styles.batchClearText}>
+                            <Text
+                              style={[
+                                styles.batchClearText,
+                                isKuLanguage && {
+                                  fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                                  fontWeight: 'normal',
+                                },
+                              ]}
+                            >
                               {isKuLanguage ? 'سڕینەوەی هەمووی' : 'Clear all'}
                             </Text>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
-                          style={styles.manualCodeBtn}
+                          style={[styles.manualCodeBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                           onPress={() => setShowManualInput(true)}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="keypad-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                          <Text style={styles.manualCodeText}>
+                          <Ionicons name="keypad-outline" size={16} color="#FFFFFF" style={{ marginHorizontal: 4 }} />
+                          <Text
+                            style={[
+                              styles.manualCodeText,
+                              isKuLanguage && {
+                                fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                                fontWeight: 'normal',
+                              },
+                            ]}
+                          >
                             {isKuLanguage ? 'دەستی' : 'Manual'}
                           </Text>
                         </TouchableOpacity>
@@ -585,7 +688,7 @@ export function BarcodeScannerModal({
                         style={styles.batchChipsContainer}
                       >
                         {batchCodes.map((c, idx) => (
-                          <View key={`${c}-${idx}`} style={styles.batchCodeChip}>
+                          <View key={`${c}-${idx}`} style={[styles.batchCodeChip, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                             <View style={styles.batchChipBadge}>
                               <Text style={styles.batchChipBadgeText}>{idx + 1}</Text>
                             </View>
@@ -605,7 +708,16 @@ export function BarcodeScannerModal({
                       </ScrollView>
                     ) : (
                       <View style={styles.batchEmptyBox}>
-                        <Text style={styles.batchEmptyText}>
+                        <Text
+                          style={[
+                            styles.batchEmptyText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+                              fontWeight: 'normal',
+                              lineHeight: 18,
+                            },
+                          ]}
+                        >
                           {isKuLanguage
                             ? 'کۆدەکان لەم سووچەدا دەنووسرێن — بارکۆد بگرە بەرامبەر کامێرا'
                             : 'Scanned codes will appear here — point camera at barcodes'}
@@ -623,24 +735,46 @@ export function BarcodeScannerModal({
                         colors={[colors.gradientStart || '#E5A93C', colors.gradientEnd || '#B87B19']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={styles.finishBtnGradient}
+                        style={[styles.finishBtnGradient, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                       >
-                        <Ionicons name="checkmark-done" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.finishBtnText}>
+                        <Ionicons name="checkmark-done" size={22} color="#FFFFFF" style={{ marginHorizontal: 8 }} />
+                        <Text
+                          style={[
+                            styles.finishBtnText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              fontWeight: 'normal',
+                              letterSpacing: 0,
+                            },
+                          ]}
+                        >
                           {isKuLanguage
                             ? `دانانی هەموو لە وەسڵی کڕین (${batchCodes.length} کۆد)`
                             : `Apply All to Purchase (${batchCodes.length} codes)`}
                         </Text>
-                        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                        <Ionicons
+                          name={isRTL ? 'arrow-back' : 'arrow-forward'}
+                          size={18}
+                          color="#FFFFFF"
+                          style={{ marginHorizontal: 8 }}
+                        />
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 ) : mode === 'multi' ? (
                   <View style={styles.multiFooter}>
-                    <View style={styles.multiCountRow}>
-                      <View style={styles.countBadge}>
-                        <Ionicons name="cart" size={16} color="#FFD700" style={{ marginRight: 6 }} />
-                        <Text style={styles.countBadgeText}>
+                    <View style={[styles.multiCountRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <View style={[styles.countBadge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Ionicons name="cart" size={16} color="#FFD700" style={{ marginHorizontal: 6 }} />
+                        <Text
+                          style={[
+                            styles.countBadgeText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              fontWeight: 'normal',
+                            },
+                          ]}
+                        >
                           {isKuLanguage
                             ? `${scannedCount} بەرهەم سکانکراوە`
                             : `${scannedCount} items scanned`}
@@ -648,12 +782,20 @@ export function BarcodeScannerModal({
                       </View>
 
                       <TouchableOpacity
-                        style={styles.manualCodeBtn}
+                        style={[styles.manualCodeBtn, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                         onPress={() => setShowManualInput(true)}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="keypad-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                        <Text style={styles.manualCodeText}>
+                        <Ionicons name="keypad-outline" size={16} color="#FFFFFF" style={{ marginHorizontal: 4 }} />
+                        <Text
+                          style={[
+                            styles.manualCodeText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              fontWeight: 'normal',
+                            },
+                          ]}
+                        >
                           {isKuLanguage ? 'کۆدی دەستی' : 'Manual Code'}
                         </Text>
                       </TouchableOpacity>
@@ -669,15 +811,29 @@ export function BarcodeScannerModal({
                         colors={[colors.gradientStart || '#E5A93C', colors.gradientEnd || '#B87B19']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={styles.finishBtnGradient}
+                        style={[styles.finishBtnGradient, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                       >
-                        <Ionicons name="checkmark-done" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.finishBtnText}>
+                        <Ionicons name="checkmark-done" size={22} color="#FFFFFF" style={{ marginHorizontal: 8 }} />
+                        <Text
+                          style={[
+                            styles.finishBtnText,
+                            isKuLanguage && {
+                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                              fontWeight: 'normal',
+                              letterSpacing: 0,
+                            },
+                          ]}
+                        >
                           {isKuLanguage
                             ? `تەواوکردن و سەبەتە ${scannedCount > 0 ? `(${scannedCount})` : ''}`
                             : `Finish & View Cart ${scannedCount > 0 ? `(${scannedCount})` : ''}`}
                         </Text>
-                        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                        <Ionicons
+                          name={isRTL ? 'arrow-back' : 'arrow-forward'}
+                          size={18}
+                          color="#FFFFFF"
+                          style={{ marginHorizontal: 8 }}
+                        />
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
@@ -685,12 +841,20 @@ export function BarcodeScannerModal({
                   /* Single scan footer */
                   <View style={styles.singleFooter}>
                     <TouchableOpacity
-                      style={styles.manualCodeBtnLarge}
+                      style={[styles.manualCodeBtnLarge, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                       onPress={() => setShowManualInput(true)}
                       activeOpacity={0.75}
                     >
-                      <Ionicons name="keypad-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.manualCodeText}>
+                      <Ionicons name="keypad-outline" size={18} color="#FFFFFF" style={{ marginHorizontal: 6 }} />
+                      <Text
+                        style={[
+                          styles.manualCodeText,
+                          isKuLanguage && {
+                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            fontWeight: 'normal',
+                          },
+                        ]}
+                      >
                         {isKuLanguage ? 'نووسینی دەستیی کۆد' : 'Type Code Manually'}
                       </Text>
                     </TouchableOpacity>
@@ -703,7 +867,16 @@ export function BarcodeScannerModal({
             {showManualInput && (
               <View style={styles.manualInputModal}>
                 <View style={[styles.manualInputCard, { backgroundColor: '#1E293B' }]}>
-                  <Text style={[styles.manualTitle, { color: '#FFFFFF' }]}>
+                  <Text
+                    style={[
+                      styles.manualTitle,
+                      { color: '#FFFFFF' },
+                      isKuLanguage && {
+                        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                        fontWeight: 'normal',
+                      },
+                    ]}
+                  >
                     {isKuLanguage ? 'نووسینی بارکۆد / کۆدی بەرهەم' : 'Enter Barcode / Item ID'}
                   </Text>
                   <TextInput
@@ -713,6 +886,11 @@ export function BarcodeScannerModal({
                         color: '#FFFFFF',
                         borderColor: 'rgba(255,255,255,0.2)',
                         backgroundColor: '#0F172A',
+                        textAlign: isRTL ? 'right' : 'left',
+                        fontFamily:
+                          isKuLanguage && (!manualCode || containsKurdishScript(manualCode))
+                            ? SETTINGS_KURDISH_FONT_REGULAR
+                            : resolveInterFont('500'),
                       },
                     ]}
                     value={manualCode}
@@ -724,12 +902,20 @@ export function BarcodeScannerModal({
                     returnKeyType="done"
                     onSubmitEditing={handleManualSubmit}
                   />
-                  <View style={styles.manualActions}>
+                  <View style={[styles.manualActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <TouchableOpacity
                       style={styles.manualCancelBtn}
                       onPress={() => setShowManualInput(false)}
                     >
-                      <Text style={styles.manualCancelText}>
+                      <Text
+                        style={[
+                          styles.manualCancelText,
+                          isKuLanguage && {
+                            fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+                            fontWeight: 'normal',
+                          },
+                        ]}
+                      >
                         {isKuLanguage ? 'پەشیمانبوونەوە' : 'Cancel'}
                       </Text>
                     </TouchableOpacity>
@@ -737,7 +923,15 @@ export function BarcodeScannerModal({
                       style={[styles.manualSubmitBtn, { backgroundColor: colors.primary }]}
                       onPress={handleManualSubmit}
                     >
-                      <Text style={styles.manualSubmitText}>
+                      <Text
+                        style={[
+                          styles.manualSubmitText,
+                          isKuLanguage && {
+                            fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                            fontWeight: 'normal',
+                          },
+                        ]}
+                      >
                         {isKuLanguage ? 'تەواوە' : 'OK'}
                       </Text>
                     </TouchableOpacity>
@@ -796,7 +990,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   headerSubtitleText: {
     color: 'rgba(255,255,255,0.75)',
@@ -987,7 +1180,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
   singleFooter: {
     alignItems: 'center',
@@ -1154,12 +1346,14 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: resolveInterFont('800'),
   },
   batchChipCodeText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
     maxWidth: 150,
+    fontFamily: resolveInterFont('700'),
   },
   batchChipDeleteBtn: {
     padding: 2,
@@ -1217,6 +1411,7 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: resolveInterFont('800'),
   },
   floatingCodeRow: {
     flexDirection: 'row',
@@ -1229,6 +1424,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 1.1,
+    fontFamily: resolveInterFont('800'),
   },
   floatingDeleteBtn: {
     flexDirection: 'row',

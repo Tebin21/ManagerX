@@ -262,7 +262,7 @@ export default function SoldProductsScreen() {
               style={[
                 styles.searchInput,
                 { color: colors.black, textAlign, writingDirection },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search, placeholder: t('soldProducts.search') }), {}),
               ]}
               value={search}
               onChangeText={setSearch}

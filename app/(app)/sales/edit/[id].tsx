@@ -528,7 +528,7 @@ export default function EditInvoiceScreen() {
                 style={[
                   styles.productSearch,
                   { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign, writingDirection: 'ltr' },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: productQuery }), {}),
+                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: productQuery, placeholder: t('sales.searchProducts') }), {}),
                 ]}
                 placeholder={t('sales.searchProducts')}
                 placeholderTextColor={colors.gray400}

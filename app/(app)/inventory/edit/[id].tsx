@@ -314,7 +314,7 @@ export default function EditProductScreen() {
               style={[
                 styles.input,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: name, placeholder: t('inventory.productName') }), {}),
               ]}
               value={name}
               onChangeText={setName}
@@ -330,7 +330,7 @@ export default function EditProductScreen() {
               style={[
                 styles.input,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: itemDescription }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: itemDescription, placeholder: t('inventory.itemDescriptionPlaceholder') }), {}),
               ]}
               value={itemDescription}
               onChangeText={setItemDescription}
@@ -819,7 +819,7 @@ export default function EditProductScreen() {
               style={[
                 styles.input,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: warranty }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: warranty, placeholder: t('sales.warrantyPlaceholder') }), {}),
               ]}
               value={warranty}
               onChangeText={setWarranty}
@@ -836,7 +836,7 @@ export default function EditProductScreen() {
                 styles.input,
                 styles.textarea,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: description }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: description, placeholder: t('inventory.description') }), {}),
               ]}
               value={description}
               onChangeText={setDescription}
@@ -855,7 +855,7 @@ export default function EditProductScreen() {
                 styles.input,
                 styles.textarea,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: notes, placeholder: t('inventory.notes') }), {}),
               ]}
               value={notes}
               onChangeText={setNotes}
@@ -901,7 +901,7 @@ export default function EditProductScreen() {
               style={[
                 styles.input,
                 { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.white, textAlign },
-                isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: websiteDescription }), {}),
+                applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: websiteDescription, placeholder: t('inventory.websiteDescriptionPlaceholder') }), {}),
               ]}
               value={websiteDescription}
               onChangeText={setWebsiteDescription}

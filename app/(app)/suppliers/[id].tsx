@@ -33,6 +33,7 @@ import { Theme } from '@/constants/theme';
 import { getPurchasesBySupplierName, getSupplierFinancialTimeline, isDirectSupplierName } from '@/lib/sqlite';
 import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
 import { useLanguageStore } from '@/store/languageStore';
+import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
@@ -176,7 +177,11 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
 
       <View style={[debtStyles.payRow, { borderTopColor: colors.gray100, flexDirection }]}>
         <TextInput
-          style={[debtStyles.payInput, { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50 }]}
+          style={[
+            debtStyles.payInput,
+            { borderColor: colors.gray200, color: colors.black, backgroundColor: colors.gray50, textAlign: isRTL ? 'right' : 'left', writingDirection: 'ltr' },
+            applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: amount, placeholder: t('suppliers.payAmountHint'), keyboardType: 'numeric' }), {}),
+          ]}
           value={amount}
           onChangeText={(t) => setAmount(sanitizeNumericInput(t, 'numeric'))}
           placeholder={t('suppliers.payAmountHint')}

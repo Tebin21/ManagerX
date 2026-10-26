@@ -71,6 +71,21 @@ type PendingReport =
   | { type: 'outOfStock'; products: InventoryProduct[] }
   | { type: 'category'; products: InventoryProduct[]; categoryName: string };
 
+const FAST_SEARCH_ANIMATION = {
+  duration: 170,
+  create: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+  update: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+  },
+  delete: {
+    type: LayoutAnimation.Types.easeInEaseOut,
+    property: LayoutAnimation.Properties.opacity,
+  },
+};
+
 export default function InventoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -129,13 +144,19 @@ export default function InventoryScreen() {
   const searchInputRef = useRef<TextInput>(null);
 
   const handleFocusSearch = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    LayoutAnimation.configureNext(FAST_SEARCH_ANIMATION);
     setIsSearchFocused(true);
   }, []);
 
   const handleDismissSearch = useCallback(() => {
     Keyboard.dismiss();
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+    LayoutAnimation.configureNext(FAST_SEARCH_ANIMATION);
     setIsSearchFocused(false);
   }, []);
 
@@ -814,7 +835,14 @@ export default function InventoryScreen() {
           {/* 1. Integrated Search & Quick Actions Bar */}
           <View style={[styles.searchActionsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             {/* Search Input Box (Expands to full width when focused) */}
-            <View
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {
+                if (!isSearchFocused) {
+                  handleFocusSearch();
+                  searchInputRef.current?.focus();
+                }
+              }}
               style={[
                 styles.searchBox,
                 isTablet && { height: 50, borderRadius: 14 },
@@ -825,12 +853,21 @@ export default function InventoryScreen() {
                 },
               ]}
             >
-              <Ionicons
-                name="search"
-                size={isTablet ? 18 : 16}
-                color={colors.gray400}
-                style={styles.searchIcon}
-              />
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={8}
+                onPress={() => {
+                  handleFocusSearch();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 18 : 16}
+                  color={isSearchFocused ? colors.primary : colors.gray400}
+                  style={styles.searchIcon}
+                />
+              </TouchableOpacity>
               <TextInput
                 ref={searchInputRef}
                 style={[
@@ -841,8 +878,16 @@ export default function InventoryScreen() {
                     textAlign: isRTL ? 'right' : 'left',
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
-                  isKuLanguage &&
-                    applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                  applyKurdishFont(
+                    resolveInputIsKurdish({
+                      isKuLanguage,
+                      value: query,
+                      placeholder: isSearchFocused
+                        ? (isKuLanguage ? 'گەڕانی بەرهەم، دابینکەر، کۆدی تەواو...' : t('inventory.search'))
+                        : (isKuLanguage ? 'گەڕانی بەرهەم...' : t('inventory.search')),
+                    }),
+                    {}
+                  ),
                 ]}
                 value={query}
                 onChangeText={setQuery}
@@ -864,7 +909,7 @@ export default function InventoryScreen() {
                   <Ionicons name="close-circle" size={isTablet ? 18 : 16} color={colors.gray400} />
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
 
             {/* Cancel / Dismiss button when search is expanded */}
             {isSearchFocused && (
@@ -885,9 +930,9 @@ export default function InventoryScreen() {
               </TouchableOpacity>
             )}
 
-            {/* When search is not focused: Show the 4 action buttons */}
+            {/* When search is not focused: Show the 5 action buttons */}
             {!isSearchFocused && (
-              <>
+              <View style={[styles.actionButtonsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 {/* Filter & Sort Modal Trigger */}
                 <TouchableOpacity
                   activeOpacity={0.8}
@@ -1006,7 +1051,7 @@ export default function InventoryScreen() {
                 >
                   <Ionicons name="pricetags-outline" size={isTablet ? 19 : 17} color={colors.gray500} />
                 </TouchableOpacity>
-              </>
+              </View>
             )}
           </View>
 
@@ -1363,11 +1408,10 @@ export default function InventoryScreen() {
                     textAlign,
                     writingDirection,
                   },
-                  isKuLanguage &&
-                    applyKurdishFont(
-                      resolveInputIsKurdish({ isKuLanguage, value: newCatName }),
-                      {}
-                    ),
+                  applyKurdishFont(
+                    resolveInputIsKurdish({ isKuLanguage, value: newCatName, placeholder: t('inventory.newCategoryPlaceholder') }),
+                    {}
+                  ),
                 ]}
                 placeholder={t('inventory.newCategoryPlaceholder')}
                 placeholderTextColor={colors.gray400}
@@ -1405,6 +1449,7 @@ export default function InventoryScreen() {
                             textAlign,
                             writingDirection,
                           },
+                          applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: editCatName }), {}),
                         ]}
                         value={editCatName}
                         onChangeText={setEditCatName}
@@ -1523,6 +1568,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 8,
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },

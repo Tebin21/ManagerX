@@ -146,7 +146,7 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     glowColor: 'rgba(245, 158, 11, 0.28)',
   },
   invoices: {
-    iconName: 'receipt-outline',
+    iconName: 'document-text-outline',
     tagKu: 'پسوڵەکان',
     tagEn: 'Invoices',
     subtitleKu: 'ئەرشیف، بینین و چاپکردنی پسوڵەکان',

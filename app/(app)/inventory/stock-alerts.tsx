@@ -349,7 +349,7 @@ export default function StockAlertsScreen() {
                 style={[
                   styles.searchInput,
                   { color: colors.black, textAlign, writingDirection },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search }), {}),
+                  applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: search, placeholder: t('inventory.search') }), {}),
                 ]}
                 value={search}
                 onChangeText={setSearch}

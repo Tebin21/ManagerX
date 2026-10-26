@@ -86,7 +86,7 @@ export function CategoryAutocompleteInput({
           style={[
             styles.input,
             { color: colors.black, textAlign },
-            isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value }), {}),
+            applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value, placeholder }), {}),
             inputStyle,
           ]}
           value={value}

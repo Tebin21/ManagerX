@@ -755,7 +755,19 @@ export default function HistoryScreen() {
                     textAlign: isRTL ? 'right' : 'left',
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
-                  isKuLanguage && applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query }), {}),
+                  applyKurdishFont(
+                    resolveInputIsKurdish({
+                      isKuLanguage,
+                      value: query,
+                      placeholder:
+                        tab === 'suppliers'
+                          ? t('history.searchSuppliers')
+                          : tab === 'quotations'
+                          ? t('history.searchQuotations')
+                          : t('history.searchCustomers'),
+                    }),
+                    {}
+                  ),
                 ]}
                 placeholder={
                   tab === 'suppliers'
@@ -1115,7 +1127,7 @@ export default function HistoryScreen() {
            ═══════════════════════════════════════════════════════════════ */
         <>
           {/* Quick summary strip */}
-          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.summaryStrip, { backgroundColor: isDark ? colors.gray100 : colors.white, borderBottomColor: isDark ? colors.gray200 : colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text
               style={[
                 styles.summaryStripText,
@@ -1180,7 +1192,7 @@ export default function HistoryScreen() {
            ═══════════════════════════════════════════════════════════════ */
         <>
           {/* Quick summary strip */}
-          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.summaryStrip, { backgroundColor: isDark ? colors.gray100 : colors.white, borderBottomColor: isDark ? colors.gray200 : colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text
               style={[
                 styles.summaryStripText,
@@ -1244,9 +1256,31 @@ export default function HistoryScreen() {
            TAB 4: عەرزەکان (QUOTATIONS LIST)
            ═══════════════════════════════════════════════════════════════ */
         <>
-          {/* Quick summary strip with New Quote button */}
-          <View style={[styles.summaryStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1, flexWrap: 'wrap' }}>
+          {/* Quick summary strip with New Quote and Invoices buttons */}
+          <View
+            style={[
+              styles.summaryStrip,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderBottomColor: isDark ? colors.gray200 : colors.gray200,
+                flexDirection: isTablet ? (isRTL ? 'row-reverse' : 'row') : 'column',
+                alignItems: isTablet ? 'center' : 'stretch',
+                gap: isTablet ? 12 : 8,
+                paddingVertical: isTablet ? 9 : 8,
+              },
+            ]}
+          >
+            {/* Top row / Stats section */}
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 8,
+                flex: isTablet ? 1 : undefined,
+              }}
+            >
               <Text
                 style={[
                   styles.summaryStripText,
@@ -1269,8 +1303,33 @@ export default function HistoryScreen() {
               </View>
             </View>
 
-            {/* Quick buttons: Invoices Hub + New Quote */}
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+            {/* Quick buttons: New Quote + Invoices Hub */}
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: isTablet ? 'flex-end' : 'space-between',
+                gap: 8,
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(app)/sales/quotation' as never)}
+                style={[
+                  styles.newQuoteSummaryBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  !isTablet && { flex: 1, justifyContent: 'center', paddingVertical: 7 },
+                ]}
+              >
+                <Ionicons name="add-circle" size={15} color="#FFFFFF" />
+                <Text style={styles.newQuoteSummaryBtnText}>
+                  {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
+                </Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'quotations' } } as never)}
@@ -1278,9 +1337,10 @@ export default function HistoryScreen() {
                   styles.goToInvoicesBtn,
                   {
                     backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                    borderColor: colors.gray300,
+                    borderColor: isDark ? colors.gray300 : colors.gray300,
                     flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
+                  !isTablet && { flex: 1, justifyContent: 'center', paddingVertical: 7 },
                 ]}
               >
                 <Ionicons name="receipt-outline" size={14} color={colors.primary} />
@@ -1292,23 +1352,6 @@ export default function HistoryScreen() {
                   ]}
                 >
                   {isKuLanguage ? 'بەشی پسوولەکان' : 'Invoices'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => router.push('/(app)/sales/quotation' as never)}
-                style={[
-                  styles.newQuoteSummaryBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                  },
-                ]}
-              >
-                <Ionicons name="add-circle" size={15} color="#FFFFFF" />
-                <Text style={styles.newQuoteSummaryBtnText}>
-                  {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
                 </Text>
               </TouchableOpacity>
             </View>
