@@ -136,18 +136,10 @@ export default function InventoryScreen() {
   const [stockStatusFilter, setStockStatusFilter] = useState<StockStatusFilter>('all');
   const [sortBy, setSortBy] = useState<InventorySortBy>('newest');
 
-  // Layout View Mode (چوارگۆشە / درێژ)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-
-  useEffect(() => {
-    AsyncStorage.getItem('@froshiar_inventory_view_mode')
-      .then((saved) => {
-        if (saved === 'grid' || saved === 'list') {
-          setViewMode(saved);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Layout View Mode (چوارگۆشە / درێژ) — Persisted in useSettingsStore
+  const inventoryGridLayout = useSettingsStore((s) => s.inventoryGridLayout);
+  const setInventoryGridLayout = useSettingsStore((s) => s.setInventoryGridLayout);
+  const viewMode: 'grid' | 'list' = inventoryGridLayout ? 'grid' : 'list';
 
   const handleToggleViewMode = useCallback(() => {
     try {
@@ -156,12 +148,8 @@ export default function InventoryScreen() {
     if (activeNavTab !== 'products') {
       setActiveNavTab('products');
     }
-    setViewMode((prev) => {
-      const next = prev === 'grid' ? 'list' : 'grid';
-      AsyncStorage.setItem('@froshiar_inventory_view_mode', next).catch(() => {});
-      return next;
-    });
-  }, [activeNavTab]);
+    setInventoryGridLayout(!inventoryGridLayout);
+  }, [activeNavTab, inventoryGridLayout, setInventoryGridLayout]);
 
   // Modals
   const [catModalVisible, setCatModalVisible] = useState(false);

@@ -27,6 +27,7 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { containsKurdishScript, applyKurdishFont } from '@/lib/settingsFont';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
@@ -38,8 +39,6 @@ import { shareSalesAuditReport } from '@/lib/generateInvoice';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
 
-const VIEW_MODE_STORAGE_KEY = '@froshiar_sales_history_view_mode';
-
 export default function SalesHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -49,7 +48,10 @@ export default function SalesHistoryScreen() {
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { sales, searchSales, loadSales, isLoading } = useSalesStore();
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const salesHistoryGridLayout = useSettingsStore((s) => s.salesHistoryGridLayout);
+  const setSalesHistoryGridLayout = useSettingsStore((s) => s.setSalesHistoryGridLayout);
+  const viewMode: 'grid' | 'list' = salesHistoryGridLayout ? 'grid' : 'list';
+
   const [query, setQuery] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -64,25 +66,14 @@ export default function SalesHistoryScreen() {
 
   useEffect(() => {
     loadSales();
-    AsyncStorage.getItem(VIEW_MODE_STORAGE_KEY)
-      .then((saved) => {
-        if (saved === 'grid' || saved === 'list') {
-          setViewMode(saved);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const handleToggleViewMode = useCallback(() => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
-    setViewMode((prev) => {
-      const next = prev === 'grid' ? 'list' : 'grid';
-      AsyncStorage.setItem(VIEW_MODE_STORAGE_KEY, next).catch(() => {});
-      return next;
-    });
-  }, []);
+    setSalesHistoryGridLayout(!salesHistoryGridLayout);
+  }, [salesHistoryGridLayout, setSalesHistoryGridLayout]);
 
   // Filter sales by selected period bounds
   const periodFilteredSales = useMemo(() => {

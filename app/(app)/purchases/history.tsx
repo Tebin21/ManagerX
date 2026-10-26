@@ -23,6 +23,7 @@ import { PurchaseGridCard } from '@/components/purchases/PurchaseGridCard';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
@@ -34,6 +35,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
 import { sharePurchasesAuditReport } from '@/lib/generateInvoice';
+import * as Haptics from 'expo-haptics';
 
 export default function PurchaseHistoryScreen() {
   const router = useRouter();
@@ -44,8 +46,11 @@ export default function PurchaseHistoryScreen() {
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const { purchases, loadPurchases, deletePurchase } = usePurchaseStore();
 
+  const purchaseHistoryGridLayout = useSettingsStore((s) => s.purchaseHistoryGridLayout);
+  const setPurchaseHistoryGridLayout = useSettingsStore((s) => s.setPurchaseHistoryGridLayout);
+  const viewMode: 'grid' | 'list' = purchaseHistoryGridLayout ? 'grid' : 'list';
+
   const [query, setQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [refreshing, setRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -321,8 +326,13 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
         rightAction={
           <View style={[styles.headerActions, { flexDirection, gap: isTablet ? 12 : 8 }]}>
             <HeaderActionButton
-              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-              onPress={() => setViewMode((m) => (m === 'grid' ? 'list' : 'grid'))}
+              icon={purchaseHistoryGridLayout ? 'list-outline' : 'grid-outline'}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setPurchaseHistoryGridLayout(!purchaseHistoryGridLayout);
+              }}
             />
             <HeaderActionButton
               icon="options-outline"

@@ -408,7 +408,7 @@ export function buildInvoiceHTML(
       <div class="inv-label">${ku(t('salesInvoiceLabel'))}</div>
       <div class="inv-meta-row inv-meta-row-title">
         <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
-        <span class="row-value row-value-ltr">#${escHtml(sale.invoiceNumber)}</span>
+        <span class="row-value row-value-ltr">${sale.invoiceNumber?.startsWith('F-') ? '' : '#'}${escHtml(sale.invoiceNumber)}</span>
       </div>
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('date') + ':')}</span>

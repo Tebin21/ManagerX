@@ -149,13 +149,19 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
             <Text style={[styles.gridStatLabel, { color: colors.gray400 }]}>
               {isKuLanguage ? 'کۆی گشتی' : 'Total'} ({itemsCount} {isKuLanguage ? 'کاڵا' : 'items'})
             </Text>
-            <AmountText
-              value={quotation.grandTotal}
-              currency="IQD"
-              variant={isTablet ? 'default' : 'small'}
-              style={[styles.gridStatValue, { color: colors.primary }]}
-            />
-            {usdValue > 0 && (
+            {quotation.currencyMode === 'usd' ? (
+              <Text style={[styles.gridStatValue, { color: colors.primary, fontWeight: '800', direction: 'ltr' }]}>
+                ${fmtUSD(usdValue)} USD
+              </Text>
+            ) : (
+              <AmountText
+                value={quotation.grandTotal}
+                currency="IQD"
+                variant={isTablet ? 'default' : 'small'}
+                style={[styles.gridStatValue, { color: colors.primary }]}
+              />
+            )}
+            {(!quotation.currencyMode || quotation.currencyMode === 'both') && usdValue > 0 && (
               <Text style={[styles.gridUsdText, { color: colors.success }]}>
                 ≈ ${fmtUSD(usdValue)}
               </Text>
@@ -299,13 +305,19 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
 
       {/* Right Column: Amount + Quick Actions */}
       <View style={[styles.rightCol, { alignItems: isRTL ? 'flex-start' : 'flex-end', marginEnd: isRTL ? 0 : 4, marginStart: isRTL ? 4 : 0 }]}>
-        <AmountText
-          value={quotation.grandTotal}
-          currency="IQD"
-          variant={isTablet ? 'default' : 'small'}
-          style={[{ color: colors.primary, fontWeight: '800' }]}
-        />
-        {usdValue > 0 && (
+        {quotation.currencyMode === 'usd' ? (
+          <Text style={[{ color: colors.primary, fontWeight: '800', fontSize: isTablet ? 16 : 13.5, direction: 'ltr' }]}>
+            ${fmtUSD(usdValue)} USD
+          </Text>
+        ) : (
+          <AmountText
+            value={quotation.grandTotal}
+            currency="IQD"
+            variant={isTablet ? 'default' : 'small'}
+            style={[{ color: colors.primary, fontWeight: '800' }]}
+          />
+        )}
+        {(!quotation.currencyMode || quotation.currencyMode === 'both') && usdValue > 0 && (
           <Text style={{ fontSize: 11, fontWeight: '600', color: colors.success, marginTop: 1 }}>
             ≈ ${fmtUSD(usdValue)}
           </Text>

@@ -31,7 +31,6 @@ import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSqu
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { SupplierCard } from '@/components/suppliers/SupplierCard';
 import { QuotationCard } from '@/components/quotations/QuotationCard';
-import { QuotationPreviewModal } from '@/components/quotations/QuotationPreviewModal';
 import { useCustomerStore } from '@/store/customerStore';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
@@ -73,9 +72,6 @@ export default function HistoryScreen() {
   const { purchaseDebts, loadAll: loadDebts } = useDebtStore();
   const { quotations, deleteQuotation } = useQuotationStore();
   const business = useBusinessStore();
-
-  const [previewQuotation, setPreviewQuotation] = useState<Quotation | null>(null);
-  const [isSharingQuotation, setIsSharingQuotation] = useState(false);
 
   const [tab, setTab] = useState<HistoryTab>(() => {
     if (params.tab && (params.tab === 'report' || params.tab === 'customers' || params.tab === 'suppliers' || params.tab === 'quotations')) {
@@ -474,11 +470,16 @@ export default function HistoryScreen() {
 
   // Quotation Handlers & Renderers
   const handleQuotationPress = useCallback((q: Quotation) => {
-    setPreviewQuotation(q);
-  }, []);
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+    router.push({
+      pathname: '/(app)/invoices',
+      params: { tab: 'quotations', id: q.id },
+    } as never);
+  }, [router]);
 
   const handleQuotationShare = useCallback(async (q: Quotation) => {
-    setIsSharingQuotation(true);
     try {
       await shareQuotationInvoice(
         q,
@@ -488,23 +489,17 @@ export default function HistoryScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        'both'
+        q.currencyMode || useQuotationStore.getState().currencyMode || 'both'
       );
       useQuotationStore.getState().incrementPrintCount(q.id);
-      setPreviewQuotation((prev) => (prev && prev.id === q.id ? { ...prev, printCount: (prev.printCount || 0) + 1 } : prev));
     } catch (err) {
       console.error('[Quotation] Share error:', err);
-    } finally {
-      setIsSharingQuotation(false);
     }
   }, [business]);
 
   const handleQuotationDelete = useCallback((q: Quotation) => {
     deleteQuotation(q.id);
-    if (previewQuotation?.id === q.id) {
-      setPreviewQuotation(null);
-    }
-  }, [deleteQuotation, previewQuotation]);
+  }, [deleteQuotation]);
 
   const renderQuotationEmpty = () => (
     <MotiView
@@ -1274,23 +1269,49 @@ export default function HistoryScreen() {
               </View>
             </View>
 
-            {/* Quick button to create a new quotation */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/(app)/sales/quotation' as never)}
-              style={[
-                styles.newQuoteSummaryBtn,
-                {
-                  backgroundColor: colors.primary,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <Ionicons name="add-circle" size={15} color="#FFFFFF" />
-              <Text style={styles.newQuoteSummaryBtnText}>
-                {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
-              </Text>
-            </TouchableOpacity>
+            {/* Quick buttons: Invoices Hub + New Quote */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'quotations' } } as never)}
+                style={[
+                  styles.goToInvoicesBtn,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                    borderColor: colors.gray300,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons name="receipt-outline" size={14} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.goToInvoicesText,
+                    { color: colors.black },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage ? 'بەشی پسوولەکان' : 'Invoices'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(app)/sales/quotation' as never)}
+                style={[
+                  styles.newQuoteSummaryBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                ]}
+              >
+                <Ionicons name="add-circle" size={15} color="#FFFFFF" />
+                <Text style={styles.newQuoteSummaryBtnText}>
+                  {isKuLanguage ? 'عەرزی نوێ' : 'New Quote'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <FlatList
@@ -1335,15 +1356,6 @@ export default function HistoryScreen() {
           setCustomRange({ from, to });
           setCustomOpen(false);
         }}
-      />
-
-      {/* ── Quotation Preview Modal ── */}
-      <QuotationPreviewModal
-        visible={!!previewQuotation}
-        quotation={previewQuotation}
-        onClose={() => setPreviewQuotation(null)}
-        onShare={handleQuotationShare}
-        isSharing={isSharingQuotation}
       />
     </View>
   );
@@ -1591,6 +1603,18 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       fontSize: 12,
       fontWeight: '700',
       color: '#FFFFFF',
+    },
+    goToInvoicesBtn: {
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    goToInvoicesText: {
+      fontSize: 12,
+      fontWeight: '700',
     },
 
     listContent: {

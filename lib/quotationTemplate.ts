@@ -32,10 +32,12 @@ export function buildQuotationHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
 
-  const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
-  const isUsdBase = baseCurrency === 'USD' || currencyMode === 'usd';
+  const effectiveMode = quotation.currencyMode || currencyMode || 'both';
+  const isUsdOnly = effectiveMode === 'usd';
+  const isIqdOnly = effectiveMode === 'iqd';
+  const isBoth = effectiveMode === 'both';
   const rate = quotation.exchangeRate || useSettingsStore.getState().exchangeRate || 1310;
-  const fmtRow = (val: number) => isUsdBase ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtRow = (val: number) => isUsdOnly ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
 
   const totalUSD = fmtUSD(quotation.grandTotal / rate);
   const totalIQD = fmtIQD(quotation.grandTotal);
@@ -60,7 +62,7 @@ export function buildQuotationHTML(
       <td class="price-col">
         ${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;">-${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}
       </td>
-      <td class="price-col" style="font-weight:800;color:#0F172A;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
+      <td class="price-col" style="font-weight:800;color:#000000;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${isKurdish ? ku('هیچ بەرهەمێک لەم عەرزەدا نییە') : 'No items in this quotation'}</td></tr>`;
 
@@ -69,22 +71,27 @@ export function buildQuotationHTML(
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no"/>
 <title>${isKurdish ? 'وەسڵی عەرزی نرخ' : 'Price Quotation'} — ${escHtml(quotation.quotationNumber)}</title>
 <style>
   ${KURDISH_FONT_FACE}
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  a, a:link, a:visited, a:hover, a:active {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
   body {
     direction: ${pageDir};
     font-family: ${isKurdish ? `'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`};
     background: #ffffff;
-    color: #1E293B;
+    color: #000000;
     font-size: 13.5px;
     line-height: 1.5;
   }
   .page {
     max-width: 820px;
     margin: 0 auto;
-    background: #fff;
+    background: #ffffff;
     padding: 24px 28px;
     direction: ${pageDir};
   }
@@ -95,7 +102,7 @@ export function buildQuotationHTML(
     justify-content: space-between;
     align-items: flex-start;
     padding-bottom: 18px;
-    border-bottom: 2px solid #D4AF37;
+    border-bottom: 2px solid #000000;
     gap: 16px;
     direction: ${pageDir};
   }
@@ -103,17 +110,18 @@ export function buildQuotationHTML(
     display: flex;
     align-items: center;
     gap: 14px;
-    text-align: ${isKurdish ? 'right' : 'left'};
+    text-align: ${isKurdish ? 'left' : 'left'};
+    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
   }
   .logo-img { height: 60px; max-width: 130px; object-fit: contain; }
   .logo-mono {
     width: 52px; height: 52px; border-radius: 10px;
-    background: #D4AF37; color: #fff;
+    background: #000000; color: #ffffff;
     font-size: 24px; font-weight: 800;
     display: flex; align-items: center; justify-content: center;
   }
-  .biz-title { font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.3px; }
-  .biz-meta { font-size: 12px; color: #64748B; margin-top: 3px; line-height: 1.4; }
+  .biz-title { font-size: 20px; font-weight: 800; color: #000000; letter-spacing: -0.3px; }
+  .biz-meta { font-size: 12px; color: #444444; margin-top: 3px; line-height: 1.4; }
 
   .doc-badge-col {
     text-align: ${isKurdish ? 'right' : 'right'};
@@ -124,7 +132,7 @@ export function buildQuotationHTML(
   }
   .doc-badge {
     display: inline-block;
-    background: #0F172A;
+    background: #000000;
     color: #ffffff;
     padding: 5px 14px;
     border-radius: 6px;
@@ -138,24 +146,24 @@ export function buildQuotationHTML(
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #475569;
+    color: #000000;
     margin-top: 3px;
     direction: ${pageDir};
   }
   .doc-meta-item .meta-lbl {
-    color: #64748B;
+    color: #444444;
     font-weight: 600;
   }
   .doc-meta-item b {
-    color: #0F172A;
+    color: #000000;
     font-weight: 700;
   }
 
   /* ── Quotation Disclaimer Notice (Monochrome, Elegant, Delicate) ── */
   .notice-banner {
     margin: 16px 0;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
     border-radius: 8px;
     padding: 10px 16px;
     display: flex;
@@ -168,12 +176,12 @@ export function buildQuotationHTML(
     height: 26px;
     border-radius: 6px;
     background: #FFFFFF;
-    border: 1px solid #CBD5E1;
+    border: 1px solid #D4D4D4;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
-    color: #0F172A;
+    color: #000000;
     flex-shrink: 0;
   }
   .notice-content {
@@ -183,20 +191,20 @@ export function buildQuotationHTML(
   .notice-text-main {
     font-size: 12.5px;
     font-weight: 700;
-    color: #0F172A;
+    color: #000000;
     line-height: 1.4;
   }
   .notice-text-sub {
     font-size: 11px;
-    color: #64748B;
+    color: #444444;
     margin-top: 2px;
     line-height: 1.35;
   }
 
   /* ── Company / Customer Information Box ── */
   .info-box {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
     border-radius: 8px;
     padding: 12px 16px;
     margin-bottom: 18px;
@@ -215,15 +223,49 @@ export function buildQuotationHTML(
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: #64748B;
+    color: #444444;
     margin-bottom: 4px;
   }
-  .info-group-value { font-size: 14px; font-weight: 700; color: #0F172A; }
-  .info-group-sub { font-size: 12px; color: #475569; margin-top: 2px; }
+  .info-group-value { font-size: 14px; font-weight: 700; color: #000000; }
+  .info-group-sub { font-size: 12px; color: #333333; margin-top: 2px; }
+  .validity-group {
+    display: flex;
+    justify-content: ${isKurdish ? 'flex-start' : 'flex-end'};
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .validity-box {
+    background: #FFFFFF;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    padding: 8px 18px;
+    text-align: center;
+    min-width: 160px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .validity-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #444444;
+    margin-bottom: 2px;
+  }
+  .validity-value {
+    font-size: 21px;
+    font-weight: 900;
+    color: #000000;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+  }
+  .validity-sub {
+    font-size: 10px;
+    font-weight: 600;
+    color: #555555;
+    margin-top: 2px;
+  }
 
   /* ── Items Table ── */
   .table-wrap {
-    border: 1px solid #E2E8F0;
+    border: 1px solid #D4D4D4;
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 18px;
@@ -235,59 +277,59 @@ export function buildQuotationHTML(
     direction: ${pageDir};
   }
   th {
-    background: #F8FAFC;
+    background: #F4F4F5;
     padding: 10px 12px;
     font-size: 11px;
     font-weight: 700;
-    color: #475569;
-    border-bottom: 1px solid #CBD5E1;
+    color: #000000;
+    border-bottom: 1px solid #D4D4D4;
   }
   td {
     padding: 10px 12px;
     font-size: 12.5px;
-    border-bottom: 1px solid #F1F5F9;
-    color: #334155;
+    border-bottom: 1px solid #E5E5E5;
+    color: #000000;
   }
   tr:nth-child(even) td { background: #FAFAFA; }
   tr:last-child td { border-bottom: none; }
-  .num-col { text-align: center; font-weight: 700; color: #64748B; width: 36px; }
+  .num-col { text-align: center; font-weight: 700; color: #000000; width: 36px; }
   .center { text-align: center; }
   .price-col { text-align: ${isKurdish ? 'left' : 'right'}; font-variant-numeric: tabular-nums; }
-  .item-name { font-weight: 700; color: #0F172A; font-size: 13px; }
+  .item-name { font-weight: 700; color: #000000; font-size: 13px; }
   .id-chip {
     display: inline-block;
     padding: 2px 7px;
     border-radius: 4px;
-    background: #EEF2F6;
-    border: 1px solid #E2E8F0;
+    background: #F4F4F5;
+    border: 1px solid #D4D4D4;
     font-size: 11px;
     font-weight: 600;
-    color: #475569;
+    color: #000000;
   }
-  .muted-cell { color: #94A3B8; }
-  .empty-row { text-align: center; padding: 28px; color: #94A3B8; font-style: italic; }
+  .muted-cell { color: #888888; }
+  .empty-row { text-align: center; padding: 28px; color: #888888; font-style: italic; }
 
   /* ── Notes / Validity Box (Placed BEFORE Totals) ── */
   .notes-box {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
     border-radius: 8px;
     padding: 12px 16px;
     margin-bottom: 16px;
     font-size: 12.5px;
-    color: #334155;
+    color: #000000;
     direction: ${pageDir};
     text-align: ${isKurdish ? 'right' : 'left'};
   }
   .notes-title {
     font-weight: 700;
-    color: #0F172A;
+    color: #000000;
     margin-bottom: 4px;
     font-size: 13px;
   }
   .notes-body {
     line-height: 1.6;
-    color: #475569;
+    color: #333333;
   }
 
   /* ── Financial Summary (Placed BELOW Notes) ── */
@@ -299,8 +341,8 @@ export function buildQuotationHTML(
   }
   .totals-card {
     width: 330px;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
     border-radius: 8px;
     padding: 14px 18px;
     direction: ${pageDir};
@@ -314,29 +356,29 @@ export function buildQuotationHTML(
     direction: ${pageDir};
   }
   .tot-label {
-    color: #475569;
+    color: #000000;
     font-weight: 600;
     text-align: ${isKurdish ? 'right' : 'left'};
   }
-  .tot-line.sub { border-bottom: 1px solid #E2E8F0; }
-  .tot-line.discount { color: #0F172A; font-weight: 600; }
+  .tot-line.sub { border-bottom: 1px solid #E5E5E5; }
+  .tot-line.discount { color: #000000; font-weight: 600; }
   .tot-line.grand {
-    border-top: 2px solid #0F172A;
+    border-top: 2px solid #000000;
     margin-top: 6px;
     padding-top: 10px;
     font-size: 17px;
     font-weight: 800;
-    color: #0F172A;
+    color: #000000;
   }
   .tot-line.grand .tot-label {
     font-size: 16px;
     font-weight: 800;
-    color: #0F172A;
+    color: #000000;
   }
   .tot-usd-sub {
     font-size: 13px;
     font-weight: 700;
-    color: #0F172A;
+    color: #000000;
     text-align: ${isKurdish ? 'left' : 'right'};
     margin-top: 4px;
   }
@@ -347,7 +389,7 @@ export function buildQuotationHTML(
     justify-content: space-between;
     margin-top: 28px;
     padding-top: 18px;
-    border-top: 1px dashed #CBD5E1;
+    border-top: 1px dashed #D4D4D4;
     direction: ${pageDir};
   }
   .sig-block {
@@ -355,20 +397,20 @@ export function buildQuotationHTML(
     width: 200px;
   }
   .sig-line {
-    border-bottom: 1px solid #94A3B8;
+    border-bottom: 1px solid #000000;
     height: 38px;
     margin-bottom: 6px;
   }
-  .sig-label { font-size: 11.5px; font-weight: 700; color: #64748B; }
+  .sig-label { font-size: 11.5px; font-weight: 700; color: #444444; }
 
   /* ── Footer ── */
   .footer {
     text-align: center;
     margin-top: 26px;
     padding-top: 12px;
-    border-top: 1px solid #F1F5F9;
+    border-top: 1px solid #E5E5E5;
     font-size: 11px;
-    color: #94A3B8;
+    color: #666666;
     direction: ${pageDir};
   }
 
@@ -376,6 +418,7 @@ export function buildQuotationHTML(
     unicode-bidi: isolate;
     direction: ltr;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: inherit;
   }
 </style>
 </head>
@@ -383,14 +426,7 @@ export function buildQuotationHTML(
 <div class="page">
   <!-- Header Top -->
   <div class="header-top">
-    <div class="biz-info">
-      ${logoHTML}
-      <div>
-        <div class="biz-title">${escHtml(business.name)}</div>
-        ${business.phone ? `<div class="biz-meta">📞 <span class="en-num" dir="ltr">${escHtml(business.phone)}</span></div>` : ''}
-        ${business.address ? `<div class="biz-meta">📍 ${escHtml(business.address)}</div>` : ''}
-      </div>
-    </div>
+    <!-- Right side in RTL (Quotation Title, Number, Date, Time) -->
     <div class="doc-badge-col">
       <div class="doc-badge">${isKurdish ? ku('وەسڵی عەرزی نرخ') : 'PRICE QUOTATION'}</div>
       <div class="doc-meta-item">
@@ -406,11 +442,27 @@ export function buildQuotationHTML(
         <b class="en-num" dir="ltr">${escHtml(quotation.time)}</b>
       </div>
     </div>
+
+    <!-- Left side in RTL (Business Info: Logo, Name, Phone, Address) -->
+    <div class="biz-info">
+      ${logoHTML}
+      <div>
+        <div class="biz-title">${escHtml(business.name)}</div>
+        ${business.phone ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(business.phone)}</span></div>` : ''}
+        ${business.address ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(business.address)}</div>` : ''}
+      </div>
+    </div>
   </div>
 
-  <!-- Quotation Disclaimer Notice (Monochrome, Delicate, Pristine) -->
+  <!-- Quotation Disclaimer Notice (Monochrome, Delicate, Pristine, No Emojis, No Stock Mention) -->
   <div class="notice-banner">
-    <div class="notice-icon-box">ℹ️</div>
+    <div class="notice-icon-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+    </div>
     <div class="notice-content">
       <div class="notice-text-main">
         ${isKurdish
@@ -419,8 +471,8 @@ export function buildQuotationHTML(
       </div>
       <div class="notice-text-sub">
         ${isKurdish
-          ? ku('نرخەکان پێشنیارکراون بۆ شەریکە و کڕیاران و هیچ بڕێک لە کۆگا کەم نەکراوەتەوە.')
-          : 'Prices are offered for quotation purposes and no stock has been deducted from inventory.'}
+          ? ku('سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.')
+          : 'All prices are offered for quotation purposes.'}
       </div>
     </div>
   </div>
@@ -430,13 +482,15 @@ export function buildQuotationHTML(
     <div class="info-group">
       <div class="info-group-label">${isKurdish ? ku('پێشکەش دەکرێت بە (کۆمپانیا / کڕیار):') : 'Presented To (Company / Client):'}</div>
       <div class="info-group-value">${escHtml(quotation.customerName || (isKurdish ? 'شەریکە / کڕیاری گشتی' : 'Valued Company / Client'))}</div>
-      ${quotation.customerPhone ? `<div class="info-group-sub">📞 <span class="en-num" dir="ltr">${escHtml(quotation.customerPhone)}</span></div>` : ''}
-      ${quotation.customerAddress ? `<div class="info-group-sub">📍 ${escHtml(quotation.customerAddress)}</div>` : ''}
+      ${quotation.customerPhone ? `<div class="info-group-sub"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(quotation.customerPhone)}</span></div>` : ''}
+      ${quotation.customerAddress ? `<div class="info-group-sub"><span style="color:#444444;">${isKurdish ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(quotation.customerAddress)}</div>` : ''}
     </div>
-    <div class="info-group" style="text-align:${isKurdish ? 'left' : 'right'};">
-      <div class="info-group-label">${isKurdish ? ku('نرخی ئاڵوگۆڕ:') : 'Exchange Rate:'}</div>
-      <div class="info-group-value en-num" dir="ltr">$100 = ${fmtIQD(rate * 100)} IQD</div>
-      ${quotation.validityDays ? `<div class="info-group-sub">${isKurdish ? ku(`ماوەی عەرزەکە: ${quotation.validityDays} ڕۆژ`) : `Validity: ${quotation.validityDays} days`}</div>` : ''}
+    <div class="info-group validity-group" style="text-align:${isKurdish ? 'left' : 'right'};">
+      <div class="validity-box">
+        <div class="validity-label">${isKurdish ? ku('ماوەی کارپێکردنی عەرز') : 'Quotation Validity'}</div>
+        <div class="validity-value">${isKurdish ? ku(`${quotation.validityDays || 7} ڕۆژ`) : `${quotation.validityDays || 7} Days`}</div>
+        <div class="validity-sub">${isKurdish ? ku('بۆ ئەم ماوەیە جێگیرە') : 'Fixed for this period'}</div>
+      </div>
     </div>
   </div>
 
@@ -481,9 +535,9 @@ export function buildQuotationHTML(
       </div>` : ''}
       <div class="tot-line grand">
         <span class="tot-label">${isKurdish ? ku('کۆی گشتی:') : 'Grand Total:'}</span>
-        <span class="en-num" dir="ltr">${totalIQD} IQD</span>
+        <span class="en-num" dir="ltr">${isUsdOnly ? `$${totalUSD} USD` : `${totalIQD} IQD`}</span>
       </div>
-      ${currencyMode === 'both' || isUsdBase ? `
+      ${isBoth ? `
       <div class="tot-usd-sub en-num" dir="ltr">
         ≈ $${totalUSD} USD
       </div>` : ''}

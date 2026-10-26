@@ -33,7 +33,9 @@ export default function ExpiryScreen() {
   const loadInventory = useInventoryStore((s) => s.loadInventory);
 
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const expiryGridLayout = useSettingsStore((s) => s.expiryGridLayout);
+  const setExpiryGridLayout = useSettingsStore((s) => s.setExpiryGridLayout);
+  const viewMode: 'grid' | 'list' = expiryGridLayout ? 'grid' : 'list';
 
   // ── Tab & Date Period State ──
   const [activeTab, setActiveTab] = useState<'report' | 'products' | 'discarded'>('report');
@@ -70,12 +72,12 @@ export default function ExpiryScreen() {
             )}
             {expiryTrackingEnabled && (
               <HeaderActionButton
-                icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+                icon={expiryGridLayout ? 'list-outline' : 'grid-outline'}
                 onPress={() => {
                   try {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                   } catch {}
-                  setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'));
+                  setExpiryGridLayout(!expiryGridLayout);
                 }}
               />
             )}
@@ -174,7 +176,7 @@ export default function ExpiryScreen() {
           onRefresh={loadInventory}
           refreshing={isLoading}
           viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          onViewModeChange={(mode) => setExpiryGridLayout(mode === 'grid')}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           productPeriodKey={productPeriodKey}

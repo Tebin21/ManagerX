@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +26,7 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { InvoiceView } from '@/components/sales/InvoiceView';
+import { QuotationPreviewModal } from '@/components/quotations/QuotationPreviewModal';
 import { LoadingView } from '@/components/ui/LoadingView';
 
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -33,6 +34,7 @@ import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBusinessStore } from '@/store/businessStore';
+import { useQuotationStore } from '@/store/quotationStore';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
@@ -53,13 +55,14 @@ import {
   incrementPurchaseViewCount,
   type PurchaseItem,
 } from '@/lib/sqlite';
-import { directPrintInvoice, directPrintPurchaseInvoice } from '@/lib/generateInvoice';
+import { directPrintInvoice, directPrintPurchaseInvoice, shareQuotationInvoice } from '@/lib/generateInvoice';
 import type { Sale } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt } from '@/types/debt';
+import type { Quotation } from '@/types/quotation';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
 
-type TabKey = 'reports' | 'purchases' | 'sales';
+type TabKey = 'reports' | 'purchases' | 'sales' | 'quotations';
 
 export default function InvoicesHubScreen() {
   const router = useRouter();
@@ -75,9 +78,19 @@ export default function InvoicesHubScreen() {
   const isUSD = baseCurrency === 'USD';
   const business = useBusinessStore();
 
+  const params = useLocalSearchParams<{ tab?: TabKey; id?: string; saleId?: string; purchaseId?: string; quotationId?: string }>();
+  const { quotations, deleteQuotation } = useQuotationStore();
+
   // ─── Active Tab State ───
-  const [activeTab, setActiveTab] = useState<TabKey>('reports');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (params.tab && (['reports', 'purchases', 'sales', 'quotations'] as TabKey[]).includes(params.tab)) {
+      return params.tab;
+    }
+    return 'reports';
+  });
+  const invoicesGridLayout = useSettingsStore((s) => s.invoicesGridLayout);
+  const setInvoicesGridLayout = useSettingsStore((s) => s.setInvoicesGridLayout);
+  const viewMode: 'grid' | 'list' = invoicesGridLayout ? 'grid' : 'list';
 
   const numColumns = useMemo(() => {
     if (isTabletLandscape) {
@@ -105,6 +118,7 @@ export default function InvoicesHubScreen() {
   // ─── Search Queries ───
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [salesSearch, setSalesSearch] = useState('');
+  const [quotationSearch, setQuotationSearch] = useState('');
 
   // ─── Read-Only Detail Modals State ───
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -116,6 +130,10 @@ export default function InvoicesHubScreen() {
   const [selectedPurchaseDebt, setSelectedPurchaseDebt] = useState<PurchaseDebt | null>(null);
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [loadingPurchaseDetails, setLoadingPurchaseDetails] = useState(false);
+
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [quotationModalVisible, setQuotationModalVisible] = useState(false);
+  const [isSharingQuotation, setIsSharingQuotation] = useState(false);
 
   // ─── Load Data ───
   const loadData = useCallback(async () => {
@@ -170,6 +188,11 @@ export default function InvoicesHubScreen() {
     return purchases.filter((p) => isDateWithinRange(p.date || p.createdAt, periodBounds.from, periodBounds.to));
   }, [purchases, periodKey, periodBounds]);
 
+  const filteredQuotationsByPeriod = useMemo(() => {
+    if (periodKey === 'all') return quotations;
+    return quotations.filter((q) => isDateWithinRange(q.date || q.createdAt, periodBounds.from, periodBounds.to));
+  }, [quotations, periodKey, periodBounds]);
+
   // ─── Formatter Helper ───
   const formatMoney = useCallback((amountIQD: number) => {
     if (isUSD) {
@@ -186,10 +209,13 @@ export default function InvoicesHubScreen() {
     // 2. Sales Invoices (وەسڵی فرۆشتن)
     const salesCount = filteredSalesByPeriod.length;
 
-    // 3. All Invoices (کۆی گشتی هەموو وەسڵەکان)
-    const allCount = purchaseCount + salesCount;
+    // 3. Quotation Invoices (وەسڵی عەرز)
+    const quotationCount = filteredQuotationsByPeriod.length;
 
-    // 4. Paid Invoices count (کۆی گشتی وەسڵی پارەدراو)
+    // 4. All Invoices (کۆی گشتی هەموو وەسڵەکان)
+    const allCount = purchaseCount + salesCount + quotationCount;
+
+    // 5. Paid Invoices count (کۆی گشتی وەسڵی پارەدراو)
     let paidInvoicesCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       if ((s.remainingDebt || 0) <= 0) paidInvoicesCount++;
@@ -205,7 +231,7 @@ export default function InvoicesHubScreen() {
       }
     });
 
-    // 5. Unpaid / Remaining Debt Invoices count (کۆی گشتی وەسڵی قەرزی نەدراو)
+    // 6. Unpaid / Remaining Debt Invoices count (کۆی گشتی وەسڵی قەرزی نەدراو)
     let unpaidDebtCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       if ((s.remainingDebt || 0) > 0) unpaidDebtCount++;
@@ -219,7 +245,7 @@ export default function InvoicesHubScreen() {
       }
     });
 
-    // 6. Total FIB Invoices count (کۆی گشتی وەسڵی FIB)
+    // 7. Total FIB Invoices count (کۆی گشتی وەسڵی FIB)
     let fibCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       if (s.paymentMethod === 'fib' || s.initialPaymentMethod === 'fib') fibCount++;
@@ -228,7 +254,7 @@ export default function InvoicesHubScreen() {
       if (p.paymentStatus === 'fib' || p.initialPaymentMethod === 'fib') fibCount++;
     });
 
-    // 7. Total Cash Invoices count (کۆی گشتی وەسڵی کاش)
+    // 8. Total Cash Invoices count (کۆی گشتی وەسڵی کاش)
     let cashCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       if (s.paymentMethod === 'cash' || s.initialPaymentMethod === 'cash') cashCount++;
@@ -237,7 +263,7 @@ export default function InvoicesHubScreen() {
       if (p.paymentStatus === 'paid' || p.initialPaymentMethod === 'cash') cashCount++;
     });
 
-    // 8. Total Debt Invoices Count ONLY (کۆی گشتی وەسڵی قەرز)
+    // 9. Total Debt Invoices Count ONLY (کۆی گشتی وەسڵی قەرز)
     let debtCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       if (s.paymentMethod === 'debt' || (s.remainingDebt || 0) > 0) debtCount++;
@@ -246,7 +272,7 @@ export default function InvoicesHubScreen() {
       if (p.paymentStatus === 'debt') debtCount++;
     });
 
-    // 9. Total Discounted Sales Invoices count (وەسڵەکانی داشکاندن بۆ فرۆشتن)
+    // 10. Total Discounted Sales Invoices count (وەسڵەکانی داشکاندن بۆ فرۆشتن)
     let discountedSalesCount = 0;
     filteredSalesByPeriod.forEach((s) => {
       const disc = (s.discountTotal || 0) + (s.globalDiscount || 0);
@@ -256,6 +282,7 @@ export default function InvoicesHubScreen() {
     return {
       purchaseCount,
       salesCount,
+      quotationCount,
       allCount,
       paidInvoicesCount,
       unpaidDebtCount,
@@ -264,7 +291,7 @@ export default function InvoicesHubScreen() {
       debtCount,
       discountedSalesCount,
     };
-  }, [filteredPurchasesByPeriod, filteredSalesByPeriod, purchaseDebtsMap]);
+  }, [filteredPurchasesByPeriod, filteredSalesByPeriod, filteredQuotationsByPeriod, purchaseDebtsMap]);
 
   // ─── TAB 2: Filtered Purchases by Search ───
   const searchedPurchases = useMemo(() => {
@@ -290,6 +317,19 @@ export default function InvoicesHubScreen() {
       return numMatch || nameMatch || phoneMatch;
     });
   }, [filteredSalesByPeriod, salesSearch]);
+
+  // ─── TAB 4: Filtered Quotations by Search ───
+  const searchedQuotations = useMemo(() => {
+    const q = toEnglishDigits(quotationSearch.trim().toLowerCase());
+    if (!q) return filteredQuotationsByPeriod;
+    return filteredQuotationsByPeriod.filter((item) => {
+      const numMatch = (item.quotationNumber || '').toLowerCase().includes(q);
+      const nameMatch = (item.customerName || '').toLowerCase().includes(q);
+      const phoneMatch = toEnglishDigits(item.customerPhone || '').includes(q);
+      const prodMatch = item.items?.some((it) => (it.productName || '').toLowerCase().includes(q));
+      return numMatch || nameMatch || phoneMatch || prodMatch;
+    });
+  }, [filteredQuotationsByPeriod, quotationSearch]);
 
   // ─── Purchase Actions ───
   const handleOpenPurchaseDetails = async (purchase: Purchase) => {
@@ -442,6 +482,91 @@ export default function InvoicesHubScreen() {
     }
   };
 
+  // ─── Quotation Actions ───
+  const handleOpenQuotationDetails = useCallback((q: Quotation) => {
+    try {
+      Haptics.selectionAsync().catch(() => {});
+    } catch {}
+    useQuotationStore.getState().incrementViewCount(q.id);
+    const nextViewCount = (q.viewCount || 0) + 1;
+    setSelectedQuotation({ ...q, viewCount: nextViewCount });
+    setQuotationModalVisible(true);
+  }, []);
+
+  const handlePrintQuotation = useCallback(async (q: Quotation) => {
+    setIsSharingQuotation(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {}
+    useQuotationStore.getState().incrementPrintCount(q.id);
+    const nextPrint = (q.printCount || 0) + 1;
+    setSelectedQuotation((prev) => (prev && prev.id === q.id ? { ...prev, printCount: nextPrint } : prev));
+    try {
+      await shareQuotationInvoice(
+        q,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        q.currencyMode || useQuotationStore.getState().currencyMode || 'both'
+      );
+    } catch (err) {
+      console.error('[InvoicesHub] Failed to print quotation:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsSharingQuotation(false);
+    }
+  }, [business, t]);
+
+  const handleDeleteQuotation = useCallback((q: Quotation) => {
+    Alert.alert(
+      isKu ? 'سڕینەوەی وەسڵی عەرز' : 'Delete Quotation Invoice',
+      isKu
+        ? `ئایا دڵنیایت لە سڕینەوەی عەرزی ${q.quotationNumber}؟`
+        : `Are you sure you want to delete quotation ${q.quotationNumber}?`,
+      [
+        { text: isKu ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        {
+          text: isKu ? 'سڕینەوە' : 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteQuotation(q.id);
+            setQuotationModalVisible(false);
+            setSelectedQuotation(null);
+          },
+        },
+      ]
+    );
+  }, [deleteQuotation, isKu]);
+
+  // ─── Deep Navigation / Params Auto-Open Effect ───
+  useEffect(() => {
+    if (params.tab && (['reports', 'purchases', 'sales', 'quotations'] as TabKey[]).includes(params.tab)) {
+      setActiveTab(params.tab);
+    }
+    const targetId = params.id || params.quotationId || params.saleId || params.purchaseId;
+    if (targetId) {
+      if (params.tab === 'quotations' || params.quotationId) {
+        const q = quotations.find((item) => item.id === targetId || item.quotationNumber === targetId);
+        if (q) {
+          handleOpenQuotationDetails(q);
+        }
+      } else if (params.tab === 'sales' || params.saleId) {
+        const s = sales.find((item) => String(item.id) === String(targetId) || item.invoiceNumber === targetId);
+        if (s) {
+          handleOpenSaleDetails(s);
+        }
+      } else if (params.tab === 'purchases' || params.purchaseId) {
+        const p = purchases.find((item) => String(item.id) === String(targetId) || item.purchaseNumber === targetId);
+        if (p) {
+          handleOpenPurchaseDetails(p);
+        }
+      }
+    }
+  }, [params.tab, params.id, params.quotationId, params.saleId, params.purchaseId, quotations, sales, purchases, handleOpenQuotationDetails]);
+
   // ─── Period Labels for Pills ───
   const periodPillKeys: PeriodKey[] = ['all', 'today', 'week', 'month', 'year', 'custom'];
   const periodPillLabels: Record<PeriodKey, string> = {
@@ -559,12 +684,12 @@ export default function InvoicesHubScreen() {
         rightAction={
           activeTab !== 'reports' ? (
             <HeaderActionButton
-              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+              icon={invoicesGridLayout ? 'list-outline' : 'grid-outline'}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } catch {}
-                setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'));
+                setInvoicesGridLayout(!invoicesGridLayout);
               }}
             />
           ) : undefined
@@ -621,7 +746,7 @@ export default function InvoicesHubScreen() {
             },
           ]}
         >
-          {/* Tab 1: ڕاپۆرت و ئامار (Right side) */}
+          {/* Tab 1: ڕاپۆرت (Right side) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -637,35 +762,35 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 4,
-                gap: 4,
+                paddingHorizontal: 2,
+                gap: 3,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="bar-chart-outline"
-              size={isTabletLandscape ? 22 : isTablet ? 20 : 15}
+              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
               color={activeTab === 'reports' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.75}
+              minimumFontScale={0.7}
               style={[
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'reports' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 16 : isTablet ? 14.5 : 12,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKu ? 'ڕاپۆرت و ئامار' : 'Reports & Analytics'}
+              {isKu ? 'ڕاپۆرت' : 'Reports'}
             </Text>
           </TouchableOpacity>
 
-          {/* Tab 2: وەسڵی کڕین (Middle) */}
+          {/* Tab 2: وەسڵی کڕین (Middle-right) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -681,26 +806,26 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 4,
-                gap: 4,
+                paddingHorizontal: 2,
+                gap: 3,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="cart-outline"
-              size={isTabletLandscape ? 22 : isTablet ? 20 : 15}
+              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
               color={activeTab === 'purchases' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.75}
+              minimumFontScale={0.7}
               style={[
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'purchases' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 16 : isTablet ? 14.5 : 12,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -729,7 +854,7 @@ export default function InvoicesHubScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Tab 3: وەسڵی فرۆشتن (Left side) */}
+          {/* Tab 3: وەسڵی فرۆشتن (Middle-left) */}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => {
@@ -745,26 +870,26 @@ export default function InvoicesHubScreen() {
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
                 paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
-                paddingHorizontal: 4,
-                gap: 4,
+                paddingHorizontal: 2,
+                gap: 3,
                 borderRadius: isTablet ? 14 : 11,
               },
             ]}
           >
             <Ionicons
               name="receipt-outline"
-              size={isTabletLandscape ? 22 : isTablet ? 20 : 15}
+              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
               color={activeTab === 'sales' ? '#FFFFFF' : colors.gray500}
             />
             <Text
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.75}
+              minimumFontScale={0.7}
               style={[
                 styles.segmentBtnText,
                 {
                   color: activeTab === 'sales' ? '#FFFFFF' : colors.gray600,
-                  fontSize: isTabletLandscape ? 16 : isTablet ? 14.5 : 12,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
                 },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
@@ -788,6 +913,70 @@ export default function InvoicesHubScreen() {
                   ]}
                 >
                   {filteredSalesByPeriod.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Tab 4: وەسڵی عەرز (Left side) */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              try {
+                Haptics.selectionAsync().catch(() => {});
+              } catch {}
+              setActiveTab('quotations');
+            }}
+            style={[
+              styles.segmentBtn,
+              activeTab === 'quotations' && [styles.segmentBtnActive, { backgroundColor: colors.primary }],
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minHeight: isTabletLandscape ? 54 : isTablet ? 48 : 38,
+                paddingVertical: isTabletLandscape ? 12 : isTablet ? 10 : 7,
+                paddingHorizontal: 2,
+                gap: 3,
+                borderRadius: isTablet ? 14 : 11,
+              },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={isTabletLandscape ? 20 : isTablet ? 18 : 14}
+              color={activeTab === 'quotations' ? '#FFFFFF' : colors.gray500}
+            />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              style={[
+                styles.segmentBtnText,
+                {
+                  color: activeTab === 'quotations' ? '#FFFFFF' : colors.gray600,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 11.5,
+                },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              ]}
+            >
+              {isKu ? 'وەسڵی عەرز' : 'Quotes'}
+            </Text>
+            {filteredQuotationsByPeriod.length > 0 && (
+              <View
+                style={[
+                  styles.tabBadge,
+                  {
+                    backgroundColor:
+                      activeTab === 'quotations' ? 'rgba(255, 255, 255, 0.28)' : isDark ? colors.gray200 : colors.gray300,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabBadgeText,
+                    { color: activeTab === 'quotations' ? '#FFFFFF' : colors.black },
+                  ]}
+                >
+                  {filteredQuotationsByPeriod.length}
                 </Text>
               </View>
             )}
@@ -919,6 +1108,17 @@ export default function InvoicesHubScreen() {
                     borderLight: '#F5D0FE',
                     label: isKu ? 'وەسڵەکانی داشکاندن' : 'Discounted Sales',
                     count: reportStats.discountedSalesCount,
+                  },
+                  {
+                    id: 'quotations',
+                    icon: 'document-text-outline' as const,
+                    color: colors.primary,
+                    bgDark: 'rgba(212, 175, 55, 0.14)',
+                    bgLight: '#FEF9C3',
+                    borderDark: 'rgba(212, 175, 55, 0.35)',
+                    borderLight: '#FDE047',
+                    label: isKu ? 'کۆی گشتی وەسڵی عەرز' : 'Quotation Invoices',
+                    count: reportStats.quotationCount,
                   },
                 ].map((kpi) => (
                   <View
@@ -1281,6 +1481,180 @@ export default function InvoicesHubScreen() {
                           <Ionicons name="print-outline" size={12} color={colors.gray500} />
                           <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                             {isKu ? `چاپ: ${item.printCount || 0}` : `Print: ${item.printCount || 0}`}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 4: وەسڵی عەرز (QUOTATION INVOICES)
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'quotations' && (
+            <View style={styles.flexOne}>
+              {/* Period Filter Pills */}
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
+                {renderPeriodFilterSection()}
+              </View>
+
+              {/* Search Bar */}
+              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
+                <View
+                  style={[
+                    styles.searchInputWrap,
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: colors.gray200,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <Ionicons name="search" size={18} color={colors.gray400} />
+                  <TextInput
+                    value={quotationSearch}
+                    onChangeText={setQuotationSearch}
+                    placeholder={isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی عەرز...' : 'Search client, phone, quotation #...'}
+                    placeholderTextColor={colors.gray400}
+                    style={[
+                      styles.searchInput,
+                      { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
+                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                  />
+                  {quotationSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setQuotationSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Quotations List / Grid */}
+              <FlatList
+                data={searchedQuotations}
+                key={`quotations-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
+                numColumns={numColumns}
+                columnWrapperStyle={
+                  numColumns > 1
+                    ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
+                    : undefined
+                }
+                keyExtractor={(item) => `quo-${item.id}`}
+                contentContainerStyle={[
+                  styles.listContent,
+                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
+                  searchedQuotations.length === 0 && styles.emptyListContent,
+                ]}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyWrap}>
+                    <Ionicons name="document-text-outline" size={48} color={colors.gray300} />
+                    <Text style={[styles.emptyText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                      {isKu ? 'هیچ وەسڵێکی عەرز نەدۆزرایەوە' : 'No quotation invoices found'}
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const itemsCount = item.items?.length || 0;
+                  const usdVal = item.exchangeRate > 0 ? item.grandTotal / item.exchangeRate : 0;
+                  const printCount = item.printCount || 0;
+                  const viewCount = item.viewCount || 0;
+                  const statusLabel = isKu ? 'عەرز' : 'Quote';
+                  const statusColor = colors.primary;
+
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => handleOpenQuotationDetails(item)}
+                      style={[
+                        numColumns > 1 ? styles.invoiceCard : styles.listCard,
+                        numColumns > 1 && {
+                          flex: 1,
+                          maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                        },
+                        {
+                          backgroundColor: isDark ? colors.gray100 : colors.white,
+                          borderColor: colors.gray200,
+                        },
+                      ]}
+                    >
+                      {/* Top Row: Quotation Number & Badge */}
+                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <View style={[styles.invoiceNumberBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
+                          <IdText style={[styles.invoiceNumberText, { color: colors.primary }]}>{item.quotationNumber}</IdText>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}>
+                          <Text style={[styles.statusBadgeText, { color: statusColor }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                            {statusLabel}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Customer / Client Info */}
+                      <View style={styles.cardInfoWrap}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.partyName,
+                            { color: colors.black, textAlign, fontSize: isTablet ? 16.5 : 14 },
+                            isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {item.customerName || (isKu ? 'کڕیاری گشتی' : 'Valued Client')}
+                        </Text>
+                        {!!item.customerPhone && (
+                          <View style={[styles.phoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                            <Ionicons name="call-outline" size={12} color={colors.gray400} />
+                            <Text style={[styles.partyPhone, { color: colors.gray500, fontSize: isTablet ? 12.5 : 11.5 }]}>{item.customerPhone}</Text>
+                          </View>
+                        )}
+                        <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
+                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${item.time}` : ''}
+                        </Text>
+                      </View>
+
+                      {/* Amounts Row */}
+                      <View style={[styles.amountRow, { flexDirection: isRTL ? 'row-reverse' : 'row', borderTopColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
+                        <View>
+                          <Text style={[styles.amountLabel, { color: colors.gray400, textAlign }]}>
+                            {isKu ? 'کۆی گشتی' : 'Grand Total'}
+                          </Text>
+                          {item.currencyMode === 'usd' ? (
+                            <Text style={[{ color: colors.black, fontSize: isTablet ? 16 : 14, fontWeight: '800' }]}>
+                              ${fmtUSD(usdVal)} USD
+                            </Text>
+                          ) : (
+                            <Text style={[{ color: colors.black, fontSize: isTablet ? 16 : 14, fontWeight: '800' }]}>
+                              {fmtIQD(item.grandTotal)} د.ع
+                            </Text>
+                          )}
+                        </View>
+
+                        {(!item.currencyMode || item.currencyMode === 'both') && usdVal > 0 && (
+                          <Text style={[{ color: colors.success, fontSize: 12, fontWeight: '700' }]}>
+                            ≈ ${fmtUSD(usdVal)}
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* Print and View Counts Indicator */}
+                      <View style={[styles.countBadgesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
+                          <Ionicons name="eye-outline" size={12} color={colors.gray500} />
+                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {isKu ? `بینین: ${viewCount}` : `View: ${viewCount}`}
+                          </Text>
+                        </View>
+                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
+                          <Ionicons name="print-outline" size={12} color={colors.gray500} />
+                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {isKu ? `چاپ: ${printCount}` : `Print: ${printCount}`}
                           </Text>
                         </View>
                       </View>
@@ -1778,6 +2152,16 @@ export default function InvoicesHubScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Quotation Details Modal ── */}
+      <QuotationPreviewModal
+        visible={quotationModalVisible}
+        quotation={selectedQuotation}
+        onClose={() => setQuotationModalVisible(false)}
+        onShare={handlePrintQuotation}
+        isSharing={isSharingQuotation}
+        onDelete={handleDeleteQuotation}
+      />
     </View>
   );
 }
@@ -2056,6 +2440,18 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  amountRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    marginTop: 4,
+  },
+  amountLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginBottom: 1,
   },
 
   // Modal Styles

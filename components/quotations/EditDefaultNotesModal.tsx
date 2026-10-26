@@ -15,6 +15,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import { SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import * as Haptics from 'expo-haptics';
 
 interface Props {
@@ -95,6 +96,8 @@ export function EditDefaultNotesModal({ visible, initialNotes, onClose, onSave }
                   borderColor: colors.gray300,
                   color: colors.black,
                   textAlign: isRTL ? 'right' : 'left',
+                  fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                  fontWeight: 'normal',
                 },
               ]}
               multiline
@@ -192,6 +195,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     minHeight: 90,
     textAlignVertical: 'top',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
   },
   resetBtn: {
     alignItems: 'center',

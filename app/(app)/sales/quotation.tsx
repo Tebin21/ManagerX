@@ -52,8 +52,9 @@ import {
 } from '@/lib/sqlite';
 import { fmtIQD, fmtUSD, sanitizeNumericInput } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import type { Quotation, QuotationItem } from '@/types/quotation';
+import { hexToRgba } from '@/lib/colorUtils';
+import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import type { Quotation, QuotationItem, QuotationCurrencyMode } from '@/types/quotation';
 import type { InventoryProduct } from '@/types/inventory';
 import type { Product } from '@/types/sales';
 import type { Customer } from '@/types/customers';
@@ -74,16 +75,16 @@ export default function SalesQuotationScreen() {
   const business = useBusinessStore();
   const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
-  const salesProductGridLayout = useSettingsStore((s) => s.salesProductGridLayout);
-  const setSalesProductGridLayout = useSettingsStore((s) => s.setSalesProductGridLayout);
+  const quotationProductGridLayout = useSettingsStore((s) => s.quotationProductGridLayout);
+  const setQuotationProductGridLayout = useSettingsStore((s) => s.setQuotationProductGridLayout);
   const isUSD = baseCurrency === 'USD';
 
-  const isGridView = salesProductGridLayout;
+  const isGridView = quotationProductGridLayout;
   const numColumns = isGridView
     ? (isTabletLandscape ? 4 : isTablet ? 3 : 2)
     : 1;
 
-  const { quotations, defaultNotes, addQuotation, setDefaultNotes } = useQuotationStore();
+  const { quotations, defaultNotes, currencyMode, addQuotation, setDefaultNotes, setCurrencyMode } = useQuotationStore();
 
   // Screen Flow Step: 1 = Products, 2 = Cart & Client & Discount, 3 = Invoice Preview
   const [step, setStep] = useState<Step>(1);
@@ -100,6 +101,17 @@ export default function SalesQuotationScreen() {
   const [globalDiscountType, setGlobalDiscountType] = useState<GlobalDiscountType>('none');
   const [globalDiscountValue, setGlobalDiscountValue] = useState<number>(0);
   const [isDiscountExpanded, setIsDiscountExpanded] = useState<boolean>(false);
+  const [showCurrencyOptions, setShowCurrencyOptions] = useState<boolean>(false);
+
+  const toggleCurrencyOptions = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
+    setShowCurrencyOptions((prev) => !prev);
+  }, []);
 
   const toggleDiscountExpanded = useCallback(() => {
     try {
@@ -117,6 +129,8 @@ export default function SalesQuotationScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [nameError, setNameError] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nameInputRef = useRef<TextInput>(null);
+  const step2ScrollRef = useRef<ScrollView>(null);
 
   const isDirectCustomer =
     companyName.trim() === DIRECT_CUSTOMER_NAME ||
@@ -221,6 +235,8 @@ export default function SalesQuotationScreen() {
   const totalDiscount = itemDiscountsTotal + globalDiscountAmount;
   const grandTotal = Math.max(0, itemsSubtotal - totalDiscount);
   const grandTotalUSD = exchangeRate > 0 ? grandTotal / exchangeRate : 0;
+  const itemsSubtotalUSD = exchangeRate > 0 ? itemsSubtotal / exchangeRate : 0;
+  const totalDiscountUSD = exchangeRate > 0 ? totalDiscount / exchangeRate : 0;
 
   // Helpers for In-Cart Quantity in ProductSearchResult
   const getCartQty = useCallback(
@@ -405,12 +421,10 @@ export default function SalesQuotationScreen() {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } catch {}
-      Alert.alert(
-        isKuLanguage ? 'زانیاری داواکراوە' : 'Required Information',
-        isKuLanguage
-          ? 'دەبێ زانیاری کۆمپانیا یان کڕیار پڕبکرێتەوە، بێ زانیاری وەسڵی عەرز دروست ناکرێت! دەتوانیت دوگمەی بچووکی «عەرزی ڕاستەوخۆ»ش دابگریت.'
-          : 'Customer/Company information is required! A quotation cannot be created without information. You can also tap "Direct Quote".'
-      );
+      step2ScrollRef.current?.scrollTo({ y: 260, animated: true });
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 100);
       return;
     }
 
@@ -440,7 +454,18 @@ export default function SalesQuotationScreen() {
 
       // 2. Build quotation document
       const now = new Date();
-      const quoteNum = `QT-${1000 + quotations.length + 1}`;
+      let maxSeq = 0;
+      for (const q of quotations) {
+        if (!q.quotationNumber) continue;
+        const match = q.quotationNumber.match(/^F-(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+      const quoteNum = `F-${String(maxSeq + 1).padStart(6, '0')}`;
       const dateStr = now.toISOString().split('T')[0];
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -458,6 +483,7 @@ export default function SalesQuotationScreen() {
         discountTotal: totalDiscount,
         grandTotal,
         exchangeRate,
+        currencyMode: currencyMode || 'both',
         notes: notes.trim() || undefined,
         validityDays,
         printCount: 0,
@@ -495,7 +521,7 @@ export default function SalesQuotationScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        'both'
+        q.currencyMode || currencyMode || 'both'
       );
       // Increment print count in store immediately
       useQuotationStore.getState().incrementPrintCount(q.id);
@@ -544,12 +570,12 @@ export default function SalesQuotationScreen() {
         rightAction={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
             <HeaderActionButton
-              icon={salesProductGridLayout ? 'list-outline' : 'grid-outline'}
+              icon={quotationProductGridLayout ? 'list-outline' : 'grid-outline'}
               onPress={() => {
                 try {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } catch {}
-                setSalesProductGridLayout(!salesProductGridLayout);
+                setQuotationProductGridLayout(!quotationProductGridLayout);
               }}
             />
             <HeaderActionButton
@@ -661,23 +687,24 @@ export default function SalesQuotationScreen() {
       </AppHeader>
 
       <ScrollView
+        ref={step2ScrollRef}
         contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Notice Banner */}
         <View style={[styles.noticeBanner, { backgroundColor: '#FEF9C3', borderColor: '#F59E0B' }]}>
-          <Ionicons name="alert-circle" size={18} color="#D97706" />
+          <Ionicons name="information-circle-outline" size={18} color="#D97706" />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#92400E', textAlign: isRTL ? 'right' : 'left' }}>
               {isKuLanguage
-                ? '⚠️ سەرنج: ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
-                : '⚠️ THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
+                ? 'سەرنج: ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
+                : 'NOTE: THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
             </Text>
             <Text style={{ fontSize: 11, color: '#B45309', textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
               {isKuLanguage
-                ? 'کاڵاکان لە کۆگا کەم نەکراونەتەوە و کڕیار پێیان پابەند نییە.'
-                : 'Prices are offered for quotation purposes and no stock has been deducted.'}
+                ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
+                : 'All prices are offered for quotation purposes.'}
             </Text>
           </View>
         </View>
@@ -902,6 +929,8 @@ export default function SalesQuotationScreen() {
                         borderColor: colors.gray300,
                         color: colors.black,
                         textAlign: isRTL ? 'right' : 'left',
+                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                        fontWeight: 'normal',
                       },
                     ]}
                     keyboardType="decimal-pad"
@@ -941,19 +970,37 @@ export default function SalesQuotationScreen() {
           <View style={[styles.summaryTotalsBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderTopColor: colors.primary }]}>
             <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={{ fontSize: 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-              <AmountText value={itemsSubtotal} currency="IQD" variant="small" style={{ color: colors.gray600 }} />
+              {currencyMode === 'usd' ? (
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
+                  ${fmtUSD(itemsSubtotalUSD)} USD
+                </Text>
+              ) : (
+                <AmountText value={itemsSubtotal} currency="IQD" variant="small" style={{ color: colors.gray600 }} />
+              )}
             </View>
             {totalDiscount > 0 && (
               <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={{ fontSize: 12.5, color: colors.error }}>{isKuLanguage ? 'کۆی داشکاندن:' : 'Total Discount:'}</Text>
-                <AmountText value={totalDiscount} prefix="−" currency="IQD" variant="small" style={{ color: colors.error }} />
+                {currencyMode === 'usd' ? (
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
+                    −${fmtUSD(totalDiscountUSD)} USD
+                  </Text>
+                ) : (
+                  <AmountText value={totalDiscount} prefix="−" currency="IQD" variant="small" style={{ color: colors.error }} />
+                )}
               </View>
             )}
             <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.gray300 }]}>
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
-              <AmountText value={grandTotal} currency="IQD" variant="large" style={{ color: colors.primary, fontWeight: '900' }} />
+              {currencyMode === 'usd' ? (
+                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
+                  ${fmtUSD(grandTotalUSD)} USD
+                </Text>
+              ) : (
+                <AmountText value={grandTotal} currency="IQD" variant="large" style={{ color: colors.primary, fontWeight: '900' }} />
+              )}
             </View>
-            {grandTotalUSD > 0 && (
+            {currencyMode === 'both' && grandTotalUSD > 0 && (
               <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success, textAlign: isRTL ? 'left' : 'right' }}>
                 ≈ ${fmtUSD(grandTotalUSD)} USD
               </Text>
@@ -1049,32 +1096,25 @@ export default function SalesQuotationScreen() {
             </View>
           ) : (
             <>
-              {/* Validation Alert Banner (Only shown if empty upon submission) */}
-              {nameError && (
-                <View style={[styles.accountStatusPill, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}>
-                  <Ionicons name="alert-circle" size={14} color="#DC2626" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#B91C1C' }}>
-                    {isKuLanguage
-                      ? 'دەبێ زانیاری پڕبکرێتەوە، بێ زانیاری وەسڵ دروست ناکرێت!'
-                      : 'Company/client information is required to generate quotation!'}
-                  </Text>
-                </View>
-              )}
-
               {/* Company Name with Autocomplete */}
               <View style={{ marginTop: 8 }}>
                 <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
                   {isKuLanguage ? 'ناوی کۆمپانیا / کڕیار:' : 'Company / Client Name:'}
                 </Text>
                 <TextInput
+                  ref={nameInputRef}
                   style={[
                     styles.input,
                     {
-                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                      borderColor: nameError ? colors.error : selectedCustomerId ? '#22C55E' : colors.gray300,
+                      backgroundColor: nameError
+                        ? (isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2')
+                        : (isDark ? colors.gray200 : colors.gray50),
+                      borderColor: nameError ? '#EF4444' : selectedCustomerId ? '#22C55E' : colors.gray300,
                       borderWidth: nameError ? 1.5 : 1,
                       color: colors.black,
                       textAlign: isRTL ? 'right' : 'left',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                      fontWeight: 'normal',
                     },
                   ]}
                   value={companyName}
@@ -1085,12 +1125,35 @@ export default function SalesQuotationScreen() {
                     }
                   }}
                   placeholder={isKuLanguage ? 'ناوی کۆمپانیا یان کڕیار بنووسە (داواکراوە)...' : 'Enter company or client name (required)...'}
-                  placeholderTextColor={nameError ? colors.error : colors.gray400}
+                  placeholderTextColor={nameError ? '#F87171' : colors.gray400}
                 />
                 {nameError && (
-                  <Text style={{ fontSize: 11, color: colors.error, marginTop: 4, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
-                    {isKuLanguage ? '⚠️ پرکردنەوەی ناوی کۆمپانیا یان کڕیار ئیجبارییە بۆ دروستکردنی وەسل' : '⚠️ Company or customer name is required to create quotation'}
-                  </Text>
+                  <MotiView
+                    from={{ opacity: 0, translateY: -3 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 200 }}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      marginTop: 6,
+                      paddingHorizontal: 2,
+                    }}
+                  >
+                    <Ionicons name="alert-circle-outline" size={14} color="#EF4444" />
+                    <Text
+                      style={{
+                        fontSize: 11.5,
+                        color: '#DC2626',
+                        fontWeight: '700',
+                        textAlign: isRTL ? 'right' : 'left',
+                      }}
+                    >
+                      {isKuLanguage
+                        ? 'تکایە ناوی کۆمپانیا یان کڕیار بنووسە، ئەم بەشە داواکراوە'
+                        : 'Please enter company or client name, this field is required'}
+                    </Text>
+                  </MotiView>
                 )}
 
                 {/* Autocomplete Suggestions Dropdown for Repeat Quotes */}
@@ -1112,7 +1175,7 @@ export default function SalesQuotationScreen() {
                         <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
                           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black }}>{cust.name}</Text>
                           {cust.phone ? <Text style={{ fontSize: 11.5, color: colors.gray500 }}>{cust.phone}</Text> : null}
-                          {cust.address ? <Text style={{ fontSize: 10.5, color: colors.gray400 }}>📍 {cust.address}</Text> : null}
+                          {cust.address ? <Text style={{ fontSize: 10.5, color: colors.gray400 }}>{cust.address}</Text> : null}
                         </View>
                         <View style={[styles.miniPill, { backgroundColor: colors.softBlue }]}>
                           <Text style={{ fontSize: 10.5, color: colors.primary, fontWeight: '700' }}>
@@ -1139,6 +1202,8 @@ export default function SalesQuotationScreen() {
                         borderColor: colors.gray300,
                         color: colors.black,
                         textAlign: isRTL ? 'right' : 'left',
+                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                        fontWeight: 'normal',
                       },
                     ]}
                     keyboardType="phone-pad"
@@ -1165,6 +1230,8 @@ export default function SalesQuotationScreen() {
                         borderColor: colors.gray300,
                         color: colors.black,
                         textAlign: isRTL ? 'right' : 'left',
+                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                        fontWeight: 'normal',
                       },
                     ]}
                     value={address}
@@ -1220,7 +1287,10 @@ export default function SalesQuotationScreen() {
                   borderColor: colors.gray300,
                   color: colors.black,
                   textAlign: isRTL ? 'right' : 'left',
-                  minHeight: 56,
+                  minHeight: 64,
+                  fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                  fontWeight: 'normal',
+                  lineHeight: 22,
                 },
               ]}
               multiline
@@ -1284,6 +1354,8 @@ export default function SalesQuotationScreen() {
                     {
                       color: colors.black,
                       textAlign: 'center',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                      fontWeight: 'normal',
                     },
                   ]}
                   keyboardType="number-pad"
@@ -1303,6 +1375,146 @@ export default function SalesQuotationScreen() {
             </View>
           </View>
         </PremiumCard>
+
+        {/* Currency Display Mode Selector Button (Positioned immediately above Generate Button, reveals on tap) */}
+        <View style={styles.currencyToggleContainer}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={toggleCurrencyOptions}
+            style={[
+              styles.currencyTriggerBtn,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: showCurrencyOptions ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View
+                style={[
+                  styles.currencyTriggerIconBox,
+                  { backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7' },
+                ]}
+              >
+                <Ionicons name="cash-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text
+                  style={[
+                    styles.currencyTriggerTitle,
+                    {
+                      color: colors.black,
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    },
+                  ]}
+                >
+                  {isKuLanguage ? 'شێوازی پیشاندانی دراو لە وەسڵدا:' : 'Receipt Currency Display:'}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.gray500, marginTop: 1 }}>
+                  {isKuLanguage ? 'دەست بنێ بۆ دیاریکردن یان گۆڕین' : 'Tap to select or change currency'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Currently Active Badge + Chevron */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+              <View
+                style={[
+                  styles.currencyActiveBadge,
+                  {
+                    backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF9C3',
+                    borderColor: colors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.currencyActiveBadgeText,
+                    {
+                      color: colors.primary,
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    },
+                  ]}
+                >
+                  {currencyMode === 'usd'
+                    ? (isKuLanguage ? 'تەنها دۆلار $' : 'USD Only $')
+                    : currencyMode === 'iqd'
+                    ? (isKuLanguage ? 'تەنها دینار' : 'IQD Only')
+                    : (isKuLanguage ? 'دۆلار و دینار' : 'USD & IQD')}
+                </Text>
+              </View>
+
+              <Ionicons
+                name={showCurrencyOptions ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={colors.gray500}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Expanded Currency Options (Shown only when tapped) */}
+          {showCurrencyOptions && (
+            <MotiView
+              from={{ opacity: 0, translateY: -6 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 180 }}
+              style={[
+                styles.currencyExpandedCard,
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: colors.primary,
+                },
+              ]}
+            >
+              <View style={[styles.currencyPillsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {[
+                  { id: 'both' as const, labelKu: 'دۆلار و دینار', labelEn: 'USD & IQD', icon: 'swap-horizontal' },
+                  { id: 'iqd' as const, labelKu: 'تەنها دینار', labelEn: 'IQD Only', icon: 'wallet-outline' },
+                  { id: 'usd' as const, labelKu: 'تەنها دۆلار $', labelEn: 'USD Only $', icon: 'logo-usd' },
+                ].map((m) => {
+                  const active = (currencyMode || 'both') === m.id;
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.currencyPillBtn,
+                        {
+                          backgroundColor: active ? colors.primary : isDark ? colors.gray200 : colors.gray50,
+                          borderColor: active ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                        },
+                      ]}
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        } catch {}
+                        setCurrencyMode(m.id);
+                      }}
+                    >
+                      <Ionicons
+                        name={active ? 'checkmark-circle' : (m.icon as any)}
+                        size={14}
+                        color={active ? '#FFFFFF' : colors.gray600}
+                      />
+                      <Text
+                        style={[
+                          styles.currencyPillText,
+                          {
+                            color: active ? '#FFFFFF' : colors.gray700,
+                            fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                          },
+                        ]}
+                      >
+                        {isKuLanguage ? m.labelKu : m.labelEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </MotiView>
+          )}
+        </View>
 
         {/* Generate Button */}
         <View style={{ marginTop: 10, marginBottom: 40 }}>
@@ -1344,9 +1556,9 @@ export default function SalesQuotationScreen() {
           <PremiumCard style={styles.invoiceCard}>
             {/* Top Badge & Number */}
             <View style={[styles.invoiceTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.invoiceDocBadge, { backgroundColor: isDark ? 'rgba(212,175,55,0.2)' : '#FEF3C7' }]}>
-                <Ionicons name="document-text" size={14} color={colors.primary} />
-                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+              <View style={[styles.invoiceDocBadge, { backgroundColor: isDark ? colors.gray300 : '#F4F4F5' }]}>
+                <Ionicons name="document-text" size={14} color={colors.black} />
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.black }}>
                   {isKuLanguage ? 'وەسڵی عەرزی نرخ' : 'PRICE QUOTATION'}
                 </Text>
               </View>
@@ -1354,7 +1566,7 @@ export default function SalesQuotationScreen() {
             </View>
 
             {/* Official Prominent Disclaimer Notice (Delicate & Monochrome) */}
-            <View style={[styles.invoiceNoticeBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: isDark ? colors.gray300 : '#E2E8F0' }]}>
+            <View style={[styles.invoiceNoticeBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: isDark ? colors.gray300 : '#D4D4D4' }]}>
               <Ionicons name="information-circle-outline" size={18} color={colors.black} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'right' : 'left' }}>
@@ -1364,41 +1576,70 @@ export default function SalesQuotationScreen() {
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
                   {isKuLanguage
-                    ? 'سەرجەم نرخەکان پێشنیارن، کاڵاکان لە کۆگا نەفرۆشراون و نەدراون بە کڕیار.'
-                    : 'Prices are offered for quotation purposes and no stock has been deducted.'}
+                    ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
+                    : 'All prices are offered for quotation purposes.'}
                 </Text>
               </View>
             </View>
 
             {/* Client Information */}
             <View style={[styles.invoiceClientBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200 }]}>
-              <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                 <Text style={{ fontSize: 11, color: colors.gray400 }}>{isKuLanguage ? 'پێشکەش دەکرێت بە:' : 'Presented To:'}</Text>
                 <Text style={{ fontSize: 11, color: colors.gray400 }}>{q.date} {q.time ? `• ${q.time}` : ''}</Text>
               </View>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-                {q.customerName}
-              </Text>
-              {q.customerPhone ? (
-                <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-                  📞 {q.customerPhone}
-                </Text>
-              ) : null}
-              {q.customerAddress ? (
-                <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-                  📍 {q.customerAddress}
-                </Text>
-              ) : null}
-              {q.validityDays ? (
-                <Text style={{ fontSize: 11.5, color: colors.primary, fontWeight: '700', textAlign: isRTL ? 'right' : 'left', marginTop: 4 }}>
-                  ⏳ {isKuLanguage ? `ماوەی کارپێکردن: ${q.validityDays} ڕۆژ` : `Validity: ${q.validityDays} Days`}
-                </Text>
-              ) : null}
+
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left' }}>
+                    {q.customerName}
+                  </Text>
+                  {q.customerPhone ? (
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <Ionicons name="call-outline" size={13} color={colors.gray400} />
+                      <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                        {q.customerPhone}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {q.customerAddress ? (
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <Ionicons name="location-outline" size={13} color={colors.gray400} />
+                      <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                        {q.customerAddress}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Large Prominent Validity Badge at Top */}
+                {q.validityDays ? (
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? colors.gray300 : '#F4F4F5',
+                      borderWidth: 1.5,
+                      borderColor: colors.black,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.gray500, marginBottom: 1 }}>
+                      {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
+                    </Text>
+                    <Text style={{ fontSize: 18, fontWeight: '900', color: colors.black }}>
+                      {isKuLanguage ? `${q.validityDays} ڕۆژ` : `${q.validityDays} Days`}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
 
             {/* Items Table */}
             <View style={{ marginTop: 14 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.gray600, textAlign: isRTL ? 'right' : 'left', marginBottom: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left', marginBottom: 8 }}>
                 {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان:' : 'Quoted Items List:'}
               </Text>
               {q.items.map((it, idx) => (
@@ -1412,12 +1653,12 @@ export default function SalesQuotationScreen() {
                     },
                   ]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.primary }}>#{idx + 1}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.black }}>#{idx + 1}</Text>
                   <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black }} numberOfLines={1}>
                       {it.productName}
                     </Text>
-                    <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                    <Text style={{ fontSize: 11, color: colors.gray500 }}>
                       {it.quantity} × {fmtIQD(it.unitPrice)} IQD
                       {it.discount > 0 ? ` (-${fmtIQD(it.discount)})` : ''}
                     </Text>
@@ -1430,7 +1671,7 @@ export default function SalesQuotationScreen() {
             {/* Notes Section (Positioned BEFORE Totals as requested) */}
             {q.notes ? (
               <View style={[styles.invoiceNotesBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, marginTop: 14 }]}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
                   {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Terms & Conditions:'}
                 </Text>
                 <Text style={{ fontSize: 12, color: colors.black, lineHeight: 18, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
@@ -1440,25 +1681,43 @@ export default function SalesQuotationScreen() {
             ) : null}
 
             {/* Totals Section (Positioned BELOW Notes as requested) */}
-            <View style={[styles.invoiceTotalsBox, { borderTopColor: colors.primary, marginTop: 14 }]}>
+            <View style={[styles.invoiceTotalsBox, { borderTopColor: colors.black, marginTop: 14 }]}>
               {q.discountTotal > 0 && (
                 <>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={{ fontSize: 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-                    <AmountText value={q.subtotal} currency="IQD" variant="small" style={{ color: colors.gray600 }} />
+                    {(q.currencyMode || currencyMode) === 'usd' ? (
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                        ${fmtUSD(q.subtotal / (q.exchangeRate || exchangeRate))} USD
+                      </Text>
+                    ) : (
+                      <AmountText value={q.subtotal} currency="IQD" variant="small" style={{ color: colors.black }} />
+                    )}
                   </View>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: 12.5, color: colors.error }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
-                    <AmountText value={q.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.error }} />
+                    <Text style={{ fontSize: 12.5, color: colors.gray600 }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
+                    {(q.currencyMode || currencyMode) === 'usd' ? (
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                        −${fmtUSD(q.discountTotal / (q.exchangeRate || exchangeRate))} USD
+                      </Text>
+                    ) : (
+                      <AmountText value={q.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.black }} />
+                    )}
                   </View>
                 </>
               )}
               <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4 }]}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
-                <AmountText value={q.grandTotal} currency="IQD" variant="large" style={{ color: colors.primary, fontWeight: '900' }} />
+                {(q.currencyMode || currencyMode) === 'usd' ? (
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
+                    ${fmtUSD(qUsd)} USD
+                  </Text>
+                ) : (
+                  <AmountText value={q.grandTotal} currency="IQD" variant="large" style={{ color: colors.black, fontWeight: '900' }} />
+                )}
               </View>
-              {qUsd > 0 && (
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.success, textAlign: isRTL ? 'left' : 'right', marginTop: 2 }}>
+              {(q.currencyMode || currencyMode) === 'both' && qUsd > 0 && (
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'left' : 'right', marginTop: 2 }}>
                   ≈ ${fmtUSD(qUsd)} USD
                 </Text>
               )}
@@ -1688,8 +1947,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingVertical: 9,
+    fontSize: 13.5,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
   },
   twoInputsRow: {
     gap: 10,
@@ -1778,6 +2038,64 @@ const styles = StyleSheet.create({
     minWidth: 28,
     paddingVertical: 2,
     paddingHorizontal: 2,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  currencyToggleContainer: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  currencyTriggerBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  currencyTriggerIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currencyTriggerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  currencyActiveBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  currencyActiveBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  currencyExpandedCard: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  currencyPillsRow: {
+    gap: 8,
+  },
+  currencyPillBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 5,
+  },
+  currencyPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   invoiceCard: {
     padding: 16,

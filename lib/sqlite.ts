@@ -909,6 +909,10 @@ function formatSequenceNumber(n: number): string {
   return String(n).padStart(width, '0');
 }
 
+function formatInvoiceNumber(n: number): string {
+  return `F-${String(n).padStart(6, '0')}`;
+}
+
 export async function generateInvoiceNumber(): Promise<string> {
   const database = await getDatabase();
   let invoiceNumber = '';
@@ -925,7 +929,7 @@ export async function generateInvoiceNumber(): Promise<string> {
       [nextNumber]
     );
 
-    invoiceNumber = formatSequenceNumber(nextNumber);
+    invoiceNumber = formatInvoiceNumber(nextNumber);
   });
 
   return invoiceNumber;

@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import i18n from '@/lib/i18n';
 import { AppHeader } from '@/components/common/AppHeader';
 import { LoadingView } from '@/components/ui/LoadingView';
@@ -839,7 +840,9 @@ export default function ReportsScreen() {
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const isCapitalEnabled = useCapitalStore((s) => s.isEnabled);
 
-  const [viewMode, setViewMode]               = useState<'grid' | 'list'>('grid');
+  const reportsGridLayout = useSettingsStore((s) => s.reportsGridLayout);
+  const setReportsGridLayout = useSettingsStore((s) => s.setReportsGridLayout);
+  const viewMode: 'grid' | 'list' = reportsGridLayout ? 'grid' : 'list';
   const [isExporting, setIsExporting]         = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -1242,8 +1245,13 @@ export default function ReportsScreen() {
         rightAction={
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 8, alignItems: 'center' }}>
             <HeaderActionButton
-              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-              onPress={() => setViewMode((m) => (m === 'grid' ? 'list' : 'grid'))}
+              icon={reportsGridLayout ? 'list-outline' : 'grid-outline'}
+              onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                } catch {}
+                setReportsGridLayout(!reportsGridLayout);
+              }}
             />
             <HeaderActionButton icon="options-outline" onPress={() => setFilterSheetOpen(true)} />
             <HeaderActionButton icon="download-outline" onPress={() => setExportModalOpen(true)} />

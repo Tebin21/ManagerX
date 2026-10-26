@@ -9,6 +9,8 @@ export interface QuotationItem {
   lineTotal: number;
 }
 
+export type QuotationCurrencyMode = 'both' | 'iqd' | 'usd';
+
 export interface Quotation {
   id: string;
   quotationNumber: string;
@@ -23,9 +25,12 @@ export interface Quotation {
   discountTotal: number;
   grandTotal: number;
   exchangeRate: number;
+  currencyMode?: QuotationCurrencyMode;
   notes?: string;
   validityDays?: number;
   printCount?: number;
   lastPrintedAt?: string;
+  viewCount?: number;
+  lastViewedAt?: string;
   createdAt: string;
 }

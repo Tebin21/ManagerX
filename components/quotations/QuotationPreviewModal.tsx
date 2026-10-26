@@ -24,6 +24,7 @@ interface QuotationPreviewModalProps {
   onClose: () => void;
   onShare: (quotation: Quotation) => void;
   isSharing?: boolean;
+  onDelete?: (quotation: Quotation) => void;
 }
 
 export function QuotationPreviewModal({
@@ -32,6 +33,7 @@ export function QuotationPreviewModal({
   onClose,
   onShare,
   isSharing = false,
+  onDelete,
 }: QuotationPreviewModalProps) {
   const { colors, isDark } = useAppTheme();
   const { isRTL } = useRTL();
@@ -74,8 +76,8 @@ export function QuotationPreviewModal({
               </Text>
               <Text style={{ fontSize: 11, color: colors.gray500, textAlign: 'center', marginTop: 2 }}>
                 {isKuLanguage
-                  ? 'کاڵاکان لە کۆگا کەمنەکراونەتەوە و تەنها وەک پێشنیاری نرخ بەکاردێت.'
-                  : 'No inventory stock has been deducted. Prices are for offer only.'}
+                  ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
+                  : 'All prices are offered for quotation purposes.'}
               </Text>
             </View>
 
@@ -88,31 +90,62 @@ export function QuotationPreviewModal({
                 <IdText size="small">{quotation.quotationNumber}</IdText>
               </View>
 
-              <Text style={[styles.previewVal, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
-                {quotation.customerName || (isKuLanguage ? 'کڕیاری گشتی' : 'Valued Client')}
-              </Text>
-
-              {quotation.customerPhone ? (
-                <Text style={{ fontSize: 11.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-                  📞 {quotation.customerPhone}
-                </Text>
-              ) : null}
-
-              {quotation.customerAddress ? (
-                <Text style={{ fontSize: 11.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-                  📍 {quotation.customerAddress}
-                </Text>
-              ) : null}
-
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: isDark ? colors.gray300 : 'rgba(0,0,0,0.06)' }}>
-                <Text style={{ fontSize: 11, color: colors.gray400 }}>
-                  📅 {quotation.date} {quotation.time ? `• ${quotation.time}` : ''}
-                </Text>
-                {quotation.validityDays ? (
-                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                    ⏳ {isKuLanguage ? `ماوە: ${quotation.validityDays} ڕۆژ` : `Valid: ${quotation.validityDays} days`}
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <Text style={[styles.previewVal, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {quotation.customerName || (isKuLanguage ? 'کڕیاری گشتی' : 'Valued Client')}
                   </Text>
+
+                  {quotation.customerPhone ? (
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <Ionicons name="call-outline" size={13} color={colors.gray400} />
+                      <Text style={{ fontSize: 11.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                        {quotation.customerPhone}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {quotation.customerAddress ? (
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <Ionicons name="location-outline" size={13} color={colors.gray400} />
+                      <Text style={{ fontSize: 11.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                        {quotation.customerAddress}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {quotation.validityDays ? (
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF3C7',
+                      borderWidth: 1.5,
+                      borderColor: colors.primary,
+                      marginHorizontal: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: colors.gray500, marginBottom: 1 }}>
+                      {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
+                    </Text>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.primary }}>
+                      {isKuLanguage ? `${quotation.validityDays} ڕۆژ` : `${quotation.validityDays} Days`}
+                    </Text>
+                  </View>
                 ) : null}
+              </View>
+
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: isDark ? colors.gray300 : 'rgba(0,0,0,0.06)' }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="calendar-outline" size={12} color={colors.gray400} />
+                  <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                    {quotation.date} {quotation.time ? `• ${quotation.time}` : ''}
+                  </Text>
+                </View>
               </View>
 
               {/* Print Status & Count */}
@@ -185,7 +218,7 @@ export function QuotationPreviewModal({
                     ]}
                   >
                     <View style={[styles.indexPill, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}>
-                      <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>
+                      <Text style={{ fontSize: 11, color: colors.black, fontWeight: '700' }}>
                         #{idx + 1}
                       </Text>
                     </View>
@@ -228,16 +261,28 @@ export function QuotationPreviewModal({
             ) : null}
 
             {/* Totals Section (Positioned BELOW Notes as requested) */}
-            <View style={[styles.previewTotals, { borderTopColor: colors.primary, backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
+            <View style={[styles.previewTotals, { borderTopColor: colors.black, backgroundColor: isDark ? colors.gray200 : colors.gray50 }]}>
               {quotation.discountTotal > 0 && (
                 <>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={{ fontSize: 12, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-                    <AmountText value={quotation.subtotal} currency="IQD" variant="small" style={{ color: colors.gray600 }} />
+                    {quotation.currencyMode === 'usd' ? (
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                        ${fmtUSD(quotation.subtotal / (quotation.exchangeRate || 1310))} USD
+                      </Text>
+                    ) : (
+                      <AmountText value={quotation.subtotal} currency="IQD" variant="small" style={{ color: colors.black }} />
+                    )}
                   </View>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={{ fontSize: 12, color: colors.error }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
-                    <AmountText value={quotation.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.error }} />
+                    <Text style={{ fontSize: 12, color: colors.gray600 }}>{isKuLanguage ? 'داشکاندن:' : 'Discount:'}</Text>
+                    {quotation.currencyMode === 'usd' ? (
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                        −${fmtUSD(quotation.discountTotal / (quotation.exchangeRate || 1310))} USD
+                      </Text>
+                    ) : (
+                      <AmountText value={quotation.discountTotal} prefix="−" currency="IQD" variant="small" style={{ color: colors.black }} />
+                    )}
                   </View>
                 </>
               )}
@@ -246,11 +291,17 @@ export function QuotationPreviewModal({
                 <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black }}>
                   {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
-                <AmountText value={quotation.grandTotal} currency="IQD" variant="large" style={{ color: colors.primary, fontWeight: '900' }} />
+                {quotation.currencyMode === 'usd' ? (
+                  <Text style={{ fontSize: 17, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
+                    ${fmtUSD(usdValue)} USD
+                  </Text>
+                ) : (
+                  <AmountText value={quotation.grandTotal} currency="IQD" variant="large" style={{ color: colors.black, fontWeight: '900' }} />
+                )}
               </View>
 
-              {usdValue > 0 && (
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.success, textAlign: isRTL ? 'left' : 'right', marginTop: 4 }}>
+              {(!quotation.currencyMode || quotation.currencyMode === 'both') && usdValue > 0 && (
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'left' : 'right', marginTop: 4 }}>
                   ≈ ${fmtUSD(usdValue)} USD
                 </Text>
               )}
@@ -258,7 +309,22 @@ export function QuotationPreviewModal({
           </ScrollView>
 
           {/* Modal Bottom Actions */}
-          <View style={[styles.modalActions, { borderTopColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.modalActions, { borderTopColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }]}>
+            {onDelete ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => onDelete(quotation)}
+                style={[
+                  styles.deleteModalBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(239,68,68,0.14)' : '#FEE2E2',
+                    borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FCA5A5',
+                  },
+                ]}
+              >
+                <Ionicons name="trash-outline" size={19} color={colors.error} />
+              </TouchableOpacity>
+            ) : null}
             <View style={{ flex: 1 }}>
               <PrimaryButton
                 label={isKuLanguage ? 'هاوبەشکردن و چاپکردنی PDF' : 'Share & Print PDF'}
@@ -344,5 +410,14 @@ const styles = StyleSheet.create({
   modalActions: {
     padding: 14,
     borderTopWidth: 1,
+    alignItems: 'center',
+  },
+  deleteModalBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

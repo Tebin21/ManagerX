@@ -14,10 +14,17 @@ interface SettingsState {
   globalLowStockEnabled:   boolean;
   globalLowStockThreshold: number;
   baseCurrency:            BaseCurrency;
-  settingsGridLayout:      boolean;
-  salesProductGridLayout:  boolean;
-  checkPriceGridLayout:    boolean;
-  historyGridLayout:       boolean;
+  settingsGridLayout:          boolean;
+  salesProductGridLayout:      boolean;
+  quotationProductGridLayout:  boolean;
+  inventoryGridLayout:         boolean;
+  salesHistoryGridLayout:      boolean;
+  purchaseHistoryGridLayout:   boolean;
+  invoicesGridLayout:          boolean;
+  reportsGridLayout:           boolean;
+  expiryGridLayout:            boolean;
+  checkPriceGridLayout:        boolean;
+  historyGridLayout:           boolean;
   dashboardActivityGridLayout: boolean;
   expiryTrackingEnabled:       boolean;
   expiryAlertDays:             number;
@@ -36,10 +43,17 @@ interface SettingsState {
   setGlobalLowStockEnabled:   (val: boolean) => void;
   setGlobalLowStockThreshold: (val: number) => void;
   setBaseCurrency:            (currency: BaseCurrency) => void;
-  setSettingsGridLayout:      (val: boolean) => void;
-  setSalesProductGridLayout:  (val: boolean) => void;
-  setCheckPriceGridLayout:    (val: boolean) => void;
-  setHistoryGridLayout:       (val: boolean) => void;
+  setSettingsGridLayout:          (val: boolean) => void;
+  setSalesProductGridLayout:      (val: boolean) => void;
+  setQuotationProductGridLayout:  (val: boolean) => void;
+  setInventoryGridLayout:         (val: boolean) => void;
+  setSalesHistoryGridLayout:      (val: boolean) => void;
+  setPurchaseHistoryGridLayout:   (val: boolean) => void;
+  setInvoicesGridLayout:          (val: boolean) => void;
+  setReportsGridLayout:           (val: boolean) => void;
+  setExpiryGridLayout:            (val: boolean) => void;
+  setCheckPriceGridLayout:        (val: boolean) => void;
+  setHistoryGridLayout:           (val: boolean) => void;
   setDashboardActivityGridLayout: (val: boolean) => void;
   setExpiryTrackingEnabled:    (val: boolean) => void;
   setExpiryAlertDays:          (val: number) => void;
@@ -83,10 +97,17 @@ export const useSettingsStore = create<SettingsState>()(
       globalLowStockEnabled:   true,
       globalLowStockThreshold: 5,
       baseCurrency:            'IQD',
-      settingsGridLayout:      false,
-      salesProductGridLayout:  false,
-      checkPriceGridLayout:    true,
-      historyGridLayout:       false,
+      settingsGridLayout:          false,
+      salesProductGridLayout:      false,
+      quotationProductGridLayout:  false,
+      inventoryGridLayout:         true,
+      salesHistoryGridLayout:      true,
+      purchaseHistoryGridLayout:   true,
+      invoicesGridLayout:          false,
+      reportsGridLayout:           true,
+      expiryGridLayout:            false,
+      checkPriceGridLayout:        true,
+      historyGridLayout:           false,
       dashboardActivityGridLayout: false,
       expiryTrackingEnabled:       false,
       expiryAlertDays:             30,
@@ -104,10 +125,17 @@ export const useSettingsStore = create<SettingsState>()(
       setGlobalLowStockEnabled:   (val) => { set({ globalLowStockEnabled: val }); notifyPreferencesChanged(); },
       setGlobalLowStockThreshold: (val) => { set({ globalLowStockThreshold: val }); notifyPreferencesChanged(); },
       setBaseCurrency:            (currency) => { set({ baseCurrency: currency }); notifyPreferencesChanged(); },
-      setSettingsGridLayout:      (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
-      setSalesProductGridLayout:  (val) => { set({ salesProductGridLayout: val }); notifyPreferencesChanged(); },
-      setCheckPriceGridLayout:    (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
-      setHistoryGridLayout:       (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
+      setSettingsGridLayout:          (val) => { set({ settingsGridLayout: val }); notifyPreferencesChanged(); },
+      setSalesProductGridLayout:      (val) => { set({ salesProductGridLayout: val }); notifyPreferencesChanged(); },
+      setQuotationProductGridLayout:  (val) => { set({ quotationProductGridLayout: val }); notifyPreferencesChanged(); },
+      setInventoryGridLayout:         (val) => { set({ inventoryGridLayout: val }); notifyPreferencesChanged(); },
+      setSalesHistoryGridLayout:      (val) => { set({ salesHistoryGridLayout: val }); notifyPreferencesChanged(); },
+      setPurchaseHistoryGridLayout:   (val) => { set({ purchaseHistoryGridLayout: val }); notifyPreferencesChanged(); },
+      setInvoicesGridLayout:          (val) => { set({ invoicesGridLayout: val }); notifyPreferencesChanged(); },
+      setReportsGridLayout:           (val) => { set({ reportsGridLayout: val }); notifyPreferencesChanged(); },
+      setExpiryGridLayout:            (val) => { set({ expiryGridLayout: val }); notifyPreferencesChanged(); },
+      setCheckPriceGridLayout:        (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
+      setHistoryGridLayout:           (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
       setShowSalesInvoicePreview:  (val) => { set({ showSalesInvoicePreview: val }); notifyPreferencesChanged(); },
       setCheckoutGridExpandedPurchase: (val) => { set({ checkoutGridExpandedPurchase: val }); notifyPreferencesChanged(); },
@@ -152,10 +180,17 @@ export const useSettingsStore = create<SettingsState>()(
           globalLowStockEnabled:   p?.globalLowStockEnabled   ?? true,
           globalLowStockThreshold: p?.globalLowStockThreshold ?? 5,
           baseCurrency:            (p?.baseCurrency === 'USD' ? 'USD' : 'IQD') as BaseCurrency,
-          settingsGridLayout:      p?.settingsGridLayout ?? false,
-          salesProductGridLayout:  p?.salesProductGridLayout ?? false,
-          checkPriceGridLayout:    p?.checkPriceGridLayout ?? true,
-          historyGridLayout:       p?.historyGridLayout ?? false,
+          settingsGridLayout:          p?.settingsGridLayout ?? false,
+          salesProductGridLayout:      p?.salesProductGridLayout ?? false,
+          quotationProductGridLayout:  p?.quotationProductGridLayout ?? (p?.salesProductGridLayout ?? false),
+          inventoryGridLayout:         p?.inventoryGridLayout ?? true,
+          salesHistoryGridLayout:      p?.salesHistoryGridLayout ?? true,
+          purchaseHistoryGridLayout:   p?.purchaseHistoryGridLayout ?? true,
+          invoicesGridLayout:          p?.invoicesGridLayout ?? false,
+          reportsGridLayout:           p?.reportsGridLayout ?? true,
+          expiryGridLayout:            p?.expiryGridLayout ?? false,
+          checkPriceGridLayout:        p?.checkPriceGridLayout ?? true,
+          historyGridLayout:           p?.historyGridLayout ?? false,
           dashboardActivityGridLayout: p?.dashboardActivityGridLayout ?? false,
           expiryTrackingEnabled:       p?.expiryTrackingEnabled ?? false,
           expiryAlertDays:             p?.expiryAlertDays ?? 30,
@@ -172,3 +207,25 @@ export const useSettingsStore = create<SettingsState>()(
     }
   )
 );
+
+// One-time graceful migration from legacy standalone AsyncStorage keys
+(async () => {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const invMode = await AsyncStorage.getItem('@froshiar_inventory_view_mode');
+    if (invMode === 'grid' || invMode === 'list') {
+      const raw = await AsyncStorage.getItem('@froshiar_settings');
+      if (!raw || !JSON.parse(raw)?.state?.hasOwnProperty('inventoryGridLayout')) {
+        useSettingsStore.setState({ inventoryGridLayout: invMode === 'grid' });
+      }
+    }
+    const salesMode = await AsyncStorage.getItem('@froshiar_sales_history_view_mode');
+    if (salesMode === 'grid' || salesMode === 'list') {
+      const raw = await AsyncStorage.getItem('@froshiar_settings');
+      if (!raw || !JSON.parse(raw)?.state?.hasOwnProperty('salesHistoryGridLayout')) {
+        useSettingsStore.setState({ salesHistoryGridLayout: salesMode === 'grid' });
+      }
+    }
+  } catch { /* non-critical migration */ }
+})();
+
