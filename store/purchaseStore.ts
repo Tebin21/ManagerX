@@ -52,6 +52,9 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     const purchaseNumber = await generatePurchaseNumber();
 
     const totalIQD  = input.quantity * input.buyPriceIQD;
+    if (totalIQD <= 0 || input.buyPriceIQD <= 0) {
+      throw new Error('ZERO_PURCHASE_PRICE_NOT_ALLOWED');
+    }
     const profitIQD = (input.sellPriceIQD - input.buyPriceIQD) * input.quantity;
 
     // Snapshot the current rate at the moment of purchase creation.

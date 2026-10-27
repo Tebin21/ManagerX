@@ -69,6 +69,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const discountTotal = cart.discountTotal();
     const globalDiscountAmount = cart.globalDiscountAmount();
     const grandTotal = cart.grandTotal();
+    if (grandTotal <= 0) {
+      throw new Error('ZERO_TOTAL_NOT_ALLOWED');
+    }
     const { baseCurrency, exchangeRate: rateSetting } = useSettingsStore.getState();
     const isUSD = baseCurrency === 'USD';
     const exchangeRateUsed = rateSetting || 1310;

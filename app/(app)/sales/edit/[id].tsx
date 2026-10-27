@@ -273,6 +273,27 @@ export default function EditInvoiceScreen() {
       return;
     }
 
+    if (grandTotal <= 0) {
+      Alert.alert(
+        isKuLanguage ? 'نرخی پسوڵە ناتوانێت سفر بێت' : t('common.error'),
+        isKuLanguage
+          ? 'پسوڵەی فرۆشتن نابێت بێ نرخ (سفر) بێت. تکایە نرخی بەرهەمەکان دیاری بکە.'
+          : 'Sale invoice total cannot be zero.'
+      );
+      return;
+    }
+
+    const zeroPriceItem = items.find((i) => i.sellingPrice <= 0);
+    if (zeroPriceItem) {
+      Alert.alert(
+        isKuLanguage ? 'نرخی کاڵا دیاری نەکراوە' : t('common.error'),
+        isKuLanguage
+          ? `کاڵای «${zeroPriceItem.productName}» نرخی سفرە. پسوڵە نابێت بە نرخی سفر تەواو بکرێت.`
+          : `Item "${zeroPriceItem.productName}" has zero price. Invoices cannot be completed with zero price.`
+      );
+      return;
+    }
+
     if (paymentMethod === 'debt' && rawPaidNum > 0 && (rawPaidNum > maxDownPayment || rawPaidIQD >= grandTotal)) {
       Alert.alert(t('common.error'), t('sales.validationAmountPaidDebt'));
       return;

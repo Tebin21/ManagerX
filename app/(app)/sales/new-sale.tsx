@@ -263,6 +263,40 @@ export default function NewSaleScreen() {
       return;
     }
 
+    const total = cart.grandTotal();
+    if (total <= 0) {
+      Alert.alert(
+        isKuLanguage ? 'نرخی پسوڵە ناتوانێت سفر بێت' : t('common.error'),
+        isKuLanguage
+          ? 'پسوڵەی فرۆشتن نابێت بێ نرخ (سفر) بێت. تکایە نرخی بەرهەمەکان دیاری بکە.'
+          : 'Sale invoice total cannot be zero. Please enter product prices.'
+      );
+      return;
+    }
+
+    const zeroPriceItem = cart.items.find((i) => i.sellingPrice <= 0);
+    if (zeroPriceItem) {
+      Alert.alert(
+        isKuLanguage ? 'نرخی کاڵا دیاری نەکراوە' : t('common.error'),
+        isKuLanguage
+          ? `کاڵای «${zeroPriceItem.product.name}» نرخی سفرە. پسوڵە نابێت بە نرخی سفر تەواو بکرێت.`
+          : `Item "${zeroPriceItem.product.name}" has zero price. Invoices cannot be completed with zero price.`
+      );
+      return;
+    }
+
+    if (cart.paymentMethod === 'cash' || cart.paymentMethod === 'fib') {
+      if (total <= 0) {
+        Alert.alert(
+          isKuLanguage ? 'پسوڵەی کاش نابێت سفر بێت' : t('common.error'),
+          isKuLanguage
+            ? 'بە کاش پسوڵەی سفرمان نییە. تکایە نرخی بەرهەمەکان بنووسە.'
+            : 'Cash invoices cannot be zero.'
+        );
+        return;
+      }
+    }
+
     const isDirectCust = isDirectCustomerName(cart.customerInput.name);
     const nameVal = cart.customerInput.name.trim();
     const phoneVal = cart.customerInput.phone.trim();

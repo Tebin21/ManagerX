@@ -50,7 +50,7 @@ import {
   DIRECT_CUSTOMER_NAME,
   ensureDirectCustomer,
 } from '@/lib/sqlite';
-import { fmtIQD, fmtUSD, formatTime, sanitizeNumericInput } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatTime, sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -411,6 +411,20 @@ export default function SalesQuotationScreen() {
       Alert.alert(
         isKuLanguage ? 'سەبەتە بەتاڵە' : 'Cart Empty',
         isKuLanguage ? 'تکایە لانیکەم یەک بەرهەم دیاری بکە.' : 'Please add at least one product.'
+      );
+      return;
+    }
+
+    // Validation: Quotation invoice CANNOT be zero or have zero price items
+    const zeroPriceItem = items.find((i) => !i.unitPrice || i.unitPrice <= 0);
+    if (zeroPriceItem || grandTotal <= 0) {
+      Alert.alert(
+        isKuLanguage ? 'نرخ دیاری نەکراوە' : 'Price Required',
+        isKuLanguage
+          ? zeroPriceItem
+            ? `تکایە نرخی بەرهەمی «${zeroPriceItem.productName}» بنووسە. وەسڵی عەرز نابێت بێ نرخ (سفر) بێت.`
+            : 'وەسڵی عەرز نابێت بێ نرخ (سفر) بێت. تکایە نرخی کاڵاکان بنووسە بۆ تەواوکردنی وەسڵ.'
+          : 'Quotation invoice cannot be zero or empty. Please enter prices for all items.'
       );
       return;
     }
@@ -790,10 +804,46 @@ export default function SalesQuotationScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Unit Price Display */}
-              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray400 }}>{isKuLanguage ? 'نرخی تاک:' : 'Unit Price:'}</Text>
-                <AmountText value={it.unitPrice} currency="IQD" variant="small" style={{ fontWeight: '700', color: colors.black, fontSize: isTablet ? 15 : undefined }} />
+              {/* Unit Price Input */}
+              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start', minWidth: isTablet ? 120 : 96 }}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={{ fontSize: isTablet ? 12 : 10, color: it.unitPrice <= 0 ? colors.error : colors.gray400, fontWeight: it.unitPrice <= 0 ? '700' : 'normal' }}>
+                    {isKuLanguage ? 'نرخی تاک:' : 'Unit Price:'}
+                  </Text>
+                  {it.unitPrice <= 0 && (
+                    <Text style={{ fontSize: 9, color: colors.error, fontWeight: '700' }}>
+                      {isKuLanguage ? '(پێویستە)' : '(Required)'}
+                    </Text>
+                  )}
+                </View>
+                <View
+                  style={[
+                    styles.priceInputWrap,
+                    isTablet && { minWidth: 120, height: 36, paddingHorizontal: 8 },
+                    {
+                      borderColor: it.unitPrice <= 0 ? colors.error : (isDark ? colors.gray300 : '#CBD5E1'),
+                      backgroundColor: isDark ? colors.gray300 : colors.white,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <TextInput
+                    style={[
+                      styles.priceTextInput,
+                      isTablet && { fontSize: 14.5 },
+                      { color: it.unitPrice <= 0 ? colors.error : colors.black, textAlign: isRTL ? 'right' : 'left' },
+                    ]}
+                    value={it.unitPrice > 0 ? String(it.unitPrice) : ''}
+                    placeholder="0"
+                    placeholderTextColor={colors.gray400}
+                    keyboardType="numeric"
+                    onChangeText={(text) => {
+                      const clean = parseFloat(toEnglishDigits(text).replace(/,/g, '')) || 0;
+                      handleUpdateItemPrice(it.productId, clean);
+                    }}
+                  />
+                  <Text style={[styles.priceCurrencySuffix, { color: colors.primary }]}>IQD</Text>
+                </View>
               </View>
 
               {/* Line Total */}
@@ -2128,6 +2178,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 18,
     textAlign: 'center',
+  },
+  priceInputWrap: {
+    borderWidth: 1,
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    height: 30,
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    minWidth: 86,
+  },
+  priceTextInput: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    minWidth: 46,
+    padding: 0,
+    margin: 0,
+    flex: 1,
+  },
+  priceCurrencySuffix: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   discountHeaderIconWrap: {
     width: 32,

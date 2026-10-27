@@ -799,6 +799,24 @@ export default function NewPurchaseScreen() {
       Alert.alert(t('common.required'), t('purchases.validationBuyPrice'));
       return false;
     }
+    if (sellIQDNum <= 0) {
+      Alert.alert(
+        t('common.required'),
+        isKuLanguage
+          ? 'تکایە نرخی فرۆشتن بنووسە. کاڵا ناتوانێت بێ نرخی فرۆشتن (سفر) تۆمار بکرێت.'
+          : 'Please enter selling price. Products cannot be saved with zero sell price.'
+      );
+      return false;
+    }
+    if (totalIQD <= 0) {
+      Alert.alert(
+        isKuLanguage ? 'کۆی وەسڵ ناتوانێت سفر بێت' : t('common.error'),
+        isKuLanguage
+          ? 'وەسڵی کڕین نابێت بێ نرخ (سفر) بێت. تکایە نرخ و بڕی دروست بنووسە.'
+          : 'Purchase bill total cannot be zero.'
+      );
+      return false;
+    }
     if (!idType) {
       Alert.alert(t('common.required'), t('purchases.validationIdType'));
       return false;
