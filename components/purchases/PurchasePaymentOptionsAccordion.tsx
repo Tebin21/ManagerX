@@ -894,7 +894,8 @@ export function PurchasePaymentOptionsAccordion({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
+    marginTop: 10,
+    marginBottom: 6,
   },
   headerButton: {
     alignItems: 'center',

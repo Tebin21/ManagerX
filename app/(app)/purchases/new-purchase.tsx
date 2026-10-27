@@ -3463,7 +3463,7 @@ const styles = StyleSheet.create({
   payBtnText: { fontSize: 13, fontWeight: '700' },
 
   textarea: { height: 80, textAlignVertical: 'top', paddingTop: 12 },
-  actions:  { gap: 10 },
+  actions:  { marginTop: 22, gap: 12 },
 
   drawerCardHeader: {
     alignItems: 'center',
