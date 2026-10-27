@@ -55,8 +55,8 @@ interface BarcodeScannerModalProps {
   title?: string;
   subtitle?: string;
   initialCodes?: string[];
-  // Single mode callback:
-  onScanSingle?: (code: string) => void;
+  // Single mode callback (return false to reject / show duplicate warning):
+  onScanSingle?: (code: string) => boolean | void | Promise<boolean | void>;
   // Multi mode callback: returns whether the item was matched/added
   onScanMulti?: (code: string) => Promise<{ success: boolean; title?: string; message?: string } | boolean>;
   // Batch IDs mode callback (for Purchases):
@@ -170,10 +170,26 @@ export function BarcodeScannerModal({
     lastScannedCode.current = rawCode;
 
     if (mode === 'single') {
+      if (onScanSingle) {
+        const scanRes = await onScanSingle(rawCode);
+        if (scanRes === false) {
+          try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch {}
+          setLastScannedFeedback({
+            text: isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${rawCode}` : `Duplicate ID: ${rawCode}`,
+            type: 'warning',
+          });
+          if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
+          feedbackTimeout.current = setTimeout(() => {
+            setLastScannedFeedback(null);
+          }, 3000);
+          return;
+        }
+      }
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
-      onScanSingle?.(rawCode);
       onClose();
       return;
     }
@@ -258,10 +274,26 @@ export function BarcodeScannerModal({
     setShowManualInput(false);
     setManualCode('');
     if (mode === 'single') {
+      if (onScanSingle) {
+        const scanRes = await onScanSingle(trimmed);
+        if (scanRes === false) {
+          try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch {}
+          setLastScannedFeedback({
+            text: isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${trimmed}` : `Duplicate ID: ${trimmed}`,
+            type: 'warning',
+          });
+          if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
+          feedbackTimeout.current = setTimeout(() => {
+            setLastScannedFeedback(null);
+          }, 3000);
+          return;
+        }
+      }
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {}
-      onScanSingle?.(trimmed);
       onClose();
     } else if (mode === 'batch_ids') {
       if (batchCodes.includes(trimmed)) {

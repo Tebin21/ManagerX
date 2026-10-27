@@ -378,9 +378,38 @@ export default function NewPurchaseScreen() {
     return null;
   };
 
-  const handleScanSingle = (code: string) => {
+  const handleScanSingle = (code: string): boolean => {
     const cleanCode = toEnglishDigits(code).trim();
-    if (!cleanCode) return;
+    if (!cleanCode) return false;
+
+    // Check if this ID is already assigned to another item slot in custom ID mode
+    if (targetCustomIdx !== null) {
+      const duplicateIdx = customIds.findIndex(
+        (id, idx) => idx !== targetCustomIdx && id.trim().toLowerCase() === cleanCode.toLowerCase()
+      );
+      if (duplicateIdx !== -1) {
+        Alert.alert(
+          isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
+          isKuLanguage
+            ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ ئایتەمی #${duplicateIdx + 1} دانراوە.\nبۆ ڕێگری لە هەڵە، تکایە ئایدییەکی جیاواز بۆ ئەم ئایتەمە بەکاربهێنە.`
+            : `This barcode (${cleanCode}) is already assigned to Item #${duplicateIdx + 1}.\nTo prevent errors, please use a unique ID for this item.`
+        );
+        return false;
+      }
+    } else if (idType === 'custom') {
+      const duplicateIdx = customIds.findIndex(
+        (id) => id.trim().toLowerCase() === cleanCode.toLowerCase()
+      );
+      if (duplicateIdx !== -1) {
+        Alert.alert(
+          isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
+          isKuLanguage
+            ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ ئایتەمی #${duplicateIdx + 1} دانراوە.\nبۆ ڕێگری لە هەڵە، تکایە ئایدییەکی جیاواز بەکاربهێنە.`
+            : `This barcode (${cleanCode}) is already assigned to Item #${duplicateIdx + 1}.\nTo prevent errors, please use a unique ID.`
+        );
+        return false;
+      }
+    }
 
     const matched = findProductPresetByCode(cleanCode);
 
@@ -397,7 +426,7 @@ export default function NewPurchaseScreen() {
           setIdType('shared');
           setSharedId(cleanCode);
         }
-        return;
+        return true;
       }
 
       // Case 2: Name is already filled with a DIFFERENT product name!
@@ -423,7 +452,7 @@ export default function NewPurchaseScreen() {
           },
         ]
       );
-      return;
+      return false;
     }
 
     // New unknown barcode
@@ -438,6 +467,7 @@ export default function NewPurchaseScreen() {
         updateCustomId(idx, cleanCode);
       }
     }
+    return true;
   };
 
   const handleSharedIdBlur = () => {
@@ -475,10 +505,32 @@ export default function NewPurchaseScreen() {
       setSharedId(codes[0]);
       return;
     }
-    // Multiple codes or custom ID mode
+    // Filter out duplicates to guarantee unique custom IDs
+    const uniqueCodes: string[] = [];
+    const seen = new Set<string>();
+    let hasDuplicates = false;
+    for (const c of codes) {
+      const trimmed = c.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) {
+        hasDuplicates = true;
+      } else {
+        seen.add(key);
+        uniqueCodes.push(trimmed);
+      }
+    }
+    if (hasDuplicates) {
+      Alert.alert(
+        isKuLanguage ? 'ئایدیی دووبارە لابرا' : 'Duplicate IDs Excluded',
+        isKuLanguage
+          ? 'ئەو ئایدییە دووبارانەی لە سکاندا هەبوون بە شێوەی خۆکار لابردران بۆ ئەوەی هیچ هەڵەیەک ڕوونەدات.'
+          : 'Duplicate IDs detected during batch scanning were automatically excluded to prevent errors.'
+      );
+    }
     setIdType('custom');
-    setQty(String(codes.length));
-    setCustomIds(codes);
+    setQty(String(Math.max(1, uniqueCodes.length)));
+    setCustomIds(uniqueCodes.length > 0 ? uniqueCodes : ['']);
   };
 
   const removeCustomIdSlot = (idx: number) => {
@@ -764,6 +816,24 @@ export default function NewPurchaseScreen() {
             : `ID (${sharedId.trim()}) is dedicated to "${conflict.name}" and cannot be used for "${productName.trim()}".`
         );
         return false;
+      }
+    }
+    if (idType === 'custom') {
+      const seen = new Map<string, number>();
+      for (let i = 0; i < customIds.length; i++) {
+        const code = customIds[i]?.trim().toLowerCase();
+        if (!code) continue;
+        if (seen.has(code)) {
+          const firstIdx = seen.get(code)!;
+          Alert.alert(
+            isKuLanguage ? 'ئایدیی دووبارە هەیە' : 'Duplicate Item ID',
+            isKuLanguage
+              ? `ئایدیی (${customIds[i].trim()}) لە نێوان ئایتەمی #${firstIdx + 1} و ئایتەمی #${i + 1} دووبارەیە.\nتکایە بۆ ڕێگری لە هەڵە، بۆ هەر ئایتەمێک ئایدییەکی جیاواز دابنێ.`
+              : `ID (${customIds[i].trim()}) is duplicated between Item #${firstIdx + 1} and Item #${i + 1}.\nPlease provide a unique ID for each item.`
+          );
+          return false;
+        }
+        seen.set(code, i);
       }
     }
     if (paymentStatus === 'debt') {
@@ -1661,7 +1731,7 @@ export default function NewPurchaseScreen() {
       {idType === 'custom' && (
         <View style={styles.customIdsContainer}>
           <View style={[styles.customIdsHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+            <View style={[styles.customIdsHeaderTitleWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Ionicons name="barcode" size={17} color={colors.primary} />
               <Text
                 numberOfLines={1}
@@ -1687,7 +1757,7 @@ export default function NewPurchaseScreen() {
               ]}
               activeOpacity={0.7}
             >
-              <Ionicons name="add" size={14} color={colors.primary} />
+              <Ionicons name="add" size={15} color={colors.primary} />
               <Text
                 style={[
                   styles.addSlotBtnText,
@@ -1700,167 +1770,212 @@ export default function NewPurchaseScreen() {
             </TouchableOpacity>
           </View>
 
-          {Array.from({ length: qtyNum }, (_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.customIdCardBox,
-                {
-                  backgroundColor: isDark ? colors.gray100 : '#F8FAFC',
-                  borderColor: isDark ? colors.gray200 : colors.gray200,
-                },
-              ]}
-            >
-              {/* Card Header Row: Item Badge on Right (in RTL), Action Buttons on Left */}
+          {Array.from({ length: qtyNum }, (_, i) => {
+            const rawVal = customIds[i] ?? '';
+            const cleanVal = rawVal.trim().toLowerCase();
+            const isDuplicate = Boolean(cleanVal) && customIds.some((otherVal, otherIdx) => otherIdx !== i && otherVal.trim().toLowerCase() === cleanVal);
+
+            return (
               <View
+                key={i}
                 style={[
-                  styles.customIdCardHeader,
-                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.customIdCardTitleGroup,
-                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                  ]}
-                >
-                  <View style={[styles.customIdBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.customIdCardTitle,
-                      { color: colors.black },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                    ]}
-                  >
-                    {isKuLanguage ? `ئایتەمی #${i + 1}` : `Item #${i + 1}`}
-                  </Text>
-                </View>
-
-                {/* Actions group: Scan, Generate, Delete */}
-                <View
-                  style={[
-                    styles.customIdActionsGroup,
-                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                  ]}
-                >
-                  <TouchableOpacity
-                    onPress={() => handleOpenScanner(i)}
-                    style={[
-                      styles.itemActionBtn,
-                      { borderColor: colors.primary, backgroundColor: colors.softBlue },
-                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="barcode-outline" size={14} color={colors.primary} />
-                    <Text
-                      style={[
-                        styles.itemActionBtnText,
-                        { color: colors.primary },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {isKuLanguage ? 'سکان' : 'Scan'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <GenerateIdButton
-                    loading={generatingCustomIdxs.has(i)}
-                    onPress={() => handleGenerateCustomId(i)}
-                  />
-
-                  {qtyNum > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeCustomIdSlot(i)}
-                      style={[
-                        styles.customIdDeleteBtn,
-                        {
-                          backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEE2E2',
-                          borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
-                        },
-                      ]}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={14} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Full-width Spacious Input Row */}
-              <View
-                style={[
-                  styles.customIdInputWrapNew,
+                  styles.customIdCardBox,
                   {
-                    borderColor: colors.gray200,
-                    backgroundColor: colors.white,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    backgroundColor: isDark ? colors.gray100 : '#F8FAFC',
+                    borderColor: isDuplicate ? colors.error : (isDark ? colors.gray200 : colors.gray200),
                   },
                 ]}
               >
-                <View style={[styles.customIdInputIconBox, { backgroundColor: colors.softBlue }]}>
-                  <Ionicons name="qr-code-outline" size={17} color={colors.primary} />
-                </View>
-                <View style={styles.customIdInputInner}>
-                  <TextInput
+                {/* Card Header Row: Item Badge on Right (in RTL), Action Buttons on Left */}
+                <View
+                  style={[
+                    styles.customIdCardHeader,
+                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                  ]}
+                >
+                  <View
                     style={[
-                      styles.customIdInputNew,
-                      {
-                        color: colors.black,
-                        textAlign: isRTL ? 'right' : 'left',
-                        writingDirection: isRTL ? 'rtl' : 'ltr',
-                        fontFamily: (customIds[i] && resolveInputIsKurdish({ isKuLanguage, value: customIds[i] }))
-                          ? SETTINGS_KURDISH_FONT_BOLD
-                          : resolveInterFont('600'),
-                      },
+                      styles.customIdCardTitleGroup,
+                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
                     ]}
-                    value={customIds[i] ?? ''}
-                    onChangeText={(val) => updateCustomId(i, toEnglishDigits(val))}
-                    returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
-                    onFocus={scrollIntoView}
-                  />
-                  {!customIds[i] && (
-                    <View
-                      pointerEvents="none"
+                  >
+                    <View style={[styles.customIdBadge, { backgroundColor: isDuplicate ? colors.error : colors.primary }]}>
+                      <Text style={[styles.customIdBadgeText, { color: colors.white }]}>{i + 1}</Text>
+                    </View>
+                    <Text
+                      numberOfLines={1}
                       style={[
-                        styles.customIdPlaceholderOverlay,
-                        {
-                          alignItems: isRTL ? 'flex-end' : 'flex-start',
-                          justifyContent: 'center',
-                        },
+                        styles.customIdCardTitle,
+                        { color: isDuplicate ? colors.error : colors.black },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
+                      {isKuLanguage ? `ئایتەمی #${i + 1}` : `Item #${i + 1}`}
+                    </Text>
+                  </View>
+
+                  {/* Actions group: Scan, Generate, Delete */}
+                  <View
+                    style={[
+                      styles.customIdActionsGroup,
+                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleOpenScanner(i)}
+                      style={[
+                        styles.itemActionBtn,
+                        { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                        { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="barcode-outline" size={14} color={colors.primary} />
                       <Text
-                        numberOfLines={1}
                         style={[
-                          styles.customIdPlaceholderText,
+                          styles.itemActionBtnText,
+                          { color: colors.primary },
+                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {isKuLanguage ? 'سکان' : 'Scan'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <GenerateIdButton
+                      loading={generatingCustomIdxs.has(i)}
+                      onPress={() => handleGenerateCustomId(i)}
+                    />
+
+                    {qtyNum > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removeCustomIdSlot(i)}
+                        style={[
+                          styles.customIdDeleteBtn,
                           {
-                            color: colors.gray400,
-                            textAlign: isRTL ? 'right' : 'left',
-                            writingDirection: isRTL ? 'rtl' : 'ltr',
+                            backgroundColor: isDark ? hexToRgba(colors.error, 0.15) : '#FEE2E2',
+                            borderColor: isDark ? hexToRgba(colors.error, 0.35) : '#FECACA',
+                          },
+                        ]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Full-width Spacious Input Row */}
+                <View
+                  style={[
+                    styles.customIdInputWrapNew,
+                    {
+                      borderColor: isDuplicate ? colors.error : colors.gray200,
+                      backgroundColor: isDuplicate
+                        ? (isDark ? hexToRgba(colors.error, 0.08) : '#FEF2F2')
+                        : colors.white,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.customIdInputIconBox,
+                      { backgroundColor: isDuplicate ? hexToRgba(colors.error, 0.15) : colors.softBlue },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isDuplicate ? 'alert-circle' : 'qr-code-outline'}
+                      size={17}
+                      color={isDuplicate ? colors.error : colors.primary}
+                    />
+                  </View>
+                  <View style={styles.customIdInputInner}>
+                    <TextInput
+                      style={[
+                        styles.customIdInputNew,
+                        {
+                          color: isDuplicate ? colors.error : colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                          writingDirection: isRTL ? 'rtl' : 'ltr',
+                          fontFamily: (rawVal && resolveInputIsKurdish({ isKuLanguage, value: rawVal }))
+                            ? SETTINGS_KURDISH_FONT_BOLD
+                            : resolveInterFont('600'),
+                        },
+                      ]}
+                      value={rawVal}
+                      onChangeText={(val) => updateCustomId(i, toEnglishDigits(val))}
+                      returnKeyType={i < qtyNum - 1 ? 'next' : 'done'}
+                      onFocus={scrollIntoView}
+                    />
+                    {!rawVal && (
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.customIdPlaceholderOverlay,
+                          {
+                            alignItems: isRTL ? 'flex-end' : 'flex-start',
+                            justifyContent: 'center',
                           },
                         ]}
                       >
-                        {isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
-                      </Text>
-                    </View>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.customIdPlaceholderText,
+                            {
+                              color: colors.gray400,
+                              textAlign: isRTL ? 'right' : 'left',
+                              writingDirection: isRTL ? 'rtl' : 'ltr',
+                            },
+                          ]}
+                        >
+                          {isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {Boolean(rawVal) && (
+                    <TouchableOpacity
+                      onPress={() => updateCustomId(i, '')}
+                      style={styles.customIdClearIcon}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={18} color={isDuplicate ? colors.error : colors.gray400} />
+                    </TouchableOpacity>
                   )}
                 </View>
-                {Boolean(customIds[i]) && (
-                  <TouchableOpacity
-                    onPress={() => updateCustomId(i, '')}
-                    style={styles.customIdClearIcon}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+
+                {/* Duplicate warning tag if duplicate */}
+                {isDuplicate && (
+                  <View
+                    style={[
+                      styles.customIdDuplicateTag,
+                      {
+                        backgroundColor: isDark ? hexToRgba(colors.error, 0.12) : '#FEF2F2',
+                        borderColor: isDark ? hexToRgba(colors.error, 0.3) : '#FECACA',
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
                   >
-                    <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                  </TouchableOpacity>
+                    <Ionicons name="alert-circle" size={14} color={colors.error} />
+                    <Text
+                      style={[
+                        styles.customIdDuplicateTagText,
+                        { color: colors.error },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKuLanguage
+                        ? 'ئەم ئایدییە دووبارەیە! پێشتر لە ئایتەمێکی تردا دانراوە.'
+                        : 'Duplicate ID! Already assigned to another item.'}
+                    </Text>
+                  </View>
                 )}
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
         </>
@@ -2836,7 +2951,7 @@ export default function NewPurchaseScreen() {
         title={isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
         subtitle={
           targetCustomIdx !== null
-            ? (isKuLanguage ? 'کۆد بۆ ئەم بەرهەمە سکان بکە' : 'Scan barcode for this item')
+            ? (isKuLanguage ? `کۆد بۆ ئایتەمی #${targetCustomIdx + 1} سکان بکە` : `Scan barcode for item #${targetCustomIdx + 1}`)
             : (isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
         }
         initialCodes={
@@ -2864,7 +2979,8 @@ function GenerateIdButton({
 }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { flexDirection } = useRTL();
+  const { isRTL } = useRTL();
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -2876,16 +2992,22 @@ function GenerateIdButton({
           backgroundColor: colors.softBlue,
           borderColor:     colors.primary,
           opacity:         loading ? 0.5 : 1,
-          flexDirection,
+          flexDirection:   isRTL ? 'row-reverse' : 'row',
         },
       ]}
     >
       {loading ? (
         <ActivityIndicator size={12} color={colors.primary} />
       ) : (
-        <Ionicons name="dice-outline" size={15} color={colors.primary} />
+        <Ionicons name="dice-outline" size={14} color={colors.primary} />
       )}
-      <Text style={[genBtnStyles.label, { color: colors.primary }]}>
+      <Text
+        style={[
+          genBtnStyles.label,
+          { color: colors.primary },
+          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+        ]}
+      >
         {t('purchases.generateId')}
       </Text>
     </TouchableOpacity>
@@ -2894,15 +3016,20 @@ function GenerateIdButton({
 
 const genBtnStyles = StyleSheet.create({
   btn: {
-    flexDirection:     'row',
     alignItems:        'center',
+    justifyContent:    'center',
     gap:               3.5,
     height:            30,
-    paddingHorizontal: 7,
-    borderRadius:      7,
+    paddingHorizontal: 8,
+    borderRadius:      8,
     borderWidth:       1.2,
+    flexShrink:        0,
   },
-  label: { fontSize: 11, fontWeight: '700' },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
 });
 
 const styles = StyleSheet.create({
@@ -3096,7 +3223,7 @@ const styles = StyleSheet.create({
   },
   idTypeBtnText:       { fontSize: 14, fontWeight: '600' },
 
-  customIdsContainer: { marginBottom: 4 },
+  customIdsContainer: { marginBottom: 6 },
   customIdRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   customIdBadge: {
     width:          24,
@@ -3104,32 +3231,41 @@ const styles = StyleSheet.create({
     borderRadius:   12,
     alignItems:     'center',
     justifyContent: 'center',
+    flexShrink:     0,
   },
   customIdBadgeText: { fontSize: 11, fontWeight: '700' },
   customIdsHeader: {
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 8,
+    columnGap: 8,
     marginBottom: 10,
     marginTop: 6,
-    gap: 8,
+  },
+  customIdsHeaderTitleWrap: {
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
   },
   customIdsHeaderTitle: {
     fontSize: 13,
     fontWeight: '700',
   },
   addSlotBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
-    borderRadius: 7,
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1.2,
-    gap: 3,
+    gap: 4,
     flexShrink: 0,
   },
   addSlotBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
+    includeFontPadding: false,
   },
   customIdCardBox: {
     borderRadius: 16,
@@ -3141,40 +3277,44 @@ const styles = StyleSheet.create({
   customIdCardHeader: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    flexWrap: 'wrap',
+    rowGap: 8,
+    columnGap: 8,
   },
   customIdCardTitleGroup: {
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
     flexShrink: 1,
   },
   customIdCardTitle: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   customIdActionsGroup: {
     alignItems: 'center',
-    gap: 5,
+    flexWrap: 'wrap',
+    gap: 6,
     flexShrink: 0,
   },
   itemActionBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 3.5,
     height: 30,
-    paddingHorizontal: 7,
-    borderRadius: 7,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     borderWidth: 1.2,
+    flexShrink: 0,
   },
   itemActionBtnText: {
     fontSize: 11,
     fontWeight: '700',
+    includeFontPadding: false,
   },
   customIdInputWrapNew: {
     height: 48,
     borderWidth: 1.5,
     borderRadius: 12,
-    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     overflow: 'hidden',
@@ -3186,6 +3326,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   customIdInputInner: {
     flex: 1,
@@ -3200,6 +3341,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingVertical: 0,
     paddingHorizontal: 2,
+    includeFontPadding: false,
   },
   customIdPlaceholderOverlay: {
     position: 'absolute',
@@ -3211,6 +3353,7 @@ const styles = StyleSheet.create({
   },
   customIdPlaceholderText: {
     fontSize: 13.5,
+    includeFontPadding: false,
   },
   customIdInputWrap: {
     flex: 1,
@@ -3236,8 +3379,23 @@ const styles = StyleSheet.create({
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 7,
+    borderRadius: 8,
     borderWidth: 1,
+    flexShrink: 0,
+  },
+  customIdDuplicateTag: {
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: -2,
+  },
+  customIdDuplicateTagText: {
+    fontSize: 11.5,
+    flexShrink: 1,
+    includeFontPadding: false,
   },
 
   scanBarcodeBanner: {
