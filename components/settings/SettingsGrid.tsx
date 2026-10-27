@@ -393,26 +393,19 @@ export function SettingsGrid({
     </View>
   );
 
-  // 4. Data & Cloud Sync Section (Right Column - Row 3)
+  // 4. Data & Backup Section (Right Column - Row 3)
   const sectionData = (
     <View style={styles.sectionWrap}>
       <Text style={[styles.sectionTitle, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-        {isKu ? 'داتا و هاوکاتکردن' : t('settings.data').toUpperCase()}
+        {isKu ? 'داتا و باکئەپ' : t('settings.data').toUpperCase()}
       </Text>
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <SettingsGridTile
           icon="server"
           color={tileColors.data}
           title={isKu ? 'داتا و باکئەپ' : 'Data & Backup'}
-          sub={isKu ? 'کلاود و باکئەپ' : 'Cloud Sync & Data'}
+          sub={isKu ? 'هەڵگرتن و گەڕاندنەوەی داتا' : 'Backup & Restore Data'}
           onPress={() => router.push('/(app)/settings/data' as never)}
-        />
-        <SettingsGridTile
-          icon="cloud-upload"
-          color={tileColors.cloudSync}
-          title={isKu ? 'هاوکاتکردنی هەور' : 'Cloud Sync'}
-          sub={isKu ? 'هاوکاتکردنی داتا' : 'Live Cloud Sync'}
-          onPress={() => router.push('/(app)/settings/cloud-sync' as never)}
         />
       </View>
     </View>
