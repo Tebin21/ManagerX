@@ -93,7 +93,7 @@ export function buildSalesAuditReportHTML(
         return `
           <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
             <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
-            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${dir === 'rtl' ? 'right' : 'left'};"><span class="en-num" dir="ltr">#${escHtml(sale.invoiceNumber)}</span></td>
+            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${dir === 'rtl' ? 'right' : 'left'};"><span class="en-num" dir="ltr">${sale.invoiceNumber?.startsWith('F-') || sale.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(sale.invoiceNumber)}</span></td>
             <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${customerDisplay}</td>
             <td style="font-size:11.5px;color:#475569;white-space:nowrap;text-align:center;"><span class="en-num" dir="ltr">${fmtDate(sale.date || sale.createdAt)}</span></td>
             <td style="max-width:220px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${itemsList}</td>

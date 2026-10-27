@@ -887,7 +887,12 @@
     "restoreConfirm":         "Restore",
     "permanentDeleteTitle":   "Delete Permanently",
     "permanentDeleteMsg":     "This will permanently remove '{{name}}' from all records. This cannot be undone.",
-    "permanentDeleteConfirm": "Delete Permanently"
+    "permanentDeleteConfirm": "Delete Permanently",
+    "searchPlaceholder":      "Search by product name, code, category...",
+    "deletedCount":           "Deleted Products",
+    "clearFilters":           "Clear Filters",
+    "noFilterResults":        "No deleted products match",
+    "noFilterResultsDetail":  "No products match the selected period or search"
   },
   "suppliers": {
     "title":              "Suppliers",

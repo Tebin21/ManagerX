@@ -457,7 +457,7 @@ export default function SalesQuotationScreen() {
       let maxSeq = 0;
       for (const q of quotations) {
         if (!q.quotationNumber) continue;
-        const match = q.quotationNumber.match(/^F-(\d+)$/i);
+        const match = q.quotationNumber.match(/^B-(\d+)$/i);
         if (match) {
           const num = parseInt(match[1], 10);
           if (!isNaN(num) && num > maxSeq) {
@@ -465,7 +465,7 @@ export default function SalesQuotationScreen() {
           }
         }
       }
-      const quoteNum = `F-${String(maxSeq + 1).padStart(6, '0')}`;
+      const quoteNum = `B-${String(maxSeq + 1).padStart(4, '0')}`;
       const dateStr = now.toISOString().split('T')[0];
       const timeStr = formatTime(now);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -8,10 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
-import { AmountText } from '@/components/ui/AmountText';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
@@ -29,31 +27,37 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
-import { containsKurdishScript, applyKurdishFont } from '@/lib/settingsFont';
+import { applyKurdishFont, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { toEnglishDigits } from '@/utils/formatters';
 import * as Haptics from 'expo-haptics';
 import { attachItemsToSales } from '@/lib/sqlite';
 import { shareSalesAuditReport } from '@/lib/generateInvoice';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { Sale } from '@/types/sales';
 
+type SaleOrFiller = Sale | { id: string; isFiller: true };
+
 export default function SalesHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, flexDirection } = useRTL();
+  const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
-  const { sales, searchSales, loadSales, isLoading } = useSalesStore();
+  const { sales, loadSales, isLoading } = useSalesStore();
 
   const salesHistoryGridLayout = useSettingsStore((s) => s.salesHistoryGridLayout);
   const setSalesHistoryGridLayout = useSettingsStore((s) => s.setSalesHistoryGridLayout);
   const viewMode: 'grid' | 'list' = salesHistoryGridLayout ? 'grid' : 'list';
 
   const [query, setQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  const searchInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Period filter state — defaults to 'today' (ئەمڕۆ)
   const {
@@ -62,11 +66,20 @@ export default function SalesHistoryScreen() {
     periodSheetVisible,
     setPeriodSheetVisible,
     handlePeriodSelect,
-  } = usePeriodFilter();
+  } = usePeriodFilter('today');
 
   useEffect(() => {
     loadSales();
-  }, []);
+  }, [loadSales]);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchOpen]);
 
   const handleToggleViewMode = useCallback(() => {
     try {
@@ -82,18 +95,17 @@ export default function SalesHistoryScreen() {
   }, [sales, period, bounds]);
 
   // Search filter on top of the period-filtered sales
+  const searchLower = toEnglishDigits(query).trim().toLowerCase();
   const results = useMemo(() => {
-    if (!query.trim()) return periodFilteredSales;
-    const q = query.trim().toLowerCase();
+    if (!searchLower) return periodFilteredSales;
     return periodFilteredSales.filter((s) => {
       const inv = (s.invoiceNumber || '').toLowerCase();
       const cust = (s.customerName || '').toLowerCase();
       const phone = (s.customerPhone || '').toLowerCase();
-      return inv.includes(q) || cust.includes(q) || phone.includes(q);
+      return inv.includes(searchLower) || cust.includes(searchLower) || phone.includes(searchLower);
     });
-  }, [query, periodFilteredSales]);
+  }, [searchLower, periodFilteredSales]);
 
-  // Aggregate stats for the current view
   // Readable label for the current active period
   const periodDisplayLabel = useMemo(() => {
     if (period === 'today') return isKuLanguage ? 'ئەمڕۆ' : 'Today';
@@ -131,17 +143,10 @@ export default function SalesHistoryScreen() {
     }
   }, [results, periodDisplayLabel, isKuLanguage, t]);
 
-  const queryIsKurdish = useMemo(() => containsKurdishScript(query), [query]);
-  const searchIsRTL = query.length > 0 ? queryIsKurdish : isRTL;
-  const inputFontIsKurdish = query.length > 0 ? queryIsKurdish : isKuLanguage;
-
-type SaleOrFiller = Sale | { id: string; isFiller: true };
-
   const numColumns = useMemo(() => {
     if (viewMode === 'list') {
       return isTablet ? (isTabletLandscape ? 2 : 1) : 1;
     }
-    // 'grid' mode (چوارگۆشە)
     return isTabletLandscape ? 4 : isTablet ? 3 : 2;
   }, [viewMode, isTablet, isTabletLandscape]);
 
@@ -189,6 +194,24 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
     [router, viewMode]
   );
 
+  const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const filterLabels: Record<PeriodKey, string> = {
+    today:  isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isKuLanguage ? 'هەمووی' : 'All',
+    custom: isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+  };
+
+  const handlePeriodTabPress = (key: PeriodKey) => {
+    if (key === 'custom') {
+      setPeriodSheetVisible(true);
+    } else {
+      handlePeriodSelect(key);
+    }
+  };
+
   const hasQuery = query.trim().length > 0;
 
   return (
@@ -204,47 +227,232 @@ type SaleOrFiller = Sale | { id: string; isFiller: true };
               onPress={handleToggleViewMode}
             />
             <HeaderActionButton
-              icon="options-outline"
-              onPress={() => setPeriodSheetVisible(true)}
+              icon="document-text-outline"
+              onPress={handleExportPdf}
             />
           </View>
         }
       />
 
-      {/* Search Bar */}
+      {/* Filter & Search Bar */}
+      <View style={[styles.filterBarWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+        <View
+          style={[
+            styles.filterBarContainer,
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+            },
+          ]}
+        >
+          {isSearchOpen ? (
+            /* Full-width Search Bar */
+            <View
+              style={[
+                styles.searchBarRow,
+                {
+                  backgroundColor: colors.gray100,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && { height: 48, paddingHorizontal: 16 },
+              ]}
+            >
+              <Ionicons
+                name="search"
+                size={isTablet ? 22 : 18}
+                color={colors.gray400}
+                style={{ marginHorizontal: 4 }}
+              />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.searchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontSize: isTablet ? 15 : 13.5,
+                  },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                ]}
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t('sales.searchHistoryPlaceholder', 'گەڕان بە پسوڵە، کڕیار، ژمارە...')}
+                placeholderTextColor={colors.gray400}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setQuery('')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => {
+                  setQuery('');
+                  setIsSearchOpen(false);
+                }}
+                style={[
+                  styles.searchCloseBtn,
+                  {
+                    backgroundColor: colors.white,
+                    borderColor: colors.gray200,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={isTablet ? 18 : 16} color={colors.gray600} />
+                <Text
+                  style={[
+                    styles.searchCloseText,
+                    { color: colors.gray600 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isTablet && { fontSize: 13.5 },
+                  ]}
+                >
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Standard Filter Bar with search toggle button on the right of 'ئەمڕۆ' in RTL */
+            <View
+              style={[
+                styles.barRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              {/* Search Toggle Icon Button */}
+              <TouchableOpacity
+                style={[
+                  styles.searchToggleBtn,
+                  {
+                    backgroundColor: query ? colors.primary + '18' : colors.gray100,
+                    borderColor: query ? colors.primary : colors.gray200,
+                    marginRight: isRTL ? (isTablet ? 24 : 12) : 6,
+                    marginLeft: isRTL ? 6 : (isTablet ? 24 : 12),
+                  },
+                  isTablet && { width: 44, height: 44, borderRadius: 22 },
+                ]}
+                onPress={() => setIsSearchOpen(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Search"
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 20 : 18}
+                  color={query ? colors.primary : colors.gray600}
+                />
+                {query.length > 0 && (
+                  <View style={[styles.searchBadge, { backgroundColor: colors.primary }]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Filter Pills ScrollView */}
+              <ScrollView
+                ref={scrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={[
+                  styles.scrollView,
+                  isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+                ]}
+                contentContainerStyle={[
+                  styles.pillsRow,
+                  {
+                    paddingHorizontal: isTabletLandscape ? 24 : 16,
+                  },
+                  isTablet && { paddingVertical: isTabletLandscape ? 12 : 10, gap: isTablet ? 10 : 8 },
+                ]}
+              >
+                {filterKeys.map((key) => {
+                  const active = period === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => handlePeriodTabPress(key)}
+                      style={[
+                        styles.pill,
+                        isRTL && { transform: [{ scaleX: -1 }] },
+                        {
+                          backgroundColor: active ? colors.primaryDark : colors.gray100,
+                          borderColor: active ? colors.primaryDark : colors.gray200,
+                          paddingHorizontal: isTabletLandscape ? 20 : isTablet ? 16 : 13,
+                        },
+                      ]}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.pillText,
+                          {
+                            color: active ? colors.white : colors.gray700,
+                            textAlign,
+                          },
+                          isKuLanguage && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
+                        ]}
+                      >
+                        {filterLabels[key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Custom Date Range Badge */}
+          {period === 'custom' && !isSearchOpen && (
+            <View
+              style={[
+                styles.customRangeBanner,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 24 : 16,
+                },
+              ]}
+            >
+              <Ionicons name="calendar" size={13} color={colors.primary} />
+              <Text style={[styles.customRangeText, { color: colors.primary }]}>
+                {periodDisplayLabel}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Count Strip */}
       <View
         style={[
-          styles.searchWrap,
-          { backgroundColor: colors.white, flexDirection },
-          isTablet && contentContainerStyle,
-          isTablet && { height: 54, paddingHorizontal: 16 },
+          styles.countStrip,
+          {
+            backgroundColor: colors.white,
+            borderBottomColor: colors.gray100,
+            justifyContent: isRTL ? 'flex-end' : 'flex-start',
+          },
+          isTablet && {
+            maxWidth: isTabletLandscape ? 1320 : 1040,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: isTabletLandscape ? 32 : 24,
+          },
         ]}
       >
-        <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
-        <TextInput
-          style={[
-            styles.searchInput,
-            {
-              color: colors.black,
-              textAlign: searchIsRTL ? 'right' : 'left',
-              writingDirection: searchIsRTL ? 'rtl' : 'ltr',
-            },
-            isTablet && { fontSize: 17 },
-            applyKurdishFont(inputFontIsKurdish, {}),
-          ]}
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('sales.searchHistoryPlaceholder')}
-          placeholderTextColor={colors.gray400}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          autoCorrect={false}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
-          </TouchableOpacity>
-        )}
+        <Text style={[styles.countText, { color: colors.gray500, textAlign }]}>
+          {results.length} {isKuLanguage ? 'پسوولەی فرۆشتن' : t('sales.sales')}
+        </Text>
       </View>
 
       {/* Sales Invoices List */}
@@ -358,21 +566,98 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  searchWrap: {
-    alignItems:        'center',
-    borderRadius:      Theme.radius.lg,
-    marginHorizontal:  16,
-    marginTop:         8,
-    marginBottom:      8,
-    paddingHorizontal: 12,
-    height:            44,
-    gap:               8,
-    ...Theme.shadow.soft,
+  filterBarWrapper: {
+    borderBottomWidth: 1,
   },
-  searchIcon:  { flexShrink: 0 },
-  searchInput: { flex: 1, fontSize: 14, height: '100%' },
+  filterBarContainer: {
+    width: '100%',
+  },
+  barRow: {
+    alignItems: 'center',
+    paddingVertical: 7,
+    width: '100%',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  pillsRow: {
+    paddingVertical: 4,
+    gap: 8,
+    alignItems: 'center',
+  },
+  pill: {
+    paddingVertical: 7,
+    borderRadius: Theme.radius.full,
+    borderWidth: 1,
+  },
+  pillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  searchToggleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  searchBarRow: {
+    height: 44,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 8,
+  },
+  searchCloseBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  searchCloseText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  customRangeBanner: {
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
+  customRangeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  countStrip: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  countText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
 
-  list:      { padding: 16, paddingTop: 4, paddingBottom: 24 },
+  list:      { padding: 16, paddingTop: 8, paddingBottom: 24 },
   listEmpty: { flex: 1 },
 
   empty: {

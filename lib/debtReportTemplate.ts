@@ -231,7 +231,7 @@ export function buildSalesDebtReportHTML(
         </div>
         <div style="background:#FFFDF5;border:1px solid #FDE047;border-radius:8px;padding:9px 13px;margin-top:10px;font-size:11.5px;color:#854D0E;display:flex;align-items:center;gap:6px;">
           <span>📦</span>
-          <span>${isKurdish ? ku(`ئەم قەرزە ڕاستەوخۆ پەیوەستە بە کاڵاکان و وەجبەکانی وەسڵی #${debt.invoiceNumber}.`) : `This debt is directly linked to the items and batches in invoice #${debt.invoiceNumber}.`}</span>
+          <span>${isKurdish ? ku(`ئەم قەرزە ڕاستەوخۆ پەیوەستە بە کاڵاکان و وەجبەکانی وەسڵی ${debt.invoiceNumber?.startsWith('F-') || debt.invoiceNumber?.startsWith('B-') ? '' : '#'}${debt.invoiceNumber}.`) : `This debt is directly linked to the items and batches in invoice ${debt.invoiceNumber?.startsWith('F-') || debt.invoiceNumber?.startsWith('B-') ? '' : '#'}${debt.invoiceNumber}.`}</span>
         </div>
       </div>
     `;
@@ -279,7 +279,7 @@ export function buildSalesDebtReportHTML(
       <div class="party-meta">
         ${debt.customerPhone   ? `<span>&#128222; <span class="en-num" dir="ltr">${escHtml(debt.customerPhone)}</span></span>` : ''}
         ${debt.customerAddress ? `<span>&#128205; ${escHtml(debt.customerAddress)}</span>` : ''}
-        <span>${isKurdish ? ku('ژ. وەسڵ: ') : 'Invoice: '}<strong>#${escHtml(debt.invoiceNumber)}</strong></span>
+        <span>${isKurdish ? ku('ژ. وەسڵ: ') : 'Invoice: '}<strong>${debt.invoiceNumber?.startsWith('F-') || debt.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(debt.invoiceNumber)}</strong></span>
       </div>
     </div>
   </div>
@@ -315,7 +315,7 @@ export function buildSalesDebtReportHTML(
     <div class="section-title">${isKurdish ? ku('وردەکاریی وەسڵ') : 'Invoice Details'}</div>
     <div class="table-wrap">
       <table class="detail-table">
-        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی وەسڵ') : 'Invoice #'}</td><td class="detail-value"><span class="en-num" dir="ltr">#${escHtml(debt.invoiceNumber)}</span></td></tr>
+        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی وەسڵ') : 'Invoice #'}</td><td class="detail-value"><span class="en-num" dir="ltr">${debt.invoiceNumber?.startsWith('F-') || debt.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(debt.invoiceNumber)}</span></td></tr>
         <tr><td class="detail-label">${isKurdish ? ku('بەروار') : 'Date'}</td><td><span class="en-num" dir="ltr">${formatDate(debt.createdAt)}</span></td></tr>
         ${debt.warranty  ? `<tr><td class="detail-label">${isKurdish ? ku('گەڕانەوە / گەرەنتی') : 'Warranty'}</td><td>${escHtml(debt.warranty)}</td></tr>` : ''}
         ${debt.saleNotes ? `<tr><td class="detail-label">${isKurdish ? ku('تێبینی') : 'Notes'}</td><td>${escHtml(debt.saleNotes)}</td></tr>` : ''}
@@ -430,7 +430,7 @@ export function buildPurchaseDebtReportHTML(
       <div class="party-meta">
         ${debt.supplierPhone   ? `<span>&#128222; <span class="en-num" dir="ltr">${escHtml(debt.supplierPhone)}</span></span>` : ''}
         ${debt.supplierAddress ? `<span>&#128205; ${escHtml(debt.supplierAddress)}</span>` : ''}
-        ${debt.purchaseNumber  ? `<span>${isKurdish ? ku('ژ. کڕین: ') : 'Ref: '}<strong>#${escHtml(debt.purchaseNumber)}</strong></span>` : ''}
+        ${debt.purchaseNumber  ? `<span>${isKurdish ? ku('ژ. کڕین: ') : 'Ref: '}<strong>${debt.purchaseNumber?.startsWith('F-') || debt.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(debt.purchaseNumber)}</strong></span>` : ''}
       </div>
     </div>
   </div>
@@ -514,7 +514,7 @@ export function buildPurchaseDebtReportHTML(
     <div class="section-title">${isKurdish ? ku('سەرچاوەی کڕین') : 'Purchase Reference'}</div>
     <div class="table-wrap">
       <table class="detail-table">
-        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی کڕین') : 'Reference #'}</td><td class="detail-value">${debt.purchaseNumber ? `<span class="en-num" dir="ltr">#${escHtml(debt.purchaseNumber)}</span>` : '&mdash;'}</td></tr>
+        <tr><td class="detail-label">${isKurdish ? ku('ژمارەی کڕین') : 'Reference #'}</td><td class="detail-value">${debt.purchaseNumber ? `<span class="en-num" dir="ltr">${debt.purchaseNumber?.startsWith('F-') || debt.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(debt.purchaseNumber)}</span>` : '&mdash;'}</td></tr>
         <tr><td class="detail-label">${isKurdish ? ku('بەروار') : 'Date'}</td><td><span class="en-num" dir="ltr">${formatDate(debt.createdAt)}</span></td></tr>
         ${debt.notes ? `<tr><td class="detail-label">${isKurdish ? ku('تێبینی') : 'Notes'}</td><td>${escHtml(debt.notes)}</td></tr>` : ''}
       </table>
@@ -799,7 +799,7 @@ export function buildDebtsAuditReportHTML(
             ${d.customerPhone ? `<div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${escHtml(d.customerPhone)}</span></div>` : ''}
             ${d.productsSummary ? `<div style="font-size:10px;color:#854D0E;background:#FEF9C3;border:1px solid #FDE047;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productsSummary)}</div>` : ''}
           </td>
-          <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.invoiceNumber)}</span></td>
+          <td style="text-align:center;"><span class="en-num" dir="ltr">${d.invoiceNumber?.startsWith('F-') || d.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(d.invoiceNumber)}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
           <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(d.originalAmount)}</span></td>
           <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(d.paidAmount)}</span></td>
@@ -872,7 +872,7 @@ export function buildDebtsAuditReportHTML(
             ${d.supplierPhone ? `<div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${escHtml(d.supplierPhone)}</span></div>` : ''}
             ${d.productName ? `<div style="font-size:10px;color:#991B1B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;line-height:1.3;">📦 ${escHtml(d.productName)} &bull; ${isKurdish ? `وەجبەی ${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}${d.batchQuantity ? ` (${d.batchQuantity} دانە)` : ''}${d.totalBatches && d.totalBatches > 1 ? ` (کۆی ${d.totalBatches})` : ''}</div>` : ''}
           </td>
-          <td style="text-align:center;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber || '—')}</span></td>
+          <td style="text-align:center;"><span class="en-num" dir="ltr">${d.purchaseNumber ? (d.purchaseNumber.startsWith('F-') || d.purchaseNumber.startsWith('B-') ? '' : '#') : ''}${escHtml(d.purchaseNumber || '—')}</span></td>
           <td style="text-align:center;font-size:11.5px;color:#475569;"><span class="en-num" dir="ltr">${formatDate(d.createdAt)}</span></td>
           <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;"><span class="en-num" dir="ltr">${fmtMoney(d.originalAmount)}</span></td>
           <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;"><span class="en-num" dir="ltr">${fmtMoney(d.paidAmount)}</span></td>
@@ -953,7 +953,7 @@ export function buildDebtsAuditReportHTML(
           <td style="text-align:center;font-weight:600;"><span class="en-num" dir="ltr">${d.batchQuantity || '—'}</span></td>
           <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};color:#475569;">
             ${escHtml(d.supplierName)}
-            ${d.purchaseNumber ? `<div style="font-size:10px;color:#94A3B8;"><span class="en-num" dir="ltr">#${escHtml(d.purchaseNumber)}</span></div>` : ''}
+            ${d.purchaseNumber ? `<div style="font-size:10px;color:#94A3B8;"><span class="en-num" dir="ltr">${d.purchaseNumber?.startsWith('F-') || d.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(d.purchaseNumber)}</span></div>` : ''}
           </td>
           <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#DC2626;font-weight:700;"><span class="en-num" dir="ltr">${fmtMoney(d.remainingAmount)}</span></td>
           <td style="text-align:center;">${getBadgeHTML(d.paidAmount, d.remainingAmount)}</td>
@@ -967,7 +967,7 @@ export function buildDebtsAuditReportHTML(
           <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
           <td style="font-weight:700;color:#0F172A;text-align:${dir === 'rtl' ? 'right' : 'left'};">
             ${escHtml(d.customerName)}
-            <div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">#${escHtml(d.invoiceNumber)}</span></div>
+            <div style="font-size:10.5px;color:#64748B;"><span class="en-num" dir="ltr">${d.invoiceNumber?.startsWith('F-') || d.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(d.invoiceNumber)}</span></div>
           </td>
           <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};font-weight:600;color:#854D0E;">
             <div style="background:#FFFDF5;border:1px solid #FDE047;border-radius:6px;padding:3px 8px;font-size:11.5px;display:inline-block;">

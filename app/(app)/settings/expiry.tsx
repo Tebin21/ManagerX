@@ -44,6 +44,13 @@ export default function ExpirySettingsScreen() {
   // Local state for the checkbox (سەح) at the bottom
   const [termsChecked, setTermsChecked] = useState(expiryTermsAccepted);
 
+  // Tablet responsive sizing tokens
+  const cardPadding = isTablet ? (isTabletLandscape ? 28 : 24) : 18;
+  const cardRadius = isTablet ? 24 : 20;
+  const cardGap = isTablet ? 20 : 16;
+  const sectionTitleSize = isTablet ? 21 : 16;
+  const sectionIconSize = isTablet ? 26 : 20;
+
   // Handle toggling the checkbox (سەح)
   const handleToggleTermsCheckbox = () => {
     try {
@@ -93,34 +100,42 @@ export default function ExpirySettingsScreen() {
         contentContainerStyle={[
           styles.content,
           isTablet && {
-            maxWidth: isTabletLandscape ? 960 : 760,
+            maxWidth: isTabletLandscape ? 1040 : 820,
             alignSelf: 'center',
             width: '100%',
-            paddingHorizontal: 24,
+            paddingHorizontal: isTabletLandscape ? 32 : 24,
+            paddingTop: 24,
+            paddingBottom: 60,
+            gap: 22,
           },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* ── 1. Hero / Purpose Card (بۆ چی بەکار دێت) ────────────────── */}
-        <SettingsCard style={styles.heroCard}>
-          <View style={[styles.heroHeaderRow, { flexDirection }]}>
+        <SettingsCard
+          style={[styles.heroCard, isTablet && { borderRadius: cardRadius, gap: cardGap }]}
+          padding={cardPadding}
+        >
+          <View style={[styles.heroHeaderRow, { flexDirection }, isTablet && { gap: 18 }]}>
             <View
               style={[
                 styles.heroIconBox,
+                isTablet && { width: 68, height: 68, borderRadius: 20 },
                 {
                   backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.12),
                   borderColor: hexToRgba(colors.primary, isDark ? 0.40 : 0.25),
                 },
               ]}
             >
-              <Ionicons name="time" size={isTablet ? 32 : 26} color={colors.primary} />
+              <Ionicons name="time" size={isTablet ? 36 : 26} color={colors.primary} />
             </View>
 
             <View style={{ flex: 1 }}>
               <Text
                 style={[
                   styles.heroTitle,
+                  isTablet && { fontSize: 22, lineHeight: 32 },
                   { color: colors.black, textAlign },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
@@ -130,6 +145,7 @@ export default function ExpirySettingsScreen() {
               <Text
                 style={[
                   styles.heroSubBadge,
+                  isTablet && { fontSize: 15.5, lineHeight: 22, marginTop: 4 },
                   { color: colors.primary, textAlign },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
@@ -143,6 +159,7 @@ export default function ExpirySettingsScreen() {
           <View
             style={[
               styles.heroExplainBox,
+              isTablet && { padding: 20, borderRadius: 18 },
               {
                 backgroundColor: isDark ? 'rgba(15, 23, 42, 0.50)' : colors.gray50,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
@@ -152,6 +169,7 @@ export default function ExpirySettingsScreen() {
             <Text
               style={[
                 styles.heroExplainText,
+                isTablet && { fontSize: 16.5, lineHeight: 28 },
                 { color: isDark ? '#E2E8F0' : '#334155', textAlign },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
@@ -166,13 +184,14 @@ export default function ExpirySettingsScreen() {
           <View
             style={[
               styles.benefitsContainer,
+              isTablet && { gap: 14 },
               { flexDirection: isTablet ? (isRTL ? 'row-reverse' : 'row') : 'column' },
             ]}
           >
             <View
               style={[
                 styles.benefitItem,
-                isTablet && { flex: 1 },
+                isTablet && { flex: 1, padding: 18, borderRadius: 18, gap: 14 },
                 {
                   flexDirection,
                   backgroundColor: isDark ? 'rgba(30, 41, 59, 0.60)' : '#FFFFFF',
@@ -180,13 +199,20 @@ export default function ExpirySettingsScreen() {
                 },
               ]}
             >
-              <View style={[styles.benefitIconBox, { backgroundColor: hexToRgba('#EF4444', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="shield-checkmark" size={18} color="#EF4444" />
+              <View
+                style={[
+                  styles.benefitIconBox,
+                  isTablet && { width: 46, height: 46, borderRadius: 14 },
+                  { backgroundColor: hexToRgba('#EF4444', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={isTablet ? 24 : 18} color="#EF4444" />
               </View>
-              <View style={styles.benefitTextCol}>
+              <View style={[styles.benefitTextCol, isTablet && { gap: 4 }]}>
                 <Text
                   style={[
                     styles.benefitTitle,
+                    isTablet && { fontSize: 17, lineHeight: 24 },
                     { color: colors.black, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -196,6 +222,7 @@ export default function ExpirySettingsScreen() {
                 <Text
                   style={[
                     styles.benefitDesc,
+                    isTablet && { fontSize: 14.5, lineHeight: 23 },
                     { color: colors.gray400, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -210,7 +237,7 @@ export default function ExpirySettingsScreen() {
             <View
               style={[
                 styles.benefitItem,
-                isTablet && { flex: 1 },
+                isTablet && { flex: 1, padding: 18, borderRadius: 18, gap: 14 },
                 {
                   flexDirection,
                   backgroundColor: isDark ? 'rgba(30, 41, 59, 0.60)' : '#FFFFFF',
@@ -218,13 +245,20 @@ export default function ExpirySettingsScreen() {
                 },
               ]}
             >
-              <View style={[styles.benefitIconBox, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="notifications" size={18} color="#F59E0B" />
+              <View
+                style={[
+                  styles.benefitIconBox,
+                  isTablet && { width: 46, height: 46, borderRadius: 14 },
+                  { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="notifications" size={isTablet ? 24 : 18} color="#F59E0B" />
               </View>
-              <View style={styles.benefitTextCol}>
+              <View style={[styles.benefitTextCol, isTablet && { gap: 4 }]}>
                 <Text
                   style={[
                     styles.benefitTitle,
+                    isTablet && { fontSize: 17, lineHeight: 24 },
                     { color: colors.black, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -234,6 +268,7 @@ export default function ExpirySettingsScreen() {
                 <Text
                   style={[
                     styles.benefitDesc,
+                    isTablet && { fontSize: 14.5, lineHeight: 23 },
                     { color: colors.gray400, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -248,7 +283,7 @@ export default function ExpirySettingsScreen() {
             <View
               style={[
                 styles.benefitItem,
-                isTablet && { flex: 1 },
+                isTablet && { flex: 1, padding: 18, borderRadius: 18, gap: 14 },
                 {
                   flexDirection,
                   backgroundColor: isDark ? 'rgba(30, 41, 59, 0.60)' : '#FFFFFF',
@@ -256,13 +291,20 @@ export default function ExpirySettingsScreen() {
                 },
               ]}
             >
-              <View style={[styles.benefitIconBox, { backgroundColor: hexToRgba('#10B981', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="checkmark-done-circle" size={18} color="#10B981" />
+              <View
+                style={[
+                  styles.benefitIconBox,
+                  isTablet && { width: 46, height: 46, borderRadius: 14 },
+                  { backgroundColor: hexToRgba('#10B981', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="checkmark-done-circle" size={isTablet ? 24 : 18} color="#10B981" />
               </View>
-              <View style={styles.benefitTextCol}>
+              <View style={[styles.benefitTextCol, isTablet && { gap: 4 }]}>
                 <Text
                   style={[
                     styles.benefitTitle,
+                    isTablet && { fontSize: 17, lineHeight: 24 },
                     { color: colors.black, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
@@ -272,6 +314,7 @@ export default function ExpirySettingsScreen() {
                 <Text
                   style={[
                     styles.benefitDesc,
+                    isTablet && { fontSize: 14.5, lineHeight: 23 },
                     { color: colors.gray400, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -286,12 +329,16 @@ export default function ExpirySettingsScreen() {
         </SettingsCard>
 
         {/* ── 2. Guidelines & Feature Table (ڕێنمایی و چۆنیەتی کارکردن) ── */}
-        <SettingsCard style={styles.guideCard}>
-          <View style={[styles.sectionHeader, { flexDirection }]}>
-            <Ionicons name="book" size={20} color={colors.primary} />
+        <SettingsCard
+          style={[styles.guideCard, isTablet && { borderRadius: cardRadius, gap: 18 }]}
+          padding={cardPadding}
+        >
+          <View style={[styles.sectionHeader, { flexDirection }, isTablet && { gap: 12 }]}>
+            <Ionicons name="book" size={sectionIconSize} color={colors.primary} />
             <Text
               style={[
                 styles.sectionTitle,
+                isTablet && { fontSize: sectionTitleSize, lineHeight: 28 },
                 { color: colors.black, textAlign },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
@@ -303,6 +350,7 @@ export default function ExpirySettingsScreen() {
           <Text
             style={[
               styles.guideIntro,
+              isTablet && { fontSize: 15.5, lineHeight: 24 },
               { color: colors.gray400, textAlign },
               isKu && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
@@ -316,6 +364,7 @@ export default function ExpirySettingsScreen() {
           <View
             style={[
               styles.tableContainer,
+              isTablet && { borderRadius: 20 },
               {
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
                 backgroundColor: isDark ? 'rgba(15, 23, 42, 0.40)' : '#FFFFFF',
@@ -323,28 +372,42 @@ export default function ExpirySettingsScreen() {
             ]}
           >
             {/* Table Row 1: Purchases */}
-            <View style={[styles.tableRow, { flexDirection }]}>
-              <View style={[styles.tableIconBox, { backgroundColor: hexToRgba('#3B82F6', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="cart" size={18} color="#3B82F6" />
+            <View style={[styles.tableRow, { flexDirection }, isTablet && { padding: 20, gap: 16 }]}>
+              <View
+                style={[
+                  styles.tableIconBox,
+                  isTablet && { width: 48, height: 48, borderRadius: 15 },
+                  { backgroundColor: hexToRgba('#3B82F6', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="cart" size={isTablet ? 24 : 18} color="#3B82F6" />
               </View>
-              <View style={styles.tableTextCol}>
+              <View style={[styles.tableTextCol, isTablet && { gap: 6 }]}>
                 <View style={[styles.rowHeaderWrap, { flexDirection }]}>
                   <Text
                     style={[
                       styles.tableRowTitle,
+                      isTablet && { fontSize: 17.5, lineHeight: 25 },
                       { color: colors.black, textAlign },
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
                     {isKu ? '١. لە کاتی کڕینی کاڵادا' : '1. During Purchases Intake'}
                   </Text>
-                  <View style={[styles.rowBadge, { backgroundColor: hexToRgba('#3B82F6', isDark ? 0.25 : 0.12) }]}>
-                    <Text style={[styles.rowBadgeText, { color: '#3B82F6' }]}>Purchases</Text>
+                  <View
+                    style={[
+                      styles.rowBadge,
+                      isTablet && { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+                      { backgroundColor: hexToRgba('#3B82F6', isDark ? 0.25 : 0.12) },
+                    ]}
+                  >
+                    <Text style={[styles.rowBadgeText, isTablet && { fontSize: 13 }, { color: '#3B82F6' }]}>Purchases</Text>
                   </View>
                 </View>
                 <Text
                   style={[
                     styles.tableRowDesc,
+                    isTablet && { fontSize: 15, lineHeight: 25 },
                     { color: colors.gray400, textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -359,28 +422,42 @@ export default function ExpirySettingsScreen() {
             <View style={[styles.tableDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray100 }]} />
 
             {/* Table Row 2: Inventory */}
-            <View style={[styles.tableRow, { flexDirection }]}>
-              <View style={[styles.tableIconBox, { backgroundColor: hexToRgba('#10B981', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="cube" size={18} color="#10B981" />
+            <View style={[styles.tableRow, { flexDirection }, isTablet && { padding: 20, gap: 16 }]}>
+              <View
+                style={[
+                  styles.tableIconBox,
+                  isTablet && { width: 48, height: 48, borderRadius: 15 },
+                  { backgroundColor: hexToRgba('#10B981', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="cube" size={isTablet ? 24 : 18} color="#10B981" />
               </View>
-              <View style={styles.tableTextCol}>
+              <View style={[styles.tableTextCol, isTablet && { gap: 6 }]}>
                 <View style={[styles.rowHeaderWrap, { flexDirection }]}>
                   <Text
                     style={[
                       styles.tableRowTitle,
+                      isTablet && { fontSize: 17.5, lineHeight: 25 },
                       { color: colors.black, textAlign },
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
                     {isKu ? '٢. لە بەشی کۆگا و ئامار' : '2. In Inventory Module'}
                   </Text>
-                  <View style={[styles.rowBadge, { backgroundColor: hexToRgba('#10B981', isDark ? 0.25 : 0.12) }]}>
-                    <Text style={[styles.rowBadgeText, { color: '#10B981' }]}>Inventory</Text>
+                  <View
+                    style={[
+                      styles.rowBadge,
+                      isTablet && { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+                      { backgroundColor: hexToRgba('#10B981', isDark ? 0.25 : 0.12) },
+                    ]}
+                  >
+                    <Text style={[styles.rowBadgeText, isTablet && { fontSize: 13 }, { color: '#10B981' }]}>Inventory</Text>
                   </View>
                 </View>
                 <Text
                   style={[
                     styles.tableRowDesc,
+                    isTablet && { fontSize: 15, lineHeight: 25 },
                     { color: colors.gray400, textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -395,28 +472,42 @@ export default function ExpirySettingsScreen() {
             <View style={[styles.tableDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray100 }]} />
 
             {/* Table Row 3: Alerts */}
-            <View style={[styles.tableRow, { flexDirection }]}>
-              <View style={[styles.tableIconBox, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.2 : 0.1) }]}>
-                <Ionicons name="alarm" size={18} color="#F59E0B" />
+            <View style={[styles.tableRow, { flexDirection }, isTablet && { padding: 20, gap: 16 }]}>
+              <View
+                style={[
+                  styles.tableIconBox,
+                  isTablet && { width: 48, height: 48, borderRadius: 15 },
+                  { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.2 : 0.1) },
+                ]}
+              >
+                <Ionicons name="alarm" size={isTablet ? 24 : 18} color="#F59E0B" />
               </View>
-              <View style={styles.tableTextCol}>
+              <View style={[styles.tableTextCol, isTablet && { gap: 6 }]}>
                 <View style={[styles.rowHeaderWrap, { flexDirection }]}>
                   <Text
                     style={[
                       styles.tableRowTitle,
+                      isTablet && { fontSize: 17.5, lineHeight: 25 },
                       { color: colors.black, textAlign },
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
                     {isKu ? '٣. ئاگاداری پێشوەختە' : '3. Early Warning Alerts'}
                   </Text>
-                  <View style={[styles.rowBadge, { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.25 : 0.12) }]}>
-                    <Text style={[styles.rowBadgeText, { color: '#F59E0B' }]}>Smart Alerts</Text>
+                  <View
+                    style={[
+                      styles.rowBadge,
+                      isTablet && { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+                      { backgroundColor: hexToRgba('#F59E0B', isDark ? 0.25 : 0.12) },
+                    ]}
+                  >
+                    <Text style={[styles.rowBadgeText, isTablet && { fontSize: 13 }, { color: '#F59E0B' }]}>Smart Alerts</Text>
                   </View>
                 </View>
                 <Text
                   style={[
                     styles.tableRowDesc,
+                    isTablet && { fontSize: 15, lineHeight: 25 },
                     { color: colors.gray400, textAlign },
                     isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
@@ -435,6 +526,7 @@ export default function ExpirySettingsScreen() {
         <SettingsCard
           style={[
             styles.activationCard,
+            isTablet && { borderRadius: cardRadius, gap: 18 },
             {
               borderColor: termsChecked
                 ? hexToRgba(colors.primary, isDark ? 0.45 : 0.30)
@@ -443,16 +535,18 @@ export default function ExpirySettingsScreen() {
                 : colors.gray200,
             },
           ]}
+          padding={cardPadding}
         >
-          <View style={[styles.sectionHeader, { flexDirection }]}>
+          <View style={[styles.sectionHeader, { flexDirection }, isTablet && { gap: 12 }]}>
             <Ionicons
               name={termsChecked ? 'shield-checkmark' : 'lock-closed'}
-              size={20}
+              size={sectionIconSize}
               color={termsChecked ? colors.primary : colors.gray400}
             />
             <Text
               style={[
                 styles.sectionTitle,
+                isTablet && { fontSize: sectionTitleSize, lineHeight: 28 },
                 { color: colors.black, textAlign },
                 isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
@@ -467,6 +561,7 @@ export default function ExpirySettingsScreen() {
             onPress={handleToggleTermsCheckbox}
             style={[
               styles.checkboxRow,
+              isTablet && { padding: 20, gap: 16, borderRadius: 18 },
               {
                 flexDirection,
                 backgroundColor: termsChecked
@@ -486,6 +581,7 @@ export default function ExpirySettingsScreen() {
             <View
               style={[
                 styles.checkboxSquare,
+                isTablet && { width: 32, height: 32, borderRadius: 9, borderWidth: 2.5 },
                 {
                   backgroundColor: termsChecked ? colors.primary : isDark ? '#1E293B' : '#FFFFFF',
                   borderColor: termsChecked ? colors.primary : colors.gray400,
@@ -493,7 +589,7 @@ export default function ExpirySettingsScreen() {
               ]}
             >
               {termsChecked && (
-                <Ionicons name="checkmark" size={18} color="#0F172A" />
+                <Ionicons name="checkmark" size={isTablet ? 22 : 18} color="#0F172A" />
               )}
             </View>
 
@@ -501,6 +597,7 @@ export default function ExpirySettingsScreen() {
               <Text
                 style={[
                   styles.checkboxLabel,
+                  isTablet && { fontSize: 17.5, lineHeight: 26 },
                   { color: colors.black, textAlign },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
@@ -512,6 +609,7 @@ export default function ExpirySettingsScreen() {
               <Text
                 style={[
                   styles.checkboxSub,
+                  isTablet && { fontSize: 14.5, lineHeight: 22, marginTop: 5 },
                   { color: termsChecked ? colors.primary : colors.gray400, textAlign },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
@@ -556,6 +654,7 @@ export default function ExpirySettingsScreen() {
             }}
             style={[
               styles.bottomSwitchRow,
+              isTablet && { padding: 20, gap: 16, borderRadius: 18 },
               {
                 flexDirection,
                 backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : colors.gray50,
@@ -568,6 +667,7 @@ export default function ExpirySettingsScreen() {
               <Text
                 style={[
                   styles.switchLabel,
+                  isTablet && { fontSize: 17.5, lineHeight: 25 },
                   { color: colors.black, textAlign },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
@@ -577,6 +677,7 @@ export default function ExpirySettingsScreen() {
               <Text
                 style={[
                   styles.switchSub,
+                  isTablet && { fontSize: 14.5, lineHeight: 22, marginTop: 5 },
                   {
                     color: !termsChecked
                       ? colors.gray400
@@ -607,11 +708,12 @@ export default function ExpirySettingsScreen() {
               onValueChange={handleToggleSwitch}
               trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: colors.primary }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              style={isTablet ? { transform: [{ scaleX: 1.15 }, { scaleY: 1.15 }] } : undefined}
             />
           </TouchableOpacity>
         </SettingsCard>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: isTablet ? 60 : 40 }} />
       </ScrollView>
     </View>
   );

@@ -1146,7 +1146,7 @@ export default function InventoryDetailScreen() {
                       >
                         <Ionicons name="receipt-outline" size={13} color={colors.primary} />
                         <Text style={[styles.batchLinkText, { color: colors.primary }]}>
-                          #{batch.purchaseNumber}
+                          {batch.purchaseNumber?.startsWith('F-') || batch.purchaseNumber?.startsWith('B-') ? batch.purchaseNumber : `#${batch.purchaseNumber}`}
                         </Text>
                         <Ionicons name={chevronForward as never} size={12} color={colors.primary} />
                       </TouchableOpacity>

@@ -96,7 +96,7 @@ export function buildPurchasesAuditReportHTML(
         return `
           <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
             <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
-            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${dir === 'rtl' ? 'right' : 'left'};"><span class="en-num" dir="ltr">#${escHtml(purchase.purchaseNumber)}</span></td>
+            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${dir === 'rtl' ? 'right' : 'left'};"><span class="en-num" dir="ltr">${purchase.purchaseNumber?.startsWith('F-') || purchase.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(purchase.purchaseNumber)}</span></td>
             <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${supplierDisplay}</td>
             <td style="font-size:11.5px;color:#475569;white-space:nowrap;text-align:center;"><span class="en-num" dir="ltr">${fmtDate(purchase.date || purchase.createdAt)}</span></td>
             <td style="max-width:210px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${productDisplay}</td>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -6,6 +6,8 @@ import {
   RefreshControl,
   StyleSheet,
   Alert,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { useRouter } from 'expo-router';
@@ -18,28 +20,96 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { InventoryHistoryItem } from '@/components/inventory/InventoryHistoryItem';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
-import { useRTL, RTL_SPACING } from '@/lib/rtl';
+import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
+import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
+import { toDateOnly, toEnglishDigits } from '@/utils/formatters';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
 
-type StatusFilter = 'all' | 'sold_out' | 'removed';
+type HistoryPeriodKey = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
+
+function applyPeriodFilter(
+  list: HistoryItem[],
+  filter: HistoryPeriodKey,
+  range: { from: string; to: string } | null,
+): HistoryItem[] {
+  const now = new Date();
+  const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const utcToday = toDateOnly(now);
+
+  switch (filter) {
+    case 'all':
+      return list;
+    case 'today':
+      return list.filter((item) => {
+        const d = (item.archivedAt ?? '').slice(0, 10);
+        return d === localToday || d === utcToday;
+      });
+    case 'week': {
+      const d = new Date(now);
+      const dow = d.getDay();
+      d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+      const weekStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return list.filter((item) => {
+        const dStr = (item.archivedAt ?? '').slice(0, 10);
+        return dStr >= weekStart && dStr <= localToday;
+      });
+    }
+    case 'month': {
+      const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      return list.filter((item) => (item.archivedAt ?? '').startsWith(prefix));
+    }
+    case 'year':
+      return list.filter((item) => (item.archivedAt ?? '').startsWith(String(now.getFullYear())));
+    case 'custom':
+      if (!range) return list;
+      return list.filter((item) => {
+        const d = (item.archivedAt ?? '').slice(0, 10);
+        return d >= range.from && d <= range.to;
+      });
+    default:
+      return list;
+  }
+}
 
 export default function InventoryHistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+
   const {
     inventoryHistory,
     loadInventoryHistory,
     restoreFromHistory,
   } = useInventoryStore();
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [periodFilter, setPeriodFilter] = useState<HistoryPeriodKey>('all');
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const searchInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadInventoryHistory();
-  }, []);
+  }, [loadInventoryHistory]);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchOpen]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -80,37 +150,100 @@ export default function InventoryHistoryScreen() {
     );
   }, [restoreFromHistory, t, router]);
 
+  // Section is strictly dedicated to deleted products
+  const deletedProducts = useMemo(() => {
+    return inventoryHistory.filter((h) => h.status === 'removed');
+  }, [inventoryHistory]);
 
+  const periodFiltered = useMemo(() => {
+    return applyPeriodFilter(deletedProducts, periodFilter, customRange);
+  }, [deletedProducts, periodFilter, customRange]);
 
-  const filtered: HistoryItem[] =
-    statusFilter === 'all'
-      ? inventoryHistory
-      : inventoryHistory.filter((h) => h.status === statusFilter);
+  const searchLower = toEnglishDigits(searchQuery).trim().toLowerCase();
 
-  const FILTERS: { key: StatusFilter; label: string }[] = [
-    { key: 'all',      label: t('inventoryHistory.filterAll') },
-    { key: 'sold_out', label: t('inventoryHistory.filterSoldOut') },
-    { key: 'removed',  label: t('inventoryHistory.filterRemoved') },
-  ];
+  const finalFiltered = useMemo(() => {
+    if (!searchLower) return periodFiltered;
+    return periodFiltered.filter((item) => {
+      const nameMatch = item.productName?.toLowerCase().includes(searchLower);
+      const codeMatch = item.itemId?.toLowerCase().includes(searchLower);
+      const catMatch  = item.category?.toLowerCase().includes(searchLower);
+      return nameMatch || codeMatch || catMatch;
+    });
+  }, [periodFiltered, searchLower]);
 
-  const renderEmpty = () => (
-    <MotiView
-      from={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ type: 'timing', duration: 300 }}
-      style={styles.emptyContainer}
-    >
-      <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
-        <Ionicons name="time-outline" size={40} color={colors.gray300} />
-      </View>
-      <Text style={[styles.emptyTitle, { color: colors.black }]}>
-        {t('inventoryHistory.noHistory')}
-      </Text>
-      <Text style={[styles.emptySub, { color: colors.gray400 }]}>
-        {t('inventoryHistory.noHistoryDetail')}
-      </Text>
-    </MotiView>
-  );
+  const filterKeys: HistoryPeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const filterLabels: Record<HistoryPeriodKey, string> = {
+    today:  isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isKurdish ? 'هەمووی' : 'All',
+    custom: isKurdish ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+  };
+
+  const handlePeriodChange = (key: HistoryPeriodKey) => {
+    if (key === 'custom') {
+      setCustomOpen(true);
+    } else {
+      setPeriodFilter(key);
+      setCustomRange(null);
+    }
+  };
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setIsSearchOpen(false);
+    setPeriodFilter('all');
+    setCustomRange(null);
+  };
+
+  const renderEmpty = () => {
+    const isFiltered = searchQuery.length > 0 || periodFilter !== 'all';
+    return (
+      <MotiView
+        from={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ type: 'timing', duration: 300 }}
+        style={styles.emptyContainer}
+      >
+        <View style={[styles.emptyIcon, { backgroundColor: colors.gray100 }]}>
+          <Ionicons
+            name={isFiltered ? 'search-outline' : 'trash-bin-outline'}
+            size={40}
+            color={colors.gray300}
+          />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.black }]}>
+          {isFiltered
+            ? t('inventoryHistory.noFilterResults', 'هیچ بەرهەمێکی سڕاوە نەدۆزرایەوە')
+            : t('inventoryHistory.noHistory', 'هیچ بەرهەمێکی سڕاوە نییە')}
+        </Text>
+        <Text style={[styles.emptySub, { color: colors.gray400 }]}>
+          {isFiltered
+            ? t('inventoryHistory.noFilterResultsDetail', 'هیچ بەرهەمێک لەگەڵ ئەم گەڕانە و ماوەیە ناگونجێت')
+            : t('inventoryHistory.noHistoryDetail', 'بەرهەمە سڕاوەکان لەم بەشەدا دەردەکەون و دەتوانیت بیانگەڕێنیتەوە')}
+        </Text>
+
+        {isFiltered && (
+          <TouchableOpacity
+            style={[styles.clearFilterBtn, { backgroundColor: colors.primary }]}
+            onPress={resetAllFilters}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
+            <Text
+              style={[
+                styles.clearFilterText,
+                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {t('inventoryHistory.clearFilters', 'پاککردنەوەی فلتەر')}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </MotiView>
+    );
+  };
 
   const renderItem = ({
     item,
@@ -126,12 +259,12 @@ export default function InventoryHistoryScreen() {
         type: 'spring',
         damping: 18,
         stiffness: 200,
-        delay: Math.min(index * 30, 300),
+        delay: Math.min(index * 25, 250),
       }}
     >
       <InventoryHistoryItem
         item={item}
-        onRestore={item.status === 'removed' ? () => handleRestore(item) : undefined}
+        onRestore={() => handleRestore(item)}
       />
     </MotiView>
   );
@@ -144,51 +277,241 @@ export default function InventoryHistoryScreen() {
         onBack={() => router.back()}
       />
 
-      {/* Status filter chips */}
-      <View style={[styles.filterRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8 }]}>
-        {FILTERS.map(({ key, label }) => {
-          const active = statusFilter === key;
-          return (
-            <TouchableOpacity
-              key={key}
-              onPress={() => setStatusFilter(key)}
+      {/* Filter & Search Bar */}
+      <View style={[styles.filterBarWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+        <View
+          style={[
+            styles.filterBarContainer,
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+            },
+          ]}
+        >
+          {isSearchOpen ? (
+            /* Full-width Search Bar */
+            <View
               style={[
-                styles.filterChip,
-                active
-                  ? { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark }
-                  : { borderColor: colors.gray200, backgroundColor: colors.white },
+                styles.searchBarRow,
+                {
+                  backgroundColor: colors.gray100,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && { height: 48, paddingHorizontal: 16 },
               ]}
-              activeOpacity={0.75}
             >
-              <Text
+              <Ionicons
+                name="search"
+                size={isTablet ? 22 : 18}
+                color={colors.gray400}
+                style={{ marginHorizontal: 4 }}
+              />
+              <TextInput
+                ref={searchInputRef}
                 style={[
-                  styles.filterChipText,
-                  { color: active ? colors.white : colors.gray600, textAlign },
+                  styles.searchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontSize: isTablet ? 15 : 13.5,
+                  },
+                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                ]}
+                value={searchQuery}
+                onChangeText={(v) => setSearchQuery(toEnglishDigits(v))}
+                placeholder={t('inventoryHistory.searchPlaceholder', 'گەڕان بەپێی ناوی بەرهەم، کۆد، پۆلێن...')}
+                placeholderTextColor={colors.gray400}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  setIsSearchOpen(false);
+                }}
+                style={[
+                  styles.searchCloseBtn,
+                  {
+                    backgroundColor: colors.white,
+                    borderColor: colors.gray200,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={isTablet ? 18 : 16} color={colors.gray600} />
+                <Text
+                  style={[
+                    styles.searchCloseText,
+                    { color: colors.gray600 },
+                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isTablet && { fontSize: 13.5 },
+                  ]}
+                >
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Standard Filter Bar with search button on the right of 'ئەمڕۆ' in RTL */
+            <View
+              style={[
+                styles.barRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              {/* Search Toggle Icon Button */}
+              <TouchableOpacity
+                style={[
+                  styles.searchToggleBtn,
+                  {
+                    backgroundColor: searchQuery ? colors.primary + '18' : colors.gray100,
+                    borderColor: searchQuery ? colors.primary : colors.gray200,
+                    marginRight: isRTL ? (isTablet ? 24 : 12) : 6,
+                    marginLeft: isRTL ? 6 : (isTablet ? 24 : 12),
+                  },
+                  isTablet && { width: 44, height: 44, borderRadius: 22 },
+                ]}
+                onPress={() => setIsSearchOpen(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Search"
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 20 : 18}
+                  color={searchQuery ? colors.primary : colors.gray600}
+                />
+                {searchQuery.length > 0 && (
+                  <View style={[styles.searchBadge, { backgroundColor: colors.primary }]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Filter Pills ScrollView */}
+              <ScrollView
+                ref={scrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={[
+                  styles.scrollView,
+                  isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+                ]}
+                contentContainerStyle={[
+                  styles.pillsRow,
+                  {
+                    paddingHorizontal: isTabletLandscape ? 24 : 16,
+                  },
+                  isTablet && { paddingVertical: isTabletLandscape ? 12 : 10, gap: isTablet ? 10 : 8 },
                 ]}
               >
-                {label}
+                {filterKeys.map((key) => {
+                  const active = periodFilter === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => handlePeriodChange(key)}
+                      style={[
+                        styles.pill,
+                        isRTL && { transform: [{ scaleX: -1 }] },
+                        {
+                          backgroundColor: active ? colors.primaryDark : colors.gray100,
+                          borderColor: active ? colors.primaryDark : colors.gray200,
+                          paddingHorizontal: isTabletLandscape ? 20 : isTablet ? 16 : 13,
+                        },
+                      ]}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.pillText,
+                          {
+                            color: active ? colors.white : colors.gray700,
+                            textAlign,
+                          },
+                          isKurdish && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
+                        ]}
+                      >
+                        {filterLabels[key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Custom Date Range Badge */}
+          {periodFilter === 'custom' && customRange && !isSearchOpen && (
+            <View
+              style={[
+                styles.customRangeBanner,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 24 : 16,
+                },
+              ]}
+            >
+              <Ionicons name="calendar" size={13} color={colors.primary} />
+              <Text style={[styles.customRangeText, { color: colors.primary }]}>
+                {customRange.from} &rarr; {customRange.to}
               </Text>
-            </TouchableOpacity>
-          );
-        })}
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* Count strip */}
-      {filtered.length > 0 && (
-        <View style={[styles.countStrip, { backgroundColor: colors.white, borderBottomColor: colors.gray100, justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
-          <Text style={[styles.countText, { color: colors.gray500, textAlign }]}>
-            {filtered.length} {t('inventory.products')}
-          </Text>
-        </View>
-      )}
+      {/* Count Strip */}
+      <View
+        style={[
+          styles.countStrip,
+          {
+            backgroundColor: colors.white,
+            borderBottomColor: colors.gray100,
+            justifyContent: isRTL ? 'flex-end' : 'flex-start',
+          },
+          isTablet && {
+            maxWidth: isTabletLandscape ? 1320 : 1040,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: isTabletLandscape ? 32 : 24,
+          },
+        ]}
+      >
+        <Text style={[styles.countText, { color: colors.gray500, textAlign }]}>
+          {finalFiltered.length} {t('inventoryHistory.deletedCount', 'بەرهەمی سڕاوە')}
+        </Text>
+      </View>
 
+      {/* Deleted Products List */}
       <FlatList
-        data={filtered}
+        data={finalFiltered}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         contentContainerStyle={[
           styles.list,
-          filtered.length === 0 && styles.listEmpty,
+          finalFiltered.length === 0 && styles.listEmpty,
+          isTablet && {
+            maxWidth: isTabletLandscape ? 1320 : 1040,
+            alignSelf: 'center',
+            width: '100%',
+            paddingHorizontal: isTabletLandscape ? 32 : 24,
+          },
         ]}
         ListEmptyComponent={renderEmpty}
         removeClippedSubviews
@@ -205,21 +528,164 @@ export default function InventoryHistoryScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Custom Date Range Modal */}
+      <CustomDateRangeModal
+        visible={customOpen}
+        initialFrom={customRange?.from}
+        initialTo={customRange?.to}
+        onClose={() => setCustomOpen(false)}
+        onApply={(from, to) => {
+          setCustomRange({ from, to });
+          setPeriodFilter('custom');
+          setCustomOpen(false);
+        }}
+        title={isKurdish ? 'دیاریکردنی ماوەی بەرهەمە سڕاوەکان' : 'Select Date Range'}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1 },
-  filterRow:    { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, gap: 8 },
-  filterChip:   { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Theme.radius.full, borderWidth: 1.5 },
-  filterChipText: { fontSize: 12, fontWeight: '600' },
-  countStrip:   { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1 },
-  countText:    { fontSize: 13 },
-  list:         { padding: 16, paddingBottom: 40 },
-  listEmpty:    { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 32 },
-  emptyIcon:    { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle:   { fontSize: 17, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
-  emptySub:     { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  container: {
+    flex: 1,
+  },
+  filterBarWrapper: {
+    borderBottomWidth: 1,
+  },
+  filterBarContainer: {
+    width: '100%',
+  },
+  barRow: {
+    alignItems: 'center',
+    paddingVertical: 7,
+    width: '100%',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  pillsRow: {
+    paddingVertical: 4,
+    gap: 8,
+    alignItems: 'center',
+  },
+  pill: {
+    paddingVertical: 7,
+    borderRadius: Theme.radius.full,
+    borderWidth: 1,
+  },
+  pillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  searchToggleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  searchBarRow: {
+    height: 44,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 8,
+  },
+  searchCloseBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  searchCloseText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  customRangeBanner: {
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
+  customRangeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  countStrip: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  countText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  list: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  listEmpty: {
+    flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  clearFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: Theme.radius.full,
+    marginTop: 4,
+  },
+  clearFilterText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

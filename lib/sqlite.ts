@@ -758,6 +758,12 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Supplier brand logo and purchase supplier logo snapshot
     `ALTER TABLE suppliers ADD COLUMN image_uri TEXT`,
     `ALTER TABLE purchases ADD COLUMN supplier_image_uri TEXT`,
+    // Standardize purchase numbers to F-00000 format (e.g. F-00001) if legacy numeric without prefix
+    `UPDATE purchases SET purchase_number = 'F-' || substr('00000' || purchase_number, -5) WHERE purchase_number NOT LIKE 'F-%' AND purchase_number GLOB '[0-9]*'`,
+    `UPDATE purchase_debts SET purchase_number = 'F-' || substr('00000' || purchase_number, -5) WHERE purchase_number NOT LIKE 'F-%' AND purchase_number GLOB '[0-9]*'`,
+    // Standardize sales invoice numbers to 5-digit F-00000 format
+    `UPDATE OR IGNORE sales SET invoice_number = 'F-' || substr(invoice_number, 4) WHERE invoice_number LIKE 'F-00000%' AND length(invoice_number) = 8`,
+    `UPDATE sales SET invoice_number = 'F-' || substr('00000' || invoice_number, -5) WHERE invoice_number NOT LIKE 'F-%' AND invoice_number GLOB '[0-9]*'`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -918,8 +924,16 @@ function formatSequenceNumber(n: number): string {
   return String(n).padStart(width, '0');
 }
 
-function formatInvoiceNumber(n: number): string {
-  return `F-${String(n).padStart(6, '0')}`;
+export function formatInvoiceNumber(n: number): string {
+  return `F-${String(n).padStart(5, '0')}`;
+}
+
+export function formatPurchaseNumber(n: number): string {
+  return `F-${String(n).padStart(5, '0')}`;
+}
+
+export function formatQuotationNumber(n: number): string {
+  return `B-${String(n).padStart(4, '0')}`;
 }
 
 export async function generateInvoiceNumber(): Promise<string> {
@@ -3802,7 +3816,7 @@ export async function generatePurchaseNumber(): Promise<string> {
       [nextNumber]
     );
 
-    purchaseNumber = formatSequenceNumber(nextNumber);
+    purchaseNumber = formatPurchaseNumber(nextNumber);
   });
 
   return purchaseNumber;
@@ -6199,10 +6213,11 @@ export async function getDashboardRecentActivities(
   const isEn = language === 'en';
 
   for (const s of salesList) {
+    const invNo = s.invoice_number?.startsWith('F-') || s.invoice_number?.startsWith('B-') ? s.invoice_number : `#${s.invoice_number}`;
     items.push({
       id: `sale_${s.id}`,
       type: 'sale',
-      title: isEn ? `Invoice #${s.invoice_number}` : `پسوولەی #${s.invoice_number}`,
+      title: isEn ? `Invoice ${invNo}` : `پسوولەی ${invNo}`,
       subtitle: s.customer_name?.trim() ? s.customer_name : (isEn ? 'General Customer' : 'کڕیاری گشتی'),
       amount: s.grand_total,
       discount: s.discount_total,
@@ -6212,10 +6227,11 @@ export async function getDashboardRecentActivities(
   }
 
   for (const p of purchasesList) {
+    const purNo = p.purchase_number?.startsWith('F-') || p.purchase_number?.startsWith('B-') ? p.purchase_number : `#${p.purchase_number}`;
     items.push({
       id: `purchase_${p.id}`,
       type: 'purchase',
-      title: isEn ? `Purchase #${p.purchase_number}` : `کڕین #${p.purchase_number}`,
+      title: isEn ? `Purchase ${purNo}` : `کڕین ${purNo}`,
       subtitle: p.supplier_name?.trim() ? p.supplier_name : (p.product_name || (isEn ? 'General Purchase' : 'کڕینی کاڵا')),
       amount: p.total_iqd,
       timestamp: p.created_at,

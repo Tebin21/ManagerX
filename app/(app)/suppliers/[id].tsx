@@ -244,7 +244,7 @@ export default function SupplierDetailScreen() {
   const errorTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const successTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
-  const { textAlign, writingDirection } = useRTL();
+  const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const sectionTitleStyle = [styles.sectionTitle, { color: colors.gray400, textAlign, writingDirection }];
 
@@ -263,7 +263,6 @@ export default function SupplierDetailScreen() {
   const supplier: SupplierWithStats | undefined = suppliers.find((s) => s.id === Number(id));
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const isDirectSupplier = isDirectSupplierName(supplier?.name);
-  const { isRTL } = useRTL();
 
   const loadAll = useCallback(async () => {
     if (!supplier) return;
@@ -628,10 +627,30 @@ export default function SupplierDetailScreen() {
             </View>
           </View>
           {supplier.lastPurchaseDate ? (
-            <View style={[styles.activityRow, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}>
+            <View
+              style={[
+                styles.activityRow,
+                {
+                  backgroundColor: cardBg,
+                  borderWidth: 1,
+                  borderColor: cardBorder,
+                  flexDirection,
+                },
+              ]}
+            >
               <Ionicons name="time-outline" size={14} color={colors.primary} />
-              <Text style={[styles.activityText, { color: colors.gray500 }]}>
-                {t('suppliers.lastPurchase')}: <DateText value={supplier.lastPurchaseDate} size="small" style={{ color: colors.black, fontWeight: '600' }} />
+              <Text
+                style={[
+                  styles.activityText,
+                  {
+                    color: colors.gray500,
+                    textAlign,
+                    writingDirection,
+                  },
+                ]}
+              >
+                {t('suppliers.lastPurchase')}:{' '}
+                <DateText value={supplier.lastPurchaseDate} size="small" style={{ color: colors.black, fontWeight: '600' }} />
               </Text>
             </View>
           ) : null}
@@ -725,26 +744,26 @@ export default function SupplierDetailScreen() {
                   />
                 </View>
               ) : null}
-              <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+              <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoText, { color: colors.black }]}>{supplier.name}</Text>
+                <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{supplier.name}</Text>
               </View>
               {supplier.phone ? (
-                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                   <Ionicons name="call-outline" size={16} color={colors.gray400} />
-                  <Text style={[styles.infoText, { color: colors.black }]}>{supplier.phone}</Text>
+                  <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{supplier.phone}</Text>
                 </View>
               ) : null}
               {supplier.address ? (
-                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                   <Ionicons name="location-outline" size={16} color={colors.gray400} />
-                  <Text style={[styles.infoText, { color: colors.black }]}>{supplier.address}</Text>
+                  <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{supplier.address}</Text>
                 </View>
               ) : null}
               {supplier.notes ? (
-                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                   <Ionicons name="document-text-outline" size={16} color={colors.gray400} />
-                  <Text style={[styles.infoText, { color: colors.black }]}>{supplier.notes}</Text>
+                  <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{supplier.notes}</Text>
                 </View>
               ) : null}
             </>
@@ -815,16 +834,16 @@ export default function SupplierDetailScreen() {
                 transition={{ type: 'timing', duration: 220, delay: Math.min(i * 35, 350) }}
               >
                 <TouchableOpacity
-                  style={[styles.purchaseRow, { borderBottomColor: colors.gray100 }]}
+                  style={[styles.purchaseRow, { borderBottomColor: colors.gray100, flexDirection }]}
                   onPress={() => router.push({ pathname: '/(app)/invoices', params: { tab: 'purchases', id: String(p.id) } } as never)}
                   activeOpacity={0.75}
                 >
-                  <View style={styles.purchaseLeft}>
-                    <IdText style={[styles.purchaseNum, { color: colors.primary }]}>{p.purchaseNumber}</IdText>
-                    <Text style={[styles.purchaseName, { color: colors.black }]} numberOfLines={1}>{p.productName}</Text>
-                    <DateText value={p.date ?? p.createdAt} size="small" style={[styles.purchaseDate, { color: colors.gray400 }]} />
+                  <View style={[styles.purchaseLeft, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                    <IdText style={[styles.purchaseNum, { color: colors.primary, textAlign }]}>{p.purchaseNumber}</IdText>
+                    <Text style={[styles.purchaseName, { color: colors.black, textAlign }]} numberOfLines={1}>{p.productName}</Text>
+                    <DateText value={p.date ?? p.createdAt} size="small" style={[styles.purchaseDate, { color: colors.gray400, textAlign }]} />
                   </View>
-                  <View style={styles.purchaseRight}>
+                  <View style={[styles.purchaseRight, { alignItems: isRTL ? 'flex-start' : 'flex-end' }]}>
                     <AmountText value={p.totalIQD} currency="IQD" style={[styles.purchaseTotal, { color: colors.primary }]} />
                     <View style={[styles.statusBadge, { backgroundColor: p.paymentStatus === 'paid' ? successTint.bg : warningTint.bg }]}>
                       <Text style={[styles.statusText, { color: p.paymentStatus === 'paid' ? successTint.text : warningTint.text }]}>
@@ -832,7 +851,12 @@ export default function SupplierDetailScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Ionicons name={chevronForward as never} size={16} color={colors.gray300} style={{ marginStart: 8 }} />
+                  <Ionicons
+                    name={chevronForward as never}
+                    size={16}
+                    color={colors.gray300}
+                    style={{ marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }}
+                  />
                 </TouchableOpacity>
               </MotiView>
             ))
@@ -848,7 +872,7 @@ export default function SupplierDetailScreen() {
             style={[styles.section, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }]}
           >
             <Text style={sectionTitleStyle}>{t('suppliers.notes')}</Text>
-            <Text style={[styles.notesText, { color: colors.black }]}>{supplier.notes}</Text>
+            <Text style={[styles.notesText, { color: colors.black, textAlign, writingDirection }]}>{supplier.notes}</Text>
           </MotiView>
         ) : null}
 

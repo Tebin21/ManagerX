@@ -93,10 +93,13 @@ export default function HistoryScreen() {
   const searchInputRef = useRef<TextInput>(null);
   const filterScrollRef = useRef<ScrollView>(null);
 
+  // Search width only grows gradually when text approaches the clear/close button
   const queryCharLength = query.length;
-  const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 205;
+  const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 200;
   const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 48, 275);
-  const dynamicSearchWidth = Math.min(maxSearchWidth, Math.max(baseSearchWidth, baseSearchWidth + queryCharLength * 6));
+  const expandThreshold = isTablet ? (isTabletLandscape ? 22 : 18) : 11;
+  const extraChars = Math.max(0, queryCharLength - expandThreshold);
+  const dynamicSearchWidth = Math.min(maxSearchWidth, baseSearchWidth + extraChars * 7.5);
 
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);

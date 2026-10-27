@@ -16,6 +16,10 @@ export interface QuotationState {
   setDefaultNotes: (notes: string) => void;
 }
 
+export function formatQuotationNumber(n: number): string {
+  return `B-${String(n).padStart(4, '0')}`;
+}
+
 export const useQuotationStore = create<QuotationState>()(
   persist(
     (set) => ({
@@ -63,10 +67,19 @@ export const useQuotationStore = create<QuotationState>()(
       storage: createJSONStorage(() => migratedAsyncStorage),
       merge: (persisted: unknown, current: QuotationState): QuotationState => {
         const p = persisted as Partial<QuotationState> | null;
+        const rawQuotes = p?.quotations ?? current.quotations;
+        const normalizedQuotes = rawQuotes.map((q) => {
+          if (q.quotationNumber && q.quotationNumber.startsWith('F-')) {
+            const numPart = q.quotationNumber.replace(/^F-0*/i, '');
+            const n = parseInt(numPart, 10) || 1;
+            return { ...q, quotationNumber: formatQuotationNumber(n) };
+          }
+          return q;
+        });
         return {
           ...current,
           ...p,
-          quotations: p?.quotations ?? current.quotations,
+          quotations: normalizedQuotes,
           defaultNotes: p?.defaultNotes ?? current.defaultNotes,
           currencyMode: (['both', 'iqd', 'usd'].includes(p?.currencyMode as string)
             ? p?.currencyMode

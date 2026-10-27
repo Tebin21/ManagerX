@@ -308,7 +308,7 @@ export default function CustomerProfileScreen() {
               {sales.length > 0 ? (
                 <View style={[styles.activityRow, { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, flexDirection }]}>
                   <Ionicons name="time-outline" size={14} color={colors.primary} />
-                  <Text style={[styles.activityText, { color: colors.gray500 }]}>
+                  <Text style={[styles.activityText, { color: colors.gray500, textAlign, writingDirection }]}>
                     {t('customers.lastActivity')}:{' '}
                     <DateText value={sales[0].date ?? sales[0].createdAt} size="small" style={{ color: colors.black, fontWeight: '600' }} />
                   </Text>

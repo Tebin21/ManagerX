@@ -919,7 +919,12 @@
     "restoreConfirm": "گەڕاندنەوە",
     "permanentDeleteTitle": "سڕینەوەی بەردەوام",
     "permanentDeleteMsg": "ئەمە بە تەواوی '{{name}}' لە هەموو تۆمارەکان دەسڕێتەوە. ناگەڕێتەوە.",
-    "permanentDeleteConfirm": "بەردەوام بسڕەوە"
+    "permanentDeleteConfirm": "بەردەوام بسڕەوە",
+    "searchPlaceholder": "گەڕان بەپێی ناوی بەرهەم، کۆد، پۆلێن...",
+    "deletedCount": "بەرهەمی سڕاوە",
+    "clearFilters": "پاککردنەوەی فلتەر",
+    "noFilterResults": "هیچ بەرهەمێکی سڕاوە نەدۆزرایەوە",
+    "noFilterResultsDetail": "هیچ بەرهەمێک لەگەڵ ئەم گەڕانە و ماوەیە ناگونجێت"
   },
   "suppliers": {
     "title": "دابینکەران",

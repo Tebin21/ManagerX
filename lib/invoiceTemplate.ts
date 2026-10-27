@@ -861,7 +861,7 @@ export function buildPurchaseInvoiceHTML(
       <div class="inv-label">${ku(t('purchaseInvoiceLabel'))}</div>
       <div class="inv-meta-row inv-meta-row-title">
         <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
-        <span class="row-value row-value-ltr">#${escHtml(purchase.purchaseNumber)}</span>
+        <span class="row-value row-value-ltr">${purchase.purchaseNumber?.startsWith('F-') || purchase.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(purchase.purchaseNumber)}</span>
       </div>
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('date') + ':')}</span>

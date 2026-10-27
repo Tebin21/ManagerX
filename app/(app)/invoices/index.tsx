@@ -111,6 +111,86 @@ export default function InvoicesHubScreen() {
     return viewMode === 'grid' ? 2 : 1;
   }, [isTablet, isTabletLandscape, viewMode]);
 
+  const isMobileGrid = numColumns > 1 && !isTablet;
+
+  // Format count number cleanly (e.g. 10, 999, 10.5k, 1.2M)
+  const formatCountNumber = useCallback((count: number = 0): string => {
+    const safe = Number.isFinite(count) && count > 0 ? count : 0;
+    if (safe >= 1000000) {
+      return `${(safe / 1000000).toFixed(1)}M`;
+    }
+    if (safe >= 10000) {
+      return `${(safe / 1000).toFixed(1)}k`;
+    }
+    return String(safe);
+  }, []);
+
+  // Responsive View & Print indicator row for invoice cards
+  const renderCountBadges = useCallback(
+    (viewCount: number = 0, printCount: number = 0) => {
+      const formattedView = formatCountNumber(viewCount);
+      const formattedPrint = formatCountNumber(printCount);
+
+      const viewText = isKu
+        ? (isMobileGrid ? `بینین: ${formattedView}` : `بینین: ${formattedView} جار`)
+        : `Views: ${formattedView}`;
+
+      const printText = isKu
+        ? (isMobileGrid ? `چاپ: ${formattedPrint}` : `چاپ: ${formattedPrint} جار`)
+        : `Prints: ${formattedPrint}`;
+
+      return (
+        <View style={[styles.countBadgesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View
+            style={[
+              styles.countBadge,
+              isMobileGrid && { paddingHorizontal: 4, paddingVertical: 2.5, gap: 3 },
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' },
+            ]}
+          >
+            <Ionicons name="eye-outline" size={isMobileGrid ? 11 : 12} color={colors.gray500} />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={[
+                styles.countBadgeText,
+                { color: colors.gray500 },
+                isMobileGrid && { fontSize: 10 },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            >
+              {viewText}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.countBadge,
+              isMobileGrid && { paddingHorizontal: 4, paddingVertical: 2.5, gap: 3 },
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' },
+            ]}
+          >
+            <Ionicons name="print-outline" size={isMobileGrid ? 11 : 12} color={colors.gray500} />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={[
+                styles.countBadgeText,
+                { color: colors.gray500 },
+                isMobileGrid && { fontSize: 10 },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+            >
+              {printText}
+            </Text>
+          </View>
+        </View>
+      );
+    },
+    [formatCountNumber, isDark, isKu, isMobileGrid, isRTL, colors.gray500]
+  );
+
   // ─── Data State ───
   const [sales, setSales] = useState<Sale[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -668,10 +748,13 @@ export default function InvoicesHubScreen() {
     const hasSearchQuery = Boolean(tabSearchConfig && tabSearchConfig.query.trim().length > 0);
 
     // Calculate dynamic expanding width based on input length
+    // Search width only grows gradually when text approaches the clear/close button
     const queryCharLength = (tabSearchConfig?.query || '').length;
-    const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 210;
-    const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 32, 340);
-    const dynamicSearchWidth = Math.min(maxSearchWidth, Math.max(baseSearchWidth, baseSearchWidth + queryCharLength * 8));
+    const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 200;
+    const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 48, 275);
+    const expandThreshold = isTablet ? (isTabletLandscape ? 22 : 18) : 11;
+    const extraChars = Math.max(0, queryCharLength - expandThreshold);
+    const dynamicSearchWidth = Math.min(maxSearchWidth, baseSearchWidth + extraChars * 7.5);
 
     return (
       <View style={styles.periodSection}>
@@ -1512,6 +1595,7 @@ export default function InvoicesHubScreen() {
                         numColumns > 1 && {
                           flex: 1,
                           maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                          padding: isMobileGrid ? 10 : (isTabletLandscape ? 16 : 14),
                         },
                         {
                           backgroundColor: isDark ? colors.gray100 : colors.white,
@@ -1520,12 +1604,39 @@ export default function InvoicesHubScreen() {
                       ]}
                     >
                       {/* Top Row: Purchase Number & Payment Method Badge */}
-                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.invoiceNumberBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
-                          <IdText style={[styles.invoiceNumberText, { color: colors.primary }]}>{item.purchaseNumber}</IdText>
+                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 4 }]}>
+                        <View
+                          style={[
+                            styles.invoiceNumberBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' },
+                          ]}
+                        >
+                          <IdText
+                            style={[
+                              styles.invoiceNumberText,
+                              isMobileGrid && { fontSize: 11 },
+                              { color: colors.primary },
+                            ]}
+                          >
+                            {item.purchaseNumber}
+                          </IdText>
                         </View>
-                        <View style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}>
-                          <Text style={[styles.statusBadgeText, { color: statusColor }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: hexToRgba(statusColor, 0.15) },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              isMobileGrid && { fontSize: 10.5 },
+                              { color: statusColor },
+                              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
                             {statusLabel}
                           </Text>
                         </View>
@@ -1555,20 +1666,7 @@ export default function InvoicesHubScreen() {
                       </View>
 
                       {/* Print and View Counts Indicator */}
-                      <View style={[styles.countBadgesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="eye-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${item.viewCount || 0} جار` : `Views: ${item.viewCount || 0}`}
-                          </Text>
-                        </View>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="print-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${item.printCount || 0} جار` : `Prints: ${item.printCount || 0}`}
-                          </Text>
-                        </View>
-                      </View>
+                      {renderCountBadges(item.viewCount || 0, item.printCount || 0)}
                     </TouchableOpacity>
                   );
                 }}
@@ -1635,6 +1733,7 @@ export default function InvoicesHubScreen() {
                         numColumns > 1 && {
                           flex: 1,
                           maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                          padding: isMobileGrid ? 10 : (isTabletLandscape ? 16 : 14),
                         },
                         {
                           backgroundColor: isDark ? colors.gray100 : colors.white,
@@ -1643,24 +1742,74 @@ export default function InvoicesHubScreen() {
                       ]}
                     >
                       {/* Top Row: Invoice Number & Badges */}
-                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.invoiceNumberBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
-                          <IdText style={[styles.invoiceNumberText, { color: colors.primary }]}>{item.invoiceNumber}</IdText>
+                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 4 }]}>
+                        <View
+                          style={[
+                            styles.invoiceNumberBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' },
+                          ]}
+                        >
+                          <IdText
+                            style={[
+                              styles.invoiceNumberText,
+                              isMobileGrid && { fontSize: 11 },
+                              { color: colors.primary },
+                            ]}
+                          >
+                            {item.invoiceNumber}
+                          </IdText>
                         </View>
-                        <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                        <View
+                          style={{
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            gap: 4,
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            justifyContent: isRTL ? 'flex-start' : 'flex-end',
+                            flexShrink: 1,
+                          }}
+                        >
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                              { backgroundColor: hexToRgba(statusColor, 0.15) },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                isMobileGrid && { fontSize: 10.5 },
+                                { color: statusColor },
+                                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                              ]}
+                            >
+                              {statusLabel}
+                            </Text>
+                          </View>
                           {hasDiscount && (
-                            <View style={[styles.discountPill, { backgroundColor: hexToRgba('#D946EF', 0.15) }]}>
-                              <Ionicons name="pricetag" size={10} color="#D946EF" />
-                              <Text style={[styles.discountPillText, { color: '#D946EF' }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                            <View
+                              style={[
+                                styles.discountPill,
+                                isMobileGrid && { paddingHorizontal: 5, paddingVertical: 2.5 },
+                                { backgroundColor: hexToRgba('#D946EF', 0.15) },
+                              ]}
+                            >
+                              <Ionicons name="pricetag" size={isMobileGrid ? 9.5 : 10} color="#D946EF" />
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.discountPillText,
+                                  isMobileGrid && { fontSize: 9.5 },
+                                  { color: '#D946EF' },
+                                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                                ]}
+                              >
                                 {isKu ? 'داشکاندن' : 'Disc.'}
                               </Text>
                             </View>
                           )}
-                          <View style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}>
-                            <Text style={[styles.statusBadgeText, { color: statusColor }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                              {statusLabel}
-                            </Text>
-                          </View>
                         </View>
                       </View>
 
@@ -1685,20 +1834,7 @@ export default function InvoicesHubScreen() {
                       </View>
 
                       {/* Print and View Counts Indicator */}
-                      <View style={[styles.countBadgesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="eye-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${item.viewCount || 0} جار` : `Views: ${item.viewCount || 0}`}
-                          </Text>
-                        </View>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="print-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${item.printCount || 0} جار` : `Prints: ${item.printCount || 0}`}
-                          </Text>
-                        </View>
-                      </View>
+                      {renderCountBadges(item.viewCount || 0, item.printCount || 0)}
                     </TouchableOpacity>
                   );
                 }}
@@ -1766,6 +1902,7 @@ export default function InvoicesHubScreen() {
                         numColumns > 1 && {
                           flex: 1,
                           maxWidth: numColumns === 3 ? '32.5%' : '49%',
+                          padding: isMobileGrid ? 10 : (isTabletLandscape ? 16 : 14),
                         },
                         {
                           backgroundColor: isDark ? colors.gray100 : colors.white,
@@ -1774,12 +1911,39 @@ export default function InvoicesHubScreen() {
                       ]}
                     >
                       {/* Top Row: Quotation Number & Badge */}
-                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.invoiceNumberBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' }]}>
-                          <IdText style={[styles.invoiceNumberText, { color: colors.primary }]}>{item.quotationNumber}</IdText>
+                      <View style={[styles.cardHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 4 }]}>
+                        <View
+                          style={[
+                            styles.invoiceNumberBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: isDark ? colors.gray200 : '#F1F5F9' },
+                          ]}
+                        >
+                          <IdText
+                            style={[
+                              styles.invoiceNumberText,
+                              isMobileGrid && { fontSize: 11 },
+                              { color: colors.primary },
+                            ]}
+                          >
+                            {item.quotationNumber}
+                          </IdText>
                         </View>
-                        <View style={[styles.statusBadge, { backgroundColor: hexToRgba(statusColor, 0.15) }]}>
-                          <Text style={[styles.statusBadgeText, { color: statusColor }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            isMobileGrid && { paddingHorizontal: 6, paddingVertical: 2.5 },
+                            { backgroundColor: hexToRgba(statusColor, 0.15) },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              isMobileGrid && { fontSize: 10.5 },
+                              { color: statusColor },
+                              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            ]}
+                          >
                             {statusLabel}
                           </Text>
                         </View>
@@ -1833,20 +1997,7 @@ export default function InvoicesHubScreen() {
                       </View>
 
                       {/* Print and View Counts Indicator */}
-                      <View style={[styles.countBadgesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="eye-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `بینین: ${viewCount} جار` : `Views: ${viewCount}`}
-                          </Text>
-                        </View>
-                        <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }]}>
-                          <Ionicons name="print-outline" size={12} color={colors.gray500} />
-                          <Text style={[styles.countBadgeText, { color: colors.gray500 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? `چاپ: ${printCount} جار` : `Prints: ${printCount}`}
-                          </Text>
-                        </View>
-                      </View>
+                      {renderCountBadges(viewCount, printCount)}
                     </TouchableOpacity>
                   );
                 }}
@@ -2616,6 +2767,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
+    overflow: 'hidden',
   },
   columnWrapper: {
     gap: 12,
@@ -2625,6 +2777,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 14,
+    overflow: 'hidden',
     justifyContent: 'space-between',
   },
   gridCard: {
@@ -2665,6 +2818,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 8,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   discountPillText: {
     fontSize: 10.5,
@@ -2690,7 +2845,8 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
   },
   countBadgesRow: {
-    gap: 8,
+    width: '100%',
+    gap: 4,
     marginTop: 6,
     paddingTop: 8,
     borderTopWidth: 1,
@@ -2698,16 +2854,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countBadge: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 7,
   },
   countBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
+    flexShrink: 1,
   },
   amountRow: {
     justifyContent: 'space-between',

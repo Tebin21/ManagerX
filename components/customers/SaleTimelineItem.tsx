@@ -71,7 +71,7 @@ export function SaleTimelineItem({ sale, isLast, onPress, onEdit, onDelete }: Pr
           <View style={styles.headerInfo}>
             <View style={[styles.invoiceRow, { flexDirection }]}>
               <Ionicons name="receipt-outline" size={15} color={colors.primary} />
-              <IdText style={styles.invoiceNumber}>#{sale.invoiceNumber}</IdText>
+              <IdText style={styles.invoiceNumber}>{sale.invoiceNumber?.startsWith('F-') || sale.invoiceNumber?.startsWith('B-') ? sale.invoiceNumber : `#${sale.invoiceNumber}`}</IdText>
             </View>
             <View style={[styles.dateRow, { flexDirection }]}>
               <Ionicons name="calendar-outline" size={12} color={colors.gray400} />

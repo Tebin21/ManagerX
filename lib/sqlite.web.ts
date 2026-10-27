@@ -70,6 +70,18 @@ export async function getAllPurchases(): Promise<any[]> {
   return [];
 }
 
+export function formatInvoiceNumber(n: number): string {
+  return `F-${String(n).padStart(5, '0')}`;
+}
+
+export function formatPurchaseNumber(n: number): string {
+  return `F-${String(n).padStart(5, '0')}`;
+}
+
+export function formatQuotationNumber(n: number): string {
+  return `B-${String(n).padStart(4, '0')}`;
+}
+
 export async function generatePurchaseNumber(): Promise<string> {
   return 'WEB-' + Date.now();
 }

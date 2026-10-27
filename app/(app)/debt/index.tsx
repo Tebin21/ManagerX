@@ -722,10 +722,13 @@ export default function DebtScreen() {
   const searchInputRef = useRef<TextInput>(null);
   const filterScrollRef = useRef<ScrollView>(null);
 
+  // Search width only grows gradually when text approaches the clear/close button
   const queryCharLength = query.length;
-  const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 205;
+  const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 200;
   const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 48, 275);
-  const dynamicSearchWidth = Math.min(maxSearchWidth, Math.max(baseSearchWidth, baseSearchWidth + queryCharLength * 6));
+  const expandThreshold = isTablet ? (isTabletLandscape ? 22 : 18) : 11;
+  const extraChars = Math.max(0, queryCharLength - expandThreshold);
+  const dynamicSearchWidth = Math.min(maxSearchWidth, baseSearchWidth + extraChars * 7.5);
 
   const handleExpandSearch = useCallback(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -1480,7 +1483,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                       {debt.customerName}
                     </Text>
                     <Text style={[styles.previewSub, { color: colors.gray400 }]}>
-                      #{debt.invoiceNumber} &bull; <DateText value={debt.createdAt} size="small" style={styles.previewSub} />
+                      {debt.invoiceNumber?.startsWith('F-') || debt.invoiceNumber?.startsWith('B-') ? debt.invoiceNumber : `#${debt.invoiceNumber}`} &bull; <DateText value={debt.createdAt} size="small" style={styles.previewSub} />
                     </Text>
                   </View>
                   <AmountText
@@ -1537,7 +1540,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                       {debt.supplierName}
                     </Text>
                     <Text style={[styles.previewSub, { color: colors.gray400 }]}>
-                      #{debt.purchaseNumber || '—'} &bull; <DateText value={debt.createdAt} size="small" style={styles.previewSub} />
+                      {debt.purchaseNumber ? (debt.purchaseNumber.startsWith('F-') || debt.purchaseNumber.startsWith('B-') ? debt.purchaseNumber : `#${debt.purchaseNumber}`) : '—'} &bull; <DateText value={debt.createdAt} size="small" style={styles.previewSub} />
                     </Text>
                   </View>
                   <AmountText

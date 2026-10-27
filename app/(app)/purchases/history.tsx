@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -30,7 +31,7 @@ import { useRTL } from '@/lib/rtl';
 import { Theme } from '@/constants/theme';
 import type { Purchase } from '@/types/purchases';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { usePeriodFilter } from '@/hooks/usePeriodFilter';
 import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
@@ -51,8 +52,12 @@ export default function PurchaseHistoryScreen() {
   const viewMode: 'grid' | 'list' = purchaseHistoryGridLayout ? 'grid' : 'list';
 
   const [query, setQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  const searchInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Period filter state — defaults to 'today' (ئەمڕۆ)
   const {
@@ -61,11 +66,20 @@ export default function PurchaseHistoryScreen() {
     periodSheetVisible,
     setPeriodSheetVisible,
     handlePeriodSelect,
-  } = usePeriodFilter();
+  } = usePeriodFilter('today');
 
   useEffect(() => {
     loadPurchases();
   }, [loadPurchases]);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchOpen]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -317,6 +331,24 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
     );
   };
 
+  const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const filterLabels: Record<PeriodKey, string> = {
+    today:  isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isKuLanguage ? 'هەمووی' : 'All',
+    custom: isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+  };
+
+  const handlePeriodTabPress = (key: PeriodKey) => {
+    if (key === 'custom') {
+      setPeriodSheetVisible(true);
+    } else {
+      handlePeriodSelect(key);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <AppHeader
@@ -335,8 +367,8 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
               }}
             />
             <HeaderActionButton
-              icon="options-outline"
-              onPress={() => setPeriodSheetVisible(true)}
+              icon="document-text-outline"
+              onPress={handleExportPdf}
             />
             <HeaderActionButton
               icon="add"
@@ -346,36 +378,203 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
         }
       />
 
-      {/* Search Input */}
-      <View
-        style={[
-          styles.searchWrap,
-          { backgroundColor: colors.white, flexDirection },
-          isTablet && contentContainerStyle,
-          isTablet && { height: 54, paddingHorizontal: 16 },
-        ]}
-      >
-        <Ionicons name="search" size={isTablet ? 20 : 16} color={colors.gray400} style={styles.searchIcon} />
-        <TextInput
+      {/* Filter & Search Bar */}
+      <View style={[styles.filterBarWrapper, { backgroundColor: colors.white, borderBottomColor: colors.gray100 }]}>
+        <View
           style={[
-            styles.searchInput,
-            { color: colors.black, textAlign, writingDirection },
-            isTablet && { fontSize: 17 },
-            applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('purchases.searchPlaceholder') }), {}),
+            styles.filterBarContainer,
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+            },
           ]}
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('purchases.searchPlaceholder')}
-          placeholderTextColor={colors.gray400}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          autoCorrect={false}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={isTablet ? 20 : 16} color={colors.gray400} />
-          </TouchableOpacity>
-        )}
+        >
+          {isSearchOpen ? (
+            /* Full-width Search Bar */
+            <View
+              style={[
+                styles.searchBarRow,
+                {
+                  backgroundColor: colors.gray100,
+                  borderColor: colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && { height: 48, paddingHorizontal: 16 },
+              ]}
+            >
+              <Ionicons
+                name="search"
+                size={isTablet ? 22 : 18}
+                color={colors.gray400}
+                style={{ marginHorizontal: 4 }}
+              />
+              <TextInput
+                ref={searchInputRef}
+                style={[
+                  styles.searchInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontSize: isTablet ? 15 : 13.5,
+                  },
+                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR },
+                ]}
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t('purchases.searchPlaceholder')}
+                placeholderTextColor={colors.gray400}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setQuery('')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => {
+                  setQuery('');
+                  setIsSearchOpen(false);
+                }}
+                style={[
+                  styles.searchCloseBtn,
+                  {
+                    backgroundColor: colors.white,
+                    borderColor: colors.gray200,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                  },
+                  isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={isTablet ? 18 : 16} color={colors.gray600} />
+                <Text
+                  style={[
+                    styles.searchCloseText,
+                    { color: colors.gray600 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isTablet && { fontSize: 13.5 },
+                  ]}
+                >
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* Standard Filter Bar with search toggle button on the right of 'ئەمڕۆ' in RTL */
+            <View
+              style={[
+                styles.barRow,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              {/* Search Toggle Icon Button */}
+              <TouchableOpacity
+                style={[
+                  styles.searchToggleBtn,
+                  {
+                    backgroundColor: query ? colors.primary + '18' : colors.gray100,
+                    borderColor: query ? colors.primary : colors.gray200,
+                    marginRight: isRTL ? (isTablet ? 24 : 12) : 6,
+                    marginLeft: isRTL ? 6 : (isTablet ? 24 : 12),
+                  },
+                  isTablet && { width: 44, height: 44, borderRadius: 22 },
+                ]}
+                onPress={() => setIsSearchOpen(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Search"
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 20 : 18}
+                  color={query ? colors.primary : colors.gray600}
+                />
+                {query.length > 0 && (
+                  <View style={[styles.searchBadge, { backgroundColor: colors.primary }]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Filter Pills ScrollView */}
+              <ScrollView
+                ref={scrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={[
+                  styles.scrollView,
+                  isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+                ]}
+                contentContainerStyle={[
+                  styles.pillsRow,
+                  {
+                    paddingHorizontal: isTabletLandscape ? 24 : 16,
+                  },
+                  isTablet && { paddingVertical: isTabletLandscape ? 12 : 10, gap: isTablet ? 10 : 8 },
+                ]}
+              >
+                {filterKeys.map((key) => {
+                  const active = period === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => handlePeriodTabPress(key)}
+                      style={[
+                        styles.pill,
+                        isRTL && { transform: [{ scaleX: -1 }] },
+                        {
+                          backgroundColor: active ? colors.primaryDark : colors.gray100,
+                          borderColor: active ? colors.primaryDark : colors.gray200,
+                          paddingHorizontal: isTabletLandscape ? 20 : isTablet ? 16 : 13,
+                        },
+                      ]}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.pillText,
+                          {
+                            color: active ? colors.white : colors.gray700,
+                            textAlign,
+                          },
+                          isKuLanguage && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
+                        ]}
+                      >
+                        {filterLabels[key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Custom Date Range Badge */}
+          {period === 'custom' && !isSearchOpen && (
+            <View
+              style={[
+                styles.customRangeBanner,
+                {
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  paddingHorizontal: isTablet ? 24 : 16,
+                },
+              ]}
+            >
+              <Ionicons name="calendar" size={13} color={colors.primary} />
+              <Text style={[styles.customRangeText, { color: colors.primary }]}>
+                {periodDisplayLabel}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Summary Strip */}
@@ -384,30 +583,19 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
           style={[
             styles.summaryStrip,
             { backgroundColor: colors.white, borderBottomColor: colors.gray100, flexDirection },
-            isTablet && contentContainerStyle,
+            isTablet && {
+              maxWidth: isTabletLandscape ? 1320 : 1040,
+              alignSelf: 'center',
+              width: '100%',
+              paddingHorizontal: isTabletLandscape ? 32 : 24,
+            },
             isTablet && { paddingVertical: 14 },
           ]}
         >
           <View style={[styles.summaryLeft, { flexDirection }]}>
             <Text style={[styles.summaryText, { color: colors.gray500 }, isTablet && { fontSize: 15 }]}>
-              {visible.length} {visible.length === 1 ? 'purchase' : 'purchases'}
+              {visible.length} {isKuLanguage ? 'پسوولەی کڕین' : visible.length === 1 ? 'purchase' : 'purchases'}
             </Text>
-            {period !== 'all' && (
-              <TouchableOpacity
-                onPress={() => setPeriodSheetVisible(true)}
-                style={[
-                  styles.periodBadge,
-                  { backgroundColor: colors.softBlue, flexDirection },
-                  isTablet && { paddingHorizontal: 10, paddingVertical: 5 },
-                ]}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="options-outline" size={isTablet ? 14 : 11} color={colors.primary} />
-                <Text style={[styles.periodBadgeText, { color: colors.primary }, isTablet && { fontSize: 14 }]}>
-                  {periodDisplayLabel}
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           <AmountText
@@ -480,19 +668,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  searchWrap: {
-    alignItems: 'center',
-    borderRadius: Theme.radius.lg,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 6,
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 8,
-    ...Theme.shadow.soft,
+  filterBarWrapper: {
+    borderBottomWidth: 1,
   },
-  searchIcon: { flexShrink: 0 },
-  searchInput: { flex: 1, fontSize: 14, height: '100%' },
+  filterBarContainer: {
+    width: '100%',
+  },
+  barRow: {
+    alignItems: 'center',
+    paddingVertical: 7,
+    width: '100%',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  pillsRow: {
+    paddingVertical: 4,
+    gap: 8,
+    alignItems: 'center',
+  },
+  pill: {
+    paddingVertical: 7,
+    borderRadius: Theme.radius.full,
+    borderWidth: 1,
+  },
+  pillText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  searchToggleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  searchBarRow: {
+    height: 44,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 8,
+  },
+  searchCloseBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  searchCloseText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  customRangeBanner: {
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
+  customRangeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
 
   summaryStrip: {
