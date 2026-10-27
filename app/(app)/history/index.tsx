@@ -4,6 +4,7 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   TextInput,
   Keyboard,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  useWindowDimensions,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -85,10 +87,16 @@ export default function HistoryScreen() {
       setTab(params.tab);
     }
   }, [params.tab]);
+  const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const filterScrollRef = useRef<ScrollView>(null);
+
+  const queryCharLength = query.length;
+  const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 205;
+  const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 48, 275);
+  const dynamicSearchWidth = Math.min(maxSearchWidth, Math.max(baseSearchWidth, baseSearchWidth + queryCharLength * 6));
 
   const [custRefreshing, setCustRefreshing] = useState(false);
   const [supRefreshing, setSupRefreshing] = useState(false);
@@ -144,6 +152,7 @@ export default function HistoryScreen() {
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsSearchExpanded(true);
+    filterScrollRef.current?.scrollTo({ x: 0, animated: true });
     if (tab === 'report') {
       setTab('customers');
     }
@@ -725,19 +734,41 @@ export default function HistoryScreen() {
           },
         ]}
       >
-        {isSearchExpanded ? (
-          <View style={[styles.expandedSearchContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View
+        <ScrollView
+          ref={filterScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
+          contentContainerStyle={[
+            styles.filterRow,
+            {
+              paddingHorizontal: isTabletLandscape ? 24 : 16,
+              gap: isTablet ? 10 : 8,
+            },
+          ]}
+        >
+          {/* Search Button / Inline Expanded Search Input */}
+          {isSearchExpanded ? (
+            <Pressable
+              onPress={(e) => e.stopPropagation?.()}
               style={[
                 styles.expandedSearchBox,
+                isRTL && { transform: [{ scaleX: -1 }] },
                 {
-                  backgroundColor: isDark ? colors.gray100 : colors.gray50,
+                  width: dynamicSearchWidth,
+                  height: isTablet ? (isTabletLandscape ? 44 : 40) : 38,
+                  borderRadius: isTablet ? 22 : 19,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
                   borderColor: colors.primary,
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
               ]}
             >
-              <Ionicons name="search" size={17} color={colors.primary} />
+              <Ionicons
+                name="search"
+                size={isTabletLandscape ? 19 : isTablet ? 17 : 16}
+                color={colors.primary}
+              />
               <TextInput
                 ref={searchInputRef}
                 style={[
@@ -746,6 +777,7 @@ export default function HistoryScreen() {
                     color: colors.black,
                     textAlign: isRTL ? 'right' : 'left',
                     writingDirection: isRTL ? 'rtl' : 'ltr',
+                    fontSize: isTablet ? (isTabletLandscape ? 15 : 14) : 13,
                   },
                   applyKurdishFont(
                     resolveInputIsKurdish({
@@ -779,35 +811,38 @@ export default function HistoryScreen() {
                   <Ionicons name="close-circle" size={17} color={colors.gray400} />
                 </TouchableOpacity>
               )}
-            </View>
-
-            <TouchableOpacity
-              onPress={() => handleCollapseSearch(true)}
-              style={[styles.closeSearchBtn, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}
-              hitSlop={8}
-            >
-              <Ionicons name="close" size={18} color={colors.gray600} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.filterRowContainer,
-              {
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-          >
-            {/* Search Icon Button - positioned on the right of ئەمڕۆ in Kurdish RTL */}
+              <TouchableOpacity
+                onPress={() => handleCollapseSearch(false)}
+                style={[
+                  styles.closeSearchBtn,
+                  {
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                  },
+                ]}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="close"
+                  size={isTablet ? 16 : 14}
+                  color={isDark ? colors.gray600 : colors.gray500}
+                />
+              </TouchableOpacity>
+            </Pressable>
+          ) : (
             <TouchableOpacity
               onPress={handleExpandSearch}
               style={[
                 styles.searchIconBtn,
+                isRTL && { transform: [{ scaleX: -1 }] },
                 {
-                  backgroundColor: query ? colors.primary + '18' : (isDark ? colors.gray100 : colors.gray100),
+                  width: isTablet ? (isTabletLandscape ? 44 : 40) : 38,
+                  height: isTablet ? (isTabletLandscape ? 44 : 40) : 38,
+                  borderRadius: isTablet ? 22 : 19,
+                  backgroundColor: query ? colors.primary : (isDark ? colors.gray100 : colors.white),
                   borderColor: query ? colors.primary : colors.gray200,
-                  marginRight: isRTL ? (isTabletLandscape ? 24 : 12) : 6,
-                  marginLeft: isRTL ? 6 : (isTabletLandscape ? 24 : 12),
                 },
               ]}
               activeOpacity={0.7}
@@ -816,67 +851,63 @@ export default function HistoryScreen() {
             >
               <Ionicons
                 name="search"
-                size={isTablet ? 20 : 16}
-                color={query ? colors.primary : (isDark ? colors.gray600 : colors.gray700)}
+                size={isTablet ? 19 : 16}
+                color={query ? '#0F172A' : colors.primary}
               />
+              {query.length > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 3.5,
+                    backgroundColor: isDark ? '#F59E0B' : '#0F172A',
+                  }}
+                />
+              )}
             </TouchableOpacity>
+          )}
 
-            {/* Period Filter ScrollView - bleeds edge-to-edge across screen boundaries */}
-            <ScrollView
-              ref={filterScrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={[
-                { flex: 1 },
-                isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
-              ]}
-              contentContainerStyle={[
-                styles.filterRow,
-                {
-                  paddingHorizontal: isTabletLandscape ? 24 : 16,
-                },
-              ]}
-            >
-              {periodKeys.map((key) => {
-                const active = periodKey === key;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.filterPill,
-                      isRTL && { transform: [{ scaleX: -1 }] },
-                      {
-                        backgroundColor: active ? colors.primary : colors.gray100,
-                        borderColor: active ? colors.primary : colors.gray200,
-                      },
-                    ]}
-                    onPress={() => {
-                      if (key === 'custom') {
-                        setFromVal(customRange?.from || '');
-                        setToVal(customRange?.to || '');
-                        setCustomOpen(true);
-                      } else {
-                        setPeriodKey(key);
-                        setCustomRange(null);
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.filterPillText,
-                        { color: active ? '#FFFFFF' : colors.gray600 },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                      ]}
-                    >
-                      {periodLabels[key]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+          {periodKeys.map((key) => {
+            const active = periodKey === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.filterPill,
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    backgroundColor: active ? colors.primary : colors.gray100,
+                    borderColor: active ? colors.primary : colors.gray200,
+                  },
+                ]}
+                onPress={() => {
+                  if (key === 'custom') {
+                    setFromVal(customRange?.from || '');
+                    setToVal(customRange?.to || '');
+                    setCustomOpen(true);
+                  } else {
+                    setPeriodKey(key);
+                    setCustomRange(null);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    { color: active ? '#FFFFFF' : colors.gray600 },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  ]}
+                >
+                  {periodLabels[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Selected date range info label when custom is chosen */}
         {periodKey === 'custom' && customRange && !isSearchExpanded && (
@@ -1473,7 +1504,6 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       width: '100%',
     },
     expandedSearchBox: {
-      flex: 1,
       height: 38,
       borderRadius: 19,
       borderWidth: 1.2,

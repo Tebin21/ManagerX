@@ -710,278 +710,195 @@ export default function InvoicesHubScreen() {
           </Text>
         </View>
 
-        {/* On Phone (!isTablet): hide pills when search is expanded so it fits.
-            On iPad (isTablet): keep pills visible and shift them aside gracefully. */}
-        {isSearchExpanded && tabSearchConfig && !isTablet ? (
-          <Pressable
-            onPress={handleCloseSearch}
-            style={[
-              styles.searchExpandedRow,
-              {
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                justifyContent: 'flex-start',
-              },
-            ]}
-          >
-            <Pressable
-              onPress={(e) => e.stopPropagation?.()}
-              style={[
-                styles.searchExpandedInputWrap,
-                {
-                  width: dynamicSearchWidth,
-                  backgroundColor: isDark ? colors.gray100 : colors.white,
-                  borderColor: colors.primary,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <Ionicons
-                name="search"
-                size={17}
-                color={colors.primary}
-              />
-              <TextInput
-                ref={searchInputRef}
-                value={tabSearchConfig.query}
-                onChangeText={tabSearchConfig.setQuery}
-                placeholder={tabSearchConfig.placeholder}
-                placeholderTextColor={colors.gray400}
-                autoFocus={true}
-                returnKeyType="search"
+        {/* Horizontal ScrollView: Search button/input and filter pills stay in the same row on all devices */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[{ marginHorizontal: isTabletLandscape ? -24 : -16 }, isRTL && { transform: [{ scaleX: -1 }] }]}
+          contentContainerStyle={[
+            styles.periodPillRow,
+            {
+              paddingHorizontal: isTabletLandscape ? 24 : 16,
+              gap: isTablet ? 10 : 8,
+            },
+          ]}
+        >
+          {/* Search Icon Button - positioned on right side of 'all' in RTL */}
+          {tabSearchConfig && (
+            isSearchExpanded ? (
+              <Pressable
+                onPress={(e) => e.stopPropagation?.()}
                 style={[
-                  styles.searchExpandedInput,
+                  styles.searchExpandedInputWrap,
+                  isRTL && { transform: [{ scaleX: -1 }] },
                   {
-                    color: colors.black,
-                    textAlign: isRTL ? 'right' : 'left',
+                    width: dynamicSearchWidth,
+                    height: isTabletLandscape ? 44 : isTablet ? 40 : 38,
+                    borderRadius: isTablet ? 22 : 19,
+                    paddingHorizontal: isTablet ? 12 : 10,
+                    backgroundColor: isDark ? colors.gray100 : colors.white,
+                    borderColor: colors.primary,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
-                  { fontSize: 14.5 },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                ]}
-              />
-
-              {tabSearchConfig.query.length > 0 && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    try {
-                      Haptics.selectionAsync().catch(() => {});
-                    } catch {}
-                    tabSearchConfig.setQuery('');
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={styles.searchClearBtn}
-                >
-                  <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleCloseSearch}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={[
-                  styles.searchCloseBtn,
-                  { backgroundColor: isDark ? colors.gray200 : colors.gray100 },
                 ]}
               >
                 <Ionicons
-                  name="close"
-                  size={14}
-                  color={isDark ? colors.gray600 : colors.gray500}
+                  name="search"
+                  size={isTabletLandscape ? 19 : isTablet ? 17 : 16}
+                  color={colors.primary}
                 />
-              </TouchableOpacity>
-            </Pressable>
-          </Pressable>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[{ marginHorizontal: isTabletLandscape ? -24 : -16 }, isRTL && { transform: [{ scaleX: -1 }] }]}
-            contentContainerStyle={[
-              styles.periodPillRow,
-              {
-                paddingHorizontal: isTabletLandscape ? 24 : 16,
-                gap: isTablet ? 10 : 8,
-              },
-            ]}
-          >
-            {/* Search Icon Button - positioned on right side of 'all' in RTL */}
-            {tabSearchConfig && (
-              isTablet && isSearchExpanded ? (
-                <Pressable
-                  onPress={(e) => e.stopPropagation?.()}
+                <TextInput
+                  ref={searchInputRef}
+                  value={tabSearchConfig.query}
+                  onChangeText={tabSearchConfig.setQuery}
+                  placeholder={tabSearchConfig.placeholder}
+                  placeholderTextColor={colors.gray400}
+                  autoFocus={true}
+                  returnKeyType="search"
                   style={[
-                    styles.searchExpandedInputWrap,
-                    isRTL && { transform: [{ scaleX: -1 }] },
+                    styles.searchExpandedInput,
                     {
-                      width: dynamicSearchWidth,
-                      height: isTabletLandscape ? 44 : 40,
-                      borderRadius: 22,
-                      paddingHorizontal: 12,
-                      backgroundColor: isDark ? colors.gray100 : colors.white,
-                      borderColor: colors.primary,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      color: colors.black,
+                      textAlign: isRTL ? 'right' : 'left',
                     },
+                    { fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 13 },
+                    isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
-                >
-                  <Ionicons
-                    name="search"
-                    size={isTabletLandscape ? 19 : 17}
-                    color={colors.primary}
-                  />
-                  <TextInput
-                    ref={searchInputRef}
-                    value={tabSearchConfig.query}
-                    onChangeText={tabSearchConfig.setQuery}
-                    placeholder={tabSearchConfig.placeholder}
-                    placeholderTextColor={colors.gray400}
-                    autoFocus={true}
-                    returnKeyType="search"
-                    style={[
-                      styles.searchExpandedInput,
-                      {
-                        color: colors.black,
-                        textAlign: isRTL ? 'right' : 'left',
-                      },
-                      { fontSize: isTabletLandscape ? 15 : 14 },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                    ]}
-                  />
+                />
 
-                  {tabSearchConfig.query.length > 0 && (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        try {
-                          Haptics.selectionAsync().catch(() => {});
-                        } catch {}
-                        tabSearchConfig.setQuery('');
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={styles.searchClearBtn}
-                    >
-                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                    </TouchableOpacity>
-                  )}
-
+                {tabSearchConfig.query.length > 0 && (
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={handleCloseSearch}
+                    onPress={() => {
+                      try {
+                        Haptics.selectionAsync().catch(() => {});
+                      } catch {}
+                      tabSearchConfig.setQuery('');
+                    }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={[
-                      styles.searchCloseBtn,
-                      { backgroundColor: isDark ? colors.gray200 : colors.gray100 },
-                    ]}
+                    style={styles.searchClearBtn}
                   >
-                    <Ionicons
-                      name="close"
-                      size={16}
-                      color={isDark ? colors.gray600 : colors.gray500}
-                    />
+                    <Ionicons name="close-circle" size={17} color={colors.gray400} />
                   </TouchableOpacity>
-                </Pressable>
-              ) : (
+                )}
+
                 <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={handleOpenSearch}
+                  activeOpacity={0.7}
+                  onPress={handleCloseSearch}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={[
-                    styles.searchIconButton,
-                    isRTL && { transform: [{ scaleX: -1 }] },
-                    {
-                      backgroundColor: hasSearchQuery ? colors.primary : isDark ? colors.gray100 : colors.white,
-                      borderColor: hasSearchQuery ? colors.primary : colors.gray200,
-                    },
-                    isTablet && {
-                      width: isTabletLandscape ? 44 : 40,
-                      height: isTabletLandscape ? 44 : 40,
-                      borderRadius: 22,
-                    },
+                    styles.searchCloseBtn,
+                    { backgroundColor: isDark ? colors.gray200 : colors.gray100 },
                   ]}
                 >
                   <Ionicons
-                    name="search"
-                    size={isTablet ? 19 : 16}
-                    color={hasSearchQuery ? '#0F172A' : colors.primary}
+                    name="close"
+                    size={isTablet ? 16 : 14}
+                    color={isDark ? colors.gray600 : colors.gray500}
                   />
-                  {hasSearchQuery && (
-                    <View
-                      style={[
-                        styles.searchActiveDot,
-                        { backgroundColor: isDark ? '#F59E0B' : '#0F172A' },
-                      ]}
-                    />
-                  )}
                 </TouchableOpacity>
-              )
-            )}
+              </Pressable>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleOpenSearch}
+                style={[
+                  styles.searchIconButton,
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    backgroundColor: hasSearchQuery ? colors.primary : isDark ? colors.gray100 : colors.white,
+                    borderColor: hasSearchQuery ? colors.primary : colors.gray200,
+                  },
+                  isTablet && {
+                    width: isTabletLandscape ? 44 : 40,
+                    height: isTabletLandscape ? 44 : 40,
+                    borderRadius: 22,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="search"
+                  size={isTablet ? 19 : 16}
+                  color={hasSearchQuery ? '#0F172A' : colors.primary}
+                />
+                {hasSearchQuery && (
+                  <View
+                    style={[
+                      styles.searchActiveDot,
+                      { backgroundColor: isDark ? '#F59E0B' : '#0F172A' },
+                    ]}
+                  />
+                )}
+              </TouchableOpacity>
+            )
+          )}
 
-            {periodPillKeys.map((key) => {
-              const active = periodKey === key;
-              const isCustom = key === 'custom';
-              return (
-                <TouchableOpacity
-                  key={key}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    try {
-                      Haptics.selectionAsync().catch(() => {});
-                    } catch {}
-                    if (isCustom) {
-                      setCustomRangeModalVisible(true);
-                    } else {
-                      setPeriodKey(key);
-                      setCustomRange(null);
-                    }
-                  }}
+          {periodPillKeys.map((key) => {
+            const active = periodKey === key;
+            const isCustom = key === 'custom';
+            return (
+              <TouchableOpacity
+                key={key}
+                activeOpacity={0.8}
+                onPress={() => {
+                  try {
+                    Haptics.selectionAsync().catch(() => {});
+                  } catch {}
+                  if (isCustom) {
+                    setCustomRangeModalVisible(true);
+                  } else {
+                    setPeriodKey(key);
+                    setCustomRange(null);
+                  }
+                }}
+                style={[
+                  styles.periodPill,
+                  isTablet && {
+                    paddingHorizontal: isTabletLandscape ? 22 : 18,
+                    paddingVertical: isTabletLandscape ? 11 : 9,
+                    borderRadius: 24,
+                  },
+                  isRTL && { transform: [{ scaleX: -1 }] },
+                  {
+                    backgroundColor: active ? colors.primary : isDark ? colors.gray100 : colors.white,
+                    borderColor: active ? colors.primary : colors.gray200,
+                    flexDirection,
+                    alignItems: 'center',
+                    gap: isTablet ? 7 : 5,
+                  },
+                ]}
+              >
+                {isCustom && (
+                  <Ionicons name="calendar" size={isTablet ? 15 : 12} color={active ? '#0F172A' : colors.primary} />
+                )}
+                <Text
                   style={[
-                    styles.periodPill,
-                    isTablet && {
-                      paddingHorizontal: isTabletLandscape ? 22 : 18,
-                      paddingVertical: isTabletLandscape ? 11 : 9,
-                      borderRadius: 24,
-                    },
-                    isRTL && { transform: [{ scaleX: -1 }] },
-                    {
-                      backgroundColor: active ? colors.primary : isDark ? colors.gray100 : colors.white,
-                      borderColor: active ? colors.primary : colors.gray200,
-                      flexDirection,
-                      alignItems: 'center',
-                      gap: isTablet ? 7 : 5,
-                    },
+                    styles.periodPillText,
+                    isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
+                    { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
+                    isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isCustom && (
-                    <Ionicons name="calendar" size={isTablet ? 15 : 12} color={active ? '#0F172A' : colors.primary} />
-                  )}
-                  <Text
-                    style={[
-                      styles.periodPillText,
-                      isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
-                      { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
-                      isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
-                    ]}
+                  {isCustom && customRange
+                    ? `${customRange.from} → ${customRange.to}`
+                    : periodPillLabels[key]}
+                </Text>
+                {isCustom && active && customRange && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      setPeriodKey('all');
+                      setCustomRange(null);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    {isCustom && customRange
-                      ? `${customRange.from} → ${customRange.to}`
-                      : periodPillLabels[key]}
-                  </Text>
-                  {isCustom && active && customRange && (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        setPeriodKey('all');
-                        setCustomRange(null);
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="close-circle" size={isTablet ? 16 : 13} color="#0F172A" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+                    <Ionicons name="close-circle" size={isTablet ? 16 : 13} color="#0F172A" />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -2539,6 +2456,7 @@ const styles = StyleSheet.create({
   // Period Section
   periodSection: {
     marginBottom: 16,
+    zIndex: 20,
   },
   periodSectionHeader: {
     justifyContent: 'space-between',

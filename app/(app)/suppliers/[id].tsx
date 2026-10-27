@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
   Linking,
+  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
@@ -18,6 +19,7 @@ import { DateText } from '@/components/ui/DateText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
+import * as Haptics from 'expo-haptics';
 
 import { useTranslation } from 'react-i18next';
 import { AppHeader } from '@/components/common/AppHeader';
@@ -25,6 +27,9 @@ import { LoadingView } from '@/components/ui/LoadingView';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { KeyboardAwareScrollView, useKeyboardAwareFocus } from '@/components/common/KeyboardAwareScrollView';
 import { AppTextInput } from '@/components/ui/AppTextInput';
+import { AppSheet, AppSheetHeader, AppSheetOption } from '@/components/ui/AppSheet';
+import { copyToPermanentStorage, resolveImageUri } from '@/lib/imageStorage';
+import { ensureCameraAccess, ensureGalleryAccess } from '@/lib/mediaAccess';
 import { useSupplierStore } from '@/store/supplierStore';
 import { useDebtStore } from '@/store/debtStore';
 import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
@@ -33,14 +38,12 @@ import { Theme } from '@/constants/theme';
 import { getPurchasesBySupplierName, getSupplierFinancialTimeline, isDirectSupplierName } from '@/lib/sqlite';
 import { FinancialTimelineItem } from '@/components/shared/FinancialTimelineItem';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
 import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
 import { fmtIQD, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-
 
 interface DebtCardProps {
   debt: PurchaseDebt;
@@ -253,6 +256,8 @@ export default function SupplierDetailScreen() {
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [logoSheetVisible, setLogoSheetVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const supplier: SupplierWithStats | undefined = suppliers.find((s) => s.id === Number(id));
@@ -289,8 +294,113 @@ export default function SupplierDetailScreen() {
       setEditPhone(supplier.phone ?? '');
       setEditAddress(supplier.address ?? '');
       setEditNotes(supplier.notes ?? '');
+      setEditImageUri(supplier.imageUri ?? null);
     }
-  }, [supplier?.id]);
+  }, [supplier?.id, supplier?.imageUri]);
+
+  const handleOpenLogoSheet = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    setLogoSheetVisible(true);
+  }, []);
+
+  const pickFromCamera = useCallback(async () => {
+    setLogoSheetVisible(false);
+    try {
+      const access = await ensureCameraAccess();
+      if (access === 'denied-first-time') return;
+      if (access === 'denied-repeat') {
+        Alert.alert(
+          t('inventory.cameraAccessNeededTitle'),
+          t('inventory.cameraAccessNeededMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      const ImagePicker = await import('expo-image-picker');
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const tempUri = result.assets[0].uri;
+      let finalUri = tempUri;
+      try {
+        finalUri = await copyToPermanentStorage(tempUri, 'supplier_logos');
+      } catch (saveErr) {
+        console.warn('[SupplierDetail] permanent save skipped, using temp URI:', saveErr);
+      }
+      setEditImageUri(finalUri);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+    } catch (err) {
+      console.error('[SupplierDetail] camera error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    }
+  }, [t]);
+
+  const pickFromGallery = useCallback(async () => {
+    setLogoSheetVisible(false);
+    try {
+      const access = await ensureGalleryAccess();
+      if (access === 'denied-first-time') return;
+      if (access === 'denied-repeat') {
+        Alert.alert(
+          t('inventory.galleryAccessNeededTitle'),
+          t('inventory.galleryAccessNeededMessage'),
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      const ImagePicker = await import('expo-image-picker');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const tempUri = result.assets[0].uri;
+      let finalUri = tempUri;
+      try {
+        finalUri = await copyToPermanentStorage(tempUri, 'supplier_logos');
+      } catch (saveErr) {
+        console.warn('[SupplierDetail] permanent save skipped, using temp URI:', saveErr);
+      }
+      setEditImageUri(finalUri);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+    } catch (err) {
+      console.error('[SupplierDetail] gallery error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    }
+  }, [t]);
+
+  const removeLogo = useCallback(() => {
+    setLogoSheetVisible(false);
+    setEditImageUri(null);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {}
+  }, []);
 
   const activeDebts = purchaseDebts.filter(
     (d) => d.supplierName.toLowerCase() === (supplier?.name ?? '').toLowerCase() &&
@@ -318,8 +428,12 @@ export default function SupplierDetailScreen() {
         phone: editPhone.trim() || null,
         address: editAddress.trim() || null,
         notes: editNotes.trim() || null,
+        imageUri: editImageUri ? editImageUri.trim() : null,
       });
       setEditing(false);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'DUPLICATE_NAME') {
@@ -332,7 +446,7 @@ export default function SupplierDetailScreen() {
     } finally {
       setSaving(false);
     }
-  }, [supplier, editName, editPhone, editAddress, editNotes, editSupplier]);
+  }, [supplier, editName, editPhone, editAddress, editNotes, editImageUri, editSupplier, t]);
 
   const handleExportPDF = useCallback(async () => {
     if (!supplier) return;
@@ -533,6 +647,55 @@ export default function SupplierDetailScreen() {
           <Text style={sectionTitleStyle}>{t('suppliers.contactInfo')}</Text>
           {editing ? (
             <View>
+              {/* Supplier Logo / Image Picker */}
+              <View style={styles.avatarPickerWrap}>
+                <TouchableOpacity
+                  style={[
+                    styles.avatarPickerBox,
+                    {
+                      borderColor: editImageUri ? colors.primary : colors.gray200,
+                      backgroundColor: editImageUri ? (isDark ? colors.gray100 : '#FFFFFF') : (isDark ? colors.gray100 : colors.gray50),
+                    },
+                  ]}
+                  onPress={handleOpenLogoSheet}
+                  activeOpacity={0.8}
+                  accessibilityLabel={isKuLanguage ? 'لۆگۆی دابینکەر' : 'Supplier Logo'}
+                >
+                  {editImageUri ? (
+                    <>
+                      <Image
+                        source={{ uri: resolveImageUri(editImageUri) || editImageUri }}
+                        style={styles.avatarPickerImage}
+                        resizeMode="cover"
+                      />
+                      <View style={[styles.avatarEditBadge, { backgroundColor: colors.primary, borderColor: isDark ? colors.gray100 : '#FFFFFF' }]}>
+                        <Ionicons name="pencil" size={12} color="#FFFFFF" />
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="business-outline" size={32} color={colors.primary} />
+                      <View style={[styles.avatarAddBadge, { backgroundColor: colors.primary, borderColor: isDark ? colors.gray100 : '#FFFFFF' }]}>
+                        <Ionicons name="camera" size={11} color="#FFFFFF" />
+                      </View>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleOpenLogoSheet} hitSlop={8} style={{ marginTop: 8 }}>
+                  <Text
+                    style={[
+                      styles.avatarPickerHint,
+                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      { color: editImageUri ? colors.primary : colors.gray500, textAlign: 'center' },
+                    ]}
+                  >
+                    {editImageUri
+                      ? (isKuLanguage ? 'گۆڕین یان سڕینەوەی لۆگۆ' : 'Change or remove logo')
+                      : (isKuLanguage ? 'دانانی وێنە یان لۆگۆی دابینکەر' : 'Set supplier logo or brand image')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <AppTextInput label={t('suppliers.name')} value={editName} onChangeText={setEditName}
                 placeholder={t('suppliers.name')} autoCapitalize="words" />
               <AppTextInput label={t('suppliers.phone')} value={editPhone} onChangeText={(t) => setEditPhone(sanitizeNumericInput(t, 'phone-pad'))}
@@ -553,6 +716,15 @@ export default function SupplierDetailScreen() {
             </View>
           ) : (
             <>
+              {supplier.imageUri ? (
+                <View style={styles.viewAvatarWrap}>
+                  <Image
+                    source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
+                    style={[styles.viewAvatarImage, { borderColor: colors.primary }]}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : null}
               <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
                 <Text style={[styles.infoText, { color: colors.black }]}>{supplier.name}</Text>
@@ -567,6 +739,12 @@ export default function SupplierDetailScreen() {
                 <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
                   <Ionicons name="location-outline" size={16} color={colors.gray400} />
                   <Text style={[styles.infoText, { color: colors.black }]}>{supplier.address}</Text>
+                </View>
+              ) : null}
+              {supplier.notes ? (
+                <View style={[styles.infoRow, { borderBottomColor: colors.gray100 }]}>
+                  <Ionicons name="document-text-outline" size={16} color={colors.gray400} />
+                  <Text style={[styles.infoText, { color: colors.black }]}>{supplier.notes}</Text>
                 </View>
               ) : null}
             </>
@@ -738,6 +916,94 @@ export default function SupplierDetailScreen() {
         )}
 
       </KeyboardAwareScrollView>
+
+      {/* Logo Picker Action Sheet */}
+      <AppSheet visible={logoSheetVisible} onClose={() => setLogoSheetVisible(false)}>
+        <AppSheetHeader
+          title={isKuLanguage ? 'لۆگۆ و وێنەی دابینکەر' : 'Supplier Brand / Logo'}
+          onClose={() => setLogoSheetVisible(false)}
+        />
+        <Text
+          style={[
+            styles.sheetSubtitle,
+            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
+          ]}
+        >
+          {editName || supplier.name}
+        </Text>
+
+        {editImageUri ? (
+          <View style={styles.sheetPreviewWrap}>
+            <View
+              style={[
+                styles.sheetPreviewBox,
+                {
+                  borderColor: colors.primary,
+                  backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: resolveImageUri(editImageUri) || editImageUri }}
+                style={styles.sheetPreviewImage}
+                resizeMode="cover"
+              />
+            </View>
+          </View>
+        ) : null}
+
+        <AppSheetOption
+          icon="camera-outline"
+          label={isKuLanguage ? 'گرتنی وێنە بە کامێرا' : 'Take Photo with Camera'}
+          indicator="chevron"
+          onPress={pickFromCamera}
+        />
+
+        <AppSheetOption
+          icon="images-outline"
+          label={isKuLanguage ? 'هەڵبژاردن لە گەلەری' : 'Choose from Gallery'}
+          indicator="chevron"
+          onPress={pickFromGallery}
+        />
+
+        {editImageUri ? (
+          <TouchableOpacity
+            style={[styles.removeOptionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            onPress={removeLogo}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.removeIconWrap, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </View>
+            <Text
+              style={[
+                styles.removeOptionLabel,
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                { color: '#EF4444', textAlign: isRTL ? 'right' : 'left' },
+              ]}
+            >
+              {isKuLanguage ? 'سڕینەوەی لۆگۆ' : 'Remove Logo'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.sheetCancelBtn, { borderTopColor: colors.gray100 }]}
+          onPress={() => setLogoSheetVisible(false)}
+          activeOpacity={0.75}
+        >
+          <Text
+            style={[
+              styles.sheetCancelText,
+              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+              { color: colors.gray500, textAlign: 'center' },
+            ]}
+          >
+            {t('common.cancel')}
+          </Text>
+        </TouchableOpacity>
+      </AppSheet>
     </KeyboardAvoidingView>
   );
 }
@@ -747,6 +1013,23 @@ function getStyles(colors: AppColors) {
   container:               { flex: 1 },
   centered:                { flex: 1, alignItems: 'center', justifyContent: 'center' },
   contactContainer:        { marginBottom: 12, gap: 8 },
+  avatarPickerWrap:        { alignItems: 'center', marginBottom: 18 },
+  avatarPickerBox:         { width: 84, height: 84, borderRadius: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'visible', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+  avatarPickerImage:       { width: 80, height: 80, borderRadius: 20 },
+  avatarEditBadge:         { position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 },
+  avatarAddBadge:          { position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 1.5 },
+  avatarPickerHint:        { fontSize: 12.5, fontWeight: '600' },
+  viewAvatarWrap:          { alignItems: 'center', marginBottom: 14 },
+  viewAvatarImage:         { width: 74, height: 74, borderRadius: 20, borderWidth: 2 },
+  sheetSubtitle:           { fontSize: 13, marginTop: -8, marginBottom: 10 },
+  sheetPreviewWrap:        { alignItems: 'center', marginVertical: 12 },
+  sheetPreviewBox:         { width: 76, height: 76, borderRadius: 20, borderWidth: 2, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  sheetPreviewImage:       { width: 76, height: 76 },
+  removeOptionRow:         { alignItems: 'center', paddingVertical: 14, gap: 12 },
+  removeIconWrap:          { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  removeOptionLabel:       { fontSize: 14, fontWeight: '700' },
+  sheetCancelBtn:          { paddingVertical: 14, borderTopWidth: 1, marginTop: 6, alignItems: 'center' },
+  sheetCancelText:         { fontSize: 14 },
   directCustomerChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   directCustomerText:      { fontSize: 12, fontWeight: '700' },
   phonePill:               { width: '100%', minHeight: 46, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, alignItems: 'center', gap: 10, ...Theme.shadow.soft },
