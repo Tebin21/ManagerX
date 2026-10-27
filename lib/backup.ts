@@ -572,6 +572,19 @@ export interface MergeTableOptions {
   matchByNaturalKeyIfNoUuid?: boolean;
 }
 
+const TABLE_COLUMNS_CACHE = new Map<string, Set<string>>();
+
+async function getValidTableColumns(db: SQLite.SQLiteDatabase, table: string): Promise<Set<string>> {
+  if (TABLE_COLUMNS_CACHE.has(table)) {
+    return TABLE_COLUMNS_CACHE.get(table)!;
+  }
+  const cleanTable = table.replace(/[^a-zA-Z0-9_]/g, '');
+  const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info("${cleanTable}")`);
+  const set = new Set(rows.map((r) => r.name));
+  TABLE_COLUMNS_CACHE.set(table, set);
+  return set;
+}
+
 export async function mergeSimpleTable(
   db: SQLite.SQLiteDatabase,
   table: string,
@@ -583,8 +596,9 @@ export async function mergeSimpleTable(
   const counts: RestoreTableCounts = { inserted: 0, updated: 0, skipped: 0 };
   if (rows.length === 0) return counts;
 
+  const validCols = await getValidTableColumns(db, table);
   const uuidMap = new Map<string, number>();
-  const existingRows = await db.getAllAsync<{ id: number; uuid: string | null }>(`SELECT id, uuid FROM ${table}`);
+  const existingRows = await db.getAllAsync<{ id: number; uuid: string | null }>(`SELECT id, uuid FROM "${table}"`);
   for (const existing of existingRows) {
     if (existing.uuid) uuidMap.set(existing.uuid, existing.id);
   }
@@ -610,7 +624,7 @@ export async function mergeSimpleTable(
       const nk = opts.naturalKey(row);
       if (nk) {
         const found = await db.getFirstAsync<{ id: number }>(
-          `SELECT id FROM ${table} WHERE ${nk.where}`,
+          `SELECT id FROM "${table}" WHERE ${nk.where}`,
           nk.params as SQLite.SQLiteBindParams
         );
         if (found) localId = found.id;
@@ -622,15 +636,15 @@ export async function mergeSimpleTable(
 
       if (opts.policy === 'mutable' && opts.timestampColumn) {
         const ts = opts.timestampColumn;
-        const localRow = await db.getFirstAsync<Record<string, unknown>>(`SELECT * FROM ${table} WHERE id = ?`, [localId]);
+        const localRow = await db.getFirstAsync<Record<string, unknown>>(`SELECT * FROM "${table}" WHERE id = ?`, [localId]);
         const backupTs = row[ts] as string | undefined;
         const localTs = localRow?.[ts] as string | undefined;
         if (backupTs && (!localTs || backupTs > localTs)) {
-          const updateCols = Object.keys(row).filter((c) => c !== 'uuid');
+          const updateCols = Object.keys(row).filter((c) => c !== 'uuid' && validCols.has(c) && /^[a-zA-Z0-9_]+$/.test(c));
           if (updateCols.length > 0) {
-            const setClause = updateCols.map((c) => `${c} = ?`).join(', ');
+            const setClause = updateCols.map((c) => `"${c}" = ?`).join(', ');
             const values = updateCols.map((c) => row[c]);
-            await db.runAsync(`UPDATE ${table} SET ${setClause} WHERE id = ?`, [...values, localId] as SQLite.SQLiteBindParams);
+            await db.runAsync(`UPDATE "${table}" SET ${setClause} WHERE id = ?`, [...values, localId] as SQLite.SQLiteBindParams);
             counts.updated++;
             continue;
           }
@@ -640,7 +654,7 @@ export async function mergeSimpleTable(
       continue;
     }
 
-    const cols = Object.keys(row);
+    const cols = Object.keys(row).filter((c) => validCols.has(c) && /^[a-zA-Z0-9_]+$/.test(c));
     if (cols.length === 0) {
       counts.skipped++;
       continue;
@@ -648,7 +662,7 @@ export async function mergeSimpleTable(
     const placeholders = cols.map(() => '?').join(', ');
     const values = cols.map((c) => row[c]);
     const result = await db.runAsync(
-      `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`,
+      `INSERT INTO "${table}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${placeholders})`,
       values as SQLite.SQLiteBindParams
     );
     if (backupId != null && remap) remap.set(backupId, result.lastInsertRowId);
@@ -700,6 +714,8 @@ async function mergeProducts(
     const uuid = row.uuid as string | undefined;
     const localId = uuid ? uuidMap.get(uuid) ?? null : null;
 
+    const validProductCols = await getValidTableColumns(db, 'products');
+
     if (localId != null) {
       matchedAny = true;
       if (backupId != null) productsRemap.set(backupId, localId);
@@ -709,7 +725,7 @@ async function mergeProducts(
       const values: unknown[] = [];
       if (localRow) {
         for (const col of Object.keys(row)) {
-          if (col === 'uuid' || col === 'quantity') continue;
+          if (col === 'uuid' || col === 'quantity' || !validProductCols.has(col) || !/^[a-zA-Z0-9_]+$/.test(col)) continue;
           const localVal = localRow[col];
           const backupVal = row[col];
           const localEmpty = localVal === null || localVal === undefined || localVal === '';
@@ -721,7 +737,7 @@ async function mergeProducts(
         }
       }
       if (updateCols.length > 0) {
-        const setClause = updateCols.map((c) => `${c} = ?`).join(', ');
+        const setClause = updateCols.map((c) => `"${c}" = ?`).join(', ');
         await db.runAsync(`UPDATE products SET ${setClause} WHERE id = ?`, [...values, localId] as SQLite.SQLiteBindParams);
         counts.updated++;
       } else {
@@ -730,7 +746,7 @@ async function mergeProducts(
       continue;
     }
 
-    const cols = Object.keys(row);
+    const cols = Object.keys(row).filter((c) => validProductCols.has(c) && /^[a-zA-Z0-9_]+$/.test(c));
     if (cols.length === 0) {
       counts.skipped++;
       continue;
@@ -738,7 +754,7 @@ async function mergeProducts(
     const placeholders = cols.map(() => '?').join(', ');
     const values = cols.map((c) => row[c]);
     const result = await db.runAsync(
-      `INSERT INTO products (${cols.join(', ')}) VALUES (${placeholders})`,
+      `INSERT INTO products (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${placeholders})`,
       values as SQLite.SQLiteBindParams
     );
     if (backupId != null) productsRemap.set(backupId, result.lastInsertRowId);

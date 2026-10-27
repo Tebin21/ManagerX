@@ -12,13 +12,7 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 
 function pctPaid(paid: number, original: number): number {
@@ -167,8 +161,9 @@ export function buildSalesDebtReportHTML(
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo" alt="logo" />`
     : '';
 
   const paymentsRows = payments.length === 0
@@ -369,8 +364,9 @@ export function buildPurchaseDebtReportHTML(
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo" alt="logo" />`
     : '';
 
   const paymentsRows = payments.length === 0
@@ -628,8 +624,9 @@ export function buildDebtsAuditReportHTML(
 
   const reportId = `${reportPrefix}-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
 
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" style="height:55px;max-width:140px;object-fit:contain;display:block;background:#fff;border-radius:8px;padding:4px;border:1px solid #E2E8F0;" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" style="height:55px;max-width:140px;object-fit:contain;display:block;background:#fff;border-radius:8px;padding:4px;border:1px solid #E2E8F0;" alt="logo" />`
     : '';
 
   const sales = data.salesDebts || [];

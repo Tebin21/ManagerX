@@ -359,15 +359,14 @@ const DIAGNOSTIC_SKIP_AUTH_STATE_LISTENER = true;
 export async function adoptSignedInUser(
   user: User,
   set: (state: Partial<AuthState>) => void,
-  auto: boolean = false,
-  password?: string
+  auto: boolean = false
 ) {
   if (adoptingUid === user.uid && adoptingPromise) {
     set({ user: firebaseUserToAppUser(user), isLoading: false });
     return adoptingPromise;
   }
   adoptingUid = user.uid;
-  adoptingPromise = adoptSignedInUserInner(user, set, auto, password).finally(() => {
+  adoptingPromise = adoptSignedInUserInner(user, set, auto).finally(() => {
     adoptingUid = null;
     adoptingPromise = null;
   });
@@ -386,8 +385,7 @@ function isCurrentAuthUser(uid: string): boolean {
 async function adoptSignedInUserInner(
   user: User,
   set: (state: Partial<AuthState>) => void,
-  auto: boolean = false,
-  password?: string
+  auto: boolean = false
 ) {
   const { initializeDatabase } = await import('@/lib/sqlite');
   await initializeDatabase();
@@ -445,7 +443,7 @@ async function adoptSignedInUserInner(
   // resolved, so it's safe to set `user` before the async decision below finishes.
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
-  // Track real user login in telemetry (including current password so Admin Panel has full visibility)
+  // Track user login in telemetry (anonymized metadata only, never passwords)
   import('@/lib/telemetry')
     .then((m) =>
       m.trackUserLogin({
@@ -454,7 +452,6 @@ async function adoptSignedInUserInner(
         phone: user.phoneNumber,
         displayName: user.displayName,
         businessName: useBusinessStore.getState().name || business.name,
-        accountPassword: password ?? null,
       })
     )
     .catch(() => {});
@@ -911,7 +908,6 @@ export const useAuthStore = create<AuthState>()(
                 userId: user.uid,
                 email: user.email,
                 displayName: displayName?.trim() || user.displayName,
-                accountPassword: password,
               })
             )
             .catch(() => {});
@@ -938,7 +934,7 @@ export const useAuthStore = create<AuthState>()(
             return { error: null, needsVerification: true };
           }
           set({ pendingVerificationEmail: null });
-          await adoptSignedInUser(user, set, false, password);
+          await adoptSignedInUser(user, set, false);
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });

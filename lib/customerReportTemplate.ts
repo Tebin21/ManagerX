@@ -11,13 +11,7 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 
 function statusBadge(status: string): string {
@@ -44,8 +38,9 @@ export function buildCustomerReportHTML(
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`
     : '';
 
   const debtRows = activeDebts.length === 0

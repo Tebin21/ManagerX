@@ -18,17 +18,20 @@ service cloud.firestore {
 
     // App telemetry: device installs and open counts
     match /app_telemetry_installs/{deviceId} {
-      allow read, write: if true;
+      allow write: if true;
+      allow read: if request.auth != null;
     }
 
     // App telemetry: user profiles, logins and device associations
     match /app_telemetry_users/{userId} {
-      allow read, write: if true;
+      allow write: if true;
+      allow read: if request.auth != null;
     }
 
     // App telemetry: live event stream
     match /app_telemetry_events/{eventId} {
-      allow read, write: if true;
+      allow write: if true;
+      allow read: if request.auth != null;
     }
 
     // Offline licenses and store subscriptions

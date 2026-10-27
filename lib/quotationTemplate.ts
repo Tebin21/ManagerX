@@ -11,13 +11,7 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 export function buildQuotationHTML(
   quotation: Quotation,
@@ -69,8 +63,9 @@ export function buildQuotationHTML(
   }
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const items = quotation.items || [];

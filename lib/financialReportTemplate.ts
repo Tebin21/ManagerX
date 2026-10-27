@@ -35,13 +35,7 @@ export interface FinancialExportData {
   dateRange:       DateRange;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 function lossVal(n: number): string {
   return n > 0 ? `(${fmtIQD(n)})` : fmtIQD(0);
@@ -106,8 +100,9 @@ export function buildFinancialReportHTML(
 
   // ── Header presentation ────────────────────────────────────────────────────
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
   const reportTypeLabel = dateRange.key === 'custom' ? i18n.t('reports.customRange') : escHtml(dateRange.label);
   const generatedDate = fmtDate(now);

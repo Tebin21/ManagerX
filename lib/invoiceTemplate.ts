@@ -16,13 +16,7 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 // PDF language follows the app's current language automatically. `t()`
 // reads from the invoicePdf i18n namespace; `ku()` (shared from lib/pdfFont)
@@ -296,8 +290,9 @@ export function buildInvoiceHTML(
   const fmtRow = (val: number) => isUsdBase ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const paymentStatus = getPaymentStatus(sale);
@@ -729,8 +724,9 @@ export function buildPurchaseInvoiceHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" class="logo-img" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
   const statusBadge = purchase.paymentStatus === 'paid'

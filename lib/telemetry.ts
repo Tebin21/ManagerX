@@ -22,7 +22,6 @@ interface UserPayload {
   phone?: string | null;
   displayName?: string | null;
   businessName?: string | null;
-  accountPassword?: string | null;
 }
 
 /**
@@ -129,7 +128,6 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
         phone: user.phone ?? prevData?.phone ?? null,
         display_name: user.displayName ?? prevData?.display_name ?? null,
         business_name: user.businessName ?? prevData?.business_name ?? null,
-        account_password: user.accountPassword ?? prevData?.account_password ?? null,
         device_id: deviceId,
         platform: Platform.OS,
         app_version: appVersion,
@@ -166,14 +164,14 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
 }
 
 /**
- * Updates a user's password record in Firestore telemetry whenever they change or reset it.
- * This guarantees the Admin Panel always reflects their latest password.
+ * Records a timestamp in Firestore telemetry whenever a user changes or resets their password.
+ * Sensitive password credentials are NEVER stored or transmitted in telemetry.
  */
 export async function updateUserPasswordTelemetry(
   emailOrUid: string,
-  newPassword: string
+  _newPassword?: string
 ): Promise<void> {
-  if (!emailOrUid || !newPassword) return;
+  if (!emailOrUid) return;
 
   try {
     if (!isFirebaseAvailable) return;
@@ -188,7 +186,6 @@ export async function updateUserPasswordTelemetry(
         await setDoc(
           directRef,
           {
-            account_password: newPassword,
             password_updated_at: new Date().toISOString(),
             updated_at: serverTimestamp(),
           },
@@ -209,7 +206,6 @@ export async function updateUserPasswordTelemetry(
           await setDoc(
             doc(firestore, 'app_telemetry_users', userDoc.id),
             {
-              account_password: newPassword,
               password_updated_at: new Date().toISOString(),
               updated_at: serverTimestamp(),
             },
@@ -226,7 +222,6 @@ export async function updateUserPasswordTelemetry(
       doc(firestore, 'app_telemetry_users', emailDocId),
       {
         email: clean,
-        account_password: newPassword,
         password_updated_at: new Date().toISOString(),
         updated_at: serverTimestamp(),
       },

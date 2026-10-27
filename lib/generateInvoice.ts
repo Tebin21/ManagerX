@@ -124,18 +124,29 @@ let _logoCache: { uri: string; dataUri: string | null } | null = null;
 
 async function resolveLogoDataUri(logoUri: string | null): Promise<string | null> {
   if (!logoUri) return null;
-  if (logoUri.startsWith('data:')) return logoUri;
-  if (_logoCache && _logoCache.uri === logoUri) return _logoCache.dataUri;
-  try {
-    const info = await FileSystem.getInfoAsync(logoUri);
-    if (!info.exists) {
-      _logoCache = { uri: logoUri, dataUri: null };
+  const trimmed = logoUri.trim();
+  if (trimmed.includes('..')) return null;
+
+  if (trimmed.startsWith('data:')) {
+    // Only permit safe image MIME types
+    if (!/^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);base64,/i.test(trimmed)) {
       return null;
     }
-    const base64 = await FileSystem.readAsStringAsync(logoUri, { encoding: FileSystem.EncodingType.Base64 });
-    const ext = logoUri.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpg';
+    return trimmed;
+  }
+
+  if (_logoCache && _logoCache.uri === trimmed) return _logoCache.dataUri;
+  try {
+    const info = await FileSystem.getInfoAsync(trimmed);
+    if (!info.exists) {
+      _logoCache = { uri: trimmed, dataUri: null };
+      return null;
+    }
+    const base64 = await FileSystem.readAsStringAsync(trimmed, { encoding: FileSystem.EncodingType.Base64 });
+    const rawExt = trimmed.split('?')[0].split('.').pop()?.toLowerCase() ?? 'jpg';
+    const ext = LOGO_MIME_BY_EXT[rawExt] ? rawExt : 'jpg';
     const dataUri = `data:${LOGO_MIME_BY_EXT[ext] ?? 'image/jpeg'};base64,${base64}`;
-    _logoCache = { uri: logoUri, dataUri };
+    _logoCache = { uri: trimmed, dataUri };
     return dataUri;
   } catch (err) {
     console.warn('[PDF] failed to resolve logo image, omitting from receipt:', err);

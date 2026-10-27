@@ -1965,7 +1965,9 @@ export async function getDiscardedLossStats(
   to?: string
 ): Promise<DiscardedLossStats> {
   const database = await getDatabase();
-  const dateFilter = from && to ? `AND discarded_at >= '${from}' AND discarded_at <= '${to}'` : '';
+  const hasRange = Boolean(from && to);
+  const dateFilter = hasRange ? `AND discarded_at >= ? AND discarded_at <= ?` : '';
+  const params: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
   const row = await database.getFirstAsync<{
     lossIqd: number;
     lossUsd: number;
@@ -1980,7 +1982,7 @@ export async function getDiscardedLossStats(
     FROM discarded_products
     WHERE restored_at IS NULL
     ${dateFilter}
-  `);
+  `, params);
 
   return {
     totalLossIqd: row?.lossIqd ?? 0,
@@ -5007,9 +5009,11 @@ export interface PurchaseReportData {
 
 export async function getPurchaseReportData(from?: string, to?: string): Promise<PurchaseReportData> {
   const database = await getDatabase();
-  const where = from && to
-    ? `WHERE created_at >= '${from}' AND created_at <= '${to}'`
+  const hasRange = Boolean(from && to);
+  const where = hasRange
+    ? `WHERE created_at >= ? AND created_at <= ?`
     : '';
+  const params: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
   const row = await database.getFirstAsync<Record<string, unknown>>(`
     SELECT
       COALESCE(SUM(total_iqd), 0)                                                AS totalCost,
@@ -5023,11 +5027,12 @@ export async function getPurchaseReportData(from?: string, to?: string): Promise
       COUNT(CASE WHEN payment_status='debt' THEN 1 END)                          AS debtCount,
       COUNT(DISTINCT supplier_name)                                               AS uniqueSuppliers
     FROM purchases ${where}
-  `);
+  `, params);
   const topRow = await database.getFirstAsync<{ supplier_name: string | null; supplier_cost: number }>(
     `SELECT supplier_name, SUM(total_iqd) AS supplier_cost
      FROM purchases ${where}
-     GROUP BY supplier_name ORDER BY supplier_cost DESC LIMIT 1`
+     GROUP BY supplier_name ORDER BY supplier_cost DESC LIMIT 1`,
+    params
   );
   return {
     totalCost:       (row?.totalCost       as number) ?? 0,
@@ -5060,15 +5065,19 @@ export interface ProfitLossData {
 
 export async function getProfitLossData(from?: string, to?: string): Promise<ProfitLossData> {
   const database = await getDatabase();
-  const saleLevelWhere = from && to
-    ? `WHERE status != 'cancelled' AND created_at >= '${from}' AND created_at <= '${to}'`
+  const hasRange = Boolean(from && to);
+  const saleLevelWhere = hasRange
+    ? `WHERE status != 'cancelled' AND created_at >= ? AND created_at <= ?`
     : `WHERE status != 'cancelled'`;
-  const itemLevelWhere = from && to
-    ? `WHERE s.status != 'cancelled' AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
+  const itemLevelWhere = hasRange
+    ? `WHERE s.status != 'cancelled' AND s.created_at >= ? AND s.created_at <= ?`
     : `WHERE s.status != 'cancelled'`;
-  const expWhere = from && to
-    ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
+  const expWhere = hasRange
+    ? `WHERE date >= ? AND date <= ?`
     : '';
+
+  const dateParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  const expParams: SQLite.SQLiteBindValue[] = hasRange ? [from!.slice(0, 10), to!.slice(0, 10)] : [];
 
   // Check if expiry tracking is enabled
   let isExpiryEnabled = false;
@@ -5085,8 +5094,8 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
   let discardLossIqd = 0;
   let discardLossUsd = 0;
   if (isExpiryEnabled) {
-    const discardWhere = from && to
-      ? `WHERE restored_at IS NULL AND discarded_at >= '${from}' AND discarded_at <= '${to}'`
+    const discardWhere = hasRange
+      ? `WHERE restored_at IS NULL AND discarded_at >= ? AND discarded_at <= ?`
       : `WHERE restored_at IS NULL`;
     const discardRow = await database.getFirstAsync<{ lossIqd: number; lossUsd: number }>(`
       SELECT
@@ -5094,18 +5103,20 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
         COALESCE(SUM(total_loss_usd), 0) AS lossUsd
       FROM discarded_products
       ${discardWhere}
-    `);
+    `, dateParams);
     discardLossIqd = discardRow?.lossIqd ?? 0;
     discardLossUsd = discardRow?.lossUsd ?? 0;
   }
 
   const [revenueRow, cogsRow] = await Promise.all([
     database.getFirstAsync<{ grossRevenue: number }>(
-      `SELECT COALESCE(SUM(grand_total), 0) AS grossRevenue FROM sales ${saleLevelWhere}`
+      `SELECT COALESCE(SUM(grand_total), 0) AS grossRevenue FROM sales ${saleLevelWhere}`,
+      dateParams
     ),
     database.getFirstAsync<{ totalCOGS: number }>(
       `SELECT COALESCE(SUM(si.purchase_price * si.quantity), 0) AS totalCOGS
-       FROM sale_items si JOIN sales s ON s.id = si.sale_id ${itemLevelWhere}`
+       FROM sale_items si JOIN sales s ON s.id = si.sale_id ${itemLevelWhere}`,
+      dateParams
     ),
   ]);
   const salesRow = {
@@ -5113,12 +5124,14 @@ export async function getProfitLossData(from?: string, to?: string): Promise<Pro
     totalCOGS:    cogsRow?.totalCOGS       ?? 0,
   };
   const expRow = await database.getFirstAsync<{ total: number }>(
-    `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses ${expWhere}`
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses ${expWhere}`,
+    expParams
   );
   const expBreakdown = await database.getAllAsync<{ category: string; total: number }>(
     `SELECT category, COALESCE(SUM(amount), 0) AS total
      FROM expenses ${expWhere}
-     GROUP BY category ORDER BY total DESC`
+     GROUP BY category ORDER BY total DESC`,
+    expParams
   );
 
   const grossRevenue = salesRow?.grossRevenue ?? 0;
@@ -5155,16 +5168,20 @@ export async function getFinancialSummaryCards(
   to?: string,
 ): Promise<FinancialSummaryCards> {
   const database = await getDatabase();
-  const saleLevelWhere = from && to
-    ? `WHERE status = 'completed' AND created_at >= '${from}' AND created_at <= '${to}'`
+  const hasRange = Boolean(from && to);
+  const saleLevelWhere = hasRange
+    ? `WHERE status = 'completed' AND created_at >= ? AND created_at <= ?`
     : `WHERE status = 'completed'`;
-  const itemLevelWhere = from && to
-    ? `WHERE s.status = 'completed' AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
+  const itemLevelWhere = hasRange
+    ? `WHERE s.status = 'completed' AND s.created_at >= ? AND s.created_at <= ?`
     : `WHERE s.status = 'completed'`;
 
-  const expWhere = from && to
-    ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
+  const expWhere = hasRange
+    ? `WHERE date >= ? AND date <= ?`
     : '';
+
+  const dateParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  const expParams: SQLite.SQLiteBindValue[] = hasRange ? [from!.slice(0, 10), to!.slice(0, 10)] : [];
 
   // Check if expiry tracking is enabled
   let isExpiryEnabled = false;
@@ -5181,8 +5198,8 @@ export async function getFinancialSummaryCards(
   let discardLossIqd = 0;
   let discardLossUsd = 0;
   if (isExpiryEnabled) {
-    const discardWhere = from && to
-      ? `WHERE restored_at IS NULL AND discarded_at >= '${from}' AND discarded_at <= '${to}'`
+    const discardWhere = hasRange
+      ? `WHERE restored_at IS NULL AND discarded_at >= ? AND discarded_at <= ?`
       : `WHERE restored_at IS NULL`;
     const discardRow = await database.getFirstAsync<{ lossIqd: number; lossUsd: number }>(`
       SELECT
@@ -5190,14 +5207,15 @@ export async function getFinancialSummaryCards(
         COALESCE(SUM(total_loss_usd), 0) AS lossUsd
       FROM discarded_products
       ${discardWhere}
-    `);
+    `, dateParams);
     discardLossIqd = discardRow?.lossIqd ?? 0;
     discardLossUsd = discardRow?.lossUsd ?? 0;
   }
 
   const [totalsRow, profitRow, debtRow, expRow] = await Promise.all([
     database.getFirstAsync<{ totalSales: number }>(
-      `SELECT COALESCE(SUM(grand_total), 0) AS totalSales FROM sales ${saleLevelWhere}`
+      `SELECT COALESCE(SUM(grand_total), 0) AS totalSales FROM sales ${saleLevelWhere}`,
+      dateParams
     ),
     database.getFirstAsync<{ netProfit: number; totalLoss: number }>(`
       SELECT
@@ -5212,12 +5230,13 @@ export async function getFinancialSummaryCards(
         ) cogs ON cogs.sale_id = s.id
         ${itemLevelWhere}
       )
-    `),
+    `, dateParams),
     database.getFirstAsync<{ remaining: number }>(
       `SELECT COALESCE(SUM(remaining_amount), 0) AS remaining FROM debts WHERE status = 'active'`
     ),
     database.getFirstAsync<{ totalExpenses: number }>(
-      `SELECT COALESCE(SUM(amount), 0) AS totalExpenses FROM expenses ${expWhere}`
+      `SELECT COALESCE(SUM(amount), 0) AS totalExpenses FROM expenses ${expWhere}`,
+      expParams
     ),
   ]);
 
@@ -5358,9 +5377,11 @@ export async function getMostProfitableProducts(
   to?: string
 ): Promise<ProfitableProduct[]> {
   const database = await getDatabase();
-  const where = from && to
-    ? `WHERE s.created_at >= '${from}' AND s.created_at <= '${to}'`
+  const hasRange = Boolean(from && to);
+  const where = hasRange
+    ? `WHERE s.created_at >= ? AND s.created_at <= ?`
     : '';
+  const params: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, limit] : [limit];
   const rows = await database.getAllAsync<Record<string, unknown>>(`
     SELECT
       si.product_name,
@@ -5374,7 +5395,7 @@ export async function getMostProfitableProducts(
     GROUP BY si.product_name
     ORDER BY gross_profit DESC
     LIMIT ?
-  `, [limit]);
+  `, params);
   return rows.map((r) => {
     const rev    = r.total_revenue as number;
     const profit = r.gross_profit  as number;
@@ -5400,9 +5421,11 @@ export interface LossAnalysis {
 
 export async function getLossAnalysis(from?: string, to?: string): Promise<LossAnalysis> {
   const database = await getDatabase();
-  const dateFilter = from && to
-    ? `AND s.created_at >= '${from}' AND s.created_at <= '${to}'`
+  const hasRange = Boolean(from && to);
+  const dateFilter = hasRange
+    ? `AND s.created_at >= ? AND s.created_at <= ?`
     : '';
+  const params: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
 
   const summaryRow = await database.getFirstAsync<Record<string, number>>(`
     SELECT
@@ -5414,7 +5437,7 @@ export async function getLossAnalysis(from?: string, to?: string): Promise<LossA
     WHERE si.purchase_price > si.selling_price
       AND s.status = 'completed'
       ${dateFilter}
-  `);
+  `, params);
 
   const productRows = await database.getAllAsync<Record<string, unknown>>(`
     SELECT
@@ -5429,7 +5452,7 @@ export async function getLossAnalysis(from?: string, to?: string): Promise<LossA
     GROUP BY si.product_name
     ORDER BY lossAmount DESC
     LIMIT 5
-  `);
+  `, params);
 
   return {
     totalLossAmount: summaryRow?.totalLossAmount ?? 0,
@@ -5482,11 +5505,14 @@ export async function createExpense(data: {
 
 export async function getAllExpenses(from?: string, to?: string): Promise<Expense[]> {
   const database = await getDatabase();
-  const where = from && to
-    ? `WHERE date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}'`
+  const hasRange = Boolean(from && to);
+  const where = hasRange
+    ? `WHERE date >= ? AND date <= ?`
     : '';
+  const params: SQLite.SQLiteBindValue[] = hasRange ? [from!.slice(0, 10), to!.slice(0, 10)] : [];
   const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM expenses ${where} ORDER BY date DESC, created_at DESC`
+    `SELECT * FROM expenses ${where} ORDER BY date DESC, created_at DESC`,
+    params
   );
   return rows.map((r) => ({
     id:        r.id        as number,
@@ -5874,21 +5900,28 @@ export async function getDashboardOverviewStats(
 ): Promise<DashboardOverviewStats> {
   const database = await getDatabase();
 
-  const saleWhere = from && to
-    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const hasRange = Boolean(from && to);
+
+  const saleWhere = hasRange
+    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE status != 'cancelled'`;
 
-  const itemWhere = from && to
-    ? `WHERE s.status != 'cancelled' AND datetime(s.created_at) >= datetime('${from}') AND datetime(s.created_at) <= datetime('${to}')`
+  const itemWhere = hasRange
+    ? `WHERE s.status != 'cancelled' AND datetime(s.created_at) >= datetime(?) AND datetime(s.created_at) <= datetime(?)`
     : `WHERE s.status != 'cancelled'`;
 
-  const purchaseWhere = from && to
-    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const purchaseWhere = hasRange
+    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE archived_at IS NULL`;
 
-  const expWhere = from && to
-    ? `WHERE (datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')) OR (date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}')`
+  const expWhere = hasRange
+    ? `WHERE (datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)) OR (date >= ? AND date <= ?)`
     : '';
+
+  const dateParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  const expParams: SQLite.SQLiteBindValue[] = hasRange
+    ? [from!, to!, from!.slice(0, 10), to!.slice(0, 10)]
+    : [];
 
   const [
     salesRow,
@@ -5915,14 +5948,14 @@ export async function getDashboardOverviewStats(
         COUNT(*) AS totalInvoices,
         COALESCE(SUM(discount_total), 0) AS totalDiscount
       FROM sales ${saleWhere}
-    `),
+    `, dateParams),
     // Cost of goods sold for profit calculation
     database.getFirstAsync<{ totalCOGS: number }>(`
       SELECT COALESCE(SUM(si.purchase_price * si.quantity), 0) AS totalCOGS
       FROM sale_items si
       JOIN sales s ON s.id = si.sale_id
       ${itemWhere}
-    `),
+    `, dateParams),
     // Purchases summary
     database.getFirstAsync<{
       totalCost: number;
@@ -5932,12 +5965,12 @@ export async function getDashboardOverviewStats(
         COALESCE(SUM(total_iqd), 0) AS totalCost,
         COUNT(*) AS totalPurchases
       FROM purchases ${purchaseWhere}
-    `),
+    `, dateParams),
     // Expenses
     database.getFirstAsync<{ totalExpenses: number }>(`
       SELECT COALESCE(SUM(amount), 0) AS totalExpenses
       FROM expenses ${expWhere}
-    `),
+    `, expParams),
     // Total Customers
     database.getFirstAsync<{ count: number }>(`
       SELECT COUNT(*) AS count FROM customers
@@ -6081,31 +6114,43 @@ export async function getDashboardRecentActivities(
 ): Promise<DashboardActivityItem[]> {
   const database = await getDatabase();
 
-  const saleWhere = from && to
-    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const hasRange = Boolean(from && to);
+
+  const saleWhere = hasRange
+    ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE status != 'cancelled'`;
 
-  const purchaseWhere = from && to
-    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const purchaseWhere = hasRange
+    ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE archived_at IS NULL`;
 
-  const debtWhere = from && to
-    ? `WHERE datetime(dp.created_at) >= datetime('${from}') AND datetime(dp.created_at) <= datetime('${to}')`
+  const debtWhere = hasRange
+    ? `WHERE datetime(dp.created_at) >= datetime(?) AND datetime(dp.created_at) <= datetime(?)`
     : '';
 
-  const expWhere = from && to
-    ? `WHERE (datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')) OR (date >= '${from.slice(0, 10)}' AND date <= '${to.slice(0, 10)}')`
+  const expWhere = hasRange
+    ? `WHERE (datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)) OR (date >= ? AND date <= ?)`
     : '';
 
-  const custWhere = from && to
-    ? `WHERE datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const custWhere = hasRange
+    ? `WHERE datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : '';
 
-  const supWhere = from && to
-    ? `WHERE datetime(created_at) >= datetime('${from}') AND datetime(created_at) <= datetime('${to}')`
+  const supWhere = hasRange
+    ? `WHERE datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : '';
 
-  const subLimit = from && to ? Math.max(limit, 40) : 15;
+  const subLimit = hasRange ? Math.max(limit, 40) : 15;
+  const partnerLimit = hasRange ? subLimit : 8;
+
+  const saleParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
+  const purchaseParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
+  const debtParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
+  const expParams: SQLite.SQLiteBindValue[] = hasRange
+    ? [from!, to!, from!.slice(0, 10), to!.slice(0, 10), subLimit]
+    : [subLimit];
+  const custParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, partnerLimit] : [partnerLimit];
+  const supParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, partnerLimit] : [partnerLimit];
 
   const [
     salesList,
@@ -6128,8 +6173,8 @@ export async function getDashboardRecentActivities(
       FROM sales
       ${saleWhere}
       ORDER BY created_at DESC
-      LIMIT ${subLimit}
-    `),
+      LIMIT ?
+    `, saleParams),
     // Purchases
     database.getAllAsync<{
       id: number;
@@ -6143,8 +6188,8 @@ export async function getDashboardRecentActivities(
       FROM purchases
       ${purchaseWhere}
       ORDER BY created_at DESC
-      LIMIT ${subLimit}
-    `),
+      LIMIT ?
+    `, purchaseParams),
     // Debt Payments
     database.getAllAsync<{
       id: number;
@@ -6167,8 +6212,8 @@ export async function getDashboardRecentActivities(
       FROM debt_payments dp
       ${debtWhere}
       ORDER BY dp.created_at DESC
-      LIMIT ${subLimit}
-    `),
+      LIMIT ?
+    `, debtParams),
     // Expenses
     database.getAllAsync<{
       id: number;
@@ -6181,8 +6226,8 @@ export async function getDashboardRecentActivities(
       FROM expenses
       ${expWhere}
       ORDER BY created_at DESC
-      LIMIT ${subLimit}
-    `),
+      LIMIT ?
+    `, expParams),
     // Customers
     database.getAllAsync<{
       id: number;
@@ -6193,8 +6238,8 @@ export async function getDashboardRecentActivities(
       FROM customers
       ${custWhere}
       ORDER BY created_at DESC
-      LIMIT ${from && to ? subLimit : 8}
-    `),
+      LIMIT ?
+    `, custParams),
     // Suppliers
     database.getAllAsync<{
       id: number;
@@ -6205,8 +6250,8 @@ export async function getDashboardRecentActivities(
       FROM suppliers
       ${supWhere}
       ORDER BY created_at DESC
-      LIMIT ${from && to ? subLimit : 8}
-    `),
+      LIMIT ?
+    `, supParams),
   ]);
 
   const items: DashboardActivityItem[] = [];

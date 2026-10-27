@@ -10,13 +10,7 @@ interface BusinessInfo {
   logoUri: string | null;
 }
 
-function escHtml(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 const ku = kuSpan;
 
@@ -45,8 +39,9 @@ export function buildInventoryHistoryReportHTML(
   const totalSellingValue = items.reduce((sum, it) => sum + (it.sellingPrice || 0), 0);
   const totalSoldUnits = items.reduce((sum, it) => sum + (it.quantitySold || 0), 0);
 
-  const logoHTML = business.logoUri
-    ? `<img src="${business.logoUri}" style="height:55px;max-width:140px;object-fit:contain;display:block;background:#fff;border-radius:8px;padding:4px;border:1px solid #E2E8F0;" alt="logo" />`
+  const safeLogoUri = sanitizeImageUri(business.logoUri);
+  const logoHTML = safeLogoUri
+    ? `<img src="${safeLogoUri}" style="height:55px;max-width:140px;object-fit:contain;display:block;background:#fff;border-radius:8px;padding:4px;border:1px solid #E2E8F0;" alt="logo" />`
     : '';
 
   const rowsHTML = items.length === 0
