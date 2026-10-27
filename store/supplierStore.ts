@@ -12,7 +12,7 @@ interface SupplierState {
   loadSuppliers: () => Promise<void>;
   searchSuppliers: (query: string) => SupplierWithStats[];
   getSupplierById: (id: number) => SupplierWithStats | undefined;
-  editSupplier: (id: number, data: { name?: string; phone?: string | null; address?: string | null; notes?: string | null }) => Promise<void>;
+  editSupplier: (id: number, data: { name?: string; phone?: string | null; address?: string | null; notes?: string | null; imageUri?: string | null }) => Promise<void>;
   deleteSupplier: (id: number) => Promise<void>;
 }
 

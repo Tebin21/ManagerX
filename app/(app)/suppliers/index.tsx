@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Keyboard,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
@@ -26,6 +27,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { isDirectSupplierName } from '@/lib/sqlite';
+import { resolveImageUri } from '@/lib/imageStorage';
 
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
   const { colors } = useAppTheme();
@@ -59,12 +61,21 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
             width: isTabletLandscape ? 60 : isTablet ? 52 : 44,
             height: isTabletLandscape ? 60 : isTablet ? 52 : 44,
             borderRadius: isTabletLandscape ? 18 : isTablet ? 16 : 12,
+            overflow: 'hidden',
             marginEnd: isRTL ? 0 : (isTabletLandscape ? 18 : isTablet ? 16 : 12),
             marginStart: isRTL ? (isTabletLandscape ? 18 : isTablet ? 16 : RTL_SPACING.gapXl) : 0,
           },
         ]}
       >
-        <Ionicons name={isDirect ? "flash" : "business-outline"} size={isTabletLandscape ? 28 : isTablet ? 26 : 22} color={isDirect ? "#D97706" : colors.primary} />
+        {supplier.imageUri ? (
+          <Image
+            source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Ionicons name={isDirect ? "flash" : "business-outline"} size={isTabletLandscape ? 28 : isTablet ? 26 : 22} color={isDirect ? "#D97706" : colors.primary} />
+        )}
       </View>
       <View style={[styles.cardBody, { gap: isRTL ? (isTablet ? 6 : RTL_SPACING.stackGap) : (isTablet ? 4 : 0) }]}>
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>

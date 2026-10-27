@@ -64,6 +64,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       supplierName:    input.supplierName.trim()    || null,
       supplierPhone:   input.supplierPhone.trim()   || null,
       supplierAddress: input.supplierAddress.trim() || null,
+      supplierImageUri: input.supplierImageUri?.trim() || null,
       productName:     input.productName.trim(),
       category:        input.category.trim()        || null,
       quantity:        input.quantity,
@@ -93,6 +94,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         phone:      data.supplierPhone,
         address:    data.supplierAddress,
         selectedId: input.selectedSupplierId,
+        imageUri:   data.supplierImageUri,
       });
     }
 

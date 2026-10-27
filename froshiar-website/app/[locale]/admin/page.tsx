@@ -499,7 +499,7 @@ export default function AdminDashboardPage() {
         }
       }
 
-      setLastUpdatedTime(new Date().toLocaleTimeString());
+      setLastUpdatedTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (err) {
       console.error('Failed to load telemetry:', err);
     } finally {
@@ -1493,7 +1493,7 @@ export default function AdminDashboardPage() {
                             {t.lastLogin} {new Date(u.last_login_at).toLocaleDateString()}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono">
-                            {new Date(u.last_login_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(u.last_login_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                           </div>
                         </div>
 
@@ -1609,7 +1609,7 @@ export default function AdminDashboardPage() {
 
                       <div className="text-end text-[10px] sm:text-[11px] text-slate-400 shrink-0">
                         <div>{new Date(evt.created_at).toLocaleDateString()}</div>
-                        <div className="font-mono">{new Date(evt.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div className="font-mono">{new Date(evt.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
                       </div>
                     </div>
                   ))

@@ -18,6 +18,7 @@ export interface SavedProductPreset {
   supplierPhone?: string | null;
   supplierAddress?: string | null;
   selectedSupplierId?: number | null;
+  supplierImageUri?: string | null;
   warranty?: string | null;
   notes?: string | null;
   websiteDescription?: string | null;
@@ -40,6 +41,7 @@ export interface SavedProductState {
     supplierPhone?: string | null;
     supplierAddress?: string | null;
     selectedSupplierId?: number | null;
+    supplierImageUri?: string | null;
     warranty?: string | null;
     notes?: string | null;
     websiteDescription?: string | null;
@@ -92,6 +94,7 @@ export const useSavedProductStore = create<SavedProductState>()(
             supplierPhone: preset.supplierPhone !== undefined ? preset.supplierPhone : curr.supplierPhone,
             supplierAddress: preset.supplierAddress !== undefined ? preset.supplierAddress : curr.supplierAddress,
             selectedSupplierId: preset.selectedSupplierId !== undefined ? preset.selectedSupplierId : curr.selectedSupplierId,
+            supplierImageUri: preset.supplierImageUri !== undefined ? preset.supplierImageUri : curr.supplierImageUri,
             warranty: preset.warranty !== undefined ? preset.warranty : curr.warranty,
             notes: preset.notes !== undefined ? preset.notes : curr.notes,
             websiteDescription: preset.websiteDescription !== undefined ? preset.websiteDescription : curr.websiteDescription,
@@ -116,6 +119,7 @@ export const useSavedProductStore = create<SavedProductState>()(
             supplierPhone: preset.supplierPhone ?? null,
             supplierAddress: preset.supplierAddress ?? null,
             selectedSupplierId: preset.selectedSupplierId ?? null,
+            supplierImageUri: preset.supplierImageUri ?? null,
             warranty: preset.warranty ?? null,
             notes: preset.notes ?? null,
             websiteDescription: preset.websiteDescription ?? null,

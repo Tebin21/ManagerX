@@ -1,5 +1,5 @@
 import type { Sale } from '@/types/sales';
-import { fmtIQD, fmtUSD, formatDate as fmtDate } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatDate as fmtDate, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -50,7 +50,7 @@ export function buildSalesAuditReportHTML(
 
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const timeStr = formatTime(now);
   const reportId = `SAR-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
 
   // Computations

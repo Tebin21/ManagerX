@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -41,6 +41,8 @@ import { getProductCategories, DIRECT_SUPPLIER_NAME, isDirectSupplierName } from
 import { generateUniqueProductId } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
+import { SupplierLogoPicker } from '@/components/purchases/SupplierLogoPicker';
+import { useSupplierStore } from '@/store/supplierStore';
 import { DateTimePicker } from '@/components/shared/DateTimePicker';
 import { DatePickerModal } from '@/components/shared/DatePickerModal';
 import { ReceiptCurrencySelector } from '@/components/shared/ReceiptCurrencySelector';
@@ -178,12 +180,23 @@ export default function NewPurchaseScreen() {
       setSupplierName(preset.supplierName);
       if (preset.supplierPhone) setSupplierPhone(preset.supplierPhone);
       if (preset.supplierAddress) setSupplierAddress(preset.supplierAddress);
+      if (preset.supplierImageUri) setSupplierImageUri(preset.supplierImageUri);
       if (preset.selectedSupplierId) {
         setSelectedSupplierId(preset.selectedSupplierId);
+        if (!preset.supplierImageUri) {
+          import('@/lib/sqlite').then(({ findSupplierByNameOrPhone }) => {
+            findSupplierByNameOrPhone(preset.supplierName, preset.supplierPhone).then((supp) => {
+              if (supp?.imageUri) setSupplierImageUri(supp.imageUri);
+            }).catch(() => {});
+          }).catch(() => {});
+        }
       } else {
         import('@/lib/sqlite').then(({ findSupplierByNameOrPhone }) => {
           findSupplierByNameOrPhone(preset.supplierName, preset.supplierPhone).then((supp) => {
-            if (supp) setSelectedSupplierId(supp.id);
+            if (supp) {
+              setSelectedSupplierId(supp.id);
+              if (supp.imageUri) setSupplierImageUri(supp.imageUri);
+            }
           }).catch(() => {});
         }).catch(() => {});
       }
@@ -316,7 +329,10 @@ export default function NewPurchaseScreen() {
         if (existingSuppAddr) setSupplierAddress(existingSuppAddr);
         import('@/lib/sqlite').then(({ findSupplierByNameOrPhone }) => {
           findSupplierByNameOrPhone(existingSuppName, existingSuppPhone).then((supp) => {
-            if (supp) setSelectedSupplierId(supp.id);
+            if (supp) {
+              setSelectedSupplierId(supp.id);
+              if (supp.imageUri) setSupplierImageUri(supp.imageUri);
+            }
           }).catch(() => {});
         }).catch(() => {});
       }
@@ -487,6 +503,20 @@ export default function NewPurchaseScreen() {
   const [supplierPhone, setSupplierPhone]   = useState('');
   const [supplierAddress, setSupplierAddress] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | undefined>();
+  const [supplierImageUri, setSupplierImageUri] = useState<string | null>(null);
+
+  const handleSupplierLogoChange = useCallback(async (newUri: string | null) => {
+    setSupplierImageUri(newUri);
+    if (selectedSupplierId && selectedSupplierId > 0) {
+      try {
+        const { updateSupplier } = await import('@/lib/sqlite');
+        await updateSupplier(selectedSupplierId, { imageUri: newUri });
+        useSupplierStore.getState().loadSuppliers().catch(() => {});
+      } catch (err) {
+        console.warn('[new-purchase] failed to update supplier image:', err);
+      }
+    }
+  }, [selectedSupplierId]);
   const savedPaymentStatusPref = useSettingsStore((s) => s.purchasePaymentStatusPreference);
   const savedReceiptCurrencyPref = useSettingsStore((s) => s.purchaseReceiptCurrencyPreference);
   const savedCheckoutModePref = useSettingsStore((s) => s.purchaseCheckoutModePreference);
@@ -802,6 +832,7 @@ export default function NewPurchaseScreen() {
         initialPaymentMethod: paymentStatus === 'debt' ? initialPaymentMethod : (paymentStatus === 'fib' ? 'fib' : 'cash'),
         imageUri,
         selectedSupplierId: isDirectSupplier ? undefined : selectedSupplierId,
+        supplierImageUri: isDirectSupplier ? null : (supplierImageUri || null),
         productionDate: productionDate ? toDateOnly(productionDate) : null,
         expiryDate: expiryDate ? toDateOnly(expiryDate) : null,
       });
@@ -822,6 +853,7 @@ export default function NewPurchaseScreen() {
           supplierPhone: isDirectSupplier ? null : (supplierPhone.trim() || null),
           supplierAddress: isDirectSupplier ? null : (supplierAddress.trim() || null),
           selectedSupplierId: isDirectSupplier ? null : selectedSupplierId,
+          supplierImageUri: isDirectSupplier ? null : (supplierImageUri || null),
           warranty: warranty.trim() || null,
           notes: notes.trim() || null,
           websiteDescription: websiteDescription.trim() || null,
@@ -840,6 +872,7 @@ export default function NewPurchaseScreen() {
         setQty('1'); setBuyIQD(''); setBuyUSD(''); setSellIQD(''); setSellUSD('');
         setIdType(null); setSharedId(''); setCustomIds(['']);
         setSupplierPhone(''); setSupplierAddress(''); setSelectedSupplierId(undefined);
+        setSupplierImageUri(null);
         const currentPrefs = useSettingsStore.getState();
         setPaymentStatusState(currentPrefs.purchasePaymentStatusPreference || 'paid');
         setAmountPaid('');
@@ -2299,6 +2332,7 @@ export default function NewPurchaseScreen() {
                 setSupplierPhone('');
                 setSupplierAddress('');
                 setSelectedSupplierId(undefined);
+                setSupplierImageUri(null);
               }}
               style={[
                 styles.directSupplierChangeBtn,
@@ -2351,6 +2385,7 @@ export default function NewPurchaseScreen() {
               setSupplierPhone('');
               setSupplierAddress('');
               setSelectedSupplierId(undefined);
+              setSupplierImageUri(null);
             }}
             activeOpacity={0.8}
           >
@@ -2387,17 +2422,34 @@ export default function NewPurchaseScreen() {
             onNameChange={setSupplierName}
             onPhoneChange={setSupplierPhone}
             onAddressChange={setSupplierAddress}
-            onSupplierSelect={(id) => setSelectedSupplierId(id > 0 ? id : undefined)}
+            onSupplierSelect={(id, supp) => {
+              setSelectedSupplierId(id > 0 ? id : undefined);
+              if (supp?.imageUri) {
+                setSupplierImageUri(supp.imageUri);
+              }
+            }}
           />
         </>
       )}
 
-      <DateTimePicker
-        value={purchaseDate}
-        onChange={setPurchaseDate}
-        label={t('purchases.date')}
-        maxDate={new Date()}
-      />
+      <View style={[styles.dateAndLogoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={styles.datePickerCol}>
+          <DateTimePicker
+            value={purchaseDate}
+            onChange={setPurchaseDate}
+            label={t('purchases.date')}
+            maxDate={new Date()}
+            style={{ marginBottom: 0 }}
+          />
+        </View>
+        {!isDirectSupplier && (
+          <SupplierLogoPicker
+            imageUri={supplierImageUri}
+            onImageChange={handleSupplierLogoChange}
+            supplierName={supplierName}
+          />
+        )}
+      </View>
     </PremiumCard>
   );
 
@@ -3604,5 +3656,13 @@ const styles = StyleSheet.create({
   expiryNoticeText: {
     fontSize: 11.5,
     fontWeight: '700',
+  },
+  dateAndLogoRow: {
+    alignItems: 'flex-end',
+    gap: 10,
+    marginBottom: 16,
+  },
+  datePickerCol: {
+    flex: 1,
   },
 });

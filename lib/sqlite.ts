@@ -330,6 +330,7 @@ async function runInitializeDatabase(): Promise<void> {
       supplier_name    TEXT,
       supplier_phone   TEXT,
       supplier_address TEXT,
+      supplier_image_uri TEXT,
       product_name     TEXT NOT NULL,
       category         TEXT,
       quantity         INTEGER NOT NULL DEFAULT 1,
@@ -405,6 +406,7 @@ async function runInitializeDatabase(): Promise<void> {
       phone       TEXT,
       address     TEXT,
       notes       TEXT,
+      image_uri   TEXT,
       total_spent REAL    NOT NULL DEFAULT 0,
       created_at  TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at  TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -753,6 +755,9 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE categories ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
     `UPDATE categories SET is_default = 1 WHERE name = 'General' AND (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0`,
     `UPDATE categories SET is_default = 1 WHERE (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0 AND id = (SELECT MIN(id) FROM categories)`,
+    // Supplier brand logo and purchase supplier logo snapshot
+    `ALTER TABLE suppliers ADD COLUMN image_uri TEXT`,
+    `ALTER TABLE purchases ADD COLUMN supplier_image_uri TEXT`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -3425,6 +3430,7 @@ function rowToSupplierWithStats(row: Record<string, unknown>): SupplierWithStats
     phone: (row.phone as string | null) ?? null,
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
+    imageUri: (row.image_uri as string | null) ?? null,
     totalSpent: (row.total_spent as number) ?? 0,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -3512,7 +3518,7 @@ export async function findSupplierByNameOrPhone(name?: string | null, phone?: st
 
   if (trimName && !isDirectSupplierName(trimName)) {
     const row = await database.getFirstAsync<Record<string, unknown>>(
-      'SELECT id, name, phone, address, notes, total_spent, created_at, updated_at FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+      'SELECT id, name, phone, address, notes, image_uri, total_spent, created_at, updated_at FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
       [trimName]
     );
     if (row) {
@@ -3522,6 +3528,7 @@ export async function findSupplierByNameOrPhone(name?: string | null, phone?: st
         phone: (row.phone as string | null) ?? null,
         address: (row.address as string | null) ?? null,
         notes: (row.notes as string | null) ?? null,
+        imageUri: (row.image_uri as string | null) ?? null,
         totalSpent: (row.total_spent as number) ?? 0,
         createdAt: row.created_at as string,
         updatedAt: row.updated_at as string,
@@ -3531,7 +3538,7 @@ export async function findSupplierByNameOrPhone(name?: string | null, phone?: st
 
   if (trimPhone) {
     const row = await database.getFirstAsync<Record<string, unknown>>(
-      'SELECT id, name, phone, address, notes, total_spent, created_at, updated_at FROM suppliers WHERE phone = ?',
+      'SELECT id, name, phone, address, notes, image_uri, total_spent, created_at, updated_at FROM suppliers WHERE phone = ?',
       [trimPhone]
     );
     if (row) {
@@ -3541,6 +3548,7 @@ export async function findSupplierByNameOrPhone(name?: string | null, phone?: st
         phone: (row.phone as string | null) ?? null,
         address: (row.address as string | null) ?? null,
         notes: (row.notes as string | null) ?? null,
+        imageUri: (row.image_uri as string | null) ?? null,
         totalSpent: (row.total_spent as number) ?? 0,
         createdAt: row.created_at as string,
         updatedAt: row.updated_at as string,
@@ -3556,6 +3564,7 @@ export async function upsertSupplier(input: {
   phone?: string | null;
   address?: string | null;
   selectedId?: number;
+  imageUri?: string | null;
 }): Promise<number> {
   const database = await getDatabase();
   const trimName  = input.name ? input.name.trim() : '';
@@ -3566,18 +3575,19 @@ export async function upsertSupplier(input: {
 
   const trimPhone = input.phone ? toEnglishDigits(input.phone.trim()) : null;
   const trimAddress = input.address?.trim() ?? null;
+  const imageUri = input.imageUri?.trim() || null;
 
   // 1. If explicit selectedId was provided and exists in DB, update any missing details and return it
   if (input.selectedId) {
-    const existing = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null }>(
-      'SELECT id, phone, address FROM suppliers WHERE id = ?',
+    const existing = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null; image_uri: string | null }>(
+      'SELECT id, phone, address, image_uri FROM suppliers WHERE id = ?',
       [input.selectedId]
     );
     if (existing) {
-      if ((trimPhone && !existing.phone) || (trimAddress && !existing.address)) {
+      if ((trimPhone && !existing.phone) || (trimAddress && !existing.address) || (imageUri && imageUri !== existing.image_uri)) {
         await database.runAsync(
-          'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [trimPhone, trimAddress, existing.id]
+          'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), image_uri = COALESCE(?, image_uri), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [trimPhone, trimAddress, imageUri, existing.id]
         );
       }
       return existing.id;
@@ -3587,15 +3597,15 @@ export async function upsertSupplier(input: {
   if (!trimName) throw new Error('Supplier name is required');
 
   // 2. Check if a supplier exists by exact or case-insensitive name
-  const byName = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null }>(
-    'SELECT id, phone, address FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
+  const byName = await database.getFirstAsync<{ id: number; phone: string | null; address: string | null; image_uri: string | null }>(
+    'SELECT id, phone, address, image_uri FROM suppliers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))',
     [trimName]
   );
   if (byName) {
-    if ((trimPhone && !byName.phone) || (trimAddress && !byName.address)) {
+    if ((trimPhone && !byName.phone) || (trimAddress && !byName.address) || (imageUri && imageUri !== byName.image_uri)) {
       await database.runAsync(
-        'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [trimPhone, trimAddress, byName.id]
+        'UPDATE suppliers SET phone = COALESCE(phone, ?), address = COALESCE(address, ?), image_uri = COALESCE(?, image_uri), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [trimPhone, trimAddress, imageUri, byName.id]
       );
     }
     return byName.id;
@@ -3603,15 +3613,15 @@ export async function upsertSupplier(input: {
 
   // 3. Check if a supplier exists with this phone number
   if (trimPhone) {
-    const byPhone = await database.getFirstAsync<{ id: number; name: string; address: string | null }>(
-      'SELECT id, name, address FROM suppliers WHERE phone = ?',
+    const byPhone = await database.getFirstAsync<{ id: number; name: string; address: string | null; image_uri: string | null }>(
+      'SELECT id, name, address, image_uri FROM suppliers WHERE phone = ?',
       [trimPhone]
     );
     if (byPhone) {
-      if (trimAddress && !byPhone.address) {
+      if ((trimAddress && !byPhone.address) || (imageUri && imageUri !== byPhone.image_uri)) {
         await database.runAsync(
-          'UPDATE suppliers SET address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [trimAddress, byPhone.id]
+          'UPDATE suppliers SET address = COALESCE(address, ?), image_uri = COALESCE(?, image_uri), updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [trimAddress, imageUri, byPhone.id]
         );
       }
       return byPhone.id;
@@ -3620,8 +3630,8 @@ export async function upsertSupplier(input: {
 
   // 4. Truly new supplier: create fresh record
   const result = await database.runAsync(
-    'INSERT INTO suppliers (name, phone, address, uuid) VALUES (?, ?, ?, ?)',
-    [trimName, trimPhone, trimAddress, await newUuid()]
+    'INSERT INTO suppliers (name, phone, address, image_uri, uuid) VALUES (?, ?, ?, ?, ?)',
+    [trimName, trimPhone, trimAddress, imageUri, await newUuid()]
   );
   return result.lastInsertRowId;
 }
@@ -3648,7 +3658,7 @@ export async function searchSuppliersList(query: string, limit = 8): Promise<Sup
   const database = await getDatabase();
   const q = `%${query}%`;
   const rows = await database.getAllAsync<Record<string, unknown>>(
-    `SELECT id, name, phone, address, notes, total_spent, created_at, updated_at
+    `SELECT id, name, phone, address, notes, image_uri, total_spent, created_at, updated_at
      FROM suppliers
      WHERE name LIKE ? OR phone LIKE ?
      ORDER BY name ASC LIMIT ?`,
@@ -3660,6 +3670,7 @@ export async function searchSuppliersList(query: string, limit = 8): Promise<Sup
     phone: (row.phone as string | null) ?? null,
     address: (row.address as string | null) ?? null,
     notes: (row.notes as string | null) ?? null,
+    imageUri: (row.image_uri as string | null) ?? null,
     totalSpent: (row.total_spent as number) ?? 0,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -3671,6 +3682,7 @@ export async function updateSupplier(id: number, data: {
   phone?: string | null;
   address?: string | null;
   notes?: string | null;
+  imageUri?: string | null;
 }): Promise<void> {
   const database = await getDatabase();
 
@@ -3705,10 +3717,11 @@ export async function updateSupplier(id: number, data: {
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (data.name !== undefined)    { fields.push('name = ?');    values.push(data.name); }
-  if (data.phone !== undefined)   { fields.push('phone = ?');   values.push(data.phone); }
-  if (data.address !== undefined) { fields.push('address = ?'); values.push(data.address); }
-  if (data.notes !== undefined)   { fields.push('notes = ?');   values.push(data.notes); }
+  if (data.name !== undefined)     { fields.push('name = ?');      values.push(data.name); }
+  if (data.phone !== undefined)    { fields.push('phone = ?');     values.push(data.phone); }
+  if (data.address !== undefined)  { fields.push('address = ?');   values.push(data.address); }
+  if (data.notes !== undefined)    { fields.push('notes = ?');     values.push(data.notes); }
+  if (data.imageUri !== undefined) { fields.push('image_uri = ?'); values.push(data.imageUri); }
   if (fields.length === 0) return;
   fields.push('updated_at = CURRENT_TIMESTAMP');
   values.push(id);
@@ -3809,6 +3822,7 @@ function rowToPurchase(row: Record<string, unknown>): Purchase {
     supplierName: row.supplier_name as string | null,
     supplierPhone: row.supplier_phone as string | null,
     supplierAddress: row.supplier_address as string | null,
+    supplierImageUri: (row.supplier_image_uri as string | null) ?? null,
     productName: row.product_name as string,
     category: row.category as string | null,
     quantity: row.quantity as number,
@@ -3841,19 +3855,20 @@ export async function insertPurchase(
   const database = await getDatabase();
   const result = await database.runAsync(
     `INSERT INTO purchases (
-      purchase_number, date, supplier_name, supplier_phone, supplier_address,
+      purchase_number, date, supplier_name, supplier_phone, supplier_address, supplier_image_uri,
       product_name, category, quantity,
       buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd,
       total_iqd, profit_iqd, exchange_rate, id_type, item_ids,
       warranty, description, notes, payment_status, uuid,
       production_date, expiry_date, initial_payment_method
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.purchaseNumber,
       data.date,
       data.supplierName ?? null,
       data.supplierPhone ?? null,
       data.supplierAddress ?? null,
+      data.supplierImageUri ?? null,
       data.productName,
       data.category ?? null,
       data.quantity,

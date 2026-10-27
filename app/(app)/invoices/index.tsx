@@ -16,17 +16,19 @@ import {
   LayoutAnimation,
   UIManager,
   Keyboard,
+  Pressable,
+  BackHandler,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 import { AppHeader } from '@/components/common/AppHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -44,10 +46,11 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
-import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { fmtIQD, fmtUSD, toEnglishDigits, formatDate, formatTime, normalizeTimeToAmPm } from '@/utils/formatters';
-import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
 import { hexToRgba } from '@/lib/colorUtils';
+import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { fmtIQD, fmtUSD, toEnglishDigits, formatDate, formatTime } from '@/utils/formatters';
+import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
+
 import {
   getAllSales,
   getAllPurchases,
@@ -125,17 +128,47 @@ export default function InvoicesHubScreen() {
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [salesSearch, setSalesSearch] = useState('');
   const [quotationSearch, setQuotationSearch] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
+  const handleOpenSearch = useCallback(() => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSearchExpanded(true);
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 80);
+  }, []);
+
+  const handleCloseSearch = useCallback(() => {
+    try {
+      Keyboard.dismiss();
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
+    setIsSearchExpanded(false);
+  }, []);
+
+  // Collapse search when switching tabs
   useEffect(() => {
-    if (isSearchOpen) {
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
+    if (isSearchExpanded) {
+      handleCloseSearch();
     }
-  }, [isSearchOpen]);
+  }, [activeTab]);
+
+  // Collapse search on Android hardware back button
+  useEffect(() => {
+    const onBackPress = () => {
+      if (isSearchExpanded) {
+        handleCloseSearch();
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [isSearchExpanded, handleCloseSearch]);
 
   // ─── Read-Only Detail Modals State ───
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -624,92 +657,21 @@ export default function InvoicesHubScreen() {
     custom: isKu ? 'دەستنیشانکراو' : 'Custom',
   };
 
-  // ─── Shared Period Filter Pills Row (With Integrated Collapsible Search) ───
-  const renderPeriodFilterSection = (searchConfig?: {
-    searchQuery: string;
-    onSearchChange: (q: string) => void;
+  interface TabSearchConfig {
+    query: string;
+    setQuery: (val: string) => void;
     placeholder: string;
-  }) => {
-    const hasSearch = Boolean(searchConfig);
-    const { searchQuery = '', onSearchChange, placeholder = '' } = searchConfig || {};
+  }
 
-    if (hasSearch && isSearchOpen) {
-      return (
-        <View style={styles.periodSection}>
-          <View
-            style={[
-              styles.expandedSearchWrap,
-              {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderColor: colors.primary,
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-              isTablet && { height: 50, paddingHorizontal: 16, borderRadius: 14 },
-            ]}
-          >
-            <Ionicons name="search" size={isTablet ? 22 : 18} color={colors.primary} />
-            <TextInput
-              ref={searchInputRef}
-              value={searchQuery}
-              onChangeText={(v) => onSearchChange?.(toEnglishDigits(v))}
-              placeholder={placeholder}
-              placeholderTextColor={colors.gray400}
-              style={[
-                styles.searchInput,
-                {
-                  color: colors.black,
-                  textAlign: isRTL ? 'right' : 'left',
-                  writingDirection: isRTL ? 'rtl' : 'ltr',
-                },
-                isTablet && { fontSize: 16 },
-                isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-              ]}
-              returnKeyType="search"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => onSearchChange?.('')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ padding: 4 }}
-              >
-                <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={() => {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                onSearchChange?.('');
-                setIsSearchOpen(false);
-                Keyboard.dismiss();
-              }}
-              style={[
-                styles.searchCancelBtn,
-                {
-                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
-                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-                isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
-              ]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={isTablet ? 18 : 15} color={colors.gray600} />
-              <Text
-                style={[
-                  styles.searchCancelText,
-                  { color: colors.gray600 },
-                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                  isTablet && { fontSize: 14 },
-                ]}
-              >
-                {isKu ? 'داخستن' : 'Cancel'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
+  // ─── Shared Period Filter Pills Row & Expanding Search ───
+  const renderPeriodFilterSection = (tabSearchConfig?: TabSearchConfig) => {
+    const hasSearchQuery = Boolean(tabSearchConfig && tabSearchConfig.query.trim().length > 0);
+
+    // Calculate dynamic expanding width based on input length
+    const queryCharLength = (tabSearchConfig?.query || '').length;
+    const baseSearchWidth = isTablet ? (isTabletLandscape ? 300 : 260) : 210;
+    const maxSearchWidth = isTablet ? (isTabletLandscape ? 440 : 380) : Math.min(width - 32, 340);
+    const dynamicSearchWidth = Math.min(maxSearchWidth, Math.max(baseSearchWidth, baseSearchWidth + queryCharLength * 8));
 
     return (
       <View style={styles.periodSection}>
@@ -736,7 +698,11 @@ export default function InvoicesHubScreen() {
               isKu && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {periodKey === 'all'
+            {hasSearchQuery
+              ? isKu
+                ? `گەڕان: "${tabSearchConfig!.query}"`
+                : `Search: "${tabSearchConfig!.query}"`
+              : periodKey === 'all'
               ? isKu
                 ? 'هەموو کات (سەرەکی)'
                 : 'All Time (Default)'
@@ -744,52 +710,211 @@ export default function InvoicesHubScreen() {
           </Text>
         </View>
 
-        <View style={[styles.periodFilterBarRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          {hasSearch && (
-            <TouchableOpacity
+        {/* On Phone (!isTablet): hide pills when search is expanded so it fits.
+            On iPad (isTablet): keep pills visible and shift them aside gracefully. */}
+        {isSearchExpanded && tabSearchConfig && !isTablet ? (
+          <Pressable
+            onPress={handleCloseSearch}
+            style={[
+              styles.searchExpandedRow,
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                justifyContent: 'flex-start',
+              },
+            ]}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation?.()}
               style={[
-                styles.searchToggleBtn,
+                styles.searchExpandedInputWrap,
                 {
-                  backgroundColor: searchQuery ? colors.primary + '20' : isDark ? colors.gray100 : colors.white,
-                  borderColor: searchQuery ? colors.primary : colors.gray200,
-                  marginLeft: isRTL ? (isTablet ? 10 : 8) : 0,
-                  marginRight: isRTL ? 0 : (isTablet ? 10 : 8),
+                  width: dynamicSearchWidth,
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: colors.primary,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
-                isTablet && { width: 44, height: 44, borderRadius: 22 },
               ]}
-              onPress={() => {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                setIsSearchOpen(true);
-              }}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Search"
             >
               <Ionicons
                 name="search"
-                size={isTablet ? 20 : 17}
-                color={searchQuery ? colors.primary : colors.gray600}
+                size={17}
+                color={colors.primary}
               />
-              {Boolean(searchQuery && searchQuery.length > 0) && (
-                <View style={[styles.searchBadge, { backgroundColor: colors.primary }]} />
-              )}
-            </TouchableOpacity>
-          )}
+              <TextInput
+                ref={searchInputRef}
+                value={tabSearchConfig.query}
+                onChangeText={tabSearchConfig.setQuery}
+                placeholder={tabSearchConfig.placeholder}
+                placeholderTextColor={colors.gray400}
+                autoFocus={true}
+                returnKeyType="search"
+                style={[
+                  styles.searchExpandedInput,
+                  {
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                  },
+                  { fontSize: 14.5 },
+                  isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                ]}
+              />
 
+              {tabSearchConfig.query.length > 0 && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    try {
+                      Haptics.selectionAsync().catch(() => {});
+                    } catch {}
+                    tabSearchConfig.setQuery('');
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.searchClearBtn}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.gray400} />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleCloseSearch}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={[
+                  styles.searchCloseBtn,
+                  { backgroundColor: isDark ? colors.gray200 : colors.gray100 },
+                ]}
+              >
+                <Ionicons
+                  name="close"
+                  size={14}
+                  color={isDark ? colors.gray600 : colors.gray500}
+                />
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={[
-              { flex: 1 },
-              isRTL && { transform: [{ scaleX: -1 }] },
-            ]}
+            style={[{ marginHorizontal: isTabletLandscape ? -24 : -16 }, isRTL && { transform: [{ scaleX: -1 }] }]}
             contentContainerStyle={[
               styles.periodPillRow,
               {
+                paddingHorizontal: isTabletLandscape ? 24 : 16,
                 gap: isTablet ? 10 : 8,
               },
             ]}
           >
+            {/* Search Icon Button - positioned on right side of 'all' in RTL */}
+            {tabSearchConfig && (
+              isTablet && isSearchExpanded ? (
+                <Pressable
+                  onPress={(e) => e.stopPropagation?.()}
+                  style={[
+                    styles.searchExpandedInputWrap,
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    {
+                      width: dynamicSearchWidth,
+                      height: isTabletLandscape ? 44 : 40,
+                      borderRadius: 22,
+                      paddingHorizontal: 12,
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: colors.primary,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="search"
+                    size={isTabletLandscape ? 19 : 17}
+                    color={colors.primary}
+                  />
+                  <TextInput
+                    ref={searchInputRef}
+                    value={tabSearchConfig.query}
+                    onChangeText={tabSearchConfig.setQuery}
+                    placeholder={tabSearchConfig.placeholder}
+                    placeholderTextColor={colors.gray400}
+                    autoFocus={true}
+                    returnKeyType="search"
+                    style={[
+                      styles.searchExpandedInput,
+                      {
+                        color: colors.black,
+                        textAlign: isRTL ? 'right' : 'left',
+                      },
+                      { fontSize: isTabletLandscape ? 15 : 14 },
+                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+                    ]}
+                  />
+
+                  {tabSearchConfig.query.length > 0 && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        try {
+                          Haptics.selectionAsync().catch(() => {});
+                        } catch {}
+                        tabSearchConfig.setQuery('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.searchClearBtn}
+                    >
+                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleCloseSearch}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={[
+                      styles.searchCloseBtn,
+                      { backgroundColor: isDark ? colors.gray200 : colors.gray100 },
+                    ]}
+                  >
+                    <Ionicons
+                      name="close"
+                      size={16}
+                      color={isDark ? colors.gray600 : colors.gray500}
+                    />
+                  </TouchableOpacity>
+                </Pressable>
+              ) : (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleOpenSearch}
+                  style={[
+                    styles.searchIconButton,
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    {
+                      backgroundColor: hasSearchQuery ? colors.primary : isDark ? colors.gray100 : colors.white,
+                      borderColor: hasSearchQuery ? colors.primary : colors.gray200,
+                    },
+                    isTablet && {
+                      width: isTabletLandscape ? 44 : 40,
+                      height: isTabletLandscape ? 44 : 40,
+                      borderRadius: 22,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="search"
+                    size={isTablet ? 19 : 16}
+                    color={hasSearchQuery ? '#0F172A' : colors.primary}
+                  />
+                  {hasSearchQuery && (
+                    <View
+                      style={[
+                        styles.searchActiveDot,
+                        { backgroundColor: isDark ? '#F59E0B' : '#0F172A' },
+                      ]}
+                    />
+                  )}
+                </TouchableOpacity>
+              )
+            )}
+
             {periodPillKeys.map((key) => {
               const active = periodKey === key;
               const isCustom = key === 'custom';
@@ -856,23 +981,23 @@ export default function InvoicesHubScreen() {
               );
             })}
           </ScrollView>
-        </View>
+        )}
       </View>
     );
-  };
-
-  const switchTab = (tab: TabKey) => {
-    if (isSearchOpen) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIsSearchOpen(false);
-      Keyboard.dismiss();
-    }
-    setActiveTab(tab);
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+      {/* ── Tap-outside Backdrop to Collapse Search ── */}
+      {isSearchExpanded && (
+        <Pressable
+          style={styles.searchDismissBackdrop}
+          onPress={handleCloseSearch}
+          accessible={false}
+        />
+      )}
 
       {/* ── Header ── */}
       <AppHeader
@@ -951,7 +1076,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              switchTab('reports');
+              setActiveTab('reports');
             }}
             style={[
               styles.segmentBtn,
@@ -996,7 +1121,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              switchTab('purchases');
+              setActiveTab('purchases');
             }}
             style={[
               styles.segmentBtn,
@@ -1065,7 +1190,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              switchTab('sales');
+              setActiveTab('sales');
             }}
             style={[
               styles.segmentBtn,
@@ -1134,7 +1259,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              switchTab('quotations');
+              setActiveTab('quotations');
             }}
             style={[
               styles.segmentBtn,
@@ -1416,29 +1541,22 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'purchases' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills (With Integrated Search) */}
+              {/* Period Filter Pills & Expanding Search */}
               <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
                 {renderPeriodFilterSection({
-                  searchQuery: purchaseSearch,
-                  onSearchChange: setPurchaseSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی دابینکەر، مۆبایل، ژمارەی وەسڵ...' : 'Search supplier, phone, purchase #...',
+                  query: purchaseSearch,
+                  setQuery: setPurchaseSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی دابینکەر، وەسڵ...' : 'Search supplier, invoice #...',
                 })}
               </View>
 
               {/* Invoices List / Grid */}
               <FlatList
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={() => {
-                  if (isSearchOpen && !purchaseSearch) {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setIsSearchOpen(false);
-                    Keyboard.dismiss();
-                  }
-                }}
                 data={searchedPurchases}
                 key={`purchases-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
+                onScrollBeginDrag={handleCloseSearch}
+                keyboardShouldPersistTaps="handled"
                 columnWrapperStyle={
                   numColumns > 1
                     ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
@@ -1546,29 +1664,22 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'sales' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills (With Integrated Search) */}
+              {/* Period Filter Pills & Expanding Search */}
               <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
                 {renderPeriodFilterSection({
-                  searchQuery: salesSearch,
-                  onSearchChange: setSalesSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی وەسڵ...' : 'Search customer, phone, invoice #...',
+                  query: salesSearch,
+                  setQuery: setSalesSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، وەسڵ...' : 'Search customer, invoice #...',
                 })}
               </View>
 
               {/* Invoices List / Grid */}
               <FlatList
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={() => {
-                  if (isSearchOpen && !salesSearch) {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setIsSearchOpen(false);
-                    Keyboard.dismiss();
-                  }
-                }}
                 data={searchedSales}
                 key={`sales-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
+                onScrollBeginDrag={handleCloseSearch}
+                keyboardShouldPersistTaps="handled"
                 columnWrapperStyle={
                   numColumns > 1
                     ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
@@ -1683,29 +1794,22 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'quotations' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills (With Integrated Search) */}
+              {/* Period Filter Pills & Expanding Search */}
               <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
                 {renderPeriodFilterSection({
-                  searchQuery: quotationSearch,
-                  onSearchChange: setQuotationSearch,
-                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی عەرز...' : 'Search client, phone, quotation #...',
+                  query: quotationSearch,
+                  setQuery: setQuotationSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، عەرز...' : 'Search customer, quote #...',
                 })}
               </View>
 
               {/* Quotations List / Grid */}
               <FlatList
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={() => {
-                  if (isSearchOpen && !quotationSearch) {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setIsSearchOpen(false);
-                    Keyboard.dismiss();
-                  }
-                }}
                 data={searchedQuotations}
                 key={`quotations-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
+                onScrollBeginDrag={handleCloseSearch}
+                keyboardShouldPersistTaps="handled"
                 columnWrapperStyle={
                   numColumns > 1
                     ? [styles.columnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
@@ -1783,7 +1887,7 @@ export default function InvoicesHubScreen() {
                           </View>
                         )}
                         <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
-                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${normalizeTimeToAmPm(item.time)}` : ''}
+                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${formatTime(item.time)}` : ''}
                         </Text>
                       </View>
 
@@ -2468,6 +2572,7 @@ const styles = StyleSheet.create({
   tabPeriodSectionWrap: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    zIndex: 25,
   },
 
   // KPI Grid (Tab 1)
@@ -2506,64 +2611,61 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Search Container
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  searchInputWrap: {
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13.5,
-    paddingVertical: 0,
-  },
-  periodFilterBarRow: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  searchToggleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  // Expanding Search Bar in Period Filter
+  searchIconButton: {
+    width: 36,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  searchBadge: {
+  searchActiveDot: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 4,
+    right: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  expandedSearchWrap: {
-    height: 44,
-    borderRadius: 12,
+  searchExpandedRow: {
+    alignItems: 'center',
+    minHeight: 38,
+  },
+  searchExpandedInputWrap: {
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1.5,
     paddingHorizontal: 12,
     alignItems: 'center',
     gap: 8,
-    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  searchCancelBtn: {
+  searchExpandedInput: {
+    flex: 1,
+    fontSize: 13.5,
+    paddingVertical: 0,
+    minWidth: 0,
+  },
+  searchClearBtn: {
+    padding: 2,
+  },
+  searchCloseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  searchCancelText: {
-    fontSize: 13,
-    fontWeight: '600',
+  searchDismissBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 15,
+    backgroundColor: 'transparent',
   },
 
   // List & Grid Contents

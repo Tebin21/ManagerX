@@ -4,6 +4,7 @@ export interface Supplier {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  imageUri?: string | null;
   totalSpent: number;
   createdAt: string;
   updatedAt: string;

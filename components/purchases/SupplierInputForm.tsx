@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  Image,
 } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
 import { searchSuppliersList } from '@/lib/sqlite';
+import { resolveImageUri } from '@/lib/imageStorage';
 import { sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
 import type { Supplier } from '@/types/suppliers';
 
@@ -25,7 +27,7 @@ interface Props {
   onNameChange: (v: string) => void;
   onPhoneChange: (v: string) => void;
   onAddressChange: (v: string) => void;
-  onSupplierSelect?: (id: number) => void;
+  onSupplierSelect?: (id: number, supplier?: Supplier) => void;
 }
 
 export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneChange, onAddressChange, onSupplierSelect }: Props) {
@@ -54,7 +56,7 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
           (s) => s.name.trim().toLowerCase() === cleanQ || (s.phone && toEnglishDigits(s.phone.trim()) === cleanQ)
         );
         if (exact) {
-          onSupplierSelect?.(exact.id);
+          onSupplierSelect?.(exact.id, exact);
           if (!phone && exact.phone) onPhoneChange(exact.phone);
           if (!address && exact.address) onAddressChange(exact.address);
         }
@@ -70,7 +72,7 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
     onNameChange(supplier.name);
     onPhoneChange(cleanPhone);
     onAddressChange(supplier.address ?? '');
-    onSupplierSelect?.(supplier.id);
+    onSupplierSelect?.(supplier.id, supplier);
     setSuggestions([]);
     setShowSuggestions(false);
   }, [onNameChange, onPhoneChange, onAddressChange, onSupplierSelect]);
@@ -133,7 +135,15 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
                 onPress={() => handleSelectSupplier(item)}
                 activeOpacity={0.75}
               >
-                <Ionicons name="business-outline" size={14} color={colors.primary} style={styles.suggestionIcon} />
+                {item.imageUri ? (
+                  <Image
+                    source={{ uri: resolveImageUri(item.imageUri) || item.imageUri }}
+                    style={styles.suggestionThumb}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons name="business-outline" size={14} color={colors.primary} style={styles.suggestionIcon} />
+                )}
                 <View style={styles.suggestionInfo}>
                   <Text style={[styles.suggestionName, { textAlign, color: colors.black }]}>{item.name}</Text>
                   {item.phone ? (
@@ -211,6 +221,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.gray100,
   },
   suggestionIcon: { marginEnd: 10 },
+  suggestionThumb: { width: 22, height: 22, borderRadius: 6, marginEnd: 10 },
   suggestionInfo: { flex: 1 },
   suggestionName: { fontSize: 13, fontWeight: '600', color: Colors.black },
   suggestionPhone: { fontSize: 12, color: Colors.gray400, marginTop: 1 },

@@ -1,5 +1,5 @@
 import type { InventoryProduct, InventoryStats } from '@/types/inventory';
-import { fmtIQD, fmtUSD, fmtPct, normalizeTimeToAmPm } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtPct, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText } from '@/lib/pdfFont';
 import i18n from '@/lib/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -63,9 +63,7 @@ export function buildInventoryReportHTML(
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const timeStr = normalizeTimeToAmPm(
-    now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-  );
+  const timeStr = formatTime(now);
 
   const logoHTML = business.logoUri
     ? `<img src="${business.logoUri}" style="height:60px;max-width:160px;object-fit:contain;display:block;background:white;border-radius:8px;padding:4px;margin-bottom:10px;" alt="logo" />`

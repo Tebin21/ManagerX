@@ -1,5 +1,5 @@
 import type { DashboardOverviewStats, DashboardActivityItem } from '@/lib/sqlite';
-import { fmtIQD, fmtUSD, fmtEnNumber, formatDate as fmtDate, toEnglishDigits } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtEnNumber, formatDate as fmtDate, formatTime, toEnglishDigits } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -110,7 +110,7 @@ export function buildDashboardReportHTML(
 
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const timeStr = formatTime(now);
   const reportId = `DBR-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`;
 
   const logoHTML = business.logoUri

@@ -246,14 +246,37 @@ export function formatDate(v: string | Date): string {
 
 export function normalizeTimeToAmPm(t: string | null | undefined): string {
   if (!t) return '';
-  return toEnglishDigits(t)
-    .replace(/ب\s*\.?\s*ن|پێش\s*نیوەڕۆ|(\b|^)ص(\b|$)/gi, 'AM')
-    .replace(/د\s*\.?\s*ن|پ\s*\.?\s*ن|پاش\s*نیوەڕۆ|(\b|^)م(\b|$)/gi, 'PM')
+  let clean = toEnglishDigits(t).trim();
+  clean = clean
+    .replace(/(?:^|\s|\b)(ب\s*\.?\s*ن\.?|پێش\s*نیوەڕۆ|ص\.?|صباحاً|صباحا)(?:$|\s|\b)/gi, ' AM ')
+    .replace(/(?:^|\s|\b)(د\s*\.?\s*ن\.?|پ\s*\.?\s*ن\.?|پاش\s*نیوەڕۆ|دوای\s*نیوەڕۆ|م\.?|مساءً|مساء)(?:$|\s|\b)/gi, ' PM ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // If format is 24-hour like "14:30" or "09:15" without AM/PM marker
+  const m24 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m24) {
+    let h = parseInt(m24[1], 10);
+    const m = m24[2];
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${period}`;
+  }
+
+  return clean;
 }
 
-export function formatTime(v: string | Date): string {
+export function formatTime(v: string | Date | null | undefined): string {
+  if (!v) return '';
+  if (typeof v === 'string') {
+    const trimmed = v.trim();
+    if (
+      /AM|PM|ب\s*\.?\s*ن|پ\s*\.?\s*ن|د\s*\.?\s*ن|نیوەڕۆ|ص|م/i.test(trimmed) ||
+      /^\d{1,2}:\d{2}(?::\d{2})?$/.test(trimmed)
+    ) {
+      return normalizeTimeToAmPm(trimmed);
+    }
+  }
   const formatted = parseDateSafe(v).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit', hour12: true,
   });

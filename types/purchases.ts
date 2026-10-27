@@ -25,6 +25,8 @@ export interface Purchase {
   notes: string | null;
   paymentStatus: PurchasePaymentStatus;
   initialPaymentMethod?: 'cash' | 'fib' | null;
+  /** Supplier brand logo or image */
+  supplierImageUri?: string | null;
   /** Derived from the linked product's image, not a column on `purchases` — only populated by getPurchaseById. */
   imageUri?: string | null;
   /** Derived from the linked product's item_description, not a column on `purchases` — only populated by getPurchaseById. */
@@ -61,6 +63,7 @@ export interface NewPurchaseInput {
   initialAmountPaid?: number;
   initialPaymentMethod?: 'cash' | 'fib';
   imageUri?: string | null;
+  supplierImageUri?: string | null;
   selectedSupplierId?: number;
   productionDate?: string | null;
   expiryDate?: string | null;

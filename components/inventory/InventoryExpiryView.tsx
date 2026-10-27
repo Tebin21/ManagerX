@@ -2209,7 +2209,7 @@ export function InventoryExpiryView({
                 <View style={[styles.kpiIconRow, { flexDirection }, isTablet && { gap: 8 }]}>
                   <Ionicons name="cash-outline" size={isTablet ? 20 : 15} color="#EF4444" />
                   <Text style={[styles.discardKpiLabel, { color: colors.gray400, fontSize: isTablet ? 13.5 : 11 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                    {isKu ? 'کۆی زەرەر (دینار)' : 'Total Loss (IQD)'}
+                    {isKu ? 'کۆی زەرەر (IQD)' : 'Total Loss (IQD)'}
                   </Text>
                 </View>
                 <Text style={[styles.discardKpiVal, { color: '#EF4444', fontSize: isTablet ? 22 : 16 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
@@ -2645,7 +2645,7 @@ export function InventoryExpiryView({
                             {fmtIQD(totalIqd)}
                           </Text>
                           <Text style={[styles.modalLossSub, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {isKu ? 'بە دینار' : 'in IQD'}
+                            {isKu ? 'بە IQD' : 'in IQD'}
                           </Text>
                         </View>
                       </View>

@@ -1,7 +1,7 @@
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
 import type { SaleItem } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
-import { fmtIQD, fmtUSD, fmtPct, formatDate, formatDateTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, fmtPct, formatDate, formatDateTime, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, PDF_DEVELOPED_BY_EN, kuSpan, isKurdishPdfActive, pdfDevelopedByText } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -601,7 +601,7 @@ export function buildDebtsAuditReportHTML(
 
   const now = new Date();
   const dateStr = formatDate(now.toISOString());
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const timeStr = formatTime(now);
 
   let reportTitle = '';
   let reportPrefix = 'DAR';

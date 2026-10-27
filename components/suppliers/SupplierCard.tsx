@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { AmountText } from '@/components/ui/AmountText';
 import { DateText } from '@/components/ui/DateText';
@@ -11,6 +11,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { Theme } from '@/constants/theme';
 import { isDirectSupplierName } from '@/lib/sqlite';
 import { useLanguageStore } from '@/store/languageStore';
+import { resolveImageUri } from '@/lib/imageStorage';
 import type { SupplierWithStats } from '@/types/suppliers';
 
 export interface SupplierCardProps {
@@ -55,12 +56,20 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
 
         {/* Large Center Avatar */}
         <View style={styles.gridAvatarWrap}>
-          <View style={[styles.gridAvatar, { backgroundColor: colors.softBlue }]}>
-            <Ionicons
-              name="business-outline"
-              size={isTabletLandscape ? 34 : isTablet ? 30 : 26}
-              color={colors.primary}
-            />
+          <View style={[styles.gridAvatar, { backgroundColor: colors.softBlue, overflow: 'hidden' }]}>
+            {supplier.imageUri ? (
+              <Image
+                source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons
+                name="business-outline"
+                size={isTabletLandscape ? 34 : isTablet ? 30 : 26}
+                color={colors.primary}
+              />
+            )}
           </View>
         </View>
 
@@ -136,16 +145,25 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
           styles.avatar,
           {
             backgroundColor: colors.softBlue,
+            overflow: 'hidden',
             marginEnd: isRTL ? 0 : (isTablet ? 16 : 12),
             marginStart: isRTL ? (isTablet ? 16 : RTL_SPACING.gapXl) : 0,
           },
         ]}
       >
-        <Ionicons
-          name="business-outline"
-          size={isTabletLandscape ? 30 : isTablet ? 26 : 22}
-          color={colors.primary}
-        />
+        {supplier.imageUri ? (
+          <Image
+            source={{ uri: resolveImageUri(supplier.imageUri) || supplier.imageUri }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Ionicons
+            name="business-outline"
+            size={isTabletLandscape ? 30 : isTablet ? 26 : 22}
+            color={colors.primary}
+          />
+        )}
       </View>
 
       {/* Body */}

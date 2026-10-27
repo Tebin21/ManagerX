@@ -16,7 +16,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { fmtIQD, fmtUSD, normalizeTimeToAmPm } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatTime } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { Quotation } from '@/types/quotation';
@@ -396,7 +396,7 @@ export function QuotationPreviewModal({
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5 }}>
                     <Ionicons name="time-outline" size={13} color={colors.gray400} />
                     <Text style={[styles.dateText, { color: colors.gray500 }]}>
-                      {normalizeTimeToAmPm(quotation.time)}
+                      {formatTime(quotation.time)}
                     </Text>
                   </View>
                 ) : null}

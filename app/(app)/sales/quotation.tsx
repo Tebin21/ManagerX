@@ -50,7 +50,7 @@ import {
   DIRECT_CUSTOMER_NAME,
   ensureDirectCustomer,
 } from '@/lib/sqlite';
-import { fmtIQD, fmtUSD, sanitizeNumericInput, normalizeTimeToAmPm } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatTime, sanitizeNumericInput } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -467,9 +467,7 @@ export default function SalesQuotationScreen() {
       }
       const quoteNum = `F-${String(maxSeq + 1).padStart(6, '0')}`;
       const dateStr = now.toISOString().split('T')[0];
-      const timeStr = normalizeTimeToAmPm(
-        now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-      );
+      const timeStr = formatTime(now);
 
       const newQuote: Quotation = {
         id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -1769,7 +1767,7 @@ export default function SalesQuotationScreen() {
                   {isKuLanguage ? 'پێشکەش دەکرێت بە:' : 'Presented To:'}
                 </Text>
                 <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400, direction: 'ltr' }}>
-                  {q.date} {q.time ? `• ${normalizeTimeToAmPm(q.time)}` : ''}
+                  {q.date} {q.time ? `• ${q.time}` : ''}
                 </Text>
               </View>
 

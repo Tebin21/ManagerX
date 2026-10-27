@@ -1119,7 +1119,7 @@ export default function LicenseManagement({
                     {/* Bottom Row: Date & Actions */}
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
                       <div>
-                        {isKu ? 'دروستکراوە:' : 'Created:'} {new Date(lic.createdAt).toLocaleDateString()} · {new Date(lic.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {isKu ? 'دروستکراوە:' : 'Created:'} {new Date(lic.createdAt).toLocaleDateString()} · {new Date(lic.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                       </div>
 
                       <div className="flex items-center gap-2">
