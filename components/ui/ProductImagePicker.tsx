@@ -267,22 +267,6 @@ export function ProductImagePicker({
                   >
                     {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
                   </Text>
-                  {savedCount > 0 && (
-                    <View
-                      style={[
-                        styles.savedCountBadge,
-                        {
-                          backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF3C7',
-                          borderColor: isDark ? hexToRgba(colors.primary, 0.45) : '#FDE68A',
-                          borderWidth: 1,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.savedCountText, { color: isDark ? '#FBBF24' : '#B45309', fontSize: isTablet ? 11 : 10 }]}>
-                        {savedCount}
-                      </Text>
-                    </View>
-                  )}
                 </View>
                 <Text
                   style={[
@@ -356,27 +340,6 @@ export function ProductImagePicker({
                 <View style={[styles.btnIconBox, { backgroundColor: colors.primary }]}>
                   <Ionicons name="images" size={19} color="#FFFFFF" />
                 </View>
-                {savedCount > 0 && (
-                  <View
-                    style={[
-                      styles.sideBadge,
-                      {
-                        backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF3C7',
-                        borderColor: isDark ? hexToRgba(colors.primary, 0.45) : '#FDE68A',
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.sideBadgeText,
-                        { color: isDark ? '#FBBF24' : '#B45309' },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {savedCount}
-                    </Text>
-                  </View>
-                )}
               </View>
               <Text
                 style={[

@@ -296,8 +296,14 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos & Items'}
                   </Text>
                   <View style={[styles.countBadge, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
-                    <Text style={[styles.countBadgeText, { color: colors.primary }]}>
-                      {validSavedImages.length}
+                    <Text
+                      style={[
+                        styles.countBadgeText,
+                        { color: colors.primary },
+                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKurdish ? `${validSavedImages.length} وێنە` : `${validSavedImages.length} photos`}
                     </Text>
                   </View>
                 </View>
@@ -310,8 +316,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   ]}
                 >
                   {isKurdish
-                    ? 'هەڵبژاردنی وێنە و پڕکردنەوەی خۆکارانەی ناو و وەسف'
-                    : 'Select photo to auto-fill product name & description'}
+                    ? (validSavedImages.length > 0
+                        ? `کۆی گشتی (${validSavedImages.length}) وێنەی پاشەکەوتکراو هەیە — کرتە لە یەکێکیان بکە بۆ دیاریکردن`
+                        : 'هیچ وێنەیەکی پاشەکەوتکراو نییە')
+                    : (validSavedImages.length > 0
+                        ? `Total of (${validSavedImages.length}) saved photos available — tap to select`
+                        : 'No saved photos available')}
                 </Text>
               </View>
 
