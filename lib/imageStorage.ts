@@ -50,7 +50,8 @@ export function resolveImageUri(uri: string | null | undefined): string | null {
   if (!FileSystem.documentDirectory) return trimmed;
 
   // Extract relative path inside document directory if present (e.g. product_images/media_123.jpg)
-  const match = trimmed.match(/^((?:product_images|saved_presets|logo_images|supplier_logos|dashboard_banners|header_videos)\/[a-zA-Z0-9_.-]+)$/);
+  // Handles both relative path and absolute path with outdated container UUID
+  const match = trimmed.match(/(?:^|.*\/)((?:product_images|saved_presets|logo_images|supplier_logos|dashboard_banners|header_videos)\/[a-zA-Z0-9_.-]+)$/);
   if (match) {
     return `${FileSystem.documentDirectory}${match[1]}`;
   }

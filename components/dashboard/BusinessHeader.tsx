@@ -13,12 +13,14 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from 'expo-router';
 import { Text } from '@/components/ui/AppText';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -28,7 +30,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { copyToPermanentStorage } from '@/lib/imageStorage';
+import { copyToPermanentStorage, resolveImageUri } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
@@ -70,14 +72,106 @@ function resolveType(type: string, isKurdish = false): { emoji: string; label: s
 }
 
 /**
- * Looping background video component powered by expo-video
+ * Looping background video component powered by expo-video.
+ * Designed for continuous, uninterrupted background playback:
+ * - Muted and mixes with other audio so system audio/events never pause it
+ * - Stays active across app states and backgrounding
+ * - Self-heals with listeners on playToEnd, statusChange, playingChange, AppState, and heartbeat
+ * - Auto-resumes via useFocusEffect when navigating back to the screen
  */
 function HeaderVideoInternal({ uri }: { uri: string }) {
   const player = ExpoVideo!.useVideoPlayer(uri, (p: any) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
+    try {
+      p.loop = true;
+      p.muted = true;
+      p.volume = 0;
+      p.audioMixingMode = 'mixWithOthers';
+      if ('staysActiveInBackground' in p) {
+        p.staysActiveInBackground = true;
+      }
+      p.play();
+    } catch {}
   });
+
+  // Continuous loop & auto-recovery engine
+  useEffect(() => {
+    if (!player) return;
+
+    const playSafe = () => {
+      try {
+        player.loop = true;
+        player.muted = true;
+        player.volume = 0;
+        if ('staysActiveInBackground' in player) {
+          player.staysActiveInBackground = true;
+        }
+        player.play();
+      } catch {}
+    };
+
+    playSafe();
+
+    // Replay immediately when reaching end of video
+    const subEnd = player.addListener?.('playToEnd', () => {
+      try {
+        player.replay();
+        player.play();
+      } catch {}
+    });
+
+    // Auto-play when ready
+    const subStatus = player.addListener?.('statusChange', ({ status }: any) => {
+      if (status === 'readyToPlay') {
+        playSafe();
+      }
+    });
+
+    // Auto-resume if unexpectedly paused
+    const subPlaying = player.addListener?.('playingChange', (event: any) => {
+      const isPlaying = typeof event === 'boolean' ? event : event?.isPlaying;
+      if (!isPlaying) {
+        playSafe();
+      }
+    });
+
+    // Resume when coming back to the foreground from other apps / multitasking
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        playSafe();
+      }
+    });
+
+    // Self-healing heartbeat: ensures continuous loop if paused or stalled
+    const heartbeat = setInterval(() => {
+      try {
+        if (player && !player.playing) {
+          playSafe();
+        }
+      } catch {}
+    }, 2000);
+
+    return () => {
+      subEnd?.remove?.();
+      subStatus?.remove?.();
+      subPlaying?.remove?.();
+      appStateSub?.remove?.();
+      clearInterval(heartbeat);
+    };
+  }, [player]);
+
+  // Resume playback whenever user navigates back to this screen from other screens
+  useFocusEffect(
+    useCallback(() => {
+      if (player) {
+        try {
+          player.loop = true;
+          player.muted = true;
+          player.volume = 0;
+          player.play();
+        } catch {}
+      }
+    }, [player])
+  );
 
   const VideoComponent = ExpoVideo!.VideoView;
 
@@ -92,11 +186,11 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
   );
 }
 
-function HeaderVideo({ uri }: { uri: string; key?: any }) {
-  if (!ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
+function HeaderVideo({ uri, previewKey }: { uri: string; previewKey?: string }) {
+  if (!uri?.trim() || !ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
     return null;
   }
-  return <HeaderVideoInternal uri={uri} />;
+  return <HeaderVideoInternal key={previewKey ?? uri} uri={uri} />;
 }
 
 function BusinessHeaderImpl() {
@@ -107,6 +201,7 @@ function BusinessHeaderImpl() {
   const address = useBusinessStore((s) => s.address);
   const logoUri = useBusinessStore((s) => s.logoUri);
   const showOnDashboard = useBusinessStore((s) => s.showOnDashboard ?? false);
+  const setShowOnDashboard = useBusinessStore((s) => s.setShowOnDashboard);
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
   const { isRTL, textAlign } = useRTL();
@@ -193,17 +288,17 @@ function BusinessHeaderImpl() {
       })
       .catch(() => {});
 
-    // Banner video
+    // Banner video (safely resolved across iOS container reloads)
     AsyncStorage.getItem(BANNER_VIDEO_KEY)
       .then((val) => {
-        if (val) setBannerVideo(val);
+        if (val) setBannerVideo(resolveImageUri(val));
       })
       .catch(() => {});
 
-    // Business video
+    // Business video (safely resolved across iOS container reloads)
     AsyncStorage.getItem(BUSINESS_VIDEO_KEY)
       .then((val) => {
-        if (val) setBizVideo(val);
+        if (val) setBizVideo(resolveImageUri(val));
       })
       .catch(() => {});
   }, []);
@@ -264,7 +359,8 @@ function BusinessHeaderImpl() {
   }, []);
 
   const saveBannerVideo = useCallback(async (uri: string | null) => {
-    setBannerVideo(uri);
+    const resolved = resolveImageUri(uri);
+    setBannerVideo(resolved);
     try {
       if (uri) {
         await AsyncStorage.setItem(BANNER_VIDEO_KEY, uri);
@@ -277,7 +373,8 @@ function BusinessHeaderImpl() {
   }, []);
 
   const saveBizVideo = useCallback(async (uri: string | null) => {
-    setBizVideo(uri);
+    const resolved = resolveImageUri(uri);
+    setBizVideo(resolved);
     try {
       if (uri) {
         await AsyncStorage.setItem(BUSINESS_VIDEO_KEY, uri);
@@ -295,6 +392,13 @@ function BusinessHeaderImpl() {
     setActiveTab(showOnDashboard ? 'business' : 'banner');
     setModalOpen(true);
   }, [showOnDashboard]);
+
+  // Tab switcher in modal: keeps both sections fully functional
+  const handleSelectTab = (tab: 'banner' | 'business') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setActiveTab(tab);
+    setShowOnDashboard(tab === 'business');
+  };
 
   // 7. Video Picker with Strict 10-Second Validation
   const pickVideo = async () => {
@@ -323,7 +427,7 @@ function BusinessHeaderImpl() {
       const ImagePicker = await import('expo-image-picker');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
-        allowsEditing: false,
+        allowsEditing: true,
         videoMaxDuration: 10,
       });
 
@@ -333,8 +437,8 @@ function BusinessHeaderImpl() {
       const rawDuration = asset.duration ?? 0;
       const durationSec = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
 
-      // Reject if video is longer than 10 seconds
-      if (durationSec > 10.5) {
+      // Reject if video is longer than 10 seconds (with minor buffer for frame rounding)
+      if (durationSec > 11.5) {
         Alert.alert(
           isKurdish ? 'ئاگاداری' : 'Warning',
           isKurdish
@@ -345,12 +449,15 @@ function BusinessHeaderImpl() {
       }
 
       const tempUri = asset.uri;
-      const permUri = await copyToPermanentStorage(tempUri, 'header_videos', 'mp4');
+      const permUri = await copyToPermanentStorage(tempUri, 'header_videos');
+      const resolved = resolveImageUri(permUri) || permUri;
 
       if (activeTab === 'banner') {
-        await saveBannerVideo(permUri);
+        await saveBannerVideo(resolved);
+        setShowOnDashboard(false);
       } else {
-        await saveBizVideo(permUri);
+        await saveBizVideo(resolved);
+        setShowOnDashboard(true);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -474,7 +581,7 @@ function BusinessHeaderImpl() {
           {/* Priority 1: Background Video (Plays on loop) */}
           {activeVideo ? (
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-              <HeaderVideo key={activeVideo} uri={activeVideo} />
+              <HeaderVideo previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`} uri={activeVideo} />
               <LinearGradient
                 colors={
                   showOnDashboard
@@ -595,16 +702,19 @@ function BusinessHeaderImpl() {
         </LinearGradient>
       </Pressable>
 
-      {/* Clean Minimalist Background Manager Modal */}
+      {/* Centered Minimalist Background Manager Modal */}
       <Modal
         visible={modalOpen}
-        animationType="slide"
+        animationType="fade"
         transparent
         onRequestClose={() => setModalOpen(false)}
         supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: isDark ? themeColors.gray100 : themeColors.white }]}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalOpen(false)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: isDark ? themeColors.gray100 : themeColors.white }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <View style={[styles.modalHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View style={styles.modalTitleGroup}>
@@ -630,7 +740,7 @@ function BusinessHeaderImpl() {
             <View style={[styles.segmentContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setActiveTab('banner')}
+                onPress={() => handleSelectTab('banner')}
                 style={[
                   styles.segmentBtn,
                   activeTab === 'banner' && {
@@ -657,7 +767,7 @@ function BusinessHeaderImpl() {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setActiveTab('business')}
+                onPress={() => handleSelectTab('business')}
                 style={[
                   styles.segmentBtn,
                   activeTab === 'business' && {
@@ -750,7 +860,7 @@ function BusinessHeaderImpl() {
                     },
                   ]}
                 >
-                  <HeaderVideo uri={currentTabVideo} />
+                  <HeaderVideo previewKey={`preview_${activeTab}_${currentTabVideo}`} uri={currentTabVideo} />
                   <LinearGradient
                     colors={['transparent', 'rgba(15, 23, 42, 0.82)']}
                     style={StyleSheet.absoluteFillObject}
@@ -943,7 +1053,10 @@ function BusinessHeaderImpl() {
             {/* Bottom Done Button */}
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => setModalOpen(false)}
+              onPress={() => {
+                setShowOnDashboard(activeTab === 'business');
+                setModalOpen(false);
+              }}
               style={[styles.doneButton, { backgroundColor: themeColors.primary }]}
             >
               <Text
@@ -955,8 +1068,8 @@ function BusinessHeaderImpl() {
                 {t('common.done')}
               </Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );
@@ -1082,17 +1195,25 @@ function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
       backgroundColor: 'rgba(255, 255, 255, 0.55)',
     },
 
-    /* Modal Styles */
+    /* Modal Styles - Centered Dialog */
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.65)',
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: isTablet ? 32 : 18,
     },
     modalSheet: {
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
+      width: '100%',
+      maxWidth: isTablet ? 560 : 420,
+      borderRadius: 24,
       padding: 20,
-      maxHeight: '90%',
+      maxHeight: '85%',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 10,
     },
     modalHeader: {
       alignItems: 'center',
@@ -1159,7 +1280,8 @@ function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
 
     /* Scroll View inside Modal */
     modalScroll: {
-      maxHeight: 460,
+      flexShrink: 1,
+      maxHeight: 420,
     },
     modalScrollContent: {
       paddingBottom: 12,
