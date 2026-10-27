@@ -1718,7 +1718,7 @@
       "googleDrivePrivacyBadge": "100% Private — Stored exclusively on your Google Drive, zero data stored externally",
       "googleDriveConnected": "Connected",
       "googleDriveNotConnected": "Not Connected",
-      "googleDriveConnectBtn": "Connect",
+      "googleDriveConnectBtn": "Get Started",
       "googleDriveDisconnectBtn": "Disconnect",
       "googleDriveAutoBackup": "Auto-Backup",
       "googleDriveAutoBackupSub": "Automatically saves data on app open and close",
