@@ -41,13 +41,7 @@ function formatActivityTime(dateStr: string, isKurdish: boolean): string {
 
   let hours = d.getHours();
   const minutes = d.getMinutes().toString().padStart(2, '0');
-  let period = '';
-
-  if (isKurdish) {
-    period = hours >= 12 ? 'د.ن' : 'ب.ن';
-  } else {
-    period = hours >= 12 ? 'PM' : 'AM';
-  }
+  const period = hours >= 12 ? 'PM' : 'AM';
 
   hours = hours % 12 || 12;
   const timeFormatted = `${toEnglishDigits(hours)}:${toEnglishDigits(minutes)} ${period}`;
@@ -423,7 +417,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
             const timeStr = formatActivityTime(item.timestamp, isKurdish);
             const displayTitle = getActivityDisplayTitle(item, isKurdish, t);
             const displaySubtitle = getActivityDisplaySubtitle(item, isKurdish);
-            const currencyLabel = isUSD ? 'USD' : (isKurdish ? 'د.ع' : 'IQD');
+            const currencyLabel = isUSD ? 'USD' : 'IQD';
 
             return (
               <View
@@ -599,7 +593,7 @@ export function DashboardActivityFeed({ activities, isLoading = false, periodLab
             const timeStr = formatActivityTime(item.timestamp, isKurdish);
             const displayTitle = getActivityDisplayTitle(item, isKurdish, t);
             const displaySubtitle = getActivityDisplaySubtitle(item, isKurdish);
-            const currencyLabel = isUSD ? 'USD' : (isKurdish ? 'د.ع' : 'IQD');
+            const currencyLabel = isUSD ? 'USD' : 'IQD';
 
             return (
               <View key={`act_${item.id}_${index}`}>

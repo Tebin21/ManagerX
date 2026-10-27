@@ -84,15 +84,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   loadInventory: async () => {
     set({ isLoading: true });
     try {
-      const [products, rawStats, categories, inventoryHistory] = await Promise.all([
+      const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
         getAllInventoryProducts(),
         getInventoryStats(),
         getProductCategories(),
+        getAllManagedCategories(),
         getAllInventoryHistory(),
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories, inventoryHistory, isLoading: false });
+      set({ products, stats, categories, managedCategories, inventoryHistory, isLoading: false });
     } catch (err) {
       console.error('Failed to load inventory:', err);
       set({ isLoading: false });
@@ -101,15 +102,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   reloadAfterSale: async () => {
     try {
-      const [products, rawStats, categories, inventoryHistory] = await Promise.all([
+      const [products, rawStats, categories, managedCategories, inventoryHistory] = await Promise.all([
         getAllInventoryProducts(),
         getInventoryStats(),
         getProductCategories(),
+        getAllManagedCategories(),
         getAllInventoryHistory(),
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories, inventoryHistory });
+      set({ products, stats, categories, managedCategories, inventoryHistory });
     } catch (err) {
       console.error('Failed to reload inventory after sale:', err);
     }
@@ -117,14 +119,15 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   reloadAfterPurchase: async () => {
     try {
-      const [products, rawStats, categories] = await Promise.all([
+      const [products, rawStats, categories, managedCategories] = await Promise.all([
         getAllInventoryProducts(),
         getInventoryStats(),
         getProductCategories(),
+        getAllManagedCategories(),
       ]);
       const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore.getState();
       const stats = { ...rawStats, lowStockCount: computeLowStockCount(products, globalLowStockEnabled, globalLowStockThreshold) };
-      set({ products, stats, categories });
+      set({ products, stats, categories, managedCategories });
     } catch (err) {
       console.error('Failed to reload inventory after purchase:', err);
     }
@@ -165,6 +168,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   editProduct: async (id, data) => {
     await updateProduct(id, data);
     await get().refreshProduct(id);
+    if (data.category) {
+      await get().loadManagedCategories();
+    }
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
@@ -194,6 +200,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         inventoryHistory,
       };
     });
+    await get().loadManagedCategories();
     try {
       const { useReportStore } = await import('@/store/reportStore');
       await useReportStore.getState().reloadAfterMutation();
@@ -246,8 +253,11 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   loadManagedCategories: async () => {
     try {
-      const managedCategories = await getAllManagedCategories();
-      set({ managedCategories });
+      const [categories, managedCategories] = await Promise.all([
+        getProductCategories(),
+        getAllManagedCategories(),
+      ]);
+      set({ categories, managedCategories });
     } catch (err) {
       console.error('Failed to load managed categories:', err);
     }
@@ -260,6 +270,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       getAllManagedCategories(),
     ]);
     set({ categories, managedCategories });
+    await get().loadInventory();
   },
 
   deleteCategory: async (name: string) => {
@@ -274,15 +285,22 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       managedCategories,
       ...(selectedCategory === name ? { selectedCategory: 'all' } : {}),
     });
+    await get().loadInventory();
   },
 
   renameCategory: async (oldName: string, newName: string) => {
     await renameManagedCategory(oldName, newName);
-    // Rename touches every product row that used the old name, not just the
-    // categories list — a full reload keeps `products` consistent too.
-    await get().loadInventory();
+    const [categories, managedCategories] = await Promise.all([
+      getProductCategories(),
+      getAllManagedCategories(),
+    ]);
     const { selectedCategory } = get();
-    if (selectedCategory === oldName) set({ selectedCategory: newName.trim() });
+    set({
+      categories,
+      managedCategories,
+      ...(selectedCategory === oldName ? { selectedCategory: newName.trim() } : {}),
+    });
+    await get().loadInventory();
   },
 
   loadInventoryHistory: async () => {

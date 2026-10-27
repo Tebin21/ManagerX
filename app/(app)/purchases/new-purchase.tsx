@@ -1062,7 +1062,7 @@ export default function NewPurchaseScreen() {
                     )}
                     {Boolean(preset.buyPriceIQD && preset.buyPriceIQD > 0) && (
                       <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
-                        · {preset.buyPriceIQD?.toLocaleString()} د.ع
+                        · {preset.buyPriceIQD?.toLocaleString()} IQD
                       </Text>
                     )}
                   </View>

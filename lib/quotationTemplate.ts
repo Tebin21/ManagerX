@@ -1,5 +1,5 @@
 import type { Quotation } from '@/types/quotation';
-import { fmtIQD, fmtUSD, formatDate, formatTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, formatDate, formatTime, normalizeTimeToAmPm } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
 import type { ReceiptCurrencyMode } from '@/lib/invoiceTemplate';
@@ -465,7 +465,7 @@ export function buildQuotationHTML(
       </div>
       <div class="doc-meta-item">
         <span class="meta-lbl">${isKurdish ? ku('کات:') : 'Time:'}</span>
-        <b class="en-num" dir="ltr">${escHtml(quotation.time)}</b>
+        <b class="en-num" dir="ltr">${escHtml(normalizeTimeToAmPm(quotation.time))}</b>
       </div>
       ${quotation.printCount && quotation.printCount > 0 ? `
       <div class="doc-meta-item">

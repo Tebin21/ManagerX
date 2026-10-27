@@ -100,14 +100,6 @@ export default function HistoryScreen() {
   const [fromVal, setFromVal] = useState('');
   const [toVal, setToVal] = useState('');
 
-  useEffect(() => {
-    if (isRTL && filterScrollRef.current) {
-      const timer = setTimeout(() => {
-        filterScrollRef.current?.scrollToEnd({ animated: false });
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isRTL, tab]);
 
   const isGridView = historyGridLayout;
   const numColumns = isGridView
@@ -834,20 +826,14 @@ export default function HistoryScreen() {
               ref={filterScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
-              onContentSizeChange={() => {
-                if (isRTL) {
-                  filterScrollRef.current?.scrollToEnd({ animated: false });
-                }
-              }}
-              style={{ flex: 1 }}
+              style={[
+                { flex: 1 },
+                isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+              ]}
               contentContainerStyle={[
                 styles.filterRow,
                 {
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  flexGrow: 1,
-                  justifyContent: 'flex-start',
-                  paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
-                  paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+                  paddingHorizontal: isTabletLandscape ? 24 : 16,
                 },
               ]}
             >
@@ -858,6 +844,7 @@ export default function HistoryScreen() {
                     key={key}
                     style={[
                       styles.filterPill,
+                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: active ? colors.primary : colors.gray100,
                         borderColor: active ? colors.primary : colors.gray200,
@@ -1513,13 +1500,13 @@ function getStyles(colors: AppColors, isTablet: boolean, isTabletLandscape: bool
       alignItems: 'center',
     },
     filterPill: {
-      paddingHorizontal: isTablet ? 18 : 14,
-      paddingVertical: isTablet ? 9 : 6,
-      borderRadius: isTablet ? 22 : 18,
+      paddingHorizontal: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+      paddingVertical: isTabletLandscape ? 11 : isTablet ? 9 : 6,
+      borderRadius: isTablet ? 24 : 18,
       borderWidth: 1,
     },
     filterPillText: {
-      fontSize: isTabletLandscape ? 14 : isTablet ? 13 : 12.5,
+      fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12.5,
       fontWeight: '600',
     },
     rangeLabel: {

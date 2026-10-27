@@ -13,7 +13,14 @@ import {
   RefreshControl,
   Platform,
   useWindowDimensions,
+  LayoutAnimation,
+  UIManager,
+  Keyboard,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Text } from '@/components/ui/AppText';
 import { IdText } from '@/components/ui/IdText';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -37,11 +44,10 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
-import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
-import { fmtIQD, fmtUSD, toEnglishDigits, formatDate, formatTime } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, toEnglishDigits, formatDate, formatTime, normalizeTimeToAmPm } from '@/utils/formatters';
 import { getPeriodBounds, isDateWithinRange, type PeriodKey } from '@/utils/dateRanges';
-
+import { hexToRgba } from '@/lib/colorUtils';
 import {
   getAllSales,
   getAllPurchases,
@@ -119,6 +125,17 @@ export default function InvoicesHubScreen() {
   const [purchaseSearch, setPurchaseSearch] = useState('');
   const [salesSearch, setSalesSearch] = useState('');
   const [quotationSearch, setQuotationSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchOpen]);
 
   // ─── Read-Only Detail Modals State ───
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -198,7 +215,7 @@ export default function InvoicesHubScreen() {
     if (isUSD) {
       return `$${fmtUSD(amountIQD / exchangeRate)}`;
     }
-    return `${fmtIQD(amountIQD)} د.ع`;
+    return `${fmtIQD(amountIQD)} IQD`;
   }, [isUSD, exchangeRate]);
 
   // ─── TAB 1: KPI Statistics ───
@@ -607,100 +624,251 @@ export default function InvoicesHubScreen() {
     custom: isKu ? 'دەستنیشانکراو' : 'Custom',
   };
 
-  // ─── Shared Period Filter Pills Row ───
-  const renderPeriodFilterSection = () => (
-    <View style={styles.periodSection}>
-      <View style={[styles.periodSectionHeader, { flexDirection }]}>
-        <View style={[styles.periodTitleRow, { flexDirection }]}>
-          <Ionicons name="calendar" size={16} color={colors.primary} />
-          <Text
+  // ─── Shared Period Filter Pills Row (With Integrated Collapsible Search) ───
+  const renderPeriodFilterSection = (searchConfig?: {
+    searchQuery: string;
+    onSearchChange: (q: string) => void;
+    placeholder: string;
+  }) => {
+    const hasSearch = Boolean(searchConfig);
+    const { searchQuery = '', onSearchChange, placeholder = '' } = searchConfig || {};
+
+    if (hasSearch && isSearchOpen) {
+      return (
+        <View style={styles.periodSection}>
+          <View
             style={[
-              styles.periodSectionTitle,
-              { color: colors.black },
-              isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              styles.expandedSearchWrap,
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: colors.primary,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+              isTablet && { height: 50, paddingHorizontal: 16, borderRadius: 14 },
             ]}
           >
-            {isKu ? 'فلتەرکردنی کات:' : 'Time Period:'}
+            <Ionicons name="search" size={isTablet ? 22 : 18} color={colors.primary} />
+            <TextInput
+              ref={searchInputRef}
+              value={searchQuery}
+              onChangeText={(v) => onSearchChange?.(toEnglishDigits(v))}
+              placeholder={placeholder}
+              placeholderTextColor={colors.gray400}
+              style={[
+                styles.searchInput,
+                {
+                  color: colors.black,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                },
+                isTablet && { fontSize: 16 },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+              ]}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => onSearchChange?.('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="close-circle" size={isTablet ? 20 : 18} color={colors.gray400} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                onSearchChange?.('');
+                setIsSearchOpen(false);
+                Keyboard.dismiss();
+              }}
+              style={[
+                styles.searchCancelBtn,
+                {
+                  backgroundColor: isDark ? colors.gray200 : '#F1F5F9',
+                  borderColor: isDark ? colors.gray300 : '#E2E8F0',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+                isTablet && { paddingHorizontal: 14, paddingVertical: 8 },
+              ]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={isTablet ? 18 : 15} color={colors.gray600} />
+              <Text
+                style={[
+                  styles.searchCancelText,
+                  { color: colors.gray600 },
+                  isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  isTablet && { fontSize: 14 },
+                ]}
+              >
+                {isKu ? 'داخستن' : 'Cancel'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.periodSection}>
+        <View style={[styles.periodSectionHeader, { flexDirection }]}>
+          <View style={[styles.periodTitleRow, { flexDirection, gap: isTablet ? 8 : 6 }]}>
+            <Ionicons name="calendar" size={isTablet ? 20 : 16} color={colors.primary} />
+            <Text
+              style={[
+                styles.periodSectionTitle,
+                { color: colors.black },
+                isTablet && { fontSize: isTabletLandscape ? 16.5 : 15 },
+                isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
+              {isKu ? 'فلتەرکردنی کات:' : 'Time Period:'}
+            </Text>
+          </View>
+
+          <Text
+            style={[
+              styles.periodSubHint,
+              { color: colors.gray400 },
+              isTablet && { fontSize: isTabletLandscape ? 13.5 : 12.5 },
+              isKu && { fontFamily: SETTINGS_KURDISH_FONT },
+            ]}
+          >
+            {periodKey === 'all'
+              ? isKu
+                ? 'هەموو کات (سەرەکی)'
+                : 'All Time (Default)'
+              : periodPillLabels[periodKey]}
           </Text>
         </View>
 
-        <Text style={[styles.periodSubHint, { color: colors.gray400 }, isKu && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-          {periodKey === 'all'
-            ? isKu
-              ? 'هەموو کات (سەرەکی)'
-              : 'All Time (Default)'
-            : periodPillLabels[periodKey]}
-        </Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[{ marginHorizontal: -16 }, isRTL && { transform: [{ scaleX: -1 }] }]}
-        contentContainerStyle={[styles.periodPillRow, { paddingHorizontal: 16, gap: 8 }]}
-      >
-        {periodPillKeys.map((key) => {
-          const active = periodKey === key;
-          const isCustom = key === 'custom';
-          return (
+        <View style={[styles.periodFilterBarRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {hasSearch && (
             <TouchableOpacity
-              key={key}
-              activeOpacity={0.8}
-              onPress={() => {
-                try {
-                  Haptics.selectionAsync().catch(() => {});
-                } catch {}
-                if (isCustom) {
-                  setCustomRangeModalVisible(true);
-                } else {
-                  setPeriodKey(key);
-                  setCustomRange(null);
-                }
-              }}
               style={[
-                styles.periodPill,
-                isRTL && { transform: [{ scaleX: -1 }] },
+                styles.searchToggleBtn,
                 {
-                  backgroundColor: active ? colors.primary : isDark ? colors.gray100 : colors.white,
-                  borderColor: active ? colors.primary : colors.gray200,
-                  flexDirection,
-                  alignItems: 'center',
-                  gap: 5,
+                  backgroundColor: searchQuery ? colors.primary + '20' : isDark ? colors.gray100 : colors.white,
+                  borderColor: searchQuery ? colors.primary : colors.gray200,
+                  marginLeft: isRTL ? (isTablet ? 10 : 8) : 0,
+                  marginRight: isRTL ? 0 : (isTablet ? 10 : 8),
                 },
+                isTablet && { width: 44, height: 44, borderRadius: 22 },
               ]}
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setIsSearchOpen(true);
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Search"
             >
-              {isCustom && (
-                <Ionicons name="calendar" size={12} color={active ? '#0F172A' : colors.primary} />
-              )}
-              <Text
-                style={[
-                  styles.periodPillText,
-                  { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
-                  isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
-                ]}
-              >
-                {isCustom && customRange
-                  ? `${customRange.from} → ${customRange.to}`
-                  : periodPillLabels[key]}
-              </Text>
-              {isCustom && active && customRange && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    setPeriodKey('all');
-                    setCustomRange(null);
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={13} color="#0F172A" />
-                </TouchableOpacity>
+              <Ionicons
+                name="search"
+                size={isTablet ? 20 : 17}
+                color={searchQuery ? colors.primary : colors.gray600}
+              />
+              {Boolean(searchQuery && searchQuery.length > 0) && (
+                <View style={[styles.searchBadge, { backgroundColor: colors.primary }]} />
               )}
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
+          )}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[
+              { flex: 1 },
+              isRTL && { transform: [{ scaleX: -1 }] },
+            ]}
+            contentContainerStyle={[
+              styles.periodPillRow,
+              {
+                gap: isTablet ? 10 : 8,
+              },
+            ]}
+          >
+            {periodPillKeys.map((key) => {
+              const active = periodKey === key;
+              const isCustom = key === 'custom';
+              return (
+                <TouchableOpacity
+                  key={key}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    try {
+                      Haptics.selectionAsync().catch(() => {});
+                    } catch {}
+                    if (isCustom) {
+                      setCustomRangeModalVisible(true);
+                    } else {
+                      setPeriodKey(key);
+                      setCustomRange(null);
+                    }
+                  }}
+                  style={[
+                    styles.periodPill,
+                    isTablet && {
+                      paddingHorizontal: isTabletLandscape ? 22 : 18,
+                      paddingVertical: isTabletLandscape ? 11 : 9,
+                      borderRadius: 24,
+                    },
+                    isRTL && { transform: [{ scaleX: -1 }] },
+                    {
+                      backgroundColor: active ? colors.primary : isDark ? colors.gray100 : colors.white,
+                      borderColor: active ? colors.primary : colors.gray200,
+                      flexDirection,
+                      alignItems: 'center',
+                      gap: isTablet ? 7 : 5,
+                    },
+                  ]}
+                >
+                  {isCustom && (
+                    <Ionicons name="calendar" size={isTablet ? 15 : 12} color={active ? '#0F172A' : colors.primary} />
+                  )}
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
+                      { color: active ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue },
+                      isKu && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT },
+                    ]}
+                  >
+                    {isCustom && customRange
+                      ? `${customRange.from} → ${customRange.to}`
+                      : periodPillLabels[key]}
+                  </Text>
+                  {isCustom && active && customRange && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setPeriodKey('all');
+                        setCustomRange(null);
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={isTablet ? 16 : 13} color="#0F172A" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    );
+  };
+
+  const switchTab = (tab: TabKey) => {
+    if (isSearchOpen) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIsSearchOpen(false);
+      Keyboard.dismiss();
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -757,9 +925,10 @@ export default function InvoicesHubScreen() {
         style={[
           styles.segmentWrapper,
           isTablet && {
-            maxWidth: isTabletLandscape ? 980 : 760,
+            maxWidth: isTabletLandscape ? 1320 : 1040,
             alignSelf: 'center',
             width: '100%',
+            paddingHorizontal: isTabletLandscape ? 32 : 24,
           },
         ]}
       >
@@ -782,7 +951,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              setActiveTab('reports');
+              switchTab('reports');
             }}
             style={[
               styles.segmentBtn,
@@ -827,7 +996,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              setActiveTab('purchases');
+              switchTab('purchases');
             }}
             style={[
               styles.segmentBtn,
@@ -896,7 +1065,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              setActiveTab('sales');
+              switchTab('sales');
             }}
             style={[
               styles.segmentBtn,
@@ -965,7 +1134,7 @@ export default function InvoicesHubScreen() {
               try {
                 Haptics.selectionAsync().catch(() => {});
               } catch {}
-              setActiveTab('quotations');
+              switchTab('quotations');
             }}
             style={[
               styles.segmentBtn,
@@ -1042,7 +1211,12 @@ export default function InvoicesHubScreen() {
               style={styles.scrollFlex}
               contentContainerStyle={[
                 styles.reportScrollContent,
-                isTablet && { maxWidth: isTabletLandscape ? 1160 : 760, alignSelf: 'center', width: '100%' },
+                isTablet && {
+                  maxWidth: isTabletLandscape ? 1320 : 1040,
+                  alignSelf: 'center',
+                  width: '100%',
+                  paddingHorizontal: isTabletLandscape ? 32 : 24,
+                },
               ]}
               showsVerticalScrollIndicator={false}
               refreshControl={
@@ -1052,8 +1226,8 @@ export default function InvoicesHubScreen() {
               {/* Period Filter Pills */}
               {renderPeriodFilterSection()}
 
-              {/* KPI Cards Grid (Responsive: 3 columns on landscape iPad, 2 on portrait tablet/phone) */}
-              <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 12 : 10 }]}>
+              {/* KPI Cards Grid (Responsive 2 columns on tablet, exactly like expenses) */}
+              <View style={[styles.kpiGrid, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: isTablet ? 16 : 10 }]}>
                 {[
                   {
                     id: 'purchases',
@@ -1171,13 +1345,13 @@ export default function InvoicesHubScreen() {
                     style={[
                       styles.kpiCard,
                       {
-                        flexBasis: isTabletLandscape ? '31.8%' : '48%',
-                        maxWidth: isTabletLandscape ? '32.5%' : '49%',
+                        flexBasis: isTablet ? '48.5%' : '48%',
+                        maxWidth: isTablet ? '49%' : '49%',
                         backgroundColor: isDark ? kpi.bgDark : kpi.bgLight,
                         borderColor: isDark ? kpi.borderDark : kpi.borderLight,
                         alignItems: isRTL ? 'flex-end' : 'flex-start',
-                        padding: isTablet ? 14 : 12,
-                        borderRadius: 16,
+                        padding: isTabletLandscape ? 22 : isTablet ? 18 : 12,
+                        borderRadius: isTablet ? 20 : 16,
                       },
                     ]}
                   >
@@ -1185,23 +1359,29 @@ export default function InvoicesHubScreen() {
                       style={[
                         styles.kpiIconWrap,
                         {
-                          width: isTablet ? 42 : 36,
-                          height: isTablet ? 42 : 36,
-                          borderRadius: isTablet ? 12 : 10,
+                          width: isTabletLandscape ? 54 : isTablet ? 48 : 36,
+                          height: isTabletLandscape ? 54 : isTablet ? 48 : 36,
+                          borderRadius: isTabletLandscape ? 16 : isTablet ? 14 : 10,
                           backgroundColor: hexToRgba(kpi.color, isDark ? 0.25 : 0.15),
                           alignSelf: isRTL ? 'flex-end' : 'flex-start',
+                          marginBottom: isTablet ? 10 : 4,
                         },
                       ]}
                     >
-                      <Ionicons name={kpi.icon} size={isTablet ? 20 : 17} color={kpi.color} />
+                      <Ionicons
+                        name={kpi.icon}
+                        size={isTabletLandscape ? 28 : isTablet ? 24 : 17}
+                        color={kpi.color}
+                      />
                     </View>
                     <Text
                       style={[
                         styles.kpiLabel,
                         {
-                          fontSize: isTablet ? 15 : 12.5,
+                          fontSize: isTabletLandscape ? 17.5 : isTablet ? 16 : 12.5,
                           color: kpi.color,
                           textAlign: isRTL ? 'right' : 'left',
+                          marginBottom: isTablet ? 4 : 2,
                         },
                         isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
@@ -1213,7 +1393,7 @@ export default function InvoicesHubScreen() {
                       style={[
                         styles.kpiCountText,
                         {
-                          fontSize: isTablet ? 22 : 16.5,
+                          fontSize: isTabletLandscape ? 28 : isTablet ? 24 : 16.5,
                           color: kpi.color,
                           textAlign: isRTL ? 'right' : 'left',
                           writingDirection,
@@ -1236,45 +1416,26 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'purchases' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills */}
-              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                {renderPeriodFilterSection()}
-              </View>
-
-              {/* Search Bar */}
-              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                <View
-                  style={[
-                    styles.searchInputWrap,
-                    {
-                      backgroundColor: isDark ? colors.gray100 : colors.white,
-                      borderColor: colors.gray200,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <Ionicons name="search" size={18} color={colors.gray400} />
-                  <TextInput
-                    value={purchaseSearch}
-                    onChangeText={setPurchaseSearch}
-                    placeholder={isKu ? 'گەڕان بە ناوی دابینکەر، مۆبایل، ژمارەی وەسڵ...' : 'Search supplier, phone, purchase #...'}
-                    placeholderTextColor={colors.gray400}
-                    style={[
-                      styles.searchInput,
-                      { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                    ]}
-                  />
-                  {purchaseSearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setPurchaseSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+              {/* Period Filter Pills (With Integrated Search) */}
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
+                {renderPeriodFilterSection({
+                  searchQuery: purchaseSearch,
+                  onSearchChange: setPurchaseSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی دابینکەر، مۆبایل، ژمارەی وەسڵ...' : 'Search supplier, phone, purchase #...',
+                })}
               </View>
 
               {/* Invoices List / Grid */}
               <FlatList
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={() => {
+                  if (isSearchOpen && !purchaseSearch) {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setIsSearchOpen(false);
+                    Keyboard.dismiss();
+                  }
+                }}
                 data={searchedPurchases}
                 key={`purchases-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
@@ -1286,7 +1447,7 @@ export default function InvoicesHubScreen() {
                 keyExtractor={(item) => `pur-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
-                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
+                  isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 },
                   searchedPurchases.length === 0 && styles.emptyListContent,
                 ]}
                 refreshControl={
@@ -1385,45 +1546,26 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'sales' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills */}
-              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                {renderPeriodFilterSection()}
-              </View>
-
-              {/* Search Bar */}
-              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                <View
-                  style={[
-                    styles.searchInputWrap,
-                    {
-                      backgroundColor: isDark ? colors.gray100 : colors.white,
-                      borderColor: colors.gray200,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <Ionicons name="search" size={18} color={colors.gray400} />
-                  <TextInput
-                    value={salesSearch}
-                    onChangeText={setSalesSearch}
-                    placeholder={isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی وەسڵ...' : 'Search customer, phone, invoice #...'}
-                    placeholderTextColor={colors.gray400}
-                    style={[
-                      styles.searchInput,
-                      { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                    ]}
-                  />
-                  {salesSearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setSalesSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+              {/* Period Filter Pills (With Integrated Search) */}
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
+                {renderPeriodFilterSection({
+                  searchQuery: salesSearch,
+                  onSearchChange: setSalesSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی وەسڵ...' : 'Search customer, phone, invoice #...',
+                })}
               </View>
 
               {/* Invoices List / Grid */}
               <FlatList
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={() => {
+                  if (isSearchOpen && !salesSearch) {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setIsSearchOpen(false);
+                    Keyboard.dismiss();
+                  }
+                }}
                 data={searchedSales}
                 key={`sales-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
@@ -1435,7 +1577,7 @@ export default function InvoicesHubScreen() {
                 keyExtractor={(item) => `sale-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
-                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
+                  isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 },
                   searchedSales.length === 0 && styles.emptyListContent,
                 ]}
                 refreshControl={
@@ -1541,45 +1683,26 @@ export default function InvoicesHubScreen() {
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'quotations' && (
             <View style={styles.flexOne}>
-              {/* Period Filter Pills */}
-              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                {renderPeriodFilterSection()}
-              </View>
-
-              {/* Search Bar */}
-              <View style={[styles.searchContainer, isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' }]}>
-                <View
-                  style={[
-                    styles.searchInputWrap,
-                    {
-                      backgroundColor: isDark ? colors.gray100 : colors.white,
-                      borderColor: colors.gray200,
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                    },
-                  ]}
-                >
-                  <Ionicons name="search" size={18} color={colors.gray400} />
-                  <TextInput
-                    value={quotationSearch}
-                    onChangeText={setQuotationSearch}
-                    placeholder={isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی عەرز...' : 'Search client, phone, quotation #...'}
-                    placeholderTextColor={colors.gray400}
-                    style={[
-                      styles.searchInput,
-                      { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
-                      isKu && { fontFamily: SETTINGS_KURDISH_FONT },
-                    ]}
-                  />
-                  {quotationSearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setQuotationSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name="close-circle" size={18} color={colors.gray400} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+              {/* Period Filter Pills (With Integrated Search) */}
+              <View style={[styles.tabPeriodSectionWrap, isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 }]}>
+                {renderPeriodFilterSection({
+                  searchQuery: quotationSearch,
+                  onSearchChange: setQuotationSearch,
+                  placeholder: isKu ? 'گەڕان بە ناوی کڕیار، مۆبایل، ژمارەی عەرز...' : 'Search client, phone, quotation #...',
+                })}
               </View>
 
               {/* Quotations List / Grid */}
               <FlatList
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={() => {
+                  if (isSearchOpen && !quotationSearch) {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setIsSearchOpen(false);
+                    Keyboard.dismiss();
+                  }
+                }}
                 data={searchedQuotations}
                 key={`quotations-${numColumns}-${viewMode}-${isRTL ? 'rtl' : 'ltr'}`}
                 numColumns={numColumns}
@@ -1591,7 +1714,7 @@ export default function InvoicesHubScreen() {
                 keyExtractor={(item) => `quo-${item.id}`}
                 contentContainerStyle={[
                   styles.listContent,
-                  isTablet && { maxWidth: isTabletLandscape ? 1200 : 780, alignSelf: 'center', width: '100%' },
+                  isTablet && { maxWidth: isTabletLandscape ? 1320 : 1040, alignSelf: 'center', width: '100%', paddingHorizontal: isTabletLandscape ? 32 : 24 },
                   searchedQuotations.length === 0 && styles.emptyListContent,
                 ]}
                 refreshControl={
@@ -1660,7 +1783,7 @@ export default function InvoicesHubScreen() {
                           </View>
                         )}
                         <Text numberOfLines={1} style={[styles.subProductName, { color: colors.gray400, textAlign, fontSize: isTablet ? 13 : 11.5 }]}>
-                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${item.time}` : ''}
+                          {itemsCount} {isKu ? 'کاڵا' : 'items'} • {item.date} {item.time ? `• ${normalizeTimeToAmPm(item.time)}` : ''}
                         </Text>
                       </View>
 
@@ -1676,7 +1799,7 @@ export default function InvoicesHubScreen() {
                             </Text>
                           ) : (
                             <Text style={[{ color: colors.black, fontSize: isTablet ? 16 : 14, fontWeight: '800' }]}>
-                              {fmtIQD(item.grandTotal)} د.ع
+                              {fmtIQD(item.grandTotal)} IQD
                             </Text>
                           )}
                         </View>
@@ -2400,6 +2523,47 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13.5,
     paddingVertical: 0,
+  },
+  periodFilterBarRow: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  searchToggleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  expandedSearchWrap: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  searchCancelBtn: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  searchCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // List & Grid Contents

@@ -24,6 +24,7 @@ interface SettingsState {
   reportsGridLayout:           boolean;
   expiryGridLayout:            boolean;
   checkPriceGridLayout:        boolean;
+  stockAlertsGridLayout:       boolean;
   historyGridLayout:           boolean;
   dashboardActivityGridLayout: boolean;
   expiryTrackingEnabled:       boolean;
@@ -54,6 +55,7 @@ interface SettingsState {
   setReportsGridLayout:           (val: boolean) => void;
   setExpiryGridLayout:            (val: boolean) => void;
   setCheckPriceGridLayout:        (val: boolean) => void;
+  setStockAlertsGridLayout:       (val: boolean) => void;
   setHistoryGridLayout:           (val: boolean) => void;
   setDashboardActivityGridLayout: (val: boolean) => void;
   setExpiryTrackingEnabled:    (val: boolean) => void;
@@ -109,6 +111,7 @@ export const useSettingsStore = create<SettingsState>()(
       reportsGridLayout:           true,
       expiryGridLayout:            false,
       checkPriceGridLayout:        true,
+      stockAlertsGridLayout:       false,
       historyGridLayout:           false,
       dashboardActivityGridLayout: false,
       expiryTrackingEnabled:       false,
@@ -138,6 +141,7 @@ export const useSettingsStore = create<SettingsState>()(
       setReportsGridLayout:           (val) => { set({ reportsGridLayout: val }); notifyPreferencesChanged(); },
       setExpiryGridLayout:            (val) => { set({ expiryGridLayout: val }); notifyPreferencesChanged(); },
       setCheckPriceGridLayout:        (val) => { set({ checkPriceGridLayout: val }); notifyPreferencesChanged(); },
+      setStockAlertsGridLayout:       (val) => { set({ stockAlertsGridLayout: val }); notifyPreferencesChanged(); },
       setHistoryGridLayout:           (val) => { set({ historyGridLayout: val }); notifyPreferencesChanged(); },
       setDashboardActivityGridLayout: (val) => { set({ dashboardActivityGridLayout: val }); notifyPreferencesChanged(); },
       setShowSalesInvoicePreview:  (val) => { set({ showSalesInvoicePreview: val }); notifyPreferencesChanged(); },
@@ -194,6 +198,7 @@ export const useSettingsStore = create<SettingsState>()(
           reportsGridLayout:           p?.reportsGridLayout ?? true,
           expiryGridLayout:            p?.expiryGridLayout ?? false,
           checkPriceGridLayout:        p?.checkPriceGridLayout ?? true,
+          stockAlertsGridLayout:       p?.stockAlertsGridLayout ?? false,
           historyGridLayout:           p?.historyGridLayout ?? false,
           dashboardActivityGridLayout: p?.dashboardActivityGridLayout ?? false,
           expiryTrackingEnabled:       p?.expiryTrackingEnabled ?? false,

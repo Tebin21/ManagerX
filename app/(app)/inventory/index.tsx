@@ -10,6 +10,8 @@ import {
   Modal,
   ScrollView,
   Keyboard,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
   LayoutAnimation,
   Platform,
   UIManager,
@@ -57,7 +59,7 @@ import {
 } from '@/utils/dateRanges';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import { useLanguageStore } from '@/store/languageStore';
-import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import { toEnglishDigits } from '@/utils/formatters';
 
@@ -116,12 +118,14 @@ export default function InventoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      loadInventory();
+      loadManagedCategories();
       if (params.tab === 'products') {
         setActiveNavTab('products');
       } else {
         setActiveNavTab('report');
       }
-    }, [params.tab])
+    }, [params.tab, loadInventory, loadManagedCategories])
   );
 
   const activeTabTextColor = useMemo(() => {
@@ -188,13 +192,6 @@ export default function InventoryScreen() {
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
-  useEffect(() => {
-    if (isRTL && filterBarMode === 'period' && productFilterScrollRef.current) {
-      setTimeout(() => {
-        productFilterScrollRef.current?.scrollToEnd({ animated: false });
-      }, 50);
-    }
-  }, [isRTL, filterBarMode]);
 
   // Layout View Mode (چوارگۆشە / درێژ) — Persisted in useSettingsStore
   const inventoryGridLayout = useSettingsStore((s) => s.inventoryGridLayout);
@@ -235,6 +232,12 @@ export default function InventoryScreen() {
     loadInventory();
     loadManagedCategories();
   }, []);
+
+  useEffect(() => {
+    if (catModalVisible) {
+      loadManagedCategories();
+    }
+  }, [catModalVisible, loadManagedCategories]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -410,7 +413,6 @@ export default function InventoryScreen() {
   );
 
   const handleStartRename = useCallback((cat: { name: string; isDefault: boolean }) => {
-    if (cat.isDefault) return;
     setEditingCategory(cat.name);
     setEditCatName(cat.name);
   }, []);
@@ -711,10 +713,12 @@ export default function InventoryScreen() {
         }}
         rightAction={
           <View style={{ flexDirection, gap: isTablet ? 12 : 8, alignItems: 'center' }}>
-            <HeaderActionButton
-              icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-              onPress={handleToggleViewMode}
-            />
+            {activeNavTab === 'products' && (
+              <HeaderActionButton
+                icon={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+                onPress={handleToggleViewMode}
+              />
+            )}
             <HeaderActionButton
               icon="storefront-outline"
               onPress={() => setBulkSyncModalVisible(true)}
@@ -1039,7 +1043,10 @@ export default function InventoryScreen() {
                 {/* Category Management */}
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => setCatModalVisible(true)}
+                  onPress={() => {
+                    loadManagedCategories();
+                    setCatModalVisible(true);
+                  }}
                   style={[
                     styles.actionSquareBtn,
                     isTablet && { width: 50, height: 50, borderRadius: 14 },
@@ -1062,18 +1069,11 @@ export default function InventoryScreen() {
                 ref={productFilterScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
-                onContentSizeChange={() => {
-                  if (isRTL) {
-                    productFilterScrollRef.current?.scrollToEnd({ animated: false });
-                  }
-                }}
+                style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
                 contentContainerStyle={[
                   styles.filterPillRow,
                   {
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
-                    paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+                    paddingHorizontal: isTabletLandscape ? 24 : 16,
                   },
                 ]}
               >
@@ -1084,7 +1084,12 @@ export default function InventoryScreen() {
                       key={key}
                       style={[
                         styles.filterPill,
-                        isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22 },
+                        isTablet && {
+                          paddingHorizontal: isTabletLandscape ? 22 : 18,
+                          paddingVertical: isTabletLandscape ? 11 : 9,
+                          borderRadius: 24,
+                        },
+                        isRTL && { transform: [{ scaleX: -1 }] },
                         {
                           backgroundColor: active ? colors.primary : (isDark ? colors.gray100 : colors.white),
                           borderColor: active ? colors.primary : colors.gray200,
@@ -1103,7 +1108,7 @@ export default function InventoryScreen() {
                       <Text
                         style={[
                           styles.filterPillText,
-                          isTablet && { fontSize: isTabletLandscape ? 14 : 13 },
+                          isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
                           { color: active ? '#FFFFFF' : (isDark ? colors.gray600 : colors.gray600) },
                           isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}
@@ -1373,148 +1378,170 @@ export default function InventoryScreen() {
       {/* ── Categories Management Modal ── */}
       <Modal
         visible={catModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent
         onRequestClose={() => setCatModalVisible(false)}
         supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
       >
-        <View style={styles.catModalOverlay}>
-          <View style={[styles.catModalContent, { backgroundColor: isDark ? colors.gray100 : colors.white }]}>
-            {/* Header */}
-            <View style={[styles.catModalHeader, { flexDirection }]}>
-              <Text
-                style={[
-                  styles.catModalTitle,
-                  { color: colors.darkBlue, textAlign },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                ]}
-              >
-                {t('inventory.manageCategoriesTitle')}
-              </Text>
-              <TouchableOpacity onPress={() => setCatModalVisible(false)} style={styles.catModalClose}>
-                <Ionicons name="close" size={22} color={colors.gray500} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Add new category input */}
-            <View style={[styles.catAddRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
-              <TextInput
-                style={[
-                  styles.catAddInput,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                    borderColor: colors.gray200,
-                    color: colors.black,
-                    textAlign,
-                    writingDirection,
-                  },
-                  applyKurdishFont(
-                    resolveInputIsKurdish({ isKuLanguage, value: newCatName, placeholder: t('inventory.newCategoryPlaceholder') }),
-                    {}
-                  ),
-                ]}
-                placeholder={t('inventory.newCategoryPlaceholder')}
-                placeholderTextColor={colors.gray400}
-                value={newCatName}
-                onChangeText={setNewCatName}
-                returnKeyType="done"
-                onSubmitEditing={handleAddCategory}
-              />
-              <TouchableOpacity
-                style={[styles.catAddBtn, { backgroundColor: colors.primary }]}
-                onPress={handleAddCategory}
-              >
-                <Ionicons name="add" size={20} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Managed categories list */}
-            <ScrollView style={styles.catList} showsVerticalScrollIndicator={false}>
-              {managedCategories.map((cat) => (
+        <TouchableWithoutFeedback onPress={() => setCatModalVisible(false)}>
+          <View style={styles.catModalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.catKeyboardWrap}
+            >
+              <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
                 <View
-                  key={cat.name}
                   style={[
-                    styles.catListItem,
-                    { borderBottomColor: isDark ? colors.gray200 : colors.gray100, flexDirection },
+                    styles.catModalContent,
+                    {
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : colors.gray200,
+                    },
                   ]}
                 >
-                  {editingCategory === cat.name ? (
-                    <View style={[styles.catEditRow, { flexDirection }]}>
-                      <TextInput
+                  {/* Header */}
+                  <View style={[styles.catModalHeader, { flexDirection }]}>
+                    <Text
+                      style={[
+                        styles.catModalTitle,
+                        { color: colors.darkBlue, textAlign },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      ]}
+                    >
+                      {t('inventory.manageCategoriesTitle')}
+                    </Text>
+                    <TouchableOpacity onPress={() => setCatModalVisible(false)} style={styles.catModalClose}>
+                      <Ionicons name="close" size={22} color={colors.gray500} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Add new category input */}
+                  <View style={[styles.catAddRow, { flexDirection, gap: isRTL ? RTL_SPACING.gapSm : 8 }]}>
+                    <TextInput
+                      style={[
+                        styles.catAddInput,
+                        {
+                          backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                          borderColor: colors.gray200,
+                          color: colors.black,
+                          textAlign: isRTL ? 'right' : 'left',
+                          writingDirection: isRTL ? 'rtl' : 'ltr',
+                        },
+                        isKuLanguage && {
+                          fontFamily: SETTINGS_KURDISH_FONT,
+                        },
+                      ]}
+                      placeholder={isKuLanguage ? 'نموونە: خواردنەوەکان، پۆشاک...' : t('inventory.newCategoryPlaceholder')}
+                      placeholderTextColor={colors.gray400}
+                      value={newCatName}
+                      onChangeText={setNewCatName}
+                      returnKeyType="done"
+                      onSubmitEditing={handleAddCategory}
+                    />
+                    <TouchableOpacity
+                      style={[styles.catAddBtn, { backgroundColor: colors.primary }]}
+                      onPress={handleAddCategory}
+                    >
+                      <Ionicons name="add" size={20} color={colors.white} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Managed categories list */}
+                  <ScrollView style={styles.catList} showsVerticalScrollIndicator={false}>
+                    {managedCategories.map((cat) => (
+                      <View
+                        key={cat.name}
                         style={[
-                          styles.catEditInput,
-                          {
-                            backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                            color: colors.black,
-                            textAlign,
-                            writingDirection,
-                          },
-                          applyKurdishFont(resolveInputIsKurdish({ isKuLanguage, value: editCatName }), {}),
+                          styles.catListItem,
+                          { borderBottomColor: isDark ? colors.gray200 : colors.gray100, flexDirection },
                         ]}
-                        value={editCatName}
-                        onChangeText={setEditCatName}
-                        autoFocus
-                      />
-                      <TouchableOpacity onPress={handleConfirmRename} style={styles.catEditActionBtn}>
-                        <Ionicons name="checkmark" size={18} color={colors.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={handleCancelRename} style={styles.catEditActionBtn}>
-                        <Ionicons name="close" size={18} color={colors.gray400} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={[styles.catItemInfo, { flexDirection }]}>
-                        <Text
-                          style={[
-                            styles.catItemName,
-                            { color: colors.darkBlue },
-                            isKuLanguage && {
-                              fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-                              fontWeight: 'normal',
-                            },
-                          ]}
-                        >
-                          {cat.name}
-                        </Text>
-                        <Text style={[styles.catItemCount, { color: colors.gray400 }]}>
-                          ({toEnglishDigits(cat.productCount)})
-                        </Text>
-                        {cat.isDefault && (
-                          <View
-                            style={[styles.defaultBadge, { backgroundColor: colors.gray100 }]}
-                          >
-                            <Text style={[styles.defaultBadgeText, { color: colors.gray500 }]}>
-                              {t('inventory.defaultCategoryBadge')}
-                            </Text>
+                      >
+                        {editingCategory === cat.name ? (
+                          <View style={[styles.catEditRow, { flexDirection }]}>
+                            <TextInput
+                              style={[
+                                styles.catEditInput,
+                                {
+                                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                                  color: colors.black,
+                                  textAlign: isRTL ? 'right' : 'left',
+                                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                                },
+                                isKuLanguage && {
+                                  fontFamily: SETTINGS_KURDISH_FONT,
+                                },
+                              ]}
+                              value={editCatName}
+                              onChangeText={setEditCatName}
+                              autoFocus
+                            />
+                            <TouchableOpacity onPress={handleConfirmRename} style={styles.catEditActionBtn}>
+                              <Ionicons name="checkmark" size={18} color={colors.primary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleCancelRename} style={styles.catEditActionBtn}>
+                              <Ionicons name="close" size={18} color={colors.gray400} />
+                            </TouchableOpacity>
                           </View>
-                        )}
-                      </View>
-                      <View style={[styles.catItemActions, { flexDirection }]}>
-                        {!cat.isDefault && (
+                        ) : (
                           <>
-                            <TouchableOpacity
-                              onPress={() => handleStartRename(cat)}
-                              style={styles.catActionBtn}
-                            >
-                              <Ionicons name="pencil-outline" size={16} color={colors.gray500} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteCategory(cat)}
-                              style={styles.catActionBtn}
-                            >
-                              <Ionicons name="trash-outline" size={16} color={colors.error} />
-                            </TouchableOpacity>
+                            <View style={[styles.catItemInfo, { flexDirection }]}>
+                              <Text
+                                style={[
+                                  styles.catItemName,
+                                  { color: colors.darkBlue },
+                                  isKuLanguage && {
+                                    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                                    fontWeight: 'normal',
+                                  },
+                                ]}
+                              >
+                                {cat.name}
+                              </Text>
+                              <Text style={[styles.catItemCount, { color: colors.gray400 }]}>
+                                ({toEnglishDigits(cat.productCount)})
+                              </Text>
+                              {cat.isDefault && (
+                                <View
+                                  style={[styles.defaultBadge, { backgroundColor: colors.gray100 }]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.defaultBadgeText,
+                                      { color: colors.gray500 },
+                                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                                    ]}
+                                  >
+                                    {t('inventory.defaultCategoryBadge')}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <View style={[styles.catItemActions, { flexDirection }]}>
+                              <TouchableOpacity
+                                onPress={() => handleStartRename(cat)}
+                                style={styles.catActionBtn}
+                              >
+                                <Ionicons name="pencil-outline" size={16} color={colors.gray500} />
+                              </TouchableOpacity>
+                              {!cat.isDefault && (
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteCategory(cat)}
+                                  style={styles.catActionBtn}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color={colors.error} />
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           </>
                         )}
                       </View>
-                    </>
-                  )}
+                    ))}
+                  </ScrollView>
                 </View>
-              ))}
-            </ScrollView>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* ── Online store bulk sync modal ── */}
@@ -1785,14 +1812,28 @@ const styles = StyleSheet.create({
   },
   catModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  catKeyboardWrap: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   catModalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '75%',
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    padding: 22,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   catModalHeader: {
     justifyContent: 'space-between',

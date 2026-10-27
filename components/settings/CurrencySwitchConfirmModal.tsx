@@ -74,7 +74,7 @@ export function CurrencySwitchConfirmModal({
           <Text style={[styles.title, { color: colors.black }]}>
             {isUSD
               ? 'گۆڕینی دراوی سەرەکی بۆ دۆلار ($)'
-              : 'گۆڕینی دراوی سەرەکی بۆ دینار (د.ع)'}
+              : 'گۆڕینی دراوی سەرەکی بۆ دینار (IQD)'}
           </Text>
 
           <Text style={[styles.subtitle, { color: colors.gray500 }]}>
@@ -140,7 +140,7 @@ export function CurrencySwitchConfirmModal({
                   </Text>
                 </View>
                 <Text style={[styles.flowLabel, { color: '#D4AF37', fontWeight: '700' }]}>
-                  {isUSD ? 'دۆلاری ئەمریکی ($)' : 'دیناری عێراقی (د.ع)'}
+                  {isUSD ? 'دۆلاری ئەمریکی ($)' : 'دیناری عێراقی (IQD)'}
                 </Text>
               </View>
             </View>
@@ -165,7 +165,7 @@ export function CurrencySwitchConfirmModal({
               <Text style={[styles.exampleText, { color: colors.gray600, textAlign }]}>
                 • نرخی گۆڕینی ئێستا:{' '}
                 <Text style={{ fontWeight: '800', color: colors.black }}>
-                  100$ = {fmtExchangeRate(currentRate)} د.ع
+                  100$ = {fmtExchangeRate(currentRate)} IQD
                 </Text>
               </Text>
 
@@ -191,7 +191,7 @@ export function CurrencySwitchConfirmModal({
               <View style={styles.checkItem}>
                 <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
                 <Text style={[styles.checkText, { color: colors.black, textAlign }]}>
-                  هەموو نرخی کاڵاکان، کۆگا و بەشی فرۆشتن بە {isUSD ? 'دۆلار ($)' : 'دینار (د.ع)'} دەبن.
+                  هەموو نرخی کاڵاکان، کۆگا و بەشی فرۆشتن بە {isUSD ? 'دۆلار ($)' : 'دینار (IQD)'} دەبن.
                 </Text>
               </View>
 

@@ -741,12 +741,7 @@ export default function DebtScreen() {
       setQuery('');
     }
     Keyboard.dismiss();
-    if (isRTL) {
-      setTimeout(() => {
-        filterScrollRef.current?.scrollToEnd({ animated: false });
-      }, 60);
-    }
-  }, [isRTL]);
+  }, []);
 
   // Period filter state — defaults to 'today' (ئەمڕۆ)
   const [periodKey, setPeriodKey] = useState<PeriodKey>('today');
@@ -768,26 +763,11 @@ export default function DebtScreen() {
     loadAll();
   }, [loadAll]);
 
-  useEffect(() => {
-    if (isRTL && filterScrollRef.current) {
-      const timer = setTimeout(() => {
-        filterScrollRef.current?.scrollToEnd({ animated: false });
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isRTL, tab, isSearchExpanded]);
-
   useFocusEffect(
     useCallback(() => {
       setPayTarget(null);
       loadAll();
-      if (isRTL) {
-        const timer = setTimeout(() => {
-          filterScrollRef.current?.scrollToEnd({ animated: false });
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }, [loadAll, isRTL])
+    }, [loadAll])
   );
 
   const onRefresh = useCallback(() => {
@@ -1029,12 +1009,12 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
   // Period Filter keys and labels
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
+    today:  isKuLanguage ? 'ئەمڕۆ' : t('periodFilter.today'),
+    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('periodFilter.thisWeek'),
+    month:  isKuLanguage ? 'ئەم مانگە' : t('periodFilter.thisMonth'),
+    year:   isKuLanguage ? 'ئەمساڵ' : t('periodFilter.thisYear'),
     all:    isKuLanguage ? 'هەمووی' : 'All',
-    today:  t('periodFilter.today'),
-    week:   t('periodFilter.thisWeek'),
-    month:  t('periodFilter.thisMonth'),
-    year:   t('periodFilter.thisYear'),
-    custom: t('periodFilter.customRange'),
+    custom: isKuLanguage ? 'دیاریکراو' : t('periodFilter.customRange'),
   };
 
   const netBalanceColor = reportNetBalance >= 0 ? '#10B981' : colors.error;
@@ -1246,19 +1226,14 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
               ref={filterScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
-              onContentSizeChange={() => {
-                if (isRTL) {
-                  filterScrollRef.current?.scrollToEnd({ animated: false });
-                }
-              }}
-              style={styles.periodScrollView}
+              style={[
+                styles.periodScrollView,
+                isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+              ]}
               contentContainerStyle={[
                 styles.filterRow,
                 {
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
-                  paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+                  paddingHorizontal: isTabletLandscape ? 24 : 16,
                 },
               ]}
             >
@@ -1269,6 +1244,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                     key={key}
                     style={[
                       styles.filterPill,
+                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: active ? colors.primary : colors.gray100,
                         borderColor: active ? colors.primary : colors.gray200,
@@ -1820,13 +1796,13 @@ function getStyles(colors: AppColors, isTablet: boolean = false, isTabletLandsca
       alignItems: 'center',
     },
     filterPill: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 18,
+      paddingHorizontal: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+      paddingVertical: isTabletLandscape ? 11 : isTablet ? 9 : 6,
+      borderRadius: isTablet ? 24 : 18,
       borderWidth: 1,
     },
     filterPillText: {
-      fontSize: 12.5,
+      fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12.5,
       fontWeight: '600',
     },
     rangeLabel: {

@@ -517,8 +517,8 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)`,
     // Populate from existing product/purchase categories
     `INSERT OR IGNORE INTO categories (name) SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' UNION SELECT DISTINCT category FROM purchase_items WHERE category IS NOT NULL AND category != ''`,
-    // Guarantee the default category always exists
-    `INSERT OR IGNORE INTO categories (name) VALUES ('General')`,
+    // Guarantee the default category always exists if table is empty
+    `INSERT OR IGNORE INTO categories (name) SELECT 'General' WHERE (SELECT COUNT(*) FROM categories) = 0`,
     // Per-product low stock threshold (null = use global default)
     `ALTER TABLE products ADD COLUMN low_stock_threshold INTEGER`,
     // Per-product alert opt-in: NULL=follow global, 1=always on, 0=always off
@@ -749,6 +749,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Batch tracking for FIFO sales
     `ALTER TABLE sale_items ADD COLUMN batch_number INTEGER`,
     `ALTER TABLE sale_items ADD COLUMN purchase_id INTEGER`,
+    // Track default category with is_default column so it remains protected even after renaming
+    `ALTER TABLE categories ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
+    `UPDATE categories SET is_default = 1 WHERE name = 'General' AND (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0`,
+    `UPDATE categories SET is_default = 1 WHERE (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0 AND id = (SELECT MIN(id) FROM categories)`,
   ];
   for (const sql of migrations) {
     // Most failures here are the expected "column/table already exists" from a
@@ -996,8 +1000,33 @@ export async function getRepeatableProductByName(name: string): Promise<Inventor
   return row ? rowToInventoryProduct(row) : null;
 }
 
+export async function getDefaultCategoryName(): Promise<string> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ name: string }>(
+    'SELECT name FROM categories WHERE is_default = 1 LIMIT 1'
+  );
+  return row?.name || DEFAULT_CATEGORY;
+}
+
 export async function getProductCategories(): Promise<string[]> {
   const database = await getDatabase();
+  try {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16)))
+       FROM products
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16)))
+       FROM purchase_items
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
+  } catch (syncErr) {
+    console.warn('[Categories] Auto-sync error in getProductCategories:', syncErr);
+  }
+
   const rows = await database.getAllAsync<{ name: string }>(
     `SELECT name FROM categories ORDER BY name ASC`
   );
@@ -1006,15 +1035,44 @@ export async function getProductCategories(): Promise<string[]> {
 
 export async function getAllManagedCategories(): Promise<Array<{ name: string; productCount: number; isDefault: boolean }>> {
   const database = await getDatabase();
-  const rows = await database.getAllAsync<{ name: string; product_count: number }>(
+  // Ensure all categories from products and purchase_items are populated into categories table
+  try {
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16)))
+       FROM products
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
+    await database.runAsync(
+      `INSERT OR IGNORE INTO categories (name, uuid)
+       SELECT DISTINCT TRIM(category), lower(hex(randomblob(16)))
+       FROM purchase_items
+       WHERE category IS NOT NULL AND TRIM(category) != ''`
+    );
+    // Guarantee at least one category is marked as default
+    await database.runAsync(
+      `UPDATE categories SET is_default = 1
+       WHERE (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0
+         AND (name = 'General' OR id = (SELECT MIN(id) FROM categories))`
+    );
+  } catch (syncErr) {
+    console.warn('[Categories] Auto-sync error:', syncErr);
+  }
+
+  const rows = await database.getAllAsync<{ name: string; product_count: number; is_default: number | null }>(
     `SELECT c.name,
+            COALESCE(c.is_default, CASE WHEN c.name = 'General' THEN 1 ELSE 0 END) AS is_default,
             COUNT(CASE WHEN p.is_active = 1 THEN 1 END) AS product_count
      FROM categories c
      LEFT JOIN products p ON p.category = c.name
      GROUP BY c.name
      ORDER BY c.name ASC`
   );
-  return rows.map((r) => ({ name: r.name, productCount: r.product_count, isDefault: r.name === DEFAULT_CATEGORY }));
+  return rows.map((r) => ({
+    name: r.name,
+    productCount: r.product_count,
+    isDefault: (r.is_default ?? 0) === 1 || r.name === DEFAULT_CATEGORY,
+  }));
 }
 
 export async function addManagedCategory(name: string): Promise<void> {
@@ -1027,8 +1085,14 @@ export async function addManagedCategory(name: string): Promise<void> {
 }
 
 export async function deleteManagedCategory(name: string): Promise<void> {
-  if (name === DEFAULT_CATEGORY) throw new Error('CATEGORY_IS_DEFAULT');
   const database = await getDatabase();
+  const cat = await database.getFirstAsync<{ is_default: number | null }>(
+    'SELECT is_default FROM categories WHERE name = ?',
+    [name]
+  );
+  if (name === DEFAULT_CATEGORY || (cat?.is_default ?? 0) === 1) {
+    throw new Error('CATEGORY_IS_DEFAULT');
+  }
   const row = await database.getFirstAsync<{ cnt: number }>(
     'SELECT COUNT(*) AS cnt FROM products WHERE category = ? AND is_active = 1',
     [name]
@@ -1039,7 +1103,6 @@ export async function deleteManagedCategory(name: string): Promise<void> {
 }
 
 export async function renameManagedCategory(oldName: string, newName: string): Promise<void> {
-  if (oldName === DEFAULT_CATEGORY) throw new Error('CATEGORY_IS_DEFAULT');
   const trimmed = newName.trim();
   if (!trimmed) throw new Error('CATEGORY_NAME_REQUIRED');
   if (trimmed === oldName) return;
@@ -1054,6 +1117,14 @@ export async function renameManagedCategory(oldName: string, newName: string): P
   await database.runAsync('UPDATE categories SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?', [trimmed, oldName]);
   await database.runAsync(
     'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ?',
+    [trimmed, oldName]
+  );
+  await database.runAsync(
+    'UPDATE purchase_items SET category = ? WHERE category = ?',
+    [trimmed, oldName]
+  );
+  await database.runAsync(
+    'UPDATE inventory_history SET category = ? WHERE category = ?',
     [trimmed, oldName]
   );
   // The rename changed every affected product's data, so each one needs to reach the
@@ -1116,6 +1187,15 @@ export async function insertProduct(data: NewProductData): Promise<number> {
   // loadSetting/saveSetting FROM this file — importing back would be circular.
   const bulkPublishEnabled = (await loadSetting('online_store_bulk_publish_enabled')) === '1';
 
+  if (data.category && data.category.trim()) {
+    try {
+      await database.runAsync(
+        'INSERT OR IGNORE INTO categories (name, uuid) VALUES (?, lower(hex(randomblob(16))))',
+        [data.category.trim()]
+      );
+    } catch {}
+  }
+
   const result = await database.runAsync(
     `INSERT INTO products (
       name, category, item_id, id_mode,
@@ -1161,6 +1241,16 @@ export async function insertProduct(data: NewProductData): Promise<number> {
 
 export async function updateProduct(id: number, data: Partial<NewProductData>): Promise<void> {
   const database = await getDatabase();
+
+  if (data.category !== undefined && data.category && data.category.trim()) {
+    try {
+      await database.runAsync(
+        'INSERT OR IGNORE INTO categories (name, uuid) VALUES (?, lower(hex(randomblob(16))))',
+        [data.category.trim()]
+      );
+    } catch {}
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
 
@@ -5478,6 +5568,14 @@ export async function insertPurchaseItem(
   item: Omit<PurchaseItem, 'id' | 'purchaseId' | 'createdAt'>
 ): Promise<number> {
   const database = await getDatabase();
+  if (item.category && item.category.trim()) {
+    try {
+      await database.runAsync(
+        'INSERT OR IGNORE INTO categories (name, uuid) VALUES (?, lower(hex(randomblob(16))))',
+        [item.category.trim()]
+      );
+    } catch {}
+  }
   const result = await database.runAsync(
     `INSERT INTO purchase_items
        (purchase_id, product_name, category, quantity, buy_price_iqd, buy_price_usd,

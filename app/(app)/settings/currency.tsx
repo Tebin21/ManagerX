@@ -166,7 +166,7 @@ export default function CurrencyScreen() {
               <Text style={[styles.currencyStatusText, { color: colors.black }]}>
                 {baseCurrency === 'USD'
                   ? 'سیستەم ئێستا لەسەر دۆلاری ئەمریکی ($) چالاکە'
-                  : 'سیستەم ئێستا لەسەر دیناری عێراقی (د.ع) چالاکە'}
+                  : 'سیستەم ئێستا لەسەر دیناری عێراقی (IQD) چالاکە'}
               </Text>
             </View>
           </SettingsCard>

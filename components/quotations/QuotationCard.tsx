@@ -10,7 +10,7 @@ import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Theme } from '@/constants/theme';
 import { useLanguageStore } from '@/store/languageStore';
-import { fmtUSD } from '@/utils/formatters';
+import { fmtUSD, normalizeTimeToAmPm } from '@/utils/formatters';
 import type { Quotation } from '@/types/quotation';
 
 export interface QuotationCardProps {
@@ -287,7 +287,7 @@ function QuotationCardImpl({ quotation, onPress, onShare, onDelete, layout = 'li
         <View style={[styles.subRow, { flexDirection, gap: 4, alignItems: 'center' }]}>
           <Ionicons name="time-outline" size={12} color={colors.gray400} />
           <Text style={[styles.sub, { color: colors.gray400, textAlign }]}>
-            {quotation.date} {quotation.time ? `• ${quotation.time}` : ''}
+            {quotation.date} {quotation.time ? `• ${normalizeTimeToAmPm(quotation.time)}` : ''}
           </Text>
         </View>
       </View>

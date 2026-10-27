@@ -58,10 +58,22 @@ interface Props {
   onOpenPeriodModal?: () => void;
 }
 
+interface ExpiryFillerItem {
+  id: string;
+  isFiller: true;
+}
+
 interface ProductWithExpiryStatus {
   product: InventoryProduct;
   diffDays: number | null; // null if no expiry date, <0 if expired, >=0 if days remaining
   status: 'expired' | 'expiringSoon' | 'safe' | 'noDate';
+  isFiller?: false;
+}
+
+type ProductOrExpiryFiller = ProductWithExpiryStatus | ExpiryFillerItem;
+
+function isExpiryFiller(item: ProductOrExpiryFiller): item is ExpiryFillerItem {
+  return 'isFiller' in item && item.isFiller === true;
 }
 
 const PRESET_ALERT_DAYS = [7, 15, 30];
@@ -468,6 +480,21 @@ export function InventoryExpiryView({
     });
   }, [enrichedProducts, activeFilter, searchQuery, sortBy, productPeriodKey, productPeriodBounds]);
 
+  // Balance out incomplete rows in multi-column view with transparent fillers so cards align seamlessly from right to left
+  const gridFormattedProducts: ProductOrExpiryFiller[] = useMemo(() => {
+    if (productNumColumns <= 1 || filteredProducts.length === 0) {
+      return filteredProducts;
+    }
+    const remainder = filteredProducts.length % productNumColumns;
+    if (remainder === 0) return filteredProducts;
+    const needed = productNumColumns - remainder;
+    const fillers: ProductOrExpiryFiller[] = Array.from({ length: needed }, (_, i) => ({
+      id: `__expiry_filler_${i}`,
+      isFiller: true as const,
+    }));
+    return [...filteredProducts, ...fillers];
+  }, [filteredProducts, productNumColumns]);
+
   // Status counts for Tab 2 filter chips (reflecting chosen period)
   const filterCounts = useMemo(() => {
     const baseList = productPeriodKey === 'all'
@@ -564,7 +591,18 @@ export function InventoryExpiryView({
   };
 
   // ── Render Product Card in List View (درێژ) ──
-  const renderProductListItem = ({ item }: { item: ProductWithExpiryStatus }) => {
+  const renderProductListItem = ({ item }: { item: ProductOrExpiryFiller }) => {
+    if (isExpiryFiller(item)) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'transparent',
+            marginBottom: 12,
+          }}
+        />
+      );
+    }
     const p = item.product;
 
     return (
@@ -576,7 +614,6 @@ export function InventoryExpiryView({
           isTablet && { borderRadius: 18, borderWidth: 1.2 },
           productNumColumns > 1 && {
             flex: 1,
-            maxWidth: productNumColumns === 2 ? '49%' : '100%',
             marginBottom: 0,
           },
           {
@@ -714,7 +751,22 @@ export function InventoryExpiryView({
   };
 
   // ── Render Product Card in Grid View (چوارگۆشە) ──
-  const renderProductGridItem = ({ item }: { item: ProductWithExpiryStatus }) => {
+  const renderProductGridItem = ({ item }: { item: ProductOrExpiryFiller }) => {
+    if (isExpiryFiller(item)) {
+      return (
+        <View
+          style={[
+            styles.itemCardGrid,
+            {
+              backgroundColor: 'transparent',
+              borderColor: 'transparent',
+              flex: 1,
+              marginBottom: 12,
+            },
+          ]}
+        />
+      );
+    }
     const p = item.product;
 
     return (
@@ -732,7 +784,8 @@ export function InventoryExpiryView({
                 : item.status === 'expiringSoon'
                 ? isDark ? 'rgba(245, 158, 11, 0.40)' : '#FCD34D'
                 : isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
-            width: isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%',
+            flex: 1,
+            marginBottom: 12,
           },
         ]}
       >
@@ -1347,11 +1400,11 @@ export function InventoryExpiryView({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={[isRTL && { transform: [{ scaleX: -1 }] }]}
               contentContainerStyle={[
                 styles.thresholdChipsWrap,
                 {
-                  flexDirection,
-                  gap: isTablet ? 12 : 6,
+                  gap: isTablet ? 12 : 8,
                 },
               ]}
             >
@@ -1369,7 +1422,12 @@ export function InventoryExpiryView({
                     }}
                     style={[
                       styles.thresholdChip,
-                      isTablet && { paddingHorizontal: 22, paddingVertical: 10, borderRadius: 14 },
+                      isTablet && {
+                        paddingHorizontal: isTabletLandscape ? 24 : 20,
+                        paddingVertical: isTabletLandscape ? 11 : 9,
+                        borderRadius: 14,
+                      },
+                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: isSelected
                           ? colors.primary
@@ -1387,7 +1445,7 @@ export function InventoryExpiryView({
                     <Text
                       style={[
                         styles.thresholdChipText,
-                        isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
+                        isTablet && { fontSize: isTabletLandscape ? 16 : 15 },
                         {
                           color: isSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue,
                           writingDirection: isRTL ? 'rtl' : 'ltr',
@@ -1416,7 +1474,12 @@ export function InventoryExpiryView({
                     }}
                     style={[
                       styles.thresholdChip,
-                      isTablet && { paddingHorizontal: 22, paddingVertical: 10, borderRadius: 14 },
+                      isTablet && {
+                        paddingHorizontal: isTabletLandscape ? 24 : 20,
+                        paddingVertical: isTabletLandscape ? 11 : 9,
+                        borderRadius: 14,
+                      },
+                      isRTL && { transform: [{ scaleX: -1 }] },
                       {
                         backgroundColor: isCustomSelected
                           ? colors.primary
@@ -1428,21 +1491,21 @@ export function InventoryExpiryView({
                           : isDark
                           ? colors.gray200
                           : colors.gray200,
-                        flexDirection,
+                        flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 5,
+                        gap: 6,
                       },
                     ]}
                   >
                     <Ionicons
                       name="pencil-sharp"
-                      size={isTablet ? 14 : 11}
+                      size={isTablet ? 15 : 11}
                       color={isCustomSelected ? '#0F172A' : (isDark ? colors.gray500 : colors.gray500)}
                     />
                     <Text
                       style={[
                         styles.thresholdChipText,
-                        isTablet && { fontSize: isTabletLandscape ? 15.5 : 14.5 },
+                        isTablet && { fontSize: isTabletLandscape ? 16 : 15 },
                         {
                           color: isCustomSelected ? '#0F172A' : isDark ? colors.gray600 : colors.darkBlue,
                           writingDirection: isRTL ? 'rtl' : 'ltr',
@@ -1785,10 +1848,10 @@ export function InventoryExpiryView({
       ) : activeTab === 'products' ? (
         /* ── 3. TAB 2: کاڵاکان و بەروارەکانیان (PRODUCTS VIEW) ──────────────── */
         <FlatList
-          data={filteredProducts}
+          data={gridFormattedProducts}
           key={`products-${viewMode}-${productNumColumns}-${isRTL ? 'rtl' : 'ltr'}`}
           numColumns={productNumColumns}
-          keyExtractor={(item) => String(item.product.id)}
+          keyExtractor={(item) => (isExpiryFiller(item) ? item.id : String(item.product.id))}
           renderItem={viewMode === 'grid' ? renderProductGridItem : renderProductListItem}
           contentContainerStyle={[
             styles.listContent,
@@ -1803,8 +1866,18 @@ export function InventoryExpiryView({
           columnWrapperStyle={
             productNumColumns > 1
               ? (viewMode === 'grid'
-                  ? [styles.gridColumnWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]
-                  : [styles.listColumnWrapper, isTablet && { gap: 14, marginBottom: 14 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }])
+                  ? [
+                      styles.gridColumnWrapper,
+                      {
+                        gap: isTablet ? 14 : 10,
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]
+                  : [
+                      styles.listColumnWrapper,
+                      isTablet && { gap: 14, marginBottom: 14 },
+                      { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    ])
               : undefined
           }
           refreshControl={
@@ -2701,7 +2774,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   gridColumnWrapper: {
-    justifyContent: 'space-between',
     marginBottom: 12,
   },
   listColumnWrapper: {

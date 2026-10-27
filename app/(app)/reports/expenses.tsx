@@ -145,12 +145,12 @@ function ExpenseFilterBar({
 
   const keys: ExpenseFilterKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const labels: Record<ExpenseFilterKey, string> = {
-    today:  t('common.today'),
-    week:   t('common.thisWeek'),
-    month:  t('common.thisMonth'),
-    year:   t('reports.year'),
+    today:  isKurdish ? 'ئەمڕۆ' : t('common.today'),
+    week:   isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek'),
+    month:  isKurdish ? 'ئەم مانگە' : t('common.thisMonth'),
+    year:   isKurdish ? 'ئەمساڵ' : t('reports.year'),
     all:    isKurdish ? 'هەمووی' : 'All',
-    custom: t('reports.custom'),
+    custom: isKurdish ? 'دیاریکراو' : t('reports.custom'),
   };
 
   useEffect(() => {
@@ -161,15 +161,6 @@ function ExpenseFilterBar({
       return () => clearTimeout(timer);
     }
   }, [isSearchOpen]);
-
-  useEffect(() => {
-    if (isRTL && scrollRef.current) {
-      const timer = setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: false });
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isRTL]);
 
   return (
     <>
@@ -303,23 +294,17 @@ function ExpenseFilterBar({
                 ref={scrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                onContentSizeChange={() => {
-                  if (isRTL) {
-                    scrollRef.current?.scrollToEnd({ animated: false });
-                  }
-                }}
+                style={[
+                  efbStyles.scrollView,
+                  isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+                ]}
                 contentContainerStyle={[
                   efbStyles.row,
                   {
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    flexGrow: 1,
-                    justifyContent: 'flex-start',
-                    paddingLeft: isRTL ? (isTablet ? 24 : 16) : 8,
-                    paddingRight: isRTL ? 8 : (isTablet ? 24 : 16),
+                    paddingHorizontal: isTabletLandscape ? 24 : 16,
                   },
-                  isTablet && { paddingVertical: 14, gap: 12 },
+                  isTablet && { paddingVertical: isTabletLandscape ? 12 : 10, gap: isTablet ? 10 : 8 },
                 ]}
-                style={efbStyles.scrollView}
               >
                 {keys.map((key) => {
                   const active = filter === key;
@@ -328,11 +313,12 @@ function ExpenseFilterBar({
                       key={key}
                       style={[
                         efbStyles.pill,
+                        isRTL && { transform: [{ scaleX: -1 }] },
                         {
                           backgroundColor: active ? colors.error : colors.gray100,
                           borderColor: active ? colors.error : colors.gray200,
-                          paddingHorizontal: isTablet ? 20 : 14,
-                          paddingVertical: isTablet ? 10 : 7,
+                          paddingHorizontal: isTabletLandscape ? 22 : isTablet ? 18 : 14,
+                          paddingVertical: isTabletLandscape ? 11 : isTablet ? 9 : 7,
                           borderRadius: isTablet ? 24 : 20,
                         },
                       ]}
@@ -351,7 +337,7 @@ function ExpenseFilterBar({
                           efbStyles.pillText,
                           {
                             color: active ? '#fff' : colors.gray600,
-                            fontSize: isTabletLandscape ? 15.5 : isTablet ? 14.5 : 13,
+                            fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 13,
                           },
                           isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}

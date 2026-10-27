@@ -47,7 +47,7 @@ export interface ModuleVisualTheme {
 
 export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
   sales: {
-    iconName: 'receipt-outline',
+    iconName: 'storefront-outline',
     tagKu: 'فرۆشتن',
     tagEn: 'Sales',
     subtitleKu: 'تۆمارکردنی فرۆشتنی نوێ',

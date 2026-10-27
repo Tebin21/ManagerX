@@ -16,7 +16,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { fmtIQD, fmtUSD } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, normalizeTimeToAmPm } from '@/utils/formatters';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { Quotation } from '@/types/quotation';
@@ -58,27 +58,27 @@ export function QuotationPreviewModal({
     if (isItemUsd) {
       return `$${fmtUSD(val / rate)}`;
     }
-    return `${fmtIQD(val)} د.ع`;
+    return `${fmtIQD(val)} IQD`;
   };
 
   const totalUSD = fmtUSD(usdValue);
   const totalIQD = fmtIQD(quotation.grandTotal);
 
-  let grandTotalPrimary = `${totalIQD} د.ع`;
+  let grandTotalPrimary = `${totalIQD} IQD`;
   let grandTotalSecondary = '';
 
   if (isUsdOnly) {
     grandTotalPrimary = `$${totalUSD} USD`;
     grandTotalSecondary = '';
   } else if (isIqdOnly) {
-    grandTotalPrimary = `${totalIQD} د.ع`;
+    grandTotalPrimary = `${totalIQD} IQD`;
     grandTotalSecondary = '';
   } else {
     if (isSystemUsd) {
       grandTotalPrimary = `$${totalUSD} USD`;
-      grandTotalSecondary = `≈ ${totalIQD} د.ع`;
+      grandTotalSecondary = `≈ ${totalIQD} IQD`;
     } else {
-      grandTotalPrimary = `${totalIQD} د.ع`;
+      grandTotalPrimary = `${totalIQD} IQD`;
       grandTotalSecondary = `≈ $${totalUSD} USD`;
     }
   }
@@ -396,7 +396,7 @@ export function QuotationPreviewModal({
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5 }}>
                     <Ionicons name="time-outline" size={13} color={colors.gray400} />
                     <Text style={[styles.dateText, { color: colors.gray500 }]}>
-                      {quotation.time}
+                      {normalizeTimeToAmPm(quotation.time)}
                     </Text>
                   </View>
                 ) : null}

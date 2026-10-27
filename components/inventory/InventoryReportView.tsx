@@ -59,13 +59,6 @@ export function InventoryReportView({
   const [customOpen, setCustomOpen] = useState(false);
   const filterScrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    if (isRTL && filterScrollRef.current) {
-      setTimeout(() => {
-        filterScrollRef.current?.scrollToEnd({ animated: false });
-      }, 50);
-    }
-  }, [isRTL]);
 
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = useMemo(
@@ -159,18 +152,11 @@ export function InventoryReportView({
           ref={filterScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentOffset={isRTL ? { x: 9999, y: 0 } : undefined}
-          onContentSizeChange={() => {
-            if (isRTL) {
-              filterScrollRef.current?.scrollToEnd({ animated: false });
-            }
-          }}
+          style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
           contentContainerStyle={[
             styles.filterRow,
             {
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              paddingLeft: isRTL ? (isTabletLandscape ? 24 : 16) : 8,
-              paddingRight: isRTL ? 8 : (isTabletLandscape ? 24 : 16),
+              paddingHorizontal: isTabletLandscape ? 24 : 16,
             },
           ]}
         >
@@ -181,7 +167,12 @@ export function InventoryReportView({
                 key={key}
                 style={[
                   styles.filterPill,
-                  isTablet && { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 22 },
+                  isTablet && {
+                    paddingHorizontal: isTabletLandscape ? 22 : 18,
+                    paddingVertical: isTabletLandscape ? 11 : 9,
+                    borderRadius: 24,
+                  },
+                  isRTL && { transform: [{ scaleX: -1 }] },
                   {
                     backgroundColor: active ? colors.primary : (isDark ? colors.gray100 : colors.white),
                     borderColor: active ? colors.primary : colors.gray200,
@@ -200,7 +191,7 @@ export function InventoryReportView({
                 <Text
                   style={[
                     styles.filterPillText,
-                    isTablet && { fontSize: isTabletLandscape ? 14 : 13 },
+                    isTablet && { fontSize: isTabletLandscape ? 15 : 14 },
                     { color: active ? '#FFFFFF' : (isDark ? colors.gray600 : colors.gray600) },
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}

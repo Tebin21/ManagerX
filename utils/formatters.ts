@@ -244,10 +244,20 @@ export function formatDate(v: string | Date): string {
   });
 }
 
+export function normalizeTimeToAmPm(t: string | null | undefined): string {
+  if (!t) return '';
+  return toEnglishDigits(t)
+    .replace(/ب\s*\.?\s*ن|پێش\s*نیوەڕۆ|(\b|^)ص(\b|$)/gi, 'AM')
+    .replace(/د\s*\.?\s*ن|پ\s*\.?\s*ن|پاش\s*نیوەڕۆ|(\b|^)م(\b|$)/gi, 'PM')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function formatTime(v: string | Date): string {
-  return parseDateSafe(v).toLocaleTimeString('en-US', {
+  const formatted = parseDateSafe(v).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit', hour12: true,
   });
+  return normalizeTimeToAmPm(formatted);
 }
 
 export function formatDateTime(v: string | Date): string {

@@ -50,7 +50,7 @@ import {
   DIRECT_CUSTOMER_NAME,
   ensureDirectCustomer,
 } from '@/lib/sqlite';
-import { fmtIQD, fmtUSD, sanitizeNumericInput } from '@/utils/formatters';
+import { fmtIQD, fmtUSD, sanitizeNumericInput, normalizeTimeToAmPm } from '@/utils/formatters';
 import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_REGULAR, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
@@ -467,7 +467,9 @@ export default function SalesQuotationScreen() {
       }
       const quoteNum = `F-${String(maxSeq + 1).padStart(6, '0')}`;
       const dateStr = now.toISOString().split('T')[0];
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timeStr = normalizeTimeToAmPm(
+        now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      );
 
       const newQuote: Quotation = {
         id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -525,15 +527,12 @@ export default function SalesQuotationScreen() {
       );
       // Increment print count in store immediately
       useQuotationStore.getState().incrementPrintCount(q.id);
-      setGeneratedQuotation((prev) =>
-        prev && prev.id === q.id
-          ? {
-              ...prev,
-              printCount: (prev.printCount || 0) + 1,
-              lastPrintedAt: new Date().toISOString(),
-            }
-          : prev
-      );
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+
+      // Automatically reset and navigate back to beginning (Step 1)
+      handleResetForNewQuote();
     } catch (err) {
       console.error('[Quotation] Share error:', err);
     } finally {
@@ -671,858 +670,962 @@ export default function SalesQuotationScreen() {
   // ═════════════════════════════════════════════════════════════════════════════
   // STEP 2: CART REVIEW, DISCOUNTS, CLIENT & DEFAULT TERMS EDITING
   // ═════════════════════════════════════════════════════════════════════════════
-  const renderStep2 = () => (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <AppHeader
-        title={isKuLanguage ? 'داشکاندن و وەسڵ' : 'Review & Terms'}
-        onBack={() => setStep(1)}
-        rightAction={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
-            <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
-            <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
-          </View>
-        }
-      >
-        <SaleStepIndicator step={2} />
-      </AppHeader>
+  const renderStep2 = () => {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sub-components for modular responsive layout (Dual-pane on Landscape iPad)
+    // ─────────────────────────────────────────────────────────────────────────
 
-      <ScrollView
-        ref={step2ScrollRef}
-        contentContainerStyle={[styles.step2Body, isTablet && contentContainerStyle]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    // 0. Notice Banner
+    const renderNoticeBanner = () => (
+      <View
+        style={[
+          styles.noticeBanner,
+          isTablet && { padding: 16, borderRadius: 12, gap: 12 },
+          { backgroundColor: '#FEF9C3', borderColor: '#F59E0B' },
+        ]}
       >
-        {/* Notice Banner */}
-        <View style={[styles.noticeBanner, { backgroundColor: '#FEF9C3', borderColor: '#F59E0B' }]}>
-          <Ionicons name="information-circle-outline" size={18} color="#D97706" />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#92400E', textAlign: isRTL ? 'right' : 'left' }}>
-              {isKuLanguage
-                ? 'سەرنج: ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
-                : 'NOTE: THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
-            </Text>
-            <Text style={{ fontSize: 11, color: '#B45309', textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
-              {isKuLanguage
-                ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
-                : 'All prices are offered for quotation purposes.'}
+        <Ionicons name="information-circle-outline" size={isTablet ? 22 : 18} color="#D97706" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: isTablet ? 14 : 12.5, fontWeight: '800', color: '#92400E', textAlign: isRTL ? 'right' : 'left' }}>
+            {isKuLanguage
+              ? 'سەرنج: ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
+              : 'NOTE: THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
+          </Text>
+          <Text style={{ fontSize: isTablet ? 12 : 11, color: '#B45309', textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
+            {isKuLanguage
+              ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
+              : 'All prices are offered for quotation purposes.'}
+          </Text>
+        </View>
+      </View>
+    );
+
+    // 1. Selected Products List
+    const renderProductsCard = () => (
+      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+            <Ionicons name="list-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+            <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
+              {isKuLanguage ? 'کاڵاکانی عەرز' : 'Quotation Items'} ({itemCount})
             </Text>
           </View>
+          <TouchableOpacity onPress={() => setStep(1)} hitSlop={8}>
+            <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: colors.primary }}>
+              {isKuLanguage ? '+ زیادکردنی تر' : '+ Add More'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* 1. Selected Products List */}
-        <PremiumCard style={styles.card}>
-          <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="list-outline" size={18} color={colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.black }]}>
-                {isKuLanguage ? 'کاڵاکانی عەرز' : 'Quotation Items'} ({itemCount})
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setStep(1)} hitSlop={8}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
-                {isKuLanguage ? '+ زیادکردنی تر' : '+ Add More'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {items.map((it, idx) => (
-            <View
-              key={it.id}
-              style={[
-                styles.itemRowCard,
-                {
-                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                  borderColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray200,
-                },
-              ]}
-            >
-              {/* Row 1: Name, Code & Delete */}
-              <View style={[styles.itemRowHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={[styles.itemNumBadge, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>#{idx + 1}</Text>
-                </View>
-                <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={[styles.itemName, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
-                    {it.productName}
-                  </Text>
-                  {it.itemId ? <IdText size="small">{it.itemId}</IdText> : null}
-                </View>
-                <TouchableOpacity onPress={() => handleRemoveItem(it.productId)} hitSlop={8}>
-                  <Ionicons name="trash-outline" size={17} color={colors.error} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Row 2: Price, Quantity Stepper, Item Discount */}
-              <View style={[styles.itemControlsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {/* Quantity Stepper */}
-                <View style={[styles.stepperWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <TouchableOpacity
-                    style={[styles.stepBtn, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}
-                    onPress={() => handleDecreaseQty(it.productId)}
-                  >
-                    <Ionicons name="remove" size={14} color={colors.black} />
-                  </TouchableOpacity>
-                  <Text style={[styles.stepQty, { color: colors.black }]}>{it.quantity}</Text>
-                  <TouchableOpacity
-                    style={[styles.stepBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => {
-                      setItems((prev) =>
-                        prev.map((i) =>
-                          i.productId === it.productId
-                            ? {
-                                ...i,
-                                quantity: i.quantity + 1,
-                                lineTotal: Math.max(0, (i.quantity + 1) * (i.unitPrice - i.discount)),
-                              }
-                            : i
-                        )
-                      );
-                    }}
-                  >
-                    <Ionicons name="add" size={14} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Unit Price Display */}
-                <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={{ fontSize: 10, color: colors.gray400 }}>{isKuLanguage ? 'نرخی تاک:' : 'Unit Price:'}</Text>
-                  <AmountText value={it.unitPrice} currency="IQD" variant="small" style={{ fontWeight: '700', color: colors.black }} />
-                </View>
-
-                {/* Line Total */}
-                <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                  <Text style={{ fontSize: 10, color: colors.gray400 }}>{isKuLanguage ? 'کۆی کاڵا:' : 'Line Total:'}</Text>
-                  <AmountText value={it.lineTotal} currency="IQD" variant="small" style={{ fontWeight: '800', color: colors.primary }} />
-                </View>
-              </View>
-            </View>
-          ))}
-        </PremiumCard>
-
-        {/* 2. Global Discount Section (Collapsible Accordion) */}
-        <PremiumCard style={styles.card}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={toggleDiscountExpanded}
+        {items.map((it, idx) => (
+          <View
+            key={it.id}
             style={[
-              styles.cardHeader,
+              styles.itemRowCard,
+              isTablet && { padding: 14, borderRadius: 10, gap: 10, marginBottom: 10 },
               {
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: isDiscountExpanded ? 12 : 8,
+                backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray200,
               },
             ]}
           >
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <View style={[styles.discountHeaderIconWrap, { backgroundColor: `${colors.primary}18` }]}>
-                <Ionicons name="pricetag-outline" size={17} color={colors.primary} />
-              </View>
-              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                <Text style={[styles.cardTitle, { color: colors.black }]}>
-                  {isKuLanguage ? 'داشکاندنی گشتی لەسەر عەرز' : 'Overall Quotation Discount'}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.gray400, marginTop: 1 }}>
-                  {isDiscountExpanded
-                    ? (isKuLanguage ? 'دەست بنێ بۆ شاردنەوە و داخستن' : 'Tap to collapse')
-                    : (isKuLanguage ? 'دەست بنێ بۆ دیاریکردن و دەستکاری داشکاندن' : 'Tap to set or edit discount')}
-                </Text>
-              </View>
-            </View>
-
-            {/* Current Discount Status Badge & Toggle Chevron */}
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+            {/* Row 1: Name, Code & Delete */}
+            <View style={[styles.itemRowHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View
                 style={[
-                  styles.discountStatusBadge,
-                  {
-                    backgroundColor:
-                      globalDiscountType !== 'none' && globalDiscountValue > 0
-                        ? `${colors.primary}20`
-                        : (isDark ? colors.gray300 : colors.gray200),
-                    borderColor:
-                      globalDiscountType !== 'none' && globalDiscountValue > 0
-                        ? colors.primary
-                        : 'transparent',
-                  },
+                  styles.itemNumBadge,
+                  isTablet && { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+                  { backgroundColor: isDark ? colors.gray300 : colors.gray200 },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.discountStatusBadgeText,
-                    {
-                      color:
-                        globalDiscountType !== 'none' && globalDiscountValue > 0
-                          ? colors.primary
-                          : colors.gray500,
-                    },
-                  ]}
-                >
-                  {globalDiscountType === 'percentage' && globalDiscountValue > 0
-                    ? `%${globalDiscountValue} ${isKuLanguage ? 'داشکاندن' : 'Off'}`
-                    : globalDiscountType === 'amount' && globalDiscountValue > 0
-                    ? `${globalDiscountValue.toLocaleString()} ${isKuLanguage ? 'د.ع' : 'IQD'}`
-                    : (isKuLanguage ? 'بێ داشکاندن' : 'No Discount')}
+                <Text style={{ fontSize: isTablet ? 13 : 11, fontWeight: '800', color: colors.primary }}>#{idx + 1}</Text>
+              </View>
+              <View style={{ flex: 1, marginHorizontal: isTablet ? 10 : 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text style={[styles.itemName, isTablet && { fontSize: 16 }, { color: colors.black, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                  {it.productName}
                 </Text>
+                {it.itemId ? <IdText size="small" style={isTablet ? { fontSize: 13 } : undefined}>{it.itemId}</IdText> : null}
               </View>
-
-              <View style={[styles.chevronWrap, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}>
-                <Ionicons
-                  name={isDiscountExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.gray600}
-                />
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {/* Expanded Discount Controls (Visible only when expanded) */}
-          {isDiscountExpanded && (
-            <View style={[styles.discountControlsSection, { borderTopColor: colors.gray200 }]}>
-              {/* Type selector buttons */}
-              <View style={[styles.discountButtonsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {(['none', 'percentage', 'amount'] as GlobalDiscountType[]).map((dType) => {
-                  const active = globalDiscountType === dType;
-                  const label =
-                    dType === 'none'
-                      ? (isKuLanguage ? 'بێ داشکاندن' : 'None')
-                      : dType === 'percentage'
-                      ? '%'
-                      : (isKuLanguage ? 'بڕ (دینار)' : 'Amount (IQD)');
-                  return (
-                    <TouchableOpacity
-                      key={dType}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.discountTypeBtn,
-                        {
-                          backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
-                          borderColor: active ? colors.primary : colors.gray300,
-                        },
-                      ]}
-                      onPress={() => {
-                        setGlobalDiscountType(dType);
-                        if (dType === 'none') setGlobalDiscountValue(0);
-                      }}
-                    >
-                      <Text style={[styles.discountTypeBtnText, { color: active ? '#FFFFFF' : colors.gray600 }]}>
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Value Input */}
-              {globalDiscountType !== 'none' && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {globalDiscountType === 'percentage'
-                      ? (isKuLanguage ? 'ڕێژەی داشکاندن (%):' : 'Discount Percentage (%):')
-                      : (isKuLanguage ? 'بڕی داشکاندن بە دینار:' : 'Discount Amount (IQD):')}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                        borderColor: colors.gray300,
-                        color: colors.black,
-                        textAlign: isRTL ? 'right' : 'left',
-                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
-                        fontWeight: 'normal',
-                      },
-                    ]}
-                    keyboardType="decimal-pad"
-                    value={globalDiscountValue > 0 ? String(globalDiscountValue) : ''}
-                    onChangeText={(val) => {
-                      const clean = sanitizeNumericInput(val, 'decimal-pad');
-                      setGlobalDiscountValue(parseFloat(clean) || 0);
-                    }}
-                    placeholder="0"
-                    placeholderTextColor={colors.gray400}
-                  />
-                </View>
-              )}
-
-              {/* Done button to collapse */}
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={toggleDiscountExpanded}
-                style={[
-                  styles.discountDoneBtn,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                    borderColor: colors.gray300,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                  },
-                ]}
-              >
-                <Ionicons name="checkmark-done" size={15} color={colors.primary} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
-                  {isKuLanguage ? 'تەواو و جێگیرکردنی داشکاندن' : 'Done & Apply Discount'}
-                </Text>
+              <TouchableOpacity onPress={() => handleRemoveItem(it.productId)} hitSlop={8}>
+                <Ionicons name="trash-outline" size={isTablet ? 21 : 17} color={colors.error} />
               </TouchableOpacity>
             </View>
-          )}
 
-          {/* Financial Totals Preview */}
-          <View style={[styles.summaryTotalsBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderTopColor: colors.primary }]}>
-            <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Text style={{ fontSize: 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
-                {isUSD ? `$${fmtUSD(itemsSubtotalUSD)} USD` : `${fmtIQD(itemsSubtotal)} IQD`}
-              </Text>
-            </View>
-            {totalDiscount > 0 && (
-              <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={{ fontSize: 12.5, color: colors.error }}>{isKuLanguage ? 'کۆی داشکاندن:' : 'Total Discount:'}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
-                  {isUSD ? `−$${fmtUSD(totalDiscountUSD)} USD` : `−${fmtIQD(totalDiscount)} IQD`}
+            {/* Row 2: Price, Quantity Stepper, Item Discount */}
+            <View style={[styles.itemControlsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* Quantity Stepper */}
+              <View style={[styles.stepperWrap, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.stepBtn,
+                    isTablet && { width: 36, height: 36, borderRadius: 8 },
+                    { backgroundColor: isDark ? colors.gray300 : colors.gray200 },
+                  ]}
+                  onPress={() => handleDecreaseQty(it.productId)}
+                >
+                  <Ionicons name="remove" size={isTablet ? 18 : 14} color={colors.black} />
+                </TouchableOpacity>
+                <Text style={[styles.stepQty, isTablet && { fontSize: 16, minWidth: 28 }, { color: colors.black }]}>
+                  {it.quantity}
                 </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.stepBtn,
+                    isTablet && { width: 36, height: 36, borderRadius: 8 },
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    setItems((prev) =>
+                      prev.map((i) =>
+                        i.productId === it.productId
+                          ? {
+                              ...i,
+                              quantity: i.quantity + 1,
+                              lineTotal: Math.max(0, (i.quantity + 1) * (i.unitPrice - i.discount)),
+                            }
+                          : i
+                      )
+                    );
+                  }}
+                >
+                  <Ionicons name="add" size={isTablet ? 18 : 14} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
-            )}
-            <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.gray300 }]}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
+
+              {/* Unit Price Display */}
+              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray400 }}>{isKuLanguage ? 'نرخی تاک:' : 'Unit Price:'}</Text>
+                <AmountText value={it.unitPrice} currency="IQD" variant="small" style={{ fontWeight: '700', color: colors.black, fontSize: isTablet ? 15 : undefined }} />
+              </View>
+
+              {/* Line Total */}
               <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
-                  {currencyMode === 'usd'
-                    ? `$${fmtUSD(grandTotalUSD)} USD`
-                    : currencyMode === 'iqd'
-                    ? `${fmtIQD(grandTotal)} IQD`
-                    : isUSD
-                    ? `$${fmtUSD(grandTotalUSD)} USD`
-                    : `${fmtIQD(grandTotal)} IQD`}
-                </Text>
-                {currencyMode === 'both' && (
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success, direction: 'ltr', marginTop: 2 }}>
-                    {isUSD ? `≈ ${fmtIQD(grandTotal)} IQD` : `≈ $${fmtUSD(grandTotalUSD)} USD`}
-                  </Text>
-                )}
+                <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray400 }}>{isKuLanguage ? 'کۆی کاڵا:' : 'Line Total:'}</Text>
+                <AmountText value={it.lineTotal} currency="IQD" variant="small" style={{ fontWeight: '800', color: colors.primary, fontSize: isTablet ? 16.5 : undefined }} />
               </View>
             </View>
           </View>
-        </PremiumCard>
+        ))}
+      </PremiumCard>
+    );
 
-        {/* 3. Company / Customer Details & Account Auto-Save */}
-        <PremiumCard style={styles.card}>
-          <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="business-outline" size={18} color={colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.black }]}>
-                {isKuLanguage ? 'زانیاری کۆمپانیا یان کڕیار' : 'Company / Client Info'}
+    // 2. Global Discount Section & Financial Totals Preview
+    const renderDiscountAndTotalsCard = () => (
+      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={toggleDiscountExpanded}
+          style={[
+            styles.cardHeader,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: isDiscountExpanded ? 12 : 8,
+            },
+          ]}
+        >
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 10 : 8, flex: 1 }}>
+            <View style={[styles.discountHeaderIconWrap, isTablet && { width: 42, height: 42, borderRadius: 10 }, { backgroundColor: `${colors.primary}18` }]}>
+              <Ionicons name="pricetag-outline" size={isTablet ? 21 : 17} color={colors.primary} />
+            </View>
+            <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+              <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
+                {isKuLanguage ? 'داشکاندنی گشتی لەسەر عەرز' : 'Overall Quotation Discount'}
+              </Text>
+              <Text style={{ fontSize: isTablet ? 12.5 : 11, color: colors.gray400, marginTop: 1 }}>
+                {isDiscountExpanded
+                  ? (isKuLanguage ? 'دەست بنێ بۆ شاردنەوە و داخستن' : 'Tap to collapse')
+                  : (isKuLanguage ? 'دەست بنێ بۆ دیاریکردن و دەستکاری داشکاندن' : 'Tap to set or edit discount')}
               </Text>
             </View>
-
-            {/* Direct Quote Toggle Button */}
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={handleToggleDirectQuotation}
-              style={[
-                styles.directQuoteBtn,
-                {
-                  backgroundColor: isDirectCustomer ? colors.primary : isDark ? colors.gray200 : '#FEF3C7',
-                  borderColor: isDirectCustomer ? colors.primary : '#F59E0B',
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-            >
-              <Ionicons
-                name={isDirectCustomer ? 'checkmark-circle' : 'flash'}
-                size={13}
-                color={isDirectCustomer ? '#FFFFFF' : '#D97706'}
-              />
-              <Text
-                style={[
-                  styles.directQuoteBtnText,
-                  { color: isDirectCustomer ? '#FFFFFF' : '#B45309' },
-                ]}
-              >
-                {isDirectCustomer
-                  ? (isKuLanguage ? 'عەرزی ڕاستەوخۆ (چالاکە)' : 'Direct Quote (Active)')
-                  : (isKuLanguage ? 'عەرزی ڕاستەوخۆ' : 'Direct Quote')}
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {isDirectCustomer ? (
-            /* Simple & Clean Direct Quote Card (No inputs or empty fields) */
+          {/* Current Discount Status Badge & Toggle Chevron */}
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
             <View
               style={[
-                styles.directQuoteActiveCard,
+                styles.discountStatusBadge,
+                isTablet && { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
                 {
-                  backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : '#F0FDF4',
-                  borderColor: isDark ? '#166534' : '#86EFAC',
+                  backgroundColor:
+                    globalDiscountType !== 'none' && globalDiscountValue > 0
+                      ? `${colors.primary}20`
+                      : (isDark ? colors.gray300 : colors.gray200),
+                  borderColor:
+                    globalDiscountType !== 'none' && globalDiscountValue > 0
+                      ? colors.primary
+                      : 'transparent',
                 },
               ]}
             >
-              <View style={[styles.directQuoteRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={[styles.directQuoteIconBadge, { backgroundColor: '#22C55E' }]}>
-                  <Ionicons name="flash" size={18} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#15803D' }}>
-                    {isKuLanguage ? 'عەرزی ڕاستەوخۆ چالاکە' : 'Direct Quotation Active'}
-                  </Text>
-                  <Text style={{ fontSize: 11.5, color: '#166534', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
-                    {isKuLanguage
-                      ? 'پێویست بە پڕکردنەوەی هیچ زانیارییەک ناکات • ئەکاونتی کڕیاری ڕاستەوخۆ دیاری کراوە'
-                      : 'No client info needed • Direct customer system account linked'}
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={handleToggleDirectQuotation}
+              <Text
                 style={[
-                  styles.switchBackBtn,
+                  styles.discountStatusBadgeText,
+                  isTablet && { fontSize: 13 },
                   {
-                    borderColor: isDark ? colors.gray300 : '#BBF7D0',
-                    backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    color:
+                      globalDiscountType !== 'none' && globalDiscountValue > 0
+                        ? colors.primary
+                        : colors.gray500,
                   },
                 ]}
               >
-                <Ionicons name="create-outline" size={14} color={colors.primary} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
-                  {isKuLanguage ? 'گۆڕین بۆ ناوی کۆمپانیا یان کڕیار' : 'Switch to Custom Company / Client'}
-                </Text>
-              </TouchableOpacity>
+                {globalDiscountType === 'percentage' && globalDiscountValue > 0
+                  ? `%${globalDiscountValue} ${isKuLanguage ? 'داشکاندن' : 'Off'}`
+                  : globalDiscountType === 'amount' && globalDiscountValue > 0
+                  ? `${globalDiscountValue.toLocaleString()} IQD`
+                  : (isKuLanguage ? 'بێ داشکاندن' : 'No Discount')}
+              </Text>
             </View>
-          ) : (
-            <>
-              {/* Company Name with Autocomplete */}
-              <View style={{ marginTop: 8 }}>
-                <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-                  {isKuLanguage ? 'ناوی کۆمپانیا / کڕیار:' : 'Company / Client Name:'}
+
+            <View style={[styles.chevronWrap, isTablet && { width: 30, height: 30, borderRadius: 15 }, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}>
+              <Ionicons
+                name={isDiscountExpanded ? 'chevron-up' : 'chevron-down'}
+                size={isTablet ? 18 : 16}
+                color={colors.gray600}
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Expanded Discount Controls (Visible only when expanded) */}
+        {isDiscountExpanded && (
+          <View style={[styles.discountControlsSection, { borderTopColor: colors.gray200 }]}>
+            {/* Type selector buttons */}
+            <View style={[styles.discountButtonsRow, isTablet && { gap: 12 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {(['none', 'percentage', 'amount'] as GlobalDiscountType[]).map((dType) => {
+                const active = globalDiscountType === dType;
+                const label =
+                  dType === 'none'
+                    ? (isKuLanguage ? 'بێ داشکاندن' : 'None')
+                    : dType === 'percentage'
+                    ? '%'
+                    : (isKuLanguage ? 'بڕ (دینار)' : 'Amount (IQD)');
+                return (
+                  <TouchableOpacity
+                    key={dType}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.discountTypeBtn,
+                      isTablet && { paddingVertical: 11, borderRadius: 10 },
+                      {
+                        backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
+                        borderColor: active ? colors.primary : colors.gray300,
+                      },
+                    ]}
+                    onPress={() => {
+                      setGlobalDiscountType(dType);
+                      if (dType === 'none') setGlobalDiscountValue(0);
+                    }}
+                  >
+                    <Text style={[styles.discountTypeBtnText, isTablet && { fontSize: 14 }, { color: active ? '#FFFFFF' : colors.gray600 }]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Value Input */}
+            {globalDiscountType !== 'none' && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  {globalDiscountType === 'percentage'
+                    ? (isKuLanguage ? 'ڕێژەی داشکاندن (%):' : 'Discount Percentage (%):')
+                    : (isKuLanguage ? 'بڕی داشکاندن بە دینار:' : 'Discount Amount (IQD):')}
                 </Text>
                 <TextInput
-                  ref={nameInputRef}
                   style={[
                     styles.input,
+                    isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                     {
-                      backgroundColor: nameError
-                        ? (isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2')
-                        : (isDark ? colors.gray200 : colors.gray50),
-                      borderColor: nameError ? '#EF4444' : selectedCustomerId ? '#22C55E' : colors.gray300,
-                      borderWidth: nameError ? 1.5 : 1,
+                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                      borderColor: colors.gray300,
                       color: colors.black,
                       textAlign: isRTL ? 'right' : 'left',
                       fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
                       fontWeight: 'normal',
                     },
                   ]}
-                  value={companyName}
-                  onChangeText={handleCompanyNameChange}
-                  onFocus={() => {
-                    if (companyName.trim()) {
-                      fetchCustomerSuggestions(companyName);
-                    }
-                  }}
-                  placeholder={isKuLanguage ? 'ناوی کۆمپانیا یان کڕیار بنووسە (داواکراوە)...' : 'Enter company or client name (required)...'}
-                  placeholderTextColor={nameError ? '#F87171' : colors.gray400}
-                />
-                {nameError && (
-                  <MotiView
-                    from={{ opacity: 0, translateY: -3 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'timing', duration: 200 }}
-                    style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      marginTop: 6,
-                      paddingHorizontal: 2,
-                    }}
-                  >
-                    <Ionicons name="alert-circle-outline" size={14} color="#EF4444" />
-                    <Text
-                      style={{
-                        fontSize: 11.5,
-                        color: '#DC2626',
-                        fontWeight: '700',
-                        textAlign: isRTL ? 'right' : 'left',
-                      }}
-                    >
-                      {isKuLanguage
-                        ? 'تکایە ناوی کۆمپانیا یان کڕیار بنووسە، ئەم بەشە داواکراوە'
-                        : 'Please enter company or client name, this field is required'}
-                    </Text>
-                  </MotiView>
-                )}
-
-                {/* Autocomplete Suggestions Dropdown for Repeat Quotes */}
-                {showSuggestions && suggestions.length > 0 && (
-                  <View style={[styles.suggestionsBox, { backgroundColor: isDark ? colors.gray200 : colors.white, borderColor: colors.primary }]}>
-                    <View style={[styles.suggestionsHeader, { backgroundColor: isDark ? colors.gray300 : '#F8FAFC', borderBottomColor: isDark ? colors.gray200 : '#E2E8F0', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Ionicons name="sparkles" size={13} color={colors.primary} />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
-                        {isKuLanguage ? 'کۆمپانیا و کڕیارە تۆمارکراوەکان (بۆ عەرزی دووبارە):' : 'Saved Companies & Clients (For Repeat Quotes):'}
-                      </Text>
-                    </View>
-                    {suggestions.map((cust) => (
-                      <TouchableOpacity
-                        key={cust.id}
-                        style={[styles.suggestionItem, { borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-                        onPress={() => handleSelectCustomer(cust)}
-                      >
-                        <Ionicons name="business" size={16} color={colors.primary} />
-                        <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black }}>{cust.name}</Text>
-                          {cust.phone ? <Text style={{ fontSize: 11.5, color: colors.gray500 }}>{cust.phone}</Text> : null}
-                          {cust.address ? <Text style={{ fontSize: 10.5, color: colors.gray400 }}>{cust.address}</Text> : null}
-                        </View>
-                        <View style={[styles.miniPill, { backgroundColor: colors.softBlue }]}>
-                          <Text style={{ fontSize: 10.5, color: colors.primary, fontWeight: '700' }}>
-                            {isKuLanguage ? 'دیاریکردن' : 'Select'}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* Phone & Address Inputs */}
-              <View style={[styles.twoInputsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 10 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKuLanguage ? 'ژمارەی مۆبایل:' : 'Phone Number:'}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                        borderColor: colors.gray300,
-                        color: colors.black,
-                        textAlign: isRTL ? 'right' : 'left',
-                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
-                        fontWeight: 'normal',
-                      },
-                    ]}
-                    keyboardType="phone-pad"
-                    value={phone}
-                    onChangeText={(val) => {
-                      const clean = sanitizeNumericInput(val, 'phone-pad');
-                      setPhone(clean);
-                      if (clean.length >= 4) fetchCustomerSuggestions(clean);
-                    }}
-                    placeholder="0770 123 4567"
-                    placeholderTextColor={colors.gray400}
-                  />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKuLanguage ? 'ناونیشان:' : 'Address:'}
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                        borderColor: colors.gray300,
-                        color: colors.black,
-                        textAlign: isRTL ? 'right' : 'left',
-                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
-                        fontWeight: 'normal',
-                      },
-                    ]}
-                    value={address}
-                    onChangeText={setAddress}
-                    placeholder={isKuLanguage ? 'شار، شەقام...' : 'City, Street...'}
-                    placeholderTextColor={colors.gray400}
-                  />
-                </View>
-              </View>
-            </>
-          )}
-        </PremiumCard>
-
-        {/* 4. Quotation Terms & Notes with Edit Default Button */}
-        <PremiumCard style={styles.card}>
-          <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.black }]}>
-                {isKuLanguage ? 'مەرج و تێبینییەکانی عەرز' : 'Quotation Terms & Notes'}
-              </Text>
-            </View>
-
-            {/* Button to edit and persist default terms */}
-            <TouchableOpacity
-              style={[
-                styles.editDefaultBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3',
-                  borderColor: colors.primary,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                },
-              ]}
-              onPress={() => setEditDefaultNotesOpen(true)}
-            >
-              <Ionicons name="settings-outline" size={13} color={colors.primary} />
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
-                {isKuLanguage ? 'گۆڕینی تێبینی بنەڕەتی' : 'Edit Default'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Current Notes Input */}
-          <View style={{ marginTop: 8 }}>
-            <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-              {isKuLanguage ? 'تێبینی بۆ ئەم عەرزە (پێشنیار دەکرێت بۆ کڕیار):' : 'Notes for this quote:'}
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                  borderColor: colors.gray300,
-                  color: colors.black,
-                  textAlign: isRTL ? 'right' : 'left',
-                  minHeight: 64,
-                  fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
-                  fontWeight: 'normal',
-                  lineHeight: 22,
-                },
-              ]}
-              multiline
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={isKuLanguage ? 'مەرج و تێبینی بنووسە...' : 'Write terms...'}
-              placeholderTextColor={colors.gray400}
-            />
-          </View>
-
-          {/* Validity Days Selection */}
-          <View style={{ marginTop: 10 }}>
-            <Text style={[styles.inputLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
-              {isKuLanguage ? 'ماوەی کارپێکردنی عەرزەکە:' : 'Validity Period:'}
-            </Text>
-            <View style={[styles.validityWrapper, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {/* Preset Chips: 3, 7, 15, 30 */}
-              <View style={[styles.validityChipsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {[3, 7, 15, 30].map((days) => {
-                  const active = validityDays === days;
-                  return (
-                    <TouchableOpacity
-                      key={days}
-                      activeOpacity={0.75}
-                      style={[
-                        styles.validityChip,
-                        {
-                          backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
-                          borderColor: active ? colors.primary : colors.gray300,
-                        },
-                      ]}
-                      onPress={() => {
-                        try {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                        } catch {}
-                        setValidityDays(days);
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: active ? '#FFFFFF' : colors.gray700 }}>
-                        {isKuLanguage ? `${days} ڕۆژ` : `${days} Days`}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Direct Compact Number Input (for separate/custom editing without extra buttons) */}
-              <View
-                style={[
-                  styles.validityDirectInputBox,
-                  {
-                    backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                    borderColor: ![3, 7, 15, 30].includes(validityDays) && validityDays > 0 ? colors.primary : colors.gray300,
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                  },
-                ]}
-              >
-                <TextInput
-                  style={[
-                    styles.validityDirectInput,
-                    {
-                      color: colors.black,
-                      textAlign: 'center',
-                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
-                      fontWeight: 'normal',
-                    },
-                  ]}
-                  keyboardType="number-pad"
-                  value={validityDays > 0 ? String(validityDays) : ''}
+                  keyboardType="decimal-pad"
+                  value={globalDiscountValue > 0 ? String(globalDiscountValue) : ''}
                   onChangeText={(val) => {
-                    const clean = sanitizeNumericInput(val, 'number-pad');
-                    const num = parseInt(clean, 10) || 0;
-                    setValidityDays(num);
+                    const clean = sanitizeNumericInput(val, 'decimal-pad');
+                    setGlobalDiscountValue(parseFloat(clean) || 0);
                   }}
                   placeholder="0"
                   placeholderTextColor={colors.gray400}
                 />
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.gray600 }}>
-                  {isKuLanguage ? 'ڕۆژ' : 'Days'}
-                </Text>
               </View>
+            )}
+
+            {/* Done button to collapse */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={toggleDiscountExpanded}
+              style={[
+                styles.discountDoneBtn,
+                isTablet && { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 10 },
+                {
+                  backgroundColor: isDark ? colors.gray200 : colors.gray100,
+                  borderColor: colors.gray300,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="checkmark-done" size={isTablet ? 18 : 15} color={colors.primary} />
+              <Text style={{ fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.primary }}>
+                {isKuLanguage ? 'تەواو و جێگیرکردنی داشکاندن' : 'Done & Apply Discount'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Financial Totals Preview */}
+        <View style={[styles.summaryTotalsBox, isTablet && { padding: 16, borderRadius: 12, gap: 8 }, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderTopColor: colors.primary }]}>
+          <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={{ fontSize: isTablet ? 14 : 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
+            <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
+              {isUSD ? `$${fmtUSD(itemsSubtotalUSD)} USD` : `${fmtIQD(itemsSubtotal)} IQD`}
+            </Text>
+          </View>
+          {totalDiscount > 0 && (
+            <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={{ fontSize: isTablet ? 14 : 12.5, color: colors.error }}>{isKuLanguage ? 'کۆی داشکاندن:' : 'Total Discount:'}</Text>
+              <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
+                {isUSD ? `−$${fmtUSD(totalDiscountUSD)} USD` : `−${fmtIQD(totalDiscount)} IQD`}
+              </Text>
+            </View>
+          )}
+          <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: isTablet ? 8 : 6, borderTopWidth: 1, borderTopColor: colors.gray300 }]}>
+            <Text style={{ fontSize: isTablet ? 17 : 14.5, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
+            <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+              <Text style={{ fontSize: isTablet ? 22 : 18, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
+                {currencyMode === 'usd'
+                  ? `$${fmtUSD(grandTotalUSD)} USD`
+                  : currencyMode === 'iqd'
+                  ? `${fmtIQD(grandTotal)} IQD`
+                  : isUSD
+                  ? `$${fmtUSD(grandTotalUSD)} USD`
+                  : `${fmtIQD(grandTotal)} IQD`}
+              </Text>
+              {currencyMode === 'both' && (
+                <Text style={{ fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.success, direction: 'ltr', marginTop: 2 }}>
+                  {isUSD ? `≈ ${fmtIQD(grandTotal)} IQD` : `≈ $${fmtUSD(grandTotalUSD)} USD`}
+                </Text>
+              )}
             </View>
           </View>
-        </PremiumCard>
+        </View>
+      </PremiumCard>
+    );
 
-        {/* Currency Display Mode Selector Button (Positioned immediately above Generate Button, reveals on tap) */}
-        <View style={styles.currencyToggleContainer}>
+    // 3. Company / Customer Details & Account Auto-Save
+    const renderClientInfoCard = () => (
+      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+            <Ionicons name="business-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+            <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
+              {isKuLanguage ? 'زانیاری کۆمپانیا یان کڕیار' : 'Company / Client Info'}
+            </Text>
+          </View>
+
+          {/* Direct Quote Toggle Button */}
           <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={toggleCurrencyOptions}
+            activeOpacity={0.75}
+            onPress={handleToggleDirectQuotation}
             style={[
-              styles.currencyTriggerBtn,
+              styles.directQuoteBtn,
+              isTablet && { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 10 },
               {
-                backgroundColor: isDark ? colors.gray100 : colors.white,
-                borderColor: showCurrencyOptions ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                backgroundColor: isDirectCustomer ? colors.primary : isDark ? colors.gray200 : '#FEF3C7',
+                borderColor: isDirectCustomer ? colors.primary : '#F59E0B',
                 flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
           >
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-              <View
-                style={[
-                  styles.currencyTriggerIconBox,
-                  { backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7' },
-                ]}
-              >
-                <Ionicons name="cash-outline" size={18} color={colors.primary} />
+            <Ionicons
+              name={isDirectCustomer ? 'checkmark-circle' : 'flash'}
+              size={isTablet ? 16 : 13}
+              color={isDirectCustomer ? '#FFFFFF' : '#D97706'}
+            />
+            <Text
+              style={[
+                styles.directQuoteBtnText,
+                isTablet && { fontSize: 13 },
+                { color: isDirectCustomer ? '#FFFFFF' : '#B45309' },
+              ]}
+            >
+              {isDirectCustomer
+                ? (isKuLanguage ? 'عەرزی ڕاستەوخۆ (چالاکە)' : 'Direct Quote (Active)')
+                : (isKuLanguage ? 'عەرزی ڕاستەوخۆ' : 'Direct Quote')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isDirectCustomer ? (
+          <View
+            style={[
+              styles.directQuoteActiveCard,
+              isTablet && { padding: 18, borderRadius: 14, gap: 14 },
+              {
+                backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : '#F0FDF4',
+                borderColor: isDark ? '#166534' : '#86EFAC',
+              },
+            ]}
+          >
+            <View style={[styles.directQuoteRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.directQuoteIconBadge, isTablet && { width: 44, height: 44, borderRadius: 22 }, { backgroundColor: '#22C55E' }]}>
+                <Ionicons name="flash" size={isTablet ? 22 : 18} color="#FFFFFF" />
               </View>
-              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                <Text
-                  style={[
-                    styles.currencyTriggerTitle,
-                    {
-                      color: colors.black,
-                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
-                    },
-                  ]}
-                >
-                  {isKuLanguage ? 'شێوازی پیشاندانی دراو لە وەسڵدا:' : 'Receipt Currency Display:'}
+              <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                <Text style={{ fontSize: isTablet ? 15.5 : 13.5, fontWeight: '800', color: '#15803D' }}>
+                  {isKuLanguage ? 'عەرزی ڕاستەوخۆ چالاکە' : 'Direct Quotation Active'}
                 </Text>
-                <Text style={{ fontSize: 11, color: colors.gray500, marginTop: 1 }}>
-                  {isKuLanguage ? 'دەست بنێ بۆ دیاریکردن یان گۆڕین' : 'Tap to select or change currency'}
+                <Text style={{ fontSize: isTablet ? 13 : 11.5, color: '#166534', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isKuLanguage
+                    ? 'پێویست بە پڕکردنەوەی هیچ زانیارییەک ناکات • ئەکاونتی کڕیاری ڕاستەوخۆ دیاری کراوە'
+                    : 'No client info needed • Direct customer system account linked'}
                 </Text>
               </View>
             </View>
 
-            {/* Currently Active Badge + Chevron */}
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-              <View
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={handleToggleDirectQuotation}
+              style={[
+                styles.switchBackBtn,
+                isTablet && { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+                {
+                  borderColor: isDark ? colors.gray300 : '#BBF7D0',
+                  backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <Ionicons name="create-outline" size={isTablet ? 16 : 14} color={colors.primary} />
+              <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: colors.primary }}>
+                {isKuLanguage ? 'گۆڕین بۆ ناوی کۆمپانیا یان کڕیار' : 'Switch to Custom Company / Client'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Company Name with Autocomplete */}
+            <View style={{ marginTop: 8 }}>
+              <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                {isKuLanguage ? 'ناوی کۆمپانیا / کڕیار:' : 'Company / Client Name:'}
+              </Text>
+              <TextInput
+                ref={nameInputRef}
                 style={[
-                  styles.currencyActiveBadge,
+                  styles.input,
+                  isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                   {
-                    backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF9C3',
-                    borderColor: colors.primary,
+                    backgroundColor: nameError
+                      ? (isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2')
+                      : (isDark ? colors.gray200 : colors.gray50),
+                    borderColor: nameError ? '#EF4444' : selectedCustomerId ? '#22C55E' : colors.gray300,
+                    borderWidth: nameError ? 1.5 : 1,
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                    fontWeight: 'normal',
+                  },
+                ]}
+                value={companyName}
+                onChangeText={handleCompanyNameChange}
+                onFocus={() => {
+                  if (companyName.trim()) {
+                    fetchCustomerSuggestions(companyName);
+                  }
+                }}
+                placeholder={isKuLanguage ? 'ناوی کۆمپانیا یان کڕیار بنووسە (داواکراوە)...' : 'Enter company or client name (required)...'}
+                placeholderTextColor={nameError ? '#F87171' : colors.gray400}
+              />
+              {nameError && (
+                <MotiView
+                  from={{ opacity: 0, translateY: -3 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'timing', duration: 200 }}
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginTop: 6,
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <Ionicons name="alert-circle-outline" size={isTablet ? 16 : 14} color="#EF4444" />
+                  <Text
+                    style={{
+                      fontSize: isTablet ? 13 : 11.5,
+                      color: '#DC2626',
+                      fontWeight: '700',
+                      textAlign: isRTL ? 'right' : 'left',
+                    }}
+                  >
+                    {isKuLanguage
+                      ? 'تکایە ناوی کۆمپانیا یان کڕیار بنووسە، ئەم بەشە داواکراوە'
+                      : 'Please enter company or client name, this field is required'}
+                  </Text>
+                </MotiView>
+              )}
+
+              {/* Autocomplete Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <View style={[styles.suggestionsBox, { backgroundColor: isDark ? colors.gray200 : colors.white, borderColor: colors.primary }]}>
+                  <View style={[styles.suggestionsHeader, { backgroundColor: isDark ? colors.gray300 : '#F8FAFC', borderBottomColor: isDark ? colors.gray200 : '#E2E8F0', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <Ionicons name="sparkles" size={isTablet ? 15 : 13} color={colors.primary} />
+                    <Text style={{ fontSize: isTablet ? 12.5 : 11, fontWeight: '700', color: colors.primary }}>
+                      {isKuLanguage ? 'کۆمپانیا و کڕیارە تۆمارکراوەکان (بۆ عەرزی دووبارە):' : 'Saved Companies & Clients (For Repeat Quotes):'}
+                    </Text>
+                  </View>
+                  {suggestions.map((cust) => (
+                    <TouchableOpacity
+                      key={cust.id}
+                      style={[styles.suggestionItem, { borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                      onPress={() => handleSelectCustomer(cust)}
+                    >
+                      <Ionicons name="business" size={isTablet ? 19 : 16} color={colors.primary} />
+                      <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                        <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.black }}>{cust.name}</Text>
+                        {cust.phone ? <Text style={{ fontSize: isTablet ? 13 : 11.5, color: colors.gray500 }}>{cust.phone}</Text> : null}
+                        {cust.address ? <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.gray400 }}>{cust.address}</Text> : null}
+                      </View>
+                      <View style={[styles.miniPill, { backgroundColor: colors.softBlue }]}>
+                        <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.primary, fontWeight: '700' }}>
+                          {isKuLanguage ? 'دیاریکردن' : 'Select'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Phone & Address Inputs */}
+            <View style={[styles.twoInputsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 10 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isKuLanguage ? 'ژمارەی مۆبایل:' : 'Phone Number:'}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
+                    {
+                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                      borderColor: colors.gray300,
+                      color: colors.black,
+                      textAlign: isRTL ? 'right' : 'left',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                      fontWeight: 'normal',
+                    },
+                  ]}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={(val) => {
+                    const clean = sanitizeNumericInput(val, 'phone-pad');
+                    setPhone(clean);
+                    if (clean.length >= 4) fetchCustomerSuggestions(clean);
+                  }}
+                  placeholder="0770 123 4567"
+                  placeholderTextColor={colors.gray400}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  {isKuLanguage ? 'ناونیشان:' : 'Address:'}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
+                    {
+                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                      borderColor: colors.gray300,
+                      color: colors.black,
+                      textAlign: isRTL ? 'right' : 'left',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                      fontWeight: 'normal',
+                    },
+                  ]}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder={isKuLanguage ? 'شار، شەقام...' : 'City, Street...'}
+                  placeholderTextColor={colors.gray400}
+                />
+              </View>
+            </View>
+          </>
+        )}
+      </PremiumCard>
+    );
+
+    // 4. Quotation Terms & Notes with Edit Default Button
+    const renderTermsCard = () => (
+      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+            <Ionicons name="document-text-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+            <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
+              {isKuLanguage ? 'مەرج و تێبینییەکانی عەرز' : 'Quotation Terms & Notes'}
+            </Text>
+          </View>
+
+          {/* Button to edit and persist default terms */}
+          <TouchableOpacity
+            style={[
+              styles.editDefaultBtn,
+              isTablet && { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8 },
+              {
+                backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3',
+                borderColor: colors.primary,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+            onPress={() => setEditDefaultNotesOpen(true)}
+          >
+            <Ionicons name="settings-outline" size={isTablet ? 15 : 13} color={colors.primary} />
+            <Text style={{ fontSize: isTablet ? 12.5 : 11, fontWeight: '700', color: colors.primary }}>
+              {isKuLanguage ? 'گۆڕینی تێبینی بنەڕەتی' : 'Edit Default'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Current Notes Input */}
+        <View style={{ marginTop: 8 }}>
+          <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {isKuLanguage ? 'تێبینی بۆ ئەم عەرزە (پێشنیار دەکرێت بۆ کڕیار):' : 'Notes for this quote:'}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              isTablet && { minHeight: 84, fontSize: 15, lineHeight: 24, paddingVertical: 12, paddingHorizontal: 14 },
+              {
+                backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                borderColor: colors.gray300,
+                color: colors.black,
+                textAlign: isRTL ? 'right' : 'left',
+                minHeight: isTablet ? 84 : 64,
+                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                fontWeight: 'normal',
+                lineHeight: isTablet ? 24 : 22,
+              },
+            ]}
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={isKuLanguage ? 'مەرج و تێبینی بنووسە...' : 'Write terms...'}
+            placeholderTextColor={colors.gray400}
+          />
+        </View>
+
+        {/* Validity Days Selection */}
+        <View style={{ marginTop: 10 }}>
+          <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {isKuLanguage ? 'ماوەی کارپێکردنی عەرزەکە:' : 'Validity Period:'}
+          </Text>
+          <View style={[styles.validityWrapper, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {/* Preset Chips: 3, 7, 15, 30 */}
+            <View style={[styles.validityChipsGroup, isTablet && { gap: 8 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {[3, 7, 15, 30].map((days) => {
+                const active = validityDays === days;
+                return (
+                  <TouchableOpacity
+                    key={days}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.validityChip,
+                      isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+                      {
+                        backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
+                        borderColor: active ? colors.primary : colors.gray300,
+                      },
+                    ]}
+                    onPress={() => {
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      } catch {}
+                      setValidityDays(days);
+                    }}
+                  >
+                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: active ? '#FFFFFF' : colors.gray700 }}>
+                      {isKuLanguage ? `${days} ڕۆژ` : `${days} Days`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Direct Compact Number Input */}
+            <View
+              style={[
+                styles.validityDirectInputBox,
+                isTablet && { minWidth: 86, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10 },
+                {
+                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                  borderColor: ![3, 7, 15, 30].includes(validityDays) && validityDays > 0 ? colors.primary : colors.gray300,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
+              ]}
+            >
+              <TextInput
+                style={[
+                  styles.validityDirectInput,
+                  isTablet && { fontSize: 15, minWidth: 34 },
+                  {
+                    color: colors.black,
+                    textAlign: 'center',
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    fontWeight: 'normal',
+                  },
+                ]}
+                keyboardType="number-pad"
+                value={validityDays > 0 ? String(validityDays) : ''}
+                onChangeText={(val) => {
+                  const clean = sanitizeNumericInput(val, 'number-pad');
+                  const num = parseInt(clean, 10) || 0;
+                  setValidityDays(num);
+                }}
+                placeholder="0"
+                placeholderTextColor={colors.gray400}
+              />
+              <Text style={{ fontSize: isTablet ? 13 : 11.5, fontWeight: '700', color: colors.gray600 }}>
+                {isKuLanguage ? 'ڕۆژ' : 'Days'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </PremiumCard>
+    );
+
+    // 5. Currency Display Mode Selector Button
+    const renderCurrencySelector = () => (
+      <View style={[styles.currencyToggleContainer, isTablet && { marginTop: 14 }]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={toggleCurrencyOptions}
+          style={[
+            styles.currencyTriggerBtn,
+            isTablet && { paddingVertical: 15, paddingHorizontal: 16, borderRadius: 14 },
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: showCurrencyOptions ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 12 : 10, flex: 1 }}>
+            <View
+              style={[
+                styles.currencyTriggerIconBox,
+                isTablet && { width: 40, height: 40, borderRadius: 10 },
+                { backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7' },
+              ]}
+            >
+              <Ionicons name="cash-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+            </View>
+            <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+              <Text
+                style={[
+                  styles.currencyTriggerTitle,
+                  isTablet && { fontSize: 15.5 },
+                  {
+                    color: colors.black,
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.currencyActiveBadgeText,
-                    {
-                      color: colors.primary,
-                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
-                    },
-                  ]}
-                >
-                  {currencyMode === 'usd'
-                    ? (isKuLanguage ? 'تەنها دۆلار' : 'USD Only')
-                    : currencyMode === 'iqd'
-                    ? (isKuLanguage ? 'تەنها دینار' : 'IQD Only')
-                    : (isKuLanguage ? 'دۆلار و دینار' : 'USD & IQD')}
-                </Text>
-              </View>
-
-              <Ionicons
-                name={showCurrencyOptions ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={colors.gray500}
-              />
+                {isKuLanguage ? 'شێوازی پیشاندانی دراو لە وەسڵدا:' : 'Receipt Currency Display:'}
+              </Text>
+              <Text style={{ fontSize: isTablet ? 12.5 : 11, color: colors.gray500, marginTop: 1 }}>
+                {isKuLanguage ? 'دەست بنێ بۆ دیاریکردن یان گۆڕین' : 'Tap to select or change currency'}
+              </Text>
             </View>
-          </TouchableOpacity>
+          </View>
 
-          {/* Expanded Currency Options (Shown only when tapped) */}
-          {showCurrencyOptions && (
-            <MotiView
-              from={{ opacity: 0, translateY: -6 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 180 }}
+          {/* Currently Active Badge + Chevron */}
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+            <View
               style={[
-                styles.currencyExpandedCard,
+                styles.currencyActiveBadge,
+                isTablet && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9 },
                 {
-                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF9C3',
                   borderColor: colors.primary,
                 },
               ]}
             >
-              <View style={[styles.currencyPillsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                {[
-                  { id: 'both' as const, labelKu: 'دۆلار و دینار', labelEn: 'USD & IQD', icon: 'swap-horizontal' },
-                  { id: 'iqd' as const, labelKu: 'تەنها دینار', labelEn: 'IQD Only', icon: 'wallet-outline' },
-                  { id: 'usd' as const, labelKu: 'تەنها دۆلار', labelEn: 'USD Only', icon: 'logo-usd' },
-                ].map((m) => {
-                  const active = (currencyMode || 'both') === m.id;
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      activeOpacity={0.75}
+              <Text
+                style={[
+                  styles.currencyActiveBadgeText,
+                  isTablet && { fontSize: 13.5 },
+                  {
+                    color: colors.primary,
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                  },
+                ]}
+              >
+                {currencyMode === 'usd'
+                  ? (isKuLanguage ? 'تەنها دۆلار' : 'USD Only')
+                  : currencyMode === 'iqd'
+                  ? (isKuLanguage ? 'تەنها دینار' : 'IQD Only')
+                  : (isKuLanguage ? 'دۆلار و دینار' : 'USD & IQD')}
+              </Text>
+            </View>
+
+            <Ionicons
+              name={showCurrencyOptions ? 'chevron-up' : 'chevron-down'}
+              size={isTablet ? 18 : 16}
+              color={colors.gray500}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {/* Expanded Currency Options */}
+        {showCurrencyOptions && (
+          <MotiView
+            from={{ opacity: 0, translateY: -6 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 180 }}
+            style={[
+              styles.currencyExpandedCard,
+              isTablet && { padding: 14, borderRadius: 14 },
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: colors.primary,
+              },
+            ]}
+          >
+            <View style={[styles.currencyPillsRow, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {[
+                { id: 'both' as const, labelKu: 'دۆلار و دینار', labelEn: 'USD & IQD', icon: 'swap-horizontal' },
+                { id: 'iqd' as const, labelKu: 'تەنها دینار', labelEn: 'IQD Only', icon: 'wallet-outline' },
+                { id: 'usd' as const, labelKu: 'تەنها دۆلار', labelEn: 'USD Only', icon: 'logo-usd' },
+              ].map((m) => {
+                const active = (currencyMode || 'both') === m.id;
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.currencyPillBtn,
+                      isTablet && { paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10 },
+                      {
+                        backgroundColor: active ? colors.primary : isDark ? colors.gray200 : colors.gray50,
+                        borderColor: active ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                      },
+                    ]}
+                    onPress={() => {
+                      try {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      } catch {}
+                      setCurrencyMode(m.id);
+                    }}
+                  >
+                    <Ionicons
+                      name={active ? 'checkmark-circle' : (m.icon as any)}
+                      size={isTablet ? 17 : 14}
+                      color={active ? '#FFFFFF' : colors.gray600}
+                    />
+                    <Text
                       style={[
-                        styles.currencyPillBtn,
+                        styles.currencyPillText,
+                        isTablet && { fontSize: 13 },
                         {
-                          backgroundColor: active ? colors.primary : isDark ? colors.gray200 : colors.gray50,
-                          borderColor: active ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                          color: active ? '#FFFFFF' : colors.gray700,
+                          fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                         },
                       ]}
-                      onPress={() => {
-                        try {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                        } catch {}
-                        setCurrencyMode(m.id);
-                      }}
                     >
-                      <Ionicons
-                        name={active ? 'checkmark-circle' : (m.icon as any)}
-                        size={14}
-                        color={active ? '#FFFFFF' : colors.gray600}
-                      />
-                      <Text
-                        style={[
-                          styles.currencyPillText,
-                          {
-                            color: active ? '#FFFFFF' : colors.gray700,
-                            fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
-                          },
-                        ]}
-                      >
-                        {isKuLanguage ? m.labelKu : m.labelEn}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </MotiView>
-          )}
-        </View>
+                      {isKuLanguage ? m.labelKu : m.labelEn}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </MotiView>
+        )}
+      </View>
+    );
 
-        {/* Generate Button */}
-        <View style={{ marginTop: 10, marginBottom: 40 }}>
-          <PrimaryButton
-            label={isGenerating ? (isKuLanguage ? 'دروستکردنی وەسڵ...' : 'Generating...') : (isKuLanguage ? 'دروستکردن و بینینی وەسڵی عەرز' : 'Generate & Preview Quotation')}
-            onPress={handleGenerateQuotation}
-            loading={isGenerating}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+    // 6. Generate Button
+    const renderGenerateButton = () => (
+      <View style={{ marginTop: isTablet ? 14 : 10, marginBottom: 40 }}>
+        <PrimaryButton
+          label={isGenerating ? (isKuLanguage ? 'دروستکردنی وەسڵ...' : 'Generating...') : (isKuLanguage ? 'دروستکردن و بینینی وەسڵی عەرز' : 'Generate & Preview Quotation')}
+          onPress={handleGenerateQuotation}
+          loading={isGenerating}
+        />
+      </View>
+    );
+
+    return (
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <AppHeader
+          title={isKuLanguage ? 'داشکاندن و وەسڵ' : 'Review & Terms'}
+          onBack={() => setStep(1)}
+          rightAction={
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: isTablet ? 12 : 8 }}>
+              <HeaderActionButton icon="barcode-outline" onPress={() => setScannerOpen(true)} />
+              <HeaderActionButton icon="add-circle-outline" onPress={() => setStep(1)} />
+            </View>
+          }
+        >
+          <SaleStepIndicator step={2} />
+        </AppHeader>
+
+        <ScrollView
+          ref={step2ScrollRef}
+          contentContainerStyle={[
+            styles.step2Body,
+            isTabletLandscape
+              ? { width: '100%', maxWidth: 1320, alignSelf: 'center', paddingHorizontal: 20 }
+              : isTablet
+              ? { width: '100%', maxWidth: 740, alignSelf: 'center', paddingHorizontal: 16 }
+              : null,
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {isTabletLandscape ? (
+            <View style={[styles.landscapeStep2Row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* Column 1 (Right in Kurdish RTL): Items Cart & Financials */}
+              <View style={styles.landscapeStep2Col}>
+                {renderProductsCard()}
+                {renderDiscountAndTotalsCard()}
+              </View>
+
+              {/* Column 2 (Left in Kurdish RTL): Notice + Client Information + Terms & Validity + Currency + Submit */}
+              <View style={styles.landscapeStep2Col}>
+                {renderNoticeBanner()}
+                {renderClientInfoCard()}
+                {renderTermsCard()}
+                {renderCurrencySelector()}
+                {renderGenerateButton()}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.step2SingleCol}>
+              {renderNoticeBanner()}
+              {renderProductsCard()}
+              {renderDiscountAndTotalsCard()}
+              {renderClientInfoCard()}
+              {renderTermsCard()}
+              {renderCurrencySelector()}
+              {renderGenerateButton()}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  };
+
 
   // ═════════════════════════════════════════════════════════════════════════════
   // STEP 3: OFFICIAL QUOTATION INVOICE PREVIEW
@@ -1584,30 +1687,68 @@ export default function SalesQuotationScreen() {
           <SaleStepIndicator step={3} />
         </AppHeader>
 
-        <ScrollView contentContainerStyle={[styles.step3Body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.step3Body,
+            {
+              width: '100%',
+              alignSelf: 'center',
+              maxWidth: isTabletLandscape ? 820 : isTablet ? 720 : '100%',
+              padding: isTablet ? 20 : 14,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Main Invoice Card */}
-          <PremiumCard style={styles.invoiceCard}>
+          <PremiumCard style={[styles.invoiceCard, isTablet && { padding: 22, borderRadius: 20 }]}>
             {/* Top Badge & Number */}
             <View style={[styles.invoiceTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <View style={[styles.invoiceDocBadge, { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', borderColor: colors.gray200, borderWidth: 1 }]}>
-                <Ionicons name="document-text" size={13} color={colors.primary} />
-                <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+              <View
+                style={[
+                  styles.invoiceDocBadge,
+                  isTablet && { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+                  { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', borderColor: colors.gray200, borderWidth: 1 },
+                ]}
+              >
+                <Ionicons name="document-text" size={isTablet ? 16 : 13} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: isTablet ? 13.5 : 11.5,
+                    fontWeight: '800',
+                    color: colors.black,
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                  }}
+                >
                   {isKuLanguage ? 'وەسڵی عەرزی نرخ' : 'PRICE QUOTATION'}
                 </Text>
               </View>
-              <IdText size="default">{q.quotationNumber}</IdText>
+              <IdText size="default" style={isTablet ? { fontSize: 16 } : undefined}>{q.quotationNumber}</IdText>
             </View>
 
-            {/* Official Disclaimer Notice (Sleek & Delicate) */}
-            <View style={[styles.invoiceNoticeBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Ionicons name="information-circle-outline" size={16} color={colors.gray500} />
+            {/* Official Disclaimer Notice */}
+            <View
+              style={[
+                styles.invoiceNoticeBox,
+                isTablet && { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, gap: 12 },
+                { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+            >
+              <Ionicons name="information-circle-outline" size={isTablet ? 20 : 16} color={colors.gray500} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: colors.black, textAlign: isRTL ? 'right' : 'left', fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                <Text
+                  style={{
+                    fontSize: isTablet ? 13.5 : 11.5,
+                    fontWeight: '700',
+                    color: colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                  }}
+                >
                   {isKuLanguage
                     ? 'ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فەرمی فرۆشتن نییە'
                     : 'THIS DOCUMENT IS A PRICE QUOTATION ONLY AND NOT A SALES INVOICE'}
                 </Text>
-                <Text style={{ fontSize: 10.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 1 }}>
+                <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 1 }}>
                   {isKuLanguage
                     ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
                     : 'All prices are offered for quotation purposes.'}
@@ -1616,55 +1757,78 @@ export default function SalesQuotationScreen() {
             </View>
 
             {/* Client & Date Information */}
-            <View style={[styles.invoiceClientBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200 }]}>
+            <View
+              style={[
+                styles.invoiceClientBox,
+                isTablet && { padding: 16, borderRadius: 14, gap: 6 },
+                { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200 },
+              ]}
+            >
               <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={{ fontSize: 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                   {isKuLanguage ? 'پێشکەش دەکرێت بە:' : 'Presented To:'}
                 </Text>
-                <Text style={{ fontSize: 11, color: colors.gray400, direction: 'ltr' }}>
-                  {q.date} {q.time ? `• ${q.time}` : ''}
+                <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400, direction: 'ltr' }}>
+                  {q.date} {q.time ? `• ${normalizeTimeToAmPm(q.time)}` : ''}
                 </Text>
               </View>
 
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: colors.black, textAlign: isRTL ? 'right' : 'left', fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                  <Text
+                    style={{
+                      fontSize: isTablet ? 19 : 15.5,
+                      fontWeight: '800',
+                      color: colors.black,
+                      textAlign: isRTL ? 'right' : 'left',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                    }}
+                  >
                     {q.customerName}
                   </Text>
                   {q.customerPhone ? (
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                      <Ionicons name="call-outline" size={12} color={colors.gray400} />
-                      <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+                      <Ionicons name="call-outline" size={isTablet ? 15 : 12} color={colors.gray400} />
+                      <Text style={{ fontSize: isTablet ? 14 : 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
                         {q.customerPhone}
                       </Text>
                     </View>
                   ) : null}
                   {q.customerAddress ? (
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Ionicons name="location-outline" size={12} color={colors.gray400} />
-                      <Text style={{ fontSize: 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                      <Ionicons name="location-outline" size={isTablet ? 15 : 12} color={colors.gray400} />
+                      <Text style={{ fontSize: isTablet ? 14 : 12, color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }}>
                         {q.customerAddress}
                       </Text>
                     </View>
                   ) : null}
                 </View>
 
-                {/* Elegant Validity Badge */}
+                {/* Elegant Validity Badge with fixed RTL BiDi mark */}
                 {q.validityDays ? (
                   <View
                     style={[
                       styles.validityBadge,
+                      isTablet && { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
                       {
                         backgroundColor: isDark ? colors.gray300 : '#FFFFFF',
                         borderColor: colors.gray300,
                       },
                     ]}
                   >
-                    <Text style={{ fontSize: 10, color: colors.gray500, marginBottom: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray500, marginBottom: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
-                      {isKuLanguage ? `${q.validityDays} ڕۆژ` : `${q.validityDays} Days`}
+                    <Text
+                      style={{
+                        fontSize: isTablet ? 16.5 : 14,
+                        fontWeight: '800',
+                        color: colors.black,
+                        fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                      }}
+                    >
+                      {isKuLanguage ? `\u200F${q.validityDays} ڕۆژ` : `${q.validityDays} Days`}
                     </Text>
                   </View>
                 ) : null}
@@ -1672,18 +1836,18 @@ export default function SalesQuotationScreen() {
             </View>
 
             {/* Items Table */}
-            <View style={{ marginTop: 14 }}>
+            <View style={{ marginTop: isTablet ? 18 : 14 }}>
               {/* Header Row */}
-              <View style={[styles.itemsHeaderRow, { borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+              <View style={[styles.itemsHeaderRow, isTablet && { paddingBottom: 10, marginBottom: 6 }, { borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
+                  <Text style={{ fontSize: isTablet ? 14.5 : 12.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان' : 'Quoted Items'}
                   </Text>
-                  <Text style={{ fontSize: 11, color: colors.gray400 }}>
+                  <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400 }}>
                     ({q.items.length} {isKuLanguage ? 'کاڵا' : 'items'})
                   </Text>
                 </View>
-                <Text style={{ fontSize: 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                   {isKuLanguage ? 'کۆی نرخ' : 'Total'}
                 </Text>
               </View>
@@ -1693,6 +1857,7 @@ export default function SalesQuotationScreen() {
                   key={it.id || String(idx)}
                   style={[
                     styles.invoiceItemRow,
+                    isTablet && { paddingVertical: 14 },
                     {
                       borderBottomColor: colors.gray100,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -1700,21 +1865,21 @@ export default function SalesQuotationScreen() {
                   ]}
                 >
                   {/* Distinct Number Chip */}
-                  <View style={[styles.itemIndexPill, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                    <Text style={[styles.itemIndexText, { color: colors.gray500 }]}>{idx + 1}</Text>
+                  <View style={[styles.itemIndexPill, isTablet && { width: 28, height: 28, borderRadius: 14 }, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
+                    <Text style={[styles.itemIndexText, isTablet && { fontSize: 13 }, { color: colors.gray500 }]}>{idx + 1}</Text>
                   </View>
 
                   {/* Product Details */}
-                  <View style={{ flex: 1, marginHorizontal: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: colors.black }} numberOfLines={1}>
+                  <View style={{ flex: 1, marginHorizontal: isTablet ? 12 : 10, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text style={{ fontSize: isTablet ? 16 : 13.5, fontWeight: '700', color: colors.black }} numberOfLines={1}>
                       {it.productName}
                     </Text>
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <Text style={{ fontSize: 11, color: colors.gray500, direction: 'ltr' }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                      <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray500, direction: 'ltr' }}>
                         {it.quantity} × {formatRowPrice(it.unitPrice)}
                       </Text>
                       {it.discount > 0 && (
-                        <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                        <Text style={{ fontSize: isTablet ? 12 : 10.5, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
                           (-{formatRowPrice(it.discount)})
                         </Text>
                       )}
@@ -1722,60 +1887,66 @@ export default function SalesQuotationScreen() {
                   </View>
 
                   {/* Line Total */}
-                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.black, direction: 'ltr' }}>
+                  <Text style={{ fontSize: isTablet ? 16 : 13.5, fontWeight: '800', color: colors.black, direction: 'ltr' }}>
                     {formatRowPrice(it.lineTotal)}
                   </Text>
                 </View>
               ))}
             </View>
 
-            {/* Notes Section (Positioned BEFORE Totals as requested) */}
+            {/* Notes Section */}
             {q.notes ? (
-              <View style={[styles.invoiceNotesBox, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, marginTop: 14 }]}>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-                  <Ionicons name="document-text-outline" size={12} color={colors.gray500} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+              <View
+                style={[
+                  styles.invoiceNotesBox,
+                  isTablet && { padding: 14, borderRadius: 10, marginTop: 16 },
+                  { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, marginTop: 14 },
+                ]}
+              >
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="document-text-outline" size={isTablet ? 15 : 12} color={colors.gray500} />
+                  <Text style={{ fontSize: isTablet ? 13 : 11, fontWeight: '700', color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Terms & Conditions:'}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 12, color: colors.black, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
+                <Text style={{ fontSize: isTablet ? 14 : 12, color: colors.black, lineHeight: isTablet ? 22 : 18, textAlign: isRTL ? 'right' : 'left' }}>
                   {q.notes}
                 </Text>
               </View>
             ) : null}
 
             {/* Totals Section */}
-            <View style={[styles.invoiceTotalsBox, { borderTopColor: colors.gray200, marginTop: 14 }]}>
+            <View style={[styles.invoiceTotalsBox, isTablet && { marginTop: 16, paddingTop: 14, gap: 8 }, { borderTopColor: colors.gray200, marginTop: 14 }]}>
               {q.discountTotal > 0 && (
                 <>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
+                    <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
                       {formatRowPrice(q.subtotal)}
                     </Text>
                   </View>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'داشکاندن:' : 'Discount:'}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                    <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
                       −{formatRowPrice(q.discountTotal)}
                     </Text>
                   </View>
                 </>
               )}
               <View style={[styles.invoiceGrandTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                <Text style={{ fontSize: isTablet ? 18 : 15, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                   {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
                 <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                  <Text style={{ fontSize: 17.5, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
+                  <Text style={{ fontSize: isTablet ? 24 : 17.5, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
                     {grandTotalPrimary}
                   </Text>
                   {grandTotalSecondary ? (
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.gray500, direction: 'ltr', marginTop: 2 }}>
+                    <Text style={{ fontSize: isTablet ? 15 : 12, fontWeight: '700', color: colors.gray500, direction: 'ltr', marginTop: 2 }}>
                       {grandTotalSecondary}
                     </Text>
                   ) : null}
@@ -1785,7 +1956,7 @@ export default function SalesQuotationScreen() {
           </PremiumCard>
 
           {/* Action Buttons */}
-          <View style={{ gap: 10, marginTop: 14, marginBottom: 40 }}>
+          <View style={{ gap: isTablet ? 14 : 10, marginTop: isTablet ? 18 : 14, marginBottom: 40 }}>
             <PrimaryButton
               label={isGenerating ? (isKuLanguage ? 'دروستکردنی PDF...' : 'Creating PDF...') : (isKuLanguage ? 'هاوبەشکردن و چاپکردنی PDF' : 'Share & Print PDF')}
               onPress={() => handleSharePDF(q)}
@@ -1799,26 +1970,30 @@ export default function SalesQuotationScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 6,
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
+                  paddingVertical: isTablet ? 8 : 6,
+                  paddingHorizontal: isTablet ? 16 : 12,
+                  borderRadius: isTablet ? 10 : 8,
                   backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7',
                   alignSelf: 'center',
                 }}
               >
-                <Ionicons name="checkmark-circle" size={16} color={isDark ? '#4ADE80' : '#15803D'} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>
+                <Ionicons name="checkmark-circle" size={isTablet ? 18 : 16} color={isDark ? '#4ADE80' : '#15803D'} />
+                <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D' }}>
                   {isKuLanguage ? `وەسڵەکە چاپکراوە (${q.printCount} جار)` : `Quotation printed (${q.printCount} times)`}
                 </Text>
               </View>
             ) : null}
 
             <TouchableOpacity
-              style={[styles.outlineBtn, { borderColor: colors.gray300, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              style={[
+                styles.outlineBtn,
+                isTablet && { paddingVertical: 15, borderRadius: 12 },
+                { borderColor: colors.gray300, flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
               onPress={handleResetForNewQuote}
             >
-              <Ionicons name="add-circle-outline" size={17} color={colors.gray600} />
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.gray600 }}>
+              <Ionicons name="add-circle-outline" size={isTablet ? 20 : 17} color={colors.gray600} />
+              <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '600', color: colors.gray600 }}>
                 {isKuLanguage ? 'دروستکردنی عەرزی نوێ' : 'Create New Quote'}
               </Text>
             </TouchableOpacity>
@@ -1878,6 +2053,19 @@ const styles = StyleSheet.create({
   },
   step2Body: {
     padding: 14,
+    gap: 12,
+  },
+  step2SingleCol: {
+    width: '100%',
+    gap: 12,
+  },
+  landscapeStep2Row: {
+    gap: 16,
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  landscapeStep2Col: {
+    flex: 1,
     gap: 12,
   },
   step3Body: {
