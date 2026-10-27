@@ -2407,35 +2407,42 @@ export default function NewPurchaseScreen() {
           ]}
         >
           <View
-            style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-            }}
+            style={[
+              styles.directSupplierActiveRow,
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
           >
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+            <View
+              style={[
+                styles.directSupplierActiveInfo,
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+            >
               <View style={[styles.directSupplierIconWrap, { backgroundColor: '#D97706' }]}>
                 <Ionicons name="flash" size={16} color="#FFFFFF" />
               </View>
-              <View>
+              <View style={styles.directSupplierActiveTextWrap}>
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.directSupplierActiveTitle,
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     { color: isDark ? '#FBBF24' : '#92400E', textAlign },
                   ]}
                 >
-                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier (System)'}
+                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
                 </Text>
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.directSupplierActiveBadge,
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                     { color: isDark ? '#FDE68A' : '#B45309', textAlign },
                   ]}
                 >
-                  {isKuLanguage ? 'ئەکاونتی هەمیشەیی پارێزراو' : 'Protected Permanent Account'}
+                  {isKuLanguage ? 'سیستەم • دەستبەجێ' : 'System • Instant'}
                 </Text>
               </View>
             </View>
@@ -2470,18 +2477,6 @@ export default function NewPurchaseScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-
-          <Text
-            style={[
-              styles.directSupplierActiveDesc,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
-              { color: isDark ? '#CBD5E1' : '#78350F', textAlign },
-            ]}
-          >
-            {isKuLanguage
-              ? 'ئەم کڕینە راستەوخۆ لەسەر ئەکاونتی هەمیشەیی دابینکەری ڕاستەوخۆ پاشەکەوت دەکرێت. هیچ فۆرم و بۆشاییەک پێویست بە پڕکردنەوە ناکات.'
-              : 'This purchase will be automatically logged under the permanent Direct Supplier account. No fields need to be filled.'}
-          </Text>
         </MotiView>
       ) : (
         <>
@@ -2507,8 +2502,9 @@ export default function NewPurchaseScreen() {
             <View style={[styles.directSupplierIconWrap, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.25)' : '#FEF3C7' }]}>
               <Ionicons name="flash" size={18} color="#D97706" />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 120 }}>
               <Text
+                numberOfLines={1}
                 style={[
                   styles.directSupplierBtnTitle,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
@@ -2518,13 +2514,14 @@ export default function NewPurchaseScreen() {
                 {isKuLanguage ? 'دابینکەری ڕاستەوخۆ ⚡' : 'Direct Supplier ⚡'}
               </Text>
               <Text
+                numberOfLines={1}
                 style={[
                   styles.directSupplierBtnSub,
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                   { color: isDark ? '#E2E8F0' : '#78350F', textAlign },
                 ]}
               >
-                {isKuLanguage ? 'کڕینی دەستبەجێ بەبێ پێویستی بە ژمارە و ناونیشان' : 'Quick intake without phone or address'}
+                {isKuLanguage ? 'کڕینی دەستبەجێ بەبێ فۆڕم و ناونیشان' : 'Quick intake without form'}
               </Text>
             </View>
             <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#D97706" />
@@ -3639,33 +3636,51 @@ const styles = StyleSheet.create({
   directSupplierActiveCard: {
     borderWidth: 1.5,
     borderRadius: 14,
-    padding: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: 14,
   },
+  directSupplierActiveRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 8,
+    columnGap: 8,
+  },
+  directSupplierActiveInfo: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 140,
+    flexShrink: 1,
+  },
+  directSupplierActiveTextWrap: {
+    flexShrink: 1,
+  },
   directSupplierActiveTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
+    includeFontPadding: false,
   },
   directSupplierActiveBadge: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
     marginTop: 1,
+    includeFontPadding: false,
   },
   directSupplierChangeBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   directSupplierChangeBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-  },
-  directSupplierActiveDesc: {
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 4,
+    includeFontPadding: false,
   },
   threeColsLandscapeContainer: {
     flex: 1,
