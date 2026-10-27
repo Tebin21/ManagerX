@@ -395,6 +395,51 @@ async function adoptSignedInUserInner(
   const { useBusinessStore } = await import('@/store/businessStore');
   const business = useBusinessStore.getState();
 
+  // 1. Mark onboarding as completed immediately
+  try {
+    const { useOnboardingStore } = await import('@/store/onboardingStore');
+    useOnboardingStore.getState().completeOnboarding();
+  } catch {}
+
+  // 2. Ensure business profile is loaded from SQLite or auto-populated from user
+  try {
+    const { loadBusiness, saveBusiness } = await import('@/lib/sqlite');
+    const existingBiz = await loadBusiness();
+    const currentBiz = useBusinessStore.getState();
+
+    if (existingBiz && existingBiz.name) {
+      useBusinessStore.getState().setBusiness({
+        name: existingBiz.name,
+        type: existingBiz.type || 'General',
+        phone: existingBiz.phone || user.phoneNumber || '',
+        address: existingBiz.address || '',
+        logoUri: existingBiz.logoPath || null,
+      });
+    } else if (!currentBiz.isSetupComplete || !currentBiz.name) {
+      const derivedName =
+        user.displayName?.trim() ||
+        (user.email ? user.email.split('@')[0] : '') ||
+        'فرۆشیار';
+      const derivedPhone = user.phoneNumber || '';
+      const defaultBiz = {
+        name: derivedName,
+        type: 'General',
+        phone: derivedPhone,
+        address: '',
+        logoUri: null,
+      };
+      await saveBusiness({
+        name: defaultBiz.name,
+        type: defaultBiz.type,
+        phone: defaultBiz.phone,
+        address: defaultBiz.address,
+      });
+      useBusinessStore.getState().setBusiness(defaultBiz);
+    }
+  } catch (err) {
+    console.warn('[Froshiar] Auto-populate business failed:', err);
+  }
+
   // Let navigation proceed immediately — the (app)/index.tsx and (app)/_layout.tsx
   // guards route on `pendingCloudConflict`, not on this function having fully
   // resolved, so it's safe to set `user` before the async decision below finishes.
@@ -408,7 +453,7 @@ async function adoptSignedInUserInner(
         email: user.email,
         phone: user.phoneNumber,
         displayName: user.displayName,
-        businessName: business.name,
+        businessName: useBusinessStore.getState().name || business.name,
         accountPassword: password ?? null,
       })
     )
@@ -471,7 +516,7 @@ async function adoptSignedInUserInner(
   // genuinely fresh device) is NOT a mismatch — that ambiguous case still falls
   // through to the local/cloud-data-exists decision tree and conflict screen below.
   if (business.ownerUserId && business.ownerUserId !== user.uid) {
-    const { wipeAllBusinessData } = await import('@/lib/sqlite');
+    const { wipeAllBusinessData, saveBusiness } = await import('@/lib/sqlite');
     await wipeAllBusinessData();
     business.clearBusiness();
     try {
@@ -479,6 +524,25 @@ async function adoptSignedInUserInner(
       await clearStoreApiKey();
     } catch {}
     if (!isCurrentAuthUser(user.uid)) return;
+
+    const derivedName =
+      user.displayName?.trim() ||
+      (user.email ? user.email.split('@')[0] : '') ||
+      'فرۆشیار';
+    const defaultBiz = {
+      name: derivedName,
+      type: 'General',
+      phone: user.phoneNumber || '',
+      address: '',
+      logoUri: null,
+    };
+    await saveBusiness({
+      name: defaultBiz.name,
+      type: defaultBiz.type,
+      phone: defaultBiz.phone,
+      address: defaultBiz.address,
+    });
+    useBusinessStore.getState().setBusiness(defaultBiz);
   }
 
   if (!isFirebaseAvailable) {

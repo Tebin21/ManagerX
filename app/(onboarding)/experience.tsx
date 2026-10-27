@@ -23,6 +23,7 @@ import { useRTL } from '@/lib/rtl';
 import { MOBILE_TESTING_PANA_SVG } from '@/constants/onboardingIllustrations';
 import { OnboardingTypewriterBadge, SCREEN_FIVE_BADGE_THEMES } from '@/components/onboarding/OnboardingTypewriterBadge';
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
+import { useOnboardingStore } from '@/store/onboardingStore';
 
 export default function ExperienceScreen() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function ExperienceScreen() {
   const isLargeScreen = isTablet || width >= 720;
 
   const handleNext = () => {
+    useOnboardingStore.getState().completeOnboarding();
     router.replace('/(onboarding)/login');
   };
 

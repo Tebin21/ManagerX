@@ -34,7 +34,23 @@ export default function OnboardingLayout() {
     if (DEV_FORCE_ONBOARDING_PREVIEW) return;
     if (!authHydrated || !onboardingHydrated || !businessHydrated) return;
     if (pendingCloudConflict) return;
-    if (hasCompletedOnboarding && user && isSetupComplete) {
+    if (user) {
+      if (!hasCompletedOnboarding) {
+        useOnboardingStore.getState().completeOnboarding();
+      }
+      if (!isSetupComplete) {
+        const defaultName =
+          user.displayName?.trim() ||
+          (user.email ? user.email.split('@')[0] : '') ||
+          'فرۆشیار';
+        useBusinessStore.getState().setBusiness({
+          name: defaultName,
+          type: 'General',
+          phone: '',
+          address: '',
+          logoUri: null,
+        });
+      }
       router.replace('/(app)/dashboard');
     }
   }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, pendingCloudConflict]);

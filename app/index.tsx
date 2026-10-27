@@ -47,34 +47,48 @@ export default function Index() {
       return;
     }
 
+    if (user) {
+      if (!hasCompletedOnboarding) {
+        useOnboardingStore.getState().completeOnboarding();
+      }
+
+      if (pendingVerificationEmail) {
+        router.replace('/(onboarding)/verify-email' as never);
+        return;
+      }
+
+      if (pendingCloudConflict) {
+        router.replace('/(onboarding)/cloud-data-conflict' as never);
+        return;
+      }
+
+      if (!isSetupComplete && isReconciling) return;
+
+      if (!isSetupComplete) {
+        const defaultName =
+          user.displayName?.trim() ||
+          (user.email ? user.email.split('@')[0] : '') ||
+          'فرۆشیار';
+        useBusinessStore.getState().setBusiness({
+          name: defaultName,
+          type: 'General',
+          phone: '',
+          address: '',
+          logoUri: null,
+        });
+      }
+
+      router.replace('/(app)/dashboard');
+      return;
+    }
+
+    // User is NOT logged in
     if (!hasCompletedOnboarding) {
       router.replace('/(onboarding)/welcome');
       return;
     }
 
-    if (pendingVerificationEmail) {
-      router.replace('/(onboarding)/verify-email' as never);
-      return;
-    }
-
-    if (!user) {
-      router.replace('/(onboarding)/welcome');
-      return;
-    }
-
-    if (pendingCloudConflict) {
-      router.replace('/(onboarding)/cloud-data-conflict' as never);
-      return;
-    }
-
-    if (!isSetupComplete && isReconciling) return;
-
-    if (!isSetupComplete) {
-      router.replace('/(onboarding)/setup');
-      return;
-    }
-
-    router.replace('/(app)/dashboard');
+    router.replace('/(onboarding)/login');
   }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, pendingVerificationEmail, isSetupComplete, pendingCloudConflict, isReconciling]);
 
   return (

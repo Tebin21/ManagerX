@@ -109,7 +109,9 @@ export default function VerifyEmailScreen() {
     if (error) {
       setVerifyError(error);
     } else if (verified) {
-      router.replace('/');
+      const { useOnboardingStore } = await import('@/store/onboardingStore');
+      useOnboardingStore.getState().completeOnboarding();
+      router.replace('/(app)/dashboard');
     } else {
       setVerifyError(t('verifyEmail.errorInvalidCode'));
     }

@@ -24,6 +24,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import { TABLET_LOGIN_BRO_SVG } from '@/constants/onboardingIllustrations';
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
@@ -116,7 +117,8 @@ export default function LoginScreen() {
     } else if (needsVerification) {
       router.replace('/(onboarding)/verify-email' as never);
     } else {
-      router.replace('/');
+      useOnboardingStore.getState().completeOnboarding();
+      router.replace('/(app)/dashboard');
     }
   };
 
@@ -126,7 +128,8 @@ export default function LoginScreen() {
     if (error) {
       setAuthError(error);
     } else {
-      router.replace('/');
+      useOnboardingStore.getState().completeOnboarding();
+      router.replace('/(app)/dashboard');
     }
   };
 
@@ -136,7 +139,8 @@ export default function LoginScreen() {
     if (error) {
       setAuthError(error);
     } else {
-      router.replace('/');
+      useOnboardingStore.getState().completeOnboarding();
+      router.replace('/(app)/dashboard');
     }
   };
 
