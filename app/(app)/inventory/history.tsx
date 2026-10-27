@@ -24,55 +24,11 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
-import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
-import { toDateOnly, toEnglishDigits } from '@/utils/formatters';
+import { PeriodFilterModal } from '@/components/shared/PeriodFilterModal';
+import { usePeriodFilter } from '@/hooks/usePeriodFilter';
+import { isDateWithinRange, formatDateShort, type PeriodKey } from '@/utils/dateRanges';
+import { toEnglishDigits } from '@/utils/formatters';
 import type { InventoryHistoryItem as HistoryItem } from '@/types/inventory';
-
-type HistoryPeriodKey = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
-
-function applyPeriodFilter(
-  list: HistoryItem[],
-  filter: HistoryPeriodKey,
-  range: { from: string; to: string } | null,
-): HistoryItem[] {
-  const now = new Date();
-  const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const utcToday = toDateOnly(now);
-
-  switch (filter) {
-    case 'all':
-      return list;
-    case 'today':
-      return list.filter((item) => {
-        const d = (item.archivedAt ?? '').slice(0, 10);
-        return d === localToday || d === utcToday;
-      });
-    case 'week': {
-      const d = new Date(now);
-      const dow = d.getDay();
-      d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
-      const weekStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      return list.filter((item) => {
-        const dStr = (item.archivedAt ?? '').slice(0, 10);
-        return dStr >= weekStart && dStr <= localToday;
-      });
-    }
-    case 'month': {
-      const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      return list.filter((item) => (item.archivedAt ?? '').startsWith(prefix));
-    }
-    case 'year':
-      return list.filter((item) => (item.archivedAt ?? '').startsWith(String(now.getFullYear())));
-    case 'custom':
-      if (!range) return list;
-      return list.filter((item) => {
-        const d = (item.archivedAt ?? '').slice(0, 10);
-        return d >= range.from && d <= range.to;
-      });
-    default:
-      return list;
-  }
-}
 
 export default function InventoryHistoryScreen() {
   const router = useRouter();
@@ -88,9 +44,14 @@ export default function InventoryHistoryScreen() {
     restoreFromHistory,
   } = useInventoryStore();
 
-  const [periodFilter, setPeriodFilter] = useState<HistoryPeriodKey>('all');
-  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
+  const {
+    period,
+    bounds,
+    periodSheetVisible,
+    setPeriodSheetVisible,
+    handlePeriodSelect,
+  } = usePeriodFilter('all');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,14 +111,17 @@ export default function InventoryHistoryScreen() {
     );
   }, [restoreFromHistory, t, router]);
 
-  // Section is strictly dedicated to deleted products
+  // Section is strictly dedicated to deleted products (status === 'removed')
   const deletedProducts = useMemo(() => {
     return inventoryHistory.filter((h) => h.status === 'removed');
   }, [inventoryHistory]);
 
   const periodFiltered = useMemo(() => {
-    return applyPeriodFilter(deletedProducts, periodFilter, customRange);
-  }, [deletedProducts, periodFilter, customRange]);
+    if (period === 'all') return deletedProducts;
+    return deletedProducts.filter((item) =>
+      isDateWithinRange(item.archivedAt, bounds.from, bounds.to)
+    );
+  }, [deletedProducts, period, bounds]);
 
   const searchLower = toEnglishDigits(searchQuery).trim().toLowerCase();
 
@@ -171,8 +135,8 @@ export default function InventoryHistoryScreen() {
     });
   }, [periodFiltered, searchLower]);
 
-  const filterKeys: HistoryPeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
-  const filterLabels: Record<HistoryPeriodKey, string> = {
+  const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
+  const filterLabels: Record<PeriodKey, string> = {
     today:  isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today'),
     week:   isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
     month:  isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
@@ -181,24 +145,31 @@ export default function InventoryHistoryScreen() {
     custom: isKurdish ? 'دیاریکراو' : t('reports.custom', 'Custom'),
   };
 
-  const handlePeriodChange = (key: HistoryPeriodKey) => {
+  const periodDisplayLabel = useMemo(() => {
+    if (period === 'today') return isKurdish ? 'ئەمڕۆ' : t('common.today', 'Today');
+    if (period === 'week') return isKurdish ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week');
+    if (period === 'month') return isKurdish ? 'ئەم مانگە' : t('common.thisMonth', 'This Month');
+    if (period === 'year') return isKurdish ? 'ئەمساڵ' : t('reports.year', 'This Year');
+    if (period === 'all') return isKurdish ? 'هەمووی' : 'All';
+    return `${formatDateShort(bounds.from)} → ${formatDateShort(bounds.to)}`;
+  }, [period, bounds, isKurdish, t]);
+
+  const handlePeriodTabPress = (key: PeriodKey) => {
     if (key === 'custom') {
-      setCustomOpen(true);
+      setPeriodSheetVisible(true);
     } else {
-      setPeriodFilter(key);
-      setCustomRange(null);
+      handlePeriodSelect(key);
     }
   };
 
   const resetAllFilters = () => {
     setSearchQuery('');
     setIsSearchOpen(false);
-    setPeriodFilter('all');
-    setCustomRange(null);
+    handlePeriodSelect('all');
   };
 
   const renderEmpty = () => {
-    const isFiltered = searchQuery.length > 0 || periodFilter !== 'all';
+    const isFiltered = searchQuery.length > 0 || period !== 'all';
     return (
       <MotiView
         from={{ opacity: 0 }}
@@ -421,11 +392,11 @@ export default function InventoryHistoryScreen() {
                 ]}
               >
                 {filterKeys.map((key) => {
-                  const active = periodFilter === key;
+                  const active = period === key;
                   return (
                     <TouchableOpacity
                       key={key}
-                      onPress={() => handlePeriodChange(key)}
+                      onPress={() => handlePeriodTabPress(key)}
                       style={[
                         styles.pill,
                         isRTL && { transform: [{ scaleX: -1 }] },
@@ -457,7 +428,7 @@ export default function InventoryHistoryScreen() {
           )}
 
           {/* Custom Date Range Badge */}
-          {periodFilter === 'custom' && customRange && !isSearchOpen && (
+          {period === 'custom' && !isSearchOpen && (
             <View
               style={[
                 styles.customRangeBanner,
@@ -469,7 +440,7 @@ export default function InventoryHistoryScreen() {
             >
               <Ionicons name="calendar" size={13} color={colors.primary} />
               <Text style={[styles.customRangeText, { color: colors.primary }]}>
-                {customRange.from} &rarr; {customRange.to}
+                {periodDisplayLabel}
               </Text>
             </View>
           )}
@@ -529,18 +500,13 @@ export default function InventoryHistoryScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Custom Date Range Modal */}
-      <CustomDateRangeModal
-        visible={customOpen}
-        initialFrom={customRange?.from}
-        initialTo={customRange?.to}
-        onClose={() => setCustomOpen(false)}
-        onApply={(from, to) => {
-          setCustomRange({ from, to });
-          setPeriodFilter('custom');
-          setCustomOpen(false);
-        }}
-        title={isKurdish ? 'دیاریکردنی ماوەی بەرهەمە سڕاوەکان' : 'Select Date Range'}
+      {/* Period Filter Modal */}
+      <PeriodFilterModal
+        visible={periodSheetVisible}
+        onClose={() => setPeriodSheetVisible(false)}
+        onSelect={handlePeriodSelect}
+        current={period}
+        includeAll
       />
     </View>
   );

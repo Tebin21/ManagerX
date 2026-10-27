@@ -89,7 +89,10 @@ export function formatPeriodLabel(key: PeriodKey, from: Date, to: Date): string 
 
 export function isDateWithinRange(dateStr: string | null | undefined, from: Date, to: Date): boolean {
   if (!dateStr) return false;
-  const t = new Date(dateStr).getTime();
+  let t = new Date(dateStr).getTime();
+  if (isNaN(t) && typeof dateStr === 'string' && dateStr.includes(' ')) {
+    t = new Date(dateStr.replace(' ', 'T')).getTime();
+  }
   if (isNaN(t)) return false;
   return t >= from.getTime() && t <= to.getTime();
 }
