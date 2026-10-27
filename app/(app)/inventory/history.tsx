@@ -15,8 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 
 import { AppHeader } from '@/components/common/AppHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useTranslation } from 'react-i18next';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { useBusinessStore } from '@/store/businessStore';
+import { shareInventoryHistoryAuditReport } from '@/lib/generateInvoice';
 import { InventoryHistoryItem } from '@/components/inventory/InventoryHistoryItem';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { Theme } from '@/constants/theme';
@@ -55,6 +58,7 @@ export default function InventoryHistoryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const searchInputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -162,6 +166,31 @@ export default function InventoryHistoryScreen() {
     }
   };
 
+  const handleExportPdf = useCallback(async () => {
+    if (finalFiltered.length === 0) {
+      Alert.alert(
+        isKurdish ? 'ئاگاداری' : 'Notice',
+        isKurdish ? 'هیچ بەرهەمێکی سڕاوە نییە بۆ دەرهێنانی پدیف' : 'No deleted products to export'
+      );
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const business = useBusinessStore.getState();
+      await shareInventoryHistoryAuditReport(finalFiltered, periodDisplayLabel, {
+        name: business.name || 'My Store',
+        phone: business.phone || '',
+        address: business.address || '',
+        logoUri: business.logoUri ?? null,
+      });
+    } catch (err) {
+      console.error('[InventoryHistory] Export PDF failed:', err);
+      Alert.alert(isKurdish ? 'هەڵە' : 'Error', String(err));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [finalFiltered, periodDisplayLabel, isKurdish]);
+
   const resetAllFilters = () => {
     setSearchQuery('');
     setIsSearchOpen(false);
@@ -246,6 +275,12 @@ export default function InventoryHistoryScreen() {
         title={t('inventoryHistory.title')}
         showBack
         onBack={() => router.back()}
+        rightAction={
+          <HeaderActionButton
+            icon="document-text-outline"
+            onPress={handleExportPdf}
+          />
+        }
       />
 
       {/* Filter & Search Bar */}
@@ -507,6 +542,8 @@ export default function InventoryHistoryScreen() {
         onSelect={handlePeriodSelect}
         current={period}
         includeAll
+        onExportPdf={handleExportPdf}
+        isExportingPdf={isExporting}
       />
     </View>
   );

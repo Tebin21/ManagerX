@@ -39,7 +39,7 @@ import type { FullReportData } from './reportTemplate';
 import type { FinancialExportData } from './financialReportTemplate';
 import type { Sale, SaleItem, Debt } from '@/types/sales';
 import type { Purchase } from '@/types/purchases';
-import type { InventoryProduct, InventoryStats } from '@/types/inventory';
+import type { InventoryProduct, InventoryStats, InventoryHistoryItem } from '@/types/inventory';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
@@ -718,6 +718,31 @@ export async function sharePurchasesAuditReport(
   } catch (err) {
     console.error('[PDF] sharePurchasesAuditReport unexpected error:', err);
     Alert.alert('Error', 'Could not generate the purchases audit report. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function shareInventoryHistoryAuditReport(
+  items: InventoryHistoryItem[],
+  periodLabel: string,
+  business: BusinessInfo
+): Promise<boolean> {
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const { buildInventoryHistoryReportHTML } = await import('./inventoryHistoryReportTemplate');
+    const html = buildInventoryHistoryReportHTML(items, periodLabel, biz, getDir());
+    const isKu = i18n.language === 'ku' || !i18n.language;
+    return await generateAndShare(
+      html,
+      isKu ? `جەردی بەرهەمە سڕاوەکان — ${periodLabel}` : `Deleted Products Audit Report — ${periodLabel}`,
+      isKu ? 'نەتوانرا جەردی بەرهەمە سڕاوەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the deleted products audit report PDF. Please try again.'
+    );
+  } catch (err) {
+    console.error('[PDF] shareInventoryHistoryAuditReport unexpected error:', err);
+    Alert.alert('Error', 'Could not generate the deleted products audit report. Please try again.');
     return false;
   } finally {
     releaseGenerationLock();
