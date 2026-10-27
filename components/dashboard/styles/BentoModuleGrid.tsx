@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,8 +60,6 @@ function BentoHeroCard({
 
   const pressAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasTriggeredHoldRef = useRef(false);
 
   useEffect(() => {
     if (isSelected) {
@@ -89,53 +87,23 @@ function BentoHeroCard({
     }
   }, [isSelected, pulseAnim]);
 
-  const clearTimer = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => clearTimer();
-  }, []);
-
-  const handlePressIn = () => {
-    hasTriggeredHoldRef.current = false;
-    clearTimer();
-
-    Animated.spring(pressAnim, {
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 1,
+      duration: 60,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
+  }, [pressAnim]);
 
-    holdTimerRef.current = setTimeout(() => {
-      hasTriggeredHoldRef.current = true;
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
-      onStartCustomize?.(item.id);
-    }, 350);
-  };
-
-  const handlePressOut = () => {
-    clearTimer();
-    Animated.spring(pressAnim, {
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 0,
+      duration: 80,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
-  };
+  }, [pressAnim]);
 
-  const handlePress = () => {
-    if (hasTriggeredHoldRef.current) {
-      hasTriggeredHoldRef.current = false;
-      return;
-    }
-
+  const handlePress = useCallback(() => {
     if (isCustomizing) {
       onSelectForSwap?.(item.id);
       return;
@@ -145,15 +113,23 @@ function BentoHeroCard({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
     router.push(item.route as never);
-  };
+  }, [isCustomizing, onSelectForSwap, item.id, item.route, router]);
 
-  const scale = Animated.multiply(
-    pulseAnim,
-    pressAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0.98],
-    })
-  );
+  const handleLongPress = useCallback(() => {
+    if (!isCustomizing) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+      onStartCustomize?.(item.id);
+    }
+  }, [isCustomizing, onStartCustomize, item.id]);
+
+  const scale = isSelected
+    ? pulseAnim
+    : pressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.98],
+      });
 
   const heroIconBoxSize = isTabletLandscape ? 80 : isTablet ? 68 : 52;
   const heroIconSize = isTabletLandscape ? 42 : isTablet ? 36 : 28;
@@ -163,16 +139,8 @@ function BentoHeroCard({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
-      onLongPress={() => {
-        if (!hasTriggeredHoldRef.current) {
-          hasTriggeredHoldRef.current = true;
-          try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-          } catch {}
-          onStartCustomize?.(item.id);
-        }
-      }}
-      delayLongPress={350}
+      onLongPress={handleLongPress}
+      delayLongPress={450}
       style={{ width: isTablet ? '48.5%' : '100%' }}
     >
       <Animated.View
@@ -291,8 +259,6 @@ function BentoRegularTile({
 
   const pressAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasTriggeredHoldRef = useRef(false);
 
   useEffect(() => {
     if (isSelected) {
@@ -320,53 +286,23 @@ function BentoRegularTile({
     }
   }, [isSelected, pulseAnim]);
 
-  const clearTimer = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => clearTimer();
-  }, []);
-
-  const handlePressIn = () => {
-    hasTriggeredHoldRef.current = false;
-    clearTimer();
-
-    Animated.spring(pressAnim, {
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 1,
+      duration: 60,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
+  }, [pressAnim]);
 
-    holdTimerRef.current = setTimeout(() => {
-      hasTriggeredHoldRef.current = true;
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
-      onStartCustomize?.(item.id);
-    }, 350);
-  };
-
-  const handlePressOut = () => {
-    clearTimer();
-    Animated.spring(pressAnim, {
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 0,
+      duration: 80,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
-  };
+  }, [pressAnim]);
 
-  const handlePress = () => {
-    if (hasTriggeredHoldRef.current) {
-      hasTriggeredHoldRef.current = false;
-      return;
-    }
-
+  const handlePress = useCallback(() => {
     if (isCustomizing) {
       onSelectForSwap?.(item.id);
       return;
@@ -376,15 +312,23 @@ function BentoRegularTile({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
     router.push(item.route as never);
-  };
+  }, [isCustomizing, onSelectForSwap, item.id, item.route, router]);
 
-  const scale = Animated.multiply(
-    pulseAnim,
-    pressAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0.97],
-    })
-  );
+  const handleLongPress = useCallback(() => {
+    if (!isCustomizing) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+      onStartCustomize?.(item.id);
+    }
+  }, [isCustomizing, onStartCustomize, item.id]);
+
+  const scale = isSelected
+    ? pulseAnim
+    : pressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.97],
+      });
 
   const tileWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.5%' : '48.5%';
   const tileIconBoxSize = isTabletLandscape ? 62 : isTablet ? 54 : 38;
@@ -395,16 +339,8 @@ function BentoRegularTile({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
-      onLongPress={() => {
-        if (!hasTriggeredHoldRef.current) {
-          hasTriggeredHoldRef.current = true;
-          try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-          } catch {}
-          onStartCustomize?.(item.id);
-        }
-      }}
-      delayLongPress={350}
+      onLongPress={handleLongPress}
+      delayLongPress={450}
       style={{ width: tileWidth }}
     >
       <Animated.View
@@ -489,7 +425,10 @@ function BentoRegularTile({
   );
 }
 
-export function BentoModuleGrid({
+const MemoizedBentoHeroCard = React.memo(BentoHeroCard);
+const MemoizedBentoRegularTile = React.memo(BentoRegularTile);
+
+function BentoModuleGridImpl({
   modules,
   isCustomizing = false,
   selectedIdForSwap = null,
@@ -507,7 +446,7 @@ export function BentoModuleGrid({
       {/* 1. Hero Bento Cards */}
       <View style={[styles.heroRow, isTablet && { gap: isTabletLandscape ? 18 : 16 }]}>
         {heroModules.map((item) => (
-          <BentoHeroCard
+          <MemoizedBentoHeroCard
             key={item.id}
             item={item}
             isCustomizing={isCustomizing}
@@ -536,7 +475,7 @@ export function BentoModuleGrid({
               ? regularModules.length % 3 !== 0
               : regularModules.length % 2 !== 0);
           return (
-            <BentoRegularTile
+            <MemoizedBentoRegularTile
               key={item.id}
               item={item}
               isCustomizing={isCustomizing}
@@ -551,6 +490,8 @@ export function BentoModuleGrid({
     </View>
   );
 }
+
+export const BentoModuleGrid = React.memo(BentoModuleGridImpl);
 
 const styles = StyleSheet.create({
   container: {

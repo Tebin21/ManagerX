@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   Pressable,
   View,
@@ -13,7 +13,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL } from '@/lib/rtl';
 import i18n from '@/lib/i18n';
-import { ModuleDefinition } from '@/constants/config';
+import { ModuleDefinition, ModuleId } from '@/constants/config';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
 import type { ModuleLayout } from '@/store/moduleStore';
@@ -26,9 +26,9 @@ interface Props {
   isCustomizing?: boolean;
   isSelectedForSwap?: boolean;
   onPress?: () => void;
-  onStartCustomize?: () => void;
-  onToggleLayout?: () => void;
-  onSelectForSwap?: () => void;
+  onStartCustomize?: (id: ModuleId) => void;
+  onToggleLayout?: (id: ModuleId) => void;
+  onSelectForSwap?: (id: ModuleId) => void;
   isLastRowPair?: boolean;
   isSingleLastItem?: boolean;
 }
@@ -170,7 +170,25 @@ const DEFAULT_THEME: ModuleVisualTheme = {
   glowColor: 'rgba(71, 85, 105, 0.2)',
 };
 
-export function ModuleCard({
+const stylesCache = new Map<string, any>();
+function getCachedStyles(
+  isTablet: boolean,
+  isLargeTablet: boolean,
+  isTabletLandscape: boolean,
+  isFull: boolean,
+  isDark: boolean,
+  isLastRowPair: boolean
+) {
+  const key = `${isTablet}_${isLargeTablet}_${isTabletLandscape}_${isFull}_${isDark}_${isLastRowPair}`;
+  let cached = stylesCache.get(key);
+  if (!cached) {
+    cached = getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair);
+    stylesCache.set(key, cached);
+  }
+  return cached;
+}
+
+function ModuleCardImpl({
   module,
   enabled,
   label,
@@ -195,189 +213,96 @@ export function ModuleCard({
   const isEffectivelyFull = isFull || isSingleLastItem;
   const theme = MODULE_THEMES[module.id] || DEFAULT_THEME;
 
-  const [isLifted, setIsLifted] = useState(false);
-
   const pressAnim = useRef(new Animated.Value(0)).current;
-  const liftAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // Timers for hold detection and 2-second alternating shape cycle
-  const liftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shapeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const hasTriggeredHoldRef = useRef(false);
-  const hasToggledShapeRef = useRef(false);
 
   // Pulse animation when selected for swap
   useEffect(() => {
-    if (isSelectedForSwap && !isLifted) {
+    if (isSelectedForSwap) {
       const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.03,
-            duration: 450,
+            toValue: 1.035,
+            duration: 380,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
-            toValue: 0.98,
-            duration: 450,
+            toValue: 0.985,
+            duration: 380,
             useNativeDriver: true,
           }),
         ])
       );
       loop.start();
-      return () => loop.stop();
+      return () => {
+        loop.stop();
+        pulseAnim.setValue(1);
+      };
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isSelectedForSwap, isLifted, pulseAnim]);
+  }, [isSelectedForSwap, pulseAnim]);
 
-  const clearTimers = () => {
-    if (liftTimerRef.current) {
-      clearTimeout(liftTimerRef.current);
-      liftTimerRef.current = null;
-    }
-    if (shapeTimerRef.current) {
-      clearTimeout(shapeTimerRef.current);
-      shapeTimerRef.current = null;
-    }
-    if (shapeIntervalRef.current) {
-      clearInterval(shapeIntervalRef.current);
-      shapeIntervalRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => clearTimers();
-  }, []);
-
-  const handlePressIn = () => {
-    hasTriggeredHoldRef.current = false;
-    hasToggledShapeRef.current = false;
-    clearTimers();
-
-    // 1. Initial downward press feedback
-    Animated.spring(pressAnim, {
+  // Snappy native press animations (60ms down, 80ms up, zero JS re-render)
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 1,
+      duration: 60,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
+  }, [pressAnim]);
 
-    // 2. Lift Elevation Timer (~350ms):
-    liftTimerRef.current = setTimeout(() => {
-      hasTriggeredHoldRef.current = true;
-      setIsLifted(true);
-
-      Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true }).start();
-      Animated.spring(liftAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 320,
-        friction: 18,
-      }).start();
-
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
-
-      onStartCustomize?.();
-    }, 350);
-
-    // 3. 2-Second Alternating Shape Cycle:
-    shapeTimerRef.current = setTimeout(() => {
-      hasToggledShapeRef.current = true;
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } catch {}
-
-      onToggleLayout?.();
-
-      shapeIntervalRef.current = setInterval(() => {
-        hasToggledShapeRef.current = true;
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        } catch {}
-
-        onToggleLayout?.();
-      }, 2000);
-    }, 2000);
-  };
-
-  const handlePressOut = () => {
-    clearTimers();
-    setIsLifted(false);
-
-    Animated.spring(pressAnim, {
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 0,
+      duration: 80,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
+  }, [pressAnim]);
 
-    Animated.spring(liftAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 280,
-      friction: 18,
-    }).start();
-
-    if (hasToggledShapeRef.current) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      } catch {}
-    }
-  };
-
-  const handlePress = () => {
-    if (hasTriggeredHoldRef.current) {
-      hasTriggeredHoldRef.current = false;
-      return;
-    }
-
+  const handlePress = useCallback(() => {
     if (isCustomizing) {
-      onSelectForSwap?.();
+      onSelectForSwap?.(module.id);
       return;
     }
 
     if (!enabled) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } catch {}
+
     if (onPress) {
       onPress();
     } else {
       router.push(module.route as any);
     }
-  };
+  }, [isCustomizing, enabled, onPress, module.id, module.route, onSelectForSwap, router]);
 
-  const normalPressTranslate = pressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 3.5],
-  });
+  const handleLongPress = useCallback(() => {
+    if (!isCustomizing) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+      onStartCustomize?.(module.id);
+    }
+  }, [isCustomizing, onStartCustomize, module.id]);
 
-  const liftTranslate = liftAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -8],
-  });
+  const scale = isSelectedForSwap
+    ? pulseAnim
+    : pressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.97],
+      });
 
-  const translateY = Animated.add(normalPressTranslate, liftTranslate);
-
-  const pressScale = pressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.985],
-  });
-
-  const liftScale = liftAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.04],
-  });
-
-  const totalScale = Animated.multiply(
-    Animated.multiply(pulseAnim, liftScale),
-    pressScale
-  );
+  const translateY = isSelectedForSwap
+    ? -4
+    : pressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 2.5],
+      });
 
   const styles = useMemo(
-    () => getStyles(isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair),
+    () => getCachedStyles(isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair),
     [isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair]
   );
 
@@ -387,8 +312,8 @@ export function ModuleCard({
         styles.container,
         {
           opacity: enabled ? 1 : 0.5,
-          transform: [{ scale: totalScale }, { translateY }],
-          zIndex: isLifted || isSelectedForSwap ? 999 : 1,
+          transform: [{ scale }, { translateY }],
+          zIndex: isSelectedForSwap ? 999 : 1,
         },
       ]}
     >
@@ -396,6 +321,8 @@ export function ModuleCard({
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        onLongPress={handleLongPress}
+        delayLongPress={450}
         style={styles.pressable}
       >
         <View
@@ -403,40 +330,31 @@ export function ModuleCard({
             styles.cardSurface,
             {
               backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
-              borderTopWidth: isLifted || isSelectedForSwap ? 2 : 1,
-              borderLeftWidth: isLifted || isSelectedForSwap ? 2 : 1,
-              borderRightWidth: isLifted || isSelectedForSwap ? 2 : 1,
-              borderBottomWidth: isLifted || isSelectedForSwap ? 2 : 3.5,
-              borderTopColor: isLifted
-                ? colors.primary
-                : isSelectedForSwap
+              borderTopWidth: isSelectedForSwap ? 2 : 1,
+              borderLeftWidth: isSelectedForSwap ? 2 : 1,
+              borderRightWidth: isSelectedForSwap ? 2 : 1,
+              borderBottomWidth: isSelectedForSwap ? 2 : 3.5,
+              borderTopColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
                 ? '#334155'
                 : '#F1F5F9',
-              borderLeftColor: isLifted
-                ? colors.primary
-                : isSelectedForSwap
+              borderLeftColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
                 ? '#334155'
                 : '#E2E8F0',
-              borderRightColor: isLifted
-                ? colors.primary
-                : isSelectedForSwap
+              borderRightColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
                 ? '#334155'
                 : '#E2E8F0',
-              borderBottomColor: isLifted
-                ? colors.primary
-                : isSelectedForSwap
+              borderBottomColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
                 ? '#0F172A'
                 : '#CBD5E1',
             },
-            isLifted && styles.cardLifted,
           ]}
         >
           {isEffectivelyFull ? (
@@ -499,9 +417,9 @@ export function ModuleCard({
               </View>
             </View>
           ) : (
-            /* SQUARE (CHWARGÔSHE) CARD LAYOUT */
+            /* SQUARE LAYOUT */
             <View style={styles.squareContent}>
-              {/* Centered Glowing Pastel Circle Icon */}
+              {/* Leading Icon Circle */}
               <View
                 style={[
                   styles.circleContainerSquare,
@@ -556,7 +474,7 @@ export function ModuleCard({
             <Pressable
               onPress={(e) => {
                 e.stopPropagation?.();
-                onToggleLayout?.();
+                onToggleLayout?.(module.id);
               }}
               style={[
                 styles.customizeMiniToggle,
@@ -580,6 +498,8 @@ export function ModuleCard({
     </Animated.View>
   );
 }
+
+export const ModuleCard = React.memo(ModuleCardImpl);
 
 function getStyles(
   isTablet: boolean,

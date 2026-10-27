@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -29,7 +29,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export function ModuleGrid() {
+function ModuleGridImpl() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -38,14 +38,12 @@ export function ModuleGrid() {
 
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
-  const {
-    modules,
-    dashboardStyle = 'classic',
-    toggleModuleLayout,
-    setAllLayouts,
-    swapModules,
-    resetToDefaultLayout,
-  } = useModuleStore();
+  const modules = useModuleStore((s) => s.modules);
+  const dashboardStyle = useModuleStore((s) => s.dashboardStyle ?? 'classic');
+  const toggleModuleLayout = useModuleStore((s) => s.toggleModuleLayout);
+  const setAllLayouts = useModuleStore((s) => s.setAllLayouts);
+  const swapModules = useModuleStore((s) => s.swapModules);
+  const resetToDefaultLayout = useModuleStore((s) => s.resetToDefaultLayout);
 
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [selectedIdForSwap, setSelectedIdForSwap] = useState<ModuleId | null>(null);
@@ -118,67 +116,69 @@ export function ModuleGrid() {
     return { tabletPortraitPairSet: twoItemSet, singleItemRowSet: singleSet };
   }, [displayModules, modules, isTablet, isTabletLandscape]);
 
-  const animateLayout = () => {
+  const animateLayout = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  };
+  }, []);
 
-  const safeImpact = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+  const safeImpact = useCallback((style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
     try {
       Haptics.impactAsync(style).catch(() => {});
     } catch {}
-  };
+  }, []);
 
-  const safeNotification = (type: Haptics.NotificationFeedbackType = Haptics.NotificationFeedbackType.Success) => {
+  const safeNotification = useCallback((type: Haptics.NotificationFeedbackType = Haptics.NotificationFeedbackType.Success) => {
     try {
       Haptics.notificationAsync(type).catch(() => {});
     } catch {}
-  };
+  }, []);
 
-  const handleStartCustomize = (id: ModuleId) => {
+  const handleStartCustomize = useCallback((id: ModuleId) => {
     animateLayout();
     setIsCustomizing(true);
     setSelectedIdForSwap(id);
-  };
+  }, [animateLayout]);
 
-  const handleToggleLayout = (id: ModuleId) => {
+  const handleToggleLayout = useCallback((id: ModuleId) => {
     animateLayout();
     toggleModuleLayout(id);
-  };
+  }, [animateLayout, toggleModuleLayout]);
 
-  const handleSetAll = (layout: 'half' | 'full') => {
+  const handleSetAll = useCallback((layout: 'half' | 'full') => {
     safeImpact(Haptics.ImpactFeedbackStyle.Medium);
     animateLayout();
     setAllLayouts(layout);
-  };
+  }, [safeImpact, animateLayout, setAllLayouts]);
 
-  const handleSelectForSwap = (id: ModuleId) => {
-    if (!selectedIdForSwap) {
-      safeImpact(Haptics.ImpactFeedbackStyle.Light);
-      setSelectedIdForSwap(id);
-    } else if (selectedIdForSwap === id) {
-      safeImpact(Haptics.ImpactFeedbackStyle.Light);
-      setSelectedIdForSwap(null);
-    } else {
+  const handleSelectForSwap = useCallback((id: ModuleId) => {
+    setSelectedIdForSwap((prev) => {
+      if (!prev) {
+        safeImpact(Haptics.ImpactFeedbackStyle.Light);
+        return id;
+      }
+      if (prev === id) {
+        safeImpact(Haptics.ImpactFeedbackStyle.Light);
+        return null;
+      }
       safeNotification(Haptics.NotificationFeedbackType.Success);
       animateLayout();
-      swapModules(selectedIdForSwap, id);
-      setSelectedIdForSwap(null);
-    }
-  };
+      swapModules(prev, id);
+      return null;
+    });
+  }, [safeImpact, safeNotification, animateLayout, swapModules]);
 
-  const handleDone = () => {
+  const handleDone = useCallback(() => {
     safeNotification(Haptics.NotificationFeedbackType.Success);
     animateLayout();
     setIsCustomizing(false);
     setSelectedIdForSwap(null);
-  };
+  }, [safeNotification, animateLayout]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     safeNotification(Haptics.NotificationFeedbackType.Warning);
     animateLayout();
     resetToDefaultLayout();
     setSelectedIdForSwap(null);
-  };
+  }, [safeNotification, animateLayout, resetToDefaultLayout]);
 
   return (
     <View style={[styles.container, { paddingHorizontal: isTabletLandscape ? 4 : isTablet ? 12 : 8 }]}>
@@ -372,9 +372,9 @@ export function ModuleGrid() {
                 isSelectedForSwap={isSelected}
                 isLastRowPair={isLastRowPair}
                 isSingleLastItem={isSingleLastItem}
-                onStartCustomize={() => handleStartCustomize(item.id)}
-                onToggleLayout={() => handleToggleLayout(item.id)}
-                onSelectForSwap={() => handleSelectForSwap(item.id)}
+                onStartCustomize={handleStartCustomize}
+                onToggleLayout={handleToggleLayout}
+                onSelectForSwap={handleSelectForSwap}
               />
             );
           })}
@@ -383,6 +383,8 @@ export function ModuleGrid() {
     </View>
   );
 }
+
+export const ModuleGrid = React.memo(ModuleGridImpl);
 
 const styles = StyleSheet.create({
   container: {

@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -40,17 +39,16 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        removeClippedSubviews={Platform.OS === 'android'}
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: Math.max(insets.bottom, 16) + 16 },
         ]}
       >
         <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
-          {/* Top Bar with BexDre Logo & Settings Button - scrolls smoothly with content */}
-          <MotiView
-            from={{ opacity: 0, translateY: 16 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, delay: 200 }}
+          {/* Top Bar with BexDre Logo & Settings Button */}
+          <View
             style={[
               styles.sectionHeader,
               { paddingTop: safeTopPadding, paddingBottom: 10 },
@@ -60,6 +58,7 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               onPress={() => router.push('/(app)/settings' as never)}
+              activeOpacity={0.7}
               style={[
                 styles.settingsBtn,
                 {
@@ -74,23 +73,11 @@ export default function DashboardScreen() {
             >
               <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
             </TouchableOpacity>
-          </MotiView>
+          </View>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 24 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, delay: 300 }}
-          >
-            <ModuleGrid />
-          </MotiView>
+          <ModuleGrid />
 
-          <MotiView
-            from={{ opacity: 0, translateY: 24 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18, delay: 420 }}
-          >
-            <OnlineStoreCard />
-          </MotiView>
+          <OnlineStoreCard />
 
           <SupportFooter compact />
         </View>

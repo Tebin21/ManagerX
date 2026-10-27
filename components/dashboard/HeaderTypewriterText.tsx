@@ -26,7 +26,7 @@ const DELETING_SPEED = 35; // ms per char
 const HOLD_DURATION = 5000; // 5 seconds hold as requested by user
 const PAUSE_BEFORE_NEXT = 500; // ms pause after erasing
 
-export function HeaderTypewriterText({ isKurdish, style }: Props) {
+function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
   const { isTablet } = useResponsive();
   const phrases = useMemo(
     () => (isKurdish ? KURDISH_PHRASES : ENGLISH_PHRASES),
@@ -36,15 +36,27 @@ export function HeaderTypewriterText({ isKurdish, style }: Props) {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [cursorVisible, setCursorVisible] = useState(true);
+  const cursorOpacity = useRef(new Animated.Value(1)).current;
 
-  // Blinking cursor timer
+  // Blinking cursor runs entirely on native thread via Animated.loop (zero JS re-renders)
   useEffect(() => {
-    const cursorInterval = setInterval(() => {
-      setCursorVisible((prev) => !prev);
-    }, 530);
-    return () => clearInterval(cursorInterval);
-  }, []);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(cursorOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cursorOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [cursorOpacity]);
 
   // Main typing engine
   useEffect(() => {
@@ -99,11 +111,13 @@ export function HeaderTypewriterText({ isKurdish, style }: Props) {
         numberOfLines={1}
       >
         {displayText}
-        <Text style={[styles.cursor, { opacity: cursorVisible ? 0.9 : 0 }]}> |</Text>
+        <Animated.Text style={[styles.cursor, { opacity: cursorOpacity }]}> |</Animated.Text>
       </Text>
     </View>
   );
 }
+
+export const HeaderTypewriterText = React.memo(HeaderTypewriterTextImpl);
 
 const styles = StyleSheet.create({
   container: {

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,53 +104,23 @@ function LuxeItem({
     }
   }, [isSelected, pulseAnim, liftAnim]);
 
-  const clearTimer = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => clearTimer();
-  }, []);
-
-  const handlePressIn = () => {
-    hasTriggeredHoldRef.current = false;
-    clearTimer();
-
-    Animated.spring(pressAnim, {
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 1,
+      duration: 60,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
+  }, [pressAnim]);
 
-    holdTimerRef.current = setTimeout(() => {
-      hasTriggeredHoldRef.current = true;
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
-      onStartCustomize?.(item.id);
-    }, 350);
-  };
-
-  const handlePressOut = () => {
-    clearTimer();
-    Animated.spring(pressAnim, {
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressAnim, {
       toValue: 0,
+      duration: 80,
       useNativeDriver: true,
-      tension: 280,
-      friction: 18,
     }).start();
-  };
+  }, [pressAnim]);
 
-  const handlePress = () => {
-    if (hasTriggeredHoldRef.current) {
-      hasTriggeredHoldRef.current = false;
-      return;
-    }
-
+  const handlePress = useCallback(() => {
     if (isCustomizing) {
       onSelectForSwap?.(item.id);
       return;
@@ -160,20 +130,30 @@ function LuxeItem({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {}
     router.push(item.route as never);
-  };
+  }, [isCustomizing, onSelectForSwap, item.id, item.route, router]);
 
-  const scale = Animated.multiply(
-    pulseAnim,
-    pressAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0.97],
-    })
-  );
+  const handleLongPress = useCallback(() => {
+    if (!isCustomizing) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+      onStartCustomize?.(item.id);
+    }
+  }, [isCustomizing, onStartCustomize, item.id]);
 
-  const translateY = liftAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -5],
-  });
+  const scale = isSelected
+    ? pulseAnim
+    : pressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.97],
+      });
+
+  const translateY = isSelected
+    ? -4
+    : liftAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -5],
+      });
 
   const cardWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : '48.5%';
   const ringSize = isTabletLandscape ? 54 : isTablet ? 46 : 34;
@@ -183,16 +163,8 @@ function LuxeItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
-      onLongPress={() => {
-        if (!hasTriggeredHoldRef.current) {
-          hasTriggeredHoldRef.current = true;
-          try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-          } catch {}
-          onStartCustomize?.(item.id);
-        }
-      }}
-      delayLongPress={350}
+      onLongPress={handleLongPress}
+      delayLongPress={450}
       style={{ width: cardWidth }}
     >
       <Animated.View
@@ -343,7 +315,9 @@ function LuxeItem({
   );
 }
 
-export function LuxeModuleGrid({
+const MemoizedLuxeItem = React.memo(LuxeItem);
+
+function LuxeModuleGridImpl({
   modules,
   isCustomizing = false,
   selectedIdForSwap = null,
@@ -366,7 +340,7 @@ export function LuxeModuleGrid({
           index === modules.length - 1 &&
           (isTabletLandscape ? modules.length % 4 !== 0 : modules.length % 2 !== 0);
         return (
-          <LuxeItem
+          <MemoizedLuxeItem
             key={item.id}
             item={item}
             isCustomizing={isCustomizing}
@@ -380,6 +354,8 @@ export function LuxeModuleGrid({
     </View>
   );
 }
+
+export const LuxeModuleGrid = React.memo(LuxeModuleGridImpl);
 
 const styles = StyleSheet.create({
   grid: {

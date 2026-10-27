@@ -20,7 +20,7 @@ interface SupportFooterProps {
   compact?: boolean;
 }
 
-export function SupportFooter({ compact = false }: SupportFooterProps) {
+function SupportFooterImpl({ compact = false }: SupportFooterProps) {
   const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
@@ -107,6 +107,8 @@ export function SupportFooter({ compact = false }: SupportFooterProps) {
     </View>
   );
 }
+
+export const SupportFooter = React.memo(SupportFooterImpl);
 
 const styles = StyleSheet.create({
   container: {

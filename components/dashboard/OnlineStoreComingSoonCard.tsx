@@ -10,7 +10,7 @@ import { Theme } from '@/constants/theme';
 // iOS-only dashboard card — temporary Apple 3.1.1 compliance measure. Replaces
 // OnlineStoreLockedCard/OnlineStoreCard on iOS with no CTA, no demo link, no subscription
 // wording: just an icon and a Coming Soon message, matching the existing card shell.
-export function OnlineStoreComingSoonCard() {
+function OnlineStoreComingSoonCardImpl() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection, textAlign, writingDirection } = useRTL();
@@ -35,6 +35,8 @@ export function OnlineStoreComingSoonCard() {
     </View>
   );
 }
+
+export const OnlineStoreComingSoonCard = React.memo(OnlineStoreComingSoonCardImpl);
 
 const styles = StyleSheet.create({
   card: {

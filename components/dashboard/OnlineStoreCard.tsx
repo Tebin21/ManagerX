@@ -21,7 +21,7 @@ function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, '');
 }
 
-export function OnlineStoreCard() {
+function OnlineStoreCardImpl() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const { flexDirection, textAlign, writingDirection } = useRTL();
@@ -237,6 +237,8 @@ export function OnlineStoreCard() {
     </View>
   );
 }
+
+export const OnlineStoreCard = React.memo(OnlineStoreCardImpl);
 
 const styles = StyleSheet.create({
   card: {

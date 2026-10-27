@@ -99,9 +99,14 @@ function HeaderVideo({ uri }: { uri: string; key?: any }) {
   return <HeaderVideoInternal uri={uri} />;
 }
 
-export function BusinessHeader() {
+function BusinessHeaderImpl() {
   const { t } = useTranslation();
-  const { name, type, phone, address, logoUri, showOnDashboard = false } = useBusinessStore();
+  const name = useBusinessStore((s) => s.name);
+  const type = useBusinessStore((s) => s.type);
+  const phone = useBusinessStore((s) => s.phone);
+  const address = useBusinessStore((s) => s.address);
+  const logoUri = useBusinessStore((s) => s.logoUri);
+  const showOnDashboard = useBusinessStore((s) => s.showOnDashboard ?? false);
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
   const { isRTL, textAlign } = useRTL();
@@ -956,6 +961,8 @@ export function BusinessHeader() {
     </>
   );
 }
+
+export const BusinessHeader = React.memo(BusinessHeaderImpl);
 
 function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
   return StyleSheet.create({
