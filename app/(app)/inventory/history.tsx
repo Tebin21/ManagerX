@@ -53,7 +53,7 @@ export default function InventoryHistoryScreen() {
     periodSheetVisible,
     setPeriodSheetVisible,
     handlePeriodSelect,
-  } = usePeriodFilter('all');
+  } = usePeriodFilter('today');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
