@@ -36,7 +36,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { hexToRgba } from '@/lib/colorUtils';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { useRTL } from '@/lib/rtl';
-import { applyKurdishFont, resolveInputIsKurdish } from '@/lib/settingsFont';
+import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { getDatabase, wipeAllBusinessData } from '@/lib/sqlite';
 import {
   exportBackup,
@@ -70,7 +70,7 @@ const IS_EXPO_GO = Constants.appOwnership === 'expo';
 export default function DataScreen() {
   const { t }              = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { flexDirection }  = useRTL();
+  const { isRTL, flexDirection } = useRTL();
   const router             = useRouter();
   const signOut            = useAuthStore((s) => s.signOut);
   const isKuLanguage       = useLanguageStore((s) => s.language === 'ku');
@@ -471,12 +471,23 @@ export default function DataScreen() {
               },
             ]}
           >
-            <View style={{ flexDirection, alignItems: 'center', gap: 8 }}>
-              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={[
+                  styles.gdriveShieldWrap,
+                  { backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.14) },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={17} color={colors.primary} />
+              </View>
               <Text
                 style={[
                   styles.gdriveBannerText,
-                  { color: isDark ? colors.primary : colors.black },
+                  {
+                    color: isDark ? colors.primary : colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
                 ]}
               >
                 {t('settings.dataScreen.googleDrivePrivacyBadge')}
@@ -486,15 +497,16 @@ export default function DataScreen() {
 
           <SettingRow
             icon="logo-google"
+            color="#4285F4"
             label={
               gdriveConfig?.isConnected
                 ? (gdriveConfig.email ?? t('settings.dataScreen.googleDriveConnected'))
-                : t('settings.dataScreen.googleDriveNotConnected')
+                : (isKuLanguage ? 'گووگڵ درایڤ' : 'Google Drive')
             }
             sub={
               gdriveConfig?.isConnected
                 ? t('settings.dataScreen.googleDriveConnected')
-                : t('settings.dataScreen.googleDriveConnectBtn')
+                : t('settings.dataScreen.googleDriveNotConnected')
             }
             chevron={false}
             onPress={
@@ -512,15 +524,25 @@ export default function DataScreen() {
                       ? handleDisconnectGDrive
                       : handleConnectGDrive
                   }
+                  activeOpacity={0.75}
                   style={[
                     styles.gdriveActionBtn,
                     {
                       backgroundColor: gdriveConfig?.isConnected
                         ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2')
                         : colors.primary,
+                      borderColor: gdriveConfig?.isConnected
+                        ? (isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA')
+                        : colors.primary,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
                 >
+                  <Ionicons
+                    name={gdriveConfig?.isConnected ? 'close-circle-outline' : 'link-outline'}
+                    size={14}
+                    color={gdriveConfig?.isConnected ? '#EF4444' : '#FFFFFF'}
+                  />
                   <Text
                     style={[
                       styles.gdriveActionBtnText,
@@ -964,26 +986,40 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   gdriveBanner: {
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  gdriveShieldWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gdriveBannerText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   gdriveActionBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 32,
+    gap: 4,
+    borderWidth: 1,
   },
   gdriveActionBtnText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    includeFontPadding: false,
   },
 });

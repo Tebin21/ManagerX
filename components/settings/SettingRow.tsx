@@ -94,10 +94,31 @@ export function SettingRow({
       <View style={iconWrapStyle}>
         <Ionicons name={icon} size={isTablet ? 22 : 18} color={iconColor} />
       </View>
-      <View style={styles.content}>
-        <Text style={[styles.label, isTablet && styles.labelTablet, { color: labelClr, textAlign }]}>{label}</Text>
+      <View style={[styles.content, { marginHorizontal: 6 }]}>
+        <Text
+          style={[
+            styles.label,
+            isTablet && styles.labelTablet,
+            { color: labelClr, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
         {sub ? (
-          <Text style={[styles.sub, isTablet && styles.subTablet, { color: colors.gray400, textAlign, marginTop: isRTL ? RTL_SPACING.title + 1 : 1 }]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.sub,
+              isTablet && styles.subTablet,
+              {
+                color: colors.gray400,
+                textAlign,
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+                marginTop: isRTL ? RTL_SPACING.title + 1 : 1,
+              },
+            ]}
+            numberOfLines={1}
+          >
             {sub}
           </Text>
         ) : null}

@@ -20,6 +20,8 @@ import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useAuthStore } from '@/store/authStore';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { getDatabase } from '@/lib/sqlite';
 import { isFirebaseAvailable } from '@/lib/firebase';
 import { addConnectivityListener } from '@/lib/netInfo';
@@ -40,6 +42,7 @@ export default function CloudSyncScreen() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
   const user = useAuthStore((s) => s.user);
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [lastSyncedAt, setLastSyncedAtState] = useState<string | null>(null);
@@ -234,12 +237,23 @@ export default function CloudSyncScreen() {
               },
             ]}
           >
-            <View style={{ flexDirection, alignItems: 'center', gap: 8 }}>
-              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={[
+                  styles.gdriveShieldWrap,
+                  { backgroundColor: hexToRgba(colors.primary, isDark ? 0.22 : 0.14) },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={17} color={colors.primary} />
+              </View>
               <Text
                 style={[
                   styles.gdriveBannerText,
-                  { color: isDark ? colors.primary : colors.black },
+                  {
+                    color: isDark ? colors.primary : colors.black,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
                 ]}
               >
                 {t('settings.dataScreen.googleDrivePrivacyBadge')}
@@ -249,15 +263,16 @@ export default function CloudSyncScreen() {
 
           <SettingRow
             icon="logo-google"
+            color="#4285F4"
             label={
               gdriveConfig?.isConnected
                 ? (gdriveConfig.email ?? t('settings.dataScreen.googleDriveConnected'))
-                : t('settings.dataScreen.googleDriveNotConnected')
+                : (isKuLanguage ? 'گووگڵ درایڤ' : 'Google Drive')
             }
             sub={
               gdriveConfig?.isConnected
                 ? t('settings.dataScreen.googleDriveConnected')
-                : t('settings.dataScreen.googleDriveConnectBtn')
+                : t('settings.dataScreen.googleDriveNotConnected')
             }
             chevron={false}
             onPress={
@@ -275,19 +290,23 @@ export default function CloudSyncScreen() {
                       ? handleDisconnectGDrive
                       : handleConnectGDrive
                   }
+                  activeOpacity={0.75}
                   style={[
                     styles.gdriveActionBtn,
                     {
                       backgroundColor: gdriveConfig?.isConnected
                         ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2')
                         : colors.primary,
+                      borderColor: gdriveConfig?.isConnected
+                        ? (isDark ? 'rgba(239, 68, 68, 0.35)' : '#FECACA')
+                        : colors.primary,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
                 >
                   <Ionicons
-                    name={gdriveConfig?.isConnected ? 'close-circle' : 'logo-google'}
-                    size={15}
+                    name={gdriveConfig?.isConnected ? 'close-circle-outline' : 'link-outline'}
+                    size={14}
                     color={gdriveConfig?.isConnected ? '#EF4444' : '#FFFFFF'}
                   />
                   <Text
@@ -370,28 +389,41 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   gdriveBanner: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 14,
     borderWidth: 1,
-    padding: 12,
     marginBottom: 12,
   },
+  gdriveShieldWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   gdriveBannerText: {
+    fontSize: 12.5,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
     flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '600',
+    lineHeight: 20,
+    includeFontPadding: false,
   },
   gdriveActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+    gap: 4,
+    borderWidth: 1,
   },
   gdriveActionBtnText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    includeFontPadding: false,
   },
   errorBox: {
     padding: 14,
