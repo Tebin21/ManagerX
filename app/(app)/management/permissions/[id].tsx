@@ -45,7 +45,9 @@ export default function EmployeePermissionsScreen() {
   const employeeName = params.name || email;
 
   const employees = useManagementStore((s) => s.employees);
-  const foundEmp = employees.find(
+  const managedEmployees = useManagementStore((s) => s.managedEmployees);
+  const allEmployees = [...employees, ...managedEmployees];
+  const foundEmp = allEmployees.find(
     (e) => e.email?.toLowerCase() === email.toLowerCase() || e.id === params.id
   );
 
@@ -54,15 +56,21 @@ export default function EmployeePermissionsScreen() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [currentDisplayPassword, setCurrentDisplayPassword] = useState(foundEmp?.password || '');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
     if (foundEmp?.permissions) {
       setPermissions(foundEmp.permissions);
     }
+    if (foundEmp?.password) {
+      setCurrentDisplayPassword(foundEmp.password);
+    }
   }, [foundEmp]);
 
   const handleUpdatePassword = async () => {
+    const targetEmail = (foundEmp?.email || email).trim().toLowerCase();
+    const targetId = foundEmp?.id || params.id;
     if (!newPassword.trim() || newPassword.trim().length < 6) {
       Alert.alert(
         isRTL ? 'هەڵە لە تێپەڕەوشە' : 'Invalid Password',
@@ -72,11 +80,27 @@ export default function EmployeePermissionsScreen() {
     }
     setIsUpdatingPassword(true);
     try {
-      await updateEmployeePassword(email, newPassword.trim());
+      await updateEmployeePassword(targetEmail, newPassword.trim(), targetId);
+      setCurrentDisplayPassword(newPassword.trim());
+
+      // Instantly update management store so manager view & admin view reflect the new password without delay
+      useManagementStore.setState((state) => ({
+        managedEmployees: state.managedEmployees.map((e) =>
+          e.id === targetId || e.email?.toLowerCase() === targetEmail
+            ? { ...e, password: newPassword.trim(), passwordUpdatedAt: new Date().toISOString() }
+            : e
+        ),
+        employees: state.employees.map((e) =>
+          e.id === targetId || e.email?.toLowerCase() === targetEmail
+            ? { ...e, password: newPassword.trim(), passwordUpdatedAt: new Date().toISOString() }
+            : e
+        ),
+      }));
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
       Alert.alert(
         isRTL ? 'سەرکەوتوو بوو' : 'Success',
-        isRTL ? 'تێپەڕەوشەی کارمەندەکە بە سەرکەوتوویی نوێکرایەوە.' : 'Employee password updated successfully.'
+        isRTL ? 'تێپەڕەوشەی کارمەندەکە نوێکرایەوە و ڕاستەوخۆ بۆ بەڕێوەبەری سەرپەرشتیار نێردرا.' : 'Employee password updated and synced successfully.'
       );
       setNewPassword('');
     } catch {
@@ -267,11 +291,11 @@ export default function EmployeePermissionsScreen() {
             <Text style={[styles.passwordTitle, { color: colors.black }]}>
               {isRTL ? 'گۆڕینی تێپەڕەوشە (پاسۆرد)' : 'Change Employee Password'}
             </Text>
-            {foundEmp?.password && (
+            {(currentDisplayPassword || foundEmp?.password) ? (
               <Text style={[styles.currentPassLabel, { color: colors.gray500 }]}>
-                {isRTL ? `پاسۆردی ئێستا: ${foundEmp.password}` : `Current: ${foundEmp.password}`}
+                {isRTL ? `پاسۆردی ئێستا: ${currentDisplayPassword || foundEmp?.password}` : `Current: ${currentDisplayPassword || foundEmp?.password}`}
               </Text>
-            )}
+            ) : null}
           </View>
 
           <View style={[styles.passwordInputRow, { flexDirection }]}>

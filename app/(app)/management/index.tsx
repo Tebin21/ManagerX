@@ -381,6 +381,17 @@ export default function ManagementScreen() {
                     </Text>
                   </View>
 
+                  {/* Password Info */}
+                  <View style={[styles.infoRow, { flexDirection }]}>
+                    <Ionicons name="key-outline" size={14} color="#D97706" />
+                    <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
+                      {isRTL ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}
+                    </Text>
+                    <Text style={[styles.infoValue, { color: colors.black, fontFamily: 'monospace', fontWeight: 'bold' }]}>
+                      {emp.password || '••••••••'}
+                    </Text>
+                  </View>
+
                   {/* Card Actions */}
                   <View style={[styles.cardActions, { flexDirection }]}>
                     {/* Permissions Button */}

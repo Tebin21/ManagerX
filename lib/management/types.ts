@@ -49,6 +49,7 @@ export interface EmployeeAccount {
   displayName: string;
   managerEmail: string; // Bound to manager's official Google/Firebase email
   password?: string;
+  passwordUpdatedAt?: string; // ISO date string of last password update
   phone?: string;
   priceAmount?: string; // e.g. "25,000 IQD" or "$20"
   durationDays?: number; // e.g. 30, 90, 365

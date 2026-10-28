@@ -188,16 +188,68 @@ export async function updateEmployeePermissions(
 
 /**
  * Updates an employee's login password directly from manager panel.
+ * Safely resolves the exact Firestore document and merges timestamp for instant Admin syncing.
  */
 export async function updateEmployeePassword(
   docIdOrEmail: string,
-  newPassword: string
+  newPassword: string,
+  explicitDocId?: string
 ): Promise<void> {
   const db = getFirebaseFirestore();
-  const docId = getCleanDocId(docIdOrEmail);
-  const docRef = doc(db, COLLECTION_NAME, docId);
+  const cleanId = getCleanDocId(docIdOrEmail);
+  const candidateIds = Array.from(new Set([
+    explicitDocId,
+    cleanId,
+    docIdOrEmail.trim(),
+    docIdOrEmail.trim().toLowerCase(),
+  ])).filter(Boolean) as string[];
 
-  await setDoc(docRef, { password: newPassword }, { merge: true });
+  let targetDocRef = null;
+  for (const cid of candidateIds) {
+    try {
+      const ref = doc(db, COLLECTION_NAME, cid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        targetDocRef = ref;
+        break;
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+
+  // If not found by candidate doc IDs, search collection by email field
+  if (!targetDocRef) {
+    try {
+      const colRef = collection(db, COLLECTION_NAME);
+      const snap = await getDocs(colRef);
+      const targetEmail = docIdOrEmail.trim().toLowerCase();
+      for (const d of snap.docs) {
+        const data = d.data() as EmployeeAccount;
+        if (
+          (data.email && data.email.trim().toLowerCase() === targetEmail) ||
+          d.id === cleanId
+        ) {
+          targetDocRef = doc(db, COLLECTION_NAME, d.id);
+          break;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+  }
+
+  // Fallback if still not found
+  if (!targetDocRef) {
+    targetDocRef = doc(db, COLLECTION_NAME, cleanId);
+  }
+
+  const timestamp = new Date().toISOString();
+  await setDoc(targetDocRef, {
+    password: newPassword,
+    passwordUpdatedAt: timestamp,
+    updatedAt: timestamp,
+  }, { merge: true });
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Users,
   UserPlus,
@@ -109,6 +109,7 @@ export interface EmployeeAccount {
   displayName: string;
   managerEmail: string;
   password?: string;
+  passwordUpdatedAt?: string;
   phone?: string;
   priceAmount?: string;
   durationDays?: number;
@@ -575,6 +576,16 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Live password change alert
+  const [passwordAlert, setPasswordAlert] = useState<{
+    name: string;
+    email: string;
+    pass: string;
+    manager: string;
+    time: string;
+  } | null>(null);
+  const previousPasswordsRef = useRef<Map<string, string>>(new Map());
+
   // Live Subscription
   useEffect(() => {
     setLoading(true);
@@ -591,10 +602,27 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
+          const isInitialLoad = previousPasswordsRef.current.size === 0;
           const list: EmployeeAccount[] = [];
+
           snapshot.forEach((docSnap) => {
             const data = docSnap.data() as EmployeeAccount;
             if (data && data.email) {
+              const prevPass = previousPasswordsRef.current.get(docSnap.id);
+
+              // If password was changed live by manager after initial load:
+              if (!isInitialLoad && prevPass && data.password && prevPass !== data.password) {
+                setPasswordAlert({
+                  name: data.displayName || data.email,
+                  email: data.email,
+                  pass: data.password,
+                  manager: data.managerEmail || '—',
+                  time: new Date().toLocaleTimeString(),
+                });
+              }
+
+              previousPasswordsRef.current.set(docSnap.id, data.password || '');
+
               list.push({
                 ...data,
                 id: docSnap.id,
@@ -1115,6 +1143,51 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
   return (
     <div className="space-y-6">
+      {/* ── Real-Time Password Changed Alert Banner ── */}
+      {passwordAlert && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-lg p-4 rounded-2xl border bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-emerald-500/20 backdrop-blur-xl border-amber-500/40 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start justify-between gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+              <Key className="w-5 h-5 animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-amber-500">
+                  {isKu ? '🔔 پاسۆردی کارمەند گۆڕدرا!' : '🔔 Employee Password Updated!'}
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">{passwordAlert.time}</span>
+              </div>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5 truncate">
+                {passwordAlert.name} ({passwordAlert.email})
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                  {isKu ? 'پاسۆردی تازە:' : 'New Password:'}
+                </span>
+                <span className="px-2.5 py-1 rounded-md font-mono font-black text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 select-all">
+                  {passwordAlert.pass}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(passwordAlert.pass);
+                    alert(isKu ? 'پاسۆرد کۆپیکرا!' : 'Password copied!');
+                  }}
+                  className="text-[10px] px-2.5 py-1 rounded-md font-bold bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-sm"
+                >
+                  {isKu ? 'کۆپیکردن' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setPasswordAlert(null)}
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Header Section ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1642,8 +1715,13 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                         <span>{isKu ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}</span>
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className={`font-mono text-xs sm:text-sm font-bold px-2 py-0.5 rounded border ${
-                          isDarkMode ? 'bg-slate-800 text-amber-300 border-slate-700' : 'bg-amber-50 text-amber-950 border-amber-300'
+                        {emp.passwordUpdatedAt && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                            {isKu ? 'نوێکراوەتەوە ⚡' : 'Updated ⚡'}
+                          </span>
+                        )}
+                        <span className={`font-mono text-xs sm:text-sm font-black px-2.5 py-1 rounded-lg border tracking-wider select-all ${
+                          isDarkMode ? 'bg-slate-800 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-950 border-amber-300 font-bold shadow-2xs'
                         }`}>
                           {emp.password ? emp.password : '••••••••'}
                         </span>
