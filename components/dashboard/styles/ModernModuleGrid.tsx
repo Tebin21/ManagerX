@@ -12,6 +12,7 @@ import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { ModuleDefinition, ModuleId } from '@/constants/config';
 import { MODULE_THEMES } from '../ModuleCard';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getResponsiveCardSpanWidth } from './dashboardLayoutHelper';
 
 interface Props {
   modules: ModuleDefinition[];
@@ -27,6 +28,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  cardWidth?: `${number}%`;
   isSingleLastItem?: boolean;
 }
 
@@ -36,6 +38,7 @@ function ModernItem({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  cardWidth: cardWidthProp,
   isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
@@ -153,7 +156,8 @@ function ModernItem({
         outputRange: [0, -5],
       });
 
-  const cardWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '48.5%' : '48.5%';
+  const fallbackWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%';
+  const cardWidth = cardWidthProp ?? fallbackWidth;
   const iconWrapSize = isTabletLandscape ? 62 : isTablet ? 54 : 38;
   const iconSize = isTabletLandscape ? 32 : isTablet ? 28 : 19;
 
@@ -279,7 +283,7 @@ function ModernModuleGridImpl({
   onStartCustomize,
   onSelectForSwap,
 }: Props) {
-  const { isTabletLandscape } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   return (
     <View
@@ -291,9 +295,13 @@ function ModernModuleGridImpl({
       ]}
     >
       {modules.map((item, index) => {
-        const isSingleLastItem =
-          index === modules.length - 1 &&
-          (isTabletLandscape ? modules.length % 4 !== 0 : modules.length % 2 !== 0);
+        const cardWidth = getResponsiveCardSpanWidth(
+          index,
+          modules.length,
+          isTablet,
+          isTabletLandscape
+        );
+        const isSingleLastItem = cardWidth === '100%';
         return (
           <MemoizedModernItem
             key={item.id}
@@ -302,6 +310,7 @@ function ModernModuleGridImpl({
             isSelected={selectedIdForSwap === item.id}
             onStartCustomize={onStartCustomize}
             onSelectForSwap={onSelectForSwap}
+            cardWidth={cardWidth}
             isSingleLastItem={isSingleLastItem}
           />
         );

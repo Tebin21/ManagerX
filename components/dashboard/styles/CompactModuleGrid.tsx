@@ -1,16 +1,18 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, DimensionValue } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { ModuleDefinition, ModuleId } from '@/constants/config';
 import { MODULE_THEMES } from '../ModuleCard';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getCompactGridRows } from './dashboardLayoutHelper';
 
 interface Props {
   modules: ModuleDefinition[];
@@ -26,6 +28,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  width?: DimensionValue;
 }
 
 function CompactItem({
@@ -34,6 +37,7 @@ function CompactItem({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  width: widthProp,
 }: ItemProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -132,6 +136,7 @@ function CompactItem({
       style={[
         styles.appItem,
         {
+          width: widthProp ?? styles.appItem.width,
           gap: isTablet ? 10 : 6,
           paddingVertical: isTablet ? 6 : 2,
         },
@@ -236,6 +241,12 @@ function CompactModuleGridImpl({
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
+  const { isRTL } = useRTL();
+
+  const rows = React.useMemo(
+    () => getCompactGridRows(modules, isTablet, isTabletLandscape),
+    [modules, isTablet, isTabletLandscape]
+  );
 
   return (
     <View
@@ -254,25 +265,33 @@ function CompactModuleGridImpl({
         },
       ]}
     >
-      <View
-        style={[
-          styles.grid,
-          {
-            rowGap: isTabletLandscape ? 26 : isTablet ? 20 : 16,
-          },
-        ]}
-      >
-        {modules.map((item) => (
-          <MemoizedCompactItem
-            key={item.id}
-            item={item}
-            isCustomizing={isCustomizing}
-            isSelected={selectedIdForSwap === item.id}
-            onStartCustomize={onStartCustomize}
-            onSelectForSwap={onSelectForSwap}
-          />
-        ))}
-      </View>
+      {rows.map((row, rowIndex) => (
+        <View
+          key={`compact-row-${rowIndex}`}
+          style={[
+            styles.gridRow,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              marginTop: rowIndex > 0 ? (isTabletLandscape ? 26 : isTablet ? 20 : 16) : 0,
+            },
+          ]}
+        >
+          {row.map((item) => {
+            const itemWidth: DimensionValue = `${100 / row.length}%`;
+            return (
+              <MemoizedCompactItem
+                key={item.id}
+                item={item}
+                width={itemWidth}
+                isCustomizing={isCustomizing}
+                isSelected={selectedIdForSwap === item.id}
+                onStartCustomize={onStartCustomize}
+                onSelectForSwap={onSelectForSwap}
+              />
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -289,11 +308,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  grid: {
+  gridRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
     width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-around',
   },
   appItem: {
     width: '25%',

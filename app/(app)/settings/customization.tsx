@@ -96,7 +96,9 @@ export default function CustomizationScreen() {
             label={t('settings.customization.dashboardStyleTitle', {
               defaultValue: isKurdish ? 'شێوازی دیزاینی داشبۆرد' : 'Dashboard UI Styles',
             })}
-            sub={t(activeStyleItem.titleKey)}
+            sub={t('settings.customization.dashboardStyleSub', {
+              defaultValue: isKurdish ? '٥ دیزاینی جیاواز بۆ ڕووکاری داشبۆرد' : '5 unique layout themes for dashboard',
+            })}
             onPress={handleOpenStylesScreen}
             rightElement={
               <View
@@ -124,7 +126,7 @@ export default function CustomizationScreen() {
                     isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {t(activeStyleItem.titleKey)}
+                  {t(activeStyleItem.shortKey)}
                 </Text>
                 <Ionicons
                   name={chevronForward as never}

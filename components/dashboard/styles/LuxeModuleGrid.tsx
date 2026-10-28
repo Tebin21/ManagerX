@@ -14,6 +14,7 @@ import { ModuleDefinition, ModuleId } from '@/constants/config';
 import { MODULE_THEMES } from '../ModuleCard';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
+import { getResponsiveCardSpanWidth } from './dashboardLayoutHelper';
 
 interface Props {
   modules: ModuleDefinition[];
@@ -29,6 +30,7 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  cardWidth?: `${number}%`;
   isSingleLastItem?: boolean;
 }
 
@@ -38,6 +40,7 @@ function LuxeItem({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  cardWidth: cardWidthProp,
   isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
@@ -155,7 +158,8 @@ function LuxeItem({
         outputRange: [0, -5],
       });
 
-  const cardWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : '48.5%';
+  const fallbackWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%';
+  const cardWidth = cardWidthProp ?? fallbackWidth;
   const ringSize = isTabletLandscape ? 54 : isTablet ? 46 : 34;
 
   return (
@@ -324,7 +328,7 @@ function LuxeModuleGridImpl({
   onStartCustomize,
   onSelectForSwap,
 }: Props) {
-  const { isTabletLandscape } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
 
   return (
     <View
@@ -336,9 +340,13 @@ function LuxeModuleGridImpl({
       ]}
     >
       {modules.map((item, index) => {
-        const isSingleLastItem =
-          index === modules.length - 1 &&
-          (isTabletLandscape ? modules.length % 4 !== 0 : modules.length % 2 !== 0);
+        const cardWidth = getResponsiveCardSpanWidth(
+          index,
+          modules.length,
+          isTablet,
+          isTabletLandscape
+        );
+        const isSingleLastItem = cardWidth === '100%';
         return (
           <MemoizedLuxeItem
             key={item.id}
@@ -347,6 +355,7 @@ function LuxeModuleGridImpl({
             isSelected={selectedIdForSwap === item.id}
             onStartCustomize={onStartCustomize}
             onSelectForSwap={onSelectForSwap}
+            cardWidth={cardWidth}
             isSingleLastItem={isSingleLastItem}
           />
         );

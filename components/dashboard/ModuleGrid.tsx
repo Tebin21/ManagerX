@@ -107,7 +107,7 @@ function ModuleGridImpl() {
     rows.forEach((row) => {
       if (row.length === 1) {
         singleSet.add(row[0]);
-      } else if (row.length === 2 && isTablet && !isTabletLandscape) {
+      } else if (row.length === 2 && isTablet) {
         twoItemSet.add(row[0]);
         twoItemSet.add(row[1]);
       }

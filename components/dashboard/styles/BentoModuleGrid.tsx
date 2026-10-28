@@ -14,6 +14,7 @@ import { ModuleDefinition, ModuleId } from '@/constants/config';
 import { MODULE_THEMES } from '../ModuleCard';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
+import { getResponsiveCardSpanWidth } from './dashboardLayoutHelper';
 
 interface Props {
   modules: ModuleDefinition[];
@@ -29,7 +30,9 @@ interface ItemProps {
   isSelected?: boolean;
   onStartCustomize?: (id: ModuleId) => void;
   onSelectForSwap?: (id: ModuleId) => void;
+  tileWidth?: `${number}%`;
   isSingleLastItem?: boolean;
+  heroCount?: number;
 }
 
 function BentoHeroCard({
@@ -38,6 +41,7 @@ function BentoHeroCard({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  heroCount = 2,
 }: ItemProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -141,7 +145,7 @@ function BentoHeroCard({
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={450}
-      style={{ width: isTablet ? '48.5%' : '100%' }}
+      style={{ width: (!isTablet || heroCount === 1) ? '100%' : '48.5%' }}
     >
       <Animated.View
         style={[
@@ -237,6 +241,7 @@ function BentoRegularTile({
   isSelected = false,
   onStartCustomize,
   onSelectForSwap,
+  tileWidth: tileWidthProp,
   isSingleLastItem = false,
 }: ItemProps) {
   const router = useRouter();
@@ -330,7 +335,8 @@ function BentoRegularTile({
         outputRange: [1, 0.97],
       });
 
-  const tileWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.5%' : '48.5%';
+  const fallbackWidth = isSingleLastItem ? '100%' : isTabletLandscape ? '23.8%' : isTablet ? '31.8%' : '48.5%';
+  const tileWidth = tileWidthProp ?? fallbackWidth;
   const tileIconBoxSize = isTabletLandscape ? 62 : isTablet ? 54 : 38;
   const tileIconSize = isTabletLandscape ? 34 : isTablet ? 28 : 20;
 
@@ -453,6 +459,7 @@ function BentoModuleGridImpl({
             isSelected={selectedIdForSwap === item.id}
             onStartCustomize={onStartCustomize}
             onSelectForSwap={onSelectForSwap}
+            heroCount={heroModules.length}
           />
         ))}
       </View>
@@ -467,13 +474,13 @@ function BentoModuleGridImpl({
         ]}
       >
         {regularModules.map((item, index) => {
-          const isSingleLastItem =
-            index === regularModules.length - 1 &&
-            (isTabletLandscape
-              ? regularModules.length % 4 !== 0
-              : isTablet
-              ? regularModules.length % 3 !== 0
-              : regularModules.length % 2 !== 0);
+          const tileWidth = getResponsiveCardSpanWidth(
+            index,
+            regularModules.length,
+            isTablet,
+            isTabletLandscape
+          );
+          const isSingleLastItem = tileWidth === '100%';
           return (
             <MemoizedBentoRegularTile
               key={item.id}
@@ -482,6 +489,7 @@ function BentoModuleGridImpl({
               isSelected={selectedIdForSwap === item.id}
               onStartCustomize={onStartCustomize}
               onSelectForSwap={onSelectForSwap}
+              tileWidth={tileWidth}
               isSingleLastItem={isSingleLastItem}
             />
           );

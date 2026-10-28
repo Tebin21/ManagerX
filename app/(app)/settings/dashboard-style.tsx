@@ -151,9 +151,17 @@ export default function DashboardStyleScreen() {
 
         {/* 5 Compact Squares Grid (٥ چوار گۆشە) */}
         <View style={[styles.squaresGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          {DASHBOARD_STYLES.map((styleItem) => {
+          {DASHBOARD_STYLES.map((styleItem, idx) => {
             const isSelected = dashboardStyle === styleItem.id;
             const itemAccent = getStyleAccentColor(styleItem);
+
+            const dynamicWidth = isTabletLandscape
+              ? '18.5%'
+              : isTablet
+              ? '18.5%'
+              : idx >= 3
+              ? '47.8%'
+              : '30.8%';
 
             return (
               <TouchableOpacity
@@ -162,6 +170,7 @@ export default function DashboardStyleScreen() {
                 onPress={() => handleSelectStyle(styleItem.id)}
                 style={[
                   styles.squareCard,
+                  { width: dynamicWidth as any },
                   isTablet && styles.squareCardTablet,
                   isTabletLandscape && { width: '18.5%', height: 145, padding: 14 },
                   {
@@ -364,13 +373,12 @@ const styles = StyleSheet.create({
   // 5 Squares Grid
   squaresGrid: {
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    rowGap: 10,
     marginBottom: 20,
   },
   squareCard: {
-    width: '30.5%',
-    minWidth: 100,
+    minWidth: 80,
     height: 102,
     borderRadius: 18,
     padding: 10,
