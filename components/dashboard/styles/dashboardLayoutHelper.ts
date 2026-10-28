@@ -116,3 +116,4 @@ export function getCompactGridRows<T>(
   }
   return rows;
 }
+

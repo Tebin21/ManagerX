@@ -131,6 +131,20 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     // with quantity 1 (so quantity added = number of ids), while the shared/repeatable
     // branch inserts ONE row carrying the full purchased quantity.
     const additionalQuantity = input.idType === 'custom' ? idsToCheck.length : input.quantity;
+
+    // Check usage limits: 20 items (products) & 30 max quantity
+    let newProductsCount = 1;
+    if (input.idType === 'custom') {
+      newProductsCount = idsToCheck.length;
+    } else if (input.idType === 'shared' && idsToCheck.length > 0) {
+      const sharedCode = idsToCheck[0];
+      const existingProduct = await getProductByItemId(sharedCode);
+      newProductsCount = existingProduct ? 0 : 1;
+    }
+
+    const { assertStockAndItemLimits } = await import('@/lib/usageLimits');
+    await assertStockAndItemLimits(newProductsCount, additionalQuantity);
+
     const { assertItemLimitNotExceeded } = await import('@/lib/itemLimit');
     await assertItemLimitNotExceeded(additionalQuantity);
 
@@ -296,6 +310,16 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
   },
 
   deletePurchase: async (id: number) => {
+    try {
+      const { useManagementStore } = await import('@/store/managementStore');
+      const { isEmployee, currentPermissions } = useManagementStore.getState();
+      if (isEmployee && currentPermissions && !currentPermissions.canDeleteInvoice) {
+        throw new Error('PERMISSION_DENIED_DELETE_INVOICE');
+      }
+    } catch (e: any) {
+      if (e?.message === 'PERMISSION_DENIED_DELETE_INVOICE') throw e;
+    }
+
     // archivePurchase soft-deletes (archived_at) and blocks if the purchase has
     // recorded sales or an active debt — throws PURCHASE_HAS_SALES / PURCHASE_HAS_ACTIVE_DEBT.
     await dbArchivePurchase(id, currentActor());

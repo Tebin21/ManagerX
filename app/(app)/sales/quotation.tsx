@@ -407,6 +407,14 @@ export default function SalesQuotationScreen() {
 
   // Generate Quotation & Auto-Save Customer Account in SQLite
   const handleGenerateQuotation = async () => {
+    const { checkQuotationsLimit } = await import('@/lib/usageLimits');
+    const quoteCheck = await checkQuotationsLimit();
+    if (!quoteCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
+
     if (items.length === 0) {
       Alert.alert(
         isKuLanguage ? 'سەبەتە بەتاڵە' : 'Cart Empty',
@@ -525,6 +533,13 @@ export default function SalesQuotationScreen() {
   const handleSharePDF = async (quoteToShare?: Quotation) => {
     const q = quoteToShare || generatedQuotation;
     if (!q) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     setIsGenerating(true);
     try {
       await shareQuotationInvoice(

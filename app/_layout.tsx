@@ -31,6 +31,7 @@ import { generateThemeColors } from '@/lib/colorUtils';
 import { Colors } from '@/constants/colors';
 import { useRTL } from '@/lib/rtl';
 import { AdminNotificationBanner } from '@/components/admin/AdminNotificationBanner';
+import { UsageLimitModal } from '@/components/ui/UsageLimitModal';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -176,6 +177,7 @@ export default function RootLayout() {
         <ThemeProvider>
           <AppStack />
           <AdminNotificationBanner />
+          <UsageLimitModal />
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

@@ -9,7 +9,7 @@ export const DEFAULT_ITEM_LIMIT_PLAN = 'basic';
 // LIMIT_TOKENS/TOKEN_TO_LIMIT in lib/license/licenseCore.js and here — nothing else
 // in the activation/enforcement logic needs to change.
 export const ITEM_LIMIT_PLANS: Record<string, number> = {
-  basic: TOKEN_TO_LIMIT['100'],
+  basic: 30,
   plus: TOKEN_TO_LIMIT['200'],
   pro: TOKEN_TO_LIMIT['600'],
   business: TOKEN_TO_LIMIT['1000'],
@@ -229,9 +229,15 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
 // as 100 separate products with quantity 1 each. totalQuantity (not totalProducts)
 // is the correct metric here.
 export async function assertItemLimitNotExceeded(additionalQuantity: number): Promise<void> {
-  const { limit } = await loadLicenseFromDb();
+  const license = await loadLicenseFromDb();
+  const isLicensed = Boolean(license.licenseCode && !license.expired && license.plan !== 'basic');
+  const effectiveLimit = isLicensed ? license.limit : 30;
   const stats = await getInventoryStats();
-  if (stats.totalQuantity + additionalQuantity > limit) {
-    throw new Error(`ITEM_LIMIT_REACHED|${stats.totalQuantity},${limit}`);
+  if (stats.totalQuantity + additionalQuantity > effectiveLimit || (!isLicensed && additionalQuantity > 30)) {
+    try {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+    } catch {}
+    throw new Error(`ITEM_LIMIT_REACHED|${stats.totalQuantity},${effectiveLimit}`);
   }
 }

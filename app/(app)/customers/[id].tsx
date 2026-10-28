@@ -101,7 +101,11 @@ export default function CustomerProfileScreen() {
               await deleteSale(sale.id);
               await loadCustomers();
               await loadAll();
-            } catch {
+            } catch (err: any) {
+              if (err?.message === 'PERMISSION_DENIED_DELETE_INVOICE') {
+                Alert.alert(t('common.error'), t('management.disabledNotice', 'ئەم بەشە ناچالاک کراوە لەلایەن بەڕێوەبەرەوە.'));
+                return;
+              }
               Alert.alert(t('common.error'), t('common.tryAgain'));
             }
           },

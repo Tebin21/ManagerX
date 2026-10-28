@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useManagementStore } from '@/store/managementStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount, incrementPurchasePrintCount } from '@/lib/sqlite';
 import { sharePurchaseInvoice } from '@/lib/generateInvoice';
@@ -71,6 +72,7 @@ export default function PurchaseDetailScreen() {
   const { isRTL, flexDirection, alignEnd } = useRTL();
   const { deletePurchase } = usePurchaseStore();
   const business = useBusinessStore();
+  const { isEmployee, currentPermissions } = useManagementStore();
 
   const [purchase, setPurchase]       = useState<Purchase | null>(null);
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
@@ -120,6 +122,13 @@ export default function PurchaseDetailScreen() {
 
   async function handleShare() {
     if (!purchase) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     setIsSharing(true);
     incrementPurchasePrintCount(purchase.id).catch(() => {});
     setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
@@ -477,13 +486,15 @@ export default function PurchaseDetailScreen() {
             <View style={styles.gap} />
           </>
         )}
-        <PrimaryButton
-          label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
-          onPress={confirmDelete}
-          loading={isDeleting}
-          disabled={isDeleting || isSharing}
-          variant="outline"
-        />
+        {(!isEmployee || !currentPermissions || currentPermissions.canDeleteInvoice) && (
+          <PrimaryButton
+            label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
+            onPress={confirmDelete}
+            loading={isDeleting}
+            disabled={isDeleting || isSharing}
+            variant="outline"
+          />
+        )}
       </MotiView>
     </View>
   );

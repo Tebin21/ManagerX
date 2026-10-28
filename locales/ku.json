@@ -316,6 +316,7 @@
     "dashboardModule": "داشبۆرد",
     "expiry": "بەسەرچوون",
     "invoices": "پسوڵەکان",
+    "management": "مەنجمێنت",
     "expensesSubtitle": "تۆمارکردن و بەڕێوەبردن",
     "addExpenseAction": "زیادکردنی خەرجی",
     "netCashBalance": "پارەی کاشی بەردەست",
@@ -481,6 +482,10 @@
     "invoices": {
       "title": "پسوڵەکان",
       "description": "ئەرشیف، بینین و چاپکردنی پسوڵەکان"
+    },
+    "management": {
+      "title": "مەنجمێنت",
+      "description": "بەڕێوەبردنی کارمەند و دەسەڵاتەکان"
     },
     "soldProducts": {
       "title": "بەرهەمە فرۆشراوەکان"
@@ -1991,5 +1996,52 @@
       "unpaid": "نەدراو",
       "debt": "قەرز",
       "partial": "بەشێکی دراوە"
+    },
+    "usageLimits": {
+      "limitReachedTitle": "سنووری بەکارهێنان تەواو بووە",
+      "contactSupport": "تکایە پەیوەندی بە سەپۆرتەوە بکە",
+      "close": "داخستن",
+      "itemsLimit": "گەیشتوویتەتە زۆرترین ڕێژەی ڕێگەپێدراوی ئایتمەکان (٢٠ ئایتم).",
+      "quantityLimit": "گەیشتوویتەتە زۆرترین بڕی ڕێگەپێدراوی کاڵاکان (٣٠ بڕ).",
+      "salesLimit": "گەیشتوویتەتە زۆرترین ژمارەی فرۆشتن (١٥ فرۆشتن).",
+      "invoicesLimit": "گەیشتوویتەتە زۆرترین ژمارەی پرینت و دروستکردنی وەسڵ (٤٠ وەسڵ).",
+      "quotationsLimit": "گەیشتوویتەتە زۆرترین ژمارەی عەرزەکان (٥ عەرز).",
+      "generalLimit": "گەیشتوویتەتە سنووری دیاریکراوی بەکارهێنانی سیستەمەکە."
+    },
+    "management": {
+      "title": "مەنجمێنت و دەسەڵاتەکان",
+      "subtitle": "کۆنترۆڵی کارمەندان، لۆگینەکان و پێرمیشن",
+      "employeesCount": "کۆی کارمەندان",
+      "activeCount": "چالاکەکان",
+      "suspendedCount": "ڕاگیراوەکان",
+      "addEmployee": "زیادکردنی کارمەند",
+      "noEmployeesFound": "هیچ کارمەندێک تۆمار نەکراوە",
+      "employeeName": "ناوی کارمەند",
+      "employeeEmail": "ئیمەیڵی کارمەند",
+      "managerEmail": "ئیمەیڵی فەرمی بەڕێوەبەر",
+      "password": "وشەی نهێنی",
+      "device": "ئامێر / مۆبایل",
+      "lastLogin": "دوایین لۆگین",
+      "lastLogout": "دوایین دەرچوون",
+      "status": "دۆخ",
+      "active": "چالاک",
+      "suspended": "ڕاگیراو",
+      "suspendAccount": "وەستاندنی ئەکاونت",
+      "activateAccount": "چالاککردنی ئەکاونت",
+      "editPermissions": "دەستکاری دەسەڵاتەکان",
+      "deleteEmployee": "سڕینەوەی کارمەند",
+      "deleteConfirm": "ئایا دڵنیایت لە سڕینەوەی ئەم کارمەندە؟",
+      "permissionsTitle": "دەسەڵاتەکانی کارمەند",
+      "savePermissions": "پاشەکەوتکردنی دەسەڵاتەکان",
+      "permissionActive": "چالاک",
+      "permissionDisabled": "دیسیبل 🔒",
+      "permissionHidden": "شاردراوە 👁️‍🗨️",
+      "modulesPermissions": "دەسەڵاتی بەشە سەرەکییەکان",
+      "settingsPermissions": "دەسەڵاتی بەشی ڕێکخستنەکان (دوگمە بە دوگمە)",
+      "actionsPermissions": "دەسەڵاتی کردارەکان",
+      "canDeleteInvoice": "ڕێگەدان بە سڕینەوەی وەسڵ",
+      "employeeCreatedSuccess": "کارمەند بە سەرکەوتوویی دروست کرا.",
+      "permissionsSavedSuccess": "دەسەڵاتەکان بە سەرکەوتوویی پاشەکەوت کران.",
+      "disabledNotice": "ئەم بەشە ناچالاک کراوە لەلایەن بەڕێوەبەرەوە."
     }
   }

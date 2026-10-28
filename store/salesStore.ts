@@ -63,6 +63,9 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   createSale: async (cart: CartStateArg): Promise<Sale> => {
+    const { assertSalesLimit } = await import('@/lib/usageLimits');
+    await assertSalesLimit();
+
     const invoiceNumber = await generateInvoiceNumber();
 
     const subtotal = cart.subtotal();
@@ -194,6 +197,16 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   deleteSale: async (id: number) => {
+    try {
+      const { useManagementStore } = await import('@/store/managementStore');
+      const { isEmployee, currentPermissions } = useManagementStore.getState();
+      if (isEmployee && currentPermissions && !currentPermissions.canDeleteInvoice) {
+        throw new Error('PERMISSION_DENIED_DELETE_INVOICE');
+      }
+    } catch (e: any) {
+      if (e?.message === 'PERMISSION_DENIED_DELETE_INVOICE') throw e;
+    }
+
     await dbDeleteSale(id);
     await useInventoryStore.getState().reloadAfterSale();
     set((state) => {

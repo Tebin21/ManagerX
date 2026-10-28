@@ -493,6 +493,13 @@ export default function InvoicesHubScreen() {
 
   const handlePrintPurchase = async (purchase: Purchase | null) => {
     if (!purchase) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {}
@@ -578,6 +585,13 @@ export default function InvoicesHubScreen() {
 
   const handlePrintSale = async (sale: Sale | null) => {
     if (!sale) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {}
@@ -624,6 +638,13 @@ export default function InvoicesHubScreen() {
   }, []);
 
   const handlePrintQuotation = useCallback(async (q: Quotation) => {
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     setIsSharingQuotation(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});

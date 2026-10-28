@@ -1092,6 +1092,15 @@ export const useAuthStore = create<AuthState>()(
             } catch {}
           }
         }
+        try {
+          const { useManagementStore } = await import('@/store/managementStore');
+          const emp = useManagementStore.getState().currentEmployeeAccount;
+          if (emp?.email) {
+            const { recordEmployeeLogout } = await import('@/lib/management/managementService');
+            recordEmployeeLogout(emp.email).catch(() => {});
+          }
+          useManagementStore.getState().clearEmployeeSession();
+        } catch {}
         set({ user: null });
       },
 

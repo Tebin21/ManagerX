@@ -9,6 +9,7 @@ import { startAutoSync } from '@/lib/onlineStore/syncEngine';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { runLegacyMigrationCheckOnce } from '@/lib/onlineStoreSubscription/subscription';
 import { useBusinessStore } from '@/store/businessStore';
+import { useManagementStore } from '@/store/managementStore';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
@@ -46,6 +47,15 @@ export default function AppLayout() {
     runLegacyMigrationCheckOnce().finally(() => {
       useOnlineStoreSubscriptionStore.getState().loadSubscription();
     });
+
+    // Employee Live Permission & Suspend listener
+    const { isEmployee, currentEmployeeAccount, initEmployeeLiveSubscription } = useManagementStore.getState();
+    if (isEmployee && currentEmployeeAccount?.email) {
+      const unsub = initEmployeeLiveSubscription(currentEmployeeAccount.email);
+      return () => {
+        unsub?.();
+      };
+    }
   }, [user]);
 
   return (

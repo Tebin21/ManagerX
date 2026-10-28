@@ -77,6 +77,13 @@ export default function SaleDetailScreen() {
 
   async function handleShare() {
     if (!sale) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
     setIsSharing(true);
     incrementSalePrintCount(sale.id).catch(() => {});
     setSale((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));

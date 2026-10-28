@@ -38,8 +38,9 @@ const defaultModules: Record<ModuleId, ModuleConfig> = {
   history:   { enabled: true, order: 5, layout: 'half' },
   expenses:  { enabled: true, order: 6, layout: 'half' },
   dashboard: { enabled: true, order: 7, layout: 'half' },
-  invoices:  { enabled: true, order: 8, layout: 'half' },
-  expiry:    { enabled: false, order: 9, layout: 'full' },
+  invoices:   { enabled: true, order: 8, layout: 'half' },
+  expiry:     { enabled: false, order: 9, layout: 'full' },
+  management: { enabled: true, order: 10, layout: 'half' },
 };
 
 export const useModuleStore = create<ModuleState>()(

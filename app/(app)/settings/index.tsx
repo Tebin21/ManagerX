@@ -39,6 +39,7 @@ import { fmtExchangeRate } from '@/utils/formatters';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
+import { useEffectivePermission } from '@/lib/management/rbac';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -71,6 +72,13 @@ export default function SettingsScreen() {
   // Synchronous re-entrancy guard — React state is applied async, so two taps
   // in the same tick could both pass an `isDeletingAccount` state check.
   const isDeletingRef = useRef(false);
+
+  const permLanguage = useEffectivePermission('settingsLanguage');
+  const permProfile = useEffectivePermission('settingsProfile');
+  const permCurrency = useEffectivePermission('settingsCurrency');
+  const permTheme = useEffectivePermission('settingsTheme');
+  const permBackup = useEffectivePermission('settingsBackup');
+  const permDeleteAccount = useEffectivePermission('settingsDeleteAccount');
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -171,13 +179,22 @@ export default function SettingsScreen() {
           <>
             {/* Business */}
             <SettingSection title={t('settings.businessProfile')}>
-              <SettingRow
-                icon="business"
-                color={tileColors.profile}
-                label={t('settings.businessProfile')}
-                sub={business.name || t('settings.businessProfileSub')}
-                onPress={() => router.push('/(app)/settings/profile' as never)}
-              />
+              {!permProfile.isHidden && (
+                <SettingRow
+                  icon="business"
+                  color={tileColors.profile}
+                  label={t('settings.businessProfile')}
+                  sub={business.name || t('settings.businessProfileSub')}
+                  disabled={permProfile.isDisabled}
+                  onPress={() => {
+                    if (permProfile.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    router.push('/(app)/settings/profile' as never);
+                  }}
+                />
+              )}
               <SettingRow
                 icon="color-palette"
                 color={tileColors.design}
@@ -189,41 +206,72 @@ export default function SettingsScreen() {
 
             {/* Preferences */}
             <SettingSection title={t('settings.preferences')}>
-              <SettingRow
-                icon="swap-horizontal"
-                color={tileColors.currency}
-                label={t('settings.exchangeRate')}
-                sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
-                onPress={() => router.push('/(app)/settings/currency' as never)}
-              />
-              <SettingRow
-                icon="language"
-                color={tileColors.language}
-                label={t('settings.language')}
-                sub={language === 'ku' ? 'کوردی' : 'English'}
-                chevron={false}
-                rightElement={
-                  <LanguageToggleSwitch
-                    value={language === 'ku'}
-                    onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
-                  />
-                }
-                onPress={() => setLanguage(language === 'ku' ? 'en' : 'ku')}
-              />
-              <SettingRow
-                icon={isDark ? 'moon' : 'sunny'}
-                color={tileColors.appearance}
-                label={t('settings.appearance')}
-                sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
-                chevron={false}
-                rightElement={
-                  <ThemeToggleSwitch
-                    value={isDark}
-                    onToggle={toggle}
-                  />
-                }
-                onPress={toggle}
-              />
+              {!permCurrency.isHidden && (
+                <SettingRow
+                  icon="swap-horizontal"
+                  color={tileColors.currency}
+                  label={t('settings.exchangeRate')}
+                  sub={`100 USD = ${fmtExchangeRate(exchangeRate)} IQD`}
+                  disabled={permCurrency.isDisabled}
+                  onPress={() => {
+                    if (permCurrency.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    router.push('/(app)/settings/currency' as never);
+                  }}
+                />
+              )}
+              {!permLanguage.isHidden && (
+                <SettingRow
+                  icon="language"
+                  color={tileColors.language}
+                  label={t('settings.language')}
+                  sub={language === 'ku' ? 'کوردی' : 'English'}
+                  chevron={false}
+                  disabled={permLanguage.isDisabled}
+                  rightElement={
+                    permLanguage.isDisabled ? undefined : (
+                      <LanguageToggleSwitch
+                        value={language === 'ku'}
+                        onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+                      />
+                    )
+                  }
+                  onPress={() => {
+                    if (permLanguage.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    setLanguage(language === 'ku' ? 'en' : 'ku');
+                  }}
+                />
+              )}
+              {!permTheme.isHidden && (
+                <SettingRow
+                  icon={isDark ? 'moon' : 'sunny'}
+                  color={tileColors.appearance}
+                  label={t('settings.appearance')}
+                  sub={t(isDark ? 'settings.darkMode' : 'settings.lightMode')}
+                  chevron={false}
+                  disabled={permTheme.isDisabled}
+                  rightElement={
+                    permTheme.isDisabled ? undefined : (
+                      <ThemeToggleSwitch
+                        value={isDark}
+                        onToggle={toggle}
+                      />
+                    )
+                  }
+                  onPress={() => {
+                    if (permTheme.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    toggle();
+                  }}
+                />
+              )}
               <SettingRow
                 icon="color-palette"
                 color={tileColors.themeColors}
@@ -271,15 +319,24 @@ export default function SettingsScreen() {
             </SettingSection>
 
             {/* Data */}
-            <SettingSection title={t('settings.data')}>
-              <SettingRow
-                icon="server"
-                color={tileColors.data}
-                label={t('settings.dataManagement')}
-                sub={t('settings.dataManagementSub')}
-                onPress={() => router.push('/(app)/settings/data' as never)}
-              />
-            </SettingSection>
+            {!permBackup.isHidden && (
+              <SettingSection title={t('settings.data')}>
+                <SettingRow
+                  icon="server"
+                  color={tileColors.data}
+                  label={t('settings.dataManagement')}
+                  sub={t('settings.dataManagementSub')}
+                  disabled={permBackup.isDisabled}
+                  onPress={() => {
+                    if (permBackup.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    router.push('/(app)/settings/data' as never);
+                  }}
+                />
+              </SettingSection>
+            )}
 
             {/* About */}
             <SettingSection title={t('settings.about')}>
@@ -324,17 +381,28 @@ export default function SettingsScreen() {
             </SettingSection>
 
             {/* Danger Zone — Delete Account, visually separated */}
-            <View style={styles.logoutSpacer} />
-            <SettingSection title={t('settings.dangerZone')}>
-              <SettingRow
-                icon="trash"
-                label={t('settings.deleteAccount')}
-                sub={t('settings.deleteAccountSub')}
-                destructive
-                chevron={false}
-                onPress={() => setShowDeleteModal(true)}
-              />
-            </SettingSection>
+            {!permDeleteAccount.isHidden && (
+              <>
+                <View style={styles.logoutSpacer} />
+                <SettingSection title={t('settings.dangerZone')}>
+                  <SettingRow
+                    icon="trash"
+                    label={t('settings.deleteAccount')}
+                    sub={t('settings.deleteAccountSub')}
+                    destructive
+                    chevron={false}
+                    disabled={permDeleteAccount.isDisabled}
+                    onPress={() => {
+                      if (permDeleteAccount.isDisabled) {
+                        Alert.alert(t('common.error'), t('management.disabledNotice'));
+                        return;
+                      }
+                      setShowDeleteModal(true);
+                    }}
+                  />
+                </SettingSection>
+              </>
+            )}
 
             <View style={{ height: 40 }} />
           </>

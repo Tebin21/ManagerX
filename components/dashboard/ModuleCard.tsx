@@ -21,6 +21,7 @@ import type { ModuleLayout } from '@/store/moduleStore';
 interface Props {
   module: ModuleDefinition;
   enabled: boolean;
+  disabled?: boolean;
   label: string;
   layout?: ModuleLayout;
   isCustomizing?: boolean;
@@ -156,6 +157,17 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     circleBorder: '#BAE6FD',
     glowColor: 'rgba(2, 132, 199, 0.28)',
   },
+  management: {
+    iconName: 'shield-checkmark-outline',
+    tagKu: 'بەڕێوەبردن',
+    tagEn: 'Control',
+    subtitleKu: 'بەڕێوەبردنی کارمەند و دەسەڵاتەکان',
+    subtitleEn: 'Employee & Access Control',
+    iconColor: '#2563EB',
+    circleBg: '#EFF6FF',
+    circleBorder: '#BFDBFE',
+    glowColor: 'rgba(37, 99, 235, 0.28)',
+  },
 };
 
 const DEFAULT_THEME: ModuleVisualTheme = {
@@ -192,6 +204,7 @@ function getCachedStyles(
 function ModuleCardImpl({
   module,
   enabled,
+  disabled = false,
   label,
   layout = 'half',
   isCustomizing = false,
@@ -267,23 +280,35 @@ function ModuleCardImpl({
       return;
     }
 
+    if (disabled) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => { });
+      } catch { }
+      const { Alert } = require('react-native');
+      Alert.alert(
+        isKurdish ? 'ناچالاک کراوە' : 'Module Disabled',
+        isKurdish ? 'ئەم بەشە ناچالاک کراوە لەلایەن بەڕێوەبەرەوە.' : 'This module has been disabled by management.'
+      );
+      return;
+    }
+
     if (!enabled) return;
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    } catch {}
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
+    } catch { }
 
     if (onPress) {
       onPress();
     } else {
       router.push(module.route as any);
     }
-  }, [isCustomizing, enabled, onPress, module.id, module.route, onSelectForSwap, router]);
+  }, [isCustomizing, disabled, isKurdish, enabled, onPress, module.id, module.route, onSelectForSwap, router]);
 
   const handleLongPress = useCallback(() => {
     if (!isCustomizing) {
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+      } catch { }
       onStartCustomize?.(module.id);
     }
   }, [isCustomizing, onStartCustomize, module.id]);
@@ -291,16 +316,16 @@ function ModuleCardImpl({
   const scale = isSelectedForSwap
     ? pulseAnim
     : pressAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [1, 0.97],
-      });
+      inputRange: [0, 1],
+      outputRange: [1, 0.97],
+    });
 
   const translateY = isSelectedForSwap
     ? -4
     : pressAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 2.5],
-      });
+      inputRange: [0, 1],
+      outputRange: [0, 2.5],
+    });
 
   const styles = useMemo(
     () =>
@@ -329,7 +354,7 @@ function ModuleCardImpl({
       style={[
         styles.container,
         {
-          opacity: enabled ? 1 : 0.5,
+          opacity: enabled ? (disabled ? 0.55 : 1) : 0.5,
           transform: [{ scale }, { translateY }],
           zIndex: isSelectedForSwap ? 999 : 1,
         },
@@ -355,23 +380,23 @@ function ModuleCardImpl({
               borderTopColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
-                ? '#334155'
-                : '#F1F5F9',
+                  ? '#334155'
+                  : '#F1F5F9',
               borderLeftColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
-                ? '#334155'
-                : '#E2E8F0',
+                  ? '#334155'
+                  : '#E2E8F0',
               borderRightColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
-                ? '#334155'
-                : '#E2E8F0',
+                  ? '#334155'
+                  : '#E2E8F0',
               borderBottomColor: isSelectedForSwap
                 ? '#38BDF8'
                 : isDark
-                ? '#0F172A'
-                : '#CBD5E1',
+                  ? '#0F172A'
+                  : '#CBD5E1',
             },
           ]}
         >
@@ -536,12 +561,12 @@ function getStyles(
       width: isFull
         ? '100%'
         : isTabletLandscape
-        ? '23.8%'
-        : isLastRowPair
-        ? '48.5%'
-        : isTablet
-        ? '31.8%'
-        : '48.5%',
+          ? '23.8%'
+          : isLastRowPair
+            ? '48.5%'
+            : isTablet
+              ? '31.8%'
+              : '48.5%',
       marginVertical: isTablet ? 6 : 5,
     },
     pressable: {

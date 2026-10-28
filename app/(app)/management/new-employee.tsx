@@ -1,0 +1,317 @@
+import React, { useState } from 'react';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+
+import { Text } from '@/components/ui/AppText';
+import { AppHeader } from '@/components/common/AppHeader';
+import { useAppTheme } from '@/contexts/ThemeContext';
+import { useRTL } from '@/lib/rtl';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useAuthStore } from '@/store/authStore';
+import { useBusinessStore } from '@/store/businessStore';
+import { createEmployeeAccount } from '@/lib/management/managementService';
+
+export default function NewEmployeeScreen() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { colors, isDark } = useAppTheme();
+  const { flexDirection, textAlign } = useRTL();
+  const { isTablet, contentContainerStyle } = useResponsive();
+
+  const business = useBusinessStore.getState();
+  const currentAuthUser = useAuthStore.getState().user;
+
+  // Pre-fill manager email if available, otherwise blank
+  const defaultManagerEmail = currentAuthUser?.email || '';
+
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [managerEmail, setManagerEmail] = useState(defaultManagerEmail);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!displayName.trim()) {
+      Alert.alert(t('common.error'), 'تکایە ناوی کارمەند بنووسە.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      Alert.alert(t('common.error'), 'تکایە ئیمەیڵێکی دروست بنووسە.');
+      return;
+    }
+    if (!password.trim() || password.trim().length < 4) {
+      Alert.alert(t('common.error'), 'تکایە وشەی نهێنی لانیکەم ٤ پیت/ژمارە بێت.');
+      return;
+    }
+    if (!managerEmail.trim() || !managerEmail.includes('@')) {
+      Alert.alert(t('common.error'), 'تکایە ئیمەیڵی فەرمی بەڕێوەبەر بە دروستی بنووسە.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createEmployeeAccount({
+        displayName: displayName.trim(),
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+        managerEmail: managerEmail.trim().toLowerCase(),
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Alert.alert(t('common.success'), t('management.employeeCreatedSuccess'), [
+        {
+          text: t('common.ok'),
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (err: any) {
+      console.error('[NewEmployee] Create error:', err);
+      if (err?.message === 'EMPLOYEE_EMAIL_ALREADY_EXISTS') {
+        Alert.alert(t('common.error'), 'ئەم ئیمەیڵە پێشتر بەکارهاتووە بۆ کارمەندێکی تر.');
+      } else {
+        Alert.alert(t('common.error'), t('common.tryAgain'));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
+      <AppHeader title={t('management.addEmployee')} onBack={() => router.back()} />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+                borderColor: colors.gray200,
+              },
+            ]}
+          >
+            {/* Display Name */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.black }]}>
+                {t('management.employeeName')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                    borderColor: colors.gray300,
+                    color: colors.black,
+                    textAlign,
+                  },
+                ]}
+                placeholder="نموونە: ئارام ئەحمەد"
+                placeholderTextColor={colors.gray400}
+                value={displayName}
+                onChangeText={setDisplayName}
+              />
+            </View>
+
+            {/* Email */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.black }]}>
+                {t('management.employeeEmail')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                    borderColor: colors.gray300,
+                    color: colors.black,
+                    textAlign: 'left',
+                  },
+                ]}
+                placeholder="employee@market.com"
+                placeholderTextColor={colors.gray400}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.black }]}>
+                {t('management.password')}
+              </Text>
+              <View
+                style={[
+                  styles.passwordContainer,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                    borderColor: colors.gray300,
+                  },
+                ]}
+              >
+                <TextInput
+                  style={[
+                    styles.passwordInput,
+                    {
+                      color: colors.black,
+                      textAlign: 'left',
+                    },
+                  ]}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.gray400}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.gray400}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Manager Official Email */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.black }]}>
+                {t('management.managerEmail')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                    borderColor: colors.gray300,
+                    color: colors.black,
+                    textAlign: 'left',
+                  },
+                ]}
+                placeholder="manager@gmail.com"
+                placeholderTextColor={colors.gray400}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={managerEmail}
+                onChangeText={setManagerEmail}
+              />
+              <Text style={[styles.hint, { color: colors.gray500 }]}>
+                داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: isSubmitting ? 0.7 : 1,
+                },
+              ]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitBtnText}>{t('management.addEmployee')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+  },
+  formGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  input: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+  },
+  passwordContainer: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  submitBtn: {
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
+

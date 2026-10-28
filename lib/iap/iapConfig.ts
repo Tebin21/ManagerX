@@ -42,7 +42,7 @@ export const PRO_PLAN_ITEM_LIMITS: Record<string, number> = {
  * Default free-plan item limit when no subscription or license is active.
  * Preserves the existing baseline from ITEM_LIMIT_PLANS[DEFAULT_ITEM_LIMIT_PLAN].
  */
-export const DEFAULT_FREE_ITEM_LIMIT = 100;
+export const DEFAULT_FREE_ITEM_LIMIT = 30;
 
 export function getProItemLimit(productId: string | null | undefined): number {
   if (!productId) return DEFAULT_FREE_ITEM_LIMIT;

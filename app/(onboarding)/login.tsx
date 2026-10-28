@@ -111,6 +111,45 @@ export default function LoginScreen() {
       return;
     }
     setAuthError(null);
+
+    // 1. Check if this is an employee account managed via Management Hub
+    try {
+      const { authenticateEmployee, recordEmployeeLogin } = await import('@/lib/management/managementService');
+      const empResult = await authenticateEmployee(email.trim(), password);
+      if (empResult.success && empResult.account) {
+        const emp = empResult.account;
+        const { useManagementStore } = await import('@/store/managementStore');
+        useManagementStore.getState().setCurrentEmployee(emp);
+        useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
+
+        await recordEmployeeLogin(emp.email);
+
+        const appUser = {
+          id: emp.id,
+          uid: emp.id,
+          email: emp.email,
+          displayName: emp.displayName,
+        };
+        useAuthStore.setState({ user: appUser as any, isLoading: false });
+
+        // Direct business sync to manager's email namespace
+        const { useBusinessStore } = await import('@/store/businessStore');
+        if (emp.managerEmail) {
+          useBusinessStore.getState().setOwnerUserId(emp.managerEmail);
+        }
+
+        useOnboardingStore.getState().completeOnboarding();
+        router.replace('/(app)/dashboard');
+        return;
+      } else if (empResult.error === 'ACCOUNT_SUSPENDED') {
+        setAuthError(isRTL ? 'ئەم ئەکاونتە ڕاگیراوە لەلایەن بەڕێوەبەرەوە.' : 'This account has been suspended by management.');
+        return;
+      }
+    } catch (e) {
+      console.warn('[Login] Employee auth check failed:', e);
+    }
+
+    // 2. Standard Firebase auth fallback
     const { error, needsVerification } = await signInWithEmail(email.trim(), password);
     if (error) {
       setAuthError(error);

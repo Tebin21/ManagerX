@@ -51,5 +51,10 @@ service cloud.firestore {
     match /user_subscriptions/{subId} {
       allow read, write: if true;
     }
+
+    // Employee accounts and RBAC permissions
+    match /employee_accounts/{empId} {
+      allow read, write: if true;
+    }
   }
 }

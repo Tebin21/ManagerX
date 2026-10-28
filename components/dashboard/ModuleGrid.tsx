@@ -24,6 +24,9 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL } from '@/lib/rtl';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useAuthStore } from '@/store/authStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
+import { useManagementStore } from '@/store/managementStore';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -56,15 +59,29 @@ function ModuleGridImpl() {
     });
   }, [modules]);
 
+  const user = useAuthStore((s) => s.user);
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentPermissions = useManagementStore((s) => s.currentPermissions);
+  const isAdmin = isAdminEmail(user?.email);
+
   const displayModules = useMemo(() => {
     return sortedModules.filter((item) => {
+      // Management module ONLY exists for Super-Admin
+      if (item.id === 'management') {
+        return isAdmin;
+      }
       // Expiry module ONLY exists on dashboard when enabled from Expiry Settings
       if (item.id === 'expiry' && !expiryTrackingEnabled) {
         return false;
       }
+      // Hide modules that are set to 'hidden' for employees
+      if (isEmployee && currentPermissions) {
+        const state = (currentPermissions as any)[item.id];
+        if (state === 'hidden') return false;
+      }
       return true;
     });
-  }, [sortedModules, expiryTrackingEnabled]);
+  }, [sortedModules, expiryTrackingEnabled, isAdmin, isEmployee, currentPermissions]);
 
   // On all screen sizes, identify layout row grouping to eliminate any empty/awkward space
   const { tabletPortraitPairSet, singleItemRowSet } = useMemo(() => {
@@ -366,6 +383,7 @@ function ModuleGridImpl() {
                 key={item.id}
                 module={item}
                 enabled={config?.enabled ?? true}
+                disabled={Boolean(isEmployee && currentPermissions && (currentPermissions as any)[item.id] === 'disabled')}
                 label={t(item.labelKey)}
                 layout={layout}
                 isCustomizing={isCustomizing}

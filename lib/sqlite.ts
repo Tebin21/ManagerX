@@ -3117,6 +3117,9 @@ export async function insertSale(
   saleData: Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'items'>,
   items: Omit<SaleItem, 'id' | 'saleId'>[]
 ): Promise<number> {
+  const { assertSalesLimit } = await import('@/lib/usageLimits');
+  await assertSalesLimit();
+
   const database = await getDatabase();
   let saleId = 0;
 

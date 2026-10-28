@@ -38,6 +38,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import PaymentManagement from '@/components/admin/PaymentManagement';
+import EmployeeManagement from '@/components/admin/EmployeeManagement';
 import { getClientFirestore } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
@@ -275,7 +276,7 @@ export default function AdminDashboardPage() {
   const [authError, setAuthError] = useState(false);
 
   // ─── Dashboard Navigation & Filters ───────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'licenses'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'licenses' | 'management'>('users');
   const [licensesCount, setLicensesCount] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'year' | 'custom'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -947,7 +948,7 @@ export default function AdminDashboardPage() {
               setIsDrawerOpen(false);
             }}
             className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
-              activeTab !== 'licenses'
+              activeTab !== 'licenses' && activeTab !== 'management'
                 ? isDarkMode
                   ? 'bg-[#1C2438] border-blue-500/50 text-white shadow-md'
                   : 'bg-blue-50 border-blue-400 text-blue-950 shadow-sm'
@@ -959,7 +960,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-3.5 min-w-0">
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                  activeTab !== 'licenses'
+                  activeTab !== 'licenses' && activeTab !== 'management'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : isDarkMode
                     ? 'bg-slate-800 text-slate-400'
@@ -1022,6 +1023,45 @@ export default function AdminDashboardPage() {
               <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
             )}
           </button>
+
+          {/* Button 3: Management (مەنجمێنت) */}
+          <button
+            onClick={() => {
+              setActiveTab('management');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
+              activeTab === 'management'
+                ? isDarkMode
+                  ? 'bg-[#1C2038] border-purple-500 text-white shadow-md shadow-purple-500/10'
+                  : 'bg-purple-50 border-purple-400 text-purple-950 shadow-sm'
+                : isDarkMode
+                ? 'bg-[#141C2E] border-slate-800 text-slate-300 hover:border-purple-500/40'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-purple-500/50'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-purple-500/20 shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-inherit truncate flex items-center gap-2">
+                  <span>{isKu ? 'مەنجمێنت' : 'Management'}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-extrabold border border-purple-500/30">
+                    RBAC
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 truncate">
+                  {isKu ? 'بەڕێوەبردنی کارمەندان و دەسەڵاتەکان' : 'Employee & Permission RBAC'}
+                </div>
+              </div>
+            </div>
+            {isKu ? (
+              <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+          </button>
         </div>
 
         {/* Drawer Footer: Button 3: Logout (چوونە دەرەوە لە خوار خوارەوە) */}
@@ -1051,6 +1091,16 @@ export default function AdminDashboardPage() {
           <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
             {/* FULL SCREEN PAYMENT & SUBSCRIPTION COMPONENT */}
             <PaymentManagement
+              isDarkMode={isDarkMode}
+              language={language}
+            />
+          </div>
+        ) : activeTab === 'management' ? (
+          /* ═══════════════════════════════════════════════════════════════════ */
+          /* ── EMPLOYEE & RBAC MANAGEMENT PORTAL ──                             */
+          /* ═══════════════════════════════════════════════════════════════════ */
+          <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
+            <EmployeeManagement
               isDarkMode={isDarkMode}
               language={language}
             />

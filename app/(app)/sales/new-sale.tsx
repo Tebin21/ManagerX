@@ -322,6 +322,14 @@ export default function NewSaleScreen() {
       }
     }
 
+    const { checkSalesLimit } = await import('@/lib/usageLimits');
+    const salesCheck = await checkSalesLimit();
+    if (!salesCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const sale = await createSale({
@@ -384,6 +392,9 @@ export default function NewSaleScreen() {
         );
       } else if (msg === 'DUPLICATE_NAME') {
         Alert.alert(t('common.error'), t('customers.duplicateName') + '\n\n' + t('customers.useExisting'));
+      } else if (msg.startsWith('USAGE_LIMIT_')) {
+        const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+        showUsageLimitModal();
       } else {
         Alert.alert(t('common.error'), t('common.tryAgain'));
       }

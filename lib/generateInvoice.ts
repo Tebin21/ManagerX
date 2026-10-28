@@ -354,6 +354,14 @@ export async function shareInvoice(
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd'
 ): Promise<void> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return;
+  }
+
   if (!tryAcquireGenerationLock()) return;
   try {
     const biz = await withResolvedLogo(business);
@@ -366,6 +374,7 @@ export async function shareInvoice(
       'Could not generate invoice PDF. Please try again.',
       fileName
     );
+    await recordInvoicePrint();
   } catch (err) {
     console.error('[PDF] shareInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate invoice PDF. Please try again.');
@@ -381,6 +390,14 @@ export async function sharePurchaseInvoice(
   currencyMode: ReceiptCurrencyMode = 'iqd',
   purchaseDebt?: PurchaseDebt | null
 ): Promise<void> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return;
+  }
+
   if (!tryAcquireGenerationLock()) return;
   try {
     let resolvedDebt = purchaseDebt;
@@ -401,6 +418,7 @@ export async function sharePurchaseInvoice(
       'Could not generate purchase invoice PDF. Please try again.',
       fileName
     );
+    await recordInvoicePrint();
   } catch (err) {
     console.error('[PDF] sharePurchaseInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate purchase invoice PDF. Please try again.');
@@ -414,6 +432,14 @@ export async function directPrintInvoice(
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd'
 ): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
   if (Platform.OS === 'web') {
     Alert.alert('Not supported', 'Direct printing is not available on web.');
     return false;
@@ -429,6 +455,7 @@ export async function directPrintInvoice(
     const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
     const html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
     await Print.printAsync({ html });
+    await recordInvoicePrint();
     return true;
   } catch (err) {
     console.error('[Print] directPrintInvoice unexpected error:', err);
@@ -445,6 +472,14 @@ export async function directPrintPurchaseInvoice(
   currencyMode: ReceiptCurrencyMode = 'iqd',
   purchaseDebt?: PurchaseDebt | null
 ): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
   if (Platform.OS === 'web') {
     Alert.alert('Not supported', 'Direct printing is not available on web.');
     return false;
@@ -468,6 +503,7 @@ export async function directPrintPurchaseInvoice(
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
     await Print.printAsync({ html });
+    await recordInvoicePrint();
     return true;
   } catch (err) {
     console.error('[Print] directPrintPurchaseInvoice unexpected error:', err);
@@ -933,6 +969,14 @@ export async function shareQuotationInvoice(
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'both'
 ): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
   if (!tryAcquireGenerationLock()) return false;
   try {
     const biz = await withResolvedLogo(business);
@@ -940,12 +984,16 @@ export async function shareQuotationInvoice(
     const html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
     const isKu = i18n.language === 'ku' || !i18n.language;
     const fileName = buildFroshiarPdfFileName(quotation.quotationNumber, 'Quotation');
-    return await generateAndShare(
+    const success = await generateAndShare(
       html,
       isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
       isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.',
       fileName
     );
+    if (success) {
+      await recordInvoicePrint();
+    }
+    return success;
   } catch (err) {
     console.error('[PDF] shareQuotationInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate quotation PDF. Please try again.');

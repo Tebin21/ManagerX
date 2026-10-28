@@ -125,10 +125,14 @@ export function SettingRow({
           </Text>
         ) : null}
       </View>
-      {rightElement ?? (
-        chevron ? (
-          <Ionicons name={chevronForward as never} size={isTablet ? 20 : 16} color={colors.gray300} />
-        ) : null
+      {disabled ? (
+        <Ionicons name="lock-closed" size={isTablet ? 18 : 15} color={colors.gray400} />
+      ) : (
+        rightElement ?? (
+          chevron ? (
+            <Ionicons name={chevronForward as never} size={isTablet ? 20 : 16} color={colors.gray300} />
+          ) : null
+        )
       )}
     </TouchableOpacity>
   );

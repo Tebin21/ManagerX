@@ -95,16 +95,9 @@ export default function InventoryHistoryScreen() {
               await restoreFromHistory(item.id);
             } catch (err) {
               const msg = err instanceof Error ? err.message : '';
-              if (msg.startsWith('ITEM_LIMIT_REACHED|')) {
-                const [used, limit] = msg.split('|')[1].split(',');
-                Alert.alert(
-                  t('inventory.itemLimitReachedTitle'),
-                  t('inventory.itemLimitReachedBody', { used, limit }),
-                  [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('settings.upgradeScreen.title'), onPress: () => router.push('/(app)/settings/plan-limits' as never) },
-                  ]
-                );
+              if (msg.startsWith('ITEM_LIMIT_REACHED|') || msg.startsWith('USAGE_LIMIT_')) {
+                const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+                showUsageLimitModal();
               } else {
                 Alert.alert(t('common.error'), t('common.tryAgain'));
               }
