@@ -52,6 +52,7 @@ export interface EmployeeAccount {
   phone?: string;
   priceAmount?: string; // e.g. "25,000 IQD" or "$20"
   durationDays?: number; // e.g. 30, 90, 365
+  startedAt?: string; // ISO date string (Subscription start)
   expiresAt?: string; // ISO date string
   status: 'active' | 'suspended';
   managerStatus?: 'active' | 'suspended'; // If manager is suspended, all employees under this manager are locked

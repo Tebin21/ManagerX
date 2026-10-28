@@ -214,10 +214,6 @@ export async function checkInvoicePrintLimit(): Promise<{ allowed: boolean; curr
     return { allowed: true, current: 0, limit: USAGE_LIMITS.MAX_INVOICE_PRINTS };
   }
 }
-    console.warn('[UsageLimits] checkInvoicePrintLimit failed:', err);
-    return { allowed: true, current: 0, limit: USAGE_LIMITS.MAX_INVOICE_PRINTS };
-  }
-}
 
 export async function recordInvoicePrint(): Promise<number> {
   try {
