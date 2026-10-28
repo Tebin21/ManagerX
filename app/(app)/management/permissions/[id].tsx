@@ -34,7 +34,7 @@ export default function EmployeePermissionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, flexDirection, textAlign } = useRTL();
+  const { flexDirection, textAlign } = useRTL();
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const params = useLocalSearchParams<{ id: string; email: string; name?: string }>();
@@ -70,7 +70,7 @@ export default function EmployeePermissionsScreen() {
     setIsUpdatingPassword(true);
     try {
       await updateEmployeePassword(email, newPassword.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
       Alert.alert(
         isRTL ? 'سەرکەوتوو بوو' : 'Success',
         isRTL ? 'تێپەڕەوشەی کارمەندەکە بە سەرکەوتوویی نوێکرایەوە.' : 'Employee password updated successfully.'
@@ -84,7 +84,7 @@ export default function EmployeePermissionsScreen() {
   };
 
   const setModuleState = (key: keyof EmployeePermissions, state: PermissionState) => {
-    Haptics.selectionAsync().catch(() => {});
+    Haptics.selectionAsync().catch(() => { });
     setPermissions((prev) => ({
       ...prev,
       [key]: state,
@@ -95,7 +95,7 @@ export default function EmployeePermissionsScreen() {
     setIsSaving(true);
     try {
       await updateEmployeePermissions(email, permissions);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
       Alert.alert(t('common.success'), t('management.permissionsSavedSuccess'), [
         { text: t('common.ok'), onPress: () => router.back() },
       ]);
@@ -344,7 +344,7 @@ export default function EmployeePermissionsScreen() {
           <Switch
             value={permissions.canDeleteInvoice}
             onValueChange={(val) => {
-              Haptics.selectionAsync().catch(() => {});
+              Haptics.selectionAsync().catch(() => { });
               setPermissions((prev) => ({ ...prev, canDeleteInvoice: val }));
             }}
             trackColor={{ false: colors.gray300, true: colors.primary }}

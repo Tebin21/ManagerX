@@ -2,6 +2,7 @@ import { getDatabase, loadSetting, saveSetting } from '@/lib/sqlite';
 import { useQuotationStore } from '@/store/quotationStore';
 import { loadLicenseFromDb } from '@/lib/itemLimit';
 import { showUsageLimitModal } from '@/store/usageLimitModalStore';
+import { useManagementStore } from '@/store/managementStore';
 
 export const USAGE_LIMITS = {
   MAX_ITEMS: 20,           // ٢٠ ئایتم
@@ -11,7 +12,44 @@ export const USAGE_LIMITS = {
   MAX_QUOTATIONS: 5,       // ٥ عەرز
 } as const;
 
+function getCustomAccountConfig() {
+  try {
+    const { isEmployee, currentEmployeeAccount, isManager, managedEmployees } = useManagementStore.getState();
+    if (isEmployee && currentEmployeeAccount) {
+      return {
+        limits: currentEmployeeAccount.limits,
+        expiresAt: currentEmployeeAccount.expiresAt,
+        isSuspended: currentEmployeeAccount.status === 'suspended' || currentEmployeeAccount.managerStatus === 'suspended',
+      };
+    }
+    if (isManager && managedEmployees.length > 0) {
+      return {
+        limits: managedEmployees[0].limits,
+        expiresAt: managedEmployees[0].expiresAt,
+        isSuspended: managedEmployees[0].status === 'suspended' || managedEmployees[0].managerStatus === 'suspended',
+      };
+    }
+  } catch {}
+  return null;
+}
+
+export function isAccountExpired(): boolean {
+  const cfg = getCustomAccountConfig();
+  if (!cfg) return false;
+  if (cfg.isSuspended) return true;
+  if (cfg.expiresAt) {
+    const expireTime = new Date(cfg.expiresAt).getTime();
+    if (expireTime > 0 && expireTime < Date.now()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function isLicenseActive(): Promise<boolean> {
+  if (isAccountExpired()) {
+    return false;
+  }
   try {
     const license = await loadLicenseFromDb();
     if (license.licenseCode && !license.expired && license.plan !== 'basic') {
@@ -24,7 +62,14 @@ export async function isLicenseActive(): Promise<boolean> {
 }
 
 export async function checkItemsLimit(additionalItems: number = 0): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (isAccountExpired()) {
+    return { allowed: false, current: 0, limit: 0 };
+  }
   if (await isLicenseActive()) {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  const cfg = getCustomAccountConfig();
+  if (cfg?.limits?.maxItems === 'unlimited') {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -33,7 +78,7 @@ export async function checkItemsLimit(additionalItems: number = 0): Promise<{ al
       'SELECT COUNT(CASE WHEN is_active = 1 THEN 1 END) AS cnt FROM products'
     );
     const current = row?.cnt ?? 0;
-    const limit = USAGE_LIMITS.MAX_ITEMS;
+    const limit = typeof cfg?.limits?.maxItems === 'number' ? cfg.limits.maxItems : USAGE_LIMITS.MAX_ITEMS;
     return {
       allowed: current + additionalItems <= limit,
       current,
@@ -46,7 +91,14 @@ export async function checkItemsLimit(additionalItems: number = 0): Promise<{ al
 }
 
 export async function checkQuantityLimit(additionalQuantity: number = 0): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (isAccountExpired()) {
+    return { allowed: false, current: 0, limit: 0 };
+  }
   if (await isLicenseActive()) {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  const cfg = getCustomAccountConfig();
+  if (cfg?.limits?.maxQuantity === 'unlimited') {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -55,8 +107,7 @@ export async function checkQuantityLimit(additionalQuantity: number = 0): Promis
       'SELECT COALESCE(SUM(CASE WHEN is_active = 1 AND quantity > 0 THEN quantity END), 0) AS totalQty FROM products'
     );
     const current = row?.totalQty ?? 0;
-    const limit = USAGE_LIMITS.MAX_QUANTITY;
-    // Quantity limit: total stock quantity cannot exceed 30, and single addition cannot exceed 30
+    const limit = typeof cfg?.limits?.maxQuantity === 'number' ? cfg.limits.maxQuantity : USAGE_LIMITS.MAX_QUANTITY;
     const allowed = current + additionalQuantity <= limit && additionalQuantity <= limit;
     return {
       allowed,
@@ -70,7 +121,14 @@ export async function checkQuantityLimit(additionalQuantity: number = 0): Promis
 }
 
 export async function checkSalesLimit(): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (isAccountExpired()) {
+    return { allowed: false, current: 0, limit: 0 };
+  }
   if (await isLicenseActive()) {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  const cfg = getCustomAccountConfig();
+  if (cfg?.limits?.maxSales === 'unlimited') {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -79,7 +137,7 @@ export async function checkSalesLimit(): Promise<{ allowed: boolean; current: nu
       'SELECT COUNT(*) AS cnt FROM sales'
     );
     const current = row?.cnt ?? 0;
-    const limit = USAGE_LIMITS.MAX_SALES;
+    const limit = typeof cfg?.limits?.maxSales === 'number' ? cfg.limits.maxSales : USAGE_LIMITS.MAX_SALES;
     return {
       allowed: current < limit,
       current,
@@ -92,13 +150,20 @@ export async function checkSalesLimit(): Promise<{ allowed: boolean; current: nu
 }
 
 export async function checkQuotationsLimit(): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (isAccountExpired()) {
+    return { allowed: false, current: 0, limit: 0 };
+  }
   if (await isLicenseActive()) {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  const cfg = getCustomAccountConfig();
+  if (cfg?.limits?.maxQuotations === 'unlimited') {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
     const quotations = useQuotationStore.getState().quotations ?? [];
     const current = quotations.length;
-    const limit = USAGE_LIMITS.MAX_QUOTATIONS;
+    const limit = typeof cfg?.limits?.maxQuotations === 'number' ? cfg.limits.maxQuotations : USAGE_LIMITS.MAX_QUOTATIONS;
     return {
       allowed: current < limit,
       current,
@@ -111,7 +176,14 @@ export async function checkQuotationsLimit(): Promise<{ allowed: boolean; curren
 }
 
 export async function checkInvoicePrintLimit(): Promise<{ allowed: boolean; current: number; limit: number }> {
+  if (isAccountExpired()) {
+    return { allowed: false, current: 0, limit: 0 };
+  }
   if (await isLicenseActive()) {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  const cfg = getCustomAccountConfig();
+  if (cfg?.limits?.maxInvoices === 'unlimited') {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -130,7 +202,7 @@ export async function checkInvoicePrintLimit(): Promise<{ allowed: boolean; curr
 
     const dbPrints = (salesRow?.salesPrints ?? 0) + (purchaseRow?.purchasePrints ?? 0) + quotePrints;
     const current = Math.max(settingCount, dbPrints);
-    const limit = USAGE_LIMITS.MAX_INVOICE_PRINTS;
+    const limit = typeof cfg?.limits?.maxInvoices === 'number' ? cfg.limits.maxInvoices : USAGE_LIMITS.MAX_INVOICE_PRINTS;
 
     return {
       allowed: current < limit,
@@ -138,6 +210,10 @@ export async function checkInvoicePrintLimit(): Promise<{ allowed: boolean; curr
       limit,
     };
   } catch (err) {
+    console.warn('[UsageLimits] checkInvoicePrintLimit failed:', err);
+    return { allowed: true, current: 0, limit: USAGE_LIMITS.MAX_INVOICE_PRINTS };
+  }
+}
     console.warn('[UsageLimits] checkInvoicePrintLimit failed:', err);
     return { allowed: true, current: 0, limit: USAGE_LIMITS.MAX_INVOICE_PRINTS };
   }

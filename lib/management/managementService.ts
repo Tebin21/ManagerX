@@ -201,6 +201,110 @@ export async function updateEmployeePassword(
 }
 
 /**
+ * Updates full account details (email, password, displayName, managerEmail, phone, priceAmount, etc.)
+ */
+export async function updateEmployeeAccountDetails(
+  docIdOrEmail: string,
+  updates: Partial<EmployeeAccount>
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const docId = getCleanDocId(docIdOrEmail);
+  const docRef = doc(db, COLLECTION_NAME, docId);
+
+  await setDoc(docRef, updates, { merge: true });
+}
+
+/**
+ * Renews subscription for an employee by adding days to expiresAt.
+ */
+export async function renewEmployeeSubscription(
+  docIdOrEmail: string,
+  additionalDays: number,
+  newPriceAmount?: string
+): Promise<string> {
+  const db = getFirebaseFirestore();
+  const docId = getCleanDocId(docIdOrEmail);
+  const docRef = doc(db, COLLECTION_NAME, docId);
+
+  const snap = await getDoc(docRef);
+  const currentData = snap.data() as EmployeeAccount;
+
+  let baseDate = new Date();
+  if (currentData?.expiresAt && new Date(currentData.expiresAt).getTime() > Date.now()) {
+    baseDate = new Date(currentData.expiresAt);
+  }
+  baseDate.setDate(baseDate.getDate() + additionalDays);
+  const newExpiresAt = baseDate.toISOString();
+
+  const payload: Partial<EmployeeAccount> = {
+    expiresAt: newExpiresAt,
+    status: 'active',
+  };
+  if (newPriceAmount) {
+    payload.priceAmount = newPriceAmount;
+  }
+
+  await setDoc(docRef, payload, { merge: true });
+  return newExpiresAt;
+}
+
+/**
+ * Updates Online Store configuration for an account.
+ */
+export async function updateOnlineStoreConfig(
+  docIdOrEmail: string,
+  onlineStore: Partial<import('./types').OnlineStoreConfig>
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const docId = getCleanDocId(docIdOrEmail);
+  const docRef = doc(db, COLLECTION_NAME, docId);
+
+  const snap = await getDoc(docRef);
+  const existingStore = (snap.data() as EmployeeAccount)?.onlineStore || {
+    enabled: false,
+    storeName: '',
+    subdomain: '',
+    status: 'suspended' as const,
+  };
+
+  await setDoc(
+    docRef,
+    {
+      onlineStore: {
+        ...existingStore,
+        ...onlineStore,
+      },
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Suspends or activates a manager, which cascades to all employees linked to this manager!
+ */
+export async function setManagerSuspension(
+  managerEmail: string,
+  managerStatus: 'active' | 'suspended'
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const cleanManager = managerEmail.trim().toLowerCase();
+  const colRef = collection(db, COLLECTION_NAME);
+  const snap = await getDocs(colRef);
+
+  const batchUpdates: Promise<any>[] = [];
+  snap.forEach((d) => {
+    const data = d.data() as EmployeeAccount;
+    if ((data.managerEmail || '').trim().toLowerCase() === cleanManager) {
+      batchUpdates.push(
+        setDoc(doc(db, COLLECTION_NAME, d.id), { managerStatus }, { merge: true })
+      );
+    }
+  });
+
+  await Promise.all(batchUpdates);
+}
+
+/**
  * Subscribes in real-time to employees supervised by a specific manager.
  */
 export function subscribeToManagerEmployees(
