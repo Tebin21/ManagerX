@@ -205,7 +205,7 @@ function ModuleCardImpl({
 }: Props) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, isLargeTablet, isTabletLandscape } = useResponsive();
+  const { isTablet, isLargeTablet, isTabletLandscape, uiScaleFactor } = useResponsive();
   const { isRTL } = useRTL();
   const lang = useLanguageStore((s) => s.language);
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
@@ -303,8 +303,25 @@ function ModuleCardImpl({
       });
 
   const styles = useMemo(
-    () => getCachedStyles(isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair),
-    [isTablet, isLargeTablet, isTabletLandscape, isEffectivelyFull, isDark, isLastRowPair]
+    () =>
+      getCachedStyles(
+        isTablet,
+        isLargeTablet,
+        isTabletLandscape,
+        isEffectivelyFull,
+        isDark,
+        isLastRowPair,
+        uiScaleFactor
+      ),
+    [
+      isTablet,
+      isLargeTablet,
+      isTabletLandscape,
+      isEffectivelyFull,
+      isDark,
+      isLastRowPair,
+      uiScaleFactor,
+    ]
   );
 
   return (
@@ -374,7 +391,7 @@ function ModuleCardImpl({
               >
                 <Ionicons
                   name={theme.iconName}
-                  size={isTabletLandscape ? 36 : isTablet ? 30 : 22}
+                  size={Math.round((isTabletLandscape ? 36 : isTablet ? 30 : 22) * uiScaleFactor)}
                   color={theme.iconColor}
                 />
               </View>
@@ -433,7 +450,7 @@ function ModuleCardImpl({
               >
                 <Ionicons
                   name={theme.iconName}
-                  size={isTabletLandscape ? 42 : isTablet ? (isLastRowPair ? 38 : 35) : 25}
+                  size={Math.round((isTabletLandscape ? 42 : isTablet ? (isLastRowPair ? 38 : 35) : 25) * uiScaleFactor)}
                   color={theme.iconColor}
                 />
               </View>
@@ -508,10 +525,11 @@ function getStyles(
   isTabletLandscape: boolean,
   isFull: boolean,
   isDark: boolean,
-  isLastRowPair: boolean = false
+  isLastRowPair: boolean = false,
+  scale: number = 1.0
 ) {
-  const squareHeight = isTabletLandscape ? 200 : isLargeTablet ? 188 : isTablet ? (isLastRowPair ? 176 : 172) : 142;
-  const wideHeight = isTabletLandscape ? 120 : isLargeTablet ? 110 : isTablet ? 98 : 78;
+  const squareHeight = Math.round((isTabletLandscape ? 200 : isLargeTablet ? 188 : isTablet ? (isLastRowPair ? 176 : 172) : 142) * scale);
+  const wideHeight = Math.round((isTabletLandscape ? 120 : isLargeTablet ? 110 : isTablet ? 98 : 78) * scale);
 
   return StyleSheet.create({
     container: {
@@ -532,7 +550,7 @@ function getStyles(
     cardSurface: {
       width: '100%',
       minHeight: isFull ? wideHeight : squareHeight,
-      borderRadius: isTablet ? 24 : 22,
+      borderRadius: Math.round((isTablet ? 24 : 22) * scale),
       paddingHorizontal: isFull ? (isTablet ? 18 : 14) : 10,
       paddingVertical: isFull ? 12 : 12,
       justifyContent: 'center',
@@ -560,9 +578,9 @@ function getStyles(
       position: 'relative',
     },
     circleContainerSquare: {
-      width: isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52,
-      height: isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52,
-      borderRadius: isTabletLandscape ? 41 : isTablet ? (isLastRowPair ? 38 : 35) : 26,
+      width: Math.round((isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52) * scale),
+      height: Math.round((isTabletLandscape ? 82 : isTablet ? (isLastRowPair ? 76 : 70) : 52) * scale),
+      borderRadius: Math.round((isTabletLandscape ? 41 : isTablet ? (isLastRowPair ? 38 : 35) : 26) * scale),
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
@@ -574,14 +592,14 @@ function getStyles(
       elevation: 4,
     },
     titleSquare: {
-      fontSize: isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14.5,
+      fontSize: Math.round((isTabletLandscape ? 21 : isTablet ? (isLastRowPair ? 20.5 : 19) : 14.5) * scale * 10) / 10,
       fontWeight: '700',
       textAlign: 'center',
       letterSpacing: -0.2,
       marginBottom: 3,
     },
     subtitleSquare: {
-      fontSize: isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5,
+      fontSize: Math.round((isTabletLandscape ? 14.5 : isTablet ? (isLastRowPair ? 13.5 : 13) : 9.5) * scale * 10) / 10,
       fontWeight: '500',
       textAlign: 'center',
       paddingHorizontal: 4,
@@ -594,9 +612,9 @@ function getStyles(
       justifyContent: 'space-between',
     },
     circleContainerWide: {
-      width: isTabletLandscape ? 72 : isTablet ? 60 : 46,
-      height: isTabletLandscape ? 72 : isTablet ? 60 : 46,
-      borderRadius: isTabletLandscape ? 36 : isTablet ? 30 : 23,
+      width: Math.round((isTabletLandscape ? 72 : isTablet ? 60 : 46) * scale),
+      height: Math.round((isTabletLandscape ? 72 : isTablet ? 60 : 46) * scale),
+      borderRadius: Math.round((isTabletLandscape ? 36 : isTablet ? 30 : 23) * scale),
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
@@ -611,13 +629,13 @@ function getStyles(
       justifyContent: 'center',
     },
     titleWide: {
-      fontSize: isTabletLandscape ? 23 : isTablet ? 20 : 15,
+      fontSize: Math.round((isTabletLandscape ? 23 : isTablet ? 20 : 15) * scale * 10) / 10,
       fontWeight: '700',
       letterSpacing: -0.2,
       marginBottom: 2,
     },
     subtitleWide: {
-      fontSize: isTabletLandscape ? 15.5 : isTablet ? 14 : 10,
+      fontSize: Math.round((isTabletLandscape ? 15.5 : isTablet ? 14 : 10) * scale * 10) / 10,
       fontWeight: '500',
     },
     wideTrailingGroup: {

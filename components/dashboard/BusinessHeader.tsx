@@ -205,7 +205,7 @@ function BusinessHeaderImpl() {
   const setShowOnDashboard = useBusinessStore((s) => s.setShowOnDashboard);
   const insets = useSafeAreaInsets();
   const { colors: themeColors, isDark } = useAppTheme();
-  const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
+  const { isTablet, isTabletLandscape, headerMaxWidth, uiScaleFactor } = useResponsive();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
 
@@ -555,8 +555,8 @@ function BusinessHeaderImpl() {
   const resolved = resolveType(type, isKurdish);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(
-    () => getStyles(isTablet, isTabletLandscape, insets.top),
-    [isTablet, isTabletLandscape, insets.top]
+    () => getStyles(isTablet, isTabletLandscape, insets.top, uiScaleFactor),
+    [isTablet, isTabletLandscape, insets.top, uiScaleFactor]
   );
 
   // Current tab media for modal UI
@@ -1090,9 +1090,9 @@ function BusinessHeaderImpl() {
 
 export const BusinessHeader = React.memo(BusinessHeaderImpl);
 
-function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, insetsTop: number = 0) {
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, insetsTop: number = 0, scale: number = 1.0) {
   const dynamicTopPadding = Math.max(insetsTop + (isTabletLandscape ? 8 : isTablet ? 12 : 16), isTablet ? 44 : 54);
-  const dynamicMinHeight = (isTabletLandscape ? 240 : isTablet ? 230 : 210) + Math.max(insetsTop, 20);
+  const dynamicMinHeight = Math.round(((isTabletLandscape ? 240 : isTablet ? 230 : 210) + Math.max(insetsTop, 20)) * scale);
 
   return StyleSheet.create({
     pressableRoot: {
@@ -1125,9 +1125,9 @@ function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, insets
       gap: isTabletLandscape ? 22 : isTablet ? 18 : 14,
     },
     logoContainer: {
-      width: isTabletLandscape ? 128 : isTablet ? 110 : 88,
-      height: isTabletLandscape ? 128 : isTablet ? 110 : 88,
-      borderRadius: isTabletLandscape ? 28 : isTablet ? 24 : 18,
+      width: Math.round((isTabletLandscape ? 128 : isTablet ? 110 : 88) * scale),
+      height: Math.round((isTabletLandscape ? 128 : isTablet ? 110 : 88) * scale),
+      borderRadius: Math.round((isTabletLandscape ? 28 : isTablet ? 24 : 18) * scale),
       overflow: 'hidden',
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.4)',
