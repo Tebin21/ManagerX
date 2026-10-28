@@ -7,6 +7,17 @@ const config = getDefaultConfig(__dirname);
 // Allow .wasm assets (expo-sqlite web)
 config.resolver.assetExts.push('wasm');
 
+// Block non-application directories from file watchers
+const defaultBlockList = Array.isArray(config.resolver.blockList)
+  ? config.resolver.blockList
+  : config.resolver.blockList ? [config.resolver.blockList] : [];
+
+config.resolver.blockList = [
+  ...defaultBlockList,
+  /.*[\\/]\.git[\\/].*/,
+  /.*[\\/]\.agents[\\/].*/,
+];
+
 // Apply NativeWind first so we can safely wrap its resolveRequest
 const finalConfig = withNativeWind(config, { input: './global.css' });
 
