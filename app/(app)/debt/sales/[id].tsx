@@ -52,10 +52,10 @@ function StatusBadge({ status }: { status: string }) {
   const warningTint = getStatusTint('warning', colors, isDark);
   const successTint = getStatusTint('success', colors, isDark);
   const map: Record<string, { bg: string; fg: string }> = {
-    unpaid:  { bg: errorTint.bg,   fg: errorTint.text },
+    unpaid: { bg: errorTint.bg, fg: errorTint.text },
     partial: { bg: warningTint.bg, fg: warningTint.text },
-    overdue: { bg: colors.error,   fg: colors.white },
-    paid:    { bg: successTint.bg, fg: successTint.text },
+    overdue: { bg: colors.error, fg: colors.white },
+    paid: { bg: successTint.bg, fg: successTint.text },
   };
   const c = map[status] ?? map.unpaid;
   return (
@@ -171,17 +171,17 @@ export default function SalesDebtDetailScreen() {
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const business = useBusinessStore();
 
-  const [debt, setDebt]         = useState<SalesDebtDetail | null>(null);
-  const [sale, setSale]         = useState<Sale | null>(null);
+  const [debt, setDebt] = useState<SalesDebtDetail | null>(null);
+  const [sale, setSale] = useState<Sale | null>(null);
   const [payments, setPayments] = useState<DebtPayment[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
 
-  const [payValue, setPayValue]       = useState('');
+  const [payValue, setPayValue] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date());
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [showPayForm, setShowPayForm] = useState(false);
-  const [isPaying, setIsPaying]       = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
   const debtId = Number(id);
 
@@ -337,9 +337,9 @@ export default function SalesDebtDetailScreen() {
     );
   }
 
-  const overdueLevel  = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
+  const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
-  const pctPaid       = debt.originalAmount > 0
+  const pctPaid = debt.originalAmount > 0
     ? Math.round((debt.paidAmount / debt.originalAmount) * 100)
     : 0;
 
@@ -692,243 +692,243 @@ export default function SalesDebtDetailScreen() {
 
 function getStyles(colors: AppColors) {
   return StyleSheet.create({
-  container: { flex: 1 },
-  center: { justifyContent: 'center', alignItems: 'center' },
+    container: { flex: 1 },
+    center: { justifyContent: 'center', alignItems: 'center' },
 
-  // headerMeta sits inside AppHeader's gradient (theme-invariant), so its
-  // translucent-white chrome stays fixed in both modes.
-  headerMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 14,
-  },
-  headerMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  headerMetaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-  },
-  headerMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.9)' },
+    // headerMeta sits inside AppHeader's gradient (theme-invariant), so its
+    // translucent-white chrome stays fixed in both modes.
+    headerMeta: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 14,
+    },
+    headerMetaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    headerMetaDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: 'rgba(255,255,255,0.45)',
+    },
+    headerMetaText: { fontSize: 13, color: 'rgba(255,255,255,0.9)' },
 
-  body: { padding: 16, paddingTop: 14 },
-  section: { marginBottom: 14 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 12 },
+    body: { padding: 16, paddingTop: 14 },
+    section: { marginBottom: 14 },
+    sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.black, marginBottom: 12 },
 
-  // Status card
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  remainingLabel: { fontSize: 12, color: colors.gray400, marginBottom: 2 },
-  remainingAmount: { fontSize: 26, fontWeight: '800' },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  statusBadgeText: { fontSize: 13, fontWeight: '700' },
+    // Status card
+    statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
+    remainingLabel: { fontSize: 12, color: colors.gray400, marginBottom: 2 },
+    remainingAmount: { fontSize: 26, fontWeight: '800' },
+    statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+    statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
-  progressTrack: { height: 8, backgroundColor: colors.gray100, borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
-  progressFill: { height: '100%', borderRadius: 4 },
-  progressPct: { fontSize: 12, color: colors.gray400, marginBottom: 14 },
+    progressTrack: { height: 8, backgroundColor: colors.gray100, borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
+    progressFill: { height: '100%', borderRadius: 4 },
+    progressPct: { fontSize: 12, color: colors.gray400, marginBottom: 14 },
 
-  amountRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.gray100,
-    paddingTop: 12,
-  },
-  amountCell: { flex: 1, alignItems: 'center' },
-  amountDivider: { width: 1, backgroundColor: colors.gray100 },
-  amountCellLabel: { fontSize: 12, color: colors.gray400, marginBottom: 3 },
-  amountCellValue: { fontSize: 15, fontWeight: '700', color: colors.black },
+    amountRow: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: colors.gray100,
+      paddingTop: 12,
+    },
+    amountCell: { flex: 1, alignItems: 'center' },
+    amountDivider: { width: 1, backgroundColor: colors.gray100 },
+    amountCellLabel: { fontSize: 12, color: colors.gray400, marginBottom: 3 },
+    amountCellValue: { fontSize: 15, fontWeight: '700', color: colors.black },
 
-  // Info rows
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  infoLabel: { fontSize: 13, color: colors.gray400 },
-  infoValue: { fontSize: 13, fontWeight: '600', color: colors.black, flex: 1 },
+    // Info rows
+    infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    infoLabel: { fontSize: 13, color: colors.gray400 },
+    infoValue: { fontSize: 13, fontWeight: '600', color: colors.black, flex: 1 },
 
-  // Items
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  itemBatchCountPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  itemBatchCountPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  itemCard: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-    gap: 4,
-  },
-  itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itemName: { fontSize: 14, fontWeight: '700', color: colors.black, flexShrink: 1 },
-  itemQtyBadge: { fontSize: 12, fontWeight: '600', color: colors.gray400 },
-  itemPrice: { fontSize: 14, fontWeight: '700', color: colors.black },
-  itemMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  itemBatchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  itemBatchBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  itemId: { fontSize: 11, color: colors.gray400 },
-  batchDebtNoticeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 10,
-  },
-  viewSaleBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  viewSaleBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  batchDebtNoticeText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
+    // Items
+    sectionHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    itemBatchCountPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    itemBatchCountPillText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    itemCard: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.gray100,
+      gap: 4,
+    },
+    itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    itemName: { fontSize: 14, fontWeight: '700', color: colors.black, flexShrink: 1 },
+    itemQtyBadge: { fontSize: 12, fontWeight: '600', color: colors.gray400 },
+    itemPrice: { fontSize: 14, fontWeight: '700', color: colors.black },
+    itemMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    itemBatchBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 2.5,
+      borderRadius: 6,
+      borderWidth: 1,
+    },
+    itemBatchBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    itemId: { fontSize: 11, color: colors.gray400 },
+    batchDebtNoticeBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      marginTop: 10,
+    },
+    viewSaleBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      borderWidth: 1,
+      marginTop: 12,
+    },
+    viewSaleBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    batchDebtNoticeText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 16,
+    },
 
-  // Payment timeline
-  noPayments: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 8 },
-  timelineItem: { flexDirection: 'row', marginBottom: 14, gap: 12 },
-  timelineDotCol: { alignItems: 'center', width: 20 },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 14,
-  },
-  timelineLine: { width: 2, flex: 1, backgroundColor: colors.gray100, marginTop: 4 },
-  timelineCard: {
-    flex: 1,
-    backgroundColor: colors.gray50,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  timelineDate: { fontSize: 11, color: colors.gray400 },
-  timelineAmountRow: { flexDirection: 'row', marginTop: 2, marginBottom: 2 },
-  timelineAmountChip: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  timelineAmountChipText: { fontSize: 13, fontWeight: '700' },
-  timelineRemaining: { fontSize: 12, color: colors.gray500 },
-  timelineNote: { fontSize: 12, color: colors.gray400, fontStyle: 'italic', marginTop: 2 },
+    // Payment timeline
+    noPayments: { fontSize: 13, color: colors.gray400, textAlign: 'center', paddingVertical: 8 },
+    timelineItem: { flexDirection: 'row', marginBottom: 14, gap: 12 },
+    timelineDotCol: { alignItems: 'center', width: 20 },
+    timelineDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginTop: 14,
+    },
+    timelineLine: { width: 2, flex: 1, backgroundColor: colors.gray100, marginTop: 4 },
+    timelineCard: {
+      flex: 1,
+      backgroundColor: colors.gray50,
+      borderRadius: 12,
+      padding: 12,
+      gap: 4,
+    },
+    timelineDate: { fontSize: 11, color: colors.gray400 },
+    timelineAmountRow: { flexDirection: 'row', marginTop: 2, marginBottom: 2 },
+    timelineAmountChip: {
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    timelineAmountChipText: { fontSize: 13, fontWeight: '700' },
+    timelineRemaining: { fontSize: 12, color: colors.gray500 },
+    timelineNote: { fontSize: 12, color: colors.gray400, fontStyle: 'italic', marginTop: 2 },
 
-  // Add payment
-  addPayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Theme.radius.md,
-    paddingVertical: 14,
-    gap: 8,
-    marginBottom: 14,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  addPayBtnText: { fontSize: 15, fontWeight: '700' },
-  payRemaining: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
-  payInput: {
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.black,
-    marginBottom: 14,
-  },
-  methodBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-  },
-  methodBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  payActions: { flexDirection: 'row', gap: 10 },
-  payCancel: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  payCancelText: { fontSize: 14, fontWeight: '600', color: colors.gray500 },
-  payConfirm: {
-    flex: 2,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  payConfirmText: { fontSize: 14, fontWeight: '700' },
+    // Add payment
+    addPayBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Theme.radius.md,
+      paddingVertical: 14,
+      gap: 8,
+      marginBottom: 14,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    addPayBtnText: { fontSize: 15, fontWeight: '700' },
+    payRemaining: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
+    payInput: {
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.black,
+      marginBottom: 14,
+    },
+    methodBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+    },
+    methodBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    payActions: { flexDirection: 'row', gap: 10 },
+    payCancel: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    payCancelText: { fontSize: 14, fontWeight: '600', color: colors.gray500 },
+    payConfirm: {
+      flex: 2,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    payConfirmText: { fontSize: 14, fontWeight: '700' },
 
-  settledBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginBottom: 14,
-  },
-  settledText: { fontSize: 14, fontWeight: '600' },
+    settledBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 12,
+      paddingVertical: 14,
+      marginBottom: 14,
+    },
+    settledText: { fontSize: 14, fontWeight: '600' },
 
-  notFound: { fontSize: 16, color: colors.gray500, marginBottom: 12 },
-  notFoundBack: { fontSize: 14, fontWeight: '600' },
+    notFound: { fontSize: 16, color: colors.gray500, marginBottom: 12 },
+    notFoundBack: { fontSize: 14, fontWeight: '600' },
   });
 }

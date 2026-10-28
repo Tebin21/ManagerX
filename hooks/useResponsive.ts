@@ -1,4 +1,6 @@
 import { useWindowDimensions, Platform, StyleSheet, ViewStyle } from 'react-native';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getScaleFactor, getScaleInfo, DEFAULT_SCALE_LEVEL } from '@/constants/scale';
 
 export const TABLET_BREAKPOINT = 700;
 export const LARGE_TABLET_BREAKPOINT = 1024;
@@ -51,10 +53,25 @@ export interface ResponsiveInfo {
   cardPadding: number;
   /** POS Dual-pane layout enabled (e.g. products on left, cart on right on iPad landscape) */
   isDualPane: boolean;
+
+  // --- Dynamic System Scaling (1-10 levels) ---
+  /** Current app UI scaling multiplier (0.78 - 1.35) */
+  uiScaleFactor: number;
+  /** Current app UI scaling level (1 - 10) */
+  uiScaleLevel: number;
+  /** Scale percentage (e.g. 100) */
+  uiScalePercent: number;
+  /** Scale label in Kurdish */
+  uiScaleLabelKu: string;
+  /** Scale label in English */
+  uiScaleLabelEn: string;
 }
 
 export function useResponsive(): ResponsiveInfo {
   const { width, height } = useWindowDimensions();
+  const appScaleLevel = useSettingsStore((s) => s.appScaleLevel ?? DEFAULT_SCALE_LEVEL);
+  const scaleMultiplier = getScaleFactor(appScaleLevel);
+  const scaleInfo = getScaleInfo(appScaleLevel);
 
   // On iOS, check Platform.isPad first to reliably catch all iPad models
   // (iPad Mini 744pt, iPad 10.2", iPad Air, iPad Pro) and iPad Split View.
@@ -83,13 +100,31 @@ export function useResponsive(): ResponsiveInfo {
     }
   }
 
-  // Sizing tokens tailored for iPad touch ergonomics and high-resolution 11"-13" displays
-  const fontScale = isTabletLandscape ? 1.40 : isTablet ? 1.28 : 1.0;
-  const iconScale = isTabletLandscape ? 1.48 : isTablet ? 1.32 : 1.0;
-  const squircleSize = isTabletLandscape ? 104 : isTablet ? 88 : 52;
-  const squircleIconSize = isTabletLandscape ? 50 : isTablet ? 42 : 25;
-  const titleFontSize = isTabletLandscape ? 20 : isTablet ? 17.5 : 12;
-  const cardPadding = isTabletLandscape ? 24 : isTablet ? 18 : 12;
+  // Sizing tokens tailored for iPad touch ergonomics, high-resolution displays, and user-selected UI Scale
+  const baseFontScale = isTabletLandscape ? 1.40 : isTablet ? 1.28 : 1.0;
+  const fontScale = Number((baseFontScale * scaleMultiplier).toFixed(2));
+
+  const baseIconScale = isTabletLandscape ? 1.48 : isTablet ? 1.32 : 1.0;
+  const iconScale = Number((baseIconScale * scaleMultiplier).toFixed(2));
+
+  const squircleSize = Math.round((isTabletLandscape ? 104 : isTablet ? 88 : 52) * scaleMultiplier);
+  const squircleIconSize = Math.round((isTabletLandscape ? 50 : isTablet ? 42 : 25) * scaleMultiplier);
+  const titleFontSize = Math.round((isTabletLandscape ? 20 : isTablet ? 17.5 : 12) * scaleMultiplier);
+  const cardPadding = Math.round((isTabletLandscape ? 24 : isTablet ? 18 : 12) * scaleMultiplier);
+
+  const horizontalPadding = Math.round((isTabletLandscape ? 32 : isTablet ? 24 : 16) * scaleMultiplier);
+  const buttonHeight = Math.round((isTabletLandscape ? 70 : isTablet ? 64 : 52) * scaleMultiplier);
+  const buttonFontSize = Math.round((isTabletLandscape ? 21 : isTablet ? 19 : 16) * scaleMultiplier);
+  const inputHeight = Math.round((isTabletLandscape ? 68 : isTablet ? 62 : 52) * scaleMultiplier);
+  const headerButtonSize = Math.round(
+    (isTabletLandscape ? (isLargeTablet ? 60 : 56) : isTablet ? (isLargeTablet ? 54 : 50) : 38) * scaleMultiplier
+  );
+  const headerIconSize = Math.round(
+    (isTabletLandscape ? (isLargeTablet ? 34 : 32) : isTablet ? (isLargeTablet ? 30 : 28) : 20) * scaleMultiplier
+  );
+  const moduleCardHeight = Math.round(
+    (isTabletLandscape ? 185 : isLargeTablet ? 168 : isTablet ? 152 : 102) * scaleMultiplier
+  );
 
   return {
     width,
@@ -118,21 +153,13 @@ export function useResponsive(): ResponsiveInfo {
     moduleColumns: isTabletLandscape ? 4 : isTablet ? 3 : 2,
     cardColumns: isTabletLandscape ? 3 : isTablet ? 2 : 1,
     sheetMaxWidth: isTabletLandscape ? 740 : isTablet ? 600 : 440,
-    horizontalPadding: isTabletLandscape ? 32 : isTablet ? 24 : 16,
-    buttonHeight: isTabletLandscape ? 70 : isTablet ? 64 : 52,
-    buttonFontSize: isTabletLandscape ? 21 : isTablet ? 19 : 16,
-    inputHeight: isTabletLandscape ? 68 : isTablet ? 62 : 52,
-    headerButtonSize: isTabletLandscape
-      ? (isLargeTablet ? 60 : 56)
-      : isTablet
-      ? (isLargeTablet ? 54 : 50)
-      : 38,
-    headerIconSize: isTabletLandscape
-      ? (isLargeTablet ? 34 : 32)
-      : isTablet
-      ? (isLargeTablet ? 30 : 28)
-      : 20,
-    moduleCardHeight: isTabletLandscape ? 185 : isLargeTablet ? 168 : isTablet ? 152 : 102,
+    horizontalPadding,
+    buttonHeight,
+    buttonFontSize,
+    inputHeight,
+    headerButtonSize,
+    headerIconSize,
+    moduleCardHeight,
 
     fontScale,
     iconScale,
@@ -141,6 +168,12 @@ export function useResponsive(): ResponsiveInfo {
     titleFontSize,
     cardPadding,
     isDualPane: isTabletLandscape && width >= 900,
+
+    uiScaleFactor: scaleMultiplier,
+    uiScaleLevel: appScaleLevel,
+    uiScalePercent: scaleInfo.percent,
+    uiScaleLabelKu: scaleInfo.labelKu,
+    uiScaleLabelEn: scaleInfo.labelEn,
   };
 }
 

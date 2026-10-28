@@ -30,14 +30,14 @@ export function HeaderActionButton({
   const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
 
-  // On tablets and large screens, prioritize responsive header sizing tokens
-  const btnSize = isTablet
-    ? (size && size > headerButtonSize ? size : headerButtonSize)
-    : (size ?? 38);
+  // Responsive and user-selected UI scale tokens across both phones and tablets
+  const btnSize = size
+    ? (size >= 38 ? Math.round(size * (headerButtonSize / 38)) : size)
+    : headerButtonSize;
 
-  const resolvedIconSize = isTablet
-    ? (iconSize && iconSize > headerIconSize ? iconSize : headerIconSize)
-    : (iconSize ?? 20);
+  const resolvedIconSize = iconSize
+    ? (iconSize >= 20 ? Math.round(iconSize * (headerIconSize / 20)) : iconSize)
+    : headerIconSize;
 
   const borderRadius = Math.round(btnSize * 0.28);
 

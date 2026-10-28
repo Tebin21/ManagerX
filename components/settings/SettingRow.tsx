@@ -19,6 +19,7 @@ interface Props {
   color?:        string;
   rightElement?: React.ReactNode;
   disabled?:     boolean;
+  numberOfLines?: number;
 }
 
 const IS_IOS = Platform.OS === 'ios';
@@ -33,6 +34,7 @@ export function SettingRow({
   color,
   rightElement,
   disabled = false,
+  numberOfLines,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
@@ -101,7 +103,7 @@ export function SettingRow({
             isTablet && styles.labelTablet,
             { color: labelClr, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
           ]}
-          numberOfLines={1}
+          numberOfLines={numberOfLines ?? (rightElement ? 2 : 1)}
         >
           {label}
         </Text>
@@ -117,7 +119,7 @@ export function SettingRow({
                 marginTop: isRTL ? RTL_SPACING.title + 1 : 1,
               },
             ]}
-            numberOfLines={1}
+            numberOfLines={numberOfLines ?? (rightElement ? 2 : 1)}
           >
             {sub}
           </Text>

@@ -95,6 +95,7 @@ export interface Sale {
   customerAddress: string | null;
   warranty: string | null;
   notes: string | null;
+  aboutPolicy?: string | null;
   paymentMethod: PaymentMethod;
   initialPaymentMethod?: 'cash' | 'fib' | null;
   subtotal: number;

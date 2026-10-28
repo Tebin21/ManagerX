@@ -26,7 +26,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={showDashboardNavigation ? 'light-content' : (isDark ? 'light-content' : 'dark-content')} />
 
       {/* Top Banner Header (Fixed at top, not inside the ScrollView) */}
       {showDashboardNavigation && (

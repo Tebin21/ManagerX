@@ -58,7 +58,7 @@ export function buildSupplierReportHTML(
         <tr>
           <td style="font-weight:600;">
             ${d.purchaseNumber ? escHtml(d.purchaseNumber) : '&mdash;'}
-            ${d.productName ? `<div style="font-size:11px;color:#5D4C14;margin-top:2px;">📦 ${escHtml(d.productName)} &bull; ${dir === 'rtl' ? `وەجبەی ${d.batchNumber || 1}` : `Batch #${d.batchNumber || 1}`}</div>` : ''}
+            ${d.productName ? `<div style="font-size:11px;color:#5D4C14;margin-top:2px;">📦 ${escHtml(d.productName)}</div>` : ''}
           </td>
           <td style="text-align:right;">${fmtMoney(d.originalAmount)}</td>
           <td style="text-align:right;color:#059669;font-weight:600;">${fmtMoney(d.paidAmount)}</td>

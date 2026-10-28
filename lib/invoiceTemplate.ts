@@ -36,18 +36,67 @@ const ku = kuSpan;
 // below; item rows and every other financial row always stay in IQD.
 export type ReceiptCurrencyMode = 'iqd' | 'usd' | 'both';
 
-function buildGrandTotal(mode: ReceiptCurrencyMode, amountIQD: number, exchangeRate: number, isUsdBase: boolean = false) {
+function buildGrandTotal(
+  mode: ReceiptCurrencyMode,
+  amountIQD: number,
+  exchangeRate: number,
+  isUsdBase: boolean = false,
+  isKurdish: boolean = true
+) {
   const totalUSD = fmtUSD(amountIQD / exchangeRate);
-  if (isUsdBase || mode === 'usd') {
-    const totalBlock = `<div class="total-block"><span class="total-label">${ku(t('totalUsd'))}</span><span class="total-amount">$${totalUSD}</span></div>`;
-    const usdCard = `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku('کۆی گشتی بە دینار')}</div><div class="usd-amount">${fmtIQD(amountIQD)} IQD</div></div></div></div>`;
-    return { totalBlock, usdCard };
+  const totalIQD = fmtIQD(amountIQD);
+
+  const showUsdOnly = !isUsdBase && mode === 'usd';
+  const showIqdOnly = !isUsdBase && mode === 'iqd';
+  const showBoth = !showUsdOnly && !showIqdOnly;
+
+  const usdLabel = ku(isKurdish ? 'کۆی گشتی (USD)' : 'Grand Total (USD)');
+  const iqdLabel = ku(isKurdish ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)');
+  const iqdSubLabel = ku(isKurdish ? 'کۆی گشتی بە دینار' : 'Total in IQD');
+  const usdSubLabel = ku(isKurdish ? 'کۆی گشتی بە دۆلار' : 'Total in USD');
+
+  if (isUsdBase) {
+    const totalBlock = `
+      <div class="total-block">
+        <div class="total-row primary">
+          <span class="total-label">${usdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">$${totalUSD}</span>
+        </div>
+        ${showBoth ? `
+        <div class="total-divider"></div>
+        <div class="total-row secondary">
+          <span class="total-sub-label">${iqdSubLabel}</span>
+          <span class="total-sub-amount en-num" dir="ltr">${totalIQD} IQD</span>
+        </div>` : ''}
+      </div>`;
+    return { totalBlock, usdCard: '' };
   }
-  const totalBlock = `<div class="total-block"><span class="total-label">${ku(t('totalIqd'))}</span><span class="total-amount">${fmtIQD(amountIQD)} IQD</span></div>`;
-  const usdCard = mode === 'both'
-    ? `<div class="card card-tint"><div class="usd-row"><div class="usd-stack"><div class="usd-label">${ku(t('totalUsd'))}</div><div class="usd-amount">$${totalUSD}</div></div></div></div>`
-    : '';
-  return { totalBlock, usdCard };
+
+  if (showUsdOnly) {
+    const totalBlock = `
+      <div class="total-block">
+        <div class="total-row primary">
+          <span class="total-label">${usdLabel}</span>
+          <span class="total-amount en-num" dir="ltr">$${totalUSD}</span>
+        </div>
+      </div>`;
+    return { totalBlock, usdCard: '' };
+  }
+
+  const totalBlock = `
+    <div class="total-block">
+      <div class="total-row primary">
+        <span class="total-label">${iqdLabel}</span>
+        <span class="total-amount en-num" dir="ltr">${totalIQD} IQD</span>
+      </div>
+      ${showBoth ? `
+      <div class="total-divider"></div>
+      <div class="total-row secondary">
+        <span class="total-sub-label">${usdSubLabel}</span>
+        <span class="total-sub-amount en-num" dir="ltr">$${totalUSD}</span>
+      </div>` : ''}
+    </div>`;
+  return { totalBlock, usdCard: '' };
 }
 
 // ─── Sales Invoice CSS ────────────────────────────────────────────────────────
@@ -137,58 +186,59 @@ function buildSalesCSS(isKurdish: boolean): string {
   /* ── Cards ── */
   .card {
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 18px 20px;
-    margin-bottom: 16px;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
     page-break-inside: avoid;
+    background: #ffffff;
   }
   .card-tint { background: #f8fafc; }
   .card-label {
-    font-size: ${isKurdish ? '14px' : '10px'};
-    font-weight: ${isKurdish ? '400' : '700'};
+    font-size: ${isKurdish ? '12px' : '10px'};
+    font-weight: ${isKurdish ? '700' : '700'};
     text-transform: uppercase;
-    letter-spacing: ${isKurdish ? 'normal' : '1.1px'};
-    color: #000000;
-    margin-bottom: 12px;
+    letter-spacing: ${isKurdish ? 'normal' : '0.8px'};
+    color: #475569;
+    margin-bottom: 6px;
     text-align: ${kuAlign};
   }
   ${!isKurdish ? '.col-customer .card-label { font-size: 10px; text-align: left; }' : ''}
 
   /* ── Customer info rows: compact, label hugs value ── */
-  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
-  .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
+  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 2px 0; font-size: 12.5px; }
+  .row-label { color: #475569; font-weight: ${isKurdish ? '600' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
   .row-value-ltr { direction: ltr; unicode-bidi: isolate; }
 
   /* ── Header meta rows: label/value as separate boxes so RTL order is CSS-driven, not bidi-reordered ── */
   .inv-meta-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 4px; margin-bottom: 2px; }
-  .inv-meta-row-title { margin-bottom: 6px; }
-  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12.5px; font-weight: 400; }
-  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; }
+  .inv-meta-row-title { margin-bottom: 4px; }
+  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12px; font-weight: 400; }
+  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 16px; font-weight: ${isKurdish ? '600' : '800'}; }
 
   /* ── Table ── */
   .table-card {
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
   table { width: 100%; border-collapse: collapse; page-break-inside: auto; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
   thead { display: table-header-group; }
   tbody tr { page-break-inside: avoid; }
   th {
     background: #f8fafc;
-    color: #000000;
-    font-size: 10.5px;
+    color: #1e293b;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    padding: 12px 14px;
+    letter-spacing: 0.6px;
+    padding: 8px 10px;
     border-bottom: 1.5px solid #e2e8f0;
   }
   td {
-    padding: 11px 14px;
-    font-size: 13px;
+    padding: 8px 10px;
+    font-size: 12px;
     border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
     color: #000000;
@@ -197,55 +247,163 @@ function buildSalesCSS(isKurdish: boolean): string {
   tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
-  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
-  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #000000; margin-top: 2px; unicode-bidi: plaintext; }
+  .item-name { font-weight: 600; color: #000000; font-size: 12.5px; display: block; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #64748b; margin-top: 2px; unicode-bidi: plaintext; }
   .id-chip {
     display: inline-block;
     font-size: 9.5px;
-    color: #000000;
+    color: #334155;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 1px 6px;
+    border-radius: 4px;
+    padding: 1px 5px;
     font-weight: 600;
     unicode-bidi: isolate;
     direction: ltr;
   }
-  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
-  .empty-row { text-align: center; color: #000000; padding: 26px 14px; font-size: 13px; }
+  .num-col { color: #000000; font-size: 11.5px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
+  .empty-row { text-align: center; color: #64748b; padding: 22px 14px; font-size: 12.5px; }
   .muted-cell { color: #94a3b8; }
 
   /* ── Financial ── */
   .fin-row {
     display: flex;
-    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 7px 0;
-    font-size: 13.5px;
-    color: #000000;
+    padding: 3.5px 0;
+    font-size: 12px;
+    color: #1e293b;
+    width: 100%;
   }
-  .fin-amount { font-weight: 600; color: #000000; }
+  .fin-amount {
+    font-weight: 600;
+    color: #000000;
+    font-size: 12px;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  .fin-discount { color: #d97706; font-weight: 700; }
+  .fin-amount-paid { color: #047857; font-weight: 700; }
+  .fin-amount-debt { color: #b91c1c; font-weight: 800; }
 
   .total-block {
     display: flex;
-    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
-    justify-content: space-between;
-    align-items: baseline;
-    padding-top: 12px;
-    margin-top: 6px;
-    border-top: 1px solid #e2e8f0;
+    flex-direction: column;
+    padding: 7px 10px;
+    margin: 6px 0;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    width: 100%;
   }
-  .total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000000; }
-  .total-amount { font-size: 26px; font-weight: 800; color: #000000; letter-spacing: -0.4px; }
+  .total-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .total-divider {
+    height: 1px;
+    border-top: 1px dashed #cbd5e1;
+    margin: 5px 0;
+    width: 100%;
+  }
+  .total-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .total-amount {
+    font-size: 15px;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: -0.2px;
+  }
+  .total-sub-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .total-sub-amount {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .en-num {
+    unicode-bidi: isolate;
+    direction: ltr;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
 
   /* ── USD conversion ── */
   .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
   .usd-stack { width: 100%; }
-  .usd-label { font-size: ${isKurdish ? '14px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
-  .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
+  .usd-label { font-size: ${isKurdish ? '13px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 4px; text-align: ${kuAlign}; }
+  .usd-amount { font-size: 18px; font-weight: 800; color: #000000; }
 
   /* ── Block text ── */
-  .block-text { font-size: 13px; color: #000000; line-height: 1.7; overflow-wrap: break-word; word-break: break-word; }
+  .block-text { font-size: 11.5px; color: #1e293b; line-height: 1.5; overflow-wrap: break-word; word-break: break-word; }
+
+  /* ── Company Policy / About Section at Top ── */
+  .policy-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+    text-align: ${kuAlign};
+  }
+  .policy-label {
+    font-size: ${isKurdish ? '11px' : '10px'};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: ${isKurdish ? 'normal' : '0.6px'};
+    color: #475569;
+    margin-bottom: 3px;
+    text-align: ${kuAlign};
+  }
+  .policy-text {
+    font-size: 11.5px;
+    color: #000000;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: ${kuAlign};
+  }
+
+  /* ── Top Summary Pair: Financial on LEFT, Notes & Warranty on RIGHT above table ── */
+  .top-summary-pair {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+    direction: ltr;
+  }
+  .top-summary-left {
+    flex: 0 1 48%;
+    max-width: 48%;
+    min-width: 0;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+  }
+  .top-summary-right {
+    flex: 0 1 48%;
+    max-width: 48%;
+    min-width: 0;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+  }
+  .top-summary-pair .card {
+    margin-bottom: 0;
+  }
 
   /* ── Warranty + Notes: side-by-side info area ── */
   .info-pair {
@@ -311,11 +469,11 @@ export function buildInvoiceHTML(
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col">${i + 1}</td>
-      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.batchNumber ? `<span class="item-batch" style="display:block;font-size:10px;color:#d97706;font-weight:600;">${isKurdish ? `وەجبەی ${item.batchNumber}` : `Batch #${item.batchNumber}`}</span>` : ''}${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
+      <td style="text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
       <td class="center">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${fmtRow(item.sellingPrice)}</td>
-      <td class="right">${item.discount > 0 ? fmtRow(item.discount) : '<span class="muted-cell">—</span>'}</td>
+      <td class="right">${item.discount > 0 ? `<span style="color:#d97706;font-weight:600;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="right" style="font-weight:700;">${fmtRow(item.lineTotal)}</td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
@@ -324,34 +482,36 @@ export function buildInvoiceHTML(
 
   const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
 
-  const warrantyBlock = sale.warranty ? `
-    <div class="card">
-      <div class="card-label">${ku(t('warranty'))}</div>
-      <p class="block-text" style="${blockTextStyle}">${escHtml(sale.warranty)}</p>
-    </div>` : '';
-
   const notesText = sale.notes ? escHtml(sale.notes) : ku(t('noNotes'));
-  const notesBlock = `
+
+  const notesCard = `
     <div class="card">
-      <div class="card-label">${ku(t('notes'))}</div>
-      <p class="block-text" style="${blockTextStyle}">${notesText}</p>
+      ${sale.warranty ? `
+      <div style="margin-bottom: 6px;">
+        <div class="card-label">${ku(t('warranty'))}</div>
+        <p class="block-text" style="${blockTextStyle}">${escHtml(sale.warranty)}</p>
+      </div>
+      <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
+      ` : ''}
+      <div>
+        <div class="card-label">${ku(t('notes'))}</div>
+        <p class="block-text" style="${blockTextStyle}">${notesText}</p>
+      </div>
     </div>`;
 
-  const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
-
-  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase, isKurdish);
 
   const initialMethodTag = sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
-    <div class="fin-row">
-      <span>${ku(t('amountPaid'))}${initialMethodTag}</span>
-      <span class="fin-amount">${fmtRow(sale.paidAmount)}</span>
+    <div class="fin-row" style="margin-top:3px;">
+      <span style="color:#047857;font-weight:600;">${ku(t('amountPaid'))}${initialMethodTag}</span>
+      <span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(sale.paidAmount)}</span>
     </div>` : '';
 
   const debtRow = sale.remainingDebt > 0 ? `
-    <div class="fin-row">
-      <span>${ku(t('remainingDebt'))}</span>
-      <span class="fin-amount" style="font-weight:700;">${fmtRow(sale.remainingDebt)}</span>
+    <div class="fin-row" style="margin-top:2px;">
+      <span style="color:#b91c1c;font-weight:700;">${ku(t('remainingDebt'))}</span>
+      <span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(sale.remainingDebt)}</span>
     </div>` : '';
 
   const financialCard = `
@@ -359,29 +519,36 @@ export function buildInvoiceHTML(
       <div class="card-label">${ku(t('paymentSummary'))}</div>
       <div class="fin-row">
         <span>${ku(t('subtotal'))}</span>
-        <span class="fin-amount">${fmtRow(sale.subtotal)}</span>
+        <span class="fin-amount en-num" dir="ltr">${fmtRow(sale.subtotal)}</span>
       </div>
       ${sale.discountTotal > 0 ? `
       <div class="fin-row">
-        <span>${ku(t('itemDiscountTotal'))}</span>
-        <span class="fin-amount">− ${fmtRow(sale.discountTotal)}</span>
+        <span style="color:#d97706;font-weight:600;">${ku(t('itemDiscountTotal'))}</span>
+        <span class="fin-amount fin-discount en-num" dir="ltr">− ${fmtRow(sale.discountTotal)}</span>
       </div>` : ''}
       ${sale.globalDiscount > 0 ? `
       <div class="fin-row">
-        <span>${ku(t('cartDiscountTotal'))}</span>
-        <span class="fin-amount">− ${fmtRow(sale.globalDiscount)}</span>
+        <span style="color:#d97706;font-weight:600;">${ku(t('cartDiscountTotal'))}</span>
+        <span class="fin-amount fin-discount en-num" dir="ltr">− ${fmtRow(sale.globalDiscount)}</span>
       </div>` : ''}
       ${totalBlock}
       ${paidRow}
       ${debtRow}
     </div>`;
 
+  const aboutPolicyText = (sale.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim();
+  const aboutPolicySection = aboutPolicyText ? `
+  <div class="policy-card">
+    <div class="policy-label">${ku(t('companyPolicy'))}</div>
+    <p class="policy-text">${escHtml(aboutPolicyText)}</p>
+  </div>` : '';
+
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Invoice ${escHtml(sale.invoiceNumber)}</title>
+<title>Froshiar-${escHtml(sale.invoiceNumber)}</title>
 <style>${buildSalesCSS(isKurdish)}</style>
 </head>
 <body>
@@ -423,7 +590,16 @@ export function buildInvoiceHTML(
 
 <div class="body">
 
-  ${infoPair}
+  ${aboutPolicySection}
+
+  <div class="top-summary-pair">
+    <div class="top-summary-left">
+      ${financialCard}
+    </div>
+    <div class="top-summary-right">
+      ${notesCard}
+    </div>
+  </div>
 
   <div class="table-card">
     <table>
@@ -443,9 +619,6 @@ export function buildInvoiceHTML(
       </tbody>
     </table>
   </div>
-
-  ${financialCard}
-  ${usdCard}
 
 </div>
 
@@ -550,58 +723,59 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   /* ── Cards ── */
   .card {
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 18px 20px;
-    margin-bottom: 16px;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
     page-break-inside: avoid;
+    background: #ffffff;
   }
   .card-tint { background: #f8fafc; }
   .card-label {
-    font-size: ${isKurdish ? '14px' : '10px'};
-    font-weight: ${isKurdish ? '400' : '700'};
+    font-size: ${isKurdish ? '12px' : '10px'};
+    font-weight: ${isKurdish ? '700' : '700'};
     text-transform: uppercase;
-    letter-spacing: ${isKurdish ? 'normal' : '1.1px'};
-    color: #000000;
-    margin-bottom: 12px;
+    letter-spacing: ${isKurdish ? 'normal' : '0.8px'};
+    color: #475569;
+    margin-bottom: 6px;
     text-align: ${kuAlign};
   }
   ${!isKurdish ? '.col-supplier .card-label { font-size: 10px; text-align: left; }' : ''}
 
   /* ── Supplier info rows: compact, label hugs value ── */
-  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
-  .row-label { color: #000000; font-weight: ${isKurdish ? '400' : '700'}; }
+  .info-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 6px; padding: 2px 0; font-size: 12.5px; }
+  .row-label { color: #475569; font-weight: ${isKurdish ? '600' : '700'}; }
   .row-value { color: #000000; font-weight: 500; }
   .row-value-ltr { direction: ltr; unicode-bidi: isolate; }
 
   /* ── Header meta rows: label/value as separate boxes so RTL order is CSS-driven, not bidi-reordered ── */
   .inv-meta-row { display: flex; flex-direction: ${isKurdish ? 'row-reverse' : 'row'}; align-items: baseline; gap: 4px; margin-bottom: 2px; }
-  .inv-meta-row-title { margin-bottom: 6px; }
-  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12.5px; font-weight: 400; }
-  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 17px; font-weight: ${isKurdish ? '400' : '800'}; }
+  .inv-meta-row-title { margin-bottom: 4px; }
+  .inv-meta-row .row-label, .inv-meta-row .row-value { font-size: 12px; font-weight: 400; }
+  .inv-meta-row-title .row-label, .inv-meta-row-title .row-value { font-size: 16px; font-weight: ${isKurdish ? '600' : '800'}; }
 
   /* ── Table ── */
   .table-card {
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
   table { width: 100%; border-collapse: collapse; page-break-inside: auto; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
   thead { display: table-header-group; }
   tbody tr { page-break-inside: avoid; }
   th {
     background: #f8fafc;
-    color: #000000;
-    font-size: 10.5px;
+    color: #1e293b;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    padding: 12px 14px;
+    letter-spacing: 0.6px;
+    padding: 8px 10px;
     border-bottom: 1.5px solid #e2e8f0;
   }
   td {
-    padding: 11px 14px;
-    font-size: 13px;
+    padding: 8px 10px;
+    font-size: 12px;
     border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
     color: #000000;
@@ -610,57 +784,165 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   tbody tr:nth-child(even) { background: #f8fafc; }
   .center { text-align: center; }
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; }
-  .item-name { font-weight: 600; color: #000000; font-size: 13px; display: block; unicode-bidi: plaintext; }
-  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #000000; margin-top: 2px; unicode-bidi: plaintext; }
+  .item-name { font-weight: 600; color: #000000; font-size: 12.5px; display: block; unicode-bidi: plaintext; }
+  .item-desc { display: block; font-size: 10px; font-weight: 400; color: #64748b; margin-top: 2px; unicode-bidi: plaintext; }
   .item-id {
     display: inline-flex;
     flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
     align-items: baseline;
     gap: 4px;
-    margin-top: 3px;
+    margin-top: 2px;
     font-size: 9.5px;
-    color: #000000;
+    color: #334155;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 1px 6px;
+    border-radius: 4px;
+    padding: 1px 5px;
     font-weight: 600;
   }
   .item-id-value { direction: ltr; unicode-bidi: isolate; }
-  .num-col { color: #000000; font-size: 12px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
+  .num-col { color: #000000; font-size: 11.5px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
 
   /* ── Financial ── */
   .fin-row {
     display: flex;
-    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 7px 0;
-    font-size: 13.5px;
-    color: #000000;
+    padding: 3.5px 0;
+    font-size: 12px;
+    color: #1e293b;
+    width: 100%;
   }
-  .fin-amount { font-weight: 600; color: #000000; }
+  .fin-amount {
+    font-weight: 600;
+    color: #000000;
+    font-size: 12px;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
   .fin-amount.muted { color: #000000; font-weight: 600; }
+  .fin-discount { color: #d97706; font-weight: 700; }
+  .fin-amount-paid { color: #047857; font-weight: 700; }
+  .fin-amount-debt { color: #b91c1c; font-weight: 800; }
 
   .total-block {
     display: flex;
-    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
-    justify-content: space-between;
-    align-items: baseline;
-    padding-bottom: 14px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid #e2e8f0;
+    flex-direction: column;
+    padding: 7px 10px;
+    margin: 6px 0;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    width: 100%;
   }
-  .total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #000000; }
-  .total-amount { font-size: 26px; font-weight: 800; color: #000000; letter-spacing: -0.4px; }
+  .total-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .total-divider {
+    height: 1px;
+    border-top: 1px dashed #cbd5e1;
+    margin: 5px 0;
+    width: 100%;
+  }
+  .total-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .total-amount {
+    font-size: 15px;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: -0.2px;
+  }
+  .total-sub-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .total-sub-amount {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .en-num {
+    unicode-bidi: isolate;
+    direction: ltr;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
 
   /* ── USD conversion ── */
   .usd-row { display: flex; justify-content: space-between; align-items: baseline; }
   .usd-stack { width: 100%; }
-  .usd-label { font-size: ${isKurdish ? '14px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 6px; text-align: ${kuAlign}; }
-  .usd-amount { font-size: 21px; font-weight: 800; color: #000000; }
+  .usd-label { font-size: ${isKurdish ? '13px' : '10px'}; font-weight: ${isKurdish ? '400' : '700'}; text-transform: uppercase; letter-spacing: ${isKurdish ? 'normal' : '1.1px'}; color: #000000; margin-bottom: 4px; text-align: ${kuAlign}; }
+  .usd-amount { font-size: 18px; font-weight: 800; color: #000000; }
 
   /* ── Block text ── */
-  .block-text { font-size: 13px; color: #000000; line-height: 1.7; }
+  .block-text { font-size: 11.5px; color: #1e293b; line-height: 1.5; }
+
+  /* ── Company Policy / About Section at Top ── */
+  .policy-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+    text-align: ${kuAlign};
+  }
+  .policy-label {
+    font-size: ${isKurdish ? '11px' : '10px'};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: ${isKurdish ? 'normal' : '0.6px'};
+    color: #475569;
+    margin-bottom: 3px;
+    text-align: ${kuAlign};
+  }
+  .policy-text {
+    font-size: 11.5px;
+    color: #000000;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: ${kuAlign};
+  }
+
+  /* ── Top Summary Pair: Financial on LEFT, Notes & Warranty on RIGHT above table ── */
+  .top-summary-pair {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+    page-break-inside: avoid;
+    direction: ltr;
+  }
+  .top-summary-left {
+    flex: 0 1 48%;
+    max-width: 48%;
+    min-width: 0;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+  }
+  .top-summary-right {
+    flex: 0 1 48%;
+    max-width: 48%;
+    min-width: 0;
+    direction: ${isKurdish ? 'rtl' : 'ltr'};
+  }
+  .top-summary-pair .card {
+    margin-bottom: 0;
+  }
 
   /* ── Warranty + Notes: side-by-side info area ── */
   .info-pair {
@@ -782,7 +1064,7 @@ export function buildPurchaseInvoiceHTML(
       </div>`;
 
   // ── Financial ──
-  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, effectiveExchangeRate, isUsdBase);
+  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, effectiveExchangeRate, isUsdBase, isKurdish);
 
   const paidAmount = purchaseDebt?.paidAmount ?? 0;
   const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
@@ -791,15 +1073,15 @@ export function buildPurchaseInvoiceHTML(
   const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
   const paidRows = (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib')
     ? ''
-    : `<div class="fin-row"><span>${ku(t('amountPaid'))}${initialMethodTag}</span><span class="fin-amount">${fmtRow(paidAmount)}</span></div>
-       <div class="fin-row"><span>${ku(t('remainingDebt'))}</span><span class="fin-amount" style="font-weight:700;">${fmtRow(remainingAmount)}</span></div>`;
+    : `<div class="fin-row" style="margin-top:3px;"><span style="color:#047857;font-weight:600;">${ku(t('amountPaid'))}${initialMethodTag}</span><span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(paidAmount)}</span></div>
+       <div class="fin-row" style="margin-top:2px;"><span style="color:#b91c1c;font-weight:700;">${ku(t('remainingDebt'))}</span><span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(remainingAmount)}</span></div>`;
 
   const financialCard = `
     <div class="card">
       <div class="card-label">${ku(t('paymentSummary'))}</div>
       ${totalBlock}
       ${paidRows}
-      <div class="fin-row">
+      <div class="fin-row" style="margin-top:3px;">
         <span>${ku(t('paymentStatusLabel'))}</span>
         <span>${statusBadge}</span>
       </div>
@@ -808,34 +1090,43 @@ export function buildPurchaseInvoiceHTML(
   // ── Optional blocks ──
   const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
 
-  const warrantyBlock = purchase.warranty ? `
+  const notesCard = `
     <div class="card">
-      <div class="card-label">${ku(t('warranty'))}</div>
-      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.warranty)}</p>
-    </div>` : '';
-
-  const descriptionBlock = purchase.description ? `
-    <div class="card">
-      <div class="card-label">${ku(t('description'))}</div>
-      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.description)}</p>
-    </div>` : '';
-
-  const notesBlock = purchase.notes ? `
-    <div class="card">
-      <div class="card-label">${ku(t('notes'))}</div>
-      <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.notes)}</p>
-    </div>` : '';
-
-  const infoPair = `<div class="info-pair">${warrantyBlock}${notesBlock}</div>`;
+      ${purchase.warranty ? `
+      <div style="margin-bottom: 6px;">
+        <div class="card-label">${ku(t('warranty'))}</div>
+        <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.warranty)}</p>
+      </div>
+      <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
+      ` : ''}
+      ${purchase.description ? `
+      <div style="margin-bottom: 6px;">
+        <div class="card-label">${ku(t('description'))}</div>
+        <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.description)}</p>
+      </div>
+      <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
+      ` : ''}
+      <div>
+        <div class="card-label">${ku(t('notes'))}</div>
+        <p class="block-text" style="${blockTextStyle}">${purchase.notes ? escHtml(purchase.notes) : ku(t('noNotes'))}</p>
+      </div>
+    </div>`;
 
   const purchaseDateTime = purchase.date ?? purchase.createdAt;
+
+  const aboutPolicyText = (purchase.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim();
+  const aboutPolicySection = aboutPolicyText ? `
+  <div class="policy-card">
+    <div class="policy-label">${ku(t('companyPolicy'))}</div>
+    <p class="policy-text">${escHtml(aboutPolicyText)}</p>
+  </div>` : '';
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Purchase Invoice ${escHtml(purchase.purchaseNumber)}</title>
+<title>Froshiar-${escHtml(purchase.purchaseNumber)}</title>
 <style>${buildPurchaseCSS(isKurdish)}</style>
 </head>
 <body>
@@ -877,13 +1168,18 @@ export function buildPurchaseInvoiceHTML(
 
 <div class="body">
 
+  ${aboutPolicySection}
+
+  <div class="top-summary-pair">
+    <div class="top-summary-left">
+      ${financialCard}
+    </div>
+    <div class="top-summary-right">
+      ${notesCard}
+    </div>
+  </div>
+
   ${itemsContent}
-
-  ${financialCard}
-  ${usdCard}
-
-  ${infoPair}
-  ${descriptionBlock}
 
 </div>
 

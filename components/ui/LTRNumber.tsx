@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, TextProps, StyleSheet, TextStyle } from 'react-native';
+import { TextProps, StyleSheet, TextStyle } from 'react-native';
+import { Text } from '@/components/ui/AppText';
 import { resolveInterFont } from '@/constants/typography';
 
 /**

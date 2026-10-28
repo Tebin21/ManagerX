@@ -167,6 +167,18 @@ export function InvoiceView({ sale, compact = false }: Props) {
         </View>
       </View>
 
+      {/* About & Business Policy */}
+      {(sale.aboutPolicy || useSettingsStore.getState().invoiceAboutPolicy) ? (
+        <View style={[styles.card, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+          <Text style={[styles.cardLabel, { color: colors.gray400, textAlign, writingDirection }, kuLabel]}>
+            {isKuLanguage ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About & Business Policy'}
+          </Text>
+          <Text style={[styles.blockText, { color: colors.black, textAlign, writingDirection }]}>
+            {(sale.aboutPolicy || useSettingsStore.getState().invoiceAboutPolicy || '').trim()}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Warranty */}
       {sale.warranty ? (
         <View style={[styles.card, { backgroundColor: colors.white, borderColor: colors.gray200 }]}>
@@ -212,11 +224,6 @@ export function InvoiceView({ sale, compact = false }: Props) {
                   <Text style={[styles.colNum, styles.tableCellMuted, { color: colors.gray500 }]}>{i + 1}</Text>
                   <View style={styles.colProduct}>
                     <Text style={[styles.tableCellName, { color: colors.black, textAlign, writingDirection }]}>{item.productName}</Text>
-                    {item.batchNumber ? (
-                      <Text style={[{ fontSize: 10, fontWeight: '600', color: colors.primary, marginTop: 1, textAlign, writingDirection }]}>
-                        {isRTL ? `وەجبەی ${item.batchNumber}` : `Batch #${item.batchNumber}`}
-                      </Text>
-                    ) : null}
                     {item.itemDescription ? (
                       <Text style={[{ fontSize: 10.5, fontWeight: '400', color: colors.black, marginTop: 2, textAlign, writingDirection }]}>
                         {item.itemDescription}

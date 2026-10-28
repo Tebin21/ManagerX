@@ -80,12 +80,17 @@ export function buildQuotationHTML(
       </td>
       <td class="center" style="font-weight:700;"><span class="en-num" dir="ltr">${item.quantity}</span></td>
       <td class="price-col"><span class="en-num" dir="ltr">${fmtRow(item.unitPrice)}</span></td>
-      <td class="price-col">
-        ${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;">-${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}
-      </td>
+      <td class="price-col">${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;color:#d97706;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="price-col" style="font-weight:800;color:#000000;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${isKurdish ? ku('هیچ بەرهەمێک لەم عەرزەدا نییە') : 'No items in this quotation'}</td></tr>`;
+
+  const aboutPolicyText = (quotation.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim();
+  const aboutPolicySection = aboutPolicyText ? `
+  <div class="policy-card">
+    <div class="policy-label">${isKurdish ? ku('دەربارەی کۆمپانیا و سیاسەت') : 'About & Business Policy'}</div>
+    <div class="policy-text">${escHtml(aboutPolicyText)}</div>
+  </div>` : '';
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${pageDir}">
@@ -93,7 +98,7 @@ export function buildQuotationHTML(
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="format-detection" content="telephone=no, date=no, address=no, email=no"/>
-<title>${isKurdish ? 'وەسڵی عەرزی نرخ' : 'Price Quotation'} — ${escHtml(quotation.quotationNumber)}</title>
+<title>Froshiar-${escHtml(quotation.quotationNumber)}</title>
 <style>
   ${KURDISH_FONT_FACE}
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -330,7 +335,7 @@ export function buildQuotationHTML(
   .muted-cell { color: #888888; }
   .empty-row { text-align: center; padding: 28px; color: #888888; font-style: italic; }
 
-  /* ── Notes / Validity Box (Placed BEFORE Totals) ── */
+  /* ── Notes / Validity Box ── */
   .notes-box {
     background: #FAFAFA;
     border: 1px solid #D4D4D4;
@@ -353,55 +358,123 @@ export function buildQuotationHTML(
     color: #333333;
   }
 
-  /* ── Financial Summary (Placed BELOW Notes) ── */
-  .totals-row {
-    display: flex;
-    justify-content: ${isKurdish ? 'flex-start' : 'flex-end'};
-    margin-bottom: 22px;
-    direction: ${pageDir};
-  }
-  .totals-card {
-    width: 330px;
+  /* ── Company Policy / About Section at Top ── */
+  .policy-card {
     background: #FAFAFA;
     border: 1px solid #D4D4D4;
     border-radius: 8px;
-    padding: 14px 18px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
     direction: ${pageDir};
+    text-align: ${isKurdish ? 'right' : 'left'};
+  }
+  .policy-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #444444;
+    margin-bottom: 3px;
+    text-align: ${isKurdish ? 'right' : 'left'};
+  }
+  .policy-text {
+    font-size: 11.5px;
+    color: #000000;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: ${isKurdish ? 'right' : 'left'};
+  }
+
+  /* ── Top Summary Pair (Financial on LEFT, Notes on RIGHT) ── */
+  .top-summary-pair {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+    direction: ltr;
+  }
+  .top-summary-pair > div {
+    flex: 0 1 48%;
+    max-width: 48%;
+    min-width: 0;
+    direction: ${pageDir};
+  }
+  .totals-top-card {
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    direction: ${pageDir};
+  }
+  .notes-top-card {
+    background: #FAFAFA;
+    border: 1px solid #D4D4D4;
+    border-radius: 8px;
+    padding: 8px 12px;
+    direction: ${pageDir};
+    text-align: ${isKurdish ? 'right' : 'left'};
+  }
+  .card-top-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #444444;
+    margin-bottom: 4px;
   }
   .tot-line {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
-    font-size: 13px;
+    padding: 2.5px 0;
+    font-size: 12px;
     direction: ${pageDir};
   }
   .tot-label {
     color: #000000;
     font-weight: 600;
-    text-align: ${isKurdish ? 'right' : 'left'};
   }
-  .tot-line.sub { border-bottom: 1px solid #E5E5E5; }
-  .tot-line.discount { color: #000000; font-weight: 600; }
-  .tot-line.grand {
-    border-top: 2px solid #000000;
-    margin-top: 6px;
-    padding-top: 10px;
-    font-size: 17px;
-    font-weight: 800;
-    color: #000000;
+  .tot-grand-box {
+    background: #000000;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 5px 10px;
+    margin-top: 5px;
+    text-align: center;
   }
-  .tot-line.grand .tot-label {
-    font-size: 16px;
-    font-weight: 800;
-    color: #000000;
-  }
-  .tot-usd-sub {
-    font-size: 13px;
+  .tot-grand-label {
+    font-size: 9px;
     font-weight: 700;
-    color: #000000;
-    text-align: ${isKurdish ? 'left' : 'right'};
-    margin-top: 4px;
+    color: #d4d4d4;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+  }
+  .tot-grand-amount {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+  }
+  .tot-grand-sub {
+    font-size: 10px;
+    font-weight: 600;
+    color: #a3a3a3;
+    margin-top: 1px;
+  }
+  .notes-body {
+    line-height: 1.5;
+    color: #333333;
+    font-size: 11.5px;
   }
 
   /* ── Stamp & Signature ── */
@@ -520,6 +593,34 @@ export function buildQuotationHTML(
     </div>
   </div>
 
+  ${aboutPolicySection}
+
+  <!-- Top Summary Pair: Totals on LEFT, Notes on RIGHT (above Items Table) -->
+  <div class="top-summary-pair">
+    <div class="totals-top-card">
+      <div class="card-top-label">${isKurdish ? ku('پوختەی نرخ و تێچوو') : 'Price Summary'}</div>
+      <div class="tot-line sub">
+        <span class="tot-label">${isKurdish ? ku('کۆی سەرەتایی:') : 'Subtotal:'}</span>
+        <span class="en-num" dir="ltr" style="font-weight:700;">${fmtRow(quotation.subtotal)}</span>
+      </div>
+      ${quotation.discountTotal > 0 ? `
+      <div class="tot-line discount">
+        <span class="tot-label" style="color:#d97706;">${isKurdish ? ku('داشکاندن:') : 'Discount:'}</span>
+        <span class="en-num" dir="ltr" style="color:#d97706;font-weight:700;">− ${fmtRow(quotation.discountTotal)}</span>
+      </div>` : ''}
+      <div class="tot-grand-box">
+        <div class="tot-grand-label">${isKurdish ? ku('کۆی گشتی عەرز') : 'Grand Total'}</div>
+        <div class="tot-grand-amount en-num" dir="ltr">${grandTotalPrimary}</div>
+        ${grandTotalSecondary ? `<div class="tot-grand-sub en-num" dir="ltr">${grandTotalSecondary}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="notes-top-card">
+      <div class="card-top-label">${isKurdish ? ku('تێبینی و مەرجەکان') : 'Notes & Terms'}</div>
+      <div class="notes-body">${escHtml(quotation.notes || (isKurdish ? 'سەرجەم نرخەکان بۆ ماوەی دیاریکراو جێگیرن و ناگۆڕدرێن.' : 'All prices are valid and fixed for the stated period.'))}</div>
+    </div>
+  </div>
+
   <!-- Table of Items (RTL Native, No Unwanted Tag Under Table) -->
   <div class="table-wrap">
     <table>
@@ -538,36 +639,6 @@ export function buildQuotationHTML(
         ${itemRows}
       </tbody>
     </table>
-  </div>
-
-  <!-- Notes Section (Placed BEFORE Totals as requested) -->
-  ${quotation.notes ? `
-  <div class="notes-box">
-    <div class="notes-title">${isKurdish ? ku('تێبینی و مەرجەکان:') : 'Notes & Terms:'}</div>
-    <div class="notes-body">${escHtml(quotation.notes)}</div>
-  </div>` : ''}
-
-  <!-- Totals Section (Placed BELOW Notes as requested) -->
-  <div class="totals-row">
-    <div class="totals-card">
-      <div class="tot-line sub">
-        <span class="tot-label">${isKurdish ? ku('کۆی سەرەتایی:') : 'Subtotal:'}</span>
-        <span class="en-num" dir="ltr" style="font-weight:700;">${fmtRow(quotation.subtotal)}</span>
-      </div>
-      ${quotation.discountTotal > 0 ? `
-      <div class="tot-line discount">
-        <span class="tot-label">${isKurdish ? ku('داشکاندن:') : 'Discount:'}</span>
-        <span class="en-num" dir="ltr">-${fmtRow(quotation.discountTotal)}</span>
-      </div>` : ''}
-      <div class="tot-line grand">
-        <span class="tot-label">${isKurdish ? ku('کۆی گشتی:') : 'Grand Total:'}</span>
-        <span class="en-num" dir="ltr">${grandTotalPrimary}</span>
-      </div>
-      ${grandTotalSecondary ? `
-      <div class="tot-usd-sub en-num" dir="ltr">
-        ${grandTotalSecondary}
-      </div>` : ''}
-    </div>
   </div>
 
   <!-- Signatures -->

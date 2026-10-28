@@ -31,7 +31,7 @@ export function PrimaryButton({
   labelStyle,
 }: Props) {
   const { colors } = useAppTheme();
-  const { isTablet, buttonHeight, buttonFontSize } = useResponsive();
+  const { isTablet, buttonHeight, buttonFontSize, uiScaleFactor } = useResponsive();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -59,7 +59,11 @@ export function PrimaryButton({
         activeOpacity={0.9}
         style={[
           styles.button,
-          isTablet && { height: buttonHeight, borderRadius: 16, paddingHorizontal: 32 },
+          {
+            height: buttonHeight,
+            borderRadius: Math.round((isTablet ? 16 : 12) * uiScaleFactor),
+            paddingHorizontal: isTablet ? 32 : Math.round(24 * uiScaleFactor),
+          },
           { backgroundColor: colors.primary },
           isOutline && [styles.outline, { borderColor: colors.primary, backgroundColor: 'transparent' }],
           isGhost   && styles.ghost,
@@ -73,9 +77,9 @@ export function PrimaryButton({
           <Text
             style={[
               styles.label,
-              isTablet && { fontSize: buttonFontSize },
+              { fontSize: buttonFontSize },
               isOutline && [styles.outlineLabel, { color: colors.primary }],
-              isGhost   && [styles.ghostLabel, { color: colors.gray500, fontSize: isTablet ? 16 : 14 }],
+              isGhost   && [styles.ghostLabel, { color: colors.gray500, fontSize: Math.round((isTablet ? 16 : 14) * uiScaleFactor) }],
               labelStyle,
             ]}
           >

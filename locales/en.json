@@ -1350,7 +1350,8 @@
     "remainingDebt":         "Remaining Debt",
     "paymentStatusLabel":    "Payment Status",
     "poweredBy":             "Powered by",
-    "noNotes":               "No notes"
+    "noNotes":               "No notes",
+    "companyPolicy":         "About & Business Policy"
   },
   "invoicePreview": {
     "invoiceInfo":      "Invoice Info",

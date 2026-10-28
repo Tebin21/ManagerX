@@ -1405,7 +1405,8 @@
     "remainingDebt": "قەرزی ماوە",
     "paymentStatusLabel": "دۆخی پارەدان",
     "poweredBy": "دروستکراوە لەلایەن",
-    "noNotes": "هیچ تێبینییەک نییە"
+    "noNotes": "هیچ تێبینییەک نییە",
+    "companyPolicy": "دەربارەی کۆمپانیا و سیاسەت"
   },
   "invoicePreview": {
     "invoiceInfo": "زانیاری پسوڵە",

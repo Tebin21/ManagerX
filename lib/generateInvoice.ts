@@ -78,6 +78,25 @@ const GENERATION_LOCK_STALE_MS = 45_000;
 // always runs promptly instead of leaving `_generating` stuck forever.
 const SHARE_TIMEOUT_MS = 10_000;
 
+/**
+ * Generates a standardized PDF filename that always begins with "Froshiar-"
+ * in English, followed by the invoice number or document identifier.
+ * E.g. "Froshiar-F-00011", "Froshiar-P-00004", "Froshiar-Q-00002".
+ */
+export function buildFroshiarPdfFileName(
+  rawNumberOrLabel?: string | null,
+  fallback = 'Invoice'
+): string {
+  const trimmed = (rawNumberOrLabel || '').trim();
+  if (!trimmed) {
+    return `Froshiar-${fallback}`;
+  }
+  if (/^froshiar[-_ ]/i.test(trimmed)) {
+    return trimmed.replace(/^froshiar[-_ ]+/i, 'Froshiar-');
+  }
+  return `Froshiar-${trimmed}`;
+}
+
 function tryAcquireGenerationLock(): boolean {
   if (_generating && Date.now() - _generatingSince > GENERATION_LOCK_STALE_MS) {
     _generating = false;
@@ -226,7 +245,8 @@ async function getSharingModule(): Promise<typeof import('expo-sharing') | null>
 async function generateAndShare(
   html: string,
   dialogTitle: string,
-  errorMessage: string
+  errorMessage: string,
+  fileName?: string
 ): Promise<boolean> {
   if (Platform.OS === 'web') {
     Alert.alert('Not supported', 'PDF export is not available on web.');
@@ -267,6 +287,30 @@ async function generateAndShare(
     console.error('[PDF] printToFileAsync failed:', printErr);
     Alert.alert('Error', errorMessage);
     return false;
+  }
+
+  // Ensure PDF has a meaningful, customer-friendly filename starting with Froshiar:
+  // e.g. "Froshiar-F-00011.pdf" instead of random temp name like "Print-1234.pdf".
+  if (fileName) {
+    try {
+      const cacheDir = FileSystem.cacheDirectory;
+      if (cacheDir) {
+        const cleanBase = fileName
+          .replace(/[\\/:*?"<>|#\n\r\t]/g, '_')
+          .replace(/\s+/g, '_')
+          .trim();
+        const safeFileName = cleanBase.toLowerCase().endsWith('.pdf')
+          ? cleanBase
+          : `${cleanBase}.pdf`;
+        const targetUri = `${cacheDir}${safeFileName}`;
+
+        await FileSystem.deleteAsync(targetUri, { idempotent: true });
+        await FileSystem.copyAsync({ from: uri, to: targetUri });
+        uri = targetUri;
+      }
+    } catch (renameErr) {
+      console.warn('[PDF] Failed to copy PDF to named targetUri, using original uri:', renameErr);
+    }
   }
 
   let timedOut = false;
@@ -315,10 +359,12 @@ export async function shareInvoice(
     const biz = await withResolvedLogo(business);
     const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
     const html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
+    const fileName = buildFroshiarPdfFileName(sale.invoiceNumber, 'Invoice');
     await generateAndShare(
       html,
       `Invoice ${sale.invoiceNumber}`,
-      'Could not generate invoice PDF. Please try again.'
+      'Could not generate invoice PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareInvoice unexpected error:', err);
@@ -348,10 +394,12 @@ export async function sharePurchaseInvoice(
     }
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+    const fileName = buildFroshiarPdfFileName(purchase.purchaseNumber, 'Purchase');
     await generateAndShare(
       html,
       `Purchase Invoice ${purchase.purchaseNumber}`,
-      'Could not generate purchase invoice PDF. Please try again.'
+      'Could not generate purchase invoice PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] sharePurchaseInvoice unexpected error:', err);
@@ -438,10 +486,12 @@ export async function shareInventoryReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildInventoryReportHTML(products, stats, biz, getDir());
+    const fileName = buildFroshiarPdfFileName('Inventory-Report');
     await generateAndShare(
       html,
       'Inventory Report',
-      'Could not generate the inventory report. Please try again.'
+      'Could not generate the inventory report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareInventoryReport unexpected error:', err);
@@ -462,10 +512,13 @@ export async function shareSalesDebtReport(
     const biz = await withResolvedLogo(business);
     const html = buildSalesDebtReportHTML(debt, payments, biz, getDir(), items);
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safeCust = (debt.customerName || 'Customer').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`CustomerDebt-${safeCust}`);
     await generateAndShare(
       html,
       isKu ? `ڕاپۆرتی قەرزی کڕیار — ${debt.customerName}` : `Debt Report — ${debt.customerName}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report. Please try again.'
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareSalesDebtReport unexpected error:', err);
@@ -486,10 +539,13 @@ export async function sharePurchaseDebtReport(
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir(), purchase);
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safeSupp = (debt.supplierName || 'Supplier').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`SupplierDebt-${safeSupp}`);
     await generateAndShare(
       html,
       isKu ? `ڕاپۆرتی قەرزی دابینکەر — ${debt.supplierName}` : `Supplier Debt Report — ${debt.supplierName}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the supplier debt report. Please try again.'
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the supplier debt report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] sharePurchaseDebtReport unexpected error:', err);
@@ -509,10 +565,13 @@ export async function shareCustomerReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildCustomerReportHTML(customer, sales, debts, biz, getDir());
+    const safeCust = (customer.name || 'Customer').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Customer-${safeCust}`);
     await generateAndShare(
       html,
       `Customer Report — ${customer.name}`,
-      'Could not generate the customer report. Please try again.'
+      'Could not generate the customer report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareCustomerReport unexpected error:', err);
@@ -532,10 +591,13 @@ export async function shareSupplierReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildSupplierReportHTML(supplier, purchases, debts, biz, getDir());
+    const safeSupp = (supplier.name || 'Supplier').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Supplier-${safeSupp}`);
     await generateAndShare(
       html,
       `Supplier Report — ${supplier.name}`,
-      'Could not generate the supplier report. Please try again.'
+      'Could not generate the supplier report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareSupplierReport unexpected error:', err);
@@ -561,10 +623,12 @@ export async function shareFullInventoryReport(
         .map((p) => p.id),
     );
     const html = buildFullInventoryReportHTML(products, biz, lowStockIds, periodLabel, getDir());
+    const fileName = buildFroshiarPdfFileName('Full-Inventory-Report');
     await generateAndShare(
       html,
       'Full Inventory Report',
       'Could not generate the inventory report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareFullInventoryReport unexpected error:', err);
@@ -583,10 +647,12 @@ export async function shareLowStockInventoryReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildLowStockReportHTML(lowStockProducts, biz, periodLabel, getDir());
+    const fileName = buildFroshiarPdfFileName('Low-Stock-Report');
     await generateAndShare(
       html,
       'Low Stock Report',
       'Could not generate the low stock report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareLowStockInventoryReport unexpected error:', err);
@@ -605,10 +671,12 @@ export async function shareOutOfStockInventoryReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildOutOfStockReportHTML(outOfStockProducts, biz, periodLabel, getDir());
+    const fileName = buildFroshiarPdfFileName('Out-Of-Stock-Report');
     await generateAndShare(
       html,
       'Out of Stock Report',
       'Could not generate the out of stock report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareOutOfStockInventoryReport unexpected error:', err);
@@ -628,10 +696,13 @@ export async function shareCategoryInventoryReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildCategoryReportHTML(products, categoryName, biz, periodLabel, getDir());
+    const safeCat = (categoryName || 'Category').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Category-${safeCat}`);
     await generateAndShare(
       html,
       `Category Report — ${categoryName}`,
       'Could not generate the category report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareCategoryInventoryReport unexpected error:', err);
@@ -650,10 +721,12 @@ export async function shareFullReport(
     const biz = await withResolvedLogo(business);
     const { buildFullReportHTML } = await import('./reportTemplate');
     const html = buildFullReportHTML(data, biz, getDir());
+    const fileName = buildFroshiarPdfFileName('Business-Report');
     await generateAndShare(
       html,
       'Business Report',
-      'Could not generate the report PDF. Please try again.'
+      'Could not generate the report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareFullReport unexpected error:', err);
@@ -672,10 +745,12 @@ export async function shareFinancialReport(
     const biz = await withResolvedLogo(business);
     const { buildFinancialReportHTML } = await import('./financialReportTemplate');
     const html = buildFinancialReportHTML(data, biz, getDir());
+    const fileName = buildFroshiarPdfFileName('Financial-Report');
     await generateAndShare(
       html,
       'Financial Report',
-      'Could not generate the financial report. Please try again.'
+      'Could not generate the financial report. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareFinancialReport unexpected error:', err);
@@ -696,10 +771,13 @@ export async function shareSalesAuditReport(
     const { buildSalesAuditReportHTML } = await import('./salesAuditReportTemplate');
     const html = buildSalesAuditReportHTML(sales, periodLabel, biz, getDir());
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Sales-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
       isKu ? `جەردی فرۆشتن — ${periodLabel}` : `Sales Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی فرۆشتن بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the sales audit report PDF. Please try again.'
+      isKu ? 'نەتوانرا جەردی فرۆشتن بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the sales audit report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareSalesAuditReport unexpected error:', err);
@@ -721,10 +799,13 @@ export async function sharePurchasesAuditReport(
     const { buildPurchasesAuditReportHTML } = await import('./purchasesAuditReportTemplate');
     const html = buildPurchasesAuditReportHTML(purchases, periodLabel, biz, getDir());
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Purchases-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
       isKu ? `جەردی کڕینەکان — ${periodLabel}` : `Purchases Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی کڕینەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the purchases audit report PDF. Please try again.'
+      isKu ? 'نەتوانرا جەردی کڕینەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the purchases audit report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] sharePurchasesAuditReport unexpected error:', err);
@@ -746,10 +827,13 @@ export async function shareInventoryHistoryAuditReport(
     const { buildInventoryHistoryReportHTML } = await import('./inventoryHistoryReportTemplate');
     const html = buildInventoryHistoryReportHTML(items, periodLabel, biz, getDir());
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Inventory-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
       isKu ? `جەردی بەرهەمە سڕاوەکان — ${periodLabel}` : `Deleted Products Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی بەرهەمە سڕاوەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the deleted products audit report PDF. Please try again.'
+      isKu ? 'نەتوانرا جەردی بەرهەمە سڕاوەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the deleted products audit report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareInventoryHistoryAuditReport unexpected error:', err);
@@ -772,10 +856,13 @@ export async function shareDashboardReport(
     const { buildDashboardReportHTML } = await import('./dashboardReportTemplate');
     const html = buildDashboardReportHTML(stats, activities, periodLabel, biz, getDir());
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Dashboard-Report-${safePeriod}`);
     return await generateAndShare(
       html,
       isKu ? `ڕاپۆرتی داشبۆرد — ${periodLabel}` : `Dashboard Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی داشبۆرد بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the dashboard report PDF. Please try again.'
+      isKu ? 'نەتوانرا ڕاپۆرتی داشبۆرد بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the dashboard report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareDashboardReport unexpected error:', err);
@@ -824,10 +911,13 @@ export async function shareDebtsAuditReport(
       }
     }
 
+    const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
+    const fileName = buildFroshiarPdfFileName(`Debts-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
       title,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرزەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report PDF. Please try again.'
+      isKu ? 'نەتوانرا ڕاپۆرتی قەرزەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareDebtsAuditReport unexpected error:', err);
@@ -849,10 +939,12 @@ export async function shareQuotationInvoice(
     const { buildQuotationHTML } = await import('./quotationTemplate');
     const html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
     const isKu = i18n.language === 'ku' || !i18n.language;
+    const fileName = buildFroshiarPdfFileName(quotation.quotationNumber, 'Quotation');
     return await generateAndShare(
       html,
       isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
-      isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.'
+      isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.',
+      fileName
     );
   } catch (err) {
     console.error('[PDF] shareQuotationInvoice unexpected error:', err);

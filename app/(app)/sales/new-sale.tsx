@@ -39,6 +39,7 @@ import { PaymentMethodSelector } from '@/components/sales/PaymentMethodSelector'
 import { CustomerInputForm } from '@/components/sales/CustomerInputForm';
 import { InvoiceView } from '@/components/sales/InvoiceView';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
+import { InvoiceAboutPolicyAccordion } from '@/components/sales/InvoiceAboutPolicyAccordion';
 import { useBusinessStore } from '@/store/businessStore';
 import { directPrintInvoice } from '@/lib/generateInvoice';
 import * as Haptics from 'expo-haptics';
@@ -1215,6 +1216,8 @@ export default function NewSaleScreen() {
                   onSelectReceiptCurrency={setReceiptCurrency}
                 />
 
+                <InvoiceAboutPolicyAccordion />
+
                 <PrimaryButton
                   label={
                     checkoutMode === 'print'
@@ -1374,6 +1377,8 @@ export default function NewSaleScreen() {
             receiptCurrency={receiptCurrency}
             onSelectReceiptCurrency={setReceiptCurrency}
           />
+
+          <InvoiceAboutPolicyAccordion />
 
           <PrimaryButton
             label={

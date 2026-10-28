@@ -27,6 +27,7 @@ export interface Quotation {
   exchangeRate: number;
   currencyMode?: QuotationCurrencyMode;
   notes?: string;
+  aboutPolicy?: string;
   validityDays?: number;
   printCount?: number;
   lastPrintedAt?: string;

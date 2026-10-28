@@ -38,6 +38,8 @@ interface SettingsState {
   purchaseCheckoutModePreference: 'normal' | 'print' | 'empty1' | 'empty2';
   saleCheckoutModePreference: 'normal' | 'print' | 'empty1' | 'empty2';
   purchaseDebtDownPaymentMethodPreference: 'cash' | 'fib';
+  invoiceAboutPolicy: string;
+  appScaleLevel: number; // 1 to 10 (default: 5 = 100%)
 
   setDarkMode:                (val: boolean) => void;
   setExchangeRate:            (rate: number) => Promise<void>;
@@ -69,6 +71,8 @@ interface SettingsState {
   setPurchaseCheckoutModePreference: (val: 'normal' | 'print' | 'empty1' | 'empty2') => void;
   setSaleCheckoutModePreference: (val: 'normal' | 'print' | 'empty1' | 'empty2') => void;
   setPurchaseDebtDownPaymentMethodPreference: (val: 'cash' | 'fib') => void;
+  setInvoiceAboutPolicy: (val: string) => void;
+  setAppScaleLevel: (val: number) => void;
 }
 
 // These preference stores are plain AsyncStorage, never touching a SQLite row
@@ -125,6 +129,14 @@ export const useSettingsStore = create<SettingsState>()(
       purchaseCheckoutModePreference: 'normal',
       saleCheckoutModePreference: 'normal',
       purchaseDebtDownPaymentMethodPreference: 'cash',
+      invoiceAboutPolicy: '',
+      setInvoiceAboutPolicy: (val) => { set({ invoiceAboutPolicy: val }); notifyPreferencesChanged(); },
+      appScaleLevel: 5,
+      setAppScaleLevel: (val) => {
+        const safe = Math.max(1, Math.min(10, Math.round(val || 5)));
+        set({ appScaleLevel: safe });
+        notifyPreferencesChanged();
+      },
 
       setDarkMode:                (val) => { set({ isDarkMode: val }); notifyPreferencesChanged(); },
       setAccentColor:             (color) => { set({ accentColor: color }); notifyPreferencesChanged(); },
@@ -212,6 +224,8 @@ export const useSettingsStore = create<SettingsState>()(
           purchaseCheckoutModePreference: (['normal', 'print', 'empty1', 'empty2'].includes(p?.purchaseCheckoutModePreference as string) ? p?.purchaseCheckoutModePreference : 'normal') as 'normal' | 'print' | 'empty1' | 'empty2',
           saleCheckoutModePreference: (['normal', 'print', 'empty1', 'empty2'].includes(p?.saleCheckoutModePreference as string) ? p?.saleCheckoutModePreference : 'normal') as 'normal' | 'print' | 'empty1' | 'empty2',
           purchaseDebtDownPaymentMethodPreference: (p?.purchaseDebtDownPaymentMethodPreference === 'fib' ? 'fib' : 'cash') as 'cash' | 'fib',
+          invoiceAboutPolicy: p?.invoiceAboutPolicy ?? '',
+          appScaleLevel: typeof p?.appScaleLevel === 'number' ? Math.max(1, Math.min(10, Math.round(p.appScaleLevel))) : 5,
         };
       },
     }

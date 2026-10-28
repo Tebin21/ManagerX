@@ -177,12 +177,13 @@ function getCachedStyles(
   isTabletLandscape: boolean,
   isFull: boolean,
   isDark: boolean,
-  isLastRowPair: boolean
+  isLastRowPair: boolean,
+  scale: number = 1.0
 ) {
-  const key = `${isTablet}_${isLargeTablet}_${isTabletLandscape}_${isFull}_${isDark}_${isLastRowPair}`;
+  const key = `${isTablet}_${isLargeTablet}_${isTabletLandscape}_${isFull}_${isDark}_${isLastRowPair}_${scale}`;
   let cached = stylesCache.get(key);
   if (!cached) {
-    cached = getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair);
+    cached = getStyles(isTablet, isLargeTablet, isTabletLandscape, isFull, isDark, isLastRowPair, scale);
     stylesCache.set(key, cached);
   }
   return cached;

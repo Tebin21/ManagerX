@@ -63,7 +63,7 @@ export function BackButton({ onPress, style }: Props) {
         onPressOut={handlePressOut}
         style={[
           styles.btn,
-          isTablet && {
+          {
             width: headerButtonSize,
             height: headerButtonSize,
             borderRadius: Math.round(headerButtonSize * 0.28),
@@ -75,7 +75,7 @@ export function BackButton({ onPress, style }: Props) {
         {/* Points left in English, mirrors to point right in Kurdish */}
         <Ionicons
           name={chevronBack as never}
-          size={isTablet ? (headerIconSize + 2) : 22}
+          size={headerIconSize + 2}
           color="#FFFFFF"
           style={[styles.icon, isTablet && { marginRight: 2 }]}
         />

@@ -21,6 +21,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/AppText';
 import { useBusinessStore } from '@/store/businessStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
@@ -202,6 +203,7 @@ function BusinessHeaderImpl() {
   const logoUri = useBusinessStore((s) => s.logoUri);
   const showOnDashboard = useBusinessStore((s) => s.showOnDashboard ?? false);
   const setShowOnDashboard = useBusinessStore((s) => s.setShowOnDashboard);
+  const insets = useSafeAreaInsets();
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, headerMaxWidth } = useResponsive();
   const { isRTL, textAlign } = useRTL();
@@ -218,20 +220,24 @@ function BusinessHeaderImpl() {
   // Custom business card background images
   const [customBizImages, setCustomBizImages] = useState<string[]>([]);
 
-  // Active index & container width for FlatList paging
+  // Active index for slide transitions
   const [activeIndex, setActiveIndex] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width);
 
   // Modal & picking states
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'banner' | 'business'>(showOnDashboard ? 'business' : 'banner');
   const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
 
-  const flatListRef = useRef<FlatList<BannerSlide>>(null);
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Active media resolution
   const activeVideo = showOnDashboard ? bizVideo : bannerVideo;
+  const canPlayVideo = Boolean(
+    activeVideo &&
+    activeVideo.trim().length > 0 &&
+    ExpoVideo?.useVideoPlayer &&
+    ExpoVideo?.VideoView
+  );
 
   // 1. Banner Slides Composition:
   // If user uploaded custom banner images, slide between them.
@@ -255,7 +261,7 @@ function BusinessHeaderImpl() {
     }));
   }, [customBizImages]);
 
-  // Current active slides for the background FlatList
+  // Current active slides for the background
   const currentSlides = showOnDashboard ? businessSlides : bannerSlides;
 
   // 3. Load saved custom media on mount
@@ -267,7 +273,11 @@ function BusinessHeaderImpl() {
           try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-              setCustomBannerImages(parsed.slice(0, MAX_CUSTOM_BANNER_IMAGES));
+              const resolved = parsed
+                .map((item) => (typeof item === 'string' ? resolveImageUri(item) || item : ''))
+                .filter(Boolean)
+                .slice(0, MAX_CUSTOM_BANNER_IMAGES);
+              setCustomBannerImages(resolved);
             }
           } catch {}
         }
@@ -281,7 +291,11 @@ function BusinessHeaderImpl() {
           try {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
-              setCustomBizImages(parsed.slice(0, MAX_CUSTOM_BIZ_IMAGES));
+              const resolved = parsed
+                .map((item) => (typeof item === 'string' ? resolveImageUri(item) || item : ''))
+                .filter(Boolean)
+                .slice(0, MAX_CUSTOM_BIZ_IMAGES);
+              setCustomBizImages(resolved);
             }
           } catch {}
         }
@@ -305,7 +319,7 @@ function BusinessHeaderImpl() {
 
   // 4. Smooth 5-Second Auto-Sliding Engine
   useEffect(() => {
-    if (activeVideo || currentSlides.length <= 1) {
+    if (canPlayVideo || currentSlides.length <= 1) {
       if (slideTimerRef.current) clearInterval(slideTimerRef.current);
       return;
     }
@@ -313,31 +327,18 @@ function BusinessHeaderImpl() {
     if (slideTimerRef.current) clearInterval(slideTimerRef.current);
 
     slideTimerRef.current = setInterval(() => {
-      setActiveIndex((prev) => {
-        const next = (prev + 1) % currentSlides.length;
-        try {
-          flatListRef.current?.scrollToIndex({
-            index: next,
-            animated: true,
-          });
-        } catch {}
-        return next;
-      });
+      setActiveIndex((prev) => (prev + 1) % currentSlides.length);
     }, SLIDE_INTERVAL);
 
     return () => {
       if (slideTimerRef.current) clearInterval(slideTimerRef.current);
     };
-  }, [currentSlides.length, activeVideo]);
+  }, [currentSlides.length, canPlayVideo]);
 
-  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (containerWidth <= 0) return;
-    const offset = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offset / containerWidth);
-    if (index >= 0 && index < currentSlides.length) {
-      setActiveIndex(index);
-    }
-  };
+  // Keep active index in bounds when slides or mode change
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [showOnDashboard, currentSlides.length]);
 
   // 5. Save Handlers
   const saveBannerImages = useCallback(async (newImages: string[]) => {
@@ -553,7 +554,10 @@ function BusinessHeaderImpl() {
 
   const resolved = resolveType(type, isKurdish);
   const typeEmoji = resolved?.emoji || '🏢';
-  const styles = React.useMemo(() => getStyles(isTablet, isTabletLandscape), [isTablet, isTabletLandscape]);
+  const styles = React.useMemo(
+    () => getStyles(isTablet, isTabletLandscape, insets.top),
+    [isTablet, isTabletLandscape, insets.top]
+  );
 
   // Current tab media for modal UI
   const currentTabVideo = activeTab === 'banner' ? bannerVideo : bizVideo;
@@ -567,10 +571,6 @@ function BusinessHeaderImpl() {
         onLongPress={handleOpenManager}
         delayLongPress={400}
         style={styles.pressableRoot}
-        onLayout={(e) => {
-          const w = e.nativeEvent.layout.width;
-          if (w > 0) setContainerWidth(w);
-        }}
       >
         <LinearGradient
           colors={[themeColors.gradientStart, themeColors.gradientMid]}
@@ -579,48 +579,61 @@ function BusinessHeaderImpl() {
           style={styles.gradient}
         >
           {/* Priority 1: Background Video (Plays on loop) */}
-          {activeVideo ? (
+          {canPlayVideo ? (
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-              <HeaderVideo previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`} uri={activeVideo} />
+              <HeaderVideo previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`} uri={activeVideo!} />
               <LinearGradient
                 colors={
                   showOnDashboard
                     ? ['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.80)']
-                    : ['rgba(15, 23, 42, 0.35)', 'rgba(15, 23, 42, 0.72)']
+                    : ['rgba(15, 23, 42, 0.25)', 'rgba(15, 23, 42, 0.68)']
                 }
                 style={StyleSheet.absoluteFillObject}
               />
             </View>
-          ) : currentSlides.length > 0 ? (
-            /* Priority 2: Background FlatList Slider */
+          ) : currentSlides.length === 1 ? (
+            /* Priority 2A: Single Background Slide (Direct rendering, 100% glitch-free) */
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-              <FlatList
-                ref={flatListRef}
-                data={currentSlides}
-                keyExtractor={(item) => item.id}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={onMomentumScrollEnd}
-                getItemLayout={(_, index) => ({
-                  length: containerWidth,
-                  offset: containerWidth * index,
-                  index,
-                })}
-                renderItem={({ item }) => (
-                  <View style={{ width: containerWidth, height: '100%' }}>
-                    <Image source={item.source} style={styles.bgImage} resizeMode="cover" />
-                    <LinearGradient
-                      colors={
-                        showOnDashboard
-                          ? ['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.78)']
-                          : ['rgba(15, 23, 42, 0.35)', 'rgba(15, 23, 42, 0.70)']
-                      }
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                  </View>
-                )}
+              <Image
+                source={currentSlides[0].source}
+                style={styles.bgImage}
+                resizeMode="cover"
               />
+              <LinearGradient
+                colors={
+                  showOnDashboard
+                    ? ['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.78)']
+                    : ['rgba(15, 23, 42, 0.25)', 'rgba(15, 23, 42, 0.65)']
+                }
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+          ) : currentSlides.length > 1 ? (
+            /* Priority 2B: Multiple Background Slides with Smooth Hardware-Accelerated Fade */
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+              {currentSlides.map((slide, i) => (
+                <View
+                  key={slide.id}
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { opacity: i === activeIndex ? 1 : 0 },
+                  ]}
+                >
+                  <Image
+                    source={slide.source}
+                    style={styles.bgImage}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={
+                      showOnDashboard
+                        ? ['rgba(15, 23, 42, 0.45)', 'rgba(15, 23, 42, 0.78)']
+                        : ['rgba(15, 23, 42, 0.25)', 'rgba(15, 23, 42, 0.65)']
+                    }
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+              ))}
             </View>
           ) : null}
 
@@ -1077,7 +1090,10 @@ function BusinessHeaderImpl() {
 
 export const BusinessHeader = React.memo(BusinessHeaderImpl);
 
-function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, insetsTop: number = 0) {
+  const dynamicTopPadding = Math.max(insetsTop + (isTabletLandscape ? 8 : isTablet ? 12 : 16), isTablet ? 44 : 54);
+  const dynamicMinHeight = (isTabletLandscape ? 240 : isTablet ? 230 : 210) + Math.max(insetsTop, 20);
+
   return StyleSheet.create({
     pressableRoot: {
       overflow: 'hidden',
@@ -1094,12 +1110,13 @@ function getStyles(isTablet: boolean, isTabletLandscape: boolean = false) {
     bgImage: {
       width: '100%',
       height: '100%',
+      ...StyleSheet.absoluteFillObject,
     },
     container: {
-      paddingTop: isTabletLandscape ? 40 : isTablet ? 50 : 70,
-      paddingBottom: isTabletLandscape ? 38 : isTablet ? 36 : 34,
+      paddingTop: dynamicTopPadding,
+      paddingBottom: isTabletLandscape ? 38 : isTablet ? 36 : 32,
       paddingHorizontal: isTabletLandscape ? 36 : isTablet ? 28 : 22,
-      minHeight: isTabletLandscape ? 280 : isTablet ? 260 : 230,
+      minHeight: dynamicMinHeight,
       justifyContent: 'space-between',
     },
     row: {

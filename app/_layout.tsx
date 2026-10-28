@@ -64,13 +64,14 @@ if (typeof ErrorUtils !== 'undefined') {
 function AppStack() {
   const { isDark, colors } = useAppTheme();
   const language = useLanguageStore((s) => s.language);
+  const appScaleLevel = useSettingsStore((s) => s.appScaleLevel ?? 5);
   const { isRTL } = useRTL();
 
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
-        key={language ?? 'en'}
+        key={`${language ?? 'en'}-scale-${appScaleLevel}`}
         initialRouteName="index"
         screenOptions={{
           headerShown:  false,

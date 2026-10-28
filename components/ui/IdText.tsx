@@ -22,11 +22,18 @@ const TABLET_ID_PRESET = {
  * the app language.
  */
 export function IdText({ style, size = 'default', ...props }: Props) {
-  const { isTablet } = useResponsive();
+  const { isTablet, uiScaleFactor } = useResponsive();
   const phonePreset = size === 'small' ? Typography.idSmall : Typography.id;
-  const preset = isTablet
+  const basePreset = isTablet
     ? (size === 'small' ? TABLET_ID_PRESET.small : TABLET_ID_PRESET.default)
     : phonePreset;
+  const preset: TextStyle = uiScaleFactor !== 1.0
+    ? {
+        ...basePreset,
+        fontSize: Math.round((basePreset.fontSize ?? 14) * uiScaleFactor * 10) / 10,
+        lineHeight: basePreset.lineHeight ? Math.round(basePreset.lineHeight * uiScaleFactor * 10) / 10 : undefined,
+      }
+    : basePreset;
   const flat = StyleSheet.flatten([preset, style]) as TextStyle;
   const fontFamily = resolveInterFont(flat.fontWeight);
   const userSpecifiedLineHeight = flat.lineHeight !== undefined && flat.lineHeight !== preset.lineHeight;

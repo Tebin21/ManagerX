@@ -23,6 +23,7 @@ export interface Purchase {
   warranty: string | null;
   description: string | null;
   notes: string | null;
+  aboutPolicy?: string | null;
   paymentStatus: PurchasePaymentStatus;
   initialPaymentMethod?: 'cash' | 'fib' | null;
   /** Supplier brand logo or image */
