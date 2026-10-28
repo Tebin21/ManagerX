@@ -348,7 +348,7 @@ const InteractiveCalendarPicker: React.FC<InteractiveCalendarPickerProps> = ({
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>{isKu ? 'دیاریکردنی کۆتایی:' : 'Set End:'}</span>
-            <span className="font-mono underline">{endDate || (isKu ? 'بێ سنوور' : 'Unlimited')}</span>
+            <span className={endDate ? "font-mono underline" : "underline font-bold"}>{endDate || (isKu ? 'بێ سنوور' : 'Unlimited')}</span>
           </button>
         </div>
 
@@ -1504,35 +1504,37 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                       isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-2xs'
                     }`}>
                       <div className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
-                        <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                        <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                           {isKu ? 'ماوەی بەشداریکردن:' : 'Subscription:'}
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
                         {/* Start Date */}
-                        <div className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                        <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
                           isDarkMode ? 'bg-slate-800/80 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-300 font-bold'
                         }`}>
-                          <span className="text-[10px] text-slate-500 font-normal">{isKu ? 'دەستپێک:' : 'Start:'}</span>
-                          <span>{formatDate(emp.startedAt || emp.createdAt)}</span>
+                          <span className="text-[11px] text-slate-500 font-bold">{isKu ? 'دەستپێک:' : 'Start:'}</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{formatDate(emp.startedAt || emp.createdAt)}</span>
                         </div>
 
-                        <span className="text-slate-400 font-bold">←</span>
+                        <span className="text-slate-400 font-black">←</span>
 
                         {/* End Date */}
-                        <div className={`px-2 py-0.5 rounded-md border flex items-center gap-1 font-bold ${
+                        <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-bold ${
                           isExpired
                             ? isDarkMode ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-rose-100 text-rose-800 border-rose-300'
                             : remaining !== null && remaining <= 5
                             ? isDarkMode ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-amber-100 text-amber-900 border-amber-300'
                             : isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                         }`}>
-                          <span className="text-[10px] font-normal opacity-80">{isKu ? 'کۆتایی:' : 'End:'}</span>
-                          <span>{emp.expiresAt ? formatDate(emp.expiresAt) : (isKu ? 'بێ سنوور' : 'Unlimited')}</span>
+                          <span className="text-[11px] font-bold opacity-80">{isKu ? 'کۆتایی:' : 'End:'}</span>
+                          <span className={emp.expiresAt ? 'font-mono font-bold' : 'font-extrabold'}>
+                            {emp.expiresAt ? formatDate(emp.expiresAt) : (isKu ? 'بێ سنوور' : 'Unlimited')}
+                          </span>
                           {emp.expiresAt && remaining !== null && (
-                            <span className="text-[10px] px-1 py-0.5 rounded bg-black/10 dark:bg-white/15">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-black/10 dark:bg-white/15">
                               {isExpired ? (isKu ? 'بەسەرچووە' : 'Expired') : `${remaining} ${isKu ? 'ڕۆژ' : 'd'}`}
                             </span>
                           )}
@@ -1541,13 +1543,13 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                         {/* Renew Button */}
                         <button
                           onClick={() => handleOpenRenew(emp)}
-                          className={`px-2.5 py-0.5 rounded-md text-xs font-bold border transition cursor-pointer flex items-center gap-1 ${
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                             isDarkMode
                               ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/40'
                               : 'bg-purple-100 hover:bg-purple-200 text-purple-900 border-purple-300 shadow-2xs font-extrabold'
                           }`}
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
                           <span>{isKu ? 'تازەکردنەوە ↻' : 'Renew ↻'}</span>
                         </button>
                       </div>
@@ -1555,37 +1557,49 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
                     {/* Row 3: Usage Limits Summary */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>
+                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
                         <Sliders className="w-4 h-4 text-indigo-500 shrink-0" />
                         <span>{isKu ? 'سنووری بەکارهێنان:' : 'Usage Limits:'}</span>
                       </span>
-                      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-                        <span className={`px-2 py-0.5 rounded border ${
-                          isDarkMode ? 'bg-slate-800/80 text-slate-200 border-slate-700' : 'bg-white text-slate-900 border-slate-300 font-bold shadow-2xs'
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-300 shadow-2xs'
                         }`}>
-                          ئایتم: {emp.limits?.maxItems === 'unlimited' ? '∞' : emp.limits?.maxItems ?? 20}
+                          <span className="text-slate-600 dark:text-slate-400 font-bold">ئایتم:</span>
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            {emp.limits?.maxItems === 'unlimited' ? '∞' : emp.limits?.maxItems ?? 20}
+                          </span>
                         </span>
-                        <span className={`px-2 py-0.5 rounded border ${
-                          isDarkMode ? 'bg-slate-800/80 text-slate-200 border-slate-700' : 'bg-white text-slate-900 border-slate-300 font-bold shadow-2xs'
+                        <span className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-300 shadow-2xs'
                         }`}>
-                          بڕ: {emp.limits?.maxQuantity === 'unlimited' ? '∞' : emp.limits?.maxQuantity ?? 30}
+                          <span className="text-slate-600 dark:text-slate-400 font-bold">بڕ:</span>
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            {emp.limits?.maxQuantity === 'unlimited' ? '∞' : emp.limits?.maxQuantity ?? 30}
+                          </span>
                         </span>
-                        <span className={`px-2 py-0.5 rounded border ${
-                          isDarkMode ? 'bg-slate-800/80 text-slate-200 border-slate-700' : 'bg-white text-slate-900 border-slate-300 font-bold shadow-2xs'
+                        <span className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-300 shadow-2xs'
                         }`}>
-                          فرۆشتن: {emp.limits?.maxSales === 'unlimited' ? '∞' : emp.limits?.maxSales ?? 15}
+                          <span className="text-slate-600 dark:text-slate-400 font-bold">فرۆشتن:</span>
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            {emp.limits?.maxSales === 'unlimited' ? '∞' : emp.limits?.maxSales ?? 15}
+                          </span>
                         </span>
-                        <span className={`px-2 py-0.5 rounded border ${
-                          isDarkMode ? 'bg-slate-800/80 text-slate-200 border-slate-700' : 'bg-white text-slate-900 border-slate-300 font-bold shadow-2xs'
+                        <span className={`px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-300 shadow-2xs'
                         }`}>
-                          وەسڵ: {emp.limits?.maxInvoices === 'unlimited' ? '∞' : emp.limits?.maxInvoices ?? 40}
+                          <span className="text-slate-600 dark:text-slate-400 font-bold">وەسڵ:</span>
+                          <span className="font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            {emp.limits?.maxInvoices === 'unlimited' ? '∞' : emp.limits?.maxInvoices ?? 40}
+                          </span>
                         </span>
                       </div>
                     </div>
 
                     {/* Row 4: Online Storefront Integration */}
                     <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-slate-200 dark:border-slate-800">
-                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>
+                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
                         <Globe className="w-4 h-4 text-emerald-500 shrink-0" />
                         <span>{isKu ? 'ستۆری ئۆنلاین (Storefront):' : 'Online Store:'}</span>
                       </span>
@@ -1610,8 +1624,8 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                           onClick={() => handleToggleOnlineStore(emp)}
                           className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold cursor-pointer border transition ${
                             emp.onlineStore?.status === 'active'
-                              ? isDarkMode ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
-                              : isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                              ? isDarkMode ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200 font-bold'
+                              : isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 font-bold'
                           }`}
                         >
                           {emp.onlineStore?.status === 'active'
@@ -1623,7 +1637,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
                     {/* Row 5: Password & Copy */}
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>
+                      <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
                         <Key className="w-4 h-4 text-amber-500 shrink-0" />
                         <span>{isKu ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}</span>
                       </span>

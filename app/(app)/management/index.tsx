@@ -32,7 +32,9 @@ export default function ManagementScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, flexDirection } = useRTL();
+  const rtl = useRTL();
+  const isRTL = rtl?.isRTL ?? true;
+  const flexDirection = rtl?.flexDirection ?? 'row-reverse';
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const user = useAuthStore((s) => s.user);

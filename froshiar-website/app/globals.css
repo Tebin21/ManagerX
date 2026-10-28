@@ -87,6 +87,16 @@ input, button, select, textarea {
   font-family: inherit;
 }
 
+/* Prevent cursive breakage in Kurdish script: never allow letter-spacing on RTL */
+[dir="rtl"],
+[dir="rtl"] * {
+  letter-spacing: normal !important;
+}
+
+[dir="rtl"] .font-mono {
+  font-family: var(--font-bahij), var(--font-rudaw), monospace !important;
+}
+
 html {
   scroll-behavior: smooth;
 }

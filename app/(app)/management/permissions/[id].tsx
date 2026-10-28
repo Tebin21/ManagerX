@@ -34,7 +34,10 @@ export default function EmployeePermissionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { isRTL, flexDirection, textAlign } = useRTL();
+  const rtl = useRTL();
+  const isRTL = rtl?.isRTL ?? true;
+  const flexDirection = rtl?.flexDirection ?? 'row-reverse';
+  const textAlign = rtl?.textAlign ?? 'right';
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const params = useLocalSearchParams<{ id: string; email: string; name?: string }>();
