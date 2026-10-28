@@ -1,3 +1,10 @@
+// Prevent EMFILE crashes by patching Node fs with graceful-fs retry queues
+try {
+  const fs = require('fs');
+  const gracefulFs = require('graceful-fs');
+  gracefulFs.gracefulify(fs);
+} catch {}
+
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 
