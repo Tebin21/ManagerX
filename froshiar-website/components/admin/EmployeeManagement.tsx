@@ -2349,9 +2349,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                               setStoreSubdomain(slugifyStoreName(val));
                             }
                           }}
-                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-bold ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-950 shadow-2xs'
                           }`}
+                          style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
                         />
                       </div>
 
@@ -2385,7 +2386,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                               const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
                               setStoreSubdomain(clean);
                             }}
-                            className="w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100 outline-none"
+                            className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
+                              isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
+                            }`}
+                            style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
                           />
                         </div>
                       </div>
@@ -2405,7 +2409,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                           <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
                             {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
                           </span>
-                          <span className="font-mono text-xs font-black truncate block select-all">
+                          <span
+                            className="font-mono text-xs font-black truncate block select-all"
+                            style={{ color: isDarkMode ? '#6EE7B7' : '#064E3B' }}
+                          >
                             https://froshiar.com/store/{storeSubdomain || 'my-shop'}
                           </span>
                         </div>
@@ -3007,9 +3014,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                               setStoreSubdomain(slugifyStoreName(val));
                             }
                           }}
-                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-bold ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-950 shadow-2xs'
                           }`}
+                          style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
                         />
                       </div>
 
@@ -3043,7 +3051,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                               const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
                               setStoreSubdomain(clean);
                             }}
-                            className="w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100 outline-none"
+                            className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
+                              isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
+                            }`}
+                            style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
                           />
                         </div>
                       </div>
@@ -3063,7 +3074,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                           <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
                             {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
                           </span>
-                          <span className="font-mono text-xs font-black truncate block select-all">
+                          <span
+                            className="font-mono text-xs font-black truncate block select-all"
+                            style={{ color: isDarkMode ? '#6EE7B7' : '#064E3B' }}
+                          >
                             https://froshiar.com/store/{storeSubdomain || 'my-shop'}
                           </span>
                         </div>
