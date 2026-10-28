@@ -194,6 +194,323 @@ function getCleanDocId(email: string): string {
   return email.trim().toLowerCase().replace(/[^a-z0-9_]/gi, '_');
 }
 
+function slugifyStoreName(name: string): string {
+  if (!name) return '';
+  const kurdishMap: Record<string, string> = {
+    'ئ': '', 'ا': 'a', 'آ': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ج': 'j', 'چ': 'ch',
+    'ح': 'h', 'خ': 'kh', 'د': 'd', 'ر': 'r', 'ڕ': 'rr', 'ز': 'z', 'ژ': 'zh', 'س': 's',
+    'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f',
+    'ڤ': 'v', 'ق': 'q', 'ک': 'k', 'گ': 'g', 'ل': 'l', 'ڵ': 'll', 'م': 'm', 'ن': 'n',
+    'و': 'w', 'ۆ': 'o', 'وو': 'oo', 'ه': 'h', 'ھ': 'h', 'ە': 'a', 'ی': 'y', 'ێ': 'e',
+    'ي': 'y', 'ك': 'k', 'ة': 'a', 'ء': ''
+  };
+
+  let transliterated = '';
+  for (const char of name.toLowerCase()) {
+    if (kurdishMap[char] !== undefined) {
+      transliterated += kurdishMap[char];
+    } else if (/[a-z0-9]/.test(char)) {
+      transliterated += char;
+    } else if (/\s|-|_/.test(char)) {
+      transliterated += '-';
+    }
+  }
+
+  const clean = transliterated
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return clean || getCleanDocId(name);
+}
+
+const PRESET_OPTIONS = [
+  { days: 30,  titleKu: '١ مانگ',  subKu: '+٣٠ ڕۆژ',  titleEn: '1 Month',  subEn: '+30 Days' },
+  { days: 60,  titleKu: '٢ مانگ',  subKu: '+٦٠ ڕۆژ',  titleEn: '2 Months', subEn: '+60 Days' },
+  { days: 90,  titleKu: '٣ مانگ',  subKu: '+٩٠ ڕۆژ',  titleEn: '3 Months', subEn: '+90 Days' },
+  { days: 180, titleKu: '٦ مانگ',  subKu: '+١٨٠ ڕۆژ', titleEn: '6 Months', subEn: '+180 Days' },
+  { days: 365, titleKu: '١ ساڵ',   subKu: '+٣٦٥ ڕۆژ', titleEn: '1 Year',   subEn: '+365 Days' },
+  { days: 'unlimited' as const, titleKu: '∞ بێ سنوور', subKu: 'هەمیشەیی', titleEn: '∞ Unlimited', subEn: 'Lifetime' },
+];
+
+interface InteractiveCalendarPickerProps {
+  startDate: string;
+  endDate: string;
+  onSelectStart: (d: string) => void;
+  onSelectEnd: (d: string) => void;
+  isKu: boolean;
+  isDarkMode: boolean;
+  onClose?: () => void;
+}
+
+const InteractiveCalendarPicker: React.FC<InteractiveCalendarPickerProps> = ({
+  startDate,
+  endDate,
+  onSelectStart,
+  onSelectEnd,
+  isKu,
+  isDarkMode,
+  onClose,
+}) => {
+  const [activeTab, setActiveTab] = useState<'start' | 'end'>('start');
+  const [viewYear, setViewYear] = useState<number>(() => {
+    const base = startDate ? new Date(startDate) : new Date();
+    return isNaN(base.getTime()) ? new Date().getFullYear() : base.getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState<number>(() => {
+    const base = startDate ? new Date(startDate) : new Date();
+    return isNaN(base.getTime()) ? new Date().getMonth() : base.getMonth();
+  });
+
+  const monthNamesKu = [
+    'کانوونی دووەم (١)', 'شوبات (٢)', 'ئازار (٣)', 'نیسان (٤)', 'ئایار (٥)', 'حوزەیران (٦)',
+    'تەممووز (٧)', 'ئاب (٨)', 'ئەیلوول (٩)', 'تشرینی یەکەم (١٠)', 'تشرینی دووەم (١١)', 'کانوونی یەکەم (١٢)'
+  ];
+  const monthNamesEn = [
+    'January (1)', 'February (2)', 'March (3)', 'April (4)', 'May (5)', 'June (6)',
+    'July (7)', 'August (8)', 'September (9)', 'October (10)', 'November (11)', 'December (12)'
+  ];
+
+  const weekDaysKu = ['شەممە', '١شەم', '٢شەم', '٣شەم', '٤شەم', '٥شەم', 'هەینی'];
+  const weekDaysEn = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const jumpToToday = () => {
+    const now = new Date();
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    if (activeTab === 'start') {
+      onSelectStart(todayStr);
+      setActiveTab('end');
+    } else {
+      onSelectEnd(todayStr);
+    }
+  };
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun..6=Sat
+  const startOffset = (firstDay + 1) % 7;
+
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const formatYMD = (day: number) => `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
+
+  const now = new Date();
+  const todayYMD = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  return (
+    <div className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 ${
+      isDarkMode ? 'bg-[#0B101D] border-purple-500/30 shadow-xl' : 'bg-white border-purple-300 shadow-xl'
+    }`}>
+      {/* Mode / Target Selector Tabs */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className={`flex items-center p-1 rounded-xl border text-xs font-bold ${
+          isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-300'
+        }`}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('start')}
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'start'
+                ? 'bg-purple-600 text-white shadow-sm font-extrabold'
+                : isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>{isKu ? 'دیاریکردنی دەستپێک:' : 'Set Start:'}</span>
+            <span className="font-mono underline">{startDate || '—'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('end')}
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'end'
+                ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
+                : isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>{isKu ? 'دیاریکردنی کۆتایی:' : 'Set End:'}</span>
+            <span className="font-mono underline">{endDate || (isKu ? 'بێ سنوور' : 'Unlimited')}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={jumpToToday}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+              isDarkMode
+                ? 'bg-slate-800 text-amber-300 border-slate-700 hover:bg-slate-700'
+                : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 font-extrabold'
+            }`}
+          >
+            {isKu ? 'ئەمڕۆ (Today)' : 'Today'}
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                isDarkMode ? 'border-slate-700 text-slate-400 hover:text-white' : 'border-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title={isKu ? 'داخستن' : 'Close'}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Month Navigation */}
+      <div className={`p-2.5 rounded-xl border flex items-center justify-between ${
+        isDarkMode ? 'bg-[#10182B] border-slate-800' : 'bg-slate-50 border-slate-200'
+      }`}>
+        <button
+          type="button"
+          onClick={prevMonth}
+          className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+            isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-2xs'
+          }`}
+        >
+          <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+          <span>{isKu ? 'مانگی پێشوو' : 'Prev'}</span>
+        </button>
+
+        <span className="text-xs sm:text-sm font-black text-purple-600 dark:text-purple-400">
+          {isKu ? monthNamesKu[viewMonth] : monthNamesEn[viewMonth]} {viewYear}
+        </span>
+
+        <button
+          type="button"
+          onClick={nextMonth}
+          className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+            isDarkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200' : 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-2xs'
+          }`}
+        >
+          <span>{isKu ? 'مانگی داهاتوو' : 'Next'}</span>
+          <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+        </button>
+      </div>
+
+      {/* Calendar Grid Table */}
+      <div className="w-full">
+        {/* Days of week header */}
+        <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+          {(isKu ? weekDaysKu : weekDaysEn).map((dayName, idx) => (
+            <div
+              key={idx}
+              className={`text-[11px] font-extrabold py-1 ${
+                idx === 6
+                  ? 'text-rose-500' // Friday
+                  : isDarkMode ? 'text-slate-400' : 'text-slate-600'
+              }`}
+            >
+              {dayName}
+            </div>
+          ))}
+        </div>
+
+        {/* Days grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: startOffset }).map((_, i) => (
+            <div key={`offset-${i}`} className="h-9 sm:h-10" />
+          ))}
+
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const dayNum = i + 1;
+            const ymd = formatYMD(dayNum);
+            const isStart = ymd === startDate;
+            const isEnd = ymd === endDate;
+            const inRange = Boolean(
+              startDate && endDate && ymd > startDate && ymd < endDate
+            );
+            const isToday = ymd === todayYMD;
+
+            return (
+              <button
+                key={ymd}
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'start') {
+                    onSelectStart(ymd);
+                    setActiveTab('end');
+                  } else {
+                    onSelectEnd(ymd);
+                  }
+                }}
+                className={`h-9 sm:h-10 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center relative cursor-pointer ${
+                  isStart
+                    ? 'bg-purple-600 text-white font-black shadow-md shadow-purple-500/40 ring-2 ring-purple-400 scale-[1.04] z-10'
+                    : isEnd
+                    ? 'bg-emerald-600 text-white font-black shadow-md shadow-emerald-500/40 ring-2 ring-emerald-400 scale-[1.04] z-10'
+                    : inRange
+                    ? isDarkMode
+                      ? 'bg-purple-900/40 text-purple-200 border border-purple-700/50'
+                      : 'bg-purple-100 text-purple-950 font-bold border border-purple-200'
+                    : isToday
+                    ? isDarkMode
+                      ? 'border border-amber-400 text-amber-300 hover:bg-slate-800'
+                      : 'border-2 border-amber-500 text-amber-950 bg-amber-50/50 hover:bg-amber-100 font-extrabold'
+                    : isDarkMode
+                    ? 'hover:bg-slate-800 text-slate-200 border border-transparent'
+                    : 'hover:bg-purple-50 text-slate-800 border border-transparent hover:border-purple-200'
+                }`}
+              >
+                <span>{dayNum}</span>
+                {isStart && (
+                  <span className="text-[8px] font-black leading-none mt-0.5 opacity-90">دەستپێک</span>
+                )}
+                {isEnd && (
+                  <span className="text-[8px] font-black leading-none mt-0.5 opacity-90">کۆتایی</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Footer Info: Current Selection & Close */}
+      <div className={`pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs flex-wrap gap-2`}>
+        <div className="flex items-center gap-2">
+          <span className={`font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+            {isKu ? 'ماوەی هەڵبژێردراو:' : 'Selected Range:'}
+          </span>
+          <span className={`font-mono font-black ${isDarkMode ? 'text-purple-300' : 'text-purple-800'}`}>
+            {startDate || '—'} ← {endDate || (isKu ? 'بێ سنوور ∞' : 'Unlimited ∞')}
+          </span>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer shadow-xs"
+          >
+            {isKu ? 'تەواو / داخستن ✓' : 'Done ✓'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface EmployeeManagementProps {
   isDarkMode: boolean;
   language: 'ku' | 'en';
@@ -223,9 +540,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   const [formManagerEmail, setFormManagerEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formPrice, setFormPrice] = useState('');
-  const [formDuration, setFormDuration] = useState<number>(30); // days
+  const [formDuration, setFormDuration] = useState<number | 'unlimited'>(30); // days
   const [formStartedAt, setFormStartedAt] = useState<string>(''); // YYYY-MM-DD
   const [formExpiresAt, setFormExpiresAt] = useState<string>(''); // YYYY-MM-DD
+  const [showCalendar, setShowCalendar] = useState<boolean>(false);
 
   // Limits in form
   const [formLimits, setFormLimits] = useState<EmployeeUsageLimits>(DEFAULT_LIMITS);
@@ -348,9 +666,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
   // Helper: Apply Preset Duration to End Date
   const applyPresetDuration = (days: number | 'unlimited') => {
+    setFormDuration(days);
     if (days === 'unlimited') {
       setFormExpiresAt('');
-      setFormDuration(0);
       return;
     }
     const base = formStartedAt ? new Date(formStartedAt) : new Date();
@@ -359,7 +677,6 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     const m = String(base.getMonth() + 1).padStart(2, '0');
     const day = String(base.getDate()).padStart(2, '0');
     setFormExpiresAt(`${y}-${m}-${day}`);
-    setFormDuration(days);
   };
 
   // Filtered employees
@@ -528,6 +845,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreName(store?.storeName || '');
     setStoreSubdomain(store?.subdomain || '');
 
+    setShowCalendar(false);
     setFormError(null);
     setIsEditModalOpen(true);
   };
@@ -572,7 +890,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         priceAmount: formPrice.trim(),
         startedAt: formStartedAt ? new Date(formStartedAt).toISOString() : selectedEmployee.startedAt || selectedEmployee.createdAt,
         expiresAt: formExpiresAt ? new Date(formExpiresAt).toISOString() : undefined,
-        durationDays: formDuration,
+        durationDays: typeof formDuration === 'number' ? formDuration : undefined,
         limits: updatedLimits,
         onlineStore: updatedStore,
       };
@@ -694,6 +1012,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreName('');
     setStoreSubdomain('');
 
+    setShowCalendar(false);
     setFormError(null);
     setIsAddModalOpen(true);
   };
@@ -736,7 +1055,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       const startDate = formStartedAt ? new Date(formStartedAt).toISOString() : new Date().toISOString();
       const expDate = formExpiresAt
         ? new Date(formExpiresAt).toISOString()
-        : formDuration > 0
+        : typeof formDuration === 'number' && formDuration > 0
         ? new Date(Date.now() + formDuration * 24 * 60 * 60 * 1000).toISOString()
         : undefined;
 
@@ -748,7 +1067,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         managerEmail: formManagerEmail.trim().toLowerCase(),
         phone: formPhone.trim(),
         priceAmount: formPrice.trim(),
-        durationDays: formDuration,
+        durationDays: typeof formDuration === 'number' ? formDuration : undefined,
         startedAt: startDate,
         expiresAt: expDate,
         status: 'active',
@@ -1538,11 +1857,25 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                   isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="text-xs sm:text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>{isKu ? 'ماوەی بەشداریکردن، نرخ و بەروارەکان:' : 'Subscription Validity, Dates & Pricing:'}</span>
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                      showCalendar
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30'
+                        : 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300 shadow-2xs'
+                    }`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{showCalendar ? (isKu ? 'داخستنی خشتەی ڕۆژژمێر ✕' : 'Close Calendar Table ✕') : (isKu ? 'کردنەوەی خشتەی ڕۆژژمێر 📅' : 'Open Calendar Table 📅')}</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -1562,77 +1895,132 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     />
                   </div>
 
-                  {/* Start Date */}
+                  {/* Start Date Trigger */}
                   <div>
                     <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                       {isKu ? 'کاتی دەستپێکردن (Start Date) *' : 'Subscription Start Date *'}
                     </label>
-                    <input
-                      type="date"
-                      required
-                      value={formStartedAt}
-                      onChange={(e) => setFormStartedAt(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none ${
-                        isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                    <div
+                      onClick={() => setShowCalendar(true)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        isDarkMode
+                          ? 'bg-[#10182B] border-slate-700 hover:border-purple-500 text-slate-100'
+                          : 'bg-white border-slate-300 hover:border-purple-500 text-slate-900 shadow-2xs'
                       }`}
-                    />
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Calendar className="w-4 h-4 text-purple-500 shrink-0" />
+                        <span className="font-mono text-xs sm:text-sm font-bold truncate">
+                          {formStartedAt ? formatDate(formStartedAt) : (isKu ? 'دەستپێک دیاری بکە' : 'Pick start date')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold shrink-0">
+                        {isKu ? 'خشتە 📅' : 'Pick 📅'}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* End Date */}
+                  {/* End Date Trigger */}
                   <div>
                     <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                       {isKu ? 'کاتی بەسەرچوون (End Date)' : 'Subscription Expiry Date'}
                     </label>
-                    <input
-                      type="date"
-                      value={formExpiresAt}
-                      onChange={(e) => setFormExpiresAt(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none ${
-                        isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                    <div
+                      onClick={() => setShowCalendar(true)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        isDarkMode
+                          ? 'bg-[#10182B] border-slate-700 hover:border-emerald-500 text-slate-100'
+                          : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-900 shadow-2xs'
                       }`}
-                    />
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-mono text-xs sm:text-sm font-bold truncate">
+                          {formExpiresAt ? formatDate(formExpiresAt) : (isKu ? '∞ بێ سنوور (Unlimited)' : '∞ Unlimited')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                        {isKu ? 'خشتە 📅' : 'Pick 📅'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Preset Days Buttons */}
-                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {isKu ? 'دیاریکردنی خێرا لە کاتی دەستپێکەوە:' : 'Quick Presets from Start Date:'}
-                  </span>
-                  {[
-                    { label: isKu ? '+٣٠ ڕۆژ (١ مانگ)' : '+30 Days (1m)', days: 30 },
-                    { label: isKu ? '+٩٠ ڕۆژ (٣ مانگ)' : '+90 Days (3m)', days: 90 },
-                    { label: isKu ? '+١٨٠ ڕۆژ (٦ مانگ)' : '+180 Days (6m)', days: 180 },
-                    { label: isKu ? '+٣٦٥ ڕۆژ (١ ساڵ)' : '+365 Days (1y)', days: 365 },
-                  ].map((preset) => (
-                    <button
-                      key={preset.days}
-                      type="button"
-                      onClick={() => applyPresetDuration(preset.days)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                        formDuration === preset.days
-                          ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
-                          : isDarkMode
-                          ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30'
-                          : 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300 shadow-2xs'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => applyPresetDuration('unlimited')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      !formExpiresAt
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                        : isDarkMode
-                        ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
-                    }`}
-                  >
-                    {isKu ? '∞ بێ سنوور (Unlimited)' : '∞ Unlimited'}
-                  </button>
+                {/* Interactive Calendar Table Expansion */}
+                {showCalendar && (
+                  <div className="pt-2 animate-in fade-in duration-200">
+                    <InteractiveCalendarPicker
+                      startDate={formStartedAt}
+                      endDate={formExpiresAt}
+                      onSelectStart={(newStart) => {
+                        setFormStartedAt(newStart);
+                        if (typeof formDuration === 'number' && formDuration > 0) {
+                          const b = new Date(newStart);
+                          b.setDate(b.getDate() + formDuration);
+                          const y = b.getFullYear();
+                          const m = String(b.getMonth() + 1).padStart(2, '0');
+                          const d = String(b.getDate()).padStart(2, '0');
+                          setFormExpiresAt(`${y}-${m}-${d}`);
+                        }
+                      }}
+                      onSelectEnd={(newEnd) => {
+                        setFormExpiresAt(newEnd);
+                        if (formStartedAt && newEnd) {
+                          const diffMs = new Date(newEnd).getTime() - new Date(formStartedAt).getTime();
+                          const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                          if (days > 0) setFormDuration(days);
+                        }
+                      }}
+                      isKu={isKu}
+                      isDarkMode={isDarkMode}
+                      onClose={() => setShowCalendar(false)}
+                    />
+                  </div>
+                )}
+
+                {/* Large Preset Days Buttons */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-black ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                      {isKu ? 'دیاریکردنی خێرای ماوە لە کاتی دەستپێکەوە:' : 'Quick Presets from Start Date:'}
+                    </span>
+                    <span className={`text-[11px] font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                      {formDuration === 'unlimited' || !formExpiresAt ? (isKu ? 'بێ سنوور ∞' : 'Unlimited ∞') : `${formDuration} ${isKu ? 'ڕۆژ' : 'days'}`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    {PRESET_OPTIONS.map((preset) => {
+                      const isSelected =
+                        preset.days === 'unlimited'
+                          ? !formExpiresAt || formDuration === 'unlimited'
+                          : formDuration === preset.days && Boolean(formExpiresAt);
+
+                      return (
+                        <button
+                          key={String(preset.days)}
+                          type="button"
+                          onClick={() => applyPresetDuration(preset.days)}
+                          className={`p-3 sm:p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                            isSelected
+                              ? preset.days === 'unlimited'
+                                ? 'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/30 scale-[1.02]'
+                                : 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/30 scale-[1.02]'
+                              : isDarkMode
+                              ? 'bg-[#10182B] border-slate-700/80 hover:border-purple-500 text-slate-200 hover:bg-slate-800'
+                              : 'bg-white border-slate-300 hover:border-purple-500 text-slate-900 hover:bg-purple-50 shadow-2xs'
+                          }`}
+                        >
+                          <span className="text-sm sm:text-base font-black tracking-tight">
+                            {isKu ? preset.titleKu : preset.titleEn}
+                          </span>
+                          <span className="text-[11px] font-bold opacity-80 mt-0.5">
+                            {isKu ? preset.subKu : preset.subEn}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1812,20 +2200,26 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
               {/* Section 4: Online Storefront Section */}
               <div
-                className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
                   isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                     <Globe className="w-4 h-4" />
-                    <span>{isKu ? 'ستۆری ئۆنلاین (Online Store):' : 'Online Storefront:'}</span>
+                    <span>{isKu ? 'ستۆری ئۆنلاین (Online Storefront):' : 'Online Storefront:'}</span>
                   </span>
                   <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-bold">
                     <input
                       type="checkbox"
                       checked={storeEnabled}
-                      onChange={(e) => setStoreEnabled(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setStoreEnabled(checked);
+                        if (checked && !storeSubdomain) {
+                          setStoreSubdomain(slugifyStoreName(storeName || formName));
+                        }
+                      }}
                       className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
                     />
                     <span className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>{isKu ? 'چالاککردنی ستۆری ئۆنلاین' : 'Enable Storefront'}</span>
@@ -1833,34 +2227,110 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
 
                 {storeEnabled && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                    <div>
-                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ناوی فرۆشگا / مارکێت' : 'Store Display Name'}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store name'}
-                        value={storeName}
-                        onChange={(e) => setStoreName(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
-                          isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
-                        }`}
-                      />
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {/* Store Name */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                            {isKu ? 'ناوی فرۆشگا / مارکێت' : 'Store Display Name'}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const generated = slugifyStoreName(storeName || formName);
+                              if (generated) setStoreSubdomain(generated);
+                            }}
+                            className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer"
+                          >
+                            {isKu ? '🪄 دروستکردنی ناوی بەستەر' : '🪄 Generate Slug'}
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store name'}
+                          value={storeName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStoreName(val);
+                            if (!storeSubdomain) {
+                              setStoreSubdomain(slugifyStoreName(val));
+                            }
+                          }}
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Subdomain with Fixed Domain Prefix */}
+                      <div>
+                        <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                          {isKu ? 'ناوی بەستەر / Subdomain (بەستەری فرۆشیار جێگیرە)' : 'Subdomain / Link (Locked Prefix)'}
+                        </label>
+                        <div
+                          className={`flex items-center rounded-xl border overflow-hidden transition focus-within:ring-2 focus-within:ring-emerald-500 shadow-2xs ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700' : 'bg-white border-slate-300'
+                          }`}
+                          dir="ltr"
+                        >
+                          {/* Locked Prefix */}
+                          <div className={`px-3 py-2.5 font-mono text-xs font-bold select-none shrink-0 flex items-center gap-1 border-r ${
+                            isDarkMode
+                              ? 'bg-slate-800 text-purple-300 border-slate-700'
+                              : 'bg-slate-100 text-purple-800 border-slate-300'
+                          }`}>
+                            <Globe className="w-3.5 h-3.5 text-purple-500" />
+                            <span>froshiar.com/store/</span>
+                          </div>
+                          {/* User-editable Slug */}
+                          <input
+                            type="text"
+                            required={storeEnabled}
+                            placeholder="aram-market"
+                            value={storeSubdomain}
+                            onChange={(e) => {
+                              const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                              setStoreSubdomain(clean);
+                            }}
+                            className="w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100 outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ناوی بەستەر / Subdomain' : 'Subdomain / Slug'}
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="aram-market"
-                        value={storeSubdomain}
-                        onChange={(e) => setStoreSubdomain(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-mono ${
-                          isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
-                        }`}
-                      />
+
+                    {/* Live Storefront Link Preview Box */}
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 text-xs flex-wrap ${
+                      isDarkMode
+                        ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-200'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    }`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Globe className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
+                            {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
+                          </span>
+                          <span className="font-mono text-xs font-black truncate block select-all">
+                            https://froshiar.com/store/{storeSubdomain || 'my-shop'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `https://froshiar.com/store/${storeSubdomain || 'store'}`;
+                          navigator.clipboard?.writeText(url);
+                          alert(isKu ? `بەستەری وێبسایت کۆپیکرا:\n${url}` : `Link copied:\n${url}`);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{isKu ? 'کۆپیکردنی لینک' : 'Copy URL'}</span>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -2045,11 +2515,25 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                   isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className="text-xs sm:text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>{isKu ? 'ماوەی بەشداریکردن، نرخ و بەروارەکان:' : 'Subscription Validity, Dates & Pricing:'}</span>
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                      showCalendar
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                        : isDarkMode
+                        ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30'
+                        : 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300 shadow-2xs'
+                    }`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{showCalendar ? (isKu ? 'داخستنی خشتەی ڕۆژژمێر ✕' : 'Close Calendar Table ✕') : (isKu ? 'کردنەوەی خشتەی ڕۆژژمێر 📅' : 'Open Calendar Table 📅')}</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -2069,77 +2553,132 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     />
                   </div>
 
-                  {/* Start Date */}
+                  {/* Start Date Trigger */}
                   <div>
                     <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                       {isKu ? 'کاتی دەستپێکردن (Start Date) *' : 'Subscription Start Date *'}
                     </label>
-                    <input
-                      type="date"
-                      required
-                      value={formStartedAt}
-                      onChange={(e) => setFormStartedAt(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none ${
-                        isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                    <div
+                      onClick={() => setShowCalendar(true)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        isDarkMode
+                          ? 'bg-[#10182B] border-slate-700 hover:border-purple-500 text-slate-100'
+                          : 'bg-white border-slate-300 hover:border-purple-500 text-slate-900 shadow-2xs'
                       }`}
-                    />
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Calendar className="w-4 h-4 text-purple-500 shrink-0" />
+                        <span className="font-mono text-xs sm:text-sm font-bold truncate">
+                          {formStartedAt ? formatDate(formStartedAt) : (isKu ? 'دەستپێک دیاری بکە' : 'Pick start date')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold shrink-0">
+                        {isKu ? 'خشتە 📅' : 'Pick 📅'}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* End Date */}
+                  {/* End Date Trigger */}
                   <div>
                     <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                       {isKu ? 'کاتی بەسەرچوون (End Date)' : 'Subscription Expiry Date'}
                     </label>
-                    <input
-                      type="date"
-                      value={formExpiresAt}
-                      onChange={(e) => setFormExpiresAt(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none ${
-                        isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                    <div
+                      onClick={() => setShowCalendar(true)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        isDarkMode
+                          ? 'bg-[#10182B] border-slate-700 hover:border-emerald-500 text-slate-100'
+                          : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-900 shadow-2xs'
                       }`}
-                    />
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="font-mono text-xs sm:text-sm font-bold truncate">
+                          {formExpiresAt ? formatDate(formExpiresAt) : (isKu ? '∞ بێ سنوور (Unlimited)' : '∞ Unlimited')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                        {isKu ? 'خشتە 📅' : 'Pick 📅'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Preset Days Buttons */}
-                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {isKu ? 'دیاریکردنی خێرا لە کاتی دەستپێکەوە:' : 'Quick Presets from Start Date:'}
-                  </span>
-                  {[
-                    { label: isKu ? '+٣٠ ڕۆژ (١ مانگ)' : '+30 Days (1m)', days: 30 },
-                    { label: isKu ? '+٩٠ ڕۆژ (٣ مانگ)' : '+90 Days (3m)', days: 90 },
-                    { label: isKu ? '+١٨٠ ڕۆژ (٦ مانگ)' : '+180 Days (6m)', days: 180 },
-                    { label: isKu ? '+٣٦٥ ڕۆژ (١ ساڵ)' : '+365 Days (1y)', days: 365 },
-                  ].map((preset) => (
-                    <button
-                      key={preset.days}
-                      type="button"
-                      onClick={() => applyPresetDuration(preset.days)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                        formDuration === preset.days
-                          ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
-                          : isDarkMode
-                          ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30'
-                          : 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300 shadow-2xs'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => applyPresetDuration('unlimited')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      !formExpiresAt
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                        : isDarkMode
-                        ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
-                    }`}
-                  >
-                    {isKu ? '∞ بێ سنوور (Unlimited)' : '∞ Unlimited'}
-                  </button>
+                {/* Interactive Calendar Table Expansion */}
+                {showCalendar && (
+                  <div className="pt-2 animate-in fade-in duration-200">
+                    <InteractiveCalendarPicker
+                      startDate={formStartedAt}
+                      endDate={formExpiresAt}
+                      onSelectStart={(newStart) => {
+                        setFormStartedAt(newStart);
+                        if (typeof formDuration === 'number' && formDuration > 0) {
+                          const b = new Date(newStart);
+                          b.setDate(b.getDate() + formDuration);
+                          const y = b.getFullYear();
+                          const m = String(b.getMonth() + 1).padStart(2, '0');
+                          const d = String(b.getDate()).padStart(2, '0');
+                          setFormExpiresAt(`${y}-${m}-${d}`);
+                        }
+                      }}
+                      onSelectEnd={(newEnd) => {
+                        setFormExpiresAt(newEnd);
+                        if (formStartedAt && newEnd) {
+                          const diffMs = new Date(newEnd).getTime() - new Date(formStartedAt).getTime();
+                          const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                          if (days > 0) setFormDuration(days);
+                        }
+                      }}
+                      isKu={isKu}
+                      isDarkMode={isDarkMode}
+                      onClose={() => setShowCalendar(false)}
+                    />
+                  </div>
+                )}
+
+                {/* Large Preset Days Buttons */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-black ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                      {isKu ? 'دیاریکردنی خێرای ماوە لە کاتی دەستپێکەوە:' : 'Quick Presets from Start Date:'}
+                    </span>
+                    <span className={`text-[11px] font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                      {formDuration === 'unlimited' || !formExpiresAt ? (isKu ? 'بێ سنوور ∞' : 'Unlimited ∞') : `${formDuration} ${isKu ? 'ڕۆژ' : 'days'}`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    {PRESET_OPTIONS.map((preset) => {
+                      const isSelected =
+                        preset.days === 'unlimited'
+                          ? !formExpiresAt || formDuration === 'unlimited'
+                          : formDuration === preset.days && Boolean(formExpiresAt);
+
+                      return (
+                        <button
+                          key={String(preset.days)}
+                          type="button"
+                          onClick={() => applyPresetDuration(preset.days)}
+                          className={`p-3 sm:p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                            isSelected
+                              ? preset.days === 'unlimited'
+                                ? 'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white border-emerald-500 shadow-md shadow-emerald-500/30 scale-[1.02]'
+                                : 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/30 scale-[1.02]'
+                              : isDarkMode
+                              ? 'bg-[#10182B] border-slate-700/80 hover:border-purple-500 text-slate-200 hover:bg-slate-800'
+                              : 'bg-white border-slate-300 hover:border-purple-500 text-slate-900 hover:bg-purple-50 shadow-2xs'
+                          }`}
+                        >
+                          <span className="text-sm sm:text-base font-black tracking-tight">
+                            {isKu ? preset.titleKu : preset.titleEn}
+                          </span>
+                          <span className="text-[11px] font-bold opacity-80 mt-0.5">
+                            {isKu ? preset.subKu : preset.subEn}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -2319,20 +2858,26 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
               {/* Section 4: Online Storefront Section */}
               <div
-                className={`p-4 sm:p-5 rounded-2xl border space-y-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
                   isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                     <Globe className="w-4 h-4" />
-                    <span>{isKu ? 'ستۆری ئۆنلاین (Storefront):' : 'Online Store:'}</span>
+                    <span>{isKu ? 'ستۆری ئۆنلاین (Online Storefront):' : 'Online Storefront:'}</span>
                   </span>
                   <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-bold">
                     <input
                       type="checkbox"
                       checked={storeEnabled}
-                      onChange={(e) => setStoreEnabled(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setStoreEnabled(checked);
+                        if (checked && !storeSubdomain) {
+                          setStoreSubdomain(slugifyStoreName(storeName || formName));
+                        }
+                      }}
                       className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
                     />
                     <span className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>{isKu ? 'چالاککردنی ستۆری ئۆنلاین' : 'Enable Storefront'}</span>
@@ -2340,32 +2885,110 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
 
                 {storeEnabled && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                    <div>
-                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ناوی فرۆشگا' : 'Store Name'}
-                      </label>
-                      <input
-                        type="text"
-                        value={storeName}
-                        onChange={(e) => setStoreName(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
-                          isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
-                        }`}
-                      />
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {/* Store Name */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                            {isKu ? 'ناوی فرۆشگا / مارکێت' : 'Store Display Name'}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const generated = slugifyStoreName(storeName || formName);
+                              if (generated) setStoreSubdomain(generated);
+                            }}
+                            className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer"
+                          >
+                            {isKu ? '🪄 دروستکردنی ناوی بەستەر' : '🪄 Generate Slug'}
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store name'}
+                          value={storeName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStoreName(val);
+                            if (!storeSubdomain) {
+                              setStoreSubdomain(slugifyStoreName(val));
+                            }
+                          }}
+                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-medium ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Subdomain with Fixed Domain Prefix */}
+                      <div>
+                        <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                          {isKu ? 'ناوی بەستەر / Subdomain (بەستەری فرۆشیار جێگیرە)' : 'Subdomain / Link (Locked Prefix)'}
+                        </label>
+                        <div
+                          className={`flex items-center rounded-xl border overflow-hidden transition focus-within:ring-2 focus-within:ring-emerald-500 shadow-2xs ${
+                            isDarkMode ? 'bg-[#10182B] border-slate-700' : 'bg-white border-slate-300'
+                          }`}
+                          dir="ltr"
+                        >
+                          {/* Locked Prefix */}
+                          <div className={`px-3 py-2.5 font-mono text-xs font-bold select-none shrink-0 flex items-center gap-1 border-r ${
+                            isDarkMode
+                              ? 'bg-slate-800 text-purple-300 border-slate-700'
+                              : 'bg-slate-100 text-purple-800 border-slate-300'
+                          }`}>
+                            <Globe className="w-3.5 h-3.5 text-purple-500" />
+                            <span>froshiar.com/store/</span>
+                          </div>
+                          {/* User-editable Slug */}
+                          <input
+                            type="text"
+                            required={storeEnabled}
+                            placeholder="aram-market"
+                            value={storeSubdomain}
+                            onChange={(e) => {
+                              const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                              setStoreSubdomain(clean);
+                            }}
+                            className="w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-slate-100 outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                        {isKu ? 'ناوی بەستەر / Subdomain' : 'Subdomain'}
-                      </label>
-                      <input
-                        type="text"
-                        value={storeSubdomain}
-                        onChange={(e) => setStoreSubdomain(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-mono ${
-                          isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
-                        }`}
-                      />
+
+                    {/* Live Storefront Link Preview Box */}
+                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 text-xs flex-wrap ${
+                      isDarkMode
+                        ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-200'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    }`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Globe className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
+                            {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
+                          </span>
+                          <span className="font-mono text-xs font-black truncate block select-all">
+                            https://froshiar.com/store/{storeSubdomain || 'my-shop'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `https://froshiar.com/store/${storeSubdomain || 'store'}`;
+                          navigator.clipboard?.writeText(url);
+                          alert(isKu ? `بەستەری وێبسایت کۆپیکرا:\n${url}` : `Link copied:\n${url}`);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{isKu ? 'کۆپیکردنی لینک' : 'Copy URL'}</span>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -2467,23 +3090,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                   {isKu ? 'ماوەی تازەکردنەوە (ڕۆژ) *' : 'Extension Days *'}
                 </label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
                   {[
-                    { label: isKu ? '٣٠ ڕۆژ' : '30d', days: 30 },
-                    { label: isKu ? '٩٠ ڕۆژ' : '90d', days: 90 },
-                    { label: isKu ? '١٨٠ ڕۆژ' : '180d', days: 180 },
-                    { label: isKu ? '٣٦٥ ڕۆژ' : '365d', days: 365 },
+                    { label: isKu ? '٣٠ ڕۆژ (١ مانگ)' : '30d (1m)', days: 30 },
+                    { label: isKu ? '٦٠ ڕۆژ (٢ مانگ)' : '60d (2m)', days: 60 },
+                    { label: isKu ? '٩٠ ڕۆژ (٣ مانگ)' : '90d (3m)', days: 90 },
+                    { label: isKu ? '١٨٠ ڕۆژ (٦ مانگ)' : '180d (6m)', days: 180 },
+                    { label: isKu ? '٣٦٥ ڕۆژ (١ ساڵ)' : '365d (1y)', days: 365 },
                   ].map((p) => (
                     <button
                       key={p.days}
                       type="button"
                       onClick={() => setRenewDays(p.days)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                      className={`p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer text-center ${
                         renewDays === p.days
-                          ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                          ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/25 scale-[1.02]'
                           : isDarkMode
-                          ? 'bg-slate-800/60 border-slate-700 text-slate-300'
-                          : 'bg-slate-100 border-slate-300 text-slate-800 shadow-2xs'
+                          ? 'bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-800'
+                          : 'bg-white border-slate-300 text-slate-800 hover:bg-purple-50 shadow-2xs'
                       }`}
                     >
                       {p.label}
