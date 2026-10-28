@@ -56,5 +56,10 @@ service cloud.firestore {
     match /employee_accounts/{empId} {
       allow read, write: if true;
     }
+
+    // Manager Google Drive sync links
+    match /manager_drive_links/{linkId} {
+      allow read, write: if true;
+    }
   }
 }

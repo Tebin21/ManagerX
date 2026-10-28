@@ -7,6 +7,7 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +20,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useManagementStore } from '@/store/managementStore';
-import { updateEmployeePermissions } from '@/lib/management/managementService';
+import {
+  updateEmployeePermissions,
+  updateEmployeePassword,
+} from '@/lib/management/managementService';
 import {
   EmployeePermissions,
   PermissionState,
@@ -30,7 +34,7 @@ export default function EmployeePermissionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { flexDirection, textAlign } = useRTL();
+  const { isRTL, flexDirection, textAlign } = useRTL();
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const params = useLocalSearchParams<{ id: string; email: string; name?: string }>();
@@ -46,12 +50,38 @@ export default function EmployeePermissionsScreen() {
     foundEmp?.permissions || DEFAULT_EMPLOYEE_PERMISSIONS
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
     if (foundEmp?.permissions) {
       setPermissions(foundEmp.permissions);
     }
   }, [foundEmp]);
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword.trim() || newPassword.trim().length < 6) {
+      Alert.alert(
+        isRTL ? 'هەڵە لە تێپەڕەوشە' : 'Invalid Password',
+        isRTL ? 'تێپەڕەوشە دەبێت لانیکەم ٦ پیت یان ژمارە بێت' : 'Password must be at least 6 characters'
+      );
+      return;
+    }
+    setIsUpdatingPassword(true);
+    try {
+      await updateEmployeePassword(email, newPassword.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Alert.alert(
+        isRTL ? 'سەرکەوتوو بوو' : 'Success',
+        isRTL ? 'تێپەڕەوشەی کارمەندەکە بە سەرکەوتوویی نوێکرایەوە.' : 'Employee password updated successfully.'
+      );
+      setNewPassword('');
+    } catch {
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
 
   const setModuleState = (key: keyof EmployeePermissions, state: PermissionState) => {
     Haptics.selectionAsync().catch(() => {});
@@ -216,8 +246,73 @@ export default function EmployeePermissionsScreen() {
       />
 
       <ScrollView contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}>
-        {/* Section 1: Main Modules */}
+        {/* Section 0: Employee Password Management */}
         <Text style={[styles.sectionTitle, { color: colors.black }]}>
+          {isRTL ? 'تێپەڕەوشەی چوونەژوورەوەی کارمەند' : 'Employee Login Password'}
+        </Text>
+        <View
+          style={[
+            styles.passwordCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderColor: colors.gray200,
+            },
+          ]}
+        >
+          <View style={[styles.passwordHeader, { flexDirection }]}>
+            <Ionicons name="key" size={18} color={colors.primary} />
+            <Text style={[styles.passwordTitle, { color: colors.black }]}>
+              {isRTL ? 'گۆڕینی تێپەڕەوشە (پاسۆرد)' : 'Change Employee Password'}
+            </Text>
+            {foundEmp?.password && (
+              <Text style={[styles.currentPassLabel, { color: colors.gray500 }]}>
+                {isRTL ? `پاسۆردی ئێستا: ${foundEmp.password}` : `Current: ${foundEmp.password}`}
+              </Text>
+            )}
+          </View>
+
+          <View style={[styles.passwordInputRow, { flexDirection }]}>
+            <TextInput
+              style={[
+                styles.passInput,
+                {
+                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
+                  borderColor: colors.gray300,
+                  color: colors.black,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
+              ]}
+              placeholder={isRTL ? 'تێپەڕەوشەی نوێ (لانیکەم ٦ پیت)...' : 'Enter new password (min 6 chars)...'}
+              placeholderTextColor={colors.gray400}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry={false}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              onPress={handleUpdatePassword}
+              disabled={isUpdatingPassword || newPassword.trim().length < 6}
+              style={[
+                styles.updatePassBtn,
+                {
+                  backgroundColor: newPassword.trim().length >= 6 ? colors.primary : colors.gray400,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              {isUpdatingPassword ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.updatePassBtnText}>
+                  {isRTL ? 'نوێکردنەوە' : 'Update'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section 1: Main Modules */}
+        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 20 }]}>
           {t('management.modulesPermissions')}
         </Text>
         <View style={styles.groupContainer}>
@@ -309,6 +404,50 @@ const styles = StyleSheet.create({
   },
   groupContainer: {
     gap: 10,
+  },
+  passwordCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 6,
+  },
+  passwordHeader: {
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  passwordTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  currentPassLabel: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginLeft: 'auto',
+  },
+  passwordInputRow: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  passInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 13,
+  },
+  updatePassBtn: {
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updatePassBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 12,
   },
   permRow: {
     borderRadius: 16,

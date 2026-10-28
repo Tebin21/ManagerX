@@ -187,6 +187,92 @@ export async function updateEmployeePermissions(
 }
 
 /**
+ * Updates an employee's login password directly from manager panel.
+ */
+export async function updateEmployeePassword(
+  docIdOrEmail: string,
+  newPassword: string
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const docId = getCleanDocId(docIdOrEmail);
+  const docRef = doc(db, COLLECTION_NAME, docId);
+
+  await setDoc(docRef, { password: newPassword }, { merge: true });
+}
+
+/**
+ * Subscribes in real-time to employees supervised by a specific manager.
+ */
+export function subscribeToManagerEmployees(
+  managerEmail: string,
+  onUpdate: (employees: EmployeeAccount[]) => void
+): () => void {
+  try {
+    const db = getFirebaseFirestore();
+    const colRef = collection(db, COLLECTION_NAME);
+    const cleanManager = managerEmail.trim().toLowerCase();
+    const q = query(colRef);
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: EmployeeAccount[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data() as EmployeeAccount;
+          if (data && data.email && (data.managerEmail || '').trim().toLowerCase() === cleanManager) {
+            list.push({
+              ...data,
+              id: d.id,
+              permissions: {
+                ...DEFAULT_EMPLOYEE_PERMISSIONS,
+                ...(data.permissions || {}),
+              },
+            });
+          }
+        });
+        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        onUpdate(list);
+      },
+      (err) => {
+        console.warn('[ManagementService] subscribeToManagerEmployees error:', err);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.warn('[ManagementService] Failed to init manager subscription:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Stores manager's Google Drive connection status so employees inherit data sync.
+ */
+export async function linkManagerGoogleDrive(
+  managerEmail: string,
+  driveInfo: { email: string; isConnected: boolean; lastSyncAt?: string }
+): Promise<void> {
+  try {
+    const db = getFirebaseFirestore();
+    const docId = `gdrive_${getCleanDocId(managerEmail)}`;
+    const docRef = doc(db, 'manager_drive_links', docId);
+
+    await setDoc(
+      docRef,
+      {
+        managerEmail: managerEmail.trim().toLowerCase(),
+        driveEmail: driveInfo.email,
+        isConnected: driveInfo.isConnected,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn('[ManagementService] Failed to link manager google drive:', e);
+  }
+}
+
+/**
  * Toggles an employee's status between 'active' and 'suspended'.
  */
 export async function setEmployeeStatus(

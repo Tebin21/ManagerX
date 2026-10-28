@@ -9,33 +9,46 @@ import {
 import {
   subscribeToEmployees,
   subscribeToEmployeeLive,
+  subscribeToManagerEmployees,
 } from '@/lib/management/managementService';
 
 interface ManagementState {
   employees: EmployeeAccount[];
+  managedEmployees: EmployeeAccount[];
   isLoading: boolean;
   isEmployee: boolean;
+  isManager: boolean;
   currentEmployeeAccount: EmployeeAccount | null;
   currentPermissions: EmployeePermissions | null;
 
   setEmployees: (employees: EmployeeAccount[]) => void;
+  setManagedEmployees: (employees: EmployeeAccount[]) => void;
   setCurrentEmployee: (account: EmployeeAccount | null) => void;
   updateCurrentPermissions: (permissions: EmployeePermissions) => void;
   clearEmployeeSession: () => void;
   initSuperAdminSubscription: () => () => void;
   initEmployeeLiveSubscription: (email: string) => () => void;
+  initManagerSubscription: (managerEmail: string) => () => void;
 }
 
 export const useManagementStore = create<ManagementState>()(
   persist(
     (set, get) => ({
       employees: [],
+      managedEmployees: [],
       isLoading: false,
       isEmployee: false,
+      isManager: false,
       currentEmployeeAccount: null,
       currentPermissions: null,
 
       setEmployees: (employees) => set({ employees, isLoading: false }),
+
+      setManagedEmployees: (managedEmployees) =>
+        set({
+          managedEmployees,
+          isManager: managedEmployees.length > 0,
+        }),
 
       setCurrentEmployee: (account) => {
         if (!account) {
@@ -93,12 +106,22 @@ export const useManagementStore = create<ManagementState>()(
         });
         return unsubscribe;
       },
+
+      initManagerSubscription: (managerEmail: string) => {
+        if (!managerEmail) return () => {};
+        const unsubscribe = subscribeToManagerEmployees(managerEmail, (managed) => {
+          get().setManagedEmployees(managed);
+        });
+        return unsubscribe;
+      },
     }),
     {
       name: '@froshiar_management_store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         isEmployee: state.isEmployee,
+        isManager: state.isManager,
+        managedEmployees: state.managedEmployees,
         currentEmployeeAccount: state.currentEmployeeAccount,
         currentPermissions: state.currentPermissions,
       }),

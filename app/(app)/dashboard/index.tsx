@@ -10,9 +10,12 @@ import { ModuleGrid } from '@/components/dashboard/ModuleGrid';
 
 import { OnlineStoreCard } from '@/components/dashboard/OnlineStoreCard';
 import { SupportFooter } from '@/components/ui/SupportFooter';
+import { ManagerBannerButton } from '@/components/dashboard/ManagerBannerButton';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useModuleStore } from '@/store/moduleStore';
+import { useManagementStore } from '@/store/managementStore';
+import { getGoogleDriveConfig } from '@/lib/googleDriveBackup';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -20,6 +23,16 @@ export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
+  const isManager = useManagementStore((s) => s.isManager);
+  const managedEmployees = useManagementStore((s) => s.managedEmployees);
+
+  const [isDriveConnected, setIsDriveConnected] = React.useState(false);
+
+  React.useEffect(() => {
+    getGoogleDriveConfig()
+      .then((cfg) => setIsDriveConnected(!!cfg.isConnected))
+      .catch(() => {});
+  }, []);
 
   // When the business header is hidden, ensure proper breathing space below the status bar / Dynamic Island
   const safeTopPadding = !showDashboardNavigation ? Math.max(insets.top, 16) + 12 : 10;
@@ -74,6 +87,14 @@ export default function DashboardScreen() {
               <Ionicons name="settings-outline" size={isTabletLandscape ? 32 : isTablet ? 28 : 22} color={colors.primary} />
             </TouchableOpacity>
           </View>
+
+          {/* Full-width Management Button (strictly visible when user is manager of staff accounts) */}
+          {isManager && managedEmployees.length > 0 && (
+            <ManagerBannerButton
+              employees={managedEmployees}
+              isDriveConnected={isDriveConnected}
+            />
+          )}
 
           <ModuleGrid />
 

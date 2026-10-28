@@ -30,6 +30,7 @@ export interface EmployeeAccount {
   email: string;
   displayName: string;
   managerEmail: string; // Bound to manager's official Google/Firebase email
+  password?: string;
   createdAt: string;
   status: 'active' | 'suspended';
   lastLoginAt?: string;

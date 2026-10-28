@@ -49,13 +49,22 @@ export default function AppLayout() {
     });
 
     // Employee Live Permission & Suspend listener
-    const { isEmployee, currentEmployeeAccount, initEmployeeLiveSubscription } = useManagementStore.getState();
+    const { isEmployee, currentEmployeeAccount, initEmployeeLiveSubscription, initManagerSubscription } = useManagementStore.getState();
+    let unsubEmployee: (() => void) | undefined;
     if (isEmployee && currentEmployeeAccount?.email) {
-      const unsub = initEmployeeLiveSubscription(currentEmployeeAccount.email);
-      return () => {
-        unsub?.();
-      };
+      unsubEmployee = initEmployeeLiveSubscription(currentEmployeeAccount.email);
     }
+
+    // Manager Live Listener (detects if user manages any employee accounts)
+    let unsubManager: (() => void) | undefined;
+    if (user?.email) {
+      unsubManager = initManagerSubscription(user.email);
+    }
+
+    return () => {
+      unsubEmployee?.();
+      unsubManager?.();
+    };
   }, [user]);
 
   return (

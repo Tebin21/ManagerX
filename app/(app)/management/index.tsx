@@ -25,48 +25,93 @@ import {
   setEmployeeStatus,
   deleteEmployeeAccount,
 } from '@/lib/management/managementService';
+import { getGoogleDriveConfig, connectGoogleDrive, GoogleDriveConfig } from '@/lib/googleDriveBackup';
 import type { EmployeeAccount } from '@/lib/management/types';
 
 export default function ManagementScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
-  const { flexDirection, textAlign } = useRTL();
+  const { isRTL, flexDirection } = useRTL();
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const user = useAuthStore((s) => s.user);
   const isAdmin = isAdminEmail(user?.email);
+  const isManager = useManagementStore((s) => s.isManager);
+  const managedEmployees = useManagementStore((s) => s.managedEmployees);
 
   const {
     employees,
     isLoading,
     initSuperAdminSubscription,
+    initManagerSubscription,
   } = useManagementStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [gdriveConfig, setGdriveConfig] = useState<GoogleDriveConfig | null>(null);
+  const [connectingDrive, setConnectingDrive] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) {
+    // If not superadmin and not a manager, bounce back
+    if (!isAdmin && !isManager) {
       router.replace('/(app)/dashboard-view' as never);
       return;
     }
-    const unsubscribe = initSuperAdminSubscription();
+
+    let unsub: (() => void) | undefined;
+    if (isAdmin) {
+      unsub = initSuperAdminSubscription();
+    } else if (user?.email) {
+      unsub = initManagerSubscription(user.email);
+    }
+
+    getGoogleDriveConfig().then(setGdriveConfig).catch(() => {});
+
     return () => {
-      unsubscribe();
+      unsub?.();
     };
-  }, [isAdmin]);
+  }, [isAdmin, isManager, user?.email]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    initSuperAdminSubscription();
+    if (isAdmin) {
+      initSuperAdminSubscription();
+    } else if (user?.email) {
+      initManagerSubscription(user.email);
+    }
+    getGoogleDriveConfig().then(setGdriveConfig).catch(() => {});
     setTimeout(() => setRefreshing(false), 800);
   };
 
-  const totalEmployees = employees.length;
+  const handleConnectDrive = async () => {
+    setConnectingDrive(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      const cfg = await connectGoogleDrive();
+      setGdriveConfig(cfg);
+      Alert.alert(
+        isRTL ? 'سەرکەوتوو بوو' : 'Success',
+        isRTL
+          ? 'گووگڵ درایڤ بەستراوەتەوە بە سەرکەوتوویی. داتاکانی کارمەندەکەت بەردەوام و پارێزراو بۆ ئەم درایڤە دەگوازرێنەوە.'
+          : 'Google Drive connected successfully. Staff data will continuously sync to your personal drive.'
+      );
+    } catch (e: any) {
+      console.warn('[Management] Drive connect error:', e);
+      Alert.alert(
+        isRTL ? 'هەڵە لە بەستنەوە' : 'Connection Error',
+        isRTL ? 'نەتوانرا گووگڵ درایڤ ببەسترێتەوە. تکایە دووبارە هەوڵ بدەرەوە.' : 'Failed to connect Google Drive.'
+      );
+    } finally {
+      setConnectingDrive(false);
+    }
+  };
+
+  const displayEmployees = isAdmin ? employees : managedEmployees;
+  const totalEmployees = displayEmployees.length;
   const activeCount = useMemo(
-    () => employees.filter((e) => e.status !== 'suspended').length,
-    [employees]
+    () => displayEmployees.filter((e) => e.status !== 'suspended').length,
+    [displayEmployees]
   );
   const suspendedCount = totalEmployees - activeCount;
 
@@ -137,6 +182,78 @@ export default function ManagementScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
+        {/* Google Drive Status & Connect Card for Manager */}
+        <View
+          style={[
+            styles.driveCard,
+            {
+              backgroundColor: gdriveConfig?.isConnected
+                ? isDark ? '#064E3B33' : '#ECFDF5'
+                : isDark ? '#78350F33' : '#FFFBEB',
+              borderColor: gdriveConfig?.isConnected ? '#10B981' : '#F59E0B',
+            },
+          ]}
+        >
+          <View style={[styles.driveCardHeader, { flexDirection }]}>
+            <View
+              style={[
+                styles.driveIconBox,
+                { backgroundColor: gdriveConfig?.isConnected ? '#10B98122' : '#F59E0B22' },
+              ]}
+            >
+              <Ionicons
+                name={gdriveConfig?.isConnected ? 'cloud-done' : 'cloud-upload'}
+                size={22}
+                color={gdriveConfig?.isConnected ? '#10B981' : '#F59E0B'}
+              />
+            </View>
+
+            <View style={styles.driveTextCol}>
+              <Text
+                style={[
+                  styles.driveTitle,
+                  { color: gdriveConfig?.isConnected ? (isDark ? '#34D399' : '#065F46') : (isDark ? '#FBBF24' : '#92400E') },
+                ]}
+              >
+                {gdriveConfig?.isConnected
+                  ? (isRTL ? 'گووگڵ درایڤ بەستراوەتەوە ✅' : 'Google Drive Connected')
+                  : (isRTL ? 'پێویستە سەرەتا گووگڵ درایڤ ببەستیتەوە' : 'Connect Google Drive First')}
+              </Text>
+              <Text
+                style={[
+                  styles.driveDesc,
+                  { color: isDark ? '#94A3B8' : '#64748B' },
+                ]}
+              >
+                {gdriveConfig?.isConnected
+                  ? (isRTL
+                      ? `ئیمەیڵ: ${gdriveConfig.email || 'بەستراو'} · داتاکانی کارمەند بەردەوام و نەبینراو هاوکات دەکرێن.`
+                      : `Synced to ${gdriveConfig.email || 'Drive'}. Staff data syncs automatically.`)
+                  : (isRTL
+                      ? 'بۆ ئەوەی داتاکانی کارمەندەکەت بە بەردەوامی و ئۆتۆماتیکی پاشەکەوت بن، تکایە گۆگڵ درایڤ ببەستەوە.'
+                      : 'Connect your personal Google Drive so staff data backs up and syncs continuously.')}
+              </Text>
+            </View>
+
+            {!gdriveConfig?.isConnected && (
+              <TouchableOpacity
+                onPress={handleConnectDrive}
+                disabled={connectingDrive}
+                style={[styles.driveActionBtn, { backgroundColor: '#F59E0B' }]}
+                activeOpacity={0.8}
+              >
+                {connectingDrive ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.driveActionBtnText}>
+                    {isRTL ? 'بەستنەوە' : 'Connect'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         {/* KPI Top Cards */}
         <View style={[styles.kpiRow, { flexDirection }]}>
           <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }]}>
@@ -166,9 +283,9 @@ export default function ManagementScreen() {
 
         {/* Employee List */}
         <View style={styles.listSection}>
-          {isLoading && employees.length === 0 ? (
+          {isLoading && displayEmployees.length === 0 ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
-          ) : employees.length === 0 ? (
+          ) : displayEmployees.length === 0 ? (
             <View style={[styles.emptyBox, { borderColor: colors.gray200 }]}>
               <Ionicons name="people-outline" size={48} color={colors.gray400} />
               <Text style={[styles.emptyText, { color: colors.gray500 }]}>
@@ -176,7 +293,7 @@ export default function ManagementScreen() {
               </Text>
             </View>
           ) : (
-            employees.map((emp) => {
+            displayEmployees.map((emp) => {
               const isSuspended = emp.status === 'suspended';
               const isBusy = updatingId === emp.id;
 
@@ -341,6 +458,47 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  driveCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 16,
+  },
+  driveCardHeader: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  driveIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driveTextCol: {
+    flex: 1,
+  },
+  driveTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  driveDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  driveActionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driveActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
   },
   addBtn: {
     flexDirection: 'row',
