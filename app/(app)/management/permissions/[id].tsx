@@ -240,6 +240,7 @@ export default function EmployeePermissionsScreen() {
     { label: 'خەرجییەکان (Expenses)', key: 'expenses', icon: 'cash-outline' },
     { label: 'عەرزی نرخ (Quotations)', key: 'quotations', icon: 'document-text-outline' },
     { label: 'داشبۆرد (Dashboard)', key: 'dashboard', icon: 'grid-outline' },
+    { label: 'ستۆری ئۆنلاین (Online Store)', key: 'onlineStore', icon: 'storefront-outline' },
   ];
 
   const settingsItems: { label: string; key: keyof EmployeePermissions; icon: keyof typeof Ionicons.glyphMap }[] = [

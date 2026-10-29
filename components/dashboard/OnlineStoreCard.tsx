@@ -12,6 +12,9 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useAuthStore } from '@/store/authStore';
+import { useManagementStore } from '@/store/managementStore';
+import { CreateWebsiteCtaButton } from '@/components/dashboard/CreateWebsiteCtaButton';
+import { isOnlineStoreActivatedByAdmin } from '@/lib/onlineStore/storeActivationService';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoonCard } from '@/components/dashboard/OnlineStoreComingSoonCard';
 import { InfoModal } from '@/components/ui/InfoModal';
@@ -24,9 +27,13 @@ function stripProtocol(url: string): string {
 function OnlineStoreCardImpl() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const { flexDirection, textAlign, writingDirection } = useRTL();
+  const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
   const [infoVisible, setInfoVisible] = useState(false);
+  const [isAdminActivated, setIsAdminActivated] = useState<boolean | null>(null);
+
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentPermissions = useManagementStore((s) => s.currentPermissions);
 
   const {
     enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
@@ -40,22 +47,30 @@ function OnlineStoreCardImpl() {
 
   useFocusEffect(
     useCallback(() => {
+      let mounted = true;
+      isOnlineStoreActivatedByAdmin().then((active) => {
+        if (mounted) setIsAdminActivated(active);
+      });
       load();
       refreshPendingCount();
       loadSubscription();
+      return () => {
+        mounted = false;
+      };
     }, [])
   );
 
   const user = useAuthStore((s) => s.user);
-  const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
 
-  // Gated: Show Coming Soon for users without an active Online Store subscription
-  if (!subscriptionActive && !isDemoUser) {
-    return <OnlineStoreComingSoonCard />;
+  // Hidden entirely if employee permissions have onlineStore === 'hidden'
+  if (isEmployee && currentPermissions?.onlineStore === 'hidden') {
+    return null;
   }
 
-  if (!subscriptionActive) {
-    return <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />;
+  // Gated: Unless explicitly activated by the Admin, neither manager nor employee sees
+  // the live store controls. Instead, show the single prominent CTA button to create/contact.
+  if (!isAdminActivated) {
+    return <CreateWebsiteCtaButton />;
   }
 
   const handleToggle = async () => {
@@ -194,29 +209,40 @@ function OnlineStoreCardImpl() {
         </View>
       </View>
 
-      {/* Action */}
-      <TouchableOpacity
-        onPress={handleToggle}
-        disabled={isLoading}
-        activeOpacity={0.85}
-        style={[
-          styles.actionBtn,
-          {
-            backgroundColor: enabled ? colors.gray100 : colors.primary,
-            height: isTabletLandscape ? 62 : isTablet ? 56 : Theme.button.height,
-            borderRadius: isTablet ? 16 : Theme.button.borderRadius,
-          },
-          !enabled && Theme.shadow.button,
-        ]}
-      >
-        {isLoading ? (
-          <ActivityIndicator color={enabled ? colors.gray500 : colors.white} size="small" />
-        ) : (
-          <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white, fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 15 }]}>
-            {enabled ? t('dashboard.onlineStore.disableStore') : t('dashboard.onlineStore.enableStore')}
+      {/* Action — Only Manager/Admin can disable or enable the store. Strictly restricted for employees */}
+      {!isEmployee ? (
+        <TouchableOpacity
+          onPress={handleToggle}
+          disabled={isLoading}
+          activeOpacity={0.85}
+          style={[
+            styles.actionBtn,
+            {
+              backgroundColor: enabled ? colors.gray100 : colors.primary,
+              height: isTabletLandscape ? 62 : isTablet ? 56 : Theme.button.height,
+              borderRadius: isTablet ? 16 : Theme.button.borderRadius,
+            },
+            !enabled && Theme.shadow.button,
+          ]}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={enabled ? colors.gray500 : colors.white} size="small" />
+          ) : (
+            <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white, fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 15 }]}>
+              {enabled ? t('dashboard.onlineStore.disableStore') : t('dashboard.onlineStore.enableStore')}
+            </Text>
+          )}
+        </TouchableOpacity>
+      ) : (
+        <View style={[styles.employeeNoticeRow, { flexDirection }]}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
+          <Text style={[styles.employeeNoticeText, { color: colors.gray500, textAlign }]}>
+            {isRTL
+              ? 'دەسەڵاتی ناچالاککردن یان سڕینەوەی وێبسایت تەنها لای بەڕێوەبەرە.'
+              : 'Only managers can disable or delete the website.'}
           </Text>
-        )}
-      </TouchableOpacity>
+        </View>
+      )}
 
       <InfoModal
         visible={infoVisible}
@@ -351,5 +377,18 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize:   15,
     fontWeight: '700',
+  },
+  employeeNoticeRow: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: Theme.button.borderRadius,
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
+  },
+  employeeNoticeText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    flex: 1,
   },
 });

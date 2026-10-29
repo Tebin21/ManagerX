@@ -16,6 +16,7 @@ import { useRTL } from '@/lib/rtl';
 import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useAuthStore } from '@/store/authStore';
+import { useManagementStore } from '@/store/managementStore';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { formatRelativeTime } from '@/utils/formatters';
@@ -56,7 +57,18 @@ export default function OnlineStoreScreen() {
     }
   };
 
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+
   const handleToggle = async () => {
+    if (isEmployee) {
+      Alert.alert(
+        t('common.error'),
+        textAlign === 'right'
+          ? 'دەسەڵاتی ناچالاککردنی ستۆری ئۆنلاین تەنها لای بەڕێوەبەرە.'
+          : 'Only managers can enable or disable the online store.'
+      );
+      return;
+    }
     if (enabled) {
       disable();
       return;
@@ -194,14 +206,25 @@ export default function OnlineStoreScreen() {
             </TouchableOpacity>
           )}
 
-          <View style={styles.toggleBtnWrap}>
-            <PrimaryButton
-              label={enabled ? t('settings.onlineStoreScreen.disableStore') : t('settings.onlineStoreScreen.enableStore')}
-              onPress={handleToggle}
-              loading={isLoading}
-              variant={enabled ? 'outline' : 'primary'}
-            />
-          </View>
+          {!isEmployee ? (
+            <View style={styles.toggleBtnWrap}>
+              <PrimaryButton
+                label={enabled ? t('settings.onlineStoreScreen.disableStore') : t('settings.onlineStoreScreen.enableStore')}
+                onPress={handleToggle}
+                loading={isLoading}
+                variant={enabled ? 'outline' : 'primary'}
+              />
+            </View>
+          ) : (
+            <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: 'rgba(212, 175, 55, 0.08)', flexDirection, alignItems: 'center', gap: 8 }}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
+              <Text style={{ fontSize: 12.5, color: colors.gray500, flex: 1, textAlign }}>
+                {textAlign === 'right'
+                  ? 'دەسەڵاتی ناچالاککردن یان سڕینەوەی وێبسایت تەنها لای بەڕێوەبەرە.'
+                  : 'Only managers can disable or delete the website.'}
+              </Text>
+            </View>
+          )}
         </SettingsCard>
 
         {!!lastSyncError && (
