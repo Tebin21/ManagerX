@@ -102,13 +102,6 @@ export const MODULES: ModuleDefinition[] = [
     descriptionKey: 'modules.invoices.description',
     route: '/(app)/invoices',
   },
-  {
-    id: 'management',
-    labelKey: 'dashboard.management',
-    icon: 'shield-checkmark',
-    descriptionKey: 'modules.management.description',
-    route: '/(app)/management',
-  },
 ];
 
 export const BUSINESS_TYPES: { id: string; label: string; labelKu: string; emoji: string }[] = [

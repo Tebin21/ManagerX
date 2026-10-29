@@ -66,9 +66,9 @@ function ModuleGridImpl() {
 
   const displayModules = useMemo(() => {
     return sortedModules.filter((item) => {
-      // Management module ONLY exists for Super-Admin
+      // Management module is strictly rendered as the top header banner on the dashboard, never as a duplicate grid card
       if (item.id === 'management') {
-        return isAdmin;
+        return false;
       }
       // Expiry module ONLY exists on dashboard when enabled from Expiry Settings
       if (item.id === 'expiry' && !expiryTrackingEnabled) {

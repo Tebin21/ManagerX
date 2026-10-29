@@ -24,11 +24,10 @@ export function ManagerBannerButton({
   const { isRTL, flexDirection } = useRTL();
   const { isTablet } = useResponsive();
 
-  if (!employees || employees.length === 0) return null;
-
-  const firstEmp = employees[0];
-  const count = employees.length;
-  const isSuspended = firstEmp.status === 'suspended';
+  const count = employees?.length || 0;
+  const hasEmployees = count > 0;
+  const firstEmp = hasEmployees ? employees[0] : null;
+  const isSuspended = firstEmp ? firstEmp.status === 'suspended' : false;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -73,24 +72,48 @@ export function ManagerBannerButton({
               style={[
                 styles.statusBadge,
                 {
-                  backgroundColor: isSuspended ? '#EF444422' : '#10B98122',
-                  borderColor: isSuspended ? '#EF444466' : '#10B98166',
+                  backgroundColor: !hasEmployees
+                    ? (isDark ? '#6366F122' : '#818CF822')
+                    : isSuspended
+                    ? '#EF444422'
+                    : '#10B98122',
+                  borderColor: !hasEmployees
+                    ? (isDark ? '#6366F166' : '#818CF866')
+                    : isSuspended
+                    ? '#EF444466'
+                    : '#10B98166',
                 },
               ]}
             >
               <View
                 style={[
                   styles.dot,
-                  { backgroundColor: isSuspended ? '#EF4444' : '#10B981' },
+                  {
+                    backgroundColor: !hasEmployees
+                      ? (isDark ? '#818CF8' : '#6366F1')
+                      : isSuspended
+                      ? '#EF4444'
+                      : '#10B981',
+                  },
                 ]}
               />
               <Text
                 style={[
                   styles.statusText,
-                  { color: isSuspended ? '#EF4444' : '#10B981' },
+                  {
+                    color: !hasEmployees
+                      ? (isDark ? '#A5B4FC' : '#4F46E5')
+                      : isSuspended
+                      ? '#EF4444'
+                      : '#10B981',
+                  },
                 ]}
               >
-                {isSuspended ? (isRTL ? 'ڕاگیراو' : 'Suspended') : (isRTL ? 'چالاک' : 'Active')}
+                {!hasEmployees
+                  ? (isRTL ? 'بەڕێوەبەر' : 'Manager')
+                  : isSuspended
+                  ? (isRTL ? 'ڕاگیراو' : 'Suspended')
+                  : (isRTL ? 'چالاک' : 'Active')}
               </Text>
             </View>
           </View>
@@ -98,36 +121,40 @@ export function ManagerBannerButton({
           {/* Subtitle with Employee Name and Drive sync tag */}
           <View style={[styles.subRow, { flexDirection }]}>
             <Text style={[styles.subtitle, { color: isDark ? '#A5B4FC' : '#4338CA' }]} numberOfLines={1}>
-              {count === 1
-                ? `${isRTL ? 'کارمەند:' : 'Staff:'} ${firstEmp.displayName}`
-                : `${isRTL ? 'کارمەندان:' : 'Staff:'} ${firstEmp.displayName} (+${count - 1})`}
+              {!hasEmployees
+                ? (isRTL ? 'دەستنیشانکردنی کارمەند و دەسەڵاتەکان' : 'Manage staff & permissions')
+                : count === 1
+                ? `${isRTL ? 'کارمەند:' : 'Staff:'} ${firstEmp?.displayName}`
+                : `${isRTL ? 'کارمەندان:' : 'Staff:'} ${firstEmp?.displayName} (+${count - 1})`}
             </Text>
 
-            <View
-              style={[
-                styles.drivePill,
-                {
-                  backgroundColor: isDriveConnected ? '#10B98115' : '#F59E0B15',
-                  borderColor: isDriveConnected ? '#10B98133' : '#F59E0B33',
-                },
-              ]}
-            >
-              <Ionicons
-                name={isDriveConnected ? 'cloud-done' : 'cloud-offline'}
-                size={11}
-                color={isDriveConnected ? '#10B981' : '#F59E0B'}
-              />
-              <Text
+            {hasEmployees && (
+              <View
                 style={[
-                  styles.driveText,
-                  { color: isDriveConnected ? '#10B981' : '#F59E0B' },
+                  styles.drivePill,
+                  {
+                    backgroundColor: isDriveConnected ? '#10B98115' : '#F59E0B15',
+                    borderColor: isDriveConnected ? '#10B98133' : '#F59E0B33',
+                  },
                 ]}
               >
-                {isDriveConnected
-                  ? (isRTL ? 'درایڤ بەستراوە' : 'Drive Synced')
-                  : (isRTL ? 'درایڤ ببەستەوە' : 'Connect Drive')}
-              </Text>
-            </View>
+                <Ionicons
+                  name={isDriveConnected ? 'cloud-done' : 'cloud-offline'}
+                  size={11}
+                  color={isDriveConnected ? '#10B981' : '#F59E0B'}
+                />
+                <Text
+                  style={[
+                    styles.driveText,
+                    { color: isDriveConnected ? '#10B981' : '#F59E0B' },
+                  ]}
+                >
+                  {isDriveConnected
+                    ? (isRTL ? 'درایڤ بەستراوە' : 'Drive Synced')
+                    : (isRTL ? 'درایڤ ببەستەوە' : 'Connect Drive')}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 

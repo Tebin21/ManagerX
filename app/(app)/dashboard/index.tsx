@@ -31,7 +31,7 @@ export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = isAdminEmail(user?.email);
   const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
-  const showManagementBanner = (isManager || isAdmin) && displayEmployees.length > 0;
+  const showManagementBanner = isManager || isAdmin;
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 
