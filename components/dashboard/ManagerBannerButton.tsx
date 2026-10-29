@@ -76,7 +76,7 @@ export function ManagerBannerButton({
               ]}
               numberOfLines={1}
             >
-              {isRTL ? 'بەڕێوەبردن (دەسەڵاتی کارمەند)' : 'Management (Employee Control)'}
+              {isRTL ? 'بەڕێوەبردنی کارمەندان' : 'Employee Management'}
             </Text>
 
             {/* Status Badge */}
