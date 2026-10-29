@@ -3,11 +3,10 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  ScrollView,
   Linking,
-  Pressable,
   Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -16,7 +15,10 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { SUPPORT_PHONE } from '@/constants/config';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface Props {
   style?: any;
@@ -26,11 +28,12 @@ export function CreateWebsiteCtaButton({ style }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
   const { isTablet } = useResponsive();
-  const [modalVisible, setModalVisible] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleOpen = () => {
+  const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setModalVisible(true);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsExpanded((prev) => !prev);
   };
 
   const handleCall = () => {
@@ -47,19 +50,21 @@ export function CreateWebsiteCtaButton({ style }: Props) {
   };
 
   return (
-    <>
-      <View style={[styles.container, style]}>
+    <View style={[styles.container, style]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+            borderColor: isDark ? '#D4AF3744' : '#D4AF3777',
+          },
+        ]}
+      >
+        {/* Main Trigger Row */}
         <TouchableOpacity
-          onPress={handleOpen}
+          onPress={toggleExpand}
           activeOpacity={0.85}
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-              borderColor: isDark ? '#D4AF3744' : '#D4AF3777',
-              flexDirection,
-            },
-          ]}
+          style={[styles.mainRow, { flexDirection }]}
         >
           {/* Storefront Icon with Gold Glow */}
           <View
@@ -128,7 +133,7 @@ export function CreateWebsiteCtaButton({ style }: Props) {
             </Text>
           </View>
 
-          {/* Trailing Action Icon */}
+          {/* Downward Toggle Chevron */}
           <View
             style={[
               styles.arrowCircle,
@@ -139,352 +144,270 @@ export function CreateWebsiteCtaButton({ style }: Props) {
             ]}
           >
             <Ionicons
-              name={isRTL ? 'chevron-back' : 'chevron-forward'}
-              size={16}
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
               color="#D4AF37"
             />
           </View>
         </TouchableOpacity>
-      </View>
 
-      {/* Kurdish RTL Explanatory Modal */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setModalVisible(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
-                borderColor: isDark ? '#334155' : '#E2E8F0',
-                maxWidth: isTablet ? 560 : '92%',
-              },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <View style={[styles.modalHeader, { flexDirection }]}>
-              <View style={[styles.modalTitleWrap, { flexDirection }]}>
+        {/* Downward Expanded Content (بۆ خوارەوە دەکرێتەوە) */}
+        {isExpanded && (
+          <View style={styles.expandedWrapper}>
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: isDark ? '#334155' : '#E2E8F0' },
+              ]}
+            />
+
+            {/* Intro text */}
+            <View
+              style={[
+                styles.introBox,
+                {
+                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.introText,
+                  { color: isDark ? '#CBD5E1' : '#334155', textAlign },
+                ]}
+              >
+                {isRTL
+                  ? 'بە وێبسایتی فەرمی فرۆشیار، سەرجەم کاڵا و نرخەکانت لەسەر ئینتەرنێت بڵاودەبنەوە و کڕیارانت دەتوانن لە هەر شوێنێک بن ڕاستەوخۆ کاڵاکان ببینن و داواکاری بنێرن.'
+                  : 'With Froshiar Online Store, all your products are published online with live prices and images, allowing customers to order directly from anywhere.'}
+              </Text>
+            </View>
+
+            {/* Features List */}
+            <View style={styles.featuresList}>
+              {/* Feature 1 */}
+              <View
+                style={[
+                  styles.featureItem,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                    flexDirection,
+                  },
+                ]}
+              >
                 <View
                   style={[
-                    styles.modalHeaderIcon,
-                    {
-                      backgroundColor: isDark ? '#D4AF3722' : '#FFFBEB',
-                      borderColor: '#D4AF37',
-                    },
+                    styles.featureIconWrap,
+                    { backgroundColor: '#10B98115', borderColor: '#10B98133' },
                   ]}
                 >
-                  <Ionicons name="storefront" size={24} color="#D4AF37" />
+                  <Ionicons name="sync" size={18} color="#10B981" />
                 </View>
-                <View>
+                <View style={styles.featureTextWrap}>
                   <Text
                     style={[
-                      styles.modalTitle,
+                      styles.featureTitle,
                       { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
                     ]}
                   >
-                    {isRTL ? 'وێبسایتی بزنسەکەت دروست بکە' : 'Create Your Business Website'}
+                    {isRTL ? 'هاوکاتبوونی خۆکار لەگەڵ کۆگا' : 'Real-time Catalog Sync'}
                   </Text>
                   <Text
                     style={[
-                      styles.modalSub,
+                      styles.featureDesc,
                       { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
                     {isRTL
-                      ? 'فرۆشگای ئۆنلاینی تایبەت بە مارکێتەکەت'
-                      : 'Dedicated Online Storefront for Your Brand'}
+                      ? 'هەموو کاڵا و نرخەکانت کە لە ئەپەکەدا زیادیان دەکەیت خۆکارانە لەسەر وێبسایتەکەت بڵاودەبنەوە.'
+                      : 'Products, prices, and stock added in the app are automatically synced to your website.'}
                   </Text>
                 </View>
               </View>
 
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={[
-                  styles.closeBtn,
-                  { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
-                ]}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={isDark ? '#94A3B8' : '#64748B'}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Modal Body */}
-            <ScrollView
-              style={styles.modalScroll}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
-            >
-              {/* Intro Banner */}
+              {/* Feature 2 */}
               <View
                 style={[
-                  styles.introBox,
+                  styles.featureItem,
                   {
-                    backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
                     borderColor: isDark ? '#334155' : '#E2E8F0',
+                    flexDirection,
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.introText,
-                    { color: isDark ? '#CBD5E1' : '#334155', textAlign },
-                  ]}
-                >
-                  {isRTL
-                    ? 'بە وێبسایتی فرۆشیار، سەرجەم کاڵا و بەرهەمەکانت لەسەر ئینتەرنێت بە وێنە و نرخەوە بڵاودەبنەوە و کڕیارانت دەتوانن لە هەر شوێنێک بن ڕاستەوخۆ داواکاری بنێرن.'
-                    : 'With Froshiar Online Store, all your products are published online with images and prices, allowing customers to browse and order directly from anywhere.'}
-                </Text>
-              </View>
-
-              {/* Feature Cards List */}
-              <View style={styles.featuresList}>
-                {/* Feature 1 */}
                 <View
                   style={[
-                    styles.featureItem,
-                    {
-                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                      borderColor: isDark ? '#334155' : '#E2E8F0',
-                      flexDirection,
-                    },
+                    styles.featureIconWrap,
+                    { backgroundColor: '#25D36615', borderColor: '#25D36633' },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.featureIconWrap,
-                      { backgroundColor: '#10B98115', borderColor: '#10B98133' },
-                    ]}
-                  >
-                    <Ionicons name="sync" size={20} color="#10B981" />
-                  </View>
-                  <View style={styles.featureTextWrap}>
-                    <Text
-                      style={[
-                        styles.featureTitle,
-                        { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'هاوکاتبوونی خۆکار لەگەڵ کۆگا'
-                        : 'Real-time Automatic Catalog Sync'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.featureDesc,
-                        { color: isDark ? '#94A3B8' : '#64748B', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'هەموو کاڵا و نرخەکانت کە لە ئەپەکەدا زیادیان دەکەیت خۆکارانە دەچنە سەر وێبسایتەکەت بەبێ دووبارە داخڵکردنەوە.'
-                        : 'Products, prices, and stock added in the app are automatically synced to your website.'}
-                    </Text>
-                  </View>
+                  <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                 </View>
-
-                {/* Feature 2 */}
-                <View
-                  style={[
-                    styles.featureItem,
-                    {
-                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                      borderColor: isDark ? '#334155' : '#E2E8F0',
-                      flexDirection,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.featureIconWrap,
-                      { backgroundColor: '#25D36615', borderColor: '#25D36633' },
-                    ]}
-                  >
-                    <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-                  </View>
-                  <View style={styles.featureTextWrap}>
-                    <Text
-                      style={[
-                        styles.featureTitle,
-                        { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'داواکاری ڕاستەوخۆ بە واتسئەپ'
-                        : 'Direct WhatsApp Ordering'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.featureDesc,
-                        { color: isDark ? '#94A3B8' : '#64748B', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'کڕیارەکان دەتوانن سەبەتەی کڕین پڕبکەنەوە و بە یەک کلیک وەسڵی داواکارییەکە بۆ واتسئەپت بنێرن.'
-                        : 'Customers can add items to their cart and send organized invoices directly to your WhatsApp.'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Feature 3 */}
-                <View
-                  style={[
-                    styles.featureItem,
-                    {
-                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                      borderColor: isDark ? '#334155' : '#E2E8F0',
-                      flexDirection,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.featureIconWrap,
-                      { backgroundColor: '#6366F115', borderColor: '#6366F133' },
-                    ]}
-                  >
-                    <Ionicons name="globe-outline" size={20} color="#6366F1" />
-                  </View>
-                  <View style={styles.featureTextWrap}>
-                    <Text
-                      style={[
-                        styles.featureTitle,
-                        { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'دۆمەین و بەستەری فەرمی مارکێتەکەت'
-                        : 'Custom Official Store Link'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.featureDesc,
-                        { color: isDark ? '#94A3B8' : '#64748B', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'بەستەرێکی تایبەت بە ناوی فرۆشگاکەتەوە بۆ بڵاوکردنەوە لە ئینستاگرام، سناپچات و فەیسبووک.'
-                        : 'A dedicated web link with your business name to share across all social media platforms.'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Feature 4 */}
-                <View
-                  style={[
-                    styles.featureItem,
-                    {
-                      backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                      borderColor: isDark ? '#334155' : '#E2E8F0',
-                      flexDirection,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.featureIconWrap,
-                      { backgroundColor: '#D4AF3715', borderColor: '#D4AF3744' },
-                    ]}
-                  >
-                    <Ionicons name="ribbon-outline" size={20} color="#D4AF37" />
-                  </View>
-                  <View style={styles.featureTextWrap}>
-                    <Text
-                      style={[
-                        styles.featureTitle,
-                        { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? '١٠٠٪ بێ کۆمسیۆن و داهاتی تەواو'
-                        : '100% Commission Free'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.featureDesc,
-                        { color: isDark ? '#94A3B8' : '#64748B', textAlign },
-                      ]}
-                    >
-                      {isRTL
-                        ? 'هەموو قازانج و داهاتی فرۆشتنەکان بۆ خۆت دەبێت و هیچ بڕە پارەیەکی زیادە نابڕدرێت.'
-                        : 'All earnings and profits from orders belong 100% to you without any hidden cuts.'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Contact Admin Activation Section */}
-              <View
-                style={[
-                  styles.contactCard,
-                  {
-                    backgroundColor: isDark ? '#1E1B4B' : '#F5F3FF',
-                    borderColor: isDark ? '#6366F1' : '#C7D2FE',
-                  },
-                ]}
-              >
-                <View style={[styles.contactHeader, { flexDirection }]}>
-                  <Ionicons name="call" size={18} color="#6366F1" />
+                <View style={styles.featureTextWrap}>
                   <Text
                     style={[
-                      styles.contactPrompt,
-                      { color: isDark ? '#FFFFFF' : '#1E1B4B', textAlign },
+                      styles.featureTitle,
+                      { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                    ]}
+                  >
+                    {isRTL ? 'داواکاری ڕاستەوخۆ بە واتسئەپ' : 'Direct WhatsApp Ordering'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.featureDesc,
+                      { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
                     {isRTL
-                      ? 'بۆ دروستکردن و چالاککردنی وێبسایت بۆ بزنسەکەت، پەیوەندی بە ئەدمینەوە بکە:'
-                      : 'To create and activate a website for your business, contact the Admin:'}
+                      ? 'کڕیارەکان دەتوانن سەبەتەی کڕین پڕبکەنەوە و بە یەک کلیک وەسڵی داواکاری بۆ واتسئەپت بنێرن.'
+                      : 'Customers add items to cart and send organized invoices directly to your WhatsApp.'}
                   </Text>
                 </View>
+              </View>
 
-                {/* Big Phone Number Display */}
-                <View style={styles.phoneDisplay}>
-                  <Text style={styles.phoneText}>{SUPPORT_PHONE}</Text>
+              {/* Feature 3 */}
+              <View
+                style={[
+                  styles.featureItem,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                    flexDirection,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.featureIconWrap,
+                    { backgroundColor: '#6366F115', borderColor: '#6366F133' },
+                  ]}
+                >
+                  <Ionicons name="globe-outline" size={18} color="#6366F1" />
                 </View>
-
-                {/* Direct Action Buttons */}
-                <View style={[styles.actionButtonsRow, { flexDirection }]}>
-                  {/* Phone Call Button */}
-                  <TouchableOpacity
-                    onPress={handleCall}
-                    activeOpacity={0.8}
-                    style={[styles.callBtn, { flexDirection }]}
+                <View style={styles.featureTextWrap}>
+                  <Text
+                    style={[
+                      styles.featureTitle,
+                      { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                    ]}
                   >
-                    <Ionicons name="call" size={17} color="#FFFFFF" />
-                    <Text style={styles.callBtnText}>
-                      {isRTL ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* WhatsApp Button */}
-                  <TouchableOpacity
-                    onPress={handleWhatsApp}
-                    activeOpacity={0.8}
-                    style={[styles.whatsappBtn, { flexDirection }]}
+                    {isRTL ? 'دۆمەین و بەستەری فەرمی مارکێتەکەت' : 'Official Store Link'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.featureDesc,
+                      { color: isDark ? '#94A3B8' : '#64748B', textAlign },
+                    ]}
                   >
-                    <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
-                    <Text style={styles.whatsappBtnText}>
-                      {isRTL ? 'نامە لە واتسئەپ' : 'WhatsApp'}
-                    </Text>
-                  </TouchableOpacity>
+                    {isRTL
+                      ? 'بەستەرێکی تایبەت بە ناوی فرۆشگاکەتەوە بۆ بڵاوکردنەوە لە ئینستاگرام، سناپچات و فەیسبووک.'
+                      : 'A dedicated store link with your brand name to share across all social media platforms.'}
+                  </Text>
                 </View>
               </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+
+              {/* Feature 4 */}
+              <View
+                style={[
+                  styles.featureItem,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                    flexDirection,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.featureIconWrap,
+                    { backgroundColor: '#D4AF3715', borderColor: '#D4AF3744' },
+                  ]}
+                >
+                  <Ionicons name="ribbon-outline" size={18} color="#D4AF37" />
+                </View>
+                <View style={styles.featureTextWrap}>
+                  <Text
+                    style={[
+                      styles.featureTitle,
+                      { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                    ]}
+                  >
+                    {isRTL ? '١٠٠٪ بێ کۆمسیۆن و داهاتی تەواو' : '100% Commission Free'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.featureDesc,
+                      { color: isDark ? '#94A3B8' : '#64748B', textAlign },
+                    ]}
+                  >
+                    {isRTL
+                      ? 'هەموو قازانج و داهاتی فرۆشتنەکان بۆ خۆت دەبێت و هیچ بڕە پارەیەکی زیادە نابڕدرێت.'
+                      : 'All profits and earnings from orders belong 100% to you without any deductions.'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Contact Admin to Activate Section */}
+            <View
+              style={[
+                styles.contactCard,
+                {
+                  backgroundColor: isDark ? '#1E1B4B' : '#F5F3FF',
+                  borderColor: isDark ? '#6366F1' : '#C7D2FE',
+                },
+              ]}
+            >
+              <View style={[styles.contactHeader, { flexDirection }]}>
+                <Ionicons name="call" size={18} color="#6366F1" />
+                <Text
+                  style={[
+                    styles.contactPrompt,
+                    { color: isDark ? '#FFFFFF' : '#1E1B4B', textAlign },
+                  ]}
+                >
+                  {isRTL
+                    ? 'بۆ دروستکردن و چالاککردنی وێبسایت بۆ بزنسەکەت، پەیوەندی بە ئەدمینەوە بکە:'
+                    : 'To create and activate a website for your business, contact the Admin:'}
+                </Text>
+              </View>
+
+              {/* Big Phone Number Display */}
+              <View style={styles.phoneDisplay}>
+                <Text style={styles.phoneText}>{SUPPORT_PHONE}</Text>
+              </View>
+
+              {/* Action Buttons: Call & WhatsApp */}
+              <View style={[styles.actionButtonsRow, { flexDirection }]}>
+                <TouchableOpacity
+                  onPress={handleCall}
+                  activeOpacity={0.8}
+                  style={[styles.callBtn, { flexDirection }]}
+                >
+                  <Ionicons name="call" size={16} color="#FFFFFF" />
+                  <Text style={styles.callBtnText}>
+                    {isRTL ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleWhatsApp}
+                  activeOpacity={0.8}
+                  style={[styles.whatsappBtn, { flexDirection }]}
+                >
+                  <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+                  <Text style={styles.whatsappBtnText}>
+                    {isRTL ? 'نامە لە واتسئەپ' : 'WhatsApp'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -499,15 +422,16 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 20,
     borderWidth: 1.5,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    minHeight: 74,
-    alignItems: 'center',
+    padding: 14,
     shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
+  },
+  mainRow: {
+    alignItems: 'center',
+    width: '100%',
   },
   iconWrapper: {
     alignItems: 'center',
@@ -556,90 +480,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalCard: {
+  // Downward Accordion Expanded Styles
+  expandedWrapper: {
+    marginTop: 14,
     width: '100%',
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 20,
-    maxHeight: '88%',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
   },
-  modalHeader: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(150, 150, 150, 0.2)',
-  },
-  modalTitleWrap: {
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  modalHeaderIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  modalSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalScroll: {
-    maxHeight: 520,
+  divider: {
+    height: 1,
+    width: '100%',
+    marginBottom: 14,
   },
   introBox: {
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   introText: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   featuresList: {
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 14,
   },
   featureItem: {
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   featureIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -649,39 +524,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
     marginBottom: 2,
   },
   featureDesc: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11.5,
+    lineHeight: 17,
   },
   contactCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1.5,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
   },
   contactHeader: {
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   contactPrompt: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     flex: 1,
   },
   phoneDisplay: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginBottom: 12,
   },
   phoneText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: 2,
     color: '#6366F1',
@@ -694,8 +569,8 @@ const styles = StyleSheet.create({
   callBtn: {
     flex: 1,
     backgroundColor: '#6366F1',
-    borderRadius: 12,
-    paddingVertical: 11,
+    borderRadius: 11,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
@@ -703,13 +578,13 @@ const styles = StyleSheet.create({
   callBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 12.5,
+    fontSize: 12,
   },
   whatsappBtn: {
     flex: 1,
     backgroundColor: '#25D366',
-    borderRadius: 12,
-    paddingVertical: 11,
+    borderRadius: 11,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
@@ -717,6 +592,6 @@ const styles = StyleSheet.create({
   whatsappBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 12.5,
+    fontSize: 12,
   },
 });
