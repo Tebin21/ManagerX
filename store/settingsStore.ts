@@ -6,6 +6,46 @@ export const DEFAULT_EXCHANGE_RATE = 1310;
 
 export type BaseCurrency = 'IQD' | 'USD';
 
+export type ThermalReceiptWidth = '58mm' | '80mm' | '110mm';
+
+export type SaleCheckoutMode = 'normal' | 'print' | 'print58' | 'print80' | 'print110' | 'empty1' | 'empty2';
+
+export interface ThermalReceiptSettings {
+  showBusinessPhone: boolean;
+  showBusinessAddress: boolean;
+  showCustomerName: boolean;
+  showCustomerPhone: boolean;
+  showInvoiceNumber: boolean;
+  showDate: boolean;
+  showQty: boolean;
+  showItemPrice: boolean;
+  showDiscount: boolean;
+  showItemBarcode: boolean;
+  showPaymentMethod: boolean;
+  showRemainingDebt: boolean;
+  showNotes: boolean;
+  showFooterBarcode: boolean;
+  customFooterNote: string;
+}
+
+export const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = {
+  showBusinessPhone: true,
+  showBusinessAddress: true,
+  showCustomerName: true,
+  showCustomerPhone: true,
+  showInvoiceNumber: true,
+  showDate: true,
+  showQty: true,
+  showItemPrice: true,
+  showDiscount: true,
+  showItemBarcode: false,
+  showPaymentMethod: true,
+  showRemainingDebt: true,
+  showNotes: true,
+  showFooterBarcode: true,
+  customFooterNote: 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن',
+};
+
 interface SettingsState {
   isDarkMode:    boolean;
   exchangeRate:  number;
@@ -36,7 +76,9 @@ interface SettingsState {
   purchasePaymentStatusPreference: 'paid' | 'fib' | 'debt';
   purchaseReceiptCurrencyPreference: 'iqd' | 'usd' | 'both';
   purchaseCheckoutModePreference: 'normal' | 'print' | 'empty1' | 'empty2';
-  saleCheckoutModePreference: 'normal' | 'print' | 'empty1' | 'empty2';
+  saleCheckoutModePreference: SaleCheckoutMode;
+  thermalReceiptWidthPreference: ThermalReceiptWidth;
+  thermalReceiptSettings: ThermalReceiptSettings;
   purchaseDebtDownPaymentMethodPreference: 'cash' | 'fib';
   invoiceAboutPolicy: string;
   appScaleLevel: number; // 1 to 10 (default: 5 = 100%)
@@ -69,7 +111,10 @@ interface SettingsState {
   setPurchasePaymentStatusPreference: (val: 'paid' | 'fib' | 'debt') => void;
   setPurchaseReceiptCurrencyPreference: (val: 'iqd' | 'usd' | 'both') => void;
   setPurchaseCheckoutModePreference: (val: 'normal' | 'print' | 'empty1' | 'empty2') => void;
-  setSaleCheckoutModePreference: (val: 'normal' | 'print' | 'empty1' | 'empty2') => void;
+  setSaleCheckoutModePreference: (val: SaleCheckoutMode) => void;
+  setThermalReceiptWidthPreference: (width: ThermalReceiptWidth) => void;
+  setThermalReceiptSettings: (settings: Partial<ThermalReceiptSettings>) => void;
+  resetThermalReceiptSettings: () => void;
   setPurchaseDebtDownPaymentMethodPreference: (val: 'cash' | 'fib') => void;
   setInvoiceAboutPolicy: (val: string) => void;
   setAppScaleLevel: (val: number) => void;
@@ -128,6 +173,8 @@ export const useSettingsStore = create<SettingsState>()(
       purchaseReceiptCurrencyPreference: 'iqd',
       purchaseCheckoutModePreference: 'normal',
       saleCheckoutModePreference: 'normal',
+      thermalReceiptWidthPreference: '80mm',
+      thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS,
       purchaseDebtDownPaymentMethodPreference: 'cash',
       invoiceAboutPolicy: '',
       setInvoiceAboutPolicy: (val) => { set({ invoiceAboutPolicy: val }); notifyPreferencesChanged(); },
@@ -163,6 +210,17 @@ export const useSettingsStore = create<SettingsState>()(
       setPurchaseReceiptCurrencyPreference: (val) => { set({ purchaseReceiptCurrencyPreference: val }); notifyPreferencesChanged(); },
       setPurchaseCheckoutModePreference: (val) => { set({ purchaseCheckoutModePreference: val }); notifyPreferencesChanged(); },
       setSaleCheckoutModePreference: (val) => { set({ saleCheckoutModePreference: val }); notifyPreferencesChanged(); },
+      setThermalReceiptWidthPreference: (width) => { set({ thermalReceiptWidthPreference: width }); notifyPreferencesChanged(); },
+      setThermalReceiptSettings: (newSettings) => {
+        set((s) => ({
+          thermalReceiptSettings: { ...s.thermalReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetThermalReceiptSettings: () => {
+        set({ thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS });
+        notifyPreferencesChanged();
+      },
       setPurchaseDebtDownPaymentMethodPreference: (val) => { set({ purchaseDebtDownPaymentMethodPreference: val }); notifyPreferencesChanged(); },
       setExpiryTrackingEnabled:    (val) => {
         set({ expiryTrackingEnabled: val });
@@ -222,7 +280,12 @@ export const useSettingsStore = create<SettingsState>()(
           purchasePaymentStatusPreference: (['paid', 'fib', 'debt'].includes(p?.purchasePaymentStatusPreference as string) ? p?.purchasePaymentStatusPreference : 'paid') as 'paid' | 'fib' | 'debt',
           purchaseReceiptCurrencyPreference: (['iqd', 'usd', 'both'].includes(p?.purchaseReceiptCurrencyPreference as string) ? p?.purchaseReceiptCurrencyPreference : 'iqd') as 'iqd' | 'usd' | 'both',
           purchaseCheckoutModePreference: (['normal', 'print', 'empty1', 'empty2'].includes(p?.purchaseCheckoutModePreference as string) ? p?.purchaseCheckoutModePreference : 'normal') as 'normal' | 'print' | 'empty1' | 'empty2',
-          saleCheckoutModePreference: (['normal', 'print', 'empty1', 'empty2'].includes(p?.saleCheckoutModePreference as string) ? p?.saleCheckoutModePreference : 'normal') as 'normal' | 'print' | 'empty1' | 'empty2',
+          saleCheckoutModePreference: (['normal', 'print', 'print58', 'print80', 'print110', 'empty1', 'empty2'].includes(p?.saleCheckoutModePreference as string) ? p?.saleCheckoutModePreference : 'normal') as SaleCheckoutMode,
+          thermalReceiptWidthPreference: (['58mm', '80mm', '110mm'].includes(p?.thermalReceiptWidthPreference as string) ? p?.thermalReceiptWidthPreference : '80mm') as ThermalReceiptWidth,
+          thermalReceiptSettings: {
+            ...DEFAULT_THERMAL_RECEIPT_SETTINGS,
+            ...(p?.thermalReceiptSettings || {}),
+          },
           purchaseDebtDownPaymentMethodPreference: (p?.purchaseDebtDownPaymentMethodPreference === 'fib' ? 'fib' : 'cash') as 'cash' | 'fib',
           invoiceAboutPolicy: p?.invoiceAboutPolicy ?? '',
           appScaleLevel: typeof p?.appScaleLevel === 'number' ? Math.max(1, Math.min(10, Math.round(p.appScaleLevel))) : 5,

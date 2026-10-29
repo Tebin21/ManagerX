@@ -350,7 +350,7 @@ export function SettingsGrid({
         />
       </View>
 
-      {/* Row 2: Expiry Date Tracking */}
+      {/* Row 2: Expiry Date Tracking & Thermal Receipts */}
       <View style={[styles.rowGrid, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 12 }]}>
         <SettingsGridTile
           icon="time"
@@ -388,6 +388,13 @@ export function SettingsGrid({
               </Text>
             </View>
           }
+        />
+        <SettingsGridTile
+          icon="receipt"
+          color={colors.primary}
+          title={isKu ? 'وەسڵی حەراری' : 'Thermal Receipt'}
+          sub={isKu ? '58mm, 80mm, 110mm' : 'Sizes & Fields'}
+          onPress={() => router.push('/(app)/settings/receipt-customization' as never)}
         />
       </View>
     </View>

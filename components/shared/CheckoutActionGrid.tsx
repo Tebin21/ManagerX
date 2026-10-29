@@ -16,7 +16,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export type CheckoutMode = 'normal' | 'print' | 'empty1' | 'empty2';
+export type CheckoutMode = 'normal' | 'print' | 'print58' | 'print80' | 'print110' | 'empty1' | 'empty2';
 
 interface Props {
   mode: CheckoutMode;
@@ -62,19 +62,64 @@ export function CheckoutActionGrid({
     // Persists open: do NOT auto-collapse. It only closes when the user taps the toggle button again.
   };
 
-  const options: Array<{
+  const saleOptions: Array<{
     id: CheckoutMode;
     title: string;
     subtitle: string;
     icon: keyof typeof Ionicons.glyphMap;
     isEmpty?: boolean;
+    fullWidth?: boolean;
+    badge?: string;
   }> = [
     {
       id: 'normal',
       title: isKurdish ? 'ئاسایی' : 'Normal',
-      subtitle: isKurdish
-        ? (isSale ? 'فرۆشتن و گەڕانەوە' : 'کڕین و گەڕانەوە')
-        : (isSale ? 'Quick Sale' : 'Quick Purchase'),
+      subtitle: isKurdish ? 'فرۆشتن و گەڕانەوە' : 'Quick Sale',
+      icon: 'flash-outline',
+    },
+    {
+      id: 'print',
+      title: isKurdish ? 'پرینت A4' : 'A4 Print',
+      subtitle: isKurdish ? 'چاپ و گەڕانەوە' : 'A4 Print & Return',
+      icon: 'document-text-outline',
+    },
+    {
+      id: 'print58',
+      title: '58mm',
+      subtitle: isKurdish ? '5.8 cm • وەصڵی بچووک' : '5.8 cm Thermal',
+      icon: 'receipt-outline',
+      badge: '5.8 cm',
+    },
+    {
+      id: 'print80',
+      title: '80mm',
+      subtitle: isKurdish ? '8.0 cm • ستاندارد' : '8.0 cm Standard',
+      icon: 'receipt-outline',
+      badge: '8.0 cm',
+    },
+    {
+      id: 'print110',
+      title: '110mm',
+      subtitle: isKurdish ? '11.0 cm • وەصڵی پان' : '11.0 cm Wide Thermal',
+      icon: 'receipt-outline',
+      fullWidth: true,
+      badge: '11.0 cm',
+    },
+  ];
+
+  const purchaseOptions: Array<{
+    id: CheckoutMode;
+    title: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    isEmpty?: boolean;
+    fullWidth?: boolean;
+    badge?: string;
+  }> = [
+    {
+      id: 'normal',
+      title: isKurdish ? 'ئاسایی' : 'Normal',
+      subtitle: isKurdish ? 'کڕین و گەڕانەوە' : 'Quick Purchase',
       icon: 'flash-outline',
     },
     {
@@ -98,6 +143,8 @@ export function CheckoutActionGrid({
       isEmpty: true,
     },
   ];
+
+  const options = isSale ? saleOptions : purchaseOptions;
 
   const currentActiveOption = options.find((o) => o.id === mode) || options[0];
 
@@ -190,6 +237,7 @@ export function CheckoutActionGrid({
             {options.map((opt) => {
               const isSelected = mode === opt.id;
               const isSlotEmpty = Boolean(opt.isEmpty);
+              const isFullWidth = Boolean(opt.fullWidth);
 
               return (
                 <TouchableOpacity
@@ -198,6 +246,7 @@ export function CheckoutActionGrid({
                   onPress={() => handlePress(opt.id)}
                   style={[
                     styles.card,
+                    isFullWidth && styles.cardFullWidth,
                     {
                       backgroundColor: isSelected
                         ? colors.primary + (isDark ? '22' : '14')
@@ -236,19 +285,42 @@ export function CheckoutActionGrid({
                     </View>
 
                     <View style={styles.textCol}>
-                      <Text
-                        style={[
-                          styles.cardTitle,
-                          {
-                            color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
-                            textAlign,
-                          },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {opt.title}
-                      </Text>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={[
+                            styles.cardTitle,
+                            {
+                              color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
+                              textAlign,
+                            },
+                            isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {opt.title}
+                        </Text>
+                        {opt.badge ? (
+                          <View
+                            style={[
+                              styles.dimBadge,
+                              {
+                                backgroundColor: isSelected
+                                  ? colors.primary + '25'
+                                  : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dimBadgeText,
+                                { color: isSelected ? colors.primary : colors.gray500 },
+                              ]}
+                            >
+                              {opt.badge}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text
                         style={[
                           styles.cardSubtitle,
@@ -368,6 +440,18 @@ const styles = StyleSheet.create({
     minHeight: 62,
     justifyContent: 'center',
     position: 'relative',
+  },
+  cardFullWidth: {
+    width: '100%',
+  },
+  dimBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  dimBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   checkBadge: {
     position: 'absolute',

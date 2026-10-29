@@ -605,7 +605,9 @@ export default function NewPurchaseScreen() {
 
   const setCheckoutMode = (mode: CheckoutMode) => {
     setCheckoutModeState(mode);
-    setCheckoutModePreference(mode);
+    if (mode === 'normal' || mode === 'print' || mode === 'empty1' || mode === 'empty2') {
+      setCheckoutModePreference(mode);
+    }
   };
 
   // ─── Expiry & Production Dates ──────────────────────────────────────────────

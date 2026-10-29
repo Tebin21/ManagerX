@@ -41,7 +41,7 @@ import { InvoiceView } from '@/components/sales/InvoiceView';
 import { CheckoutActionGrid, type CheckoutMode } from '@/components/shared/CheckoutActionGrid';
 import { InvoiceAboutPolicyAccordion } from '@/components/sales/InvoiceAboutPolicyAccordion';
 import { useBusinessStore } from '@/store/businessStore';
-import { directPrintInvoice } from '@/lib/generateInvoice';
+import { directPrintInvoice, directPrintThermalInvoice } from '@/lib/generateInvoice';
 import * as Haptics from 'expo-haptics';
 
 import { useTranslation } from 'react-i18next';
@@ -369,6 +369,26 @@ export default function NewSaleScreen() {
 
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
+      } else if (checkoutMode === 'print58' || checkoutMode === 'print80' || checkoutMode === 'print110') {
+        const business = useBusinessStore.getState();
+        const thermalWidth = checkoutMode === 'print58' ? '58mm' : checkoutMode === 'print80' ? '80mm' : '110mm';
+        // Fire thermal print in background without blocking
+        directPrintThermalInvoice(
+          sale,
+          {
+            name: business.name || 'My Store',
+            phone: business.phone || '',
+            address: business.address || '',
+            logoUri: business.logoUri ?? null,
+          },
+          thermalWidth,
+          receiptCurrency
+        ).catch((printErr) => {
+          console.error('[Sale] Direct thermal print error:', printErr);
+        });
+
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
+        setStep(1);
       } else if (checkoutMode === 'normal') {
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
         setStep(1);
@@ -402,6 +422,22 @@ export default function NewSaleScreen() {
       setIsSubmitting(false);
     }
   }
+
+  const getCompleteButtonLabel = () => {
+    if (checkoutMode === 'print') {
+      return isKuLanguage ? 'تەواوکردن و پرینت A4 🖨️' : 'Complete & Print A4 🖨️';
+    }
+    if (checkoutMode === 'print58') {
+      return isKuLanguage ? 'تەواوکردن و پرینت 58mm 🖨️' : 'Complete & Print 58mm 🖨️';
+    }
+    if (checkoutMode === 'print80') {
+      return isKuLanguage ? 'تەواوکردن و پرینت 80mm 🖨️' : 'Complete & Print 80mm 🖨️';
+    }
+    if (checkoutMode === 'print110') {
+      return isKuLanguage ? 'تەواوکردن و پرینت 110mm 🖨️' : 'Complete & Print 110mm 🖨️';
+    }
+    return isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓';
+  };
 
   // ─── Step 1: Product Search ────────────────────────────────────────────────
 
@@ -1231,11 +1267,7 @@ export default function NewSaleScreen() {
 
                 <View style={{ marginTop: 12 }}>
                   <PrimaryButton
-                    label={
-                      checkoutMode === 'print'
-                        ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                        : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-                    }
+                    label={getCompleteButtonLabel()}
                     onPress={handleCompleteSale}
                     loading={isSubmitting}
                   />
@@ -1395,11 +1427,7 @@ export default function NewSaleScreen() {
 
           <View style={{ marginTop: 12 }}>
             <PrimaryButton
-              label={
-                checkoutMode === 'print'
-                  ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                  : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-              }
+              label={getCompleteButtonLabel()}
               onPress={handleCompleteSale}
               loading={isSubmitting}
             />

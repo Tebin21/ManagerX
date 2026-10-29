@@ -1667,6 +1667,8 @@
     },
     "themeColors": "ڕەنگی ئەپ",
     "themeColorsSub": "ڕەنگی دیاریکراوت دەگۆڕێت",
+    "thermalReceipt": "وەسڵی حەراری (Thermal Receipt)",
+    "thermalReceiptSub": "دەستکاری پیشاندانی بڕگەکان، 58mm, 80mm, 110mm",
     "appearanceScreen": {
       "title": "ڕووکار",
       "theme": "تیم",

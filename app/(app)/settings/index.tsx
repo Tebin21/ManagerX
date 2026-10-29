@@ -279,6 +279,13 @@ export default function SettingsScreen() {
                 sub={t('settings.themeColorsSub')}
                 onPress={() => router.push('/(app)/settings/theme' as never)}
               />
+              <SettingRow
+                icon="receipt"
+                color={colors.primary}
+                label={t('settings.thermalReceipt')}
+                sub={t('settings.thermalReceiptSub')}
+                onPress={() => router.push('/(app)/settings/receipt-customization' as never)}
+              />
             </SettingSection>
 
             {/* Modules */}

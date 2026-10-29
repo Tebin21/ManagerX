@@ -22,7 +22,8 @@ import { Alert, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow, type ReceiptCurrencyMode } from './invoiceTemplate';
-import { useSettingsStore } from '@/store/settingsStore';
+import { buildThermalReceiptHTML } from './thermalReceiptTemplate';
+import { useSettingsStore, type ThermalReceiptWidth } from '@/store/settingsStore';
 import { PURCHASE_RATE } from '@/types/purchases';
 import { buildInventoryReportHTML } from './inventoryReportTemplate';
 import {
@@ -460,6 +461,76 @@ export async function directPrintInvoice(
   } catch (err) {
     console.error('[Print] directPrintInvoice unexpected error:', err);
     return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function directPrintThermalInvoice(
+  sale: Sale,
+  business: { name: string; phone?: string; address?: string; logoUri?: string | null },
+  width: ThermalReceiptWidth = '80mm',
+  currencyMode: ReceiptCurrencyMode = 'iqd'
+): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
+  if (Platform.OS === 'web') {
+    Alert.alert('Not supported', 'Direct printing is not available on web.');
+    return false;
+  }
+  const Print = await getPrintModule();
+  if (!Print || typeof Print.printAsync !== 'function') {
+    await shareThermalInvoice(sale, business, width, currencyMode);
+    return true;
+  }
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const html = buildThermalReceiptHTML(sale, business, width, undefined, currencyMode);
+    await Print.printAsync({ html });
+    await recordInvoicePrint();
+    return true;
+  } catch (err) {
+    console.error('[Print] directPrintThermalInvoice unexpected error:', err);
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function shareThermalInvoice(
+  sale: Sale,
+  business: { name: string; phone?: string; address?: string; logoUri?: string | null },
+  width: ThermalReceiptWidth = '80mm',
+  currencyMode: ReceiptCurrencyMode = 'iqd'
+): Promise<void> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return;
+  }
+
+  if (!tryAcquireGenerationLock()) return;
+  try {
+    const html = buildThermalReceiptHTML(sale, business, width, undefined, currencyMode);
+    const fileName = buildFroshiarPdfFileName(`${sale.invoiceNumber}-${width}`, 'ThermalReceipt');
+    await generateAndShare(
+      html,
+      `Thermal Receipt ${sale.invoiceNumber} (${width})`,
+      'Could not generate thermal receipt PDF. Please try again.',
+      fileName
+    );
+    await recordInvoicePrint();
+  } catch (err) {
+    console.error('[PDF] shareThermalInvoice unexpected error:', err);
+    Alert.alert('Error', 'Could not generate thermal receipt PDF. Please try again.');
   } finally {
     releaseGenerationLock();
   }
