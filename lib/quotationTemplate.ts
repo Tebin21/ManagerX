@@ -26,6 +26,24 @@ export function buildQuotationHTML(
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
 
+  const quotationSettings = useSettingsStore.getState().quotationReceiptSettings ?? {
+    showBusinessPhone: true,
+    showBusinessAddress: true,
+    showCustomerName: true,
+    showCustomerPhone: true,
+    showQuotationNumber: true,
+    showDate: true,
+    showValidUntil: true,
+    showQty: true,
+    showItemPrice: true,
+    showDiscount: true,
+    showItemBarcode: true,
+    showAboutPolicy: true,
+    showNotes: true,
+    showSignature: true,
+    customFooterNote: '',
+  };
+
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const isSystemUsd = baseCurrency === 'USD';
 
@@ -544,10 +562,12 @@ export function buildQuotationHTML(
     <!-- Right side in RTL (Quotation Title, Number, Date, Time) -->
     <div class="doc-badge-col">
       <div class="doc-badge">${isKurdish ? ku('وەسڵی عەرزی نرخ') : 'PRICE QUOTATION'}</div>
+      ${quotationSettings.showQuotationNumber ? `
       <div class="doc-meta-item">
         <span class="meta-lbl">${isKurdish ? ku('ژمارەی عەرز:') : 'Quote No:'}</span>
         <b class="en-num" dir="ltr">${escHtml(quotation.quotationNumber)}</b>
-      </div>
+      </div>` : ''}
+      ${quotationSettings.showDate ? `
       <div class="doc-meta-item">
         <span class="meta-lbl">${isKurdish ? ku('بەروار:') : 'Date:'}</span>
         <b class="en-num" dir="ltr">${escHtml(quotation.date)}</b>
@@ -555,7 +575,7 @@ export function buildQuotationHTML(
       <div class="doc-meta-item">
         <span class="meta-lbl">${isKurdish ? ku('کات:') : 'Time:'}</span>
         <b class="en-num" dir="ltr">${escHtml(formatTime(quotation.time))}</b>
-      </div>
+      </div>` : ''}
       ${quotation.printCount && quotation.printCount > 0 ? `
       <div class="doc-meta-item">
         <span class="meta-lbl">${isKurdish ? ku('ژمارەی چاپ:') : 'Print Count:'}</span>
@@ -568,8 +588,8 @@ export function buildQuotationHTML(
       ${logoHTML}
       <div>
         <div class="biz-title">${escHtml(business.name)}</div>
-        ${business.phone ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(business.phone)}</span></div>` : ''}
-        ${business.address ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(business.address)}</div>` : ''}
+        ${quotationSettings.showBusinessPhone && business.phone ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(business.phone)}</span></div>` : ''}
+        ${quotationSettings.showBusinessAddress && business.address ? `<div class="biz-meta"><span style="color:#444444;">${isKurdish ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(business.address)}</div>` : ''}
       </div>
     </div>
   </div>
@@ -601,17 +621,18 @@ export function buildQuotationHTML(
   <div class="info-box">
     <div class="info-group">
       <div class="info-group-label">${isKurdish ? ku('پێشکەش دەکرێت بە (کۆمپانیا / کڕیار):') : 'Presented To (Company / Client):'}</div>
-      <div class="info-group-value">${escHtml(quotation.customerName || (isKurdish ? 'شەریکە / کڕیاری گشتی' : 'Valued Company / Client'))}</div>
-      ${quotation.customerPhone ? `<div class="info-group-sub"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(quotation.customerPhone)}</span></div>` : ''}
+      ${quotationSettings.showCustomerName ? `<div class="info-group-value">${escHtml(quotation.customerName || (isKurdish ? 'شەریکە / کڕیاری گشتی' : 'Valued Company / Client'))}</div>` : ''}
+      ${quotationSettings.showCustomerPhone && quotation.customerPhone ? `<div class="info-group-sub"><span style="color:#444444;">${isKurdish ? ku('تەلەفۆن:') : 'Tel:'}</span> <span class="en-num" dir="ltr">${escHtml(quotation.customerPhone)}</span></div>` : ''}
       ${quotation.customerAddress ? `<div class="info-group-sub"><span style="color:#444444;">${isKurdish ? ku('ناونیشان:') : 'Address:'}</span> ${escHtml(quotation.customerAddress)}</div>` : ''}
     </div>
+    ${quotationSettings.showValidUntil ? `
     <div class="info-group validity-group" style="text-align:${isKurdish ? 'left' : 'right'};">
       <div class="validity-box">
         <div class="validity-label">${isKurdish ? ku('ماوەی کارپێکردنی عەرز') : 'Quotation Validity'}</div>
         <div class="validity-value">${isKurdish ? ku(`${quotation.validityDays || 7} ڕۆژ`) : `${quotation.validityDays || 7} Days`}</div>
         <div class="validity-sub">${isKurdish ? ku('بۆ ئەم ماوەیە جێگیرە') : 'Fixed for this period'}</div>
       </div>
-    </div>
+    </div>` : ''}
   </div>
 
   ${aboutPolicySection}
@@ -662,6 +683,7 @@ export function buildQuotationHTML(
     </table>
   </div>
 
+  ${quotationSettings.showSignature ? `
   <!-- Signatures -->
   <div class="signatures-row">
     <div class="sig-block">
@@ -672,10 +694,11 @@ export function buildQuotationHTML(
       <div class="sig-line"></div>
       <div class="sig-label">${isKurdish ? ku('واژۆی بەڕێوەبەر / کڕیار') : 'Manager / Client Signature'}</div>
     </div>
-  </div>
+  </div>` : ''}
 
   <!-- Footer -->
   <div class="footer">
+    ${quotationSettings.customFooterNote ? `<div style="margin-bottom:6px;font-weight:700;color:#1E293B;">${ku(escHtml(quotationSettings.customFooterNote))}</div>` : ''}
     ${isKurdish ? ku('وەسڵی فەرمی عەرزی نرخ — سیستەمی فرۆشیار') : 'Official Price Quotation — Powered by Froshiar'}
   </div>
 </div>

@@ -7,10 +7,11 @@ export const DEFAULT_EXCHANGE_RATE = 1310;
 export type BaseCurrency = 'IQD' | 'USD';
 
 export type ThermalReceiptWidth = '58mm' | '80mm' | '110mm';
+export type ReceiptPaperSize = '58mm' | '80mm' | '110mm' | 'A4';
 
 export type SaleCheckoutMode = 'normal' | 'print' | 'print58' | 'print80' | 'print110' | 'empty1' | 'empty2';
 
-export interface ThermalReceiptSettings {
+export interface SalesReceiptSettings {
   showBusinessPhone: boolean;
   showBusinessAddress: boolean;
   showCustomerName: boolean;
@@ -28,7 +29,60 @@ export interface ThermalReceiptSettings {
   customFooterNote: string;
 }
 
-export const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = {
+export type ThermalReceiptSettings = SalesReceiptSettings;
+
+export interface PurchaseReceiptSettings {
+  showBusinessPhone: boolean;
+  showBusinessAddress: boolean;
+  showSupplierName: boolean;
+  showSupplierPhone: boolean;
+  showInvoiceNumber: boolean;
+  showDate: boolean;
+  showQty: boolean;
+  showBuyPrice: boolean;
+  showDiscount: boolean;
+  showItemBarcode: boolean;
+  showPaymentMethod: boolean;
+  showRemainingDebt: boolean;
+  showNotes: boolean;
+  showFooterBarcode: boolean;
+  customFooterNote: string;
+}
+
+export interface QuotationReceiptSettings {
+  showBusinessPhone: boolean;
+  showBusinessAddress: boolean;
+  showCustomerName: boolean;
+  showCustomerPhone: boolean;
+  showQuotationNumber: boolean;
+  showDate: boolean;
+  showValidUntil: boolean;
+  showQty: boolean;
+  showItemPrice: boolean;
+  showDiscount: boolean;
+  showItemBarcode: boolean;
+  showAboutPolicy: boolean;
+  showNotes: boolean;
+  showSignature: boolean;
+  customFooterNote: string;
+}
+
+export interface InventoryReceiptSettings {
+  showBusinessHeader: boolean;
+  showCategory: boolean;
+  showItemId: boolean;
+  showQuantity: boolean;
+  showBuyPrice: boolean;
+  showSellPrice: boolean;
+  showTotalValue: boolean;
+  showSupplier: boolean;
+  showStatus: boolean;
+  showDate: boolean;
+  showNotes: boolean;
+  customFooterNote: string;
+}
+
+export const DEFAULT_SALES_RECEIPT_SETTINGS: SalesReceiptSettings = {
   showBusinessPhone: true,
   showBusinessAddress: true,
   showCustomerName: true,
@@ -44,6 +98,59 @@ export const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = {
   showNotes: true,
   showFooterBarcode: true,
   customFooterNote: 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن',
+};
+
+export const DEFAULT_THERMAL_RECEIPT_SETTINGS: ThermalReceiptSettings = DEFAULT_SALES_RECEIPT_SETTINGS;
+
+export const DEFAULT_PURCHASE_RECEIPT_SETTINGS: PurchaseReceiptSettings = {
+  showBusinessPhone: true,
+  showBusinessAddress: true,
+  showSupplierName: true,
+  showSupplierPhone: true,
+  showInvoiceNumber: true,
+  showDate: true,
+  showQty: true,
+  showBuyPrice: true,
+  showDiscount: true,
+  showItemBarcode: false,
+  showPaymentMethod: true,
+  showRemainingDebt: true,
+  showNotes: true,
+  showFooterBarcode: true,
+  customFooterNote: 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم',
+};
+
+export const DEFAULT_QUOTATION_RECEIPT_SETTINGS: QuotationReceiptSettings = {
+  showBusinessPhone: true,
+  showBusinessAddress: true,
+  showCustomerName: true,
+  showCustomerPhone: true,
+  showQuotationNumber: true,
+  showDate: true,
+  showValidUntil: true,
+  showQty: true,
+  showItemPrice: true,
+  showDiscount: true,
+  showItemBarcode: true,
+  showAboutPolicy: true,
+  showNotes: true,
+  showSignature: true,
+  customFooterNote: 'ئەم عەرزە بۆ ماوەی دیاریکراو کارایە و دواتر نرخەکان گۆڕانکارییان بەسەردا دێت.',
+};
+
+export const DEFAULT_INVENTORY_RECEIPT_SETTINGS: InventoryReceiptSettings = {
+  showBusinessHeader: true,
+  showCategory: true,
+  showItemId: true,
+  showQuantity: true,
+  showBuyPrice: true,
+  showSellPrice: true,
+  showTotalValue: true,
+  showSupplier: true,
+  showStatus: true,
+  showDate: true,
+  showNotes: true,
+  customFooterNote: 'ڕاپۆرتی سەرژمێری و تۆماری فەرمی کۆگا',
 };
 
 interface SettingsState {
@@ -79,6 +186,17 @@ interface SettingsState {
   saleCheckoutModePreference: SaleCheckoutMode;
   thermalReceiptWidthPreference: ThermalReceiptWidth;
   thermalReceiptSettings: ThermalReceiptSettings;
+
+  salesPaperSizePreference: ReceiptPaperSize;
+  purchasePaperSizePreference: ReceiptPaperSize;
+  inventoryPaperSizePreference: ReceiptPaperSize;
+  quotationPaperSizePreference: 'A4';
+
+  salesReceiptSettings: SalesReceiptSettings;
+  purchaseReceiptSettings: PurchaseReceiptSettings;
+  quotationReceiptSettings: QuotationReceiptSettings;
+  inventoryReceiptSettings: InventoryReceiptSettings;
+
   purchaseDebtDownPaymentMethodPreference: 'cash' | 'fib';
   invoiceAboutPolicy: string;
   appScaleLevel: number; // 1 to 10 (default: 5 = 100%)
@@ -115,6 +233,20 @@ interface SettingsState {
   setThermalReceiptWidthPreference: (width: ThermalReceiptWidth) => void;
   setThermalReceiptSettings: (settings: Partial<ThermalReceiptSettings>) => void;
   resetThermalReceiptSettings: () => void;
+
+  setSalesPaperSizePreference: (size: ReceiptPaperSize) => void;
+  setPurchasePaperSizePreference: (size: ReceiptPaperSize) => void;
+  setInventoryPaperSizePreference: (size: ReceiptPaperSize) => void;
+
+  setSalesReceiptSettings: (settings: Partial<SalesReceiptSettings>) => void;
+  resetSalesReceiptSettings: () => void;
+  setPurchaseReceiptSettings: (settings: Partial<PurchaseReceiptSettings>) => void;
+  resetPurchaseReceiptSettings: () => void;
+  setQuotationReceiptSettings: (settings: Partial<QuotationReceiptSettings>) => void;
+  resetQuotationReceiptSettings: () => void;
+  setInventoryReceiptSettings: (settings: Partial<InventoryReceiptSettings>) => void;
+  resetInventoryReceiptSettings: () => void;
+
   setPurchaseDebtDownPaymentMethodPreference: (val: 'cash' | 'fib') => void;
   setInvoiceAboutPolicy: (val: string) => void;
   setAppScaleLevel: (val: number) => void;
@@ -175,6 +307,17 @@ export const useSettingsStore = create<SettingsState>()(
       saleCheckoutModePreference: 'normal',
       thermalReceiptWidthPreference: '80mm',
       thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS,
+
+      salesPaperSizePreference: '80mm',
+      purchasePaperSizePreference: '80mm',
+      inventoryPaperSizePreference: 'A4',
+      quotationPaperSizePreference: 'A4',
+
+      salesReceiptSettings: DEFAULT_SALES_RECEIPT_SETTINGS,
+      purchaseReceiptSettings: DEFAULT_PURCHASE_RECEIPT_SETTINGS,
+      quotationReceiptSettings: DEFAULT_QUOTATION_RECEIPT_SETTINGS,
+      inventoryReceiptSettings: DEFAULT_INVENTORY_RECEIPT_SETTINGS,
+
       purchaseDebtDownPaymentMethodPreference: 'cash',
       invoiceAboutPolicy: '',
       setInvoiceAboutPolicy: (val) => { set({ invoiceAboutPolicy: val }); notifyPreferencesChanged(); },
@@ -210,15 +353,86 @@ export const useSettingsStore = create<SettingsState>()(
       setPurchaseReceiptCurrencyPreference: (val) => { set({ purchaseReceiptCurrencyPreference: val }); notifyPreferencesChanged(); },
       setPurchaseCheckoutModePreference: (val) => { set({ purchaseCheckoutModePreference: val }); notifyPreferencesChanged(); },
       setSaleCheckoutModePreference: (val) => { set({ saleCheckoutModePreference: val }); notifyPreferencesChanged(); },
-      setThermalReceiptWidthPreference: (width) => { set({ thermalReceiptWidthPreference: width }); notifyPreferencesChanged(); },
+      setThermalReceiptWidthPreference: (width) => {
+        set({ thermalReceiptWidthPreference: width, salesPaperSizePreference: width });
+        notifyPreferencesChanged();
+      },
       setThermalReceiptSettings: (newSettings) => {
         set((s) => ({
           thermalReceiptSettings: { ...s.thermalReceiptSettings, ...newSettings },
+          salesReceiptSettings: { ...s.salesReceiptSettings, ...newSettings },
         }));
         notifyPreferencesChanged();
       },
       resetThermalReceiptSettings: () => {
-        set({ thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS });
+        set({
+          thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS,
+          salesReceiptSettings: DEFAULT_SALES_RECEIPT_SETTINGS,
+        });
+        notifyPreferencesChanged();
+      },
+
+      setSalesPaperSizePreference: (size) => {
+        set((s) => ({
+          salesPaperSizePreference: size,
+          thermalReceiptWidthPreference: size === 'A4' ? s.thermalReceiptWidthPreference : size,
+        }));
+        notifyPreferencesChanged();
+      },
+      setPurchasePaperSizePreference: (size) => {
+        set({ purchasePaperSizePreference: size });
+        notifyPreferencesChanged();
+      },
+      setInventoryPaperSizePreference: (size) => {
+        set({ inventoryPaperSizePreference: size });
+        notifyPreferencesChanged();
+      },
+
+      setSalesReceiptSettings: (newSettings) => {
+        set((s) => ({
+          salesReceiptSettings: { ...s.salesReceiptSettings, ...newSettings },
+          thermalReceiptSettings: { ...s.thermalReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetSalesReceiptSettings: () => {
+        set({
+          salesReceiptSettings: DEFAULT_SALES_RECEIPT_SETTINGS,
+          thermalReceiptSettings: DEFAULT_THERMAL_RECEIPT_SETTINGS,
+        });
+        notifyPreferencesChanged();
+      },
+
+      setPurchaseReceiptSettings: (newSettings) => {
+        set((s) => ({
+          purchaseReceiptSettings: { ...s.purchaseReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetPurchaseReceiptSettings: () => {
+        set({ purchaseReceiptSettings: DEFAULT_PURCHASE_RECEIPT_SETTINGS });
+        notifyPreferencesChanged();
+      },
+
+      setQuotationReceiptSettings: (newSettings) => {
+        set((s) => ({
+          quotationReceiptSettings: { ...s.quotationReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetQuotationReceiptSettings: () => {
+        set({ quotationReceiptSettings: DEFAULT_QUOTATION_RECEIPT_SETTINGS });
+        notifyPreferencesChanged();
+      },
+
+      setInventoryReceiptSettings: (newSettings) => {
+        set((s) => ({
+          inventoryReceiptSettings: { ...s.inventoryReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetInventoryReceiptSettings: () => {
+        set({ inventoryReceiptSettings: DEFAULT_INVENTORY_RECEIPT_SETTINGS });
         notifyPreferencesChanged();
       },
       setPurchaseDebtDownPaymentMethodPreference: (val) => { set({ purchaseDebtDownPaymentMethodPreference: val }); notifyPreferencesChanged(); },
@@ -285,6 +499,27 @@ export const useSettingsStore = create<SettingsState>()(
           thermalReceiptSettings: {
             ...DEFAULT_THERMAL_RECEIPT_SETTINGS,
             ...(p?.thermalReceiptSettings || {}),
+          },
+          salesPaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.salesPaperSizePreference as string) ? p?.salesPaperSizePreference : (p?.thermalReceiptWidthPreference || '80mm')) as ReceiptPaperSize,
+          purchasePaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.purchasePaperSizePreference as string) ? p?.purchasePaperSizePreference : '80mm') as ReceiptPaperSize,
+          inventoryPaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.inventoryPaperSizePreference as string) ? p?.inventoryPaperSizePreference : 'A4') as ReceiptPaperSize,
+          quotationPaperSizePreference: 'A4',
+
+          salesReceiptSettings: {
+            ...DEFAULT_SALES_RECEIPT_SETTINGS,
+            ...(p?.salesReceiptSettings || p?.thermalReceiptSettings || {}),
+          },
+          purchaseReceiptSettings: {
+            ...DEFAULT_PURCHASE_RECEIPT_SETTINGS,
+            ...(p?.purchaseReceiptSettings || {}),
+          },
+          quotationReceiptSettings: {
+            ...DEFAULT_QUOTATION_RECEIPT_SETTINGS,
+            ...(p?.quotationReceiptSettings || {}),
+          },
+          inventoryReceiptSettings: {
+            ...DEFAULT_INVENTORY_RECEIPT_SETTINGS,
+            ...(p?.inventoryReceiptSettings || {}),
           },
           purchaseDebtDownPaymentMethodPreference: (p?.purchaseDebtDownPaymentMethodPreference === 'fib' ? 'fib' : 'cash') as 'cash' | 'fib',
           invoiceAboutPolicy: p?.invoiceAboutPolicy ?? '',

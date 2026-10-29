@@ -1610,8 +1610,8 @@
     },
     "themeColors":    "App Theme Colors",
     "themeColorsSub": "Customize your accent color",
-    "thermalReceipt": "Thermal Receipts",
-    "thermalReceiptSub": "Customize fields, 58mm, 80mm, 110mm",
+    "thermalReceipt": "Print & Receipt Customization",
+    "thermalReceiptSub": "Sales, Purchases, Quotations, Inventory • 58mm, 80mm, 110mm, A4",
     "appearanceScreen": {
       "title":    "Appearance",
       "theme":    "Theme",

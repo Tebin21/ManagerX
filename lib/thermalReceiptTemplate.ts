@@ -17,7 +17,11 @@ import { KURDISH_FONT_FACE, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import {
   type ThermalReceiptWidth,
   type ThermalReceiptSettings,
+  type PurchaseReceiptSettings,
+  type InventoryReceiptSettings,
   DEFAULT_THERMAL_RECEIPT_SETTINGS,
+  DEFAULT_PURCHASE_RECEIPT_SETTINGS,
+  DEFAULT_INVENTORY_RECEIPT_SETTINGS,
   useSettingsStore,
 } from '@/store/settingsStore';
 import type { ReceiptCurrencyMode } from './invoiceTemplate';
@@ -634,6 +638,330 @@ export function buildThermalReceiptHTML(
       ${footerMessage ? `<div class="footer-msg">${ku(escHtml(footerMessage))}</div>` : ''}
       ${barcodeHTML}
       <div class="brand-credit">Froshiar POS • www.froshiar.store</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export interface PurchaseReceiptItem {
+  id?: number | string;
+  productName: string;
+  quantity: number;
+  buyPrice: number;
+  discount?: number;
+  lineTotal: number;
+  itemId?: string;
+}
+
+/**
+ * Builds the complete HTML string for a thermal purchase receipt (58mm, 80mm, 110mm).
+ */
+export function buildThermalPurchaseReceiptHTML(
+  purchase: {
+    purchaseNumber?: string;
+    date?: string;
+    supplierName?: string | null;
+    supplierPhone?: string | null;
+    totalIQD: number;
+    paymentStatus?: 'paid' | 'fib' | 'debt';
+    notes?: string | null;
+  },
+  items: PurchaseReceiptItem[],
+  business: BusinessInfo,
+  width: ThermalReceiptWidth = '80mm',
+  customSettings?: Partial<PurchaseReceiptSettings>,
+  currencyMode: ReceiptCurrencyMode = 'iqd'
+): string {
+  const storeSettings = useSettingsStore.getState();
+  const settings: PurchaseReceiptSettings = {
+    ...DEFAULT_PURCHASE_RECEIPT_SETTINGS,
+    ...(storeSettings.purchaseReceiptSettings || {}),
+    ...(customSettings || {}),
+  };
+
+  const isKurdish = isKurdishPdfActive();
+  const baseCurrency = storeSettings.baseCurrency || 'IQD';
+  const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
+  const rate = storeSettings.exchangeRate || 1310;
+  const fmtRow = (val: number) =>
+    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+
+  const dateTimeValue = purchase.date || new Date().toISOString();
+  const dateFormatted = settings.showDate ? formatDate(dateTimeValue) : '';
+  const timeFormatted = settings.showDate ? formatTime(dateTimeValue) : '';
+
+  const storeName = escHtml(business.name || 'Froshiar Store');
+  const storePhone = settings.showBusinessPhone && business.phone ? escHtml(business.phone) : '';
+  const storeAddress = settings.showBusinessAddress && business.address ? escHtml(business.address) : '';
+
+  const supplierName = settings.showSupplierName && purchase.supplierName?.trim() ? escHtml(purchase.supplierName) : '';
+  const supplierPhone = settings.showSupplierPhone && purchase.supplierPhone?.trim() ? escHtml(purchase.supplierPhone) : '';
+  const billNum = settings.showInvoiceNumber && purchase.purchaseNumber ? escHtml(purchase.purchaseNumber) : '';
+
+  let itemsHTML = '';
+  if (width === '58mm') {
+    itemsHTML = items.map((item, i) => {
+      const idTag = settings.showItemBarcode && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
+      const unitCost = settings.showBuyPrice
+        ? (settings.showDiscount && (item.discount ?? 0) > 0
+          ? `<span style="text-decoration:line-through;color:#777777;margin-inline-end:3px;">${fmtRow(item.buyPrice)}</span><span style="font-weight:700;">${fmtRow(item.buyPrice - (item.discount ?? 0))}</span>`
+          : fmtRow(item.buyPrice))
+        : '';
+      const qtyPricePart = settings.showQty && settings.showBuyPrice
+        ? `${item.quantity} × ${unitCost}`
+        : settings.showQty
+        ? `${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}`
+        : unitCost;
+
+      return `
+        <div class="item-block-58">
+          <div class="item-title-58">
+            <span class="item-index-58">${i + 1}.</span>
+            <span class="item-name-58">${escHtml(item.productName)}</span>
+            ${idTag}
+          </div>
+          <div class="item-meta-row-58">
+            <span class="item-qty-price-58">${qtyPricePart}</span>
+            <span class="item-linetotal-58">${fmtRow(item.lineTotal)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    const qtyColWidth = width === '110mm' ? '12%' : '14%';
+    const priceColWidth = width === '110mm' ? '22%' : '26%';
+    const totalColWidth = width === '110mm' ? '22%' : '26%';
+
+    const rows = items.map((item, i) => {
+      const idTag = settings.showItemBarcode && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
+      const unitCost = settings.showBuyPrice
+        ? (settings.showDiscount && (item.discount ?? 0) > 0
+          ? `<span style="text-decoration:line-through;color:#777777;font-size:0.9em;margin-inline-end:3px;">${fmtRow(item.buyPrice)}</span><span style="font-weight:700;">${fmtRow(item.buyPrice - (item.discount ?? 0))}</span>`
+          : fmtRow(item.buyPrice))
+        : '';
+
+      return `
+        <tr>
+          <td class="item-name-cell">
+            <span class="item-index-inline">${i + 1}.</span>
+            ${escHtml(item.productName)}
+            ${idTag}
+          </td>
+          ${settings.showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
+          ${settings.showBuyPrice ? `<td class="num-col" style="width:${priceColWidth};">${unitCost}</td>` : ''}
+          <td class="num-col" style="width:${totalColWidth};font-weight:700;">${fmtRow(item.lineTotal)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    itemsHTML = `
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th class="item-name-cell">${ku(isKurdish ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isKurdish ? 'عەدەد' : 'Qty')}</th>` : ''}
+            ${settings.showBuyPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isKurdish ? 'تێچوو' : 'Cost')}</th>` : ''}
+            <th class="num-col" style="width:${totalColWidth};">${ku(isKurdish ? 'کۆی گشتی' : 'Total')}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  const css = buildThermalCSS(width, isKurdish);
+  const barcodeHTML = settings.showFooterBarcode && billNum ? buildBarcodeSvg(billNum) : '';
+  const statusLabel = purchase.paymentStatus === 'paid' ? (isKurdish ? 'کاش (دراوە)' : 'Paid (Cash)') : purchase.paymentStatus === 'fib' ? 'FIB' : (isKurdish ? 'قەرز' : 'Debt');
+
+  return `<!DOCTYPE html>
+<html lang="${isKurdish ? 'ckb' : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Receipt #${billNum}</title>
+  <style>${css}</style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div class="biz-name">${storeName}</div>
+      <div class="biz-type-badge">${ku(isKurdish ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher')}</div>
+      ${storeAddress ? `<div class="biz-contact">${storeAddress}</div>` : ''}
+      ${storePhone ? `<div class="biz-contact">${storePhone}</div>` : ''}
+    </div>
+    <div class="divider-dashed"></div>
+
+    <div class="info-section">
+      ${billNum ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'وەسڵی کڕین:' : 'Bill #:')}</span><span class="info-value">#${billNum}</span></div>` : ''}
+      ${dateFormatted ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'بەروار:' : 'Date:')}</span><span class="info-value">${dateFormatted} ${timeFormatted}</span></div>` : ''}
+      ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${supplierName}</span></div>` : ''}
+      ${supplierPhone ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${supplierPhone}</span></div>` : ''}
+    </div>
+    <div class="divider-dashed"></div>
+
+    <div class="items-section">${itemsHTML}</div>
+    <div class="divider-dashed"></div>
+
+    <div class="totals-section">
+      <div class="grand-total-row">
+        <span class="grand-total-label">${ku(isKurdish ? 'کۆی گشتی کڕین:' : 'Total Cost:')}</span>
+        <span class="grand-total-value">${fmtRow(purchase.totalIQD)}</span>
+      </div>
+      ${settings.showPaymentMethod ? `
+      <div class="total-row" style="margin-top:4px;">
+        <span class="info-label">${ku(isKurdish ? 'دۆخی پارەدان:' : 'Payment:')}</span>
+        <span class="info-value">${ku(statusLabel)}</span>
+      </div>` : ''}
+    </div>
+
+    ${settings.showNotes && purchase.notes ? `
+    <div class="notes-box">
+      <div class="notes-title">${ku(isKurdish ? 'تێبینی:' : 'Notes:')}</div>
+      <div class="notes-content">${escHtml(purchase.notes)}</div>
+    </div>` : ''}
+
+    <div class="receipt-footer">
+      ${settings.customFooterNote ? `<div class="footer-msg">${ku(escHtml(settings.customFooterNote))}</div>` : ''}
+      ${barcodeHTML}
+      <div class="brand-credit">Froshiar Inventory • www.froshiar.store</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export interface InventoryThermalItem {
+  id?: number | string;
+  name: string;
+  itemId?: string;
+  category?: string;
+  quantity: number;
+  buyPrice?: number;
+  sellingPrice: number;
+  status?: string;
+}
+
+/**
+ * Builds the complete HTML string for a thermal inventory report (58mm, 80mm, 110mm).
+ */
+export function buildThermalInventoryReceiptHTML(
+  items: InventoryThermalItem[],
+  business: BusinessInfo,
+  width: ThermalReceiptWidth = '80mm',
+  customSettings?: Partial<InventoryReceiptSettings>,
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  reportTitle: string = 'سەرژمێری و تۆماری کۆگا'
+): string {
+  const storeSettings = useSettingsStore.getState();
+  const settings: InventoryReceiptSettings = {
+    ...DEFAULT_INVENTORY_RECEIPT_SETTINGS,
+    ...(storeSettings.inventoryReceiptSettings || {}),
+    ...(customSettings || {}),
+  };
+
+  const isKurdish = isKurdishPdfActive();
+  const baseCurrency = storeSettings.baseCurrency || 'IQD';
+  const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
+  const rate = storeSettings.exchangeRate || 1310;
+  const fmtRow = (val: number) =>
+    isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+
+  const totalQty = items.reduce((acc, it) => acc + (it.quantity || 0), 0);
+  const totalVal = items.reduce((acc, it) => acc + (it.quantity || 0) * (it.buyPrice || it.sellingPrice || 0), 0);
+
+  const dateFormatted = settings.showDate ? formatDate(new Date().toISOString()) : '';
+  const storeName = escHtml(business.name || 'Froshiar Store');
+
+  let rowsHTML = '';
+  if (width === '58mm') {
+    rowsHTML = items.map((item, i) => {
+      const idTag = settings.showItemId && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
+      const catTag = settings.showCategory && item.category ? `<span class="item-discount-sub">[${escHtml(item.category)}]</span>` : '';
+      return `
+        <div class="item-block-58">
+          <div class="item-title-58">
+            <span class="item-index-58">${i + 1}.</span>
+            <span class="item-name-58">${escHtml(item.name)}</span>
+            ${idTag}
+            ${catTag}
+          </div>
+          <div class="item-meta-row-58">
+            <span class="item-qty-price-58">${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}</span>
+            <span class="item-linetotal-58">${fmtRow(item.sellingPrice)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    rowsHTML = items.map((item, i) => {
+      const idTag = settings.showItemId && item.itemId ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>` : '';
+      return `
+        <tr>
+          <td class="item-name-cell">
+            <span class="item-index-inline">${i + 1}.</span>
+            ${escHtml(item.name)}
+            ${idTag}
+          </td>
+          ${settings.showQuantity ? `<td class="center-col" style="width:14%;">${item.quantity}</td>` : ''}
+          ${settings.showSellPrice ? `<td class="num-col" style="width:24%;">${fmtRow(item.sellingPrice)}</td>` : ''}
+          ${settings.showTotalValue ? `<td class="num-col" style="width:26%;font-weight:700;">${fmtRow((item.buyPrice || item.sellingPrice) * item.quantity)}</td>` : ''}
+        </tr>
+      `;
+    }).join('');
+
+    rowsHTML = `
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th class="item-name-cell">${ku(isKurdish ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQuantity ? `<th class="center-col" style="width:14%;">${ku(isKurdish ? 'بڕ' : 'Qty')}</th>` : ''}
+            ${settings.showSellPrice ? `<th class="num-col" style="width:24%;">${ku(isKurdish ? 'نرخ' : 'Price')}</th>` : ''}
+            ${settings.showTotalValue ? `<th class="num-col" style="width:26%;">${ku(isKurdish ? 'کۆی بەها' : 'Total')}</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    `;
+  }
+
+  const css = buildThermalCSS(width, isKurdish);
+
+  return `<!DOCTYPE html>
+<html lang="${isKurdish ? 'ckb' : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${reportTitle}</title>
+  <style>${css}</style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div class="biz-name">${storeName}</div>
+      <div class="biz-type-badge">${ku(reportTitle)}</div>
+      ${dateFormatted ? `<div class="biz-contact">${ku(isKurdish ? 'بەروار:' : 'Date:')} ${dateFormatted}</div>` : ''}
+    </div>
+    <div class="divider-dashed"></div>
+
+    <div class="items-section">${rowsHTML}</div>
+    <div class="divider-dashed"></div>
+
+    <div class="totals-section">
+      <div class="total-row">
+        <span class="info-label">${ku(isKurdish ? 'کۆی گشتی دانە:' : 'Total Items:')}</span>
+        <span class="info-value">${totalQty}</span>
+      </div>
+      ${settings.showTotalValue ? `
+      <div class="grand-total-row">
+        <span class="grand-total-label">${ku(isKurdish ? 'بەهای کۆگا:' : 'Stock Value:')}</span>
+        <span class="grand-total-value">${fmtRow(totalVal)}</span>
+      </div>` : ''}
+    </div>
+
+    <div class="receipt-footer">
+      ${settings.customFooterNote ? `<div class="footer-msg">${ku(escHtml(settings.customFooterNote))}</div>` : ''}
+      <div class="brand-credit">Froshiar Inventory System • www.froshiar.store</div>
     </div>
   </div>
 </body>

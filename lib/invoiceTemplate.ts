@@ -464,6 +464,24 @@ export function buildInvoiceHTML(
   const lang = isKurdish ? 'ku' : 'en';
   const kuAlign = isKurdish ? 'right' : 'left';
 
+  const salesSettings = useSettingsStore.getState().salesReceiptSettings ?? {
+    showBusinessPhone: true,
+    showBusinessAddress: true,
+    showCustomerName: true,
+    showCustomerPhone: true,
+    showInvoiceNumber: true,
+    showDate: true,
+    showQty: true,
+    showItemPrice: true,
+    showDiscount: true,
+    showItemBarcode: false,
+    showPaymentMethod: true,
+    showRemainingDebt: true,
+    showNotes: true,
+    showFooterBarcode: true,
+    customFooterNote: '',
+  };
+
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const isUsdBase = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = exchangeRate || useSettingsStore.getState().exchangeRate || 1310;
@@ -481,18 +499,21 @@ export function buildInvoiceHTML(
   const statusBadge = `<span class="pill ${pillClass}">${ku(t(statusKey))}</span>`;
 
   // ── Customer (rendered inside the header's middle column) ──
-  const customerColumn = (sale.customerName || sale.customerPhone || sale.customerAddress) ? `
+  const showCustName = salesSettings.showCustomerName && sale.customerName;
+  const showCustPhone = salesSettings.showCustomerPhone && sale.customerPhone;
+  const showCustAddr = salesSettings.showBusinessAddress && sale.customerAddress;
+  const customerColumn = (showCustName || showCustPhone || showCustAddr) ? `
       <div class="card-label">${ku(t('customer'))}</div>
-      ${sale.customerName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(sale.customerName)}</span></div>` : ''}
-      ${sale.customerPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(sale.customerPhone)}</span></div>` : ''}
-      ${sale.customerAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(sale.customerAddress)}</span></div>` : ''}` : '';
+      ${showCustName  ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(sale.customerName!)}</span></div>` : ''}
+      ${showCustPhone ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(sale.customerPhone!)}</span></div>` : ''}
+      ${showCustAddr  ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(sale.customerAddress!)}</span></div>` : ''}` : '';
 
   // ── Items table — Product ID is always its own column, never hidden ──
   const itemRows = items.length > 0 ? items.map((item, i) => `
     <tr>
       <td class="num-col" style="width:4%;">${i + 1}</td>
       <td style="width:36%;text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
-      <td class="center" style="width:12%;">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
+      <td class="center" style="width:12%;">${(salesSettings.showItemBarcode && item.itemId) ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center" style="width:6%;">${item.quantity}</td>
       <td class="right" style="width:13%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="text-decoration:line-through;color:#94a3b8;font-size:0.9em;margin-inline-end:4px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>` : fmtRow(item.sellingPrice)}</td>
       <td class="right" style="width:11%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="color:#d97706;font-weight:600;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
@@ -506,7 +527,12 @@ export function buildInvoiceHTML(
 
   const notesText = sale.notes ? escHtml(sale.notes) : ku(t('noNotes'));
 
-  const notesCard = `
+  const customNoteBlock = salesSettings.customFooterNote ? `
+    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-size: 11px; color: #475569;">
+      ${ku(escHtml(salesSettings.customFooterNote))}
+    </div>` : '';
+
+  const notesCard = salesSettings.showNotes ? `
     <div class="card">
       ${sale.warranty ? `
       <div style="margin-bottom: 6px;">
@@ -518,8 +544,9 @@ export function buildInvoiceHTML(
       <div>
         <div class="card-label">${ku(t('notes'))}</div>
         <p class="block-text" style="${blockTextStyle}">${notesText}</p>
+        ${customNoteBlock}
       </div>
-    </div>`;
+    </div>` : '';
 
   const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase, isKurdish);
 
@@ -582,18 +609,20 @@ export function buildInvoiceHTML(
         ${logoHTML}
       </div>
       <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
-      ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
+      ${salesSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      ${salesSettings.showBusinessPhone && business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
     <div class="col-customer">
       ${customerColumn}
     </div>
     <div class="col-invoice">
       <div class="inv-label">${ku(t('salesInvoiceLabel'))}</div>
+      ${salesSettings.showInvoiceNumber ? `
       <div class="inv-meta-row inv-meta-row-title">
         <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
         <span class="row-value row-value-ltr">${sale.invoiceNumber?.startsWith('F-') ? '' : '#'}${escHtml(sale.invoiceNumber)}</span>
-      </div>
+      </div>` : ''}
+      ${salesSettings.showDate ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('date') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatDate(dateTimeValue))}</span>
@@ -601,11 +630,12 @@ export function buildInvoiceHTML(
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('time') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatTime(dateTimeValue))}</span>
-      </div>
+      </div>` : ''}
+      ${salesSettings.showPaymentMethod ? `
       <div class="inv-status-row">
         <span class="inv-meta-line">${ku(t('status') + ':')}</span>
         ${statusBadge}
-      </div>
+      </div>` : ''}
     </div>
   </div>
 </div>
@@ -1039,6 +1069,24 @@ export function buildPurchaseInvoiceHTML(
   currencyMode: ReceiptCurrencyMode = 'iqd',
   purchaseDebt?: PurchaseDebt | null
 ): string {
+  const purchaseSettings = useSettingsStore.getState().purchaseReceiptSettings ?? {
+    showBusinessPhone: true,
+    showBusinessAddress: true,
+    showSupplierName: true,
+    showSupplierPhone: true,
+    showInvoiceNumber: true,
+    showDate: true,
+    showQty: true,
+    showBuyPrice: true,
+    showDiscount: true,
+    showItemBarcode: false,
+    showPaymentMethod: true,
+    showRemainingDebt: true,
+    showNotes: true,
+    showFooterBarcode: true,
+    customFooterNote: '',
+  };
+
   const isKurdish = isKurdishPdfActive();
   const lang = isKurdish ? 'ku' : 'en';
   const kuAlign = isKurdish ? 'right' : 'left';
@@ -1056,10 +1104,12 @@ export function buildPurchaseInvoiceHTML(
         : `<span class="pill pill-debt">${ku(t('statusDebt'))}</span>`);
 
   // ── Supplier (rendered inside the header's middle column) ──
-  const supplierColumn = (purchase.supplierName || purchase.supplierPhone || purchase.supplierAddress) ? `
+  const showSuppName = purchaseSettings.showSupplierName && purchase.supplierName;
+  const showSuppPhone = purchaseSettings.showSupplierPhone && purchase.supplierPhone;
+  const supplierColumn = (showSuppName || showSuppPhone || purchase.supplierAddress) ? `
       <div class="card-label">${ku(t('supplier'))}</div>
-      ${purchase.supplierName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(purchase.supplierName)}</span></div>` : ''}
-      ${purchase.supplierPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(purchase.supplierPhone)}</span></div>` : ''}
+      ${showSuppName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(purchase.supplierName!)}</span></div>` : ''}
+      ${showSuppPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(purchase.supplierPhone!)}</span></div>` : ''}
       ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
@@ -1176,18 +1226,20 @@ export function buildPurchaseInvoiceHTML(
         ${logoHTML}
       </div>
       <div class="biz-name">${escHtml(business.name || 'Business')}</div>
-      ${business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
-      ${business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
+      ${purchaseSettings.showBusinessAddress && business.address ? `<div class="biz-meta">${escHtml(business.address)}</div>` : ''}
+      ${purchaseSettings.showBusinessPhone && business.phone ? `<div class="biz-meta">${escHtml(business.phone)}</div>` : ''}
     </div>
     <div class="col-supplier">
       ${supplierColumn}
     </div>
     <div class="col-invoice">
       <div class="inv-label">${ku(t('purchaseInvoiceLabel'))}</div>
+      ${purchaseSettings.showInvoiceNumber ? `
       <div class="inv-meta-row inv-meta-row-title">
         <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
         <span class="row-value row-value-ltr">${purchase.purchaseNumber?.startsWith('F-') || purchase.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(purchase.purchaseNumber)}</span>
-      </div>
+      </div>` : ''}
+      ${purchaseSettings.showDate ? `
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('date') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatDate(purchaseDateTime))}</span>
@@ -1195,11 +1247,12 @@ export function buildPurchaseInvoiceHTML(
       <div class="inv-meta-row">
         <span class="row-label">${ku(t('time') + ':')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatTime(purchaseDateTime))}</span>
-      </div>
+      </div>` : ''}
+      ${purchaseSettings.showPaymentMethod ? `
       <div class="inv-status-row">
         <span class="inv-meta-line">${ku(t('status') + ':')}</span>
         ${statusBadge}
-      </div>
+      </div>` : ''}
     </div>
   </div>
 </div>
