@@ -10,6 +10,7 @@ import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscription
 import { runLegacyMigrationCheckOnce } from '@/lib/onlineStoreSubscription/subscription';
 import { useBusinessStore } from '@/store/businessStore';
 import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 
 export default function AppLayout() {
   const { isRTL } = useRTL();
@@ -49,7 +50,13 @@ export default function AppLayout() {
     });
 
     // Employee Live Permission & Suspend listener
-    const { isEmployee, currentEmployeeAccount, initEmployeeLiveSubscription, initManagerSubscription } = useManagementStore.getState();
+    const {
+      isEmployee,
+      currentEmployeeAccount,
+      initEmployeeLiveSubscription,
+      initManagerSubscription,
+      initSuperAdminSubscription,
+    } = useManagementStore.getState();
     let unsubEmployee: (() => void) | undefined;
     if (isEmployee && currentEmployeeAccount?.email) {
       unsubEmployee = initEmployeeLiveSubscription(currentEmployeeAccount.email);
@@ -57,13 +64,18 @@ export default function AppLayout() {
 
     // Manager Live Listener (detects if user manages any employee accounts)
     let unsubManager: (() => void) | undefined;
+    let unsubAdmin: (() => void) | undefined;
     if (user?.email) {
+      if (isAdminEmail(user.email)) {
+        unsubAdmin = initSuperAdminSubscription();
+      }
       unsubManager = initManagerSubscription(user.email);
     }
 
     return () => {
       unsubEmployee?.();
       unsubManager?.();
+      unsubAdmin?.();
     };
   }, [user]);
 

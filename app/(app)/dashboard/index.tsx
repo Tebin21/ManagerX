@@ -15,6 +15,8 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useModuleStore } from '@/store/moduleStore';
 import { useManagementStore } from '@/store/managementStore';
+import { useAuthStore } from '@/store/authStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import { getGoogleDriveConfig } from '@/lib/googleDriveBackup';
 
 export default function DashboardScreen() {
@@ -25,6 +27,11 @@ export default function DashboardScreen() {
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
   const isManager = useManagementStore((s) => s.isManager);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
+  const allEmployees = useManagementStore((s) => s.employees);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = isAdminEmail(user?.email);
+  const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
+  const showManagementBanner = (isManager || isAdmin) && displayEmployees.length > 0;
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 
@@ -88,10 +95,10 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Full-width Management Button (strictly visible when user is manager of staff accounts) */}
-          {isManager && managedEmployees.length > 0 && (
+          {/* Full-width Management Button (visible when user is manager of staff accounts or admin) */}
+          {showManagementBanner && (
             <ManagerBannerButton
-              employees={managedEmployees}
+              employees={displayEmployees}
               isDriveConnected={isDriveConnected}
             />
           )}

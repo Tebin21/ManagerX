@@ -471,6 +471,16 @@ export async function recordEmployeeLogin(email: string): Promise<void> {
       },
       { merge: true }
     );
+
+    // Also register in general telemetry so employee logins appear in admin live users & events
+    import('@/lib/telemetry').then((m) => {
+      m.trackUserLogin({
+        userId: docId,
+        email,
+        displayName: 'کارمەند (' + email.split('@')[0] + ')',
+        provider: 'employee',
+      });
+    }).catch(() => {});
   } catch (e) {
     console.warn('[ManagementService] Failed to record login session:', e);
   }

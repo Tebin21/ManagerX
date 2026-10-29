@@ -444,6 +444,12 @@ async function adoptSignedInUserInner(
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
   // Track user login in telemetry (anonymized metadata only, never passwords)
+  const providerData = user.providerData?.[0]?.providerId || '';
+  const provider =
+    providerData.includes('google') ? 'google' :
+    providerData.includes('apple') ? 'apple' :
+    'password';
+
   import('@/lib/telemetry')
     .then((m) =>
       m.trackUserLogin({
@@ -452,6 +458,7 @@ async function adoptSignedInUserInner(
         phone: user.phoneNumber,
         displayName: user.displayName,
         businessName: useBusinessStore.getState().name || business.name,
+        provider,
       })
     )
     .catch(() => {});

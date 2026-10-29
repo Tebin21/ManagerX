@@ -22,6 +22,7 @@ interface UserPayload {
   phone?: string | null;
   displayName?: string | null;
   businessName?: string | null;
+  provider?: string | null;
 }
 
 /**
@@ -128,6 +129,7 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
         phone: user.phone ?? prevData?.phone ?? null,
         display_name: user.displayName ?? prevData?.display_name ?? null,
         business_name: user.businessName ?? prevData?.business_name ?? null,
+        provider: user.provider ?? prevData?.provider ?? 'password',
         device_id: deviceId,
         platform: Platform.OS,
         app_version: appVersion,
@@ -147,6 +149,7 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
         event_type: 'user_login',
         user_id: user.userId,
         user_email: user.email ?? null,
+        provider: user.provider ?? 'password',
         platform: Platform.OS,
         created_at: nowIso,
         timestamp: serverTimestamp(),

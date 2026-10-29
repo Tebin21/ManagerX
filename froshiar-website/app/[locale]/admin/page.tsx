@@ -69,6 +69,7 @@ interface UserRecord {
   business_name: string | null;
   device_id: string | null;
   platform: string;
+  provider?: string | null;
   app_version: string;
   created_at: string;
   last_login_at: string;
@@ -1511,6 +1512,21 @@ export default function AdminDashboardPage() {
                             >
                               {u.platform || 'IOS'}
                             </span>
+                            {u.provider && (
+                              <span
+                                className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                                  u.provider === 'google'
+                                    ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                                    : u.provider === 'apple'
+                                    ? 'bg-slate-500/15 text-slate-300 border border-slate-500/30'
+                                    : u.provider === 'employee'
+                                    ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                                    : 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                                }`}
+                              >
+                                {u.provider === 'google' ? 'Google G' : u.provider === 'apple' ? 'Apple ' : u.provider === 'employee' ? 'کارمەند' : 'Email'}
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-400 mt-0.5 sm:mt-1">
