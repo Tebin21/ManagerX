@@ -45,6 +45,8 @@ export default function PurchaseHistoryScreen() {
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
+  const isKuOrAr = isKuLanguage || isAr;
   const { purchases, loadPurchases, deletePurchase } = usePurchaseStore();
 
   const purchaseHistoryGridLayout = useSettingsStore((s) => s.purchaseHistoryGridLayout);
@@ -160,13 +162,13 @@ export default function PurchaseHistoryScreen() {
 
   // Human readable label for active period
   const periodDisplayLabel = useMemo(() => {
-    if (period === 'today') return isKuLanguage ? 'ئەمڕۆ' : 'Today';
-    if (period === 'week') return isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
-    if (period === 'month') return isKuLanguage ? 'ئەم مانگە' : 'This Month';
-    if (period === 'year') return isKuLanguage ? 'ئەم ساڵ' : 'This Year';
-    if (period === 'all') return isKuLanguage ? 'هەمووی' : 'All Time';
+    if (period === 'today') return isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today';
+    if (period === 'week') return isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
+    if (period === 'month') return isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month';
+    if (period === 'year') return isAr ? 'هذا العام' : isKuLanguage ? 'ئەم ساڵ' : 'This Year';
+    if (period === 'all') return isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time';
     return `${formatDateShort(bounds.from)} → ${formatDateShort(bounds.to)}`;
-  }, [period, bounds, isKuLanguage]);
+  }, [period, bounds, isKuLanguage, isAr]);
 
   // Export PDF Purchases Audit Report
   const handleExportPdf = useCallback(async () => {
@@ -333,12 +335,12 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
 
   const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const filterLabels: Record<PeriodKey, string> = {
-    today:  isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
-    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
-    month:  isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
-    year:   isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
-    all:    isKuLanguage ? 'هەمووی' : 'All',
-    custom: isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+    today:  isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isAr ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All',
+    custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
   };
 
   const handlePeriodTabPress = (key: PeriodKey) => {
@@ -545,7 +547,7 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
                             color: active ? colors.white : colors.gray700,
                             textAlign,
                           },
-                          isKuLanguage && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
+                          isKuOrAr && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
                         ]}
                       >
                         {filterLabels[key]}
@@ -593,8 +595,8 @@ type PurchaseOrFiller = Purchase | { id: string | number; isFiller: true };
           ]}
         >
           <View style={[styles.summaryLeft, { flexDirection }]}>
-            <Text style={[styles.summaryText, { color: colors.gray500 }, isTablet && { fontSize: 15 }]}>
-              {visible.length} {isKuLanguage ? 'پسوولەی کڕین' : visible.length === 1 ? 'purchase' : 'purchases'}
+            <Text style={[styles.summaryText, { color: colors.gray500 }, isTablet && { fontSize: 15 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }]}>
+              {visible.length} {isAr ? 'فاتورة شراء' : isKuLanguage ? 'پسوولەی کڕین' : visible.length === 1 ? 'purchase' : 'purchases'}
             </Text>
           </View>
 

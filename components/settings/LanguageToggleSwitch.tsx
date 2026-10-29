@@ -76,6 +76,30 @@ export function UKFlagIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+// ─── Iraq Flag SVG (Red-White-Black Tricolor with Green Kufic Text) ─────────
+export function IraqFlagIcon({ size = 24 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
+      <Svg width={size} height={size} viewBox="0 0 32 32">
+        {/* Red stripe */}
+        <Rect x="0" y="0" width="32" height="10.67" fill="#CE1126" />
+        {/* White stripe */}
+        <Rect x="0" y="10.67" width="32" height="10.67" fill="#FFFFFF" />
+        {/* Black stripe */}
+        <Rect x="0" y="21.33" width="32" height="10.67" fill="#000000" />
+        {/* Green Kufic Takbir representation */}
+        <Path
+          d="M 6.5 16.5 L 8.5 16.5 M 8.5 13.5 L 8.5 16.5 M 10.5 13.5 L 10.5 17.5 M 12.5 15 L 14.5 15 M 14.5 13.5 L 14.5 17.5 M 17.5 13.5 L 17.5 17.5 M 19 15 L 21 15 M 21 13.5 L 21 17.5 M 23 15 L 25.5 15"
+          stroke="#007A3D"
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
+  );
+}
+
 interface Props {
   value: boolean; // true = Kurdish (Ku flag), false = English (UK flag)
   onToggle: (val: boolean) => void;

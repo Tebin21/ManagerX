@@ -19,7 +19,10 @@ import { AppHeader } from '@/components/common/AppHeader';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { useAuthStore } from '@/store/authStore';
 import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import {
   updateEmployeePermissions,
   updateEmployeePassword,
@@ -39,17 +42,52 @@ export default function EmployeePermissionsScreen() {
   const flexDirection = rtl?.flexDirection ?? 'row-reverse';
   const textAlign = rtl?.textAlign ?? 'right';
   const { isTablet, contentContainerStyle } = useResponsive();
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKu = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
 
   const params = useLocalSearchParams<{ id: string; email: string; name?: string }>();
   const email = params.email || '';
   const employeeName = params.name || email;
 
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = isAdminEmail(user?.email);
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const isManager = useManagementStore((s) => s.isManager);
+
+  // Security route guard: Employees and unauthorized accounts can NEVER enter
+  useEffect(() => {
+    if (isEmployee || (!isAdmin && !isManager)) {
+      router.replace('/(app)/dashboard');
+    }
+  }, [isEmployee, isAdmin, isManager]);
+
   const employees = useManagementStore((s) => s.employees);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
-  const allEmployees = [...employees, ...managedEmployees];
-  const foundEmp = allEmployees.find(
+  // Strict tenant scoping: Admins see all; Managers ONLY see their own managed staff
+  const candidateEmployees = isAdmin ? [...employees, ...managedEmployees] : managedEmployees;
+  const foundEmp = candidateEmployees.find(
     (e) => e.email?.toLowerCase() === email.toLowerCase() || e.id === params.id
   );
+
+  // Tenant Isolation Guard: Managers cannot view/edit employees of other managers
+  useEffect(() => {
+    if (foundEmp && !isAdmin) {
+      const currentMgrEmail = (user?.email || '').trim().toLowerCase();
+      const empMgrEmail = (foundEmp.managerEmail || '').trim().toLowerCase();
+      if (empMgrEmail && currentMgrEmail && empMgrEmail !== currentMgrEmail) {
+        Alert.alert(
+          isKu ? 'دەسەڵاتت نییە' : isAr ? 'غير مصرح' : 'Access Denied',
+          isKu
+            ? 'تەنها دەتوانی دەسەڵاتەکانی کارمەندانی تایبەت بە خۆت دەستکاری بکەیت.'
+            : isAr
+            ? 'يمكنك فقط تعديل صلاحيات الموظفين التابعين لحسابك.'
+            : 'You can only manage employees under your own business account.'
+        );
+        router.replace('/(app)/management');
+      }
+    }
+  }, [foundEmp, isAdmin, user?.email]);
 
   const [permissions, setPermissions] = useState<EmployeePermissions>(
     foundEmp?.permissions || DEFAULT_EMPLOYEE_PERMISSIONS
@@ -73,8 +111,8 @@ export default function EmployeePermissionsScreen() {
     const targetId = foundEmp?.id || params.id;
     if (!newPassword.trim() || newPassword.trim().length < 6) {
       Alert.alert(
-        isRTL ? 'هەڵە لە تێپەڕەوشە' : 'Invalid Password',
-        isRTL ? 'تێپەڕەوشە دەبێت لانیکەم ٦ پیت یان ژمارە بێت' : 'Password must be at least 6 characters'
+        isAr ? 'خطأ في كلمة المرور' : isKu ? 'هەڵە لە تێپەڕەوشە' : 'Invalid Password',
+        isAr ? 'تتكون كلمة المرور من 6 أحرف أو أرقام على الأقل' : isKu ? 'تێپەڕەوشە دەبێت لانیکەم ٦ پیت یان ژمارە بێت' : 'Password must be at least 6 characters'
       );
       return;
     }
@@ -99,8 +137,8 @@ export default function EmployeePermissionsScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { });
       Alert.alert(
-        isRTL ? 'سەرکەوتوو بوو' : 'Success',
-        isRTL ? 'تێپەڕەوشەی کارمەندەکە نوێکرایەوە و ڕاستەوخۆ بۆ بەڕێوەبەری سەرپەرشتیار نێردرا.' : 'Employee password updated and synced successfully.'
+        isAr ? 'تم بنجاح' : isKu ? 'سەرکەوتوو بوو' : 'Success',
+        isAr ? 'تم تحديث كلمة مرور الموظف ومزامنتها بنجاح.' : isKu ? 'تێپەڕەوشەی کارمەندەکە نوێکرایەوە و ڕاستەوخۆ بۆ بەڕێوەبەری سەرپەرشتیار نێردرا.' : 'Employee password updated and synced successfully.'
       );
       setNewPassword('');
     } catch {
@@ -230,26 +268,26 @@ export default function EmployeePermissionsScreen() {
   };
 
   const moduleItems: { label: string; key: keyof EmployeePermissions; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { label: 'فرۆشتن (Sales)', key: 'sales', icon: 'cart-outline' },
-    { label: 'کڕین (Purchases)', key: 'purchases', icon: 'bag-check-outline' },
-    { label: 'کۆگا (Inventory)', key: 'inventory', icon: 'cube-outline' },
-    { label: 'مێژوو (History)', key: 'history', icon: 'time-outline' },
-    { label: 'پسوڵەکان (Invoices)', key: 'invoices', icon: 'receipt-outline' },
-    { label: 'ڕاپۆرت و قازانج (Reports)', key: 'reports', icon: 'bar-chart-outline' },
-    { label: 'قەرزەکان (Debts)', key: 'debts', icon: 'wallet-outline' },
-    { label: 'خەرجییەکان (Expenses)', key: 'expenses', icon: 'cash-outline' },
-    { label: 'عەرزی نرخ (Quotations)', key: 'quotations', icon: 'document-text-outline' },
-    { label: 'داشبۆرد (Dashboard)', key: 'dashboard', icon: 'grid-outline' },
-    { label: 'ستۆری ئۆنلاین (Online Store)', key: 'onlineStore', icon: 'storefront-outline' },
+    { label: isAr ? 'المبيعات' : isKu ? 'فرۆشتن' : 'Sales', key: 'sales', icon: 'cart-outline' },
+    { label: isAr ? 'المشتريات' : isKu ? 'کڕین' : 'Purchases', key: 'purchases', icon: 'bag-check-outline' },
+    { label: isAr ? 'المخزن' : isKu ? 'کۆگا' : 'Inventory', key: 'inventory', icon: 'cube-outline' },
+    { label: isAr ? 'السجل' : isKu ? 'مێژوو' : 'History', key: 'history', icon: 'time-outline' },
+    { label: isAr ? 'الفواتير' : isKu ? 'پسوڵەکان' : 'Invoices', key: 'invoices', icon: 'receipt-outline' },
+    { label: isAr ? 'التقارير والأرباح' : isKu ? 'ڕاپۆرت و قازانج' : 'Reports & Profit', key: 'reports', icon: 'bar-chart-outline' },
+    { label: isAr ? 'الديون' : isKu ? 'قەرزەکان' : 'Debts', key: 'debts', icon: 'wallet-outline' },
+    { label: isAr ? 'المصاريف' : isKu ? 'خەرجییەکان' : 'Expenses', key: 'expenses', icon: 'cash-outline' },
+    { label: isAr ? 'عروض الأسعار' : isKu ? 'عەرزی نرخ' : 'Quotations', key: 'quotations', icon: 'document-text-outline' },
+    { label: isAr ? 'لوحة التحكم' : isKu ? 'داشبۆرد' : 'Dashboard', key: 'dashboard', icon: 'grid-outline' },
+    { label: isAr ? 'المتجر الإلكتروني' : isKu ? 'ستۆری ئۆنلاین' : 'Online Store', key: 'onlineStore', icon: 'storefront-outline' },
   ];
 
   const settingsItems: { label: string; key: keyof EmployeePermissions; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { label: 'گۆڕینی زمان (Language)', key: 'settingsLanguage', icon: 'language-outline' },
-    { label: 'دەستکاری ناوی مارکێت و لۆگۆ (Profile)', key: 'settingsProfile', icon: 'business-outline' },
-    { label: 'دراوی بنچینە و نرخ (Currency)', key: 'settingsCurrency', icon: 'cash-outline' },
-    { label: 'ڕووکار و ڕەنگ (Theme)', key: 'settingsTheme', icon: 'color-palette-outline' },
-    { label: 'داتا و باکئەپ (Backup & Data)', key: 'settingsBackup', icon: 'cloud-upload-outline' },
-    { label: 'سڕینەوەی ئەکاونت و داتابەیس (Delete Account)', key: 'settingsDeleteAccount', icon: 'trash-outline' },
+    { label: isAr ? 'تغيير اللغة' : isKu ? 'گۆڕینی زمان' : 'Language', key: 'settingsLanguage', icon: 'language-outline' },
+    { label: isAr ? 'اسم المتجر والشعار' : isKu ? 'دەستکاری ناوی مارکێت و لۆگۆ' : 'Store Profile & Logo', key: 'settingsProfile', icon: 'business-outline' },
+    { label: isAr ? 'العملة الأساسية والأسعار' : isKu ? 'دراوی بنچینە و نرخ' : 'Base Currency & Rates', key: 'settingsCurrency', icon: 'cash-outline' },
+    { label: isAr ? 'المظهر والألوان' : isKu ? 'ڕووکار و ڕەنگ' : 'Theme & Colors', key: 'settingsTheme', icon: 'color-palette-outline' },
+    { label: isAr ? 'النسخ الاحتياطي والبيانات' : isKu ? 'داتا و باکئەپ' : 'Data & Backup', key: 'settingsBackup', icon: 'cloud-upload-outline' },
+    { label: isAr ? 'حذف الحساب وقاعدة البيانات' : isKu ? 'سڕینەوەی ئەکاونت و داتابەیس' : 'Delete Account & Database', key: 'settingsDeleteAccount', icon: 'trash-outline' },
   ];
 
   return (
@@ -276,7 +314,7 @@ export default function EmployeePermissionsScreen() {
       <ScrollView contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}>
         {/* Section 0: Employee Password Management */}
         <Text style={[styles.sectionTitle, { color: colors.black }]}>
-          {isRTL ? 'تێپەڕەوشەی چوونەژوورەوەی کارمەند' : 'Employee Login Password'}
+          {isAr ? 'كلمة مرور تسجيل دخول الموظف' : isKu ? 'تێپەڕەوشەی چوونەژوورەوەی کارمەند' : 'Employee Login Password'}
         </Text>
         <View
           style={[
@@ -290,11 +328,15 @@ export default function EmployeePermissionsScreen() {
           <View style={[styles.passwordHeader, { flexDirection }]}>
             <Ionicons name="key" size={18} color={colors.primary} />
             <Text style={[styles.passwordTitle, { color: colors.black }]}>
-              {isRTL ? 'گۆڕینی تێپەڕەوشە (پاسۆرد)' : 'Change Employee Password'}
+              {isAr ? 'تغيير كلمة المرور' : isKu ? 'گۆڕینی تێپەڕەوشە (پاسۆرد)' : 'Change Employee Password'}
             </Text>
             {(currentDisplayPassword || foundEmp?.password) ? (
               <Text style={[styles.currentPassLabel, { color: colors.gray500 }]}>
-                {isRTL ? `پاسۆردی ئێستا: ${currentDisplayPassword || foundEmp?.password}` : `Current: ${currentDisplayPassword || foundEmp?.password}`}
+                {isAr
+                  ? `الحالية: ${currentDisplayPassword || foundEmp?.password}`
+                  : isKu
+                  ? `پاسۆردی ئێستا: ${currentDisplayPassword || foundEmp?.password}`
+                  : `Current: ${currentDisplayPassword || foundEmp?.password}`}
               </Text>
             ) : null}
           </View>
@@ -310,7 +352,7 @@ export default function EmployeePermissionsScreen() {
                   textAlign: isRTL ? 'right' : 'left',
                 },
               ]}
-              placeholder={isRTL ? 'تێپەڕەوشەی نوێ (لانیکەم ٦ پیت)...' : 'Enter new password (min 6 chars)...'}
+              placeholder={isAr ? 'كلمة المرور الجديدة (6 أحرف على الأقل)...' : isKu ? 'تێپەڕەوشەی نوێ (لانیکەم ٦ پیت)...' : 'Enter new password (min 6 chars)...'}
               placeholderTextColor={colors.gray400}
               value={newPassword}
               onChangeText={setNewPassword}
@@ -332,7 +374,7 @@ export default function EmployeePermissionsScreen() {
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.updatePassBtnText}>
-                  {isRTL ? 'نوێکردنەوە' : 'Update'}
+                  {isAr ? 'تحديث' : isKu ? 'نوێکردنەوە' : 'Update'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -366,7 +408,11 @@ export default function EmployeePermissionsScreen() {
               {t('management.canDeleteInvoice')}
             </Text>
             <Text style={[styles.actionDesc, { color: colors.gray500 }]}>
-              ڕێگری لە کارمەند دەکات لە سڕینەوەی هیچ وەسڵ و فاکتۆرێکی فرۆشتن یان کڕین.
+              {isAr
+                ? 'يمنع الموظف من حذف أي فاتورة بيع أو شراء.'
+                : isKu
+                ? 'ڕێگری لە کارمەند دەکات لە سڕینەوەی هیچ وەسڵ و فاکتۆرێکی فرۆشتن یان کڕین.'
+                : 'Prevents employee from deleting sales or purchase invoices.'}
             </Text>
           </View>
           <Switch

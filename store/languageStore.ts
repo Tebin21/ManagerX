@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { migratedAsyncStorage } from '@/lib/migratedStorage';
 import i18n from '@/lib/i18n';
 
-type Language = 'en' | 'ku';
+type Language = 'en' | 'ku' | 'ar';
 
 interface LanguageState {
   language: Language | null;
@@ -18,7 +18,7 @@ export const useLanguageStore = create<LanguageState>()(
       isRTL:    true,
 
       setLanguage: (lang) => {
-        const isRTL = lang === 'ku';
+        const isRTL = lang === 'ku' || lang === 'ar';
 
         // Sync i18next translations
         i18n.changeLanguage(lang).catch(() => {});

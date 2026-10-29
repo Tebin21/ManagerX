@@ -1,4 +1,5 @@
 import type { Sale } from '@/types/sales';
+import i18n from '@/lib/i18n';
 import { fmtIQD, fmtUSD, formatDate as fmtDate, formatTime } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, PDF_BRAND_WEBSITE, pdfDevelopedByText, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -14,16 +15,16 @@ import { escHtml, sanitizeImageUri } from '@/lib/security';
 
 const ku = kuSpan;
 
-function methodBadge(method: string, isKurdish: boolean): string {
+function methodBadge(method: string, isKurdish: boolean, isAr: boolean = false): string {
   const m = (method || 'cash').toLowerCase();
   if (m === 'cash') {
-    return `<span style="background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isKurdish ? ku('نەختینە') : 'Cash'}</span>`;
+    return `<span style="background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isAr ? ku('نقداً') : isKurdish ? ku('نەختینە') : 'Cash'}</span>`;
   }
   if (m === 'fib' || m === 'card' || m === 'online') {
-    return `<span style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isKurdish ? ku('ئۆنلاین') : 'Card/FIB'}</span>`;
+    return `<span style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isAr ? ku('إلكتروني / FIB') : isKurdish ? ku('ئۆنلاین') : 'Card/FIB'}</span>`;
   }
   if (m === 'debt') {
-    return `<span style="background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isKurdish ? ku('قەرز') : 'Debt'}</span>`;
+    return `<span style="background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${isAr ? ku('دين') : isKurdish ? ku('قەرز') : 'Debt'}</span>`;
   }
   return `<span style="background:#F1F5F9;color:#475569;border:1px solid #CBD5E1;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">${escHtml(method)}</span>`;
 }
@@ -35,7 +36,11 @@ export function buildSalesAuditReportHTML(
   dir: 'ltr' | 'rtl' = 'rtl'
 ): string {
   const isKurdish = dir === 'rtl' || isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
+  const currentLang = i18n.language || (isKurdish ? 'ku' : 'en');
+  const isAr = currentLang === 'ar';
+  const isKu = currentLang === 'ku' || (isKurdish && !isAr);
+  const isRtl = isAr || isKu || dir === 'rtl';
+  const lang = isAr ? 'ar' : isKu ? 'ku' : 'en';
 
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
@@ -68,7 +73,7 @@ export function buildSalesAuditReportHTML(
     : '';
 
   const rowsHTML = sales.length === 0
-    ? `<tr><td colspan="9" style="text-align:center;color:#94A3B8;padding:28px;font-style:italic;">${isKurdish ? ku('هیچ فرۆشتنێک لەم ماوەیەدا تۆمار نەکراوە') : 'No sales recorded for this period'}</td></tr>`
+    ? `<tr><td colspan="9" style="text-align:center;color:#94A3B8;padding:28px;font-style:italic;">${isAr ? ku('لم يتم تسجيل أي مبيعات خلال هذه الفترة') : isKu ? ku('هیچ فرۆشتنێک لەم ماوەیەدا تۆمار نەکراوە') : 'No sales recorded for this period'}</td></tr>`
     : sales.map((sale, idx) => {
         const itemsList = (sale.items && sale.items.length > 0)
           ? sale.items.map((it) => {
@@ -83,35 +88,35 @@ export function buildSalesAuditReportHTML(
 
         const customerDisplay = sale.customerName
           ? `<div style="font-weight:700;color:#0F172A;">${escHtml(sale.customerName)}</div>${sale.customerPhone ? `<div class="en-num" dir="ltr" style="font-size:10.5px;color:#64748B;display:inline-block;unicode-bidi:isolate;">${escHtml(sale.customerPhone)}</div>` : ''}`
-          : `<span style="color:#64748B;font-style:italic;">${isKurdish ? ku('کڕیاری نەناسراو') : 'Walk-in Customer'}</span>`;
+          : `<span style="color:#64748B;font-style:italic;">${isAr ? ku('عميل نقدي') : isKu ? ku('کڕیاری نەناسراو') : 'Walk-in Customer'}</span>`;
 
         return `
           <tr style="background:${idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'};">
             <td style="text-align:center;color:#64748B;font-size:11px;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
-            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${dir === 'rtl' ? 'right' : 'left'};"><span class="en-num" dir="ltr">${sale.invoiceNumber?.startsWith('F-') || sale.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(sale.invoiceNumber)}</span></td>
-            <td style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${customerDisplay}</td>
+            <td style="font-weight:700;color:#0F172A;white-space:nowrap;text-align:${isRtl ? 'right' : 'left'};"><span class="en-num" dir="ltr">${sale.invoiceNumber?.startsWith('F-') || sale.invoiceNumber?.startsWith('B-') ? '' : '#'}${escHtml(sale.invoiceNumber)}</span></td>
+            <td style="text-align:${isRtl ? 'right' : 'left'};">${customerDisplay}</td>
             <td style="font-size:11.5px;color:#475569;white-space:nowrap;text-align:center;"><span class="en-num" dir="ltr">${fmtDate(sale.date || sale.createdAt)}</span></td>
-            <td style="max-width:220px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${itemsList}</td>
-            <td style="text-align:center;">${methodBadge(sale.paymentMethod, isKurdish)}</td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.grandTotal)}</span></td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:600;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.paidAmount)}</span></td>
-            <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};white-space:nowrap;">${remainingDebtHTML}</td>
+            <td style="max-width:220px;text-align:${isRtl ? 'right' : 'left'};">${itemsList}</td>
+            <td style="text-align:center;">${methodBadge(sale.paymentMethod, isKu, isAr)}</td>
+            <td style="text-align:${isRtl ? 'left' : 'right'};font-weight:700;color:#0F172A;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.grandTotal)}</span></td>
+            <td style="text-align:${isRtl ? 'left' : 'right'};color:#059669;font-weight:600;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(sale.paidAmount)}</span></td>
+            <td style="text-align:${isRtl ? 'left' : 'right'};white-space:nowrap;">${remainingDebtHTML}</td>
           </tr>
         `;
       }).join('');
 
   return `<!DOCTYPE html>
-<html lang="${lang}" dir="${dir}">
+<html lang="${lang}" dir="${isRtl ? 'rtl' : 'ltr'}">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>${isKurdish ? `جەردی فرۆشتن — ${escHtml(business.name)}` : `Sales Audit Report — ${escHtml(business.name)}`}</title>
+<title>${isAr ? `تقرير جرد المبيعات — ${escHtml(business.name)}` : isKu ? `جەردی فرۆشتن — ${escHtml(business.name)}` : `Sales Audit Report — ${escHtml(business.name)}`}</title>
 <style>
   ${KURDISH_FONT_FACE}
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    direction: ${dir};
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Bahij Janna', sans-serif;
+    direction: ${isRtl ? 'rtl' : 'ltr'};
+    font-family: ${(isAr || isKu) ? `'Bahij Janna', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif` : `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`};
     background: #F8FAFC;
     color: #0F172A;
     font-size: 12.5px;
@@ -342,7 +347,7 @@ export function buildSalesAuditReportHTML(
       <div style="display:flex;flex-direction:column;align-items:${dir === 'rtl' ? 'flex-start' : 'flex-end'};gap:8px;">
         ${logoHTML}
         <div class="report-meta" style="text-align:${dir === 'rtl' ? 'left' : 'right'};">
-          <div class="report-badge">${isKurdish ? ku('جەردی فرۆشتن') : 'Sales Audit Report'}</div>
+          <div class="report-badge">${isAr ? ku('تقرير جرد المبيعات') : isKu ? ku('جەردی فرۆشتن') : 'Sales Audit Report'}</div>
           <div class="report-id en-num" dir="ltr">${reportId}</div>
         </div>
       </div>
@@ -350,11 +355,11 @@ export function buildSalesAuditReportHTML(
 
     <div class="banner-row">
       <div class="banner-period">
-        <span>${isKurdish ? ku('ماوەی دیاریکراو:') : 'Selected Period:'}</span>
-        <b>${isKurdish ? ku(escHtml(periodLabel)) : escHtml(periodLabel)}</b>
+        <span>${isAr ? ku('الفترة المحددة:') : isKu ? ku('ماوەی دیاریکراو:') : 'Selected Period:'}</span>
+        <b>${(isAr || isKu) ? ku(escHtml(periodLabel)) : escHtml(periodLabel)}</b>
       </div>
       <div class="banner-date" style="display:inline-flex;align-items:center;gap:6px;">
-        <span>${isKurdish ? ku('بەرواری دەرکردن:') : 'Generated:'}</span>
+        <span>${isAr ? ku('تاريخ الإنشاء:') : isKu ? ku('بەرواری دەرکردن:') : 'Generated:'}</span>
         <span class="en-num" dir="ltr" style="display:inline-block;unicode-bidi:isolate;color:#FFFFFF;font-weight:600;">${dateStr} &bull; ${timeStr}</span>
       </div>
     </div>
@@ -363,45 +368,45 @@ export function buildSalesAuditReportHTML(
   <!-- KPI Grid -->
   <div class="kpi-grid">
     <div class="kpi-card">
-      <div class="kpi-label">${isKurdish ? ku('کۆی گشتی فرۆشراو') : 'Total Revenue'}</div>
+      <div class="kpi-label">${isAr ? ku('إجمالي المبيعات') : isKu ? ku('کۆی گشتی فرۆشراو') : 'Total Revenue'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#0284C7;display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalRevenue)}</span></div>
-      <div class="kpi-sub"><span class="en-num" dir="ltr">${totalInvoices}</span> ${isKurdish ? ku('پسوولە') : 'Invoices'}</div>
+      <div class="kpi-sub"><span class="en-num" dir="ltr">${totalInvoices}</span> ${isAr ? ku('فواتير') : isKu ? ku('پسوولە') : 'Invoices'}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">${isKurdish ? ku('کۆی پارەی وەرگیراو') : 'Total Paid Amount'}</div>
+      <div class="kpi-label">${isAr ? ku('إجمالي المبلغ المستلم') : isKu ? ku('کۆی پارەی وەرگیراو') : 'Total Paid Amount'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#059669;display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalPaid)}</span></div>
-      <div class="kpi-sub">${isKurdish ? ku('کاش و FIB') : 'Cash & Online'}</div>
+      <div class="kpi-sub">${isAr ? ku('نقداً و FIB') : isKu ? ku('کاش و FIB') : 'Cash & Online'}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">${isKurdish ? ku('کۆی قەرزی ماوە') : 'Remaining Debt'}</div>
+      <div class="kpi-label">${isAr ? ku('إجمالي الدين المتبقي') : isKu ? ku('کۆی قەرزی ماوە') : 'Remaining Debt'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:${totalDebt > 0 ? '#DC2626' : '#64748B'};display:inline-block;unicode-bidi:isolate;">${fmtMoney(totalDebt)}</span></div>
-      <div class="kpi-sub">${totalDebt > 0 ? (isKurdish ? ku('قەرزی وەرنەگیراو') : 'Pending Debt') : (isKurdish ? ku('هیچ قەرزێک نییە') : 'Zero Debt')}</div>
+      <div class="kpi-sub">${totalDebt > 0 ? (isAr ? ku('دين معلق') : isKu ? ku('قەرزی وەرنەگیراو') : 'Pending Debt') : (isAr ? ku('لا يوجد أي دين') : isKu ? ku('هیچ قەرزێک نییە') : 'Zero Debt')}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">${isKurdish ? ku('کۆی ئایتمەکان') : 'Items Sold'}</div>
+      <div class="kpi-label">${isAr ? ku('إجمالي المواد المباعة') : isKu ? ku('کۆی ئایتمەکان') : 'Items Sold'}</div>
       <div class="kpi-value"><span class="en-num" dir="ltr" style="color:#475569;display:inline-block;unicode-bidi:isolate;">${totalItemsCount}</span></div>
-      <div class="kpi-sub">${isKurdish ? ku('دانە فرۆشراوەکان') : 'Total Pieces'}</div>
+      <div class="kpi-sub">${isAr ? ku('القطع المباعة') : isKu ? ku('دانە فرۆشراوەکان') : 'Total Pieces'}</div>
     </div>
   </div>
 
   <!-- Invoices Table -->
   <div class="section-title">
-    <span>${isKurdish ? ku('وردەکاری پسوولەکانی فرۆشتن') : 'Invoices & Sales Detail'}</span>
-    <span style="font-size:12px;color:#64748B;font-weight:500;"><span class="en-num" dir="ltr">${sales.length}</span> ${isKurdish ? ku('پسوولە تۆمارکراوە') : 'invoices listed'}</span>
+    <span>${isAr ? ku('تفاصيل فواتير المبيعات') : isKu ? ku('وردەکاری پسوولەکانی فرۆشتن') : 'Invoices & Sales Detail'}</span>
+    <span style="font-size:12px;color:#64748B;font-weight:500;"><span class="en-num" dir="ltr">${sales.length}</span> ${isAr ? ku('فاتورة مسجلة') : isKu ? ku('پسوولە تۆمارکراوە') : 'invoices listed'}</span>
   </div>
 
   <table>
     <thead>
       <tr>
         <th style="width:36px;text-align:center;">#</th>
-        <th style="width:75px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('پسوولە') : 'Invoice'}</th>
-        <th style="width:130px;text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('کڕیار') : 'Customer'}</th>
-        <th style="width:90px;text-align:center;">${isKurdish ? ku('بەروار') : 'Date'}</th>
-        <th style="text-align:${dir === 'rtl' ? 'right' : 'left'};">${isKurdish ? ku('ئایتم و وردەکاری') : 'Items & Details'}</th>
-        <th style="width:85px;text-align:center;">${isKurdish ? ku('جۆر') : 'Method'}</th>
-        <th style="width:115px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('کۆی گشتی') : 'Total'} (${isUsd ? '$' : 'IQD'})</th>
-        <th style="width:105px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('دراو') : 'Paid'} (${isUsd ? '$' : 'IQD'})</th>
-        <th style="width:95px;text-align:${dir === 'rtl' ? 'left' : 'right'};">${isKurdish ? ku('قەرز') : 'Debt'} (${isUsd ? '$' : 'IQD'})</th>
+        <th style="width:75px;text-align:${isRtl ? 'right' : 'left'};">${isAr ? ku('الفاتورة') : isKu ? ku('پسوولە') : 'Invoice'}</th>
+        <th style="width:130px;text-align:${isRtl ? 'right' : 'left'};">${isAr ? ku('الزبون') : isKu ? ku('کڕیار') : 'Customer'}</th>
+        <th style="width:90px;text-align:center;">${isAr ? ku('التاريخ') : isKu ? ku('بەروار') : 'Date'}</th>
+        <th style="text-align:${isRtl ? 'right' : 'left'};">${isAr ? ku('المواد والتفاصيل') : isKu ? ku('ئایتم و وردەکاری') : 'Items & Details'}</th>
+        <th style="width:85px;text-align:center;">${isAr ? ku('النوع') : isKu ? ku('جۆر') : 'Method'}</th>
+        <th style="width:115px;text-align:${isRtl ? 'left' : 'right'};">${isAr ? ku('المجموع الكلي') : isKu ? ku('کۆی گشتی') : 'Total'} (${isUsd ? '$' : 'IQD'})</th>
+        <th style="width:105px;text-align:${isRtl ? 'left' : 'right'};">${isAr ? ku('المدفوع') : isKu ? ku('دراو') : 'Paid'} (${isUsd ? '$' : 'IQD'})</th>
+        <th style="width:95px;text-align:${isRtl ? 'left' : 'right'};">${isAr ? ku('الدين') : isKu ? ku('قەرز') : 'Debt'} (${isUsd ? '$' : 'IQD'})</th>
       </tr>
     </thead>
     <tbody>
@@ -410,10 +415,10 @@ export function buildSalesAuditReportHTML(
     ${sales.length > 0 ? `
     <tfoot>
       <tr>
-        <td colspan="6" style="text-align:${dir === 'rtl' ? 'right' : 'left'};color:#0F172A;font-weight:800;font-size:13px;">${isKurdish ? ku('کۆی گشتی هەموو پسوولەکان:') : 'Grand Total for All Invoices:'}</td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#0284C7;font-weight:800;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalRevenue)}</span></td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:#059669;font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalPaid)}</span></td>
-        <td style="text-align:${dir === 'rtl' ? 'left' : 'right'};color:${totalDebt > 0 ? '#DC2626' : '#64748B'};font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalDebt)}</span></td>
+        <td colspan="6" style="text-align:${isRtl ? 'right' : 'left'};color:#0F172A;font-weight:800;font-size:13px;">${isAr ? ku('المجموع الكلي لجميع الفواتير:') : isKu ? ku('کۆی گشتی هەموو پسوولەکان:') : 'Grand Total for All Invoices:'}</td>
+        <td style="text-align:${isRtl ? 'left' : 'right'};color:#0284C7;font-weight:800;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalRevenue)}</span></td>
+        <td style="text-align:${isRtl ? 'left' : 'right'};color:#059669;font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalPaid)}</span></td>
+        <td style="text-align:${isRtl ? 'left' : 'right'};color:${totalDebt > 0 ? '#DC2626' : '#64748B'};font-weight:700;white-space:nowrap;"><span class="en-num" dir="ltr">${fmtMoney(totalDebt)}</span></td>
       </tr>
     </tfoot>` : ''}
   </table>
@@ -421,18 +426,18 @@ export function buildSalesAuditReportHTML(
   <!-- Signoff section -->
   <div class="signoff-box">
     <div class="signoff-col">
-      <div class="signoff-label">${isKurdish ? ku('پەسەندکردنی خاوەنکار / بەڕێوەبەر:') : 'Manager / Owner Approval:'}</div>
-      <div class="signoff-line">${isKurdish ? ku('مۆر و واژوو') : 'Stamp & Signature'}</div>
+      <div class="signoff-label">${isAr ? ku('موافقة صاحب العمل / المدير:') : isKu ? ku('پەسەندکردنی خاوەنکار / بەڕێوەبەر:') : 'Manager / Owner Approval:'}</div>
+      <div class="signoff-line">${isAr ? ku('الختم والتوقيع') : isKu ? ku('مۆر و واژوو') : 'Stamp & Signature'}</div>
     </div>
     <div class="signoff-col">
-      <div class="signoff-label">${isKurdish ? ku('واژووی وردبینیکاری جەرد / ژمێریار:') : 'Auditor / Accountant Signature:'}</div>
-      <div class="signoff-line">${isKurdish ? ku('ناو و بەروار') : 'Name & Date'}</div>
+      <div class="signoff-label">${isAr ? ku('توقيع مدقق الجرد / المحاسب:') : isKu ? ku('واژووی وردبینیکاری جەرد / ژمێریار:') : 'Auditor / Accountant Signature:'}</div>
+      <div class="signoff-line">${isAr ? ku('الاسم والتاريخ') : isKu ? ku('ناو و بەروار') : 'Name & Date'}</div>
     </div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
-    ${isKurdish
+    ${(isAr || isKu)
       ? `${ku(pdfDevelopedByText())} &bull; <span class="en-num" dir="ltr">${PDF_BRAND_WEBSITE}</span> &bull; <span class="en-num" dir="ltr">${dateStr} &bull; ${timeStr}</span>`
       : `${pdfDevelopedByText()} &bull; <span class="en-num" dir="ltr">${PDF_BRAND_WEBSITE}</span> &bull; <span class="en-num" dir="ltr">${dateStr} at ${timeStr}</span>`}
   </div>

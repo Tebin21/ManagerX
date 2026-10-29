@@ -32,8 +32,13 @@ import { resolveImageUri } from '@/lib/imageStorage';
 function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPress: () => void }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const isDirect = isDirectSupplierName(supplier.name);
+  const displayName = isDirect
+    ? (isArLanguage ? 'المورد المباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier')
+    : supplier.name;
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -80,13 +85,13 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
       <View style={[styles.cardBody, { gap: isRTL ? (isTablet ? 6 : RTL_SPACING.stackGap) : (isTablet ? 4 : 0) }]}>
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
           <Text style={[styles.cardName, { color: colors.black, textAlign, fontSize: isTabletLandscape ? 19.5 : isTablet ? 18 : 15, marginBottom: isRTL ? 0 : 2 }]} numberOfLines={1}>
-            {supplier.name}
+            {displayName}
           </Text>
           {isDirect && (
             <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
               <Ionicons name="flash" size={10} color="#D97706" />
               <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#D97706' }}>
-                {isKuLanguage ? 'سیستەم' : 'System'}
+                {isArLanguage ? 'نظام' : isKuLanguage ? 'سیستەم' : 'System'}
               </Text>
             </View>
           )}
@@ -96,9 +101,13 @@ function SupplierCard({ supplier, onPress }: { supplier: SupplierWithStats; onPr
             {supplier.phone}
           </Text>
         ) : null}
-        <Text style={[styles.cardSub, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 }]}>
-          {supplier.purchaseCount} {t('suppliers.purchases')} · <AmountText value={supplier.totalSpent} currency="IQD" variant={isTablet ? "default" : "small"} />
-        </Text>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={[styles.cardSub, { color: colors.gray400, textAlign, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 }]}>
+            {supplier.purchaseCount} {t('suppliers.purchases')}
+          </Text>
+          <Text style={[styles.cardSub, { color: colors.gray400, fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12 }]}>·</Text>
+          <AmountText value={supplier.totalSpent} currency="IQD" variant={isTablet ? "default" : "small"} />
+        </View>
       </View>
       <Ionicons name={chevronForward as never} size={isTabletLandscape ? 24 : isTablet ? 22 : 18} color={colors.gray300} style={{ marginEnd: isRTL ? RTL_SPACING.gapSm : 0 }} />
     </TouchableOpacity>

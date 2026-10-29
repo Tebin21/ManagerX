@@ -23,8 +23,13 @@ export interface SupplierCardProps {
 function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardProps) {
   const { colors, isDark } = useAppTheme();
   const { t } = useTranslation();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const isDirect = isDirectSupplierName(supplier.name);
+  const displayName = isDirect
+    ? (isArLanguage ? 'المورد المباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier')
+    : supplier.name;
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { chevronForward } = useDirectionalChevron();
   const { isTablet, isTabletLandscape } = useResponsive();
@@ -49,7 +54,7 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
           <View style={[styles.gridPillBadge, { backgroundColor: isDirect ? '#FEF3C7' : colors.softBlue }]}>
             <Ionicons name={isDirect ? "flash" : "business"} size={13} color={isDirect ? "#D97706" : colors.primary} />
             <Text style={[styles.gridPillText, { color: isDirect ? '#D97706' : colors.primary, fontWeight: isDirect ? '700' : '500' }]}>
-              {isDirect ? (isKuLanguage ? 'سیستەم ⚡' : 'System ⚡') : `${supplier.purchaseCount} ${t('suppliers.purchases')}`}
+              {isDirect ? (isArLanguage ? 'نظام ⚡' : isKuLanguage ? 'سیستەم ⚡' : 'System ⚡') : `${supplier.purchaseCount} ${t('suppliers.purchases')}`}
             </Text>
           </View>
         </View>
@@ -82,7 +87,7 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
             ]}
             numberOfLines={1}
           >
-            {supplier.name}
+            {displayName}
           </Text>
           {supplier.phone ? (
             <View style={[styles.gridPhoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -176,13 +181,13 @@ function SupplierCardImpl({ supplier, onPress, layout = 'list' }: SupplierCardPr
             ]}
             numberOfLines={1}
           >
-            {supplier.name}
+            {displayName}
           </Text>
           {isDirect && (
             <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
               <Ionicons name="flash" size={10} color="#D97706" />
               <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#D97706' }}>
-                {isKuLanguage ? 'سیستەم' : 'System'}
+                {isArLanguage ? 'نظام' : isKuLanguage ? 'سیستەم' : 'System'}
               </Text>
             </View>
           )}

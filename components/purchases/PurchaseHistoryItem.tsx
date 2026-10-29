@@ -25,7 +25,10 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
   const styles = useMemo(() => getStyles(colors, isDark, isTablet), [colors, isDark, isTablet]);
   const isPaid = purchase.paymentStatus === 'paid';
   const isFib = purchase.paymentStatus === 'fib';
@@ -57,7 +60,7 @@ export function PurchaseHistoryItem({ purchase, onPress, onDelete }: Props) {
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginTop: isRTL ? RTL_SPACING.title : 1 }}>
                   <Ionicons name="flash" size={11} color="#D97706" />
                   <Text style={[styles.supplierName, { color: isDark ? '#FBBF24' : '#B45309', fontWeight: '700', textAlign }]} numberOfLines={1}>
-                    {isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
+                    {isAr ? 'مورد مباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
                   </Text>
                 </View>
               ) : (

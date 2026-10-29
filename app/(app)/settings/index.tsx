@@ -227,23 +227,14 @@ export default function SettingsScreen() {
                   icon="language"
                   color={tileColors.language}
                   label={t('settings.language')}
-                  sub={language === 'ku' ? 'کوردی' : 'English'}
-                  chevron={false}
+                  sub={language === 'ku' ? 'کوردی' : language === 'ar' ? 'العربية' : 'English'}
                   disabled={permLanguage.isDisabled}
-                  rightElement={
-                    permLanguage.isDisabled ? undefined : (
-                      <LanguageToggleSwitch
-                        value={language === 'ku'}
-                        onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
-                      />
-                    )
-                  }
                   onPress={() => {
                     if (permLanguage.isDisabled) {
                       Alert.alert(t('common.error'), t('management.disabledNotice'));
                       return;
                     }
-                    setLanguage(language === 'ku' ? 'en' : 'ku');
+                    router.push('/(app)/settings/language' as never);
                   }}
                 />
               )}

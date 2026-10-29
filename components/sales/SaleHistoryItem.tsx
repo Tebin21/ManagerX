@@ -24,20 +24,25 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { chevronForward } = useDirectionalChevron();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
 
   const isDirectCustomer = !sale.customerName ||
+    !sale.customerId ||
     sale.customerName === 'کڕیاری ڕاستەوخۆ' ||
     sale.customerName === 'Direct Customer' ||
-    sale.customerName === 'Walk-in Customer';
+    sale.customerName === 'Walk-in Customer' ||
+    sale.customerName === 'زبون مباشر';
 
   const cashTint = useMemo(() => getStatusTint('success', colors, isDark), [colors, isDark]);
   const debtTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
 
   const paymentColors: Record<string, { bg: string; text: string; label: string }> = {
-    cash: { bg: cashTint.bg, text: cashTint.text, label: isKuLanguage ? 'کاش' : 'Cash' },
+    cash: { bg: cashTint.bg, text: cashTint.text, label: isAr ? 'نقداً' : isKuLanguage ? 'کاش' : 'Cash' },
     fib:  { bg: colors.lightBlue, text: colors.darkBlue, label: 'FIB' },
-    debt: { bg: debtTint.bg, text: debtTint.text, label: isKuLanguage ? 'قەرز' : 'Debt' },
+    debt: { bg: debtTint.bg, text: debtTint.text, label: isAr ? 'آجل' : isKuLanguage ? 'قەرز' : 'Debt' },
   };
 
   const badge = paymentColors[sale.paymentMethod] ?? paymentColors.cash;
@@ -58,7 +63,7 @@ export function SaleHistoryItem({ sale, onPress }: Props) {
               ]}
               numberOfLines={1}
             >
-              {isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer'}
+              {isAr ? 'زبون مباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer'}
             </Text>
           </View>
         ) : (

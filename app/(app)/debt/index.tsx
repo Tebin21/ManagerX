@@ -150,7 +150,9 @@ function SalesDebtCardImpl({
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuLanguage = currentLang === 'ku';
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -268,7 +270,9 @@ function PurchaseDebtCardImpl({
   const purchaseAvatarTint = useMemo(() => getStatusTint('error', colors, isDark), [colors, isDark]);
   const { flexDirection, alignEnd, isRTL } = useRTL();
   const { chevronForward } = useDirectionalChevron();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuLanguage = currentLang === 'ku';
   const overdueLevel = getOverdueLevel(debt.lastPaymentAt, debt.createdAt, debt.remainingAmount);
   const displayStatus = getDebtDisplayStatus(debt.paidAmount, debt.remainingAmount, overdueLevel);
 
@@ -331,9 +335,9 @@ function PurchaseDebtCardImpl({
               ]}
               numberOfLines={1}
             >
-              {debt.productName} • {isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
-              {debt.batchQuantity ? ` (${debt.batchQuantity} ${isKuLanguage ? 'دانە' : 'pcs'})` : ''}
-              {debt.totalBatches && debt.totalBatches > 1 ? ` · ${isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}` : ''}
+              {debt.productName} • {isAr ? `الوجبة ${debt.batchNumber || 1}` : isKuLanguage ? `وەجبەی ${debt.batchNumber || 1}` : `Batch #${debt.batchNumber || 1}`}
+              {debt.batchQuantity ? ` (${debt.batchQuantity} ${isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs'})` : ''}
+              {debt.totalBatches && debt.totalBatches > 1 ? ` · ${isAr ? `من إجمالي ${debt.totalBatches} وجبات` : isKuLanguage ? `لە کۆی ${debt.totalBatches} وەجبە` : `of ${debt.totalBatches}`}` : ''}
             </Text>
           </View>
         ) : null}
@@ -391,7 +395,9 @@ function QuickPayModal({
   const { isTablet } = useResponsive();
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
   const { flexDirection, textAlign, isRTL } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuLanguage = currentLang === 'ku';
   const baseCurrency = useSettingsStore((s) => s.baseCurrency);
   const exchangeRate = useSettingsStore((s) => s.exchangeRate) || 1310;
   const isUSD = baseCurrency === 'USD';
@@ -512,7 +518,7 @@ function QuickPayModal({
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKuLanguage ? 'تەواوی بڕ' : 'Full'}
+                {isAr ? 'كامل المبلغ' : isKuLanguage ? 'تەواوی بڕ' : 'Full'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -706,7 +712,9 @@ export default function DebtScreen() {
   const styles = useMemo(() => getStyles(colors, isTablet, isTabletLandscape), [colors, isTablet, isTabletLandscape]);
   const toneStyles = useMemo(() => getToneStyles(colors, isDark), [colors, isDark]);
   const { flexDirection, textAlign, writingDirection, isRTL } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuLanguage = currentLang === 'ku';
   const {
     summary, isLoading, salesDebts, purchaseDebts,
     loadAll, paySalesDebt, payPurchaseDebt,
@@ -853,13 +861,13 @@ export default function DebtScreen() {
 
   // Period label for PDF & UI
   const periodDisplayLabel = useMemo(() => {
-    if (periodKey === 'all') return isKuLanguage ? 'هەمووی' : 'All Time';
-    if (periodKey === 'today') return isKuLanguage ? 'ئەمڕۆ' : 'Today';
-    if (periodKey === 'week') return isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
-    if (periodKey === 'month') return isKuLanguage ? 'ئەم مانگە' : 'This Month';
-    if (periodKey === 'year') return isKuLanguage ? 'ئەمساڵ' : 'This Year';
+    if (periodKey === 'all') return isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time';
+    if (periodKey === 'today') return isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today';
+    if (periodKey === 'week') return isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
+    if (periodKey === 'month') return isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month';
+    if (periodKey === 'year') return isAr ? 'هذه السنة' : isKuLanguage ? 'ئەمساڵ' : 'This Year';
     if (customRange) return `${customRange.from} → ${customRange.to}`;
-    return isKuLanguage ? 'دیاریکراو' : 'Custom';
+    return isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom';
   }, [periodKey, customRange, isKuLanguage]);
 
   // Payment handler
@@ -873,18 +881,18 @@ export default function DebtScreen() {
         setPayTarget(null);
         if (isSettling) {
           Alert.alert(
-            isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
+            isAr ? 'تسوية الدين' : isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
             isKuLanguage
               ? 'قەرزەکە بە سەرکەوتوویی تەواو کرا. ئایا دەتەوێت وەسڵی قەرزەکە پرینت بکەیت؟'
               : 'The debt has been fully settled. Would you like to print the debt receipt?',
             [
               {
-                text: isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
+                text: isAr ? 'لا / رجوع' : isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
                 style: 'cancel',
                 onPress: () => router.replace('/(app)/sales' as never),
               },
               {
-                text: isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
+                text: isAr ? 'طباعة الوصل' : isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
                 onPress: async () => {
                   try {
                     const [d, p] = await Promise.all([
@@ -1003,7 +1011,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
       }
     } catch (err) {
       console.error('[DebtScreen] PDF Export failed:', err);
-      Alert.alert(isKuLanguage ? 'هەڵە' : 'Error', String(err));
+      Alert.alert(isAr ? 'خطأ' : isKuLanguage ? 'هەڵە' : 'Error', String(err));
     } finally {
       setIsExportingPdf(false);
     }
@@ -1020,18 +1028,18 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
   // Period Filter keys and labels
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = {
-    today:  isKuLanguage ? 'ئەمڕۆ' : t('periodFilter.today'),
-    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('periodFilter.thisWeek'),
-    month:  isKuLanguage ? 'ئەم مانگە' : t('periodFilter.thisMonth'),
-    year:   isKuLanguage ? 'ئەمساڵ' : t('periodFilter.thisYear'),
-    all:    isKuLanguage ? 'هەمووی' : 'All',
-    custom: isKuLanguage ? 'دیاریکراو' : t('periodFilter.customRange'),
+    today:  isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : t('periodFilter.today'),
+    week:   isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : t('periodFilter.thisWeek'),
+    month:  isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : t('periodFilter.thisMonth'),
+    year:   isAr ? 'هذه السنة' : isKuLanguage ? 'ئەمساڵ' : t('periodFilter.thisYear'),
+    all:    isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All',
+    custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : t('periodFilter.customRange'),
   };
 
   const netBalanceColor = reportNetBalance >= 0 ? '#10B981' : colors.error;
   const netBalanceDesc = reportNetBalance >= 0
-    ? (isKuLanguage ? 'باڵانس لە قازانجی ئێمەیە (کڕیاران زیاتر قەرزدارن)' : 'In Our Favor (Customers owe us more)')
-    : (isKuLanguage ? 'باڵانس لە بەرژەوەندی دابینکەرانە (دەبێت زیاتر بدەین)' : 'In Suppliers Favor (We owe suppliers more)');
+    ? (isAr ? 'الرصيد لصالحنا (الزبائن مدينون أكثر)' : isKuLanguage ? 'باڵانس لە قازانجی ئێمەیە (کڕیاران زیاتر قەرزدارن)' : 'In Our Favor (Customers owe us more)')
+    : (isAr ? 'الرصيد لصالح الموردين (علينا التزامات أكثر)' : isKuLanguage ? 'باڵانس لە بەرژەوەندی دابینکەرانە (دەبێت زیاتر بدەین)' : 'In Suppliers Favor (We owe suppliers more)');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
@@ -1367,7 +1375,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
               isCurrency
               icon="arrow-down-circle"
               color="#10B981"
-              subtitle={isKuLanguage ? 'قەرزی کڕیاران' : 'Receivables'}
+              subtitle={isAr ? 'ديون الزبائن' : isKuLanguage ? 'قەرزی کڕیاران' : 'Receivables'}
               delay={30}
             />
 
@@ -1378,7 +1386,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
               isCurrency
               icon="arrow-up-circle"
               color={colors.error}
-              subtitle={isKuLanguage ? 'قەرزی دابینکەران' : 'Payables'}
+              subtitle={isAr ? 'ديون الموردين' : isKuLanguage ? 'قەرزی دابینکەران' : 'Payables'}
               delay={60}
             />
 
@@ -1388,18 +1396,18 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
               value={reportOverdueCount}
               icon="alert-circle"
               color={reportOverdueCount > 0 ? colors.error : colors.gray500}
-              subtitle={reportOverdueCount > 0 ? (isKuLanguage ? 'دواکەوتوو' : 'Overdue') : (isKuLanguage ? 'ئاسایی' : 'Normal')}
+              subtitle={reportOverdueCount > 0 ? (isAr ? 'متأخر' : isKuLanguage ? 'دواکەوتوو' : 'Overdue') : (isAr ? 'طبيعي' : isKuLanguage ? 'ئاسایی' : 'Normal')}
               isAlert={reportOverdueCount > 0}
               delay={90}
             />
 
             {/* 4. Total Debts / کۆی بڕی قەرزەکان */}
             <DashboardMetricSquare
-              title={isKuLanguage ? 'کۆی بڕی قەرزەکان' : 'Total Debts'}
+              title={isAr ? 'إجمالي الديون' : isKuLanguage ? 'کۆی بڕی قەرزەکان' : 'Total Debts'}
               value={reportActiveDebtsCount}
               icon="layers"
               color="#6366F1"
-              subtitle={isKuLanguage ? 'قەرزە چالاکەکان' : 'Active Debts'}
+              subtitle={isAr ? 'الديون النشطة' : isKuLanguage ? 'قەرزە چالاکەکان' : 'Active Debts'}
               delay={120}
             />
           </View>
@@ -1422,7 +1430,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                 >
-                  {isKuLanguage ? 'باڵانسی پوختەی قەرزەکان' : 'Net Debt Balance'}
+                  {isAr ? 'صافي رصيد الديون' : isKuLanguage ? 'باڵانسی پوختەی قەرزەکان' : 'Net Debt Balance'}
                 </Text>
                 <Text style={[styles.netBalanceSubtitle, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
                   {netBalanceDesc}
@@ -1451,7 +1459,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                 >
-                  {isKuLanguage ? 'قەرزی کڕیاران' : 'Customer Debts'}
+                  {isAr ? 'ديون الزبائن' : isKuLanguage ? 'قەرزی کڕیاران' : 'Customer Debts'}
                 </Text>
                 <Text style={{ fontSize: 12, color: colors.gray400 }}>
                   ({periodFilteredSales.length})
@@ -1462,7 +1470,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
               >
                 <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
-                  {isKuLanguage ? 'بینینی هەمووی' : 'View All'}
+                  {isAr ? 'عرض الكل' : isKuLanguage ? 'بینینی هەمووی' : 'View All'}
                 </Text>
                 <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
               </TouchableOpacity>
@@ -1508,7 +1516,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                 >
-                  {isKuLanguage ? 'قەرزی دابینکەران' : 'Supplier Debts'}
+                  {isAr ? 'ديون الموردين' : isKuLanguage ? 'قەرزی دابینکەران' : 'Supplier Debts'}
                 </Text>
                 <Text style={{ fontSize: 12, color: colors.gray400 }}>
                   ({periodFilteredPurchase.length})
@@ -1519,7 +1527,7 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 style={[styles.previewViewAll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
               >
                 <Text style={[styles.previewViewAllText, { color: colors.primary }]}>
-                  {isKuLanguage ? 'بینینی هەمووی' : 'View All'}
+                  {isAr ? 'عرض الكل' : isKuLanguage ? 'بینینی هەمووی' : 'View All'}
                 </Text>
                 <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={colors.primary} />
               </TouchableOpacity>
@@ -1567,11 +1575,11 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleSales.length}
+              {periodDisplayLabel}{query ? ` (${isAr ? 'بحث' : isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visibleSales.length}
             </Text>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
               <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
-                {isKuLanguage ? 'کۆی ماوە:' : 'Total Remaining:'}
+                {isAr ? 'المجموع المتبقي:' : isKuLanguage ? 'کۆی ماوە:' : 'Total Remaining:'}
               </Text>
               <AmountText
                 value={visibleSales.reduce((s, d) => s + (d.remainingAmount || 0), 0)}
@@ -1642,11 +1650,11 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {periodDisplayLabel}{query ? ` (${isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visiblePurchase.length}
+              {periodDisplayLabel}{query ? ` (${isAr ? 'بحث' : isKuLanguage ? 'گەڕان' : 'Search'})` : ''}: {visiblePurchase.length}
             </Text>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 }}>
               <Text style={[styles.summaryStripText, { color: colors.gray500 }]}>
-                {isKuLanguage ? 'کۆی ماوە:' : 'Total Remaining:'}
+                {isAr ? 'المجموع المتبقي:' : isKuLanguage ? 'کۆی ماوە:' : 'Total Remaining:'}
               </Text>
               <AmountText
                 value={visiblePurchase.reduce((s, d) => s + (d.remainingAmount || 0), 0)}

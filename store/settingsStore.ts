@@ -25,6 +25,8 @@ export interface SalesReceiptSettings {
   showPaymentMethod: boolean;
   showRemainingDebt: boolean;
   showNotes: boolean;
+  showSignature?: boolean;
+  showAboutPolicy?: boolean;
   showFooterBarcode: boolean;
   customFooterNote: string;
 }
@@ -45,6 +47,8 @@ export interface PurchaseReceiptSettings {
   showPaymentMethod: boolean;
   showRemainingDebt: boolean;
   showNotes: boolean;
+  showSignature?: boolean;
+  showAboutPolicy?: boolean;
   showFooterBarcode: boolean;
   customFooterNote: string;
 }
@@ -79,6 +83,8 @@ export interface InventoryReceiptSettings {
   showStatus: boolean;
   showDate: boolean;
   showNotes: boolean;
+  showStatsCards?: boolean;
+  showSignatureArea?: boolean;
   customFooterNote: string;
 }
 
@@ -96,6 +102,8 @@ export const DEFAULT_SALES_RECEIPT_SETTINGS: SalesReceiptSettings = {
   showPaymentMethod: true,
   showRemainingDebt: true,
   showNotes: true,
+  showSignature: true,
+  showAboutPolicy: true,
   showFooterBarcode: true,
   customFooterNote: 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن',
 };
@@ -116,6 +124,8 @@ export const DEFAULT_PURCHASE_RECEIPT_SETTINGS: PurchaseReceiptSettings = {
   showPaymentMethod: true,
   showRemainingDebt: true,
   showNotes: true,
+  showSignature: true,
+  showAboutPolicy: true,
   showFooterBarcode: true,
   customFooterNote: 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم',
 };
@@ -150,6 +160,8 @@ export const DEFAULT_INVENTORY_RECEIPT_SETTINGS: InventoryReceiptSettings = {
   showStatus: true,
   showDate: true,
   showNotes: true,
+  showStatsCards: true,
+  showSignatureArea: true,
   customFooterNote: 'ڕاپۆرتی سەرژمێری و تۆماری فەرمی کۆگا',
 };
 

@@ -25,13 +25,17 @@ export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const showDashboardNavigation = useModuleStore((s) => s.showDashboardNavigation ?? true);
+  const isEmployee = useManagementStore((s) => s.isEmployee);
   const isManager = useManagementStore((s) => s.isManager);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
   const allEmployees = useManagementStore((s) => s.employees);
   const user = useAuthStore((s) => s.user);
   const isAdmin = isAdminEmail(user?.email);
   const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
-  const showManagementBanner = isManager || isAdmin;
+
+  // Management banner is strictly hidden for employees and normal users.
+  // Visible ONLY to Super Admin or verified Managers who supervise active staff accounts.
+  const showManagementBanner = !isEmployee && (isAdmin || (isManager && managedEmployees.length > 0));
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
 

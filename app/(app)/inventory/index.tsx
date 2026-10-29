@@ -109,7 +109,10 @@ export default function InventoryScreen() {
 
   const { colors, isDark } = useAppTheme();
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
 
   const params = useLocalSearchParams<{ tab?: string }>();
 
@@ -179,14 +182,14 @@ export default function InventoryScreen() {
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = useMemo(
     () => ({
-      today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
-      week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
-      month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
-      year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
-      all: isKuLanguage ? 'هەمووی' : 'All Time',
-      custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+      today: isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today',
+      week: isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+      month: isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month',
+      year: isAr ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : 'This Year',
+      all: isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time',
+      custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom',
     }),
-    [isKuLanguage]
+    [isKuLanguage, isAr]
   );
 
   const { isRTL, textAlign, writingDirection, flexDirection } = useRTL();

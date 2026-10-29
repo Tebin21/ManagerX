@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
-import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
 import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { computeProductLowStock } from '@/lib/lowStock';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -49,7 +49,10 @@ export function InventoryReportView({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
   const { globalLowStockEnabled, globalLowStockThreshold } = useSettingsStore();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
@@ -63,14 +66,14 @@ export function InventoryReportView({
   const periodKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const periodLabels: Record<PeriodKey, string> = useMemo(
     () => ({
-      today: isKuLanguage ? 'ئەمڕۆ' : 'Today',
-      week: isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
-      month: isKuLanguage ? 'ئەم مانگە' : 'This Month',
-      year: isKuLanguage ? 'ئەمساڵ' : 'This Year',
-      all: isKuLanguage ? 'هەمووی' : 'All Time',
-      custom: isKuLanguage ? 'دیاریکراو' : 'Custom',
+      today: isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today',
+      week: isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week',
+      month: isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month',
+      year: isAr ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : 'This Year',
+      all: isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time',
+      custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : 'Custom',
     }),
-    [isKuLanguage]
+    [isKuLanguage, isAr]
   );
 
   const bounds = useMemo(() => {
@@ -134,7 +137,7 @@ export function InventoryReportView({
   const categoryStats = useMemo(() => {
     const map: Record<string, { count: number; qty: number; cost: number }> = {};
     filteredProducts.forEach((p) => {
-      const cat = p.category?.trim() || (isKuLanguage ? 'گشتی' : 'General');
+      const cat = p.category?.trim() || (isAr ? 'عام' : isKuLanguage ? 'گشتی' : 'General');
       if (!map[cat]) map[cat] = { count: 0, qty: 0, cost: 0 };
       map[cat].count += 1;
       map[cat].qty += p.quantity || 0;
@@ -254,8 +257,8 @@ export function InventoryReportView({
             ]}
           >
             <Ionicons name="eye-outline" size={13} color={colors.gray400} />
-            <Text style={[styles.readOnlyText, { color: colors.gray400 }]}>
-              {isKuLanguage ? 'تەنها بینین' : 'View Only'}
+            <Text style={[styles.readOnlyText, { color: colors.gray400 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }]}>
+              {isAr ? 'عرض فقط' : isKuLanguage ? 'تەنها بینین' : 'View Only'}
             </Text>
           </View>
         </View>
@@ -270,7 +273,7 @@ export function InventoryReportView({
           isCurrency
           icon="wallet"
           color="#10B981"
-          subtitle={isKuLanguage ? 'بەهای کڕین' : 'Cost Value'}
+          subtitle={isAr ? 'قيمة التكلفة' : isKuLanguage ? 'بەهای کڕین' : 'Cost Value'}
           delay={30}
         />
 
@@ -281,7 +284,7 @@ export function InventoryReportView({
           isCurrency
           icon="pricetags"
           color="#8B5CF6"
-          subtitle={isKuLanguage ? 'فرۆشتنەوە' : 'Selling'}
+          subtitle={isAr ? 'سعر البيع' : isKuLanguage ? 'فرۆشتنەوە' : 'Selling'}
           delay={60}
         />
 
@@ -294,9 +297,13 @@ export function InventoryReportView({
           color={expectedProfit >= 0 ? '#059669' : colors.error}
           subtitle={
             expectedProfit >= 0
-              ? isKuLanguage
+              ? isAr
+                ? 'ربح'
+                : isKuLanguage
                 ? 'قازانج'
                 : 'Profit'
+              : isAr
+              ? 'خسارة'
               : isKuLanguage
               ? 'زەرەر'
               : 'Loss'
@@ -310,7 +317,7 @@ export function InventoryReportView({
           value={filteredProducts.length}
           icon="cube"
           color="#06B6D4"
-          subtitle={isKuLanguage ? 'بەرهەم' : 'Items'}
+          subtitle={isAr ? 'المواد' : isKuLanguage ? 'بەرهەم' : 'Items'}
           delay={120}
         />
 
@@ -320,7 +327,7 @@ export function InventoryReportView({
           value={totalQuantity}
           icon="layers"
           color="#6366F1"
-          subtitle={isKuLanguage ? 'کۆی بڕ' : 'Pieces'}
+          subtitle={isAr ? 'القطع' : isKuLanguage ? 'کۆی بڕ' : 'Pieces'}
           delay={150}
         />
 
@@ -333,9 +340,13 @@ export function InventoryReportView({
           isAlert={lowStockProducts.length > 0}
           subtitle={
             lowStockProducts.length > 0
-              ? isKuLanguage
+              ? isAr
+                ? 'تنبيه'
+                : isKuLanguage
                 ? 'ئاگاداری'
                 : 'Low'
+              : isAr
+              ? 'سليم'
               : isKuLanguage
               ? 'باشە'
               : 'OK'
@@ -350,7 +361,7 @@ export function InventoryReportView({
           icon="close-circle"
           color="#F59E0B"
           isAlert={outOfStockProducts.length > 0}
-          subtitle={isKuLanguage ? 'سفر' : 'Zero'}
+          subtitle={isAr ? 'صفر' : isKuLanguage ? 'سفر' : 'Zero'}
           delay={210}
         />
 
@@ -360,7 +371,7 @@ export function InventoryReportView({
           value={suppliersCount}
           icon="business"
           color="#14B8A6"
-          subtitle={isKuLanguage ? 'دابینکەر' : 'Suppliers'}
+          subtitle={isAr ? 'الموردين' : isKuLanguage ? 'دابینکەر' : 'Suppliers'}
           delay={240}
         />
 
@@ -371,7 +382,7 @@ export function InventoryReportView({
           isCurrency
           icon="checkmark-circle"
           color="#10B981"
-          subtitle={isKuLanguage ? 'پارەدراو' : 'Paid'}
+          subtitle={isAr ? 'مدفوع' : isKuLanguage ? 'پارەدراو' : 'Paid'}
           delay={270}
           containerStyle={isTablet ? { width: '49.2%' } : undefined}
         />
@@ -383,7 +394,7 @@ export function InventoryReportView({
           isCurrency
           icon="arrow-up-circle"
           color="#DC2626"
-          subtitle={isKuLanguage ? 'قەرز' : 'Debt'}
+          subtitle={isAr ? 'آجل' : isKuLanguage ? 'قەرز' : 'Debt'}
           delay={300}
           containerStyle={isTablet ? { width: '49.2%' } : undefined}
         />
@@ -496,10 +507,12 @@ export function InventoryReportView({
               style={[
                 styles.cardTitle,
                 { color: colors.error, textAlign },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
             >
-              {isKuLanguage
+              {isAr
+                ? `تنبيه نقص المواد (${toEnglishDigits(lowStockProducts.length)})`
+                : isKuLanguage
                 ? `ئاگاداری کەمیی کاڵاکان (${toEnglishDigits(lowStockProducts.length)})`
                 : `Low Stock Warning (${lowStockProducts.length})`}
             </Text>
@@ -523,14 +536,14 @@ export function InventoryReportView({
                     style={[
                       styles.lowStockName,
                       { color: colors.darkBlue, textAlign },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                     numberOfLines={1}
                   >
                     {item.name}
                   </Text>
                   <Text style={[styles.lowStockCat, { color: colors.gray400, textAlign }]}>
-                    {item.category || (isKuLanguage ? 'گشتی' : 'General')}
+                    {item.category || (isAr ? 'عام' : isKuLanguage ? 'گشتی' : 'General')}
                   </Text>
                 </View>
 
@@ -544,7 +557,7 @@ export function InventoryReportView({
                   ]}
                 >
                   <Text style={[styles.lowStockBadgeText, { color: colors.error, writingDirection: 'ltr' }]}>
-                    {toEnglishDigits(item.quantity)} {item.unit || (isKuLanguage ? 'دانە' : 'pcs')}
+                    {toEnglishDigits(item.quantity)} {item.unit || (isAr ? 'قطعة' : isKuLanguage ? 'دانە' : 'pcs')}
                   </Text>
                 </View>
               </View>

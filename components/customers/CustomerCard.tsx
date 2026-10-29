@@ -32,8 +32,13 @@ function CustomerCardImpl({ customer, onPress, layout = 'list' }: Props) {
   const styles = useMemo(() => getStyles(isTablet, isTabletLandscape, isDark), [isTablet, isTabletLandscape, isDark]);
   const hasDebt = customer.remainingDebt > 0;
 
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const isDirect = isDirectCustomerName(customer.name);
+  const displayName = isDirect
+    ? (isArLanguage ? 'الزبون المباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+    : customer.name;
 
   // ─── Square Grid Layout (چوار گۆشە) ──────────────────────────────────────────
   if (layout === 'grid') {
@@ -53,7 +58,7 @@ function CustomerCardImpl({ customer, onPress, layout = 'list' }: Props) {
         <View style={[styles.gridTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={[styles.gridPillBadge, { backgroundColor: isDirect ? '#FEF3C7' : colors.gray100 }]}>
             <Text style={[styles.gridPillText, { color: isDirect ? '#D97706' : colors.gray500, fontWeight: isDirect ? '700' : '500' }]}>
-              {isDirect ? (isKuLanguage ? 'سیستەم ⚡' : 'System ⚡') : `${customer.saleCount} ${t('suppliers.purchases')}`}
+              {isDirect ? (isArLanguage ? 'نظام ⚡' : isKuLanguage ? 'سیستەم ⚡' : 'System ⚡') : `${customer.saleCount} ${t('suppliers.purchases')}`}
             </Text>
           </View>
           {hasDebt ? (
@@ -91,7 +96,7 @@ function CustomerCardImpl({ customer, onPress, layout = 'list' }: Props) {
             ]}
             numberOfLines={1}
           >
-            {customer.name}
+            {displayName}
           </Text>
           {customer.phone ? (
             <View style={[styles.gridPhoneRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -185,12 +190,12 @@ function CustomerCardImpl({ customer, onPress, layout = 'list' }: Props) {
       <View style={[styles.body, { gap: isRTL ? RTL_SPACING.stackGap : 2 }]}>
         <View style={[styles.nameRow, { flexDirection, gap: isRTL ? RTL_SPACING.gap : 8, marginBottom: 2 }]}>
           <Text style={[styles.name, { color: colors.black, textAlign }]} numberOfLines={1}>
-            {customer.name}
+            {displayName}
           </Text>
           {isDirect && (
             <View style={[styles.debtBadge, { backgroundColor: '#FEF3C7' }]}>
               <Text style={[styles.debtBadgeText, { color: '#D97706', fontWeight: '700' }]}>
-                {isKuLanguage ? 'سیستەم ⚡' : 'System ⚡'}
+                {isArLanguage ? 'نظام ⚡' : isKuLanguage ? 'سیستەم ⚡' : 'System ⚡'}
               </Text>
             </View>
           )}

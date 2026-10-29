@@ -121,10 +121,16 @@ export function pdfDevelopedByText(): string {
 // literal, so a future rebrand only touches this file.
 export const PDF_DEVELOPED_BY_EN = `Developed by ${PDF_BRAND_NAME}`;
 
-// Shared by every PDF template that wraps already-translated Kurdish label/
+// Shared by every PDF template that wraps already-translated Kurdish/Arabic label/
 // heading HTML in a `.ku-text` span (font-family: 'Bahij Janna', dir="rtl")
 export function isKurdishPdfActive(): boolean {
-  return i18n.language === 'ku';
+  return i18n.language === 'ku' || i18n.language === 'ar';
+}
+
+export function currentPdfLanguage(): 'ku' | 'ar' | 'en' {
+  if (i18n.language === 'ar') return 'ar';
+  if (i18n.language === 'ku') return 'ku';
+  return 'en';
 }
 
 export function kuSpan(html: string, heading = false): string {

@@ -22,6 +22,8 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useAuthStore } from '@/store/authStore';
 import { useBusinessStore } from '@/store/businessStore';
+import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import { createEmployeeAccount } from '@/lib/management/managementService';
 
 export default function NewEmployeeScreen() {
@@ -32,10 +34,20 @@ export default function NewEmployeeScreen() {
   const { isTablet, contentContainerStyle } = useResponsive();
 
   const business = useBusinessStore.getState();
-  const currentAuthUser = useAuthStore.getState().user;
+  const currentAuthUser = useAuthStore((s) => s.user);
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const isManager = useManagementStore((s) => s.isManager);
+  const isAdmin = isAdminEmail(currentAuthUser?.email);
+
+  // Security route guard: Employees or unauthorized users cannot access employee creation
+  React.useEffect(() => {
+    if (isEmployee || (!isAdmin && !isManager)) {
+      router.replace('/(app)/dashboard');
+    }
+  }, [isEmployee, isAdmin, isManager]);
 
   // Pre-fill manager email if available, otherwise blank
-  const defaultManagerEmail = currentAuthUser?.email || '';
+  const defaultManagerEmail = (currentAuthUser?.email || '').trim().toLowerCase();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,7 +69,13 @@ export default function NewEmployeeScreen() {
       Alert.alert(t('common.error'), 'تکایە وشەی نهێنی لانیکەم ٤ پیت/ژمارە بێت.');
       return;
     }
-    if (!managerEmail.trim() || !managerEmail.includes('@')) {
+
+    // Non-admin managers can strictly only bind to their own authenticated email
+    const finalManagerEmail = isAdmin
+      ? managerEmail.trim().toLowerCase()
+      : (currentAuthUser?.email || '').trim().toLowerCase();
+
+    if (!finalManagerEmail || !finalManagerEmail.includes('@')) {
       Alert.alert(t('common.error'), 'تکایە ئیمەیڵی فەرمی بەڕێوەبەر بە دروستی بنووسە.');
       return;
     }
@@ -68,7 +86,7 @@ export default function NewEmployeeScreen() {
         displayName: displayName.trim(),
         email: email.trim().toLowerCase(),
         password: password.trim(),
-        managerEmail: managerEmail.trim().toLowerCase(),
+        managerEmail: finalManagerEmail,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -197,28 +215,42 @@ export default function NewEmployeeScreen() {
 
             {/* Manager Official Email */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.black }]}>
-                {t('management.managerEmail')}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.label, { color: colors.black }]}>
+                  {t('management.managerEmail')}
+                </Text>
+                {!isAdmin && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="lock-closed" size={13} color={colors.primary} />
+                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                      تایبەت بە هەژماری خۆت
+                    </Text>
+                  </View>
+                )}
+              </View>
               <TextInput
                 style={[
                   styles.input,
                   {
                     backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
                     borderColor: colors.gray300,
-                    color: colors.black,
+                    color: !isAdmin ? colors.gray600 : colors.black,
                     textAlign: 'left',
+                    opacity: !isAdmin ? 0.85 : 1,
                   },
                 ]}
                 placeholder="manager@gmail.com"
                 placeholderTextColor={colors.gray400}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                value={managerEmail}
+                editable={isAdmin}
+                value={isAdmin ? managerEmail : (currentAuthUser?.email || '')}
                 onChangeText={setManagerEmail}
               />
               <Text style={[styles.hint, { color: colors.gray500 }]}>
-                داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.
+                {!isAdmin
+                  ? 'ئەم کارمەندە تەنها دەبەسترێتەوە بە کۆگاو مارکێتەکەی خۆت و هیچ بەڕێوەبەرێکی تر نایبینێت.'
+                  : 'داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.'}
               </Text>
             </View>
 

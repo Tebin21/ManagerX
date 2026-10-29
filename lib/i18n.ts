@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import 'intl-pluralrules';
 import en from '../locales/en.json';
 import ku from '../locales/ku.json';
+import ar from '../locales/ar.json';
 import { getItemWithLegacyFallback } from './migratedStorage';
 
 // The zustand languageStore persists under this key as a JSON envelope:
@@ -19,7 +20,7 @@ const languageDetector = {
       if (raw) {
         const parsed = JSON.parse(raw);
         const lang: string = parsed?.state?.language ?? 'ku';
-        callback(['en', 'ku'].includes(lang) ? lang : 'ku');
+        callback(['en', 'ku', 'ar'].includes(lang) ? lang : 'ku');
       } else {
         callback('ku');
       }
@@ -42,6 +43,7 @@ i18n
     resources: {
       en: { translation: en },
       ku: { translation: ku },
+      ar: { translation: ar },
     },
     fallbackLng: 'ku',
     interpolation: { escapeValue: false },

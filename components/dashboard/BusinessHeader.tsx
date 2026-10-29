@@ -65,10 +65,10 @@ interface BannerSlide {
   source: any;
 }
 
-function resolveType(type: string, isKurdish = false): { emoji: string; label: string } | null {
+function resolveType(type: string, isKurdish = false, isArabic = false): { emoji: string; label: string } | null {
   if (!type?.trim()) return null;
   const match = BUSINESS_TYPES.find((t) => t.id === type);
-  if (match) return { emoji: match.emoji, label: isKurdish ? (match.labelKu ?? match.label) : match.label };
+  if (match) return { emoji: match.emoji, label: isArabic ? (match.labelAr ?? match.label) : isKurdish ? (match.labelKu ?? match.label) : match.label };
   return { emoji: '', label: type.trim() };
 }
 
@@ -207,7 +207,9 @@ function BusinessHeaderImpl() {
   const { colors: themeColors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape, headerMaxWidth, uiScaleFactor } = useResponsive();
   const { isRTL, textAlign } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const lang = useLanguageStore((s) => s.language) || 'ku';
+  const isKurdish = lang === 'ku';
+  const isArabic = lang === 'ar';
 
   // Video backgrounds
   const [bannerVideo, setBannerVideo] = useState<string | null>(null);
@@ -405,8 +407,10 @@ function BusinessHeaderImpl() {
   const pickVideo = async () => {
     if (!ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
       Alert.alert(
-        isKurdish ? 'ئاگاداری' : 'Notice',
-        isKurdish
+        isArabic ? 'تنبيه' : isKurdish ? 'ئاگاداری' : 'Notice',
+        isArabic
+          ? 'وحدة الفيديو (expo-video) غير متوفرة في هذا الإصدار الأصلي. يرجى إعادة بناء التطبيق.'
+          : isKurdish
           ? 'مۆدیوڵی ڤیدیۆ (expo-video) لەم وەشانی نەیتیڤەی ئێستادا نییە. پێویستە ئەپەکە دووبارە بنیات بنرێتەوە (npx expo run:ios).'
           : 'Video module (expo-video) is not available in current native build. Please rebuild the app (npx expo run:ios).'
       );
@@ -417,8 +421,10 @@ function BusinessHeaderImpl() {
       const access = await ensureGalleryAccess();
       if (access === 'denied-first-time' || access === 'denied-repeat') {
         Alert.alert(
-          isKurdish ? 'ڕێگەپێدانی میدیا پێویستە' : 'Media Access Needed',
-          isKurdish
+          isArabic ? 'مطلوب إذن الوصول للوسائط' : isKurdish ? 'ڕێگەپێدانی میدیا پێویستە' : 'Media Access Needed',
+          isArabic
+            ? 'يرجى السماح بالوصول للوسائط في إعدادات الجهاز.'
+            : isKurdish
             ? 'تکایە لە ڕێکخستنەکان ڕێگە بدە بۆ هەڵبژاردنی ڤیدیۆ.'
             : 'Please allow media access in device settings.'
         );
@@ -441,8 +447,10 @@ function BusinessHeaderImpl() {
       // Reject if video is longer than 10 seconds (with minor buffer for frame rounding)
       if (durationSec > 11.5) {
         Alert.alert(
-          isKurdish ? 'ئاگاداری' : 'Warning',
-          isKurdish
+          isArabic ? 'تنبيه' : isKurdish ? 'ئاگاداری' : 'Warning',
+          isArabic
+            ? 'يجب ألا يتجاوز الفيديو 10 ثوانٍ'
+            : isKurdish
             ? 'نابێت ڤیدیۆکە لە ١٠ چرکە زیاتر بێت'
             : 'The video must not exceed 10 seconds'
         );
@@ -485,8 +493,10 @@ function BusinessHeaderImpl() {
       const access = await ensureGalleryAccess();
       if (access === 'denied-first-time' || access === 'denied-repeat') {
         Alert.alert(
-          isKurdish ? 'ڕێگەپێدانی وێنە پێویستە' : 'Photo Access Needed',
-          isKurdish
+          isArabic ? 'مطلوب إذن الوصول للصور' : isKurdish ? 'ڕێگەپێدانی وێنە پێویستە' : 'Photo Access Needed',
+          isArabic
+            ? 'يرجى السماح بالوصول للصور في إعدادات الجهاز.'
+            : isKurdish
             ? 'تکایە لە ڕێکخستنەکان ڕێگە بدە بۆ هەڵبژاردنی وێنە.'
             : 'Please allow photos access in device settings.'
         );
@@ -552,7 +562,7 @@ function BusinessHeaderImpl() {
     setActiveIndex(0);
   };
 
-  const resolved = resolveType(type, isKurdish);
+  const resolved = resolveType(type, isKurdish, isArabic);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(
     () => getStyles(isTablet, isTabletLandscape, insets.top, uiScaleFactor),

@@ -364,9 +364,14 @@ export function subscribeToManagerEmployees(
   onUpdate: (employees: EmployeeAccount[]) => void
 ): () => void {
   try {
+    const cleanManager = (managerEmail || '').trim().toLowerCase();
+    if (!cleanManager || !cleanManager.includes('@')) {
+      onUpdate([]);
+      return () => {};
+    }
+
     const db = getFirebaseFirestore();
     const colRef = collection(db, COLLECTION_NAME);
-    const cleanManager = managerEmail.trim().toLowerCase();
     const q = query(colRef);
 
     const unsubscribe = onSnapshot(
@@ -375,7 +380,10 @@ export function subscribeToManagerEmployees(
         const list: EmployeeAccount[] = [];
         snapshot.forEach((d) => {
           const data = d.data() as EmployeeAccount;
-          if (data && data.email && (data.managerEmail || '').trim().toLowerCase() === cleanManager) {
+          const empMgr = (data.managerEmail || '').trim().toLowerCase();
+          const empEmail = (data.email || '').trim().toLowerCase();
+          // Strict tenant check: Must strictly match manager's email and not be the manager themselves
+          if (data && empEmail && empMgr === cleanManager && empEmail !== cleanManager) {
             list.push({
               ...data,
               id: d.id,

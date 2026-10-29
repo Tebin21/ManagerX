@@ -56,7 +56,9 @@ function ActiveDebtCard({ debt, onPay }: DebtCardProps) {
   const warningTint = useMemo(() => getStatusTint('warning', colors, isDark), [colors, isDark]);
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [paying, setPaying] = useState(false);
@@ -261,8 +263,13 @@ export default function SupplierDetailScreen() {
   const [saving, setSaving] = useState(false);
 
   const supplier: SupplierWithStats | undefined = suppliers.find((s) => s.id === Number(id));
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const isDirectSupplier = isDirectSupplierName(supplier?.name);
+  const displaySupplierName = isDirectSupplier
+    ? (isArLanguage ? 'المورد المباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier')
+    : supplier?.name ?? '';
 
   const loadAll = useCallback(async () => {
     if (!supplier) return;
@@ -472,7 +479,9 @@ export default function SupplierDetailScreen() {
     if (isDirectSupplier) {
       Alert.alert(
         t('common.error'),
-        isKuLanguage
+        isArLanguage
+          ? 'هذا المورد مخصص للشراء المباشر (النظام) ولا يمكن حذفه بأي شكل.'
+          : isKuLanguage
           ? 'ئەم دابینکەرە تایبەتە بە کڕینی ڕاستەوخۆ (سیستەم) و بە هیچ شێوەیەک ناتوانرێت بسڕدرێتەوە.'
           : 'Direct Supplier is a permanent system account and cannot be deleted.'
       );
@@ -495,7 +504,9 @@ export default function SupplierDetailScreen() {
               if (msg === 'CANNOT_DELETE_DIRECT_SUPPLIER') {
                 Alert.alert(
                   t('common.error'),
-                  isKuLanguage
+                  isArLanguage
+                    ? 'هذا المورد مخصص للشراء المباشر (النظام) ولا يمكن حذفه بأي شكل.'
+                    : isKuLanguage
                     ? 'ئەم دابینکەرە تایبەتە بە کڕینی ڕاستەوخۆ (سیستەم) و بە هیچ شێوەیەک ناتوانرێت بسڕدرێتەوە.'
                     : 'Direct Supplier is a permanent system account and cannot be deleted.'
                 );
@@ -511,7 +522,7 @@ export default function SupplierDetailScreen() {
         },
       ]
     );
-  }, [supplier, isDirectSupplier, isKuLanguage, deleteSupplier, router, t]);
+  }, [supplier, isDirectSupplier, isKuLanguage, isArLanguage, deleteSupplier, router, t]);
 
   if (!supplier) {
     return (
@@ -525,7 +536,7 @@ export default function SupplierDetailScreen() {
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
-        title={supplier.name}
+        title={displaySupplierName || '…'}
         showBack
         onBack={() => router.back()}
         rightAction={
@@ -551,7 +562,7 @@ export default function SupplierDetailScreen() {
               <View style={[styles.directCustomerChip, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB', borderColor: isDark ? '#D97706' : '#FDE68A', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Ionicons name="flash" size={13} color="#D97706" />
                 <Text style={[styles.directCustomerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
-                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier'}
+                  {isArLanguage ? 'المورد المباشر (نظام)' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ (سیستەم)' : 'Direct Supplier'}
                 </Text>
               </View>
             )}
@@ -576,7 +587,7 @@ export default function SupplierDetailScreen() {
                 </View>
                 <View style={styles.addressContent}>
                   <Text style={[styles.addressLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-                    {isKuLanguage ? 'ناونیشان' : 'Address'}
+                    {isArLanguage ? 'العنوان' : isKuLanguage ? 'ناونیشان' : 'Address'}
                   </Text>
                   <Text style={[styles.addressText, { color: colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
                     {supplier.address}
@@ -746,7 +757,7 @@ export default function SupplierDetailScreen() {
               ) : null}
               <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
                 <Ionicons name="business-outline" size={16} color={colors.gray400} />
-                <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{supplier.name}</Text>
+                <Text style={[styles.infoText, { color: colors.black, textAlign, writingDirection }]}>{displaySupplierName}</Text>
               </View>
               {supplier.phone ? (
                 <View style={[styles.infoRow, { borderBottomColor: colors.gray100, flexDirection }]}>
@@ -944,17 +955,17 @@ export default function SupplierDetailScreen() {
       {/* Logo Picker Action Sheet */}
       <AppSheet visible={logoSheetVisible} onClose={() => setLogoSheetVisible(false)}>
         <AppSheetHeader
-          title={isKuLanguage ? 'لۆگۆ و وێنەی دابینکەر' : 'Supplier Brand / Logo'}
+          title={isArLanguage ? 'شعار وصورة المورد' : isKuLanguage ? 'لۆگۆ و وێنەی دابینکەر' : 'Supplier Brand / Logo'}
           onClose={() => setLogoSheetVisible(false)}
         />
         <Text
           style={[
             styles.sheetSubtitle,
-            isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+            (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
             { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
           ]}
         >
-          {editName || supplier.name}
+          {editName || displaySupplierName}
         </Text>
 
         {editImageUri ? (
@@ -979,14 +990,14 @@ export default function SupplierDetailScreen() {
 
         <AppSheetOption
           icon="camera-outline"
-          label={isKuLanguage ? 'گرتنی وێنە بە کامێرا' : 'Take Photo with Camera'}
+          label={isArLanguage ? 'التقاط صورة بالكاميرا' : isKuLanguage ? 'گرتنی وێنە بە کامێرا' : 'Take Photo with Camera'}
           indicator="chevron"
           onPress={pickFromCamera}
         />
 
         <AppSheetOption
           icon="images-outline"
-          label={isKuLanguage ? 'هەڵبژاردن لە گەلەری' : 'Choose from Gallery'}
+          label={isArLanguage ? 'اختيار من المعرض' : isKuLanguage ? 'هەڵبژاردن لە گەلەری' : 'Choose from Gallery'}
           indicator="chevron"
           onPress={pickFromGallery}
         />
@@ -1003,11 +1014,11 @@ export default function SupplierDetailScreen() {
             <Text
               style={[
                 styles.removeOptionLabel,
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 { color: '#EF4444', textAlign: isRTL ? 'right' : 'left' },
               ]}
             >
-              {isKuLanguage ? 'سڕینەوەی لۆگۆ' : 'Remove Logo'}
+              {isArLanguage ? 'حذف الشعار' : isKuLanguage ? 'سڕینەوەی لۆگۆ' : 'Remove Logo'}
             </Text>
           </TouchableOpacity>
         ) : null}

@@ -50,9 +50,12 @@ export function buildInventoryReportHTML(
   // PDF language follows the app's current language automatically, same as
   // every other report template -- there's no separate PDF language setting.
   // The `_dir` param is kept only for call-site signature compatibility.
-  const isKurdish = i18n.language === 'ku';
-  const dir = isKurdish ? 'rtl' : 'ltr';
-  const lang = isKurdish ? 'ku' : 'en';
+  const isKu = i18n.language === 'ku';
+  const isAr = i18n.language === 'ar';
+  const isKuOrAr = isKu || isAr;
+  const isKurdish = isKuOrAr;
+  const dir = isKuOrAr ? 'rtl' : 'ltr';
+  const lang = isAr ? 'ar' : isKu ? 'ku' : 'en';
   const t = (key: string, opts?: Record<string, unknown>): string =>
     i18n.t(`inventoryReportPdf.${key}`, opts) as string;
 

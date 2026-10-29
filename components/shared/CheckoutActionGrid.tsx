@@ -35,7 +35,9 @@ export function CheckoutActionGrid({
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKurdish = currentLang === 'ku';
+  const isArabic = currentLang === 'ar';
 
   const isSale = type === 'sale';
   const isExpanded = useSettingsStore((s) => (isSale ? s.checkoutGridExpandedSale : s.checkoutGridExpandedPurchase));
@@ -51,8 +53,10 @@ export function CheckoutActionGrid({
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
     if (targetMode === 'empty1' || targetMode === 'empty2') {
       Alert.alert(
-        isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',
-        isKurdish
+        isArabic ? 'خانة فارغة' : isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',
+        isArabic
+          ? 'هذا الزر فارغ حالياً وسيتم تخصيصه في تحديث قادم.'
+          : isKurdish
           ? 'ئەم بەتنە لە ئێستادا بەتاڵە و لە نوێکردنەوەی داهاتوودا دیاری دەکرێت.'
           : 'This button is currently empty and will be configured in a future update.'
       );
@@ -73,34 +77,34 @@ export function CheckoutActionGrid({
   }> = [
     {
       id: 'normal',
-      title: isKurdish ? 'ئاسایی' : 'Normal',
-      subtitle: isKurdish ? 'فرۆشتن و گەڕانەوە' : 'Quick Sale',
+      title: isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal',
+      subtitle: isArabic ? 'بيع وحفظ سريع' : isKurdish ? 'فرۆشتن و گەڕانەوە' : 'Quick Sale',
       icon: 'flash-outline',
     },
     {
       id: 'print',
-      title: isKurdish ? 'پرینت A4' : 'A4 Print',
-      subtitle: isKurdish ? 'چاپ و گەڕانەوە' : 'A4 Print & Return',
+      title: isArabic ? 'طباعة A4' : isKurdish ? 'پرینت A4' : 'A4 Print',
+      subtitle: isArabic ? 'طباعة وحفظ' : isKurdish ? 'چاپ و گەڕانەوە' : 'A4 Print & Return',
       icon: 'document-text-outline',
     },
     {
       id: 'print58',
       title: '58mm',
-      subtitle: isKurdish ? '5.8 cm • وەصڵی بچووک' : '5.8 cm Thermal',
+      subtitle: isArabic ? '5.8 سم • إيصال صغير' : isKurdish ? '5.8 cm • وەصڵی بچووک' : '5.8 cm Thermal',
       icon: 'receipt-outline',
       badge: '5.8 cm',
     },
     {
       id: 'print80',
       title: '80mm',
-      subtitle: isKurdish ? '8.0 cm • ستاندارد' : '8.0 cm Standard',
+      subtitle: isArabic ? '8.0 سم • قياسي' : isKurdish ? '8.0 cm • ستاندارد' : '8.0 cm Standard',
       icon: 'receipt-outline',
       badge: '8.0 cm',
     },
     {
       id: 'print110',
       title: '110mm',
-      subtitle: isKurdish ? '11.0 cm • وەصڵی پان' : '11.0 cm Wide Thermal',
+      subtitle: isArabic ? '11.0 سم • إيصال عريض' : isKurdish ? '11.0 cm • وەصڵی پان' : '11.0 cm Wide Thermal',
       icon: 'receipt-outline',
       fullWidth: true,
       badge: '11.0 cm',
@@ -118,27 +122,27 @@ export function CheckoutActionGrid({
   }> = [
     {
       id: 'normal',
-      title: isKurdish ? 'ئاسایی' : 'Normal',
-      subtitle: isKurdish ? 'کڕین و گەڕانەوە' : 'Quick Purchase',
+      title: isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal',
+      subtitle: isArabic ? 'شراء وحفظ سريع' : isKurdish ? 'کڕین و گەڕانەوە' : 'Quick Purchase',
       icon: 'flash-outline',
     },
     {
       id: 'print',
-      title: isKurdish ? 'پرینت' : 'Print',
-      subtitle: isKurdish ? 'چاپ و گەڕانەوە' : 'Print & Return',
+      title: isArabic ? 'طباعة' : isKurdish ? 'پرینت' : 'Print',
+      subtitle: isArabic ? 'طباعة وحفظ' : isKurdish ? 'چاپ و گەڕانەوە' : 'Print & Return',
       icon: 'print-outline',
     },
     {
       id: 'empty1',
-      title: isKurdish ? 'بەتاڵ ١' : 'Empty 1',
-      subtitle: isKurdish ? 'خاڵی' : 'Empty',
+      title: isArabic ? 'فارغ 1' : isKurdish ? 'بەتاڵ ١' : 'Empty 1',
+      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
       icon: 'ellipsis-horizontal-circle-outline',
       isEmpty: true,
     },
     {
       id: 'empty2',
-      title: isKurdish ? 'بەتاڵ ٢' : 'Empty 2',
-      subtitle: isKurdish ? 'خاڵی' : 'Empty',
+      title: isArabic ? 'فارغ 2' : isKurdish ? 'بەتاڵ ٢' : 'Empty 2',
+      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
       icon: 'ellipsis-horizontal-circle-outline',
       isEmpty: true,
     },
@@ -176,10 +180,12 @@ export function CheckoutActionGrid({
             style={[
               styles.sectionTitle,
               { color: colors.black, textAlign },
-              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+              (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
             ]}
           >
-            {isKurdish
+            {isArabic
+              ? (isSale ? 'طريقة إتمام البيع' : 'طريقة إتمام الشراء')
+              : isKurdish
               ? (isSale ? 'شێوازی تەواوکردنی فرۆشتن' : 'شێوازی تەواوکردنی کڕین')
               : (isSale ? 'Sale Completion Mode' : 'Purchase Completion Mode')}
           </Text>

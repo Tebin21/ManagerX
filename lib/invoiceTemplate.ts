@@ -50,10 +50,14 @@ function buildGrandTotal(
   const showIqdOnly = !isUsdBase && mode === 'iqd';
   const showBoth = !showUsdOnly && !showIqdOnly;
 
-  const usdLabel = ku(isKurdish ? 'کۆی گشتی (USD)' : 'Grand Total (USD)');
-  const iqdLabel = ku(isKurdish ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)');
-  const iqdSubLabel = ku(isKurdish ? 'کۆی گشتی بە دینار' : 'Total in IQD');
-  const usdSubLabel = ku(isKurdish ? 'کۆی گشتی بە دۆلار' : 'Total in USD');
+  const currentLang = i18n.language || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKu = currentLang === 'ku';
+
+  const usdLabel = ku(isAr ? 'المجموع الكلي (USD)' : isKu ? 'کۆی گشتی (USD)' : 'Grand Total (USD)');
+  const iqdLabel = ku(isAr ? 'المجموع الكلي (IQD)' : isKu ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)');
+  const iqdSubLabel = ku(isAr ? 'المجموع بالدينار' : isKu ? 'کۆی گشتی بە دینار' : 'Total in IQD');
+  const usdSubLabel = ku(isAr ? 'المجموع بالدولار' : isKu ? 'کۆی گشتی بە دۆلار' : 'Total in USD');
 
   if (isUsdBase) {
     const totalBlock = `
@@ -478,6 +482,8 @@ export function buildInvoiceHTML(
     showPaymentMethod: true,
     showRemainingDebt: true,
     showNotes: true,
+    showSignature: true,
+    showAboutPolicy: true,
     showFooterBarcode: true,
     customFooterNote: '',
   };
@@ -550,7 +556,11 @@ export function buildInvoiceHTML(
 
   const { totalBlock, usdCard } = buildGrandTotal(currencyMode, sale.grandTotal, rate, isUsdBase, isKurdish);
 
-  const initialMethodTag = sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
+  const currentLang = i18n.language || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKu = currentLang === 'ku';
+
+  const initialMethodTag = sale.initialPaymentMethod ? ` (${sale.initialPaymentMethod === 'fib' ? 'FIB' : (isAr ? 'نقداً' : isKu ? 'کاش' : 'Cash')})` : '';
   const paidRow = sale.paidAmount > 0 && sale.paymentMethod === 'debt' ? `
     <div class="fin-row" style="margin-top:3px;">
       <span style="color:#047857;font-weight:600;">${ku(t('amountPaid'))}${initialMethodTag}</span>
@@ -671,6 +681,16 @@ export function buildInvoiceHTML(
       </tbody>
     </table>
   </div>
+
+  ${salesSettings.showSignature !== false ? `
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:24px 32px 10px;page-break-inside:avoid;direction:${isKurdish ? 'rtl' : 'ltr'};">
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isAr ? 'توقيع الزبون / المستلم' : isKu ? 'واژووی کڕیار / وەرگر' : 'Customer Signature')}</div>
+    </div>
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isAr ? 'ختم وتوقيع المتجر' : isKu ? 'مۆر و واژووی فرۆشگا' : 'Store Stamp & Signature')}</div>
+    </div>
+  </div>` : ''}
 
 </div>
 
@@ -1083,6 +1103,8 @@ export function buildPurchaseInvoiceHTML(
     showPaymentMethod: true,
     showRemainingDebt: true,
     showNotes: true,
+    showSignature: true,
+    showAboutPolicy: true,
     showFooterBarcode: true,
     customFooterNote: '',
   };
@@ -1135,6 +1157,10 @@ export function buildPurchaseInvoiceHTML(
           <td class="right" style="width:18%;white-space:nowrap !important;font-weight:700;">${fmtRow(row.totalIQD)}</td>
         </tr>`).join('');
 
+  const currentPurchaseLang = i18n.language || 'ku';
+  const isPurchaseAr = currentPurchaseLang === 'ar';
+  const isPurchaseKu = currentPurchaseLang === 'ku';
+
   const itemsContent = `
       <div class="table-card">
         <table>
@@ -1143,8 +1169,8 @@ export function buildPurchaseInvoiceHTML(
               <th class="center" style="width:5%;min-width:30px;">#</th>
               <th style="width:51%;text-align:${kuAlign};">${ku(t('colProduct'))}</th>
               <th class="center" style="width:8%;min-width:45px;">${ku(t('colQty'))}</th>
-              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isKurdish ? 'نرخی یەکە ($)' : 'Unit Price ($)') : ku(t('colUnitPriceIqd'))}</th>
-              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isKurdish ? 'کۆ ($)' : 'Total ($)') : ku(t('totalIqd'))}</th>
+              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'سعر المفرد ($)' : isPurchaseKu ? 'نرخی یەکە ($)' : 'Unit Price ($)') : ku(t('colUnitPriceIqd'))}</th>
+              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'المجموع ($)' : isPurchaseKu ? 'کۆ ($)' : 'Total ($)') : ku(t('totalIqd'))}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1158,7 +1184,7 @@ export function buildPurchaseInvoiceHTML(
   const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
 
   const initialMethod = purchase.initialPaymentMethod || purchaseDebt?.initialPaymentMethod;
-  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isKurdish ? 'کاش' : 'Cash')})` : '';
+  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش' : 'Cash')})` : '';
   const paidRows = (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib')
     ? ''
     : `<div class="fin-row" style="margin-top:3px;"><span style="color:#047857;font-weight:600;">${ku(t('amountPaid'))}${initialMethodTag}</span><span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(paidAmount)}</span></div>
@@ -1271,6 +1297,16 @@ export function buildPurchaseInvoiceHTML(
   </div>
 
   ${itemsContent}
+
+  ${purchaseSettings.showSignature !== false ? `
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:24px 32px 10px;page-break-inside:avoid;direction:${isKurdish ? 'rtl' : 'ltr'};">
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع أمين المخزن' : isPurchaseKu ? 'واژووی وەرگری مەخزەن' : 'Warehouse Receiver')}</div>
+    </div>
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع مدير المشتريات' : isPurchaseKu ? 'واژووی سەرپەرشتیاری کڕین' : 'Procurement Manager')}</div>
+    </div>
+  </div>` : ''}
 
 </div>
 

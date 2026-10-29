@@ -41,7 +41,9 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKurdish = currentLang === 'ku';
+  const isArabic = currentLang === 'ar';
   const { isTablet, isTabletLandscape } = useResponsive();
 
   const { savedPresets, savePreset, deletePreset } = useSavedProductStore();
@@ -93,8 +95,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
   // Delete action with confirmation
   const handleDelete = (item: SavedProductPreset) => {
     Alert.alert(
-      isKurdish ? 'سڕینەوەی وێنە' : 'Delete Saved Item',
-      isKurdish
+      isArabic ? 'حذف العنصر المحفوظ' : isKurdish ? 'سڕینەوەی وێنە' : 'Delete Saved Item',
+      isArabic
+        ? `هل أنت متأكد من حذف الصورة المحفوظة "${item.name}" من قائمة المحفوظات؟`
+        : isKurdish
         ? `دڵنیایت لە سڕینەوەی وێنەی پاشەکەوتکراوی "${item.name}" لە لیستی وێنەکان؟`
         : `Are you sure you want to delete the saved item "${item.name}"?`,
       [
@@ -119,14 +123,16 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
   // Handle Add Photo: Prompt Camera or Gallery
   const handlePromptAddPhoto = () => {
     Alert.alert(
-      isKurdish ? 'زیادکردنی وێنەی نوێ' : 'Add New Photo',
-      isKurdish
+      isArabic ? 'إضافة صورة جديدة' : isKurdish ? 'زیادکردنی وێنەی نوێ' : 'Add New Photo',
+      isArabic
+        ? 'اختر مصدر الصورة للإضافة إلى مكتبة الصور المحفوظة:'
+        : isKurdish
         ? 'سەرچاوەی وێنەکە هەڵبژێرە بۆ پاشەکەوتکردن لە لیستی وێنەکان:'
         : 'Choose photo source to add to saved library:',
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: isKurdish ? '📷 کامێرا' : '📷 Camera',
+          text: isArabic ? '📷 الكاميرا' : isKurdish ? '📷 کامێرا' : '📷 Camera',
           onPress: () => {
             setTimeout(() => {
               handleCaptureCamera();
@@ -134,7 +140,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
           },
         },
         {
-          text: isKurdish ? '🖼️ گەلەری' : '🖼️ Gallery',
+          text: isArabic ? '🖼️ المعرض' : isKurdish ? '🖼️ گەلەری' : '🖼️ Gallery',
           onPress: () => {
             setTimeout(() => {
               handlePickGallery();
@@ -290,20 +296,21 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                       styles.title,
                       isTablet && { fontSize: 20 },
                       { color: colors.black, textAlign },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
+                    numberOfLines={1}
                   >
-                    {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos & Items'}
+                    {isArabic ? 'الصور المحفوظة' : isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos & Items'}
                   </Text>
                   <View style={[styles.countBadge, { backgroundColor: hexToRgba(colors.primary, 0.15) }]}>
                     <Text
                       style={[
                         styles.countBadgeText,
                         { color: colors.primary },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKurdish ? `${validSavedImages.length} وێنە` : `${validSavedImages.length} photos`}
+                      {isArabic ? `${validSavedImages.length} صور` : isKurdish ? `${validSavedImages.length} وێنە` : `${validSavedImages.length} photos`}
                     </Text>
                   </View>
                 </View>
@@ -312,10 +319,15 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     styles.subtitle,
                     isTablet && { fontSize: 13.5 },
                     { color: colors.gray400, textAlign },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
+                  numberOfLines={1}
                 >
-                  {isKurdish
+                  {isArabic
+                    ? (validSavedImages.length > 0
+                        ? `إجمالي (${validSavedImages.length}) صور محفوظة — اضغط للاختيار`
+                        : 'لا توجد صور محفوظة')
+                    : isKurdish
                     ? (validSavedImages.length > 0
                         ? `کۆی گشتی (${validSavedImages.length}) وێنەی پاشەکەوتکراو هەیە — کرتە لە یەکێکیان بکە بۆ دیاریکردن`
                         : 'هیچ وێنەیەکی پاشەکەوتکراو نییە')
@@ -338,14 +350,14 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     },
                   ]}
                 >
-                  <Ionicons name="add" size={18} color="#FFFFFF" />
+                  <Ionicons name="add" size={17} color="#FFFFFF" />
                   <Text
                     style={[
                       styles.addBtnText,
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKurdish ? 'وێنەی نوێ' : 'Add Photo'}
+                    {isArabic ? 'إضافة صورة +' : isKurdish ? 'وێنەی نوێ +' : 'Add Photo +'}
                   </Text>
                 </TouchableOpacity>
 
@@ -381,10 +393,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     textAlign,
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
                 placeholder={
-                  isKurdish
+                  isArabic
+                    ? 'ابحث باسم المادة أو الرمز...'
+                    : isKurdish
                     ? 'گەڕان بەپێی ناوی ئایتم یان کۆد...'
                     : 'Search by product name or code...'
                 }
@@ -431,10 +445,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     style={[
                       styles.emptyTitle,
                       { color: colors.black },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKurdish
+                    {isArabic
+                      ? 'لم يتم العثور على صور محفوظة'
+                      : isKurdish
                       ? 'هیچ وێنەیەکی پاشەکەوتکراو نییە'
                       : 'No Saved Photos Found'}
                   </Text>
@@ -442,10 +458,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     style={[
                       styles.emptySub,
                       { color: colors.gray400 },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                     ]}
                   >
-                    {isKurdish
+                    {isArabic
+                      ? 'الصور والمواد المسجلة في المشتريات تُحفظ هنا، أو يمكنك إضافة صور جديدة مباشرة.'
+                      : isKurdish
                       ? 'هەر کاتێک لە کاتی کڕین وێنە و ناوی ئایتمێک تۆمار بکەیت، لێرە پاشەکەوت دەکرێت بۆ کڕینەکانی داهاتوو، یان ئێستا دەتوانی وێنەی نوێ زیاد بکەیت.'
                       : 'Photos recorded in purchases are saved here, or you can add new photos directly.'}
                   </Text>
@@ -466,10 +484,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     <Text
                       style={[
                         styles.emptyAddBtnText,
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKurdish ? 'زیادکردنی یەکەم وێنە' : 'Add First Photo'}
+                      {isArabic ? 'إضافة أول صورة' : isKurdish ? 'زیادکردنی یەکەم وێنە' : 'Add First Photo'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -533,7 +551,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                       style={[
                         styles.cardName,
                         { color: colors.black, textAlign },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                       numberOfLines={1}
                     >
@@ -545,7 +563,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                         style={[
                           styles.cardDesc,
                           { color: colors.gray400, textAlign },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                         ]}
                         numberOfLines={2}
                       >
@@ -556,7 +574,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                         style={[styles.cardDescEmpty, { color: colors.gray300, textAlign }]}
                         numberOfLines={1}
                       >
-                        {isKurdish ? 'بێ وەسف' : 'No description'}
+                        {isArabic ? 'لا يوجد وصف' : isKurdish ? 'بێ وەسف' : 'No description'}
                       </Text>
                     )}
 
@@ -579,10 +597,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                           style={[
                             styles.pickPillText,
                             { color: colors.primary },
-                            isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {isKurdish ? 'هەڵبژاردن' : 'Select'}
+                          {isArabic ? 'اختيار' : isKurdish ? 'هەڵبژاردن' : 'Select'}
                         </Text>
                       </TouchableOpacity>
                     ) : (
@@ -603,10 +621,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                           style={[
                             styles.pickPillText,
                             { color: colors.gray600 },
-                            isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                            (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                           ]}
                         >
-                          {isKurdish ? 'پیشاندان' : 'View'}
+                          {isArabic ? 'عرض' : isKurdish ? 'پیشاندان' : 'View'}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -642,19 +660,21 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   style={[
                     styles.detailsTitle,
                     { color: colors.black },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'پاشەکەوتکردنی وێنەی نوێ' : 'Save New Photo'}
+                  {isArabic ? 'حفظ صورة جديدة' : isKurdish ? 'پاشەکەوتکردنی وێنەی نوێ' : 'Save New Photo'}
                 </Text>
                 <Text
                   style={[
                     styles.detailsSub,
                     { color: colors.gray400 },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                 >
-                  {isKurdish
+                  {isArabic
+                    ? 'الاسم والوصف اختياريان، يمكنك الحفظ مباشرة'
+                    : isKurdish
                     ? 'ناو و وەسف ئارەزوومەندانەن، دەتوانی بەتاڵی پاشەکەوتی بکەیت'
                     : 'Name and description are optional'}
                 </Text>
@@ -685,10 +705,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   style={[
                     styles.inputLabel,
                     { color: colors.gray600, textAlign },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'ناوی ئایتم یان وێنە (ئارەزوومەندانە)' : 'Item Name (Optional)'}
+                  {isArabic ? 'اسم المادة أو الصورة (اختياري)' : isKurdish ? 'ناوی ئایتم یان وێنە (ئارەزوومەندانە)' : 'Item Name (Optional)'}
                 </Text>
                 <TextInput
                   style={[
@@ -699,10 +719,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                       color: colors.black,
                       textAlign,
                     },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                   placeholder={
-                    isKurdish
+                    isArabic
+                      ? 'مثال: سترة، ساعة، عدسة...'
+                      : isKurdish
                       ? 'بۆ نموونە: کۆت، کاتژمێر، عەدەسە...'
                       : 'e.g. Jacket, Watch, Lens...'
                   }
@@ -717,10 +739,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   style={[
                     styles.inputLabel,
                     { color: colors.gray600, textAlign },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'وەسف یان تێبینی (ئارەزوومەندانە)' : 'Description (Optional)'}
+                  {isArabic ? 'الوصف أو الملاحظات (اختياري)' : isKurdish ? 'وەسف یان تێبینی (ئارەزوومەندانە)' : 'Description (Optional)'}
                 </Text>
                 <TextInput
                   style={[
@@ -732,10 +754,12 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                       color: colors.black,
                       textAlign,
                     },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                   placeholder={
-                    isKurdish
+                    isArabic
+                      ? 'وصف قصير، الموديل، اللون، أو ملاحظات...'
+                      : isKurdish
                       ? 'وەسفی کورت، مۆدێل، ڕەنگ یان تێبینی...'
                       : 'Short description, model, color...'
                   }
@@ -761,7 +785,7 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   style={[
                     styles.cancelModalBtnText,
                     { color: colors.gray600 },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
                   {t('common.cancel')}
@@ -780,10 +804,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                 <Text
                   style={[
                     styles.saveModalBtnText,
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'پاشەکەوتکردن' : 'Save'}
+                  {isArabic ? 'حفظ' : isKurdish ? 'پاشەکەوتکردن' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -858,10 +882,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                   <Text
                     style={[
                       styles.previewDeleteText,
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKurdish ? 'سڕینەوە' : 'Delete'}
+                    {isArabic ? 'حذف' : isKurdish ? 'سڕینەوە' : 'Delete'}
                   </Text>
                 </TouchableOpacity>
 
@@ -877,10 +901,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     <Text
                       style={[
                         styles.previewSelectText,
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKurdish ? 'هەڵبژاردن' : 'Select'}
+                      {isArabic ? 'اختيار' : isKurdish ? 'هەڵبژاردن' : 'Select'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -896,10 +920,10 @@ export function SavedImagesModal({ visible, onClose, onSelect }: Props) {
                     style={[
                       styles.previewCloseText,
                       { color: colors.gray600 },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKurdish ? 'داخستن' : 'Close'}
+                    {isArabic ? 'إغلاق' : isKurdish ? 'داخستن' : 'Close'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -930,52 +954,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
+    gap: 10,
   },
   titleContainer: {
     flex: 1,
+    minWidth: 0,
     gap: 3,
   },
   titleRow: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexWrap: 'nowrap',
+    minWidth: 0,
   },
   headerIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   title: {
-    fontSize: 17,
+    fontSize: 15.5,
     fontWeight: '700',
+    flexShrink: 1,
   },
   countBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 10,
+    flexShrink: 0,
   },
   countBadgeText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   headerActions: {
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
   addBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   addBtnText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
   },
   closeBtn: {

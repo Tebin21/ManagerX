@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useLocalSearchParams } from 'expo-router';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
@@ -11,20 +12,28 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 
-type Lang = 'en' | 'ku';
+type Lang = 'en' | 'ku' | 'ar';
 
 const LANGUAGES: { code: Lang; label: string; native: string; flag: string; rtl: boolean }[] = [
   { code: 'en', label: 'English', native: 'English', flag: '🇬🇧', rtl: false },
   { code: 'ku', label: 'Kurdish', native: 'کوردی',   flag: '🇮🇶', rtl: true  },
+  { code: 'ar', label: 'Arabic',  native: 'العربية', flag: '🇮🇶', rtl: true  },
 ];
 
 const IS_IOS = Platform.OS === 'ios';
 
 export default function LanguageScreen() {
+  const { lang: queryLang } = useLocalSearchParams<{ lang?: string }>();
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { language, setLanguage } = useLanguageStore();
   const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
+
+  React.useEffect(() => {
+    if (queryLang && (queryLang === 'ar' || queryLang === 'ku' || queryLang === 'en') && queryLang !== language) {
+      setLanguage(queryLang as Lang);
+    }
+  }, [queryLang, language, setLanguage]);
 
   function handleSelect(code: Lang) {
     if (code === language) return;

@@ -104,15 +104,15 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-export const BUSINESS_TYPES: { id: string; label: string; labelKu: string; emoji: string }[] = [
-  { id: 'mobileShop',  label: 'Mobile Shop',       labelKu: 'دووکانی مۆبایل',      emoji: '📱' },
-  { id: 'electronics', label: 'Electronics',        labelKu: 'ئەلیکترۆنیات',        emoji: '🖥️' },
-  { id: 'clothing',    label: 'Clothing Store',     labelKu: 'جل و بەرگ',           emoji: '👕' },
-  { id: 'watches',     label: 'Watches Store',      labelKu: 'کاتژمێر',             emoji: '⌚' },
-  { id: 'cosmetics',   label: 'Cosmetics Store',    labelKu: 'ئارایشت و جوانکاری',  emoji: '💄' },
-  { id: 'onlinePage',  label: 'Online Page',        labelKu: 'پەیجی ئۆنلاین',       emoji: '🌐' },
-  { id: 'personal',    label: 'Personal Business',  labelKu: 'کاری تایبەت',         emoji: '🏠' },
-  { id: 'restaurant',  label: 'Restaurant',         labelKu: 'چێشتخانە و کافێ',     emoji: '🍽️' },
-  { id: 'pharmacy',    label: 'Pharmacy',           labelKu: 'دەرمانخانە',          emoji: '💊' },
-  { id: 'supermarket', label: 'Supermarket',        labelKu: 'سوپەرمارکێت',         emoji: '🛒' },
+export const BUSINESS_TYPES: { id: string; label: string; labelKu: string; labelAr: string; emoji: string }[] = [
+  { id: 'mobileShop',  label: 'Mobile Shop',       labelKu: 'دووکانی مۆبایل',      labelAr: 'متجر هواتف',        emoji: '📱' },
+  { id: 'electronics', label: 'Electronics',        labelKu: 'ئەلیکترۆنیات',        labelAr: 'إلكترونيات',         emoji: '🖥️' },
+  { id: 'clothing',    label: 'Clothing Store',     labelKu: 'جل و بەرگ',           labelAr: 'متجر ملابس',         emoji: '👕' },
+  { id: 'watches',     label: 'Watches Store',      labelKu: 'کاتژمێر',             labelAr: 'متجر ساعات',         emoji: '⌚' },
+  { id: 'cosmetics',   label: 'Cosmetics Store',    labelKu: 'ئارایشت و جوانکاری',  labelAr: 'مستحضرات تجميل',     emoji: '💄' },
+  { id: 'onlinePage',  label: 'Online Page',        labelKu: 'پەیجی ئۆنلاین',       labelAr: 'صفحة أونلاين',        emoji: '🌐' },
+  { id: 'personal',    label: 'Personal Business',  labelKu: 'کاری تایبەت',         labelAr: 'عمل خاص',           emoji: '🏠' },
+  { id: 'restaurant',  label: 'Restaurant',         labelKu: 'چێشتخانە و کافێ',     labelAr: 'مطعم ومقهى',         emoji: '🍽️' },
+  { id: 'pharmacy',    label: 'Pharmacy',           labelKu: 'دەرمانخانە',          labelAr: 'صيدلية',             emoji: '💊' },
+  { id: 'supermarket', label: 'Supermarket',        labelKu: 'سوپەرمارکێت',         labelAr: 'سوبرماركت',          emoji: '🛒' },
 ];

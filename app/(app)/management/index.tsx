@@ -19,6 +19,7 @@ import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useAuthStore } from '@/store/authStore';
+import { useLanguageStore } from '@/store/languageStore';
 import { isAdminEmail } from '@/lib/adminNotificationService';
 import { useManagementStore } from '@/store/managementStore';
 import {
@@ -37,8 +38,13 @@ export default function ManagementScreen() {
   const flexDirection = rtl?.flexDirection ?? 'row-reverse';
   const { isTablet, contentContainerStyle } = useResponsive();
 
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKu = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+
   const user = useAuthStore((s) => s.user);
   const isAdmin = isAdminEmail(user?.email);
+  const isEmployee = useManagementStore((s) => s.isEmployee);
   const isManager = useManagementStore((s) => s.isManager);
   const managedEmployees = useManagementStore((s) => s.managedEmployees);
 
@@ -55,16 +61,16 @@ export default function ManagementScreen() {
   const [connectingDrive, setConnectingDrive] = useState(false);
 
   useEffect(() => {
-    // If not superadmin and not a manager, bounce back
-    if (!isAdmin && !isManager) {
-      router.replace('/(app)/dashboard-view' as never);
+    // Hard security boundary: Employees and unauthorized accounts can NEVER enter management
+    if (isEmployee || (!isAdmin && !isManager)) {
+      router.replace('/(app)/dashboard' as never);
       return;
     }
 
     let unsub: (() => void) | undefined;
     if (isAdmin) {
       unsub = initSuperAdminSubscription();
-    } else if (user?.email) {
+    } else if (user?.email && !isEmployee) {
       unsub = initManagerSubscription(user.email);
     }
 
@@ -73,13 +79,13 @@ export default function ManagementScreen() {
     return () => {
       unsub?.();
     };
-  }, [isAdmin, isManager, user?.email]);
+  }, [isAdmin, isManager, isEmployee, user?.email]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     if (isAdmin) {
       initSuperAdminSubscription();
-    } else if (user?.email) {
+    } else if (user?.email && !isEmployee) {
       initManagerSubscription(user.email);
     }
     getGoogleDriveConfig().then(setGdriveConfig).catch(() => {});
@@ -93,16 +99,18 @@ export default function ManagementScreen() {
       const cfg = await connectGoogleDrive();
       setGdriveConfig(cfg);
       Alert.alert(
-        isRTL ? 'سەرکەوتوو بوو' : 'Success',
-        isRTL
+        isAr ? 'تم بنجاح' : isKu ? 'سەرکەوتوو بوو' : 'Success',
+        isAr
+          ? 'تم ربط Google Drive بنجاح. سيتم حفظ ومزامنة بيانات الموظفين بأمان وبشكل تلقائي.'
+          : isKu
           ? 'گووگڵ درایڤ بەستراوەتەوە بە سەرکەوتوویی. داتاکانی کارمەندەکەت بەردەوام و پارێزراو بۆ ئەم درایڤە دەگوازرێنەوە.'
           : 'Google Drive connected successfully. Staff data will continuously sync to your personal drive.'
       );
     } catch (e: any) {
       console.warn('[Management] Drive connect error:', e);
       Alert.alert(
-        isRTL ? 'هەڵە لە بەستنەوە' : 'Connection Error',
-        isRTL ? 'نەتوانرا گووگڵ درایڤ ببەسترێتەوە. تکایە دووبارە هەوڵ بدەرەوە.' : 'Failed to connect Google Drive.'
+        isAr ? 'خطأ في الربط' : isKu ? 'هەڵە لە بەستنەوە' : 'Connection Error',
+        isAr ? 'فشل في ربط Google Drive. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا گووگڵ درایڤ ببەسترێتەوە. تکایە دووبارە هەوڵ بدەرەوە.' : 'Failed to connect Google Drive.'
       );
     } finally {
       setConnectingDrive(false);
@@ -156,7 +164,16 @@ export default function ManagementScreen() {
     if (!iso) return '—';
     try {
       const d = new Date(iso);
-      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const strHours = String(hours).padStart(2, '0');
+      return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
     } catch {
       return iso;
     }
@@ -218,8 +235,8 @@ export default function ManagementScreen() {
                 ]}
               >
                 {gdriveConfig?.isConnected
-                  ? (isRTL ? 'گووگڵ درایڤ بەستراوەتەوە ✅' : 'Google Drive Connected')
-                  : (isRTL ? 'پێویستە سەرەتا گووگڵ درایڤ ببەستیتەوە' : 'Connect Google Drive First')}
+                  ? (isAr ? 'تم ربط Google Drive ✅' : isKu ? 'گووگڵ درایڤ بەستراوەتەوە ✅' : 'Google Drive Connected')
+                  : (isAr ? 'يجب ربط Google Drive أولاً' : isKu ? 'پێویستە سەرەتا گووگڵ درایڤ ببەستیتەوە' : 'Connect Google Drive First')}
               </Text>
               <Text
                 style={[
@@ -228,10 +245,14 @@ export default function ManagementScreen() {
                 ]}
               >
                 {gdriveConfig?.isConnected
-                  ? (isRTL
+                  ? (isAr
+                      ? `البريد: ${gdriveConfig.email || 'متصل'} · تتم مزامنة بيانات الموظفين تلقائياً وبأمان.`
+                      : isKu
                       ? `ئیمەیڵ: ${gdriveConfig.email || 'بەستراو'} · داتاکانی کارمەند بەردەوام و نەبینراو هاوکات دەکرێن.`
                       : `Synced to ${gdriveConfig.email || 'Drive'}. Staff data syncs automatically.`)
-                  : (isRTL
+                  : (isAr
+                      ? 'لضمان حفظ ومزامنة بيانات الموظفين تلقائياً، يرجى ربط حساب Google Drive.'
+                      : isKu
                       ? 'بۆ ئەوەی داتاکانی کارمەندەکەت بە بەردەوامی و ئۆتۆماتیکی پاشەکەوت بن، تکایە گۆگڵ درایڤ ببەستەوە.'
                       : 'Connect your personal Google Drive so staff data backs up and syncs continuously.')}
               </Text>
@@ -248,7 +269,7 @@ export default function ManagementScreen() {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.driveActionBtnText}>
-                    {isRTL ? 'بەستنەوە' : 'Connect'}
+                    {isAr ? 'ربط الآن' : isKu ? 'بەستنەوە' : 'Connect'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -385,7 +406,7 @@ export default function ManagementScreen() {
                   <View style={[styles.infoRow, { flexDirection }]}>
                     <Ionicons name="key-outline" size={14} color="#D97706" />
                     <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
-                      {isRTL ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}
+                      {isAr ? 'كلمة المرور:' : isKu ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}
                     </Text>
                     <Text style={[styles.infoValue, { color: colors.black, fontFamily: 'monospace', fontWeight: 'bold' }]}>
                       {emp.password || '••••••••'}

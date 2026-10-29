@@ -44,7 +44,7 @@ export function AppTextInput({ label, error, style, rightElement, labelStyle, er
   const { colors } = useAppTheme();
   const { isTablet, inputHeight, uiScaleFactor } = useResponsive();
   const { textAlign } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isKuLanguage = useLanguageStore((s) => s.language === 'ku' || s.language === 'ar');
   // A single TextInput can't mix fonts per-character the way AppText can for
   // display text, so a value-aware decision picks ONE font for the whole
   // field: numeric-keyboard/forceLatin fields always skip the Kurdish font,

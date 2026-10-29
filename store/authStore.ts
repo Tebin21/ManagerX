@@ -1106,7 +1106,18 @@ export const useAuthStore = create<AuthState>()(
             const { recordEmployeeLogout } = await import('@/lib/management/managementService');
             recordEmployeeLogout(emp.email).catch(() => {});
           }
-          useManagementStore.getState().clearEmployeeSession();
+          // Fully wipe all manager & employee state from memory and persistent store
+          useManagementStore.getState().resetAllManagementState();
+        } catch {}
+        try {
+          // Disconnect Google Drive on logout to eliminate account bleed across users
+          const { saveGoogleDriveConfig } = await import('@/lib/googleDriveBackup');
+          await saveGoogleDriveConfig({
+            isConnected: false,
+            email: null,
+            displayName: null,
+            photoUrl: null,
+          });
         } catch {}
         set({ user: null });
       },

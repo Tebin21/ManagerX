@@ -42,7 +42,9 @@ export function ProductImagePicker({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKurdish = currentLang === 'ku';
+  const isArabic = currentLang === 'ar';
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const savedCount = useSavedProductStore(
@@ -154,7 +156,7 @@ export function ProductImagePicker({
             style={[
               styles.label,
               { color: colors.gray600, textAlign, marginBottom: 2 },
-              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
           >
             {label}
@@ -163,10 +165,12 @@ export function ProductImagePicker({
             style={[
               styles.labelSub,
               { color: colors.gray400, textAlign },
-              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+              (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {isKurdish
+            {isArabic
+              ? 'التقاط صورة جديدة أو اختيار من المحفوظات'
+              : isKurdish
               ? 'وێنەی نوێ بگرە یان لە سەڤکراوەکان هەڵبژێرە'
               : 'Take new photo or choose from saved library'}
           </Text>
@@ -225,10 +229,10 @@ export function ProductImagePicker({
                   style={[
                     styles.removeBtnText,
                     { color: Colors.error, fontSize: isTablet ? 13 : 11.5 },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKurdish ? 'سڕینەوە' : t('inventory.removePhoto')}
+                  {isArabic ? 'حذف' : isKurdish ? 'سڕینەوە' : t('inventory.removePhoto')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -262,21 +266,23 @@ export function ProductImagePicker({
                     style={[
                       styles.savedBtnTitle,
                       { color: colors.primary, fontSize: isTablet ? 14.5 : 13 },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
+                    {isArabic ? 'الصور المحفوظة' : isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
                   </Text>
                 </View>
                 <Text
                   style={[
                     styles.savedBtnSub,
                     { color: colors.gray400, fontSize: isTablet ? 12.5 : 11 },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                   ]}
                   numberOfLines={1}
                 >
-                  {isKurdish
+                  {isArabic
+                    ? 'تعبئة تلقائية للاسم والصورة'
+                    : isKurdish
                     ? 'هەڵبژاردن و پڕکردنەوەی خۆکارانە'
                     : 'Auto-fill name & photo'}
                 </Text>
@@ -305,7 +311,7 @@ export function ProductImagePicker({
                 style={[
                   styles.btnTitle,
                   { color: colors.black },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
                 numberOfLines={1}
               >
@@ -315,11 +321,11 @@ export function ProductImagePicker({
                 style={[
                   styles.btnSub,
                   { color: colors.gray400 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
                 numberOfLines={1}
               >
-                {isKurdish ? 'کامێرا یان گەلەری' : 'Camera or Gallery'}
+                {isArabic ? 'الكاميرا أو المعرض' : isKurdish ? 'کامێرا یان گەلەری' : 'Camera or Gallery'}
               </Text>
             </TouchableOpacity>
 
@@ -345,22 +351,22 @@ export function ProductImagePicker({
                 style={[
                   styles.btnTitle,
                   { color: colors.primary },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                {isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
+                {isArabic ? 'الصور المحفوظة' : isKurdish ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos'}
               </Text>
               <Text
                 style={[
                   styles.btnSub,
                   { color: colors.gray400 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
                 numberOfLines={1}
               >
-                {isKurdish ? 'پڕکردنەوەی خۆکارانە' : 'Auto-fill name & photo'}
+                {isArabic ? 'تعبئة تلقائية للاسم والصورة' : isKurdish ? 'پڕکردنەوەی خۆکارانە' : 'Auto-fill name & photo'}
               </Text>
             </TouchableOpacity>
           </>
@@ -385,7 +391,7 @@ export function ProductImagePicker({
         />
         <AppSheetOption
           icon="bookmark-outline"
-          label={isKurdish ? 'وێنە پاشەکەوتکراوەکان (سەڤکراوەکان)' : 'Saved Photos Library'}
+          label={isArabic ? 'مكتبة الصور المحفوظة' : isKurdish ? 'وێنە پاشەکەوتکراوەکان (سەڤکراوەکان)' : 'Saved Photos Library'}
           indicator="chevron"
           onPress={() => {
             setShowModal(false);

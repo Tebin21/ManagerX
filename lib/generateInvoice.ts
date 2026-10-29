@@ -618,13 +618,15 @@ export async function shareSalesDebtReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildSalesDebtReportHTML(debt, payments, biz, getDir(), items);
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safeCust = (debt.customerName || 'Customer').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`CustomerDebt-${safeCust}`);
     await generateAndShare(
       html,
-      isKu ? `ڕاپۆرتی قەرزی کڕیار — ${debt.customerName}` : `Debt Report — ${debt.customerName}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report. Please try again.',
+      isAr ? `تقرير ديون الزبون — ${debt.customerName}` : isKu ? `ڕاپۆرتی قەرزی کڕیار — ${debt.customerName}` : `Debt Report — ${debt.customerName}`,
+      isAr ? 'تعذر إنشاء تقرير ديون الزبون بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report. Please try again.',
       fileName
     );
   } catch (err) {
@@ -645,13 +647,15 @@ export async function sharePurchaseDebtReport(
   try {
     const biz = await withResolvedLogo(business);
     const html = buildPurchaseDebtReportHTML(debt, payments, biz, getDir(), purchase);
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safeSupp = (debt.supplierName || 'Supplier').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`SupplierDebt-${safeSupp}`);
     await generateAndShare(
       html,
-      isKu ? `ڕاپۆرتی قەرزی دابینکەر — ${debt.supplierName}` : `Supplier Debt Report — ${debt.supplierName}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the supplier debt report. Please try again.',
+      isAr ? `تقرير ديون المورد — ${debt.supplierName}` : isKu ? `ڕاپۆرتی قەرزی دابینکەر — ${debt.supplierName}` : `Supplier Debt Report — ${debt.supplierName}`,
+      isAr ? 'تعذر إنشاء تقرير ديون المورد بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا ڕاپۆرتی قەرز بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the supplier debt report. Please try again.',
       fileName
     );
   } catch (err) {
@@ -877,13 +881,15 @@ export async function shareSalesAuditReport(
     const biz = await withResolvedLogo(business);
     const { buildSalesAuditReportHTML } = await import('./salesAuditReportTemplate');
     const html = buildSalesAuditReportHTML(sales, periodLabel, biz, getDir());
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`Sales-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
-      isKu ? `جەردی فرۆشتن — ${periodLabel}` : `Sales Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی فرۆشتن بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the sales audit report PDF. Please try again.',
+      isAr ? `تقرير جرد المبيعات — ${periodLabel}` : isKu ? `جەردی فرۆشتن — ${periodLabel}` : `Sales Audit Report — ${periodLabel}`,
+      isAr ? 'تعذر إنشاء تقرير جرد المبيعات بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا جەردی فرۆشتن بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the sales audit report PDF. Please try again.',
       fileName
     );
   } catch (err) {
@@ -905,13 +911,15 @@ export async function sharePurchasesAuditReport(
     const biz = await withResolvedLogo(business);
     const { buildPurchasesAuditReportHTML } = await import('./purchasesAuditReportTemplate');
     const html = buildPurchasesAuditReportHTML(purchases, periodLabel, biz, getDir());
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`Purchases-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
-      isKu ? `جەردی کڕینەکان — ${periodLabel}` : `Purchases Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی کڕینەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the purchases audit report PDF. Please try again.',
+      isAr ? `تقرير جرد المشتريات — ${periodLabel}` : isKu ? `جەردی کڕینەکان — ${periodLabel}` : `Purchases Audit Report — ${periodLabel}`,
+      isAr ? 'تعذر إنشاء تقرير جرد المشتريات بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا جەردی کڕینەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the purchases audit report PDF. Please try again.',
       fileName
     );
   } catch (err) {
@@ -933,13 +941,15 @@ export async function shareInventoryHistoryAuditReport(
     const biz = await withResolvedLogo(business);
     const { buildInventoryHistoryReportHTML } = await import('./inventoryHistoryReportTemplate');
     const html = buildInventoryHistoryReportHTML(items, periodLabel, biz, getDir());
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`Inventory-Audit-${safePeriod}`);
     return await generateAndShare(
       html,
-      isKu ? `جەردی بەرهەمە سڕاوەکان — ${periodLabel}` : `Deleted Products Audit Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا جەردی بەرهەمە سڕاوەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the deleted products audit report PDF. Please try again.',
+      isAr ? `تقرير جرد المنتجات المحذوفة — ${periodLabel}` : isKu ? `جەردی بەرهەمە سڕاوەکان — ${periodLabel}` : `Deleted Products Audit Report — ${periodLabel}`,
+      isAr ? 'تعذر إنشاء تقرير جرد المنتجات المحذوفة بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا جەردی بەرهەمە سڕاوەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the deleted products audit report PDF. Please try again.',
       fileName
     );
   } catch (err) {
@@ -962,13 +972,15 @@ export async function shareDashboardReport(
     const biz = await withResolvedLogo(business);
     const { buildDashboardReportHTML } = await import('./dashboardReportTemplate');
     const html = buildDashboardReportHTML(stats, activities, periodLabel, biz, getDir());
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const safePeriod = (periodLabel || 'All').replace(/[/\\?%*:|"<>#\s]/g, '_');
     const fileName = buildFroshiarPdfFileName(`Dashboard-Report-${safePeriod}`);
     return await generateAndShare(
       html,
-      isKu ? `ڕاپۆرتی داشبۆرد — ${periodLabel}` : `Dashboard Report — ${periodLabel}`,
-      isKu ? 'نەتوانرا ڕاپۆرتی داشبۆرد بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the dashboard report PDF. Please try again.',
+      isAr ? `تقرير لوحة التحكم — ${periodLabel}` : isKu ? `ڕاپۆرتی داشبۆرد — ${periodLabel}` : `Dashboard Report — ${periodLabel}`,
+      isAr ? 'تعذر إنشاء تقرير لوحة التحكم بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا ڕاپۆرتی داشبۆرد بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the dashboard report PDF. Please try again.',
       fileName
     );
   } catch (err) {
@@ -995,26 +1007,28 @@ export async function shareDebtsAuditReport(
     const biz = await withResolvedLogo(business);
     const { buildDebtsAuditReportHTML } = await import('./debtReportTemplate');
     const html = buildDebtsAuditReportHTML(type, data, periodLabel, biz, getDir());
-    const isKu = i18n.language === 'ku' || !i18n.language;
-    let title = isKu ? `ڕاپۆرتی قەرزەکان — ${periodLabel}` : `Debt Report — ${periodLabel}`;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
+    let title = isAr ? `تقرير الديون — ${periodLabel}` : isKu ? `ڕاپۆرتی قەرزەکان — ${periodLabel}` : `Debt Report — ${periodLabel}`;
 
     if (typeof type === 'string') {
       title = type === 'report'
-        ? (isKu ? `ڕاپۆرتی گشتی قەرزەکان — ${periodLabel}` : `General Debt Report — ${periodLabel}`)
+        ? (isAr ? `التقرير العام للديون — ${periodLabel}` : isKu ? `ڕاپۆرتی گشتی قەرزەکان — ${periodLabel}` : `General Debt Report — ${periodLabel}`)
         : type === 'sales'
-        ? (isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`)
-        : (isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`);
+        ? (isAr ? `تقرير ديون الزبائن — ${periodLabel}` : isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`)
+        : (isAr ? `تقرير ديون الموردين — ${periodLabel}` : isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`);
     } else {
       if (!type.includeSales && !type.includePurchases) {
-        title = isKu ? `ڕاپۆرتی ئاماری و پوختەی قەرزەکان — ${periodLabel}` : `Debt Summary Report — ${periodLabel}`;
+        title = isAr ? `تقرير ملخص وإحصائيات الديون — ${periodLabel}` : isKu ? `ڕاپۆرتی ئاماری و پوختەی قەرزەکان — ${periodLabel}` : `Debt Summary Report — ${periodLabel}`;
       } else if (!type.includeOverview && !type.includeStats && type.includeSales && !type.includePurchases) {
-        title = isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`;
+        title = isAr ? `تقرير ديون الزبائن — ${periodLabel}` : isKu ? `جەردی قەرزی کڕیاران — ${periodLabel}` : `Customer Debts Report — ${periodLabel}`;
       } else if (!type.includeOverview && !type.includeStats && !type.includeSales && type.includePurchases) {
-        title = isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`;
+        title = isAr ? `تقرير ديون الموردين — ${periodLabel}` : isKu ? `جەردی قەرزی دابینکەران — ${periodLabel}` : `Supplier Debts Report — ${periodLabel}`;
       } else if (!type.includeOverview && !type.includeStats && type.includeSales && type.includePurchases) {
-        title = isKu ? `جەردی قەرزی کڕیاران و دابینکەران — ${periodLabel}` : `Customer & Supplier Debts Report — ${periodLabel}`;
+        title = isAr ? `تقرير ديون الزبائن والموردين — ${periodLabel}` : isKu ? `جەردی قەرزی کڕیاران و دابینکەران — ${periodLabel}` : `Customer & Supplier Debts Report — ${periodLabel}`;
       } else {
-        title = isKu ? `ڕاپۆرتی گشتی و جەردی قەرزەکان — ${periodLabel}` : `Debt Audit Report — ${periodLabel}`;
+        title = isAr ? `تقرير الجرد العام للديون — ${periodLabel}` : isKu ? `ڕاپۆرتی گشتی و جەردی قەرزەکان — ${periodLabel}` : `Debt Audit Report — ${periodLabel}`;
       }
     }
 
@@ -1023,7 +1037,7 @@ export async function shareDebtsAuditReport(
     return await generateAndShare(
       html,
       title,
-      isKu ? 'نەتوانرا ڕاپۆرتی قەرزەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report PDF. Please try again.',
+      isAr ? 'تعذر إنشاء تقرير الديون بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا ڕاپۆرتی قەرزەکان بە PDF دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.' : 'Could not generate the debt report PDF. Please try again.',
       fileName
     );
   } catch (err) {
@@ -1053,12 +1067,14 @@ export async function shareQuotationInvoice(
     const biz = await withResolvedLogo(business);
     const { buildQuotationHTML } = await import('./quotationTemplate');
     const html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
-    const isKu = i18n.language === 'ku' || !i18n.language;
+    const lang = i18n.language || 'ku';
+    const isAr = lang === 'ar';
+    const isKu = lang === 'ku';
     const fileName = buildFroshiarPdfFileName(quotation.quotationNumber, 'Quotation');
     const success = await generateAndShare(
       html,
-      isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
-      isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.',
+      isAr ? `عرض أسعار — ${quotation.quotationNumber}` : isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
+      isAr ? 'تعذر إنشاء عرض الأسعار بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.',
       fileName
     );
     if (success) {

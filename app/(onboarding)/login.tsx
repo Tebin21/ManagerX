@@ -119,6 +119,8 @@ export default function LoginScreen() {
       if (empResult.success && empResult.account) {
         const emp = empResult.account;
         const { useManagementStore } = await import('@/store/managementStore');
+        // Clean reset of all management state before binding employee
+        useManagementStore.getState().resetAllManagementState();
         useManagementStore.getState().setCurrentEmployee(emp);
         useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
 
@@ -132,11 +134,22 @@ export default function LoginScreen() {
         };
         useAuthStore.setState({ user: appUser as any, isLoading: false });
 
-        // Direct business sync to manager's email namespace
+        // Direct business sync to manager's email namespace with complete data bleed prevention
         const { useBusinessStore } = await import('@/store/businessStore');
-        if (emp.managerEmail) {
-          useBusinessStore.getState().setOwnerUserId(emp.managerEmail);
+        const prevOwner = useBusinessStore.getState().ownerUserId;
+        const targetOwner = (emp.managerEmail || emp.email).trim().toLowerCase();
+
+        if (prevOwner && prevOwner.toLowerCase() !== targetOwner.toLowerCase()) {
+          // Device has data from a different manager or account — wipe completely to isolate
+          const { wipeAllBusinessData } = await import('@/lib/sqlite');
+          await wipeAllBusinessData();
+          useBusinessStore.getState().clearBusiness();
+          try {
+            const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+            await clearStoreApiKey();
+          } catch {}
         }
+        useBusinessStore.getState().setOwnerUserId(targetOwner);
 
         useOnboardingStore.getState().completeOnboarding();
         router.replace('/(app)/dashboard');

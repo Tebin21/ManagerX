@@ -23,10 +23,11 @@ function getCustomAccountConfig() {
       };
     }
     if (isManager && managedEmployees.length > 0) {
+      const isSuspended = managedEmployees.some((e) => e.managerStatus === 'suspended');
       return {
-        limits: managedEmployees[0].limits,
-        expiresAt: managedEmployees[0].expiresAt,
-        isSuspended: managedEmployees[0].status === 'suspended' || managedEmployees[0].managerStatus === 'suspended',
+        limits: undefined, // Managers operate without employee tier limits
+        expiresAt: undefined,
+        isSuspended,
       };
     }
   } catch {}

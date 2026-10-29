@@ -89,7 +89,9 @@ export default function NewPurchaseScreen() {
   const col2ScrollRef = useRef<ScrollView>(null);
   const col3ScrollRef = useRef<ScrollView>(null);
   const scrollIntoView = useKeyboardAwareFocus();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
 
   const inventoryProducts = useInventoryStore((s) => s.products);
   const { savedPresets, findByName, findByCode, savePreset, syncFromInventory } = useSavedProductStore();
@@ -222,7 +224,9 @@ export default function NewPurchaseScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         } catch {}
         setIdClearedNotice(
-          isKuLanguage
+          isArLanguage
+            ? `تمت إزالة المعرف (${prevId}) لتغيير اسم المنتج (مخصص لـ «${prevName}»)`
+            : isKuLanguage
             ? `ئایدی (${prevId}) لادرا چونکە ناوی بەرهەمەکە گۆڕدرا و ئەو ئایدیە تایبەتە بە «${prevName}»`
             : `ID (${prevId}) was removed because product name changed (dedicated to "${prevName}")`
         );
@@ -389,8 +393,10 @@ export default function NewPurchaseScreen() {
       );
       if (duplicateIdx !== -1) {
         Alert.alert(
-          isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
-          isKuLanguage
+          isArLanguage ? 'هذا المعرف مكرر' : isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
+          isArLanguage
+            ? `هذا الباركود (${cleanCode}) مخصص مسبقاً للمادة #${duplicateIdx + 1}.\nلتجنب الأخطاء، يرجى استخدام معرف فريد لهذه المادة.`
+            : isKuLanguage
             ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ ئایتەمی #${duplicateIdx + 1} دانراوە.\nبۆ ڕێگری لە هەڵە، تکایە ئایدییەکی جیاواز بۆ ئەم ئایتەمە بەکاربهێنە.`
             : `This barcode (${cleanCode}) is already assigned to Item #${duplicateIdx + 1}.\nTo prevent errors, please use a unique ID for this item.`
         );
@@ -402,8 +408,10 @@ export default function NewPurchaseScreen() {
       );
       if (duplicateIdx !== -1) {
         Alert.alert(
-          isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
-          isKuLanguage
+          isArLanguage ? 'هذا المعرف مكرر' : isKuLanguage ? 'ئەم ئایدییە دووبارەیە' : 'Duplicate Barcode / ID',
+          isArLanguage
+            ? `هذا الباركود (${cleanCode}) مخصص مسبقاً للمادة #${duplicateIdx + 1}.\nلتجنب الأخطاء، يرجى استخدام معرف فريد.`
+            : isKuLanguage
             ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ ئایتەمی #${duplicateIdx + 1} دانراوە.\nبۆ ڕێگری لە هەڵە، تکایە ئایدییەکی جیاواز بەکاربهێنە.`
             : `This barcode (${cleanCode}) is already assigned to Item #${duplicateIdx + 1}.\nTo prevent errors, please use a unique ID.`
         );
@@ -432,14 +440,16 @@ export default function NewPurchaseScreen() {
       // Case 2: Name is already filled with a DIFFERENT product name!
       // Strict ID dedication rule: prevent hijacking the ID!
       Alert.alert(
-        isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
-        isKuLanguage
+        isArLanguage ? 'هذا المعرف مخصص لمنتج آخر' : isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
+        isArLanguage
+          ? `هذا الباركود (${cleanCode}) مخصص مسبقاً للمنتج «${matchedName}».\n\nلا يمكن تخصيص هذا المعرف للمنتج «${productName.trim()}» لاختلاف الاسم.`
+          : isKuLanguage
           ? `ئەم بارکۆدە (${cleanCode}) پێشتر بۆ بەرهەمی «${matchedName}» دیاریکراوە و تایبەتە پێی.\n\nناتوانرێت ئەم ئایدیە بۆ بەرهەمی «${productName.trim()}» دابنرێت چونکە ناوی جیاوازە.`
           : `Barcode (${cleanCode}) is already dedicated to "${matchedName}". It cannot be assigned to "${productName.trim()}".`,
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
-            text: isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
+            text: isArLanguage ? `التبديل إلى «${matchedName}»` : isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
             onPress: () => {
               handleSelectSavedItem(matched);
               if (targetCustomIdx !== null) {
@@ -483,14 +493,16 @@ export default function NewPurchaseScreen() {
         handleSelectSavedItem(matched);
       } else {
         Alert.alert(
-          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
-          isKuLanguage
+          isArLanguage ? 'هذا المعرف مخصص لمنتج آخر' : isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'ID is Dedicated to Another Product',
+          isArLanguage
+            ? `هذا المعرف (${cleanCode}) مخصص للمنتج «${matchedName}» ولا يمكن استخدامه للمنتج «${productName.trim()}».`
+            : isKuLanguage
             ? `ئەم ئایدیە (${cleanCode}) تایبەتە بە بەرهەمی «${matchedName}» و ناتوانرێت بۆ بەرهەمی «${productName.trim()}» بەکاربێت.`
             : `ID (${cleanCode}) is dedicated to "${matchedName}" and cannot be used for "${productName.trim()}".`,
           [
             { text: t('common.cancel'), style: 'cancel', onPress: () => setSharedId('') },
             {
-              text: isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
+              text: isArLanguage ? `التبديل إلى «${matchedName}»` : isKuLanguage ? `بۆ «${matchedName}» بگۆڕە` : `Switch to "${matchedName}"`,
               onPress: () => handleSelectSavedItem(matched),
             },
           ]
@@ -522,8 +534,10 @@ export default function NewPurchaseScreen() {
     }
     if (hasDuplicates) {
       Alert.alert(
-        isKuLanguage ? 'ئایدیی دووبارە لابرا' : 'Duplicate IDs Excluded',
-        isKuLanguage
+        isArLanguage ? 'تم استبعاد المعرفات المكررة' : isKuLanguage ? 'ئایدیی دووبارە لابرا' : 'Duplicate IDs Excluded',
+        isArLanguage
+          ? 'تم تلقائياً استبعاد المعرفات المكررة التي تم مسحها لتجنب الأخطاء.'
+          : isKuLanguage
           ? 'ئەو ئایدییە دووبارانەی لە سکاندا هەبوون بە شێوەی خۆکار لابردران بۆ ئەوەی هیچ هەڵەیەک ڕوونەدات.'
           : 'Duplicate IDs detected during batch scanning were automatically excluded to prevent errors.'
       );
@@ -850,7 +864,9 @@ export default function NewPurchaseScreen() {
     if (sellIQDNum <= 0) {
       Alert.alert(
         t('common.required'),
-        isKuLanguage
+        isArLanguage
+          ? 'يرجى إدخال سعر البيع. لا يمكن حفظ المنتج بسعر بيع صفري.'
+          : isKuLanguage
           ? 'تکایە نرخی فرۆشتن بنووسە. کاڵا ناتوانێت بێ نرخی فرۆشتن (سفر) تۆمار بکرێت.'
           : 'Please enter selling price. Products cannot be saved with zero sell price.'
       );
@@ -858,8 +874,10 @@ export default function NewPurchaseScreen() {
     }
     if (totalIQD <= 0) {
       Alert.alert(
-        isKuLanguage ? 'کۆی وەسڵ ناتوانێت سفر بێت' : t('common.error'),
-        isKuLanguage
+        isArLanguage ? 'لا يمكن أن يكون إجمالي الفاتورة صفراً' : isKuLanguage ? 'کۆی وەسڵ ناتوانێت سفر بێت' : t('common.error'),
+        isArLanguage
+          ? 'لا يمكن أن تكون فاتورة الشراء بدون قيمة (صفراً). يرجى إدخال السعر والكمية الصحيحة.'
+          : isKuLanguage
           ? 'وەسڵی کڕین نابێت بێ نرخ (سفر) بێت. تکایە نرخ و بڕی دروست بنووسە.'
           : 'Purchase bill total cannot be zero.'
       );
@@ -876,8 +894,10 @@ export default function NewPurchaseScreen() {
       );
       if (conflict && conflict.name.trim().toLowerCase() !== productName.trim().toLowerCase()) {
         Alert.alert(
-          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
-          isKuLanguage
+          isArLanguage ? 'معرف مخصص لمنتج آخر' : isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
+          isArLanguage
+            ? `هذا المعرف (${sharedId.trim()}) مخصص مسبقاً للمنتج «${conflict.name}» ولا يمكن استخدامه للمنتج «${productName.trim()}».`
+            : isKuLanguage
             ? `ئەم ئایدیە (${sharedId.trim()}) پێشتر بۆ بەرهەمی «${conflict.name}» تۆمارکراوە و تایبەتە پێی. ناتوانرێت بۆ بەرهەمی «${productName.trim()}» بەکاربێت.`
             : `ID (${sharedId.trim()}) is dedicated to "${conflict.name}" and cannot be used for "${productName.trim()}".`
         );
@@ -892,8 +912,10 @@ export default function NewPurchaseScreen() {
         if (seen.has(code)) {
           const firstIdx = seen.get(code)!;
           Alert.alert(
-            isKuLanguage ? 'ئایدیی دووبارە هەیە' : 'Duplicate Item ID',
-            isKuLanguage
+            isArLanguage ? 'يوجد معرف مكرر' : isKuLanguage ? 'ئایدیی دووبارە هەیە' : 'Duplicate Item ID',
+            isArLanguage
+              ? `المعرف (${customIds[i].trim()}) مكرر بين المادة #${firstIdx + 1} والمادة #${i + 1}.\nيرجى تحديد معرف فريد لكل مادة لتجنب الأخطاء.`
+              : isKuLanguage
               ? `ئایدیی (${customIds[i].trim()}) لە نێوان ئایتەمی #${firstIdx + 1} و ئایتەمی #${i + 1} دووبارەیە.\nتکایە بۆ ڕێگری لە هەڵە، بۆ هەر ئایتەمێک ئایدییەکی جیاواز دابنێ.`
               : `ID (${customIds[i].trim()}) is duplicated between Item #${firstIdx + 1} and Item #${i + 1}.\nPlease provide a unique ID for each item.`
           );
@@ -1064,8 +1086,10 @@ export default function NewPurchaseScreen() {
         const ownerName = parts[1] || '';
         const idVal = parts[2] || '';
         Alert.alert(
-          isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
-          isKuLanguage
+          isArLanguage ? 'معرف مخصص لمنتج آخر' : isKuLanguage ? 'ئەم ئایدیە تایبەتە بە بەرهەمێکی تر' : 'Dedicated ID',
+          isArLanguage
+            ? `هذا المعرف (${idVal}) مخصص للمنتج «${ownerName}» ولا يمكن استخدامه لمنتج آخر.`
+            : isKuLanguage
             ? `ئەم ئایدیە (${idVal}) تایبەتە بە بەرهەمی «${ownerName}» و ناتوانرێت بۆ بەرهەمێکی تری جیاواز بەکاربێت.`
             : `This ID (${idVal}) is dedicated to "${ownerName}" and cannot be used for another product.`
         );
@@ -1110,7 +1134,7 @@ export default function NewPurchaseScreen() {
               { color: colors.black, textAlign },
             ]}
           >
-            {isKuLanguage ? 'زانیاری بەرهەم' : t('purchases.productInfo', 'Product Information')}
+            {isArLanguage ? 'معلومات المنتج' : isKuLanguage ? 'زانیاری بەرهەم' : t('purchases.productInfo', 'Product Information')}
           </Text>
           <Text
             style={[
@@ -1120,7 +1144,7 @@ export default function NewPurchaseScreen() {
               { color: colors.gray400, textAlign },
             ]}
           >
-            {isKuLanguage ? 'ناو، وەسف، وێنە و پۆلێنی کاڵا' : 'Name, details, image and category'}
+            {isArLanguage ? 'الاسم، التفاصيل، الصورة وتصنيف المادة' : isKuLanguage ? 'ناو، وەسف، وێنە و پۆلێنی کاڵا' : 'Name, details, image and category'}
           </Text>
         </View>
       </View>
@@ -1340,7 +1364,7 @@ export default function NewPurchaseScreen() {
               { color: colors.black, textAlign },
             ]}
           >
-            {isKuLanguage ? 'بڕ و ناسێنەری کاڵا' : 'Quantity & Item IDs'}
+            {isArLanguage ? 'الكمية ومعرفات المادة' : isKuLanguage ? 'بڕ و ناسێنەری کاڵا' : 'Quantity & Item IDs'}
           </Text>
           <Text
             style={[
@@ -1351,8 +1375,8 @@ export default function NewPurchaseScreen() {
             ]}
           >
             {isRepurchasingExisting
-              ? (isKuLanguage ? 'دیاریکردنی عەدەد بۆ کۆگاکردنەوەی کاڵای کۆن' : 'Set quantity to restock existing product')
-              : (isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs')}
+              ? (isArLanguage ? 'تحديد الكمية لإعادة تزويد مادة سابقة' : isKuLanguage ? 'دیاریکردنی عەدەد بۆ کۆگاکردنەوەی کاڵای کۆن' : 'Set quantity to restock existing product')
+              : (isArLanguage ? 'عدد القطع، الباركود أو المعرف الخاص' : isKuLanguage ? 'ژمارەی دانە، کۆدی بارکۆد یان ئایدی' : 'Units count, barcode scanner, or unique IDs')}
           </Text>
         </View>
       </View>
@@ -1391,7 +1415,7 @@ export default function NewPurchaseScreen() {
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'ئایدی کاڵای کۆن (نەگۆڕە)' : 'Existing Product ID (Locked)'}
+                  {isArLanguage ? 'معرف المادة السابقة (مقفل)' : isKuLanguage ? 'ئایدی کاڵای کۆن (نەگۆڕە)' : 'Existing Product ID (Locked)'}
                 </Text>
                 <View
                   style={[
@@ -1409,7 +1433,7 @@ export default function NewPurchaseScreen() {
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isKuLanguage ? 'دووبارە کڕینەوە' : 'Restock'}
+                    {isArLanguage ? 'إعادة تزويد' : isKuLanguage ? 'دووبارە کڕینەوە' : 'Restock'}
                   </Text>
                 </View>
               </View>
@@ -1420,7 +1444,9 @@ export default function NewPurchaseScreen() {
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKuLanguage
+                {isArLanguage
+                  ? 'هذه المادة مسجلة في المخزن؛ سيتم زيادة الكمية بنفس المعرف والباركود السابق.'
+                  : isKuLanguage
                   ? 'ئەم کاڵایە لە کۆگادا تۆمارە؛ تەنها عەدەد زیاد دەکرێت بە هەمان ئایدی و بارکۆدی کۆن.'
                   : 'Product exists in inventory. Only quantity will be added using the same ID.'}
               </Text>
@@ -1447,7 +1473,7 @@ export default function NewPurchaseScreen() {
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKuLanguage ? 'ئایدی / بارکۆد:' : 'ID / Barcode:'}
+                {isArLanguage ? 'المعرف / الباركود:' : isKuLanguage ? 'ئایدی / بارکۆد:' : 'ID / Barcode:'}
               </Text>
               <Text
                 style={[
@@ -1457,7 +1483,7 @@ export default function NewPurchaseScreen() {
                 ]}
                 numberOfLines={1}
               >
-                {existingProductLockedId || (isKuLanguage ? 'دیاریکراو' : 'Assigned')}
+                {existingProductLockedId || (isArLanguage ? 'محدد' : isKuLanguage ? 'دیاریکراو' : 'Assigned')}
               </Text>
             </View>
 
@@ -1480,7 +1506,9 @@ export default function NewPurchaseScreen() {
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage
+                  {isArLanguage
+                    ? `المخزون الحالي: ${existingInventoryProduct.quantity} قطعة`
+                    : isKuLanguage
                     ? `مەوجودی ئێستا: ${existingInventoryProduct.quantity} دانە`
                     : `Stock: ${existingInventoryProduct.quantity} pcs`}
                 </Text>
@@ -1498,7 +1526,9 @@ export default function NewPurchaseScreen() {
                 isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
             >
-              {isKuLanguage
+              {isArLanguage
+                ? `بعد شراء هذه الـ ${qtyNum} قطع، سيصبح إجمالي المخزن ${(existingInventoryProduct.quantity || 0) + qtyNum} قطعة.`
+                : isKuLanguage
                 ? `دوای کڕینی ئەم ${qtyNum} دانەیە، کۆی گشتی کۆگا دەبێتە ${(existingInventoryProduct.quantity || 0) + qtyNum} دانە.`
                 : `After purchasing ${qtyNum} units, total inventory will be ${(existingInventoryProduct.quantity || 0) + qtyNum} pcs.`}
             </Text>
@@ -1579,7 +1609,7 @@ export default function NewPurchaseScreen() {
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
           >
-            {isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
+            {isArLanguage ? 'مسح الباركود أو QR' : isKuLanguage ? 'سکانی بارکۆد یان QR' : 'Scan Barcode or QR'}
           </Text>
           <Text
             style={[
@@ -1593,7 +1623,9 @@ export default function NewPurchaseScreen() {
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {isKuLanguage
+            {isArLanguage
+              ? 'افتح الكاميرا لمسح وتعبئة المعرف فوراً'
+              : isKuLanguage
               ? 'کامێرای مۆبایل بکەرەوە بۆ تۆمارکردنی خێرای ئایدی'
               : 'Open camera to auto-fill product ID instantly'}
           </Text>
@@ -1612,10 +1644,10 @@ export default function NewPurchaseScreen() {
           <Text
             style={[
               styles.scanActionPillText,
-              isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
           >
-            {isKuLanguage ? 'سکان' : 'Scan'}
+            {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -1676,10 +1708,10 @@ export default function NewPurchaseScreen() {
                   style={[
                     styles.itemActionBtnText,
                     { color: colors.primary },
-                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'سکان' : 'Scan'}
+                  {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
                 </Text>
               </TouchableOpacity>
 
@@ -1743,7 +1775,7 @@ export default function NewPurchaseScreen() {
                       },
                     ]}
                   >
-                    {isKuLanguage ? 'کۆد یان بارکۆدی هاوبەش بنووسە یان سکان بکە' : 'e.g. SN-12345 or scan barcode'}
+                    {isArLanguage ? 'اكتب رمز أو باركود مشترك أو امسحه' : isKuLanguage ? 'کۆد یان بارکۆدی هاوبەش بنووسە یان سکان بکە' : 'e.g. SN-12345 or scan barcode'}
                   </Text>
                 </View>
               )}
@@ -1779,7 +1811,9 @@ export default function NewPurchaseScreen() {
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
-                {isKuLanguage
+                {isArLanguage
+                  ? `هذا المعرف مرتبط ومخصص لـ «${boundProductIdentity?.name ?? ''}»`
+                  : isKuLanguage
                   ? `ئەم ئایدیە گرێدراوە و تایبەتە بە «${boundProductIdentity?.name ?? ''}»`
                   : `This ID is dedicated and bound to "${boundProductIdentity?.name ?? ''}"`}
               </Text>
@@ -1801,7 +1835,7 @@ export default function NewPurchaseScreen() {
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
-                {isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
+                {isArLanguage ? `معرف خاص لكل قطعة (${qtyNum} قطع)` : isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
               </Text>
             </View>
             <View style={[styles.customIdsHeaderActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1857,7 +1891,7 @@ export default function NewPurchaseScreen() {
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isKuLanguage ? 'زیادکردنی ئایتم' : 'Add Item'}
+                  {isArLanguage ? 'إضافة مادة' : isKuLanguage ? 'زیادکردنی ئایتم' : 'Add Item'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1903,7 +1937,7 @@ export default function NewPurchaseScreen() {
                         isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
-                      {isKuLanguage ? `ئایتەمی #${i + 1}` : `Item #${i + 1}`}
+                      {isArLanguage ? `المادة #${i + 1}` : isKuLanguage ? `ئایتەمی #${i + 1}` : `Item #${i + 1}`}
                     </Text>
                   </View>
 
@@ -1928,10 +1962,10 @@ export default function NewPurchaseScreen() {
                         style={[
                           styles.itemActionBtnText,
                           { color: colors.primary },
-                          isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                         ]}
                       >
-                        {isKuLanguage ? 'سکان' : 'Scan'}
+                        {isArLanguage ? 'مسح' : isKuLanguage ? 'سکان' : 'Scan'}
                       </Text>
                     </TouchableOpacity>
 
@@ -2024,7 +2058,7 @@ export default function NewPurchaseScreen() {
                             },
                           ]}
                         >
-                          {isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
+                          {isArLanguage ? `رمز أو باركود المادة ${i + 1}` : isKuLanguage ? `کۆد یان بارکۆدی ئایتەمی ${i + 1}` : `Barcode / ID for item ${i + 1}`}
                         </Text>
                       </View>
                     )}
@@ -2118,7 +2152,7 @@ export default function NewPurchaseScreen() {
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
             ]}
           >
-            {isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
+            {isArLanguage ? 'تواريخ الإنتاج والانتهاء' : isKuLanguage ? 'بەرواری بەسەرچوون و دەرچوون' : 'Production & Expiry Dates'}
           </Text>
           <Text
             style={[
@@ -2127,7 +2161,9 @@ export default function NewPurchaseScreen() {
               isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {isKuLanguage
+            {isArLanguage
+              ? 'تسجيل تواريخ الصنع والانتهاء لضمان الجودة وتنبيهات النفاذ'
+              : isKuLanguage
               ? 'دیاریکردنی بەرواری دروستکردن و بەسەرچوون بۆ چاودێری سەلامەتی'
               : 'Record manufacturing and expiration dates for quality & stock alerts'}
           </Text>
@@ -2137,7 +2173,7 @@ export default function NewPurchaseScreen() {
       {/* Production Date Section */}
       <View style={{ gap: isTablet ? 7 : 5, marginTop: 2 }}>
         <Text style={[styles.fieldLabel, { fontSize: isTablet ? 13.5 : 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-          {isKuLanguage ? 'بەرواری دەرچوون / دروستکردن (Production Date)' : 'Production Date'}
+          {isArLanguage ? 'تاريخ الإنتاج' : isKuLanguage ? 'بەرواری دەرچوون / دروستکردن (Production Date)' : 'Production Date'}
         </Text>
         <View style={[styles.expiryDateActionRow, { flexDirection, gap: isTablet ? 8 : 6 }]}>
           <TouchableOpacity
@@ -2158,7 +2194,7 @@ export default function NewPurchaseScreen() {
           >
             <Ionicons name="construct-outline" size={isTablet ? 18 : 16} color={colors.primary} />
             <Text style={[styles.datePickerBtnText, { fontSize: isTablet ? 14.5 : 13, color: productionDate ? colors.black : colors.gray400 }]}>
-              {productionDate ? toDateOnly(productionDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+              {productionDate ? toDateOnly(productionDate) : (isArLanguage ? 'غير محدد' : isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
             </Text>
           </TouchableOpacity>
 
@@ -2177,7 +2213,7 @@ export default function NewPurchaseScreen() {
               ]}
             >
               <Text style={[styles.smallChipText, { fontSize: isTablet ? 13.5 : 12, color: colors.black }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {isKuLanguage ? 'ئەمڕۆ' : 'Today'}
+                {isArLanguage ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today'}
               </Text>
             </TouchableOpacity>
 
@@ -2205,7 +2241,7 @@ export default function NewPurchaseScreen() {
         {productionDate && prodAgeText && (
           <View style={[styles.dateCountdownSubRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Ionicons name="construct-outline" size={12} color={colors.primary} />
-            <Text style={[styles.dateCountdownSubText, { color: colors.gray500, writingDirection: isKuLanguage ? 'rtl' : 'ltr' }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+            <Text style={[styles.dateCountdownSubText, { color: colors.gray500, writingDirection: (isKuLanguage || isArLanguage) ? 'rtl' : 'ltr' }, (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT }]}>
               {prodAgeText}
             </Text>
           </View>
@@ -2215,7 +2251,7 @@ export default function NewPurchaseScreen() {
       {/* Expiry Date Section */}
       <View style={{ gap: isTablet ? 7 : 5, marginTop: isTablet ? 12 : 8 }}>
         <Text style={[styles.fieldLabel, { fontSize: isTablet ? 13.5 : 12, color: colors.gray600, textAlign }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-          {isKuLanguage ? 'بەرواری بەسەرچوون (Expiry Date)' : 'Expiry Date'}
+          {isArLanguage ? 'تاريخ انتهاء الصلاحية' : isKuLanguage ? 'بەرواری بەسەرچوون (Expiry Date)' : 'Expiry Date'}
         </Text>
 
         <TouchableOpacity
@@ -2262,7 +2298,7 @@ export default function NewPurchaseScreen() {
               expiryDate && { fontWeight: '700' },
             ]}
           >
-            {expiryDate ? toDateOnly(expiryDate) : (isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
+            {expiryDate ? toDateOnly(expiryDate) : (isArLanguage ? 'غير محدد' : isKuLanguage ? 'دیاری نەکراوە' : 'Not set')}
           </Text>
 
           {/* Inline Badge right next to the date */}
@@ -2300,9 +2336,9 @@ export default function NewPurchaseScreen() {
                         : expiryCountdown.status === 'warning'
                         ? (isDark ? '#FBBF24' : '#B45309')
                         : colors.success,
-                    writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                    writingDirection: (isKuLanguage || isArLanguage) ? 'rtl' : 'ltr',
                   },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
                 {expiryCountdown.badgeText}
@@ -2373,9 +2409,9 @@ export default function NewPurchaseScreen() {
                       ? (isDark ? '#FBBF24' : '#B45309')
                       : (isDark ? '#34D399' : '#059669'),
                   textAlign,
-                  writingDirection: isKuLanguage ? 'rtl' : 'ltr',
+                  writingDirection: (isKuLanguage || isArLanguage) ? 'rtl' : 'ltr',
                 },
-                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {expiryCountdown.text}
@@ -2385,16 +2421,16 @@ export default function NewPurchaseScreen() {
 
         {/* Quick Expiry Duration Shortcut Chips */}
         <Text style={[styles.shortcutHint, { fontSize: isTablet ? 12 : 11, color: colors.gray400, textAlign, marginTop: isTablet ? 5 : 3 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-          {isKuLanguage ? 'هەڵبژاردنی خێرا لە ئەمڕۆوە:' : 'Quick shortcuts from today:'}
+          {isArLanguage ? 'اختصارات سريعة ابتداءً من اليوم:' : isKuLanguage ? 'هەڵبژاردنی خێرا لە ئەمڕۆوە:' : 'Quick shortcuts from today:'}
         </Text>
 
         <View style={[styles.durationChipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'nowrap', gap: isTablet ? 6 : 5, marginTop: 1 }]}>
           {[
-            { label: isKuLanguage ? '+١ مانگ' : '+1M', months: 1 },
-            { label: isKuLanguage ? '+٣ مانگ' : '+3M', months: 3 },
-            { label: isKuLanguage ? '+٦ مانگ' : '+6M', months: 6 },
-            { label: isKuLanguage ? '+١ ساڵ' : '+1Y', months: 12 },
-            { label: isKuLanguage ? '+٢ ساڵ' : '+2Y', months: 24 },
+            { label: isArLanguage ? '+1 شهر' : isKuLanguage ? '+١ مانگ' : '+1M', months: 1 },
+            { label: isArLanguage ? '+3 أشهر' : isKuLanguage ? '+٣ مانگ' : '+3M', months: 3 },
+            { label: isArLanguage ? '+6 أشهر' : isKuLanguage ? '+٦ مانگ' : '+6M', months: 6 },
+            { label: isArLanguage ? '+1 سنة' : isKuLanguage ? '+١ ساڵ' : '+1Y', months: 12 },
+            { label: isArLanguage ? '+2 سنة' : isKuLanguage ? '+٢ ساڵ' : '+2Y', months: 24 },
           ].map((chip) => (
             <TouchableOpacity
               key={chip.months}
@@ -2438,7 +2474,7 @@ export default function NewPurchaseScreen() {
         onSelect={(d) => setProductionDate(d)}
         onClear={() => setProductionDate(null)}
         mode="production"
-        title={isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
+        title={isArLanguage ? 'تحديد تاريخ الإنتاج' : isKuLanguage ? 'دیاریکردنی بەرواری دەرچوون' : 'Select Production Date'}
       />
 
       {/* Expiry Date Picker Modal */}
@@ -2449,7 +2485,7 @@ export default function NewPurchaseScreen() {
         onSelect={(d) => setExpiryDate(d)}
         onClear={() => setExpiryDate(null)}
         mode="expiry"
-        title={isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
+        title={isArLanguage ? 'تحديد تاريخ انتهاء الصلاحية' : isKuLanguage ? 'دیاریکردنی بەرواری بەسەرچوون' : 'Select Expiry Date'}
       />
     </PremiumCard>
   );
@@ -2471,7 +2507,7 @@ export default function NewPurchaseScreen() {
               { color: colors.black, textAlign },
             ]}
           >
-            {isKuLanguage ? 'زانیاری دابینکەر و بەروار' : 'Supplier & Date'}
+            {isArLanguage ? 'معلومات المورد والتاريخ' : isKuLanguage ? 'زانیاری دابینکەر و بەروار' : 'Supplier & Date'}
           </Text>
           <Text
             style={[
@@ -2481,7 +2517,7 @@ export default function NewPurchaseScreen() {
               { color: colors.gray400, textAlign },
             ]}
           >
-            {isKuLanguage ? 'دیاریکردنی فرۆشیار و کاتی تۆمارکردن' : 'Supplier details and intake timestamp'}
+            {isArLanguage ? 'تحديد المورد وتوقيت تسجيل الشراء' : isKuLanguage ? 'دیاریکردنی فرۆشیار و کاتی تۆمارکردن' : 'Supplier details and intake timestamp'}
           </Text>
         </View>
       </View>
@@ -2525,7 +2561,7 @@ export default function NewPurchaseScreen() {
                     { color: isDark ? '#FBBF24' : '#92400E', textAlign },
                   ]}
                 >
-                  {isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
+                  {isArLanguage ? 'المورد المباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
                 </Text>
                 <Text
                   numberOfLines={1}
@@ -2535,7 +2571,7 @@ export default function NewPurchaseScreen() {
                     { color: isDark ? '#FDE68A' : '#B45309', textAlign },
                   ]}
                 >
-                  {isKuLanguage ? 'سیستەم • دەستبەجێ' : 'System • Instant'}
+                  {isArLanguage ? 'نظام • فوري' : isKuLanguage ? 'سیستەم • دەستبەجێ' : 'System • Instant'}
                 </Text>
               </View>
             </View>
@@ -2566,7 +2602,7 @@ export default function NewPurchaseScreen() {
                   { color: isDark ? '#F1F5F9' : '#78350F' },
                 ]}
               >
-                {isKuLanguage ? 'گۆڕین' : 'Change'}
+                {isArLanguage ? 'تغيير' : isKuLanguage ? 'گۆڕین' : 'Change'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2604,7 +2640,7 @@ export default function NewPurchaseScreen() {
                   { color: isDark ? '#FBBF24' : '#B45309', textAlign },
                 ]}
               >
-                {isKuLanguage ? 'دابینکەری ڕاستەوخۆ ⚡' : 'Direct Supplier ⚡'}
+                {isArLanguage ? 'المورد المباشر ⚡' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ ⚡' : 'Direct Supplier ⚡'}
               </Text>
               <Text
                 numberOfLines={1}
@@ -2614,7 +2650,7 @@ export default function NewPurchaseScreen() {
                   { color: isDark ? '#E2E8F0' : '#78350F', textAlign },
                 ]}
               >
-                {isKuLanguage ? 'کڕینی دەستبەجێ بەبێ فۆڕم و ناونیشان' : 'Quick intake without form'}
+                {isArLanguage ? 'شراء فوري بدون نموذج أو عنوان' : isKuLanguage ? 'کڕینی دەستبەجێ بەبێ فۆڕم و ناونیشان' : 'Quick intake without form'}
               </Text>
             </View>
             <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#D97706" />
@@ -2674,7 +2710,7 @@ export default function NewPurchaseScreen() {
               { color: colors.black, textAlign },
             ]}
           >
-            {isKuLanguage ? 'نرخی کڕین، فرۆشتن و قازانج' : 'Pricing & Profit'}
+            {isArLanguage ? 'التسعير والأرباح' : isKuLanguage ? 'نرخی کڕین، فرۆشتن و قازانج' : 'Pricing & Profit'}
           </Text>
           <Text
             style={[
@@ -2684,7 +2720,7 @@ export default function NewPurchaseScreen() {
               { color: colors.gray400, textAlign },
             ]}
           >
-            {isKuLanguage ? 'تێچووی کڕین بە دینار و دۆلار لەگەڵ قازانج' : 'Unit buy/sell rates with live profit margin'}
+            {isArLanguage ? 'أسعار الشراء والبيع مع هامش الربح المباشر' : isKuLanguage ? 'تێچووی کڕین بە دینار و دۆلار لەگەڵ قازانج' : 'Unit buy/sell rates with live profit margin'}
           </Text>
         </View>
       </View>
@@ -2820,7 +2856,7 @@ export default function NewPurchaseScreen() {
               { color: colors.black, textAlign },
             ]}
           >
-            {isKuLanguage ? 'پارەدان و تەواوکردن' : 'Payment & Checkout'}
+            {isArLanguage ? 'الدفع وإتمام الشراء' : isKuLanguage ? 'پارەدان و تەواوکردن' : 'Payment & Checkout'}
           </Text>
           <Text
             style={[
@@ -2830,7 +2866,7 @@ export default function NewPurchaseScreen() {
               { color: colors.gray400, textAlign },
             ]}
           >
-            {isKuLanguage ? 'جۆری پارەدان، سندوقی کاش و چاپکردنی وەسڵ' : 'Payment terms, cash drawer check & invoice printing'}
+            {isArLanguage ? 'طريقة الدفع، حالة الصندوق وطباعة الفاتورة' : isKuLanguage ? 'جۆری پارەدان، سندوقی کاش و چاپکردنی وەسڵ' : 'Payment terms, cash drawer check & invoice printing'}
           </Text>
         </View>
       </View>
@@ -2871,8 +2907,8 @@ export default function NewPurchaseScreen() {
             isSubmitting
               ? t('purchases.saving')
               : checkoutMode === 'print'
-              ? (isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
-              : (isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
+              ? (isArLanguage ? 'حفظ وطباعة 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
+              : (isArLanguage ? 'حفظ الشراء (عادي) ✓' : isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
           }
           onPress={handleSave}
           loading={isSubmitting}
@@ -3038,11 +3074,11 @@ export default function NewPurchaseScreen() {
         visible={scannerVisible}
         onClose={() => setScannerVisible(false)}
         mode={targetCustomIdx !== null ? 'single' : 'batch_ids'}
-        title={isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
+        title={isArLanguage ? 'مسح باركود المادة' : isKuLanguage ? 'سکانی بارکۆدی کاڵا' : 'Scan Product Barcode'}
         subtitle={
           targetCustomIdx !== null
-            ? (isKuLanguage ? `کۆد بۆ ئایتەمی #${targetCustomIdx + 1} سکان بکە` : `Scan barcode for item #${targetCustomIdx + 1}`)
-            : (isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
+            ? (isArLanguage ? `امسح الرمز للمادة #${targetCustomIdx + 1}` : isKuLanguage ? `کۆد بۆ ئایتەمی #${targetCustomIdx + 1} سکان بکە` : `Scan barcode for item #${targetCustomIdx + 1}`)
+            : (isArLanguage ? 'امسح الرموز بالتسلسل لفاتورة الشراء هذه' : isKuLanguage ? 'کۆدەکان یەک لەدوای یەک سکان بکە بۆ وەسڵی کڕین' : 'Scan item codes sequentially for this purchase')
         }
         initialCodes={
           targetCustomIdx !== null

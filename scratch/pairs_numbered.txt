@@ -1,0 +1,281 @@
+[0] KU: فرۆشتن || EN: Sales
+[1] KU: کڕین || EN: Purchases
+[2] KU: عەرز || EN: Quotations
+[3] KU: کۆگا || EN: Inventory
+[4] KU: گەڕاندنەوەی سەرەتایی || EN: Reset to Defaults
+[5] KU: پاشگەزبوونەوە || EN: Cancel
+[6] KU: بەڵێ، بگەڕێنەوە || EN: Reset
+[7] KU: ئارام محەمەد || EN: Aram Mohammed
+[8] KU: سلێمانی - تووی مەلیك || EN: Sulaymaniyah - Salim St.
+[9] KU: کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە. || EN: Goods can be exchanged within 7 days upon presentation of this invoice.
+[10] KU: گرەنتی ١ مانگ || EN: 1-month warranty
+[11] KU: کۆلا قتوو ٣٣٠مل || EN: Coca-Cola Can 330ml
+[12] KU: چپس دوریتۆس گەورە || EN: Doritos Chips Large
+[13] KU: شوکۆلاتە کیندەر بوێنۆ || EN: Kinder Bueno Chocolate
+[14] KU: کۆمپانیای عەلی بۆ هاوردەکردن || EN: Ali Import & Distribution Co.
+[15] KU: سلێمانی - ناوچەی پیشەسازی || EN: Industrial Zone, Sulaymaniyah
+[16] KU: گرەنتی یەک ساڵ لە کۆمپانیای دابینکەرەوە || EN: 1-year official supplier warranty
+[17] KU: کاڵاکان بە تەواوی وەرگیراون و داخڵی مەخزەنی سەرەکی کراون. || EN: All goods inspected, verified, and received into warehouse.
+[18] KU: خواردنەوەکان || EN: Beverages
+[19] KU: سووکەژەم || EN: Snacks
+[20] KU: شیرینی || EN: Sweets
+[21] KU: کۆمپانیای ئاسۆ بۆ تەکنەلۆجیا || EN: Aso Technology Solutions
+[22] KU: هەولێر - گوندی ئیتاڵی || EN: Italian Village, Erbil
+[23] KU: سەرجەم کەلوپەلەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە. || EN: All hardware products are genuine with 1-year official warranty.
+[24] KU: ١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا. || EN: 1. Payment terms: 50% advance upon contract signing.\n2. Delivery timeline: Within 3 business days.
+[25] KU: لاپتۆپ Dell XPS 15 || EN: Dell XPS 15 Laptop
+[26] KU: ماوس و کیبۆرد بێوایەر || EN: Wireless Mouse & Keyboard
+[27] KU: کۆگای سەرەکی سلێمانی || EN: Sulaymaniyah Central Warehouse
+[28] KU: سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە. || EN: Complete warehouse audit completed and reconciled with electronic inventory system.
+[29] KU: دابینکەری هەولێر || EN: Erbil Supplier Co.
+[30] KU: کۆمپانیای هاوردە || EN: Import Trade LLC
+[31] KU: نەستلە سلێمانی || EN: Nestle Distributor
+[32] KU: هەولێر - شۆڕش || EN: Shorish, Erbil
+[33] KU: زەیتی زەیتوون ٥ لیتری || EN: Olive Oil 5L
+[34] KU: خۆراک || EN: Food
+[35] KU: بەکارهێنان تا ٢٠٢٧ || EN: Valid until 2027
+[36] KU: وەسڵی کڕینی کاڵا لە کۆگای سەرەکی || EN: Goods received in main warehouse
+[37] KU: برنجی کوردی پلە یەک || EN: Premium Kurdish Rice
+[38] KU: نرخەکان گۆڕانکارییان بەسەردا دێت بەپێی بەهای دۆلار لە بازاڕدا. || EN: Prices subject to market exchange rate changes.
+[39] KU: هەموو کاڵاکان بە گەرەنتی فەرمی ١ ساڵ پێشکەش دەکرێن. || EN: All items supplied with 1-year official warranty.
+[40] KU: شیر نیدۆ گەورە || EN: Nido Milk Powder Large
+[41] KU: کۆمپانیای نەستلە || EN: Nestle Co.
+[42] KU: لەبارە || EN: In Stock
+[43] KU: قاوەی نەسکافێ کلاسیک || EN: Nescafe Classic Coffee
+[44] KU: خواردنەوە || EN: Beverages
+[45] KU: کۆمپانیای هاوردە || EN: Import Trade
+[46] KU: کەمبوون || EN: Low Stock
+[47] KU: پەنیر کرافت ٥٠٠گم || EN: Kraft Cheese 500g
+[48] KU: شیرەمەنی || EN: Dairy
+[49] KU: دابینکەری هەولێر || EN: Erbil Supplier
+[50] KU: ڕاپۆرتی گشتی کۆگا || EN: General Inventory Report
+[51] KU: هەڵە لە پرینت || EN: Print Error
+[52] KU: نەتوانرا وەسڵەکە چاپ بکرێت. || EN: Failed to print test document.
+[53] KU: مارکێتی فرۆشیار || EN: Froshiar Market
+[54] KU: شەقامی سەرەکی، هەولێر || EN: Main Street, Erbil
+[55] KU: سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن. || EN: Thank you for your visit • Always welcome
+[56] KU: وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم || EN: Goods received and recorded in warehouse system
+[57] KU: ١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا. || EN: 1. Payment: 50% advance upon agreement.\n2. Delivery: within 3 working days.
+[58] KU: سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە. || EN: Full warehouse audit completed and reconciled with system.
+[59] KU: کڕیار || EN: CUSTOMER
+[60] KU: ناو: || EN: Name:
+[61] KU: تەلەفۆن: || EN: Phone:
+[62] KU: ناونیشان: || EN: Address:
+[63] KU: وەسڵی فرۆشتن || EN: SALES INVOICE
+[64] KU: بەروار: || EN: Date:
+[65] KU: کات: || EN: Time:
+[66] KU: ● نەقد (پارەدراو) || EN: ● PAID (CASH)
+[67] KU: دەربارەی سیاسەت و گەرەنتی || EN: COMPANY POLICY & WARRANTY
+[68] KU: خوێندنەوەی دارایی || EN: PAYMENT SUMMARY
+[69] KU: کۆی کاڵاکان: || EN: Subtotal:
+[70] KU: داشکاندن: || EN: Discount:
+[71] KU: کۆی گشتی (IQD) || EN: Grand Total (IQD)
+[72] KU: کۆی گشتی بە دۆلار || EN: Total in USD
+[73] KU: شێوازی پارەدان: || EN: Payment:
+[74] KU: کاش (نەقد) || EN: Cash
+[75] KU: قەرزی ماوە: || EN: Remaining:
+[76] KU: تێبینی و سیاسەت || EN: NOTES & WARRANTY
+[77] KU: گرەنتی فرۆشتن: || EN: Warranty:
+[78] KU: گرەنتی ٦ مانگ گۆڕین بە کاڵای نوێ. || EN: 6-month exchange warranty.
+[79] KU: تێبینیەکان: || EN: Notes:
+[80] KU: کاڵا || EN: Product
+[81] KU: کۆد || EN: Code
+[82] KU: بڕ || EN: Qty
+[83] KU: نرخ || EN: Price
+[84] KU: داشکاندن || EN: Disc.
+[85] KU: کۆ || EN: Total
+[86] KU: واژووی کڕیار / وەرگر || EN: Customer Signature
+[87] KU: مۆر و واژووی فرۆشگا || EN: Store Stamp & Signature
+[88] KU: وەسڵی فرۆشتن · بەرهەمی فرۆشیار · www.froshiar.store · #F-00124 || EN: Sales Invoice · Powered by Froshiar · www.froshiar.store · #F-00124
+[89] KU: دابینکەر || EN: SUPPLIER
+[90] KU: دابینکەر: || EN: Supplier:
+[91] KU: وەسڵی کڕین || EN: PURCHASE VOUCHER
+[92] KU: ● پارەدراو (کاش) || EN: ● PAID (CASH)
+[93] KU: سیاسەتی وەرگرتن و کڕین || EN: PROCUREMENT POLICY
+[94] KU: سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون. || EN: Goods received according to supplier official invoice and registered in warehouse.
+[95] KU: پوختەی دارایی کڕین || EN: PURCHASE SUMMARY
+[96] KU: کۆی تێچوو: || EN: Subtotal:
+[97] KU: کۆی گشتی کڕین || EN: Total Cost (IQD)
+[98] KU: شێوازی دران: || EN: Payment:
+[99] KU: قەرزی ماوە: || EN: Remaining Debt:
+[100] KU: تێبینیەکانی کڕین || EN: PURCHASE NOTES
+[101] KU: گرەنتی دابینکەر: || EN: Supplier Warranty:
+[102] KU: گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە. || EN: 1-year official supplier warranty.
+[103] KU: تێبینی و پشکنین: || EN: Inspection Notes:
+[104] KU: هاوپۆل || EN: Cat.
+[105] KU: تێچوو || EN: Cost
+[106] KU: واژووی وەرگری مەخزەن || EN: Warehouse Receiver
+[107] KU: واژووی سەرپەرشتیاری کڕین || EN: Procurement Manager
+[108] KU: وەسڵی کڕین · سیستەمی فرۆشیار · www.froshiar.store · #P-00892 || EN: Purchase Voucher · Powered by Froshiar · www.froshiar.store · #P-00892
+[109] KU: عەرزی نرخی فەرمی • پێشکەشکراوە بە پێی داواکاری بەڕێزتان بۆ ماوەی دیاریکراو || EN: Official Price Proposal • Submitted according to client request for specified validity
+[110] KU: بۆ بەڕێز || EN: PROPOSAL TO
+[111] KU: کڕیار: || EN: Client:
+[112] KU: عەرزی نرخ || EN: PRICE QUOTATION
+[113] KU: ماوەی کارایی || EN: VALIDITY
+[114] KU: ١٠ ڕۆژ || EN: 10 Days
+[115] KU: دەربارەی سیاسەت و گرەنتی پڕۆژە || EN: PROJECT POLICY & WARRANTY
+[116] KU: سەرجەم کەرەستەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە. || EN: All products are authentic with 1-year warranty from date of installation.
+[117] KU: پوختەی دارایی پێشنیار || EN: PROPOSAL FINANCIALS
+[118] KU: کۆی گشتی کاڵاکان: || EN: Subtotal:
+[119] KU: داشکاندنی پڕۆژە: || EN: Discount:
+[120] KU: کۆی گشتی پێشنیارکراو || EN: Grand Total
+[121] KU: بەهای تەقریبی بە دۆلار || EN: Approx. in USD
+[122] KU: مەرج و ڕێساکانی عەرز || EN: TERMS & CONDITIONS
+[123] KU: کاڵا (وەسف) || EN: Product
+[124] KU: کۆی گشتی || EN: Total
+[125] KU: واژووی کڕیار / پەسەندکردن || EN: Client Acceptance
+[126] KU: فرۆشیار || EN: Froshiar
+[127] KU: مۆری فەرمی پڕۆژە || EN: OFFICIAL SEAL
+[128] KU: واژوو و مۆری کۆمپانیا || EN: Company Seal & Signature
+[129] KU: عەرزی نرخ · سیستەمی فەرمی فرۆشیار · www.froshiar.store · #Q-2026-045 || EN: Price Quotation · Powered by Froshiar · www.froshiar.store · #Q-2026-045
+[130] KU: ڕاپۆرتی سەرژمێری و کۆگای گشتی || EN: FULL INVENTORY AUDIT
+[131] KU: کۆی کاڵاکان || EN: Total Items
+[132] KU: کۆی عەدەد || EN: In Stock
+[133] KU: دانە || EN: Units
+[134] KU: کەمبووەوە || EN: Low Stock
+[135] KU: بەهای گشتی || EN: Total Value
+[136] KU: کۆد || EN: ID
+[137] KU: فرۆشتن || EN: Sell
+[138] KU: بەها || EN: Value
+[139] KU: دۆخ || EN: Status
+[140] KU: کەمبوون ⚠️ || EN: Low ⚠️
+[141] KU: بەردەست || EN: In Stock
+[142] KU: تێبینی و ڕاپۆرتی سەرژمێری || EN: INVENTORY AUDIT NOTES
+[143] KU: واژووی چاودێری کۆگا || EN: Warehouse Keeper
+[144] KU: واژووی سەرپەرشتیاری سەرژمێری || EN: Audit Supervisor
+[145] KU: ڕاپۆرتی سەرژمێری کۆگا · سیستەمی فرۆشیار · www.froshiar.store || EN: Inventory Audit Report · Powered by Froshiar · www.froshiar.store
+[146] KU: شێوازی چاپ و ڕێکخستنی پسوولە || EN: Print & Receipt Customization
+[147] KU: عەرز (Quotation) || EN: Quotations
+[148] KU: قەبارەی وەسڵ و کاغەز (Paper Size) || EN: Receipt & Paper Size
+[149] KU: پەڕەی ستانداردی A4 || EN: Standard A4 Sheet (21 × 29.7 cm)
+[150] KU: بەشی عەرز و ئۆفەر (Quotation) بە شێوازی فەرمی تەنها لەسەر پەڕەی A4 چاپ دەکرێت و بۆ پرینتەری حەراری نییە. || EN: Quotations and price proposals are designed exclusively for standard official A4 paper format.
+[151] KU: پێشبینینی ڕاستەوخۆ (Live Preview) || EN: Live Document Preview
+[152] KU: پسوولە: || EN: Receipt #:
+[153] KU: کڕیار: || EN: Customer:
+[154] KU: مۆبایل: || EN: Phone:
+[155] KU: کاڵا || EN: Item
+[156] KU: عەدەد || EN: Qty
+[157] KU: کۆی گشتی: || EN: Total:
+[158] KU: تێبینی و سیاسەت: || EN: Notes & Policy:
+[159] KU: دەستکاری بڕگە و زانیارییەکان || EN: Field Customization
+[160] KU: ژمارەی تەلەفۆنی فرۆشگا || EN: Store Phone Number
+[161] KU: پیشاندانی پەیوەندی فرۆشگا لە سەرپەڕە || EN: Show store phone number in header
+[162] KU: ناونیشانی فرۆشگا || EN: Store Address
+[163] KU: پیشاندانی ناونیشان لە سەرپەڕەی پسوولە || EN: Show store address in header
+[164] KU: ناوی کڕیار || EN: Customer Name
+[165] KU: پیشاندانی ناوی کڕیاری دیاریکراو || EN: Show assigned customer name
+[166] KU: ژمارەی مۆبایلی کڕیار || EN: Customer Phone Number
+[167] KU: پیشاندانی ژمارەی پەیوەندی کڕیار || EN: Show customer contact number
+[168] KU: ژمارەی پسوولە (#Invoice) || EN: Invoice Number (#Invoice)
+[169] KU: پیشاندانی کۆدی تایبەتی پسوولە || EN: Show unique invoice identifier
+[170] KU: بەروار و کات || EN: Date & Time
+[171] KU: پیشاندانی کات و ڕۆژی فرۆشتنەکە || EN: Show date and timestamp
+[172] KU: بڕ و عەدەد (Qty) || EN: Quantity (Qty)
+[173] KU: پیشاندانی ژمارەی دانەی هەر کاڵایەک || EN: Show item quantities in table
+[174] KU: نرخی تاک (Unit Price) || EN: Unit Price
+[175] KU: پیشاندانی نرخی تاک بە داشکاندنەوە || EN: Show unit price with discount strikethrough
+[176] KU: داشکاندن (Discount) || EN: Discount Breakdown
+[177] KU: پیشاندانی بڕی داشکێنراو بۆ کاڵاکان و گشتی || EN: Show item and cart discount amounts
+[178] KU: بارکۆد و ئایدی کاڵا (Item ID) || EN: Product Code & Barcode
+[179] KU: پیشاندانی کۆدی ناسینەوە لەژێر ناوی کاڵا || EN: Show item identification chip
+[180] KU: شێوازی پارەدان (Payment Method) || EN: Payment Method
+[181] KU: کاش، قەرز، یان کارت || EN: Cash, debt, or card status badge
+[182] KU: قەرزی ماوە (Remaining Debt) || EN: Remaining Debt
+[183] KU: پیشاندانی بڕی قەرزی تۆمارکراو || EN: Show remaining balance row
+[184] KU: تێبینی و سیاسەت (Notes & Policy) || EN: Notes & Policy
+[185] KU: پیشاندانی مەرج و گرەنتی فرۆشتن || EN: Show warranty and transaction notes
+[186] KU: دەربارەی سیاسەت و گەرەنتی (Policy) || EN: Company Policy Box
+[187] KU: پیشاندانی مەرجی فرۆشتن و گەرەنتی لە سەرەوە || EN: Show company policy card at the top
+[188] KU: شوێنی واژوو و مۆر (Signatures) || EN: Signature & Stamp Lines
+[189] KU: پیشاندانی واژووی کڕیار و مۆری فرۆشگا لە وەسڵدا || EN: Show customer signature and store stamp
+[190] KU: بارکۆدی کۆتایی پسوولە (Footer Barcode) || EN: Footer Barcode
+[191] KU: بارکۆدی خێرا بۆ سکانکردنەوەی پسوولە || EN: Show quick scan barcode at receipt footer
+[192] KU: تەلەفۆنی کۆمپانیا || EN: Company Phone Number
+[193] KU: پیشاندانی ژمارەی پەیوەندی لە سەرپەڕە || EN: Show warehouse/company phone in header
+[194] KU: ناونیشانی کۆمپانیا || EN: Company Address
+[195] KU: پیشاندانی ناونیشانی کۆگا لە سەرپەڕە || EN: Show company/warehouse address
+[196] KU: ناوی دابینکەر / سەپلایەر || EN: Supplier Name
+[197] KU: پیشاندانی ناوی کۆمپانیا یان کەسی دابینکەر || EN: Show vendor or supplier name
+[198] KU: تەلەفۆنی دابینکەر || EN: Supplier Phone Number
+[199] KU: پیشاندانی مۆبایلی سەپلایەر بۆ پەیوەندی || EN: Show supplier phone contact
+[200] KU: ژمارەی وەسڵی کڕین (#Bill) || EN: Purchase Voucher #
+[201] KU: کۆدی وەسڵی کڕین لە سیستەم || EN: Show system purchase bill number
+[202] KU: کاتی تۆمارکردنی کڕین لە سیستەم || EN: Show procurement date and time
+[203] KU: بڕ و عەدەد (Quantity) || EN: Quantity (Qty)
+[204] KU: عەدەدی کڕدراو بۆ مەخزەن || EN: Show purchased quantities
+[205] KU: نرخی کڕین و تێچوو (Cost) || EN: Purchase Cost (Unit Price)
+[206] KU: نرخی کڕینی تاک بە داشکاندنەوە || EN: Show unit cost with discounts
+[207] KU: داشکاندنی کڕین (Discount) || EN: Supplier Discount
+[208] KU: پیشاندانی داشکاندنی دراو لەلایەن سەپلایەرەوە || EN: Show discount provided by supplier
+[209] KU: بارکۆد و ئایدی کاڵا (Item ID) || EN: Product Code (Item ID)
+[210] KU: کۆدی کاڵای کڕدراو || EN: Show purchased product identifiers
+[211] KU: دۆخی پارەدان (کاش، FIB، قەرز) || EN: Payment Status & Method
+[212] KU: پیشاندانی چۆنیەتی درانی پارە بە دابینکەر || EN: Show payment badge (Paid, FIB, Debt)
+[213] KU: قەرزی ماوەی دابینکەر || EN: Remaining Payable Debt
+[214] KU: بڕی ماوە کە دەبێت بدرێتەوە بە دابینکەر || EN: Show unpaid debt balance to supplier
+[215] KU: تێبینییەکانی کڕین || EN: Purchase & Inspection Notes
+[216] KU: پیشاندانی ڕوونکردنەوە و تێبینی سەر وەسڵ || EN: Show inspection and warranty notes
+[217] KU: سیاسەتی وەرگرتن و کڕین (Policy) || EN: Procurement Policy Box
+[218] KU: ڕێنمایی وەرگرتنی کاڵا بۆ مەخزەن || EN: Show warehouse procurement policy notice
+[219] KU: واژووی مەخزەن و سەرپەرشتیار (Signatures) || EN: Warehouse & Manager Signatures
+[220] KU: پیشاندانی واژووی وەرگرتنی مەخزەن لە خوارەوە || EN: Show receiver and supervisor signature lines
+[221] KU: بارکۆدی خوارەوە || EN: Footer Barcode
+[222] KU: بارکۆدی خێرا بۆ گەڕان لەناو سیستەم || EN: Show document barcode at bottom
+[223] KU: پەیوەندی و تەلەفۆنی کۆمپانیا || EN: Company Phone Number
+[224] KU: پیشاندانی پەیوەندی لەسەر عەرز || EN: Show company phone contact in proposal
+[225] KU: ناونیشانی فەرمی کۆمپانیا || EN: Company Address
+[226] KU: ناونیشانی ئۆفیسی پێشکەشکار || EN: Show company headquarters address
+[227] KU: ناوی کڕیار / کۆمپانیا || EN: Client / Company Name
+[228] KU: ناوی لایەنی داواکار لەسەر عەرز || EN: Show target client or enterprise name
+[229] KU: تەلەفۆنی کڕیار || EN: Client Phone Number
+[230] KU: مۆبایلی کڕیار بۆ پەیوەندی فەرمی || EN: Show client contact phone number
+[231] KU: ژمارەی فەرمی عەرز (#Quotation) || EN: Quotation # Identifier
+[232] KU: کۆدی زنجیرەیی عەرزەکە || EN: Show proposal serial reference number
+[233] KU: بەرواری دەرچوون || EN: Issuance Date
+[234] KU: بەرواری دەرکردنی عەرزەکە || EN: Show proposal release date
+[235] KU: وادەی کارابوون (Valid Until) || EN: Validity Period & Expiry
+[236] KU: ماوەی کارابوونی نرخە پێشنیارکراوەکان || EN: Show validity days and expiration date box
+[237] KU: کۆد و بارکۆدی کاڵاکان || EN: Item Code / Barcode
+[238] KU: کۆدی ناسینەوە لە خشتەی عەرزدا || EN: Show product identification code
+[239] KU: ژمارەی دانەی پێشکەشکراو || EN: Show quoted item quantities
+[240] KU: نرخی یەکە (Unit Price) || EN: Unit Price
+[241] KU: نرخی پێشنیارکراو بە داشکاندنەوە || EN: Show quoted unit price
+[242] KU: داشکاندن لەسەر کاڵاکان || EN: Proposal Discount
+[243] KU: پیشاندانی داشکاندنی تایبەت بۆ پڕۆژەکە || EN: Show special discount allowances
+[244] KU: دەربارەی کۆمپانیا و سیاسەت || EN: About Policy & Terms Card
+[245] KU: سیاسەتی فرۆشتن و گەرەنتی پڕۆژە || EN: Show company policy and warranty details
+[246] KU: تێبینی و مەرجەکان || EN: Terms & Conditions
+[247] KU: مەرجەکانی پارەدان و گواستنەوە || EN: Show terms of payment and delivery timeline
+[248] KU: شوێنی مۆر و واژوو (Signatures) || EN: Official Stamp & Signatures
+[249] KU: بەشی فەرمی واژووی وەرگر و مۆری کۆمپانیا || EN: Show official company seal and client acceptance
+[250] KU: سەرپەڕەی فەرمی و زانیاری کۆگا || EN: Official Warehouse Header
+[251] KU: ناوی کۆگا، پەیوەندی و ناونیشان || EN: Show warehouse name, phone, and address
+[252] KU: کارتەکانی پوختەی ئاماری کۆگا (KPI Cards) || EN: Inventory KPI Summary Cards
+[253] KU: پیشاندانی ٤ کارتی کۆی کاڵا، عەدەد، کەمبوون و بەها || EN: Show 4 cards: Total Items, In Stock, Low Stock, Value
+[254] KU: هاوپۆل و دەستە (Category) || EN: Category Column
+[255] KU: هاوپۆلی کاڵا لە خشتەی کۆگادا || EN: Show product classification column
+[256] KU: بارکۆد و ئایدی کاڵا (Item ID) || EN: Item ID / Barcode Column
+[257] KU: کۆدی ستاندارد یان بارکۆدی کاڵا || EN: Show item code badge
+[258] KU: بڕی بەردەست (Stock Qty) || EN: Stock Quantity
+[259] KU: ژمارەی دانەی ماوە لە مەخزەندا || EN: Show current stock counts
+[260] KU: نرخی کڕین / تێچوو (Cost) || EN: Purchase Cost Price
+[261] KU: تێچووی کڕین بۆ یەکەی کاڵا || EN: Show procurement unit cost
+[262] KU: نرخی فرۆشتن (Selling Price) || EN: Selling Price
+[263] KU: نرخی دیاریکراو بۆ فرۆشتن || EN: Show retail selling price
+[264] KU: بەهای گشتی کاڵاکان (Total Value) || EN: Total Inventory Value
+[265] KU: کۆی بەهای هەموو کاڵاکانی مەخزەن || EN: Show total monetary inventory value
+[266] KU: ناوی دابینکەر (Supplier) || EN: Supplier Column
+[267] KU: کۆمپانیای سەرچاوەی کاڵاکان || EN: Show supplying vendor name
+[268] KU: دۆخی کاڵا و ئاگاداری کەمی (Status) || EN: Stock Status & Low Alert
+[269] KU: پیشاندانی دۆخی لەبارە یان کەمبوونەوە || EN: Show in-stock and low-stock warning badges
+[270] KU: بەروار و کاتی سەرژمێری || EN: Audit Timestamp
+[271] KU: کاتی دەرهێنانی ڕاپۆرتی کۆگا || EN: Show audit generation timestamp
+[272] KU: تێبینی و کورتە || EN: Audit Notes & Report Summary
+[273] KU: ڕوونکردنەوەی فەرمی کۆتایی ڕاپۆرت || EN: Show official audit supervisor commentary
+[274] KU: شوێنی واژووی سەرژمێری (Signatures) || EN: Audit Signatures Area
+[275] KU: واژووی چاودێری کۆگا و بەڕێوەبەری سەرژمێری || EN: Show warehouse keeper and audit supervisor lines
+[276] KU: دەقی دڵخوازی خوارەوەی وەسڵ || EN: Custom Footer Note
+[277] KU: ئەم دەقە لە کۆتایی هەموو وەسڵ و چاپەکاندا پیشان دەدرێت بۆ سوپاسگوزاری یان مەرجی فرۆشگا. || EN: This note is printed at the bottom of the receipt/invoice.
+[278] KU: سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن || EN: Thank you for your business
+[279] KU: چاپ دەکرێت... || EN: Printing...
+[280] KU: گەڕاندنەوەی سەرەتایی ئەم بەشە || EN: Reset Module to Default

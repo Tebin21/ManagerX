@@ -15,7 +15,8 @@ import { Colors } from '@/constants/colors';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL, useDirectionalChevron } from '@/lib/rtl';
 import { hexToRgba } from '@/lib/colorUtils';
-import { searchSuppliersList } from '@/lib/sqlite';
+import { searchSuppliersList, isDirectSupplierName } from '@/lib/sqlite';
+import { useLanguageStore } from '@/store/languageStore';
 import { resolveImageUri } from '@/lib/imageStorage';
 import { sanitizeNumericInput, toEnglishDigits } from '@/utils/formatters';
 import type { Supplier } from '@/types/suppliers';
@@ -33,6 +34,9 @@ interface Props {
 export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneChange, onAddressChange, onSupplierSelect }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKu = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
   const { textAlign, flexDirection } = useRTL();
   const { arrowForwardOutline } = useDirectionalChevron();
   const [suggestions, setSuggestions] = useState<Supplier[]>([]);
@@ -145,7 +149,11 @@ export function SupplierInputForm({ name, phone, address, onNameChange, onPhoneC
                   <Ionicons name="business-outline" size={14} color={colors.primary} style={styles.suggestionIcon} />
                 )}
                 <View style={styles.suggestionInfo}>
-                  <Text style={[styles.suggestionName, { textAlign, color: colors.black }]}>{item.name}</Text>
+                  <Text style={[styles.suggestionName, { textAlign, color: colors.black }]}>
+                    {isDirectSupplierName(item.name)
+                      ? (isAr ? 'المورد المباشر' : isKu ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier')
+                      : item.name}
+                  </Text>
                   {item.phone ? (
                     <Text style={[styles.suggestionPhone, { textAlign, color: colors.gray400 }]}>{item.phone}</Text>
                   ) : null}

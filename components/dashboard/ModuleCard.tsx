@@ -38,8 +38,10 @@ export interface ModuleVisualTheme {
   iconName: keyof typeof Ionicons.glyphMap;
   tagKu: string;
   tagEn: string;
+  tagAr?: string;
   subtitleKu: string;
   subtitleEn: string;
+  subtitleAr?: string;
   iconColor: string;
   circleBg: string;
   circleBorder: string;
@@ -51,8 +53,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'storefront-outline',
     tagKu: 'فرۆشتن',
     tagEn: 'Sales',
+    tagAr: 'المبيعات',
     subtitleKu: 'تۆمارکردنی فرۆشتنی نوێ',
     subtitleEn: 'Create sale invoice',
+    subtitleAr: 'تسجيل فاتورة بيع جديدة',
     iconColor: '#059669',
     circleBg: '#ECFDF5',
     circleBorder: '#A7F3D0',
@@ -62,8 +66,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'cart-outline',
     tagKu: 'کڕین',
     tagEn: 'Purchases',
+    tagAr: 'المشتريات',
     subtitleKu: 'تۆمارکردنی پسوولەی کڕین',
     subtitleEn: 'Record purchases',
+    subtitleAr: 'تسجيل فواتير الشراء والتوريد',
     iconColor: '#EA580C',
     circleBg: '#FFF7ED',
     circleBorder: '#FED7AA',
@@ -73,8 +79,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'cube-outline',
     tagKu: 'کۆگا',
     tagEn: 'Stock',
+    tagAr: 'المخزن',
     subtitleKu: 'بەڕێوەبردنی کاڵا و کۆگا',
     subtitleEn: 'Stock & catalog',
+    subtitleAr: 'إدارة المنتجات والمخزون',
     iconColor: '#0284C7',
     circleBg: '#F0F9FF',
     circleBorder: '#BAE6FD',
@@ -84,8 +92,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'bar-chart-outline',
     tagKu: 'شیکاری',
     tagEn: 'Analytics',
+    tagAr: 'التقارير',
     subtitleKu: 'بینینی ڕاپۆرت و شیکاری',
     subtitleEn: 'Analytics & profit',
+    subtitleAr: 'عرض التقارير والأرباح',
     iconColor: '#6366F1',
     circleBg: '#EEF2FF',
     circleBorder: '#C7D2FE',
@@ -95,8 +105,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'wallet-outline',
     tagKu: 'دارایی',
     tagEn: 'Finance',
+    tagAr: 'الديون',
     subtitleKu: 'قەرزی کڕیار و دابینکەر',
     subtitleEn: 'Clients & suppliers debt',
+    subtitleAr: 'ديون الزبائن والموردين',
     iconColor: '#D97706',
     circleBg: '#FEF3C7',
     circleBorder: '#FDE68A',
@@ -106,8 +118,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'time-outline',
     tagKu: 'مێژوو',
     tagEn: 'History',
+    tagAr: 'السجل',
     subtitleKu: 'مێژووی فرۆشتن و کڕین',
     subtitleEn: 'Timeline of sales',
+    subtitleAr: 'سجل المبيعات والمشتريات',
     iconColor: '#0D9488',
     circleBg: '#F0FDFA',
     circleBorder: '#99F6E4',
@@ -117,8 +131,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'cash-outline',
     tagKu: 'خەرجی',
     tagEn: 'Expenses',
+    tagAr: 'المصاريف',
     subtitleKu: 'تۆمارکردن و بەڕێوەبردن',
     subtitleEn: 'Operating expenses',
+    subtitleAr: 'تسجيل وإدارة مصاريف العمل',
     iconColor: '#E11D48',
     circleBg: '#FFF1F2',
     circleBorder: '#FECDD3',
@@ -128,8 +144,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'grid-outline',
     tagKu: 'داشبۆرد',
     tagEn: 'Overview',
+    tagAr: 'لوحة التحكم',
     subtitleKu: 'ئاماری کار، چارت و شیکاری',
     subtitleEn: 'Business overview & charts',
+    subtitleAr: 'نظرة عامة وإحصائيات العمل',
     iconColor: '#7C3AED',
     circleBg: '#F5F3FF',
     circleBorder: '#DDD6FE',
@@ -139,8 +157,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'time-outline',
     tagKu: 'بەسەرچوون',
     tagEn: 'Expiry',
+    tagAr: 'الصلاحية',
     subtitleKu: 'چاودێری بەرواری بەسەرچوون',
     subtitleEn: 'Track product expiry dates',
+    subtitleAr: 'متابعة تواريخ انتهاء الصلاحية',
     iconColor: '#F59E0B',
     circleBg: '#FEF3C7',
     circleBorder: '#FDE68A',
@@ -150,8 +170,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'receipt-outline',
     tagKu: 'پسوڵەکان',
     tagEn: 'Invoices',
+    tagAr: 'الفواتير',
     subtitleKu: 'ئەرشیف، بینین و چاپکردنی پسوڵەکان',
     subtitleEn: 'Archive, view & print receipts',
+    subtitleAr: 'أرشيف وطباعة الفواتير',
     iconColor: '#0284C7',
     circleBg: '#F0F9FF',
     circleBorder: '#BAE6FD',
@@ -161,8 +183,10 @@ export const MODULE_THEMES: Record<string, ModuleVisualTheme> = {
     iconName: 'shield-checkmark-outline',
     tagKu: 'بەڕێوەبردن',
     tagEn: 'Control',
+    tagAr: 'الموظفين',
     subtitleKu: 'بەڕێوەبردنی کارمەند و دەسەڵاتەکان',
     subtitleEn: 'Employee & Access Control',
+    subtitleAr: 'إدارة الموظفين والصلاحيات',
     iconColor: '#2563EB',
     circleBg: '#EFF6FF',
     circleBorder: '#BFDBFE',
@@ -174,8 +198,10 @@ const DEFAULT_THEME: ModuleVisualTheme = {
   iconName: 'grid-outline',
   tagKu: 'سیستەم',
   tagEn: 'Module',
+  tagAr: 'النظام',
   subtitleKu: 'بەڕێوەبردنی کار',
   subtitleEn: 'Manage module',
+  subtitleAr: 'إدارة القسم',
   iconColor: '#475569',
   circleBg: '#F1F5F9',
   circleBorder: '#E2E8F0',
@@ -222,10 +248,16 @@ function ModuleCardImpl({
   const { isRTL } = useRTL();
   const lang = useLanguageStore((s) => s.language);
   const isKurdish = lang === 'ku' || (!lang && (i18n.language === 'ku' || !i18n.language));
+  const isArabic = lang === 'ar' || (!lang && i18n.language === 'ar');
 
   const isFull = layout === 'full';
   const isEffectivelyFull = isFull || isSingleLastItem;
   const theme = MODULE_THEMES[module.id] || DEFAULT_THEME;
+  const subtitle = isArabic
+    ? (theme.subtitleAr || theme.subtitleEn)
+    : isKurdish
+    ? theme.subtitleKu
+    : theme.subtitleEn;
 
   const pressAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -286,8 +318,12 @@ function ModuleCardImpl({
       } catch { }
       const { Alert } = require('react-native');
       Alert.alert(
-        isKurdish ? 'ناچالاک کراوە' : 'Module Disabled',
-        isKurdish ? 'ئەم بەشە ناچالاک کراوە لەلایەن بەڕێوەبەرەوە.' : 'This module has been disabled by management.'
+        isArabic ? 'القسم معطل' : isKurdish ? 'ناچالاک کراوە' : 'Module Disabled',
+        isArabic
+          ? 'تم تعطيل هذا القسم من قبل الإدارة.'
+          : isKurdish
+          ? 'ئەم بەشە ناچالاک کراوە لەلایەن بەڕێوەبەرەوە.'
+          : 'This module has been disabled by management.'
       );
       return;
     }
@@ -432,7 +468,7 @@ function ModuleCardImpl({
                   style={[
                     styles.titleWide,
                     { color: isDark ? '#F8FAFC' : '#0F172A', textAlign: isRTL ? 'right' : 'left' },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                   numberOfLines={1}
                 >
@@ -442,10 +478,11 @@ function ModuleCardImpl({
                   style={[
                     styles.subtitleWide,
                     { color: '#94A3B8', textAlign: isRTL ? 'right' : 'left' },
+                    (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                   numberOfLines={1}
                 >
-                  {isKurdish ? theme.subtitleKu : theme.subtitleEn}
+                  {subtitle}
                 </Text>
               </View>
 
@@ -485,7 +522,7 @@ function ModuleCardImpl({
                 style={[
                   styles.titleSquare,
                   { color: isDark ? '#F8FAFC' : '#0F172A' },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
               >
@@ -497,10 +534,11 @@ function ModuleCardImpl({
                 style={[
                   styles.subtitleSquare,
                   { color: '#94A3B8' },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
                 numberOfLines={1}
               >
-                {isKurdish ? theme.subtitleKu : theme.subtitleEn}
+                {subtitle}
               </Text>
             </View>
           )}

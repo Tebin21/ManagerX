@@ -141,7 +141,7 @@ function PaymentTimelineItem({
                     : (isDark ? '#6EE7B7' : '#047857'),
                 }}
               >
-                {payment.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (i18n.language === 'ku' ? 'کاش' : 'Cash')}
+                {payment.paymentMethod.toLowerCase() === 'fib' ? 'FIB' : (i18n.language === 'ar' ? 'نقداً' : i18n.language === 'ku' ? 'کاش' : 'Cash')}
               </Text>
             </View>
           ) : null}

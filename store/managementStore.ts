@@ -26,6 +26,7 @@ interface ManagementState {
   setCurrentEmployee: (account: EmployeeAccount | null) => void;
   updateCurrentPermissions: (permissions: EmployeePermissions) => void;
   clearEmployeeSession: () => void;
+  resetAllManagementState: () => void;
   initSuperAdminSubscription: () => () => void;
   initEmployeeLiveSubscription: (email: string) => () => void;
   initManagerSubscription: (managerEmail: string) => () => void;
@@ -44,11 +45,17 @@ export const useManagementStore = create<ManagementState>()(
 
       setEmployees: (employees) => set({ employees, isLoading: false }),
 
-      setManagedEmployees: (managedEmployees) =>
+      setManagedEmployees: (managedEmployees) => {
+        // Employees can never be managers or have managed employees
+        if (get().isEmployee) {
+          set({ managedEmployees: [], isManager: false });
+          return;
+        }
         set({
           managedEmployees,
           isManager: managedEmployees.length > 0,
-        }),
+        });
+      },
 
       setCurrentEmployee: (account) => {
         if (!account) {
@@ -60,6 +67,9 @@ export const useManagementStore = create<ManagementState>()(
         } else {
           set({
             isEmployee: true,
+            isManager: false,
+            managedEmployees: [],
+            employees: [],
             currentEmployeeAccount: account,
             currentPermissions: account.permissions || DEFAULT_EMPLOYEE_PERMISSIONS,
           });
@@ -77,6 +87,17 @@ export const useManagementStore = create<ManagementState>()(
       clearEmployeeSession: () =>
         set({
           isEmployee: false,
+          currentEmployeeAccount: null,
+          currentPermissions: null,
+        }),
+
+      resetAllManagementState: () =>
+        set({
+          employees: [],
+          managedEmployees: [],
+          isLoading: false,
+          isEmployee: false,
+          isManager: false,
           currentEmployeeAccount: null,
           currentPermissions: null,
         }),
@@ -108,8 +129,15 @@ export const useManagementStore = create<ManagementState>()(
       },
 
       initManagerSubscription: (managerEmail: string) => {
-        if (!managerEmail) return () => {};
+        if (!managerEmail || !managerEmail.includes('@') || get().isEmployee) {
+          return () => {};
+        }
         const unsubscribe = subscribeToManagerEmployees(managerEmail, (managed) => {
+          // Double guard: if account switched to employee in meantime, ignore
+          if (get().isEmployee) {
+            get().setManagedEmployees([]);
+            return;
+          }
           get().setManagedEmployees(managed);
         });
         return unsubscribe;

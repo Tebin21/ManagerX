@@ -86,7 +86,9 @@ export function PurchasePaymentOptionsAccordion({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKurdish = currentLang === 'ku';
+  const isArabic = currentLang === 'ar';
 
   const isExpanded = useSettingsStore((s) => s.checkoutGridExpandedPurchase);
   const setExpanded = useSettingsStore((s) => s.setCheckoutGridExpandedPurchase);
@@ -105,8 +107,10 @@ export function PurchasePaymentOptionsAccordion({
     } catch {}
     if (targetMode === 'empty1' || targetMode === 'empty2') {
       Alert.alert(
-        isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',
-        isKurdish
+        isArabic ? 'خانة فارغة' : isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',
+        isArabic
+          ? 'هذا الزر فارغ حالياً وسيتم تخصيصه في تحديث قادم.'
+          : isKurdish
           ? 'ئەم بەتنە لە ئێستادا بەتاڵە و لە نوێکردنەوەی داهاتوودا دیاری دەکرێت.'
           : 'This button is currently empty and will be configured in a future update.'
       );
@@ -125,27 +129,27 @@ export function PurchasePaymentOptionsAccordion({
   }> = [
     {
       id: 'normal',
-      title: isKurdish ? 'ئاسایی' : 'Normal',
-      subtitle: isKurdish ? 'کڕین و گەڕانەوە' : 'Quick Purchase',
+      title: isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal',
+      subtitle: isArabic ? 'شراء وحفظ سريع' : isKurdish ? 'کڕین و گەڕانەوە' : 'Quick Purchase',
       icon: 'flash-outline',
     },
     {
       id: 'print',
-      title: isKurdish ? 'پرینت' : 'Print',
-      subtitle: isKurdish ? 'چاپ و گەڕانەوە' : 'Print & Return',
+      title: isArabic ? 'طباعة' : isKurdish ? 'پرینت' : 'Print',
+      subtitle: isArabic ? 'طباعة وحفظ' : isKurdish ? 'چاپ و گەڕانەوە' : 'Print & Return',
       icon: 'print-outline',
     },
     {
       id: 'empty1',
-      title: isKurdish ? 'بەتاڵ ١' : 'Empty 1',
-      subtitle: isKurdish ? 'خاڵی' : 'Empty',
+      title: isArabic ? 'فارغ 1' : isKurdish ? 'بەتاڵ ١' : 'Empty 1',
+      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
       icon: 'ellipsis-horizontal-circle-outline',
       isEmpty: true,
     },
     {
       id: 'empty2',
-      title: isKurdish ? 'بەتاڵ ٢' : 'Empty 2',
-      subtitle: isKurdish ? 'خاڵی' : 'Empty',
+      title: isArabic ? 'فارغ 2' : isKurdish ? 'بەتاڵ ٢' : 'Empty 2',
+      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
       icon: 'ellipsis-horizontal-circle-outline',
       isEmpty: true,
     },
@@ -180,21 +184,21 @@ export function PurchasePaymentOptionsAccordion({
               style={[
                 styles.sectionTitle,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
               ]}
               numberOfLines={1}
             >
-              {isKurdish ? 'شێوازی پارەدان و تەواوکردنی کڕین' : 'Payment & Checkout Options'}
+              {isArabic ? 'خيارات الدفع وإتمام الشراء' : isKurdish ? 'شێوازی پارەدان و تەواوکردنی کڕین' : 'Payment & Checkout Options'}
             </Text>
             <Text
               style={[
                 styles.sectionSubtitle,
                 { color: colors.gray400, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
               ]}
               numberOfLines={1}
             >
-              {isKurdish ? 'پارەدان، دراوی وەسڵ، دەخیلە و شێوازی کڕین' : 'Payment, currency, drawer & checkout mode'}
+              {isArabic ? 'الدفع، العملة، الصندوق وطريقة الشراء' : isKurdish ? 'پارەدان، دراوی وەسڵ، دەخیلە و شێوازی کڕین' : 'Payment, currency, drawer & checkout mode'}
             </Text>
           </View>
         </View>
@@ -248,7 +252,7 @@ export function PurchasePaymentOptionsAccordion({
                       ? (isDark ? '#60A5FA' : '#1D4ED8')
                       : colors.error,
                 },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {paymentStatus === 'paid' ? t('purchases.paid') : paymentStatus === 'fib' ? 'FIB' : t('purchases.debt')}
@@ -269,10 +273,10 @@ export function PurchasePaymentOptionsAccordion({
               style={[
                 styles.activePillText,
                 { color: isDark ? '#FBBF24' : '#B45309' },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {receiptCurrency === 'iqd' ? 'دینار' : receiptCurrency === 'usd' ? 'دۆلار' : 'دینار+دۆلار'}
+              {receiptCurrency === 'iqd' ? (isArabic ? 'دينار' : 'دینار') : receiptCurrency === 'usd' ? (isArabic ? 'دولار' : 'دۆلار') : (isArabic ? 'دينار + دولار' : 'دینار+دۆلار')}
             </Text>
           </View>
 
@@ -295,10 +299,10 @@ export function PurchasePaymentOptionsAccordion({
               style={[
                 styles.activePillText,
                 { color: colors.black },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {checkoutMode === 'print' ? (isKurdish ? 'پرینت' : 'Print') : (isKurdish ? 'ئاسایی' : 'Normal')}
+              {checkoutMode === 'print' ? (isArabic ? 'طباعة' : isKurdish ? 'پرینت' : 'Print') : (isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal')}
             </Text>
           </View>
 
@@ -338,7 +342,7 @@ export function PurchasePaymentOptionsAccordion({
               style={[
                 styles.subSectionTitle,
                 { color: colors.gray600, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {t('purchases.paymentStatus')}
@@ -369,7 +373,7 @@ export function PurchasePaymentOptionsAccordion({
                 style={[
                   styles.payBtnText,
                   { color: paymentStatus === 'paid' ? colors.success : colors.gray500 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
                 {t('purchases.paid')}
@@ -399,7 +403,7 @@ export function PurchasePaymentOptionsAccordion({
                 style={[
                   styles.payBtnText,
                   { color: paymentStatus === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
                 {t('purchases.fib', 'FIB')}
@@ -429,7 +433,7 @@ export function PurchasePaymentOptionsAccordion({
                 style={[
                   styles.payBtnText,
                   { color: paymentStatus === 'debt' ? colors.error : colors.gray500 },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
                 {t('purchases.debt')}
@@ -460,7 +464,7 @@ export function PurchasePaymentOptionsAccordion({
                     marginBottom: 8,
                     textAlign: isRTL ? 'right' : 'left',
                   },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
                 {t('purchases.maxDownPayment')} {maxDownPaymentDisplay}
@@ -472,7 +476,7 @@ export function PurchasePaymentOptionsAccordion({
                     style={[
                       styles.fieldLabel,
                       { color: colors.gray500, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
                     {t('purchases.downPaymentMethod', 'شێوازی پارەدانی پێشەکی')}
@@ -500,7 +504,7 @@ export function PurchasePaymentOptionsAccordion({
                         style={[
                           styles.payBtnText,
                           { color: initialPaymentMethod === 'cash' ? colors.success : colors.gray500 },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                         ]}
                       >
                         {t('purchases.cash', 'کاش')}
@@ -529,7 +533,7 @@ export function PurchasePaymentOptionsAccordion({
                         style={[
                           styles.payBtnText,
                           { color: initialPaymentMethod === 'fib' ? (isDark ? '#60A5FA' : '#1D4ED8') : colors.gray500 },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                         ]}
                       >
                         {t('purchases.fib', 'FIB')}
@@ -598,7 +602,7 @@ export function PurchasePaymentOptionsAccordion({
                     style={[
                       styles.drawerCardTitle,
                       { color: colors.black, textAlign },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
                     {t('capital.drawerStatusTitle')}
@@ -615,7 +619,7 @@ export function PurchasePaymentOptionsAccordion({
                     style={[
                       styles.drawerActivePillText,
                       { color: isInsufficientCash ? colors.error : colors.primary },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
                     {isInsufficientCash ? t('common.error') : t('capital.statusActive')}
@@ -644,7 +648,7 @@ export function PurchasePaymentOptionsAccordion({
                       style={[
                         styles.drawerMetricRowLabel,
                         { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
                       {t('capital.drawerBalanceNow')}
@@ -689,7 +693,7 @@ export function PurchasePaymentOptionsAccordion({
                       style={[
                         styles.drawerMetricRowLabel,
                         { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
                       {t('capital.drawerCashNeeded')}
@@ -744,7 +748,7 @@ export function PurchasePaymentOptionsAccordion({
                           color: isInsufficientCash ? colors.error : colors.success,
                           textAlign: isRTL ? 'right' : 'left',
                         },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
                       {t('capital.drawerBalanceAfter')}
@@ -779,7 +783,7 @@ export function PurchasePaymentOptionsAccordion({
                     style={[
                       styles.drawerWarningText,
                       { color: colors.error, textAlign },
-                      isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                      (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                     ]}
                   >
                     {t('capital.insufficientBanner')}
@@ -798,10 +802,10 @@ export function PurchasePaymentOptionsAccordion({
               style={[
                 styles.subSectionTitle,
                 { color: colors.gray600, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'شێوازی تەواوکردنی کڕین' : 'Purchase Completion Mode'}
+              {isArabic ? 'طريقة إتمام الشراء' : isKurdish ? 'شێوازی تەواوکردنی کڕین' : 'Purchase Completion Mode'}
             </Text>
           </View>
 
@@ -864,7 +868,7 @@ export function PurchasePaymentOptionsAccordion({
                             color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
                             textAlign,
                           },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                         ]}
                         numberOfLines={1}
                       >
@@ -874,7 +878,7 @@ export function PurchasePaymentOptionsAccordion({
                         style={[
                           styles.modeCardSubtitle,
                           { color: isSelected ? colors.primary + 'CC' : colors.gray400, textAlign },
-                          isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT },
                         ]}
                         numberOfLines={1}
                       >

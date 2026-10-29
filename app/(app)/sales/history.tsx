@@ -46,6 +46,8 @@ export default function SalesHistoryScreen() {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const isAr = useLanguageStore((s) => s.language === 'ar');
+  const isKuOrAr = isKuLanguage || isAr;
   const { sales, loadSales, isLoading } = useSalesStore();
 
   const salesHistoryGridLayout = useSettingsStore((s) => s.salesHistoryGridLayout);
@@ -108,13 +110,13 @@ export default function SalesHistoryScreen() {
 
   // Readable label for the current active period
   const periodDisplayLabel = useMemo(() => {
-    if (period === 'today') return isKuLanguage ? 'ئەمڕۆ' : 'Today';
-    if (period === 'week') return isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
-    if (period === 'month') return isKuLanguage ? 'ئەم مانگە' : 'This Month';
-    if (period === 'year') return isKuLanguage ? 'ئەم ساڵ' : 'This Year';
-    if (period === 'all') return isKuLanguage ? 'هەمووی' : 'All Time';
+    if (period === 'today') return isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : 'Today';
+    if (period === 'week') return isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : 'This Week';
+    if (period === 'month') return isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : 'This Month';
+    if (period === 'year') return isAr ? 'هذا العام' : isKuLanguage ? 'ئەم ساڵ' : 'This Year';
+    if (period === 'all') return isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All Time';
     return `${formatDateShort(bounds.from)} → ${formatDateShort(bounds.to)}`;
-  }, [period, bounds, isKuLanguage]);
+  }, [period, bounds, isKuLanguage, isAr]);
 
   // Generate & share PDF Sales Audit Report
   const handleExportPdf = useCallback(async () => {
@@ -196,12 +198,12 @@ export default function SalesHistoryScreen() {
 
   const filterKeys: PeriodKey[] = ['today', 'week', 'month', 'year', 'all', 'custom'];
   const filterLabels: Record<PeriodKey, string> = {
-    today:  isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
-    week:   isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
-    month:  isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
-    year:   isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
-    all:    isKuLanguage ? 'هەمووی' : 'All',
-    custom: isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
+    today:  isAr ? 'اليوم' : isKuLanguage ? 'ئەمڕۆ' : t('common.today', 'Today'),
+    week:   isAr ? 'هذا الأسبوع' : isKuLanguage ? 'ئەم هەفتەیە' : t('common.thisWeek', 'This Week'),
+    month:  isAr ? 'هذا الشهر' : isKuLanguage ? 'ئەم مانگە' : t('common.thisMonth', 'This Month'),
+    year:   isAr ? 'هذا العام' : isKuLanguage ? 'ئەمساڵ' : t('reports.year', 'This Year'),
+    all:    isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All',
+    custom: isAr ? 'مخصص' : isKuLanguage ? 'دیاریکراو' : t('reports.custom', 'Custom'),
   };
 
   const handlePeriodTabPress = (key: PeriodKey) => {
@@ -401,7 +403,7 @@ export default function SalesHistoryScreen() {
                             color: active ? colors.white : colors.gray700,
                             textAlign,
                           },
-                          isKuLanguage && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
+                          isKuOrAr && { fontFamily: active ? SETTINGS_KURDISH_FONT_BOLD : SETTINGS_KURDISH_FONT_REGULAR },
                         ]}
                       >
                         {filterLabels[key]}
@@ -450,8 +452,8 @@ export default function SalesHistoryScreen() {
           },
         ]}
       >
-        <Text style={[styles.countText, { color: colors.gray500, textAlign }]}>
-          {results.length} {isKuLanguage ? 'پسوولەی فرۆشتن' : t('sales.sales')}
+        <Text style={[styles.countText, { color: colors.gray500, textAlign }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR }]}>
+          {results.length} {isAr ? 'فاتورة مبيعات' : isKuLanguage ? 'پسوولەی فرۆشتن' : 'sales invoices'}
         </Text>
       </View>
 

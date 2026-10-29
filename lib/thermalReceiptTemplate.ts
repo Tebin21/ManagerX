@@ -12,6 +12,7 @@
  */
 
 import type { Sale } from '@/types/sales';
+import i18n from '@/lib/i18n';
 import { fmtIQD, fmtUSD, formatDate, formatTime, getPaymentStatus } from '@/utils/formatters';
 import { KURDISH_FONT_FACE, kuSpan, isKurdishPdfActive } from '@/lib/pdfFont';
 import {
@@ -362,6 +363,9 @@ export function buildThermalReceiptHTML(
   };
 
   const isKurdish = isKurdishPdfActive();
+  const currentLang = i18n.language || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKu = currentLang === 'ku';
   const baseCurrency = storeSettings.baseCurrency || 'IQD';
   const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = sale.exchangeRateUsed ?? storeSettings.exchangeRate ?? 1310;
@@ -398,7 +402,7 @@ export function buildThermalReceiptHTML(
     itemsHTML = items.map((item, i) => {
       const discountTag =
         settings.showDiscount && item.discount > 0
-          ? `<span class="item-discount-sub">${ku(isKurdish ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
+          ? `<span class="item-discount-sub">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
           : '';
       const barcodeTag =
         settings.showItemBarcode && item.itemId
@@ -412,7 +416,7 @@ export function buildThermalReceiptHTML(
       const qtyPricePart = settings.showQty && settings.showItemPrice
         ? `${item.quantity} × ${unitPriceWithDiscount}`
         : settings.showQty
-        ? `${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}`
+        ? `${item.quantity} ${ku(isAr ? 'قطعة' : isKu ? 'دانە' : 'pcs')}`
         : settings.showItemPrice
         ? unitPriceWithDiscount
         : '';
@@ -444,7 +448,7 @@ export function buildThermalReceiptHTML(
           : '';
       const discountTag =
         settings.showDiscount && item.discount > 0
-          ? `<span class="item-discount-sub">${ku(isKurdish ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
+          ? `<span class="item-discount-sub">${ku(isAr ? 'الخصم:' : isKu ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
           : '';
 
       const unitPriceCell = settings.showDiscount && item.discount > 0
@@ -469,10 +473,10 @@ export function buildThermalReceiptHTML(
       <table class="items-table">
         <thead>
           <tr>
-            <th>${ku(isKurdish ? 'کاڵا' : 'Item')}</th>
-            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isKurdish ? 'بڕ' : 'Qty')}</th>` : ''}
-            ${settings.showItemPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isKurdish ? 'نرخ' : 'Price')}</th>` : ''}
-            <th class="num-col" style="width:${totalColWidth};">${ku(isKurdish ? 'کۆ' : 'Total')}</th>
+            <th>${ku(isAr ? 'المادة' : isKu ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isAr ? 'الكمية' : isKu ? 'بڕ' : 'Qty')}</th>` : ''}
+            ${settings.showItemPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isAr ? 'السعر' : isKu ? 'نرخ' : 'Price')}</th>` : ''}
+            <th class="num-col" style="width:${totalColWidth};">${ku(isAr ? 'المجموع' : isKu ? 'کۆ' : 'Total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -493,28 +497,28 @@ export function buildThermalReceiptHTML(
   if (showUsdOnly) {
     grandTotalHTML = `
       <div class="grand-total-box">
-        <span class="grand-total-label">${ku(isKurdish ? 'کۆی گشتی' : 'Grand Total')}</span>
+        <span class="grand-total-label">${ku(isAr ? 'المجموع الكلي' : isKu ? 'کۆی گشتی' : 'Grand Total')}</span>
         <span class="grand-total-amount">$${totalUSD}</span>
       </div>
-      ${showBoth ? `<div class="grand-total-sub">${ku(isKurdish ? 'کۆی گشتی بە دینار:' : 'Total in IQD:')} ${totalIQD}&nbsp;IQD</div>` : ''}
+      ${showBoth ? `<div class="grand-total-sub">${ku(isAr ? 'المجموع الكلي بالدينار:' : isKu ? 'کۆی گشتی بە دینار:' : 'Total in IQD:')} ${totalIQD}&nbsp;IQD</div>` : ''}
     `;
   } else {
     grandTotalHTML = `
       <div class="grand-total-box">
-        <span class="grand-total-label">${ku(isKurdish ? 'کۆی گشتی' : 'Grand Total')}</span>
+        <span class="grand-total-label">${ku(isAr ? 'المجموع الكلي' : isKu ? 'کۆی گشتی' : 'Grand Total')}</span>
         <span class="grand-total-amount">${totalIQD}&nbsp;IQD</span>
       </div>
-      ${showBoth ? `<div class="grand-total-sub">${ku(isKurdish ? 'کۆی گشتی بە دۆلار:' : 'Total in USD:')} $${totalUSD}</div>` : ''}
+      ${showBoth ? `<div class="grand-total-sub">${ku(isAr ? 'المجموع الكلي بالدولار:' : isKu ? 'کۆی گشتی بە دۆلار:' : 'Total in USD:')} $${totalUSD}</div>` : ''}
     `;
   }
 
   // Payment details
   const methodLabel =
     sale.paymentMethod === 'debt'
-      ? (isKurdish ? 'قەرز (Debt)' : 'Debt')
+      ? (isAr ? 'دين' : isKu ? 'قەرز (Debt)' : 'Debt')
       : sale.paymentMethod === 'fib'
       ? 'FIB'
-      : (isKurdish ? 'کاش (Cash)' : 'Cash');
+      : (isAr ? 'نقداً' : isKu ? 'کاش (Cash)' : 'Cash');
 
   // Notes & Warranty
   const noteContent = (sale.notes || '').trim();
@@ -525,9 +529,9 @@ export function buildThermalReceiptHTML(
     settings.showNotes && (noteContent || warrantyContent || policyContent)
       ? `
         <div class="notes-box">
-          ${warrantyContent ? `<div class="notes-title">${ku(isKurdish ? 'گرەنتی / مەرج:' : 'Warranty:')}</div><div style="margin-bottom:3px;">${escHtml(warrantyContent)}</div>` : ''}
-          ${noteContent ? `<div class="notes-title">${ku(isKurdish ? 'تێبینی:' : 'Notes:')}</div><div style="margin-bottom:3px;">${escHtml(noteContent)}</div>` : ''}
-          ${policyContent ? `<div class="notes-title">${ku(isKurdish ? 'ڕێنمایی و سیاسەت:' : 'Policy:')}</div><div>${escHtml(policyContent)}</div>` : ''}
+          ${warrantyContent ? `<div class="notes-title">${ku(isAr ? 'الضمان والشروط:' : isKu ? 'گرەنتی / مەرج:' : 'Warranty:')}</div><div style="margin-bottom:3px;">${escHtml(warrantyContent)}</div>` : ''}
+          ${noteContent ? `<div class="notes-title">${ku(isAr ? 'الملاحظات:' : isKu ? 'تێبینی:' : 'Notes:')}</div><div style="margin-bottom:3px;">${escHtml(noteContent)}</div>` : ''}
+          ${policyContent ? `<div class="notes-title">${ku(isAr ? 'السياسة والتعليمات:' : isKu ? 'ڕێنمایی و سیاسەت:' : 'Policy:')}</div><div>${escHtml(policyContent)}</div>` : ''}
         </div>
       `
       : '';
@@ -561,22 +565,22 @@ export function buildThermalReceiptHTML(
     <div class="info-section">
       ${invoiceNum ? `
       <div class="info-row">
-        <span class="info-label">${ku(isKurdish ? 'پسوولە:' : 'Receipt #:')}</span>
+        <span class="info-label">${ku(isAr ? 'رقم الإيصال:' : isKu ? 'پسوولە:' : 'Receipt #:')}</span>
         <span class="info-value">#${invoiceNum}</span>
       </div>` : ''}
       ${dateFormatted ? `
       <div class="info-row">
-        <span class="info-label">${ku(isKurdish ? 'بەروار:' : 'Date:')}</span>
+        <span class="info-label">${ku(isAr ? 'التاريخ:' : isKu ? 'بەروار:' : 'Date:')}</span>
         <span class="info-value">${dateFormatted} ${timeFormatted}</span>
       </div>` : ''}
       ${customerName ? `
       <div class="info-row">
-        <span class="info-label">${ku(isKurdish ? 'کڕیار:' : 'Customer:')}</span>
+        <span class="info-label">${ku(isAr ? 'الزبون:' : isKu ? 'کڕیار:' : 'Customer:')}</span>
         <span class="info-value">${customerName}</span>
       </div>` : ''}
       ${customerPhone ? `
       <div class="info-row">
-        <span class="info-label">${ku(isKurdish ? 'مۆبایل:' : 'Phone:')}</span>
+        <span class="info-label">${ku(isAr ? 'الهاتف:' : isKu ? 'مۆبایل:' : 'Phone:')}</span>
         <span class="info-value">${customerPhone}</span>
       </div>` : ''}
     </div>
@@ -593,19 +597,19 @@ export function buildThermalReceiptHTML(
     <!-- Financial Totals -->
     <div class="totals-section">
       <div class="total-row">
-        <span class="info-label">${ku(isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:')}</span>
+        <span class="info-label">${ku(isAr ? 'مجموع المواد:' : isKu ? 'کۆی کاڵاکان:' : 'Subtotal:')}</span>
         <span class="info-value">${fmtRow(sale.subtotal)}</span>
       </div>
 
       ${settings.showDiscount && sale.discountTotal > 0 ? `
       <div class="total-row">
-        <span class="info-label">${ku(isKurdish ? 'داشکاندنی کاڵا:' : 'Item Discount:')}</span>
+        <span class="info-label">${ku(isAr ? 'خصم المواد:' : isKu ? 'داشکاندنی کاڵا:' : 'Item Discount:')}</span>
         <span class="info-value" style="color:#000;">− ${fmtRow(sale.discountTotal)}</span>
       </div>` : ''}
 
       ${settings.showDiscount && sale.globalDiscount > 0 ? `
       <div class="total-row">
-        <span class="info-label">${ku(isKurdish ? 'داشکاندنی گشتی:' : 'Cart Discount:')}</span>
+        <span class="info-label">${ku(isAr ? 'خصم السلة:' : isKu ? 'داشکاندنی گشتی:' : 'Cart Discount:')}</span>
         <span class="info-value" style="color:#000;">− ${fmtRow(sale.globalDiscount)}</span>
       </div>` : ''}
 
@@ -613,19 +617,19 @@ export function buildThermalReceiptHTML(
 
       ${settings.showPaymentMethod ? `
       <div class="total-row" style="margin-top:4px;">
-        <span class="info-label">${ku(isKurdish ? 'شێوازی پارەدان:' : 'Payment:')}</span>
+        <span class="info-label">${ku(isAr ? 'طريقة الدفع:' : isKu ? 'شێوازی پارەدان:' : 'Payment:')}</span>
         <span class="info-value">${ku(methodLabel)}</span>
       </div>` : ''}
 
       ${sale.paymentMethod === 'debt' && sale.paidAmount > 0 ? `
       <div class="total-row">
-        <span class="info-label">${ku(isKurdish ? 'بڕی دراو:' : 'Paid:')}</span>
+        <span class="info-label">${ku(isAr ? 'المبلغ المدفوع:' : isKu ? 'بڕی دراو:' : 'Paid:')}</span>
         <span class="info-value">${fmtRow(sale.paidAmount)}</span>
       </div>` : ''}
 
       ${settings.showRemainingDebt && sale.remainingDebt > 0 ? `
       <div class="total-row" style="font-weight:800;">
-        <span class="info-label">${ku(isKurdish ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
+        <span class="info-label">${ku(isAr ? 'الدين المتبقي:' : isKu ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
         <span class="info-value">${fmtRow(sale.remainingDebt)}</span>
       </div>` : ''}
     </div>
@@ -681,6 +685,9 @@ export function buildThermalPurchaseReceiptHTML(
   };
 
   const isKurdish = isKurdishPdfActive();
+  const currentPurchaseLang = i18n.language || 'ku';
+  const isPurchaseAr = currentPurchaseLang === 'ar';
+  const isPurchaseKu = currentPurchaseLang === 'ku';
   const baseCurrency = storeSettings.baseCurrency || 'IQD';
   const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = storeSettings.exchangeRate || 1310;
@@ -711,7 +718,7 @@ export function buildThermalPurchaseReceiptHTML(
       const qtyPricePart = settings.showQty && settings.showBuyPrice
         ? `${item.quantity} × ${unitCost}`
         : settings.showQty
-        ? `${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}`
+        ? `${item.quantity} ${ku(isPurchaseAr ? 'قطعة' : isPurchaseKu ? 'دانە' : 'pcs')}`
         : unitCost;
 
       return `
@@ -759,10 +766,10 @@ export function buildThermalPurchaseReceiptHTML(
       <table class="receipt-table">
         <thead>
           <tr>
-            <th class="item-name-cell">${ku(isKurdish ? 'کاڵا' : 'Item')}</th>
-            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isKurdish ? 'عەدەد' : 'Qty')}</th>` : ''}
-            ${settings.showBuyPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isKurdish ? 'تێچوو' : 'Cost')}</th>` : ''}
-            <th class="num-col" style="width:${totalColWidth};">${ku(isKurdish ? 'کۆی گشتی' : 'Total')}</th>
+            <th class="item-name-cell">${ku(isPurchaseAr ? 'المادة' : isPurchaseKu ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQty ? `<th class="center-col" style="width:${qtyColWidth};">${ku(isPurchaseAr ? 'الكمية' : isPurchaseKu ? 'عەدەد' : 'Qty')}</th>` : ''}
+            ${settings.showBuyPrice ? `<th class="num-col" style="width:${priceColWidth};">${ku(isPurchaseAr ? 'التكلفة' : isPurchaseKu ? 'تێچوو' : 'Cost')}</th>` : ''}
+            <th class="num-col" style="width:${totalColWidth};">${ku(isPurchaseAr ? 'المجموع الكلي' : isPurchaseKu ? 'کۆی گشتی' : 'Total')}</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -772,10 +779,14 @@ export function buildThermalPurchaseReceiptHTML(
 
   const css = buildThermalCSS(width, isKurdish);
   const barcodeHTML = settings.showFooterBarcode && billNum ? buildBarcodeSvg(billNum) : '';
-  const statusLabel = purchase.paymentStatus === 'paid' ? (isKurdish ? 'کاش (دراوە)' : 'Paid (Cash)') : purchase.paymentStatus === 'fib' ? 'FIB' : (isKurdish ? 'قەرز' : 'Debt');
+  const statusLabel = purchase.paymentStatus === 'paid'
+    ? (isPurchaseAr ? 'نقداً (مدفوع)' : isPurchaseKu ? 'کاش (دراوە)' : 'Paid (Cash)')
+    : purchase.paymentStatus === 'fib'
+    ? 'FIB'
+    : (isPurchaseAr ? 'دين' : isPurchaseKu ? 'قەرز' : 'Debt');
 
   return `<!DOCTYPE html>
-<html lang="${isKurdish ? 'ckb' : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
+<html lang="${isKurdish ? (isPurchaseAr ? 'ar' : 'ckb') : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -786,17 +797,17 @@ export function buildThermalPurchaseReceiptHTML(
   <div class="receipt-container">
     <div class="receipt-header">
       <div class="biz-name">${storeName}</div>
-      <div class="biz-type-badge">${ku(isKurdish ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher')}</div>
+      <div class="biz-type-badge">${ku(isPurchaseAr ? 'وصل شراء (مخزن)' : isPurchaseKu ? 'وەسڵی کڕین (کۆگا)' : 'Purchase Voucher')}</div>
       ${storeAddress ? `<div class="biz-contact">${storeAddress}</div>` : ''}
       ${storePhone ? `<div class="biz-contact">${storePhone}</div>` : ''}
     </div>
     <div class="divider-dashed"></div>
 
     <div class="info-section">
-      ${billNum ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'وەسڵی کڕین:' : 'Bill #:')}</span><span class="info-value">#${billNum}</span></div>` : ''}
-      ${dateFormatted ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'بەروار:' : 'Date:')}</span><span class="info-value">${dateFormatted} ${timeFormatted}</span></div>` : ''}
-      ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${supplierName}</span></div>` : ''}
-      ${supplierPhone ? `<div class="info-row"><span class="info-label">${ku(isKurdish ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${supplierPhone}</span></div>` : ''}
+      ${billNum ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'رقم وصل الشراء:' : isPurchaseKu ? 'وەسڵی کڕین:' : 'Bill #:')}</span><span class="info-value">#${billNum}</span></div>` : ''}
+      ${dateFormatted ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span><span class="info-value">${dateFormatted} ${timeFormatted}</span></div>` : ''}
+      ${supplierName ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="info-value">${supplierName}</span></div>` : ''}
+      ${supplierPhone ? `<div class="info-row"><span class="info-label">${ku(isPurchaseAr ? 'الهاتف:' : isPurchaseKu ? 'مۆبایل:' : 'Phone:')}</span><span class="info-value">${supplierPhone}</span></div>` : ''}
     </div>
     <div class="divider-dashed"></div>
 
@@ -805,19 +816,19 @@ export function buildThermalPurchaseReceiptHTML(
 
     <div class="totals-section">
       <div class="grand-total-row">
-        <span class="grand-total-label">${ku(isKurdish ? 'کۆی گشتی کڕین:' : 'Total Cost:')}</span>
+        <span class="grand-total-label">${ku(isPurchaseAr ? 'إجمالي تكلفة الشراء:' : isPurchaseKu ? 'کۆی گشتی کڕین:' : 'Total Cost:')}</span>
         <span class="grand-total-value">${fmtRow(purchase.totalIQD)}</span>
       </div>
       ${settings.showPaymentMethod ? `
       <div class="total-row" style="margin-top:4px;">
-        <span class="info-label">${ku(isKurdish ? 'دۆخی پارەدان:' : 'Payment:')}</span>
+        <span class="info-label">${ku(isPurchaseAr ? 'حالة الدفع:' : isPurchaseKu ? 'دۆخی پارەدان:' : 'Payment:')}</span>
         <span class="info-value">${ku(statusLabel)}</span>
       </div>` : ''}
     </div>
 
     ${settings.showNotes && purchase.notes ? `
     <div class="notes-box">
-      <div class="notes-title">${ku(isKurdish ? 'تێبینی:' : 'Notes:')}</div>
+      <div class="notes-title">${ku(isPurchaseAr ? 'الملاحظات:' : isPurchaseKu ? 'تێبینی:' : 'Notes:')}</div>
       <div class="notes-content">${escHtml(purchase.notes)}</div>
     </div>` : ''}
 
@@ -851,7 +862,7 @@ export function buildThermalInventoryReceiptHTML(
   width: ThermalReceiptWidth = '80mm',
   customSettings?: Partial<InventoryReceiptSettings>,
   currencyMode: ReceiptCurrencyMode = 'iqd',
-  reportTitle: string = 'سەرژمێری و تۆماری کۆگا'
+  reportTitle?: string
 ): string {
   const storeSettings = useSettingsStore.getState();
   const settings: InventoryReceiptSettings = {
@@ -861,6 +872,11 @@ export function buildThermalInventoryReceiptHTML(
   };
 
   const isKurdish = isKurdishPdfActive();
+  const currentLang = i18n.language || 'ku';
+  const isInvAr = currentLang === 'ar';
+  const isInvKu = currentLang === 'ku';
+
+  const resolvedReportTitle = reportTitle || (isInvAr ? 'تقرير وسجل المخزن' : isInvKu ? 'سەرژمێری و تۆماری کۆگا' : 'Inventory Stock Audit');
   const baseCurrency = storeSettings.baseCurrency || 'IQD';
   const isUsd = baseCurrency === 'USD' || currencyMode === 'usd';
   const rate = storeSettings.exchangeRate || 1310;
@@ -887,7 +903,7 @@ export function buildThermalInventoryReceiptHTML(
             ${catTag}
           </div>
           <div class="item-meta-row-58">
-            <span class="item-qty-price-58">${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}</span>
+            <span class="item-qty-price-58">${item.quantity} ${ku(isInvAr ? 'قطعة' : isInvKu ? 'دانە' : 'pcs')}</span>
             <span class="item-linetotal-58">${fmtRow(item.sellingPrice)}</span>
           </div>
         </div>
@@ -914,10 +930,10 @@ export function buildThermalInventoryReceiptHTML(
       <table class="receipt-table">
         <thead>
           <tr>
-            <th class="item-name-cell">${ku(isKurdish ? 'کاڵا' : 'Item')}</th>
-            ${settings.showQuantity ? `<th class="center-col" style="width:14%;">${ku(isKurdish ? 'بڕ' : 'Qty')}</th>` : ''}
-            ${settings.showSellPrice ? `<th class="num-col" style="width:24%;">${ku(isKurdish ? 'نرخ' : 'Price')}</th>` : ''}
-            ${settings.showTotalValue ? `<th class="num-col" style="width:26%;">${ku(isKurdish ? 'کۆی بەها' : 'Total')}</th>` : ''}
+            <th class="item-name-cell">${ku(isInvAr ? 'المادة' : isInvKu ? 'کاڵا' : 'Item')}</th>
+            ${settings.showQuantity ? `<th class="center-col" style="width:14%;">${ku(isInvAr ? 'الكمية' : isInvKu ? 'بڕ' : 'Qty')}</th>` : ''}
+            ${settings.showSellPrice ? `<th class="num-col" style="width:24%;">${ku(isInvAr ? 'السعر' : isInvKu ? 'نرخ' : 'Price')}</th>` : ''}
+            ${settings.showTotalValue ? `<th class="num-col" style="width:26%;">${ku(isInvAr ? 'إجمالي القيمة' : isInvKu ? 'کۆی بەها' : 'Total')}</th>` : ''}
           </tr>
         </thead>
         <tbody>${rowsHTML}</tbody>
@@ -928,19 +944,19 @@ export function buildThermalInventoryReceiptHTML(
   const css = buildThermalCSS(width, isKurdish);
 
   return `<!DOCTYPE html>
-<html lang="${isKurdish ? 'ckb' : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
+<html lang="${isKurdish ? (isInvAr ? 'ar' : 'ckb') : 'en'}" dir="${isKurdish ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${reportTitle}</title>
+  <title>${resolvedReportTitle}</title>
   <style>${css}</style>
 </head>
 <body>
   <div class="receipt-container">
     <div class="receipt-header">
       <div class="biz-name">${storeName}</div>
-      <div class="biz-type-badge">${ku(reportTitle)}</div>
-      ${dateFormatted ? `<div class="biz-contact">${ku(isKurdish ? 'بەروار:' : 'Date:')} ${dateFormatted}</div>` : ''}
+      <div class="biz-type-badge">${ku(resolvedReportTitle)}</div>
+      ${dateFormatted ? `<div class="biz-contact">${ku(isInvAr ? 'التاريخ:' : isInvKu ? 'بەروار:' : 'Date:')} ${dateFormatted}</div>` : ''}
     </div>
     <div class="divider-dashed"></div>
 
@@ -949,12 +965,12 @@ export function buildThermalInventoryReceiptHTML(
 
     <div class="totals-section">
       <div class="total-row">
-        <span class="info-label">${ku(isKurdish ? 'کۆی گشتی دانە:' : 'Total Items:')}</span>
+        <span class="info-label">${ku(isInvAr ? 'إجمالي عدد القطع:' : isInvKu ? 'کۆی گشتی دانە:' : 'Total Items:')}</span>
         <span class="info-value">${totalQty}</span>
       </div>
       ${settings.showTotalValue ? `
       <div class="grand-total-row">
-        <span class="grand-total-label">${ku(isKurdish ? 'بەهای کۆگا:' : 'Stock Value:')}</span>
+        <span class="grand-total-label">${ku(isInvAr ? 'قيمة المخزون:' : isInvKu ? 'بەهای کۆگا:' : 'Stock Value:')}</span>
         <span class="grand-total-value">${fmtRow(totalVal)}</span>
       </div>` : ''}
     </div>

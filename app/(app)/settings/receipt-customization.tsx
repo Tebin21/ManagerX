@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -9,7 +9,9 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
+  Image,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -47,13 +49,15 @@ interface PaperOption {
   label: string;
   widthCm: string;
   desc: string;
+  descAr: string;
+  descEn: string;
 }
 
 const PAPER_OPTIONS: PaperOption[] = [
-  { id: '58mm', label: '58mm', widthCm: '5.8 cm', desc: 'وەصڵی بچووک (Mobile POS)' },
-  { id: '80mm', label: '80mm', widthCm: '8.0 cm', desc: 'ستاندارد (Desktop POS)' },
-  { id: '110mm', label: '110mm', widthCm: '11.0 cm', desc: 'وەصڵی پان (Wide Thermal)' },
-  { id: 'A4', label: 'A4 Sheet', widthCm: '21 × 29.7 cm', desc: 'پەڕەی فەرمی (Standard A4)' },
+  { id: '58mm', label: '58mm', widthCm: '5.8 cm', desc: 'وەصڵی بچووک (Mobile POS)', descAr: 'وصل صغير (Mobile POS)', descEn: 'Mobile POS (58mm)' },
+  { id: '80mm', label: '80mm', widthCm: '8.0 cm', desc: 'ستاندارد (Desktop POS)', descAr: 'قياسي (Desktop POS)', descEn: 'Desktop POS (80mm)' },
+  { id: '110mm', label: '110mm', widthCm: '11.0 cm', desc: 'وەصڵی پان (Wide Thermal)', descAr: 'وصل عريض (Wide Thermal)', descEn: 'Wide Thermal (110mm)' },
+  { id: 'A4', label: 'A4 Sheet', widthCm: '21 × 29.7 cm', desc: 'پەڕەی فەرمی (Standard A4)', descAr: 'ورقة رسمية (Standard A4)', descEn: 'Standard A4 Sheet' },
 ];
 
 export default function ReceiptCustomizationScreen() {
@@ -62,10 +66,14 @@ export default function ReceiptCustomizationScreen() {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, contentContainerStyle } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKurdish = currentLang === 'ku';
+  const isKuOrAr = isKurdish || isAr;
   const business = useBusinessStore();
 
-  const [activeTab, setActiveTab] = useState<ModuleTab>('sales');
+  const params = useLocalSearchParams<{ tab?: ModuleTab; size?: ReceiptPaperSize }>();
+  const [activeTab, setActiveTab] = useState<ModuleTab>(params.tab || 'sales');
 
   // Store bindings
   const salesPaperSize = useSettingsStore((s) => s.salesPaperSizePreference ?? '80mm');
@@ -76,6 +84,15 @@ export default function ReceiptCustomizationScreen() {
   const setSalesPaperSize = useSettingsStore((s) => s.setSalesPaperSizePreference);
   const setPurchasePaperSize = useSettingsStore((s) => s.setPurchasePaperSizePreference);
   const setInventoryPaperSize = useSettingsStore((s) => s.setInventoryPaperSizePreference);
+
+  useEffect(() => {
+    if (params.tab) setActiveTab(params.tab);
+    if (params.size) {
+      if (params.tab === 'sales' || !params.tab) setSalesPaperSize(params.size);
+      else if (params.tab === 'purchases') setPurchasePaperSize(params.size);
+      else if (params.tab === 'inventory') setInventoryPaperSize(params.size);
+    }
+  }, [params.tab, params.size]);
 
   const salesSettings = useSettingsStore((s) => s.salesReceiptSettings ?? DEFAULT_SALES_RECEIPT_SETTINGS);
   const purchaseSettings = useSettingsStore((s) => s.purchaseReceiptSettings ?? DEFAULT_PURCHASE_RECEIPT_SETTINGS);
@@ -119,22 +136,22 @@ export default function ReceiptCustomizationScreen() {
 
   const handleResetCurrentModule = () => {
     const tabName = activeTab === 'sales'
-      ? (isKurdish ? 'فرۆشتن' : 'Sales')
+      ? (isAr ? 'المبيعات' : isKurdish ? 'فرۆشتن' : 'Sales')
       : activeTab === 'purchases'
-      ? (isKurdish ? 'کڕین' : 'Purchases')
+      ? (isAr ? 'المشتريات' : isKurdish ? 'کڕین' : 'Purchases')
       : activeTab === 'quotation'
-      ? (isKurdish ? 'عەرز' : 'Quotations')
-      : (isKurdish ? 'کۆگا' : 'Inventory');
+      ? (isAr ? 'عروض الأسعار' : isKurdish ? 'عەرز' : 'Quotations')
+      : (isAr ? 'المخزن' : isKurdish ? 'کۆگا' : 'Inventory');
 
     Alert.alert(
-      isKurdish ? 'گەڕاندنەوەی سەرەتایی' : 'Reset to Defaults',
+      isAr ? 'استعادة الإعدادات الافتراضية' : isKurdish ? 'گەڕاندنەوەی سەرەتایی' : 'Reset to Defaults',
       isKurdish
         ? `ئایا دڵنیایت لە گەڕاندنەوەی سەرجەم ڕێکخستنەکانی پسوولەی (${tabName}) بۆ دۆخی بنەڕەتی؟`
         : `Are you sure you want to reset (${tabName}) receipt settings to defaults?`,
       [
-        { text: isKurdish ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        { text: isAr ? 'إلغاء' : isKurdish ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
         {
-          text: isKurdish ? 'بەڵێ، بگەڕێنەوە' : 'Reset',
+          text: isAr ? 'نعم، استعادة' : isKurdish ? 'بەڵێ، بگەڕێنەوە' : 'Reset',
           style: 'destructive',
           onPress: () => {
             try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
@@ -154,9 +171,9 @@ export default function ReceiptCustomizationScreen() {
     invoiceNumber: 'F-00124',
     date: new Date().toISOString(),
     createdAt: new Date().toISOString(),
-    customerName: 'ئارام محەمەد',
+    customerName: isAr ? 'أرام محمد' : isKurdish ? 'ئارام محەمەد' : 'Aram Mohammed',
     customerPhone: '0750 123 4567',
-    customerAddress: 'سلێمانی - تووی مەلیك',
+    customerAddress: isAr ? 'السليمانية - شارع سالم' : isKurdish ? 'سلێمانی - تووی مەلیك' : 'Sulaymaniyah - Salim St.',
     subtotal: 4750,
     discountTotal: 750,
     globalDiscount: 0,
@@ -164,14 +181,18 @@ export default function ReceiptCustomizationScreen() {
     paidAmount: 4000,
     remainingDebt: 0,
     paymentMethod: 'cash',
-    notes: 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.',
-    warranty: 'گرەنتی ١ مانگ',
+    notes: isAr
+      ? 'يمكن استبدال البضائع المباعة خلال 7 أيام بشرط تقديم هذا الإيصال.'
+      : isKurdish
+      ? 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.'
+      : 'Goods can be exchanged within 7 days upon presentation of this invoice.',
+    warranty: isAr ? 'ضمان لمدة 1 شهر' : isKurdish ? 'گرەنتی ١ مانگ' : '1-month warranty',
     items: [
       {
         id: 1,
         saleId: 9999,
         productId: 101,
-        productName: 'کۆلا قتوو ٣٣٠مل',
+        productName: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml',
         quantity: 2,
         sellingPrice: 500,
         discount: 0,
@@ -182,7 +203,7 @@ export default function ReceiptCustomizationScreen() {
         id: 2,
         saleId: 9999,
         productId: 102,
-        productName: 'چپس دوریتۆس گەورە',
+        productName: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large',
         quantity: 1,
         sellingPrice: 1500,
         discount: 0,
@@ -193,7 +214,7 @@ export default function ReceiptCustomizationScreen() {
         id: 3,
         saleId: 9999,
         productId: 103,
-        productName: 'شوکۆلاتە کیندەر بوێنۆ',
+        productName: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate',
         quantity: 3,
         sellingPrice: 750,
         discount: 250,
@@ -201,30 +222,106 @@ export default function ReceiptCustomizationScreen() {
         itemId: 'KIN-BUE',
       },
     ],
-  } as Sale), []);
+  } as Sale), [isKurdish, isAr]);
+
+  // Mock Purchase Data
+  const mockPurchase = useMemo(() => ({
+    purchaseNumber: 'P-00892',
+    date: '2026/10/29',
+    time: '11:15 AM',
+    supplierName: isAr ? 'شركة علي للاستيراد والتوزيع' : isKurdish ? 'کۆمپانیای عەلی بۆ هاوردەکردن' : 'Ali Import & Distribution Co.',
+    supplierPhone: '0770 123 9988',
+    supplierAddress: isAr ? 'السليمانية - المنطقة الصناعية' : isKurdish ? 'سلێمانی - ناوچەی پیشەسازی' : 'Industrial Zone, Sulaymaniyah',
+    subtotal: 4750,
+    discountTotal: 750,
+    totalIQD: 4000,
+    paidAmount: 4000,
+    remainingDebt: 0,
+    paymentStatus: 'paid',
+    paymentMethod: 'cash',
+    warranty: isAr ? 'ضمان رسمي لمدة سنة من الشركة الموردة' : isKurdish ? 'گرەنتی یەک ساڵ لە کۆمپانیای دابینکەرەوە' : '1-year official supplier warranty',
+    notes: isAr
+      ? 'تم فحص البضائع بالكامل واستلامها وإدخالها إلى المخزن الرئيسي.'
+      : isKurdish
+      ? 'کاڵاکان بە تەواوی وەرگیراون و داخڵی مەخزەنی سەرەکی کراون.'
+      : 'All goods inspected, verified, and received into warehouse.',
+    items: [
+      { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 2, buyPrice: 400, total: 800 },
+      { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 1, buyPrice: 1200, total: 1200 },
+      { id: 3, name: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate', itemId: 'KIN-BUE', category: isAr ? 'الحلويات' : isKurdish ? 'شیرینی' : 'Sweets', qty: 3, buyPrice: 666, oldBuyPrice: 750, discount: 250, total: 2000 },
+    ],
+  }), [isKurdish, isAr]);
+
+  // Mock Quotation Data
+  const mockQuotation = useMemo(() => ({
+    quotationNumber: 'Q-2026-045',
+    date: '2026/10/29',
+    validityDays: 10,
+    validUntil: '2026/11/08',
+    customerName: isAr ? 'شركة آسو للحلول التقنية' : isKurdish ? 'کۆمپانیای ئاسۆ بۆ تەکنەلۆجیا' : 'Aso Technology Solutions',
+    customerPhone: '0770 987 6543',
+    customerAddress: isAr ? 'أربيل - القرية الإيطالية' : isKurdish ? 'هەولێر - گوندی ئیتاڵی' : 'Italian Village, Erbil',
+    aboutPolicy: isKurdish
+      ? 'سەرجەم کەلوپەلەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە.'
+      : 'All hardware products are genuine with 1-year official warranty.',
+    notes: isAr
+      ? '1. شروط الدفع: 50% مقدماً عند الاتفاق.\n2. التسليم: خلال 3 أيام عمل.'
+      : isKurdish
+      ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
+      : '1. Payment terms: 50% advance upon contract signing.\n2. Delivery timeline: Within 3 business days.',
+    subtotal: '3,125,000 IQD',
+    discount: '50,000 IQD',
+    grandTotalIQD: '3,075,000 IQD',
+    grandTotalUSD: '$2,050.00 USD',
+    items: [
+      { id: 1, name: isAr ? 'لابتوب Dell XPS 15' : isKurdish ? 'لاپتۆپ Dell XPS 15' : 'Dell XPS 15 Laptop', itemId: 'DELL-XPS', qty: 2, price: '1,500,000', oldPrice: '1,550,000', discount: '50,000', total: '2,950,000' },
+      { id: 2, name: isAr ? 'ماوس ولوحة مفاتيح لاسلكية' : isKurdish ? 'ماوس و کیبۆرد بێوایەر' : 'Wireless Mouse & Keyboard', itemId: 'ACC-MK', qty: 5, price: '25,000', oldPrice: null, discount: null, total: '125,000' },
+    ],
+  }), [isKurdish, isAr]);
+
+  // Mock Inventory Data
+  const mockInventory = useMemo(() => ({
+    reportCode: 'INV-2026-089',
+    date: '2026/10/29',
+    time: '02:45 PM',
+    warehouseName: isAr ? 'المخزن الرئيسي في السليمانية' : isKurdish ? 'کۆگای سەرەکی سلێمانی' : 'Sulaymaniyah Central Warehouse',
+    stats: {
+      totalItems: 18,
+      totalQty: 142,
+      lowStockCount: 2,
+      totalValueIQD: '1,450,000 IQD',
+    },
+    notes: isAr
+      ? 'تم إجراء الجرد الكامل للمخزن الرئيسي وهو متطابق مع النظام الإلكتروني.'
+      : isKurdish
+      ? 'سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە.'
+      : 'Complete warehouse audit completed and reconciled with electronic inventory system.',
+    items: [
+      { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 48, buyPrice: 400, sellPrice: 500, totalValue: '19,200', supplier: isAr ? 'مورد أربيل' : isKurdish ? 'دابینکەری هەولێر' : 'Erbil Supplier Co.', status: 'available' },
+      { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 24, buyPrice: 1100, sellPrice: 1500, totalValue: '26,400', supplier: isAr ? 'شركة الاستيراد العامة' : isKurdish ? 'کۆمپانیای هاوردە' : 'Import Trade LLC', status: 'available' },
+      { id: 3, name: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate', itemId: 'KIN-BUE', category: isAr ? 'الحلويات' : isKurdish ? 'شیرینی' : 'Sweets', qty: 2, buyPrice: 600, sellPrice: 750, totalValue: '1,200', supplier: isAr ? 'موزع نستله السليمانية' : isKurdish ? 'نەستلە سلێمانی' : 'Nestle Distributor', status: 'low' },
+    ],
+  }), [isKurdish, isAr]);
 
   const handleTestPrint = async () => {
     setIsPrintingTest(true);
+    const testBiz = {
+      name: displayBizName,
+      phone: business.phone || '0770 000 0000',
+      address: displayBizAddress,
+      logoUri: business.logoUri ?? null,
+    };
+
     try {
       if (activeTab === 'sales') {
         if (activePaperSize === 'A4') {
           const { directPrintInvoice } = await import('@/lib/generateInvoice');
-          await directPrintInvoice(mockSale, {
-            name: business.name || 'مارکێتی فرۆشیار',
-            phone: business.phone || '0770 000 0000',
-            address: business.address || 'شەقامی سەرەکی، هەولێر',
-            logoUri: business.logoUri ?? null,
-          });
+          await directPrintInvoice(mockSale, testBiz);
         } else {
           const { directPrintThermalInvoice } = await import('@/lib/generateInvoice');
           await directPrintThermalInvoice(
             mockSale,
-            {
-              name: business.name || 'مارکێتی فرۆشیار',
-              phone: business.phone || '0770 000 0000',
-              address: business.address || 'شەقامی سەرەکی، هەولێر',
-              logoUri: business.logoUri ?? null,
-            },
+            testBiz,
             activePaperSize as ThermalReceiptWidth
           );
         }
@@ -235,11 +332,11 @@ export default function ReceiptCustomizationScreen() {
             id: 8888,
             purchaseNumber: 'P-00892',
             date: new Date().toISOString().split('T')[0],
-            supplierName: 'کۆمپانیای عەلی بۆ هاوردەکردن',
+            supplierName: isAr ? 'شركة علي للاستيراد والتوزيع' : isKurdish ? 'کۆمپانیای عەلی بۆ هاوردەکردن' : 'Ali Import & Distribution Co.',
             supplierPhone: '0770 123 9988',
-            supplierAddress: 'هەولێر - شۆڕش',
-            productName: 'زەیتی زەیتوون ٥ لیتری',
-            category: 'خۆراک',
+            supplierAddress: isAr ? 'أربيل - شورش' : isKurdish ? 'هەولێر - شۆڕش' : 'Shorish, Erbil',
+            productName: isAr ? 'زيت زيتون 5 لتر' : isKurdish ? 'زەیتی زەیتوون ٥ لیتری' : 'Olive Oil 5L',
+            category: isAr ? 'المواد الغذائية' : isKurdish ? 'خۆراک' : 'Food',
             quantity: 10,
             buyPriceIQD: 22000,
             buyPriceUSD: 14.5,
@@ -250,23 +347,18 @@ export default function ReceiptCustomizationScreen() {
             exchangeRate: 1500,
             idType: 'custom',
             itemIds: ['OIL-5L'],
-            warranty: 'بەکارهێنان تا ٢٠٢٧',
+            warranty: isAr ? 'صالح حتى 2027' : isKurdish ? 'بەکارهێنان تا ٢٠٢٧' : 'Valid until 2027',
             description: null,
-            notes: 'وەسڵی کڕینی کاڵا لە کۆگای سەرەکی',
+            notes: isAr ? 'وصل استلام البضائع في المخزن الرئيسي' : isKurdish ? 'وەسڵی کڕینی کاڵا لە کۆگای سەرەکی' : 'Goods received in main warehouse',
             paymentStatus: 'paid',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },
           [
-            { productName: 'زەیتی زەیتوون ٥ لیتری', category: 'خۆراک', quantity: 10, buyPriceIQD: 22000, lineTotalIQD: 220000, idType: 'custom', itemIds: ['OIL-5L'] },
-            { productName: 'برنجی کوردی پلە یەک', category: 'خۆراک', quantity: 5, buyPriceIQD: 34000, lineTotalIQD: 170000, idType: 'custom', itemIds: ['RICE-KRD'] },
+            { productName: isAr ? 'زيت زيتون 5 لتر' : isKurdish ? 'زەیتی زەیتوون ٥ لیتری' : 'Olive Oil 5L', category: isAr ? 'المواد الغذائية' : isKurdish ? 'خۆراک' : 'Food', quantity: 10, buyPriceIQD: 22000, lineTotalIQD: 220000, idType: 'custom', itemIds: ['OIL-5L'] },
+            { productName: isAr ? 'أرز كوردي درجة أولى' : isKurdish ? 'برنجی کوردی پلە یەک' : 'Premium Kurdish Rice', category: isAr ? 'المواد الغذائية' : isKurdish ? 'خۆراک' : 'Food', quantity: 5, buyPriceIQD: 34000, lineTotalIQD: 170000, idType: 'custom', itemIds: ['RICE-KRD'] },
           ],
-          {
-            name: business.name || 'مارکێتی فرۆشیار',
-            phone: business.phone || '0770 000 0000',
-            address: business.address || 'شەقامی سەرەکی، هەولێر',
-            logoUri: business.logoUri ?? null,
-          }
+          testBiz
         );
       } else if (activeTab === 'quotation') {
         const { shareQuotationInvoice } = await import('@/lib/generateInvoice');
@@ -274,54 +366,44 @@ export default function ReceiptCustomizationScreen() {
           {
             id: 'Q-01',
             quotationNumber: 'Q-2026-045',
-            customerName: 'کۆمپانیای ئاسۆ بۆ تەکنەلۆجیا',
+            customerName: isAr ? 'شركة آسو للحلول التقنية' : isKurdish ? 'کۆمپانیای ئاسۆ بۆ تەکنەلۆجیا' : 'Aso Technology Solutions',
             customerPhone: '0750 999 1122',
             date: new Date().toISOString().split('T')[0],
             time: '02:45 PM',
             validityDays: 10,
-            notes: 'نرخەکان گۆڕانکارییان بەسەردا دێت بەپێی بەهای دۆلار لە بازاڕدا.',
-            aboutPolicy: 'هەموو کاڵاکان بە گەرەنتی فەرمی ١ ساڵ پێشکەش دەکرێن.',
+            notes: isAr ? 'تخضع الأسعار لتغيرات سعر صرف الدولار في السوق.' : isKurdish ? 'نرخەکان گۆڕانکارییان بەسەردا دێت بەپێی بەهای دۆلار لە بازاڕدا.' : 'Prices subject to market exchange rate changes.',
+            aboutPolicy: isAr ? 'تقدم جميع المواد بضمان رسمي لمدة 1 سنة.' : isKurdish ? 'هەموو کاڵاکان بە گەرەنتی فەرمی ١ ساڵ پێشکەش دەکرێن.' : 'All items supplied with 1-year official warranty.',
             subtotal: 3125000,
             discountTotal: 50000,
             grandTotal: 3075000,
             exchangeRate: 1500,
             createdAt: new Date().toISOString(),
             items: [
-              { id: '1', productId: 1, productName: 'لاپتۆپ Dell XPS 15', quantity: 2, unitPrice: 1500000, discount: 50000, lineTotal: 2900000, itemId: 'DELL-XPS' },
-              { id: '2', productId: 2, productName: 'ماوس و کیبۆرد بێوایەر', quantity: 5, unitPrice: 35000, discount: 0, lineTotal: 175000, itemId: 'ACC-MK' },
+              { id: '1', productId: 1, productName: isAr ? 'لابتوب Dell XPS 15' : isKurdish ? 'لاپتۆپ Dell XPS 15' : 'Dell XPS 15 Laptop', quantity: 2, unitPrice: 1500000, discount: 50000, lineTotal: 2900000, itemId: 'DELL-XPS' },
+              { id: '2', productId: 2, productName: isAr ? 'ماوس ولوحة مفاتيح لاسلكية' : isKurdish ? 'ماوس و کیبۆرد بێوایەر' : 'Wireless Mouse & Keyboard', quantity: 5, unitPrice: 35000, discount: 0, lineTotal: 175000, itemId: 'ACC-MK' },
             ],
           },
-          {
-            name: business.name || 'مارکێتی فرۆشیار',
-            phone: business.phone || '0770 000 0000',
-            address: business.address || 'شەقامی سەرەکی، هەولێر',
-            logoUri: business.logoUri ?? null,
-          }
+          testBiz
         );
       } else if (activeTab === 'inventory') {
         const { shareFullInventoryReport } = await import('@/lib/generateInvoice');
         await shareFullInventoryReport(
           [
-            { id: 1, name: 'شیر نیدۆ گەورە', category: 'خۆراک', quantity: 45, buyPrice: 18000, sellingPrice: 22000, itemId: 'NID-2500', supplier: 'کۆمپانیای نەستلە', status: 'لەبارە', lowStockThreshold: 5 } as any,
-            { id: 2, name: 'قاوەی نەسکافێ کلاسیک', category: 'خواردنەوە', quantity: 3, buyPrice: 8500, sellingPrice: 11000, itemId: 'NES-CL', supplier: 'کۆمپانیای هاوردە', status: 'کەمبوون', lowStockThreshold: 5 } as any,
-            { id: 3, name: 'پەنیر کرافت ٥٠٠گم', category: 'شیرەمەنی', quantity: 28, buyPrice: 4250, sellingPrice: 5500, itemId: 'KRF-500', supplier: 'دابینکەری هەولێر', status: 'لەبارە', lowStockThreshold: 5 } as any,
+            { id: 1, name: isAr ? 'حليب نيدو حجم كبير' : isKurdish ? 'شیر نیدۆ گەورە' : 'Nido Milk Powder Large', category: isAr ? 'المواد الغذائية' : isKurdish ? 'خۆراک' : 'Food', quantity: 45, buyPrice: 18000, sellingPrice: 22000, itemId: 'NID-2500', supplier: isAr ? 'شركة نستله' : isKurdish ? 'کۆمپانیای نەستلە' : 'Nestle Co.', status: isAr ? 'متوفر' : isKurdish ? 'لەبارە' : 'In Stock', lowStockThreshold: 5 } as any,
+            { id: 2, name: isAr ? 'قهوة نسكافيه كلاسيك' : isKurdish ? 'قاوەی نەسکافێ کلاسیک' : 'Nescafe Classic Coffee', category: isAr ? 'مشروبات' : isKurdish ? 'خواردنەوە' : 'Beverages', quantity: 3, buyPrice: 8500, sellingPrice: 11000, itemId: 'NES-CL', supplier: isAr ? 'شركة الاستيراد' : isKurdish ? 'کۆمپانیای هاوردە' : 'Import Trade', status: isAr ? 'مخزون منخفض' : isKurdish ? 'کەمبوون' : 'Low Stock', lowStockThreshold: 5 } as any,
+            { id: 3, name: isAr ? 'جبن كرافت 500 غرام' : isKurdish ? 'پەنیر کرافت ٥٠٠گم' : 'Kraft Cheese 500g', category: isAr ? 'ألبان' : isKurdish ? 'شیرەمەنی' : 'Dairy', quantity: 28, buyPrice: 4250, sellingPrice: 5500, itemId: 'KRF-500', supplier: isAr ? 'مورد أربيل' : isKurdish ? 'دابینکەری هەولێر' : 'Erbil Supplier', status: isAr ? 'متوفر' : isKurdish ? 'لەبارە' : 'In Stock', lowStockThreshold: 5 } as any,
           ],
-          {
-            name: business.name || 'مارکێتی فرۆشیار',
-            phone: business.phone || '0770 000 0000',
-            address: business.address || 'شەقامی سەرەکی، هەولێر',
-            logoUri: business.logoUri ?? null,
-          },
+          testBiz,
           true,
           5,
-          'ڕاپۆرتی گشتی کۆگا'
+          isAr ? 'التقرير العام للمخزن' : isKurdish ? 'ڕاپۆرتی گشتی کۆگا' : 'General Inventory Report'
         );
       }
     } catch (err) {
       console.error('[ReceiptCustomization] Test print error:', err);
       Alert.alert(
-        isKurdish ? 'هەڵە لە پرینت' : 'Print Error',
-        isKurdish ? 'نەتوانرا وەسڵەکە چاپ بکرێت.' : 'Failed to print test document.'
+        isAr ? 'خطأ في الطباعة' : isKurdish ? 'هەڵە لە پرینت' : 'Print Error',
+        isAr ? 'تعذر طباعة مستند الاختبار.' : isKurdish ? 'نەتوانرا وەسڵەکە چاپ بکرێت.' : 'Failed to print test document.'
       );
     } finally {
       setIsPrintingTest(false);
@@ -374,7 +456,7 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.switchRowTitle,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {title}
@@ -384,7 +466,7 @@ export default function ReceiptCustomizationScreen() {
                 style={[
                   styles.switchRowSub,
                   { color: colors.gray400, textAlign },
-                  isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
                 {sub}
@@ -403,11 +485,875 @@ export default function ReceiptCustomizationScreen() {
     );
   };
 
+  const defaultBizName = isAr ? 'أسواق فروشيار' : isKurdish ? 'مارکێتی فرۆشیار' : 'Froshiar Market';
+  const defaultBizAddress = isAr ? 'الشارع الرئيسي، أربيل' : isKurdish ? 'شەقامی سەرەکی، هەولێر' : 'Main Street, Erbil';
+  const displayBizName = business.name || defaultBizName;
+  const displayBizAddress = business.address || defaultBizAddress;
+
+  const getSalesFooterNote = () => {
+    const note = salesSettings.customFooterNote;
+    if (!note || (!isKurdish && note.includes('سەردانەکەتان'))) {
+      return isAr ? 'شكراً لزيارتكم • أهلاً وسهلاً بكم دائماً' : isKurdish ? 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن.' : 'Thank you for your visit • Always welcome';
+    }
+    return note;
+  };
+
+  const getPurchaseFooterNote = () => {
+    const note = purchaseSettings.customFooterNote;
+    if (!note || (!isKurdish && (note.includes('وەسڵی کڕین') || note.includes('کاڵاکان')))) {
+      return isAr ? 'وصل شراء وتوريد البضائع في النظام' : isKurdish ? 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم' : 'Goods received and recorded in warehouse system';
+    }
+    return note;
+  };
+
+  const getQuotationFooterNote = () => {
+    const note = quotationSettings.customFooterNote;
+    if (!note || (!isKurdish && (note.includes('ئەم عەرزە') || note.includes('مەرجی پارەدان')))) {
+      return isAr
+        ? '1. شروط الدفع: 50% مقدماً عند الاتفاق.\n2. التسليم: خلال 3 أيام عمل.'
+        : isKurdish
+        ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
+        : '1. Payment: 50% advance upon agreement.\n2. Delivery: within 3 working days.';
+    }
+    return note;
+  };
+
+  const getInventoryFooterNote = () => {
+    const note = inventorySettings.customFooterNote;
+    if (!note || (!isKurdish && (note.includes('سەرژمێری') || note.includes('کۆگا')))) {
+      return isAr ? 'تم إنجاز الجرد الشامل للمخزن ومطابقته مع النظام.' : isKurdish ? 'سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە.' : 'Full warehouse audit completed and reconciled with system.';
+    }
+    return note;
+  };
+
+  const monogram = (displayBizName || 'F').trim().charAt(0).toUpperCase() || 'F';
+
+  // 1. Sales A4 Preview (Matches lib/invoiceTemplate.ts buildSalesCSS / buildInvoiceHTML)
+  const renderSalesA4Preview = () => (
+    <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
+      {/* 3-Column Header */}
+      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Col 1: Business */}
+        <View style={styles.a4ColBusiness}>
+          <View style={styles.a4LogoFrame}>
+            {business.logoUri ? (
+              <Image source={{ uri: business.logoUri }} style={styles.a4LogoImg} resizeMode="contain" />
+            ) : (
+              <View style={styles.a4LogoMono}>
+                <Text style={styles.a4LogoMonoText}>{monogram}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.a4BizName, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={1}>
+            {displayBizName}
+          </Text>
+          {salesSettings.showBusinessAddress && (
+            <Text style={styles.a4BizMeta} numberOfLines={1}>{displayBizAddress}</Text>
+          )}
+          {salesSettings.showBusinessPhone && (
+            <Text style={styles.a4BizMeta}>{business.phone || '0770 000 0000'}</Text>
+          )}
+        </View>
+
+        {/* Col 2: Customer */}
+        <View style={styles.a4ColCustomer}>
+          <Text style={styles.a4ColLabelTag}>{isAr ? 'الزبون' : isKurdish ? 'کڕیار' : 'CUSTOMER'}</Text>
+          {salesSettings.showCustomerName && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الاسم:' : isKurdish ? 'ناو:' : 'Name:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockSale.customerName}</Text>
+            </View>
+          )}
+          {salesSettings.showCustomerPhone && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'تەلەفۆن:' : 'Phone:'}</Text>
+              <Text style={[styles.a4RowVal, { direction: 'ltr' }]} numberOfLines={1}>{mockSale.customerPhone}</Text>
+            </View>
+          )}
+          {salesSettings.showBusinessAddress && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'العنوان:' : isKurdish ? 'ناونیشان:' : 'Address:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockSale.customerAddress}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Col 3: Invoice Info */}
+        <View style={styles.a4ColInvoice}>
+          <Text style={styles.a4InvTypeLabel}>{isAr ? 'فاتورة مبيعات' : isKurdish ? 'وەسڵی فرۆشتن' : 'SALES INVOICE'}</Text>
+          {salesSettings.showInvoiceNumber && (
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4InvMetaTitle}>#{mockSale.invoiceNumber}</Text>
+            </View>
+          )}
+          {salesSettings.showDate && (
+            <>
+              <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.a4RowLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                <Text style={styles.a4RowVal} numberOfLines={1}>2026/10/29</Text>
+              </View>
+              <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.a4RowLabel}>{isAr ? 'الوقت:' : isKurdish ? 'کات:' : 'Time:'}</Text>
+                <Text style={styles.a4RowVal} numberOfLines={1}>02:45 PM</Text>
+              </View>
+            </>
+          )}
+          {salesSettings.showPaymentMethod && (
+            <View style={[styles.a4StatusPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+              <Text style={[styles.a4StatusPillText, { color: '#047857' }]}>
+                {isAr ? '● نقداً (مدفوع)' : isKurdish ? '● نەقد (پارەدراو)' : '● PAID (CASH)'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Policy Card */}
+      {salesSettings.showAboutPolicy !== false && (
+        <View style={styles.a4PolicyCard}>
+          <Text style={styles.a4PolicyLabel}>{isAr ? 'حول سياسة الشركة والضمان' : isKurdish ? 'دەربارەی سیاسەت و گەرەنتی' : 'COMPANY POLICY & WARRANTY'}</Text>
+          <Text style={styles.a4PolicyText}>
+            {isAr
+              ? 'يمكن استبدال البضائع المباعة خلال 7 أيام بشرط تقديم هذا الإيصال.'
+              : isKurdish
+              ? 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.'
+              : 'Goods can be exchanged within 7 days upon presentation of this invoice.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Top Summary Pair (Side-by-side above table) */}
+      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Left: Financial Card */}
+        <View style={styles.a4SummaryCard}>
+          <Text style={styles.a4CardLabel}>{isAr ? 'الملخص المالي' : isKurdish ? 'خوێندنەوەی دارایی' : 'PAYMENT SUMMARY'}</Text>
+          <View style={styles.a4FinRow}>
+            <Text style={styles.a4FinLabel}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
+            <Text style={styles.a4FinVal}>4,750 IQD</Text>
+          </View>
+          {salesSettings.showDiscount && (
+            <View style={styles.a4FinRow}>
+              <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− 750 IQD</Text>
+            </View>
+          )}
+          <View style={styles.a4TotalBlock}>
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockLabel}>{isAr ? 'المجموع الكلي (IQD)' : isKurdish ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)'}</Text>
+              <Text style={styles.a4TotalBlockAmount}>4,000 IQD</Text>
+            </View>
+            <View style={styles.a4TotalDivider} />
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockSub}>{isAr ? 'المجموع الكلي بالدولار' : isKurdish ? 'کۆی گشتی بە دۆلار' : 'Total in USD'}</Text>
+              <Text style={styles.a4TotalBlockSubAmount}>$3.05 USD</Text>
+            </View>
+          </View>
+          {salesSettings.showPaymentMethod && (
+            <View style={styles.a4FinRow}>
+              <Text style={styles.a4FinLabel}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
+              <Text style={styles.a4FinVal}>{isAr ? 'نقداً' : isKurdish ? 'کاش (نەقد)' : 'Cash'}</Text>
+            </View>
+          )}
+          {salesSettings.showRemainingDebt && (
+            <View style={styles.a4FinRow}>
+              <Text style={styles.a4FinLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#047857', fontWeight: '700' }]}>0 IQD</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Right: Notes Card */}
+        {salesSettings.showNotes && (
+          <View style={styles.a4SummaryCard}>
+            <Text style={styles.a4CardLabel}>{isAr ? 'الملاحظات والضمان' : isKurdish ? 'تێبینی و سیاسەت' : 'NOTES & WARRANTY'}</Text>
+            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ضمان البيع:' : isKurdish ? 'گرەنتی فرۆشتن:' : 'Warranty:'}</Text>
+            <Text style={styles.a4NotesWarrantyText}>{isAr ? 'ضمان استبدال بمنتج جديد لمدة 6 أشهر.' : isKurdish ? 'گرەنتی ٦ مانگ گۆڕین بە کاڵای نوێ.' : '6-month exchange warranty.'}</Text>
+            <View style={styles.a4NotesDivider} />
+            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'الملاحظات:' : isKurdish ? 'تێبینیەکان:' : 'Notes:'}</Text>
+            <Text style={styles.a4NotesWarrantyText} numberOfLines={3}>
+              {getSalesFooterNote()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Items Table */}
+      <View style={styles.a4TableWrap}>
+        <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { flex: 2.2, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          {salesSettings.showItemBarcode && (
+            <Text style={[styles.a4Th, { flex: 1.0, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'Code'}</Text>
+          )}
+          {salesSettings.showQty && (
+            <Text style={[styles.a4Th, { flex: 0.55, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          )}
+          {salesSettings.showItemPrice && (
+            <Text style={[styles.a4Th, { flex: 1.15, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price'}</Text>
+          )}
+          {salesSettings.showDiscount && (
+            <Text style={[styles.a4Th, { flex: 1.0, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
+          )}
+          <Text style={[styles.a4Th, { flex: 1.25, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆ' : 'Total'}</Text>
+        </View>
+
+        {(mockSale.items ?? []).map((item, idx) => (
+          <View
+            key={item.id}
+            style={[
+              styles.a4TableRow,
+              idx % 2 === 1 && { backgroundColor: '#F8FAFC' },
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+          >
+            <Text style={[styles.a4Td, { flex: 0.4, textAlign: 'center' }]}>{idx + 1}</Text>
+            <View style={{ flex: 2.2 }}>
+              <Text style={styles.a4ItemName} numberOfLines={1}>{item.productName}</Text>
+            </View>
+            {salesSettings.showItemBarcode && (
+              <View style={{ flex: 1.1, alignItems: 'center' }}>
+                <Text style={styles.a4IdChip} numberOfLines={1}>{item.itemId}</Text>
+              </View>
+            )}
+            {salesSettings.showQty && <Text style={[styles.a4Td, { flex: 0.6, textAlign: 'center' }]}>{item.quantity}</Text>}
+            {salesSettings.showItemPrice && (
+              <View style={{ flex: 1.2, alignItems: 'flex-end', justifyContent: 'center' }}>
+                {salesSettings.showDiscount && item.discount > 0 ? (
+                  <>
+                    <Text style={styles.a4StrikethroughPrice}>{item.sellingPrice + item.discount}</Text>
+                    <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.sellingPrice}</Text>
+                  </>
+                ) : (
+                  <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.sellingPrice}</Text>
+                )}
+              </View>
+            )}
+            {salesSettings.showDiscount && (
+              <Text
+                style={[
+                  styles.a4Td,
+                  {
+                    flex: 1.1,
+                    textAlign: 'right',
+                    color: item.discount > 0 ? '#D97706' : '#94A3B8',
+                    fontWeight: item.discount > 0 ? '700' : '400',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {item.discount > 0 ? `− ${item.discount}` : '—'}
+              </Text>
+            )}
+            <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right', fontWeight: '700' }]}>
+              {item.lineTotal.toLocaleString()}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Signatures */}
+      {salesSettings.showSignature !== false && (
+        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع الزبون / المستلم' : isKurdish ? 'واژووی کڕیار / وەرگر' : 'Customer Signature'}</Text>
+          </View>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'ختم وتوقيع المتجر' : isKurdish ? 'مۆر و واژووی فرۆشگا' : 'Store Stamp & Signature'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Footer */}
+      <Text style={styles.a4BrandCredit}>
+        {isAr ? 'فاتورة مبيعات · نظام فروشيار · www.froshiar.store · #F-00124' : isKurdish ? 'وەسڵی فرۆشتن · بەرهەمی فرۆشیار · www.froshiar.store · #F-00124' : 'Sales Invoice · Powered by Froshiar · www.froshiar.store · #F-00124'}
+      </Text>
+    </View>
+  );
+
+  // 2. Purchases A4 Preview (Matches lib/invoiceTemplate.ts buildPurchaseCSS / buildPurchaseInvoiceHTML)
+  const renderPurchasesA4Preview = () => (
+    <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
+      {/* 3-Column Header */}
+      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Col 1: Business */}
+        <View style={styles.a4ColBusiness}>
+          <View style={styles.a4LogoFrame}>
+            {business.logoUri ? (
+              <Image source={{ uri: business.logoUri }} style={styles.a4LogoImg} resizeMode="contain" />
+            ) : (
+              <View style={styles.a4LogoMono}>
+                <Text style={styles.a4LogoMonoText}>{monogram}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.a4BizName, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={1}>
+            {displayBizName}
+          </Text>
+          {purchaseSettings.showBusinessAddress && (
+            <Text style={styles.a4BizMeta} numberOfLines={1}>{displayBizAddress}</Text>
+          )}
+          {purchaseSettings.showBusinessPhone && (
+            <Text style={styles.a4BizMeta}>{business.phone || '0770 000 0000'}</Text>
+          )}
+        </View>
+
+        {/* Col 2: Supplier */}
+        <View style={styles.a4ColCustomer}>
+          <Text style={styles.a4ColLabelTag}>{isAr ? 'المورد' : isKurdish ? 'دابینکەر' : 'SUPPLIER'}</Text>
+          {purchaseSettings.showSupplierName && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'المورد:' : isKurdish ? 'دابینکەر:' : 'Supplier:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockPurchase.supplierName}</Text>
+            </View>
+          )}
+          {purchaseSettings.showSupplierPhone && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'تەلەفۆن:' : 'Phone:'}</Text>
+              <Text style={[styles.a4RowVal, { direction: 'ltr' }]} numberOfLines={1}>{mockPurchase.supplierPhone}</Text>
+            </View>
+          )}
+          {purchaseSettings.showBusinessAddress && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'العنوان:' : isKurdish ? 'ناونیشان:' : 'Address:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockPurchase.supplierAddress}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Col 3: Invoice Info */}
+        <View style={styles.a4ColInvoice}>
+          <Text style={styles.a4InvTypeLabel}>{isAr ? 'وصل شراء' : isKurdish ? 'وەسڵی کڕین' : 'PURCHASE VOUCHER'}</Text>
+          {purchaseSettings.showInvoiceNumber && (
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4InvMetaTitle}>#{mockPurchase.purchaseNumber}</Text>
+            </View>
+          )}
+          {purchaseSettings.showDate && (
+            <>
+              <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.a4RowLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                <Text style={styles.a4RowVal} numberOfLines={1}>{mockPurchase.date}</Text>
+              </View>
+              <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.a4RowLabel}>{isAr ? 'الوقت:' : isKurdish ? 'کات:' : 'Time:'}</Text>
+                <Text style={styles.a4RowVal} numberOfLines={1}>{mockPurchase.time}</Text>
+              </View>
+            </>
+          )}
+          {purchaseSettings.showPaymentMethod && (
+            <View style={[styles.a4StatusPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+              <Text style={[styles.a4StatusPillText, { color: '#047857' }]}>
+                {isAr ? '● مدفوع (نقداً)' : isKurdish ? '● پارەدراو (کاش)' : '● PAID (CASH)'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Procurement Policy Card */}
+      {purchaseSettings.showAboutPolicy !== false && (
+        <View style={styles.a4PolicyCard}>
+          <Text style={styles.a4PolicyLabel}>{isAr ? 'سياسة الشراء والاستلام' : isKurdish ? 'سیاسەتی وەرگرتن و کڕین' : 'PROCUREMENT POLICY'}</Text>
+          <Text style={styles.a4PolicyText}>
+            {isAr
+              ? 'تم استلام كافة المواد وفقاً لفاتورة المورد الرسمية وتم إدخالها إلى نظام المخزن.'
+              : isKurdish
+              ? 'سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون.'
+              : 'Goods received according to supplier official invoice and registered in warehouse.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Top Summary Pair */}
+      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Left: Financial Card */}
+        <View style={styles.a4SummaryCard}>
+          <Text style={styles.a4CardLabel}>{isAr ? 'ملخص الشراء المالي' : isKurdish ? 'پوختەی دارایی کڕین' : 'PURCHASE SUMMARY'}</Text>
+          <View style={styles.a4FinRow}>
+            <Text style={styles.a4FinLabel}>{isAr ? 'إجمالي التكلفة:' : isKurdish ? 'کۆی تێچوو:' : 'Subtotal:'}</Text>
+            <Text style={styles.a4FinVal}>4,750 IQD</Text>
+          </View>
+          {purchaseSettings.showDiscount && (
+            <View style={styles.a4FinRow}>
+              <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− 750 IQD</Text>
+            </View>
+          )}
+          <View style={styles.a4TotalBlock}>
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockLabel}>{isAr ? 'إجمالي تكلفة الشراء (IQD)' : isKurdish ? 'کۆی گشتی کڕین' : 'Total Cost (IQD)'}</Text>
+              <Text style={styles.a4TotalBlockAmount}>4,000 IQD</Text>
+            </View>
+            <View style={styles.a4TotalDivider} />
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockSub}>{isAr ? 'المجموع الكلي بالدولار' : isKurdish ? 'کۆی گشتی بە دۆلار' : 'Total in USD'}</Text>
+              <Text style={styles.a4TotalBlockSubAmount}>$3.05 USD</Text>
+            </View>
+          </View>
+          {purchaseSettings.showPaymentMethod && (
+            <View style={styles.a4FinRow}>
+              <Text style={styles.a4FinLabel}>{isAr ? 'طريقة السداد:' : isKurdish ? 'شێوازی دران:' : 'Payment:'}</Text>
+              <Text style={styles.a4FinVal}>{isAr ? 'نقداً' : isKurdish ? 'کاش (نەقد)' : 'Cash'}</Text>
+            </View>
+          )}
+          {purchaseSettings.showRemainingDebt && (
+            <View style={styles.a4FinRow}>
+              <Text style={styles.a4FinLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining Debt:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#047857', fontWeight: '700' }]}>0 IQD</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Right: Notes Card */}
+        {purchaseSettings.showNotes && (
+          <View style={styles.a4SummaryCard}>
+            <Text style={styles.a4CardLabel}>{isAr ? 'ملاحظات الشراء' : isKurdish ? 'تێبینیەکانی کڕین' : 'PURCHASE NOTES'}</Text>
+            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ضمان المورد:' : isKurdish ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:'}</Text>
+            <Text style={styles.a4NotesWarrantyText}>{isAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isKurdish ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.'}</Text>
+            <View style={styles.a4NotesDivider} />
+            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ملاحظات الفحص والاستلام:' : isKurdish ? 'تێبینی و پشکنین:' : 'Inspection Notes:'}</Text>
+            <Text style={styles.a4NotesWarrantyText} numberOfLines={3}>
+              {getPurchaseFooterNote()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Items Table */}
+      <View style={styles.a4TableWrap}>
+        <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { flex: 2.1, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          {purchaseSettings.showItemBarcode && (
+            <Text style={[styles.a4Th, { flex: 0.9, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'Code'}</Text>
+          )}
+          <Text style={[styles.a4Th, { flex: 0.95, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'التصنيف' : isKurdish ? 'هاوپۆل' : 'Cat.'}</Text>
+          {purchaseSettings.showQty && (
+            <Text style={[styles.a4Th, { flex: 0.55, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          )}
+          {purchaseSettings.showBuyPrice && (
+            <Text style={[styles.a4Th, { flex: 1.05, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost'}</Text>
+          )}
+          <Text style={[styles.a4Th, { flex: 1.15, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆ' : 'Total'}</Text>
+        </View>
+
+        {mockPurchase.items.map((item, idx) => (
+          <View key={item.id} style={[styles.a4TableRow, idx % 2 === 1 && { backgroundColor: '#F8FAFC' }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={[styles.a4Td, { flex: 0.4, textAlign: 'center' }]}>{idx + 1}</Text>
+            <View style={{ flex: 2.2 }}>
+              <Text style={styles.a4ItemName}>{item.name}</Text>
+            </View>
+            {purchaseSettings.showItemBarcode && (
+              <View style={{ flex: 1.1, alignItems: 'center' }}>
+                <Text style={styles.a4IdChip}>{item.itemId}</Text>
+              </View>
+            )}
+            <Text style={[styles.a4Td, { flex: 1.2, color: '#64748B' }]} numberOfLines={1}>{item.category}</Text>
+            {purchaseSettings.showQty && <Text style={[styles.a4Td, { flex: 0.6, textAlign: 'center' }]}>{item.qty}</Text>}
+            {purchaseSettings.showBuyPrice && (
+              <View style={{ flex: 1.2, alignItems: 'flex-end', justifyContent: 'center' }}>
+                {purchaseSettings.showDiscount && item.discount ? (
+                  <>
+                    <Text style={styles.a4StrikethroughPrice}>{item.oldBuyPrice}</Text>
+                    <Text style={[styles.a4Td, { fontWeight: '700' }]}>{item.buyPrice}</Text>
+                  </>
+                ) : (
+                  <Text style={[styles.a4Td, { fontWeight: '700' }]}>{item.buyPrice}</Text>
+                )}
+              </View>
+            )}
+            <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right', fontWeight: '700' }]}>{item.total}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Signatures */}
+      {purchaseSettings.showSignature !== false && (
+        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع مستلم المخزن' : isKurdish ? 'واژووی وەرگری مەخزەن' : 'Warehouse Receiver'}</Text>
+          </View>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع مسؤول المشتريات' : isKurdish ? 'واژووی سەرپەرشتیاری کڕین' : 'Procurement Manager'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Footer */}
+      <Text style={styles.a4BrandCredit}>
+        {isAr ? 'وصل شراء · نظام فروشيار · www.froshiar.store · #P-00892' : isKurdish ? 'وەسڵی کڕین · سیستەمی فرۆشیار · www.froshiar.store · #P-00892' : 'Purchase Voucher · Powered by Froshiar · www.froshiar.store · #P-00892'}
+      </Text>
+    </View>
+  );
+
+  // 3. Quotation A4 Preview (Matches lib/quotationTemplate.ts buildQuotationHTML)
+  const renderQuotationA4Preview = () => (
+    <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
+      {/* Official Proposal Banner */}
+      <View style={[styles.a4ProposalBanner, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+        <Text style={styles.a4ProposalBannerText}>
+          {isAr
+            ? 'عرض سعر رسمي • مقدم حسب طلبكم الكريم للمدة المحددة'
+            : isKurdish
+            ? 'عەرزی نرخی فەرمی • پێشکەشکراوە بە پێی داواکاری بەڕێزتان بۆ ماوەی دیاریکراو'
+            : 'Official Price Proposal • Submitted according to client request for specified validity'}
+        </Text>
+      </View>
+
+      {/* 3-Column Header */}
+      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Col 1: Business */}
+        <View style={styles.a4ColBusiness}>
+          <View style={styles.a4LogoFrame}>
+            {business.logoUri ? (
+              <Image source={{ uri: business.logoUri }} style={styles.a4LogoImg} resizeMode="contain" />
+            ) : (
+              <View style={styles.a4LogoMono}>
+                <Text style={styles.a4LogoMonoText}>{monogram}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.a4BizName, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={1}>
+            {displayBizName}
+          </Text>
+          {quotationSettings.showBusinessAddress && (
+            <Text style={styles.a4BizMeta} numberOfLines={1}>{displayBizAddress}</Text>
+          )}
+          {quotationSettings.showBusinessPhone && (
+            <Text style={styles.a4BizMeta}>{business.phone || '0770 000 0000'}</Text>
+          )}
+        </View>
+
+        {/* Col 2: Client */}
+        <View style={styles.a4ColCustomer}>
+          <Text style={styles.a4ColLabelTag}>{isAr ? 'إلى المحترم / الشركة' : isKurdish ? 'بۆ بەڕێز' : 'PROPOSAL TO'}</Text>
+          {quotationSettings.showCustomerName && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Client:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockQuotation.customerName}</Text>
+            </View>
+          )}
+          {quotationSettings.showCustomerPhone && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'تەلەفۆن:' : 'Phone:'}</Text>
+              <Text style={[styles.a4RowVal, { direction: 'ltr' }]}>{mockQuotation.customerPhone}</Text>
+            </View>
+          )}
+          {quotationSettings.showBusinessAddress && (
+            <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'العنوان:' : isKurdish ? 'ناونیشان:' : 'Address:'}</Text>
+              <Text style={styles.a4RowVal} numberOfLines={1}>{mockQuotation.customerAddress}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Col 3: Quotation Meta & Validity Box */}
+        <View style={styles.a4ColInvoice}>
+          <Text style={styles.a4InvTypeLabel}>{isAr ? 'عرض أسعار' : isKurdish ? 'عەرزی نرخ' : 'PRICE QUOTATION'}</Text>
+          {quotationSettings.showQuotationNumber && (
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4InvMetaTitle}>#{mockQuotation.quotationNumber}</Text>
+            </View>
+          )}
+          {quotationSettings.showDate && (
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+              <Text style={styles.a4RowVal}>{mockQuotation.date}</Text>
+            </View>
+          )}
+          {/* Validity Box */}
+          {quotationSettings.showValidUntil && (
+            <View style={styles.a4ValidityDoubleBox}>
+              <Text style={styles.a4ValidityLabel}>{isAr ? 'الصلاحية' : isKurdish ? 'ماوەی کارایی' : 'VALIDITY'}</Text>
+              <Text style={styles.a4ValidityValue}>{isAr ? '10 أيام' : isKurdish ? '١٠ ڕۆژ' : '10 Days'}</Text>
+              <Text style={styles.a4ValiditySub}>{isAr ? `حتى: ${mockQuotation.validUntil}` : isKurdish ? `تاکو: ${mockQuotation.validUntil}` : `Until: ${mockQuotation.validUntil}`}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Policy Card */}
+      {quotationSettings.showAboutPolicy && (
+        <View style={styles.a4PolicyCard}>
+          <Text style={styles.a4PolicyLabel}>{isAr ? 'حول سياسة وضمان المشروع' : isKurdish ? 'دەربارەی سیاسەت و گرەنتی پڕۆژە' : 'PROJECT POLICY & WARRANTY'}</Text>
+          <Text style={styles.a4PolicyText}>
+            {isAr
+              ? 'كافة المواد أصلية وتتمتع بضمان لمدة سنة واحدة من تاريخ التركيب والتنفيذ.'
+              : isKurdish
+              ? 'سەرجەم کەرەستەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە.'
+              : 'All products are authentic with 1-year warranty from date of installation.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Top Summary Pair */}
+      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        {/* Left: Financial Card */}
+        <View style={styles.a4SummaryCard}>
+          <Text style={styles.a4CardLabel}>{isAr ? 'الملخص المالي للعرض' : isKurdish ? 'پوختەی دارایی پێشنیار' : 'PROPOSAL FINANCIALS'}</Text>
+          <View style={styles.a4FinRow}>
+            <Text style={styles.a4FinLabel}>{isAr ? 'إجمالي المواد:' : isKurdish ? 'کۆی گشتی کاڵاکان:' : 'Subtotal:'}</Text>
+            <Text style={styles.a4FinVal}>{mockQuotation.subtotal}</Text>
+          </View>
+          {quotationSettings.showDiscount && (
+            <View style={styles.a4FinRow}>
+              <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'خصم المشروع:' : isKurdish ? 'داشکاندنی پڕۆژە:' : 'Discount:'}</Text>
+              <Text style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− {mockQuotation.discount}</Text>
+            </View>
+          )}
+          <View style={styles.a4TotalBlock}>
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockLabel}>{isAr ? 'المجموع الكلي المقترح' : isKurdish ? 'کۆی گشتی پێشنیارکراو' : 'Grand Total'}</Text>
+              <Text style={styles.a4TotalBlockAmount}>{mockQuotation.grandTotalIQD}</Text>
+            </View>
+            <View style={styles.a4TotalDivider} />
+            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4TotalBlockSub}>{isAr ? 'القيمة التقديرية بالدولار' : isKurdish ? 'بەهای تەقریبی بە دۆلار' : 'Approx. in USD'}</Text>
+              <Text style={styles.a4TotalBlockSubAmount}>{mockQuotation.grandTotalUSD}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Right: Terms Card */}
+        {quotationSettings.showNotes && (
+          <View style={styles.a4SummaryCard}>
+            <Text style={styles.a4CardLabel}>{isAr ? 'الشروط والأحكام' : isKurdish ? 'مەرج و ڕێساکانی عەرز' : 'TERMS & CONDITIONS'}</Text>
+            <Text style={styles.a4NotesWarrantyText} numberOfLines={4}>
+              {getQuotationFooterNote()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Items Table */}
+      <View style={styles.a4TableWrap}>
+        <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { flex: 2.1, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة (الوصف)' : isKurdish ? 'کاڵا (وەسف)' : 'Product'}</Text>
+          {quotationSettings.showItemBarcode && (
+            <Text style={[styles.a4Th, { flex: 0.95, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'Code'}</Text>
+          )}
+          {quotationSettings.showQty && (
+            <Text style={[styles.a4Th, { flex: 0.55, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          )}
+          {quotationSettings.showItemPrice && (
+            <Text style={[styles.a4Th, { flex: 1.1, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price'}</Text>
+          )}
+          {quotationSettings.showDiscount && (
+            <Text style={[styles.a4Th, { flex: 0.95, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
+          )}
+          <Text style={[styles.a4Th, { flex: 1.25, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'المجموع الكلي' : isKurdish ? 'کۆی گشتی' : 'Total'}</Text>
+        </View>
+
+        {mockQuotation.items.map((item, idx) => (
+          <View key={item.id} style={[styles.a4TableRow, idx % 2 === 1 && { backgroundColor: '#F8FAFC' }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={[styles.a4Td, { flex: 0.35, textAlign: 'center' }]}>{idx + 1}</Text>
+            <View style={{ flex: 2.1 }}>
+              <Text style={styles.a4ItemName} numberOfLines={1}>{item.name}</Text>
+            </View>
+            {quotationSettings.showItemBarcode && (
+              <View style={{ flex: 0.95, alignItems: 'center' }}>
+                <Text style={styles.a4IdChip} numberOfLines={1}>{item.itemId}</Text>
+              </View>
+            )}
+            {quotationSettings.showQty && <Text style={[styles.a4Td, { flex: 0.55, textAlign: 'center' }]}>{item.qty}</Text>}
+            {quotationSettings.showItemPrice && (
+              <View style={{ flex: 1.1, alignItems: 'flex-end', justifyContent: 'center' }}>
+                {quotationSettings.showDiscount && item.oldPrice ? (
+                  <>
+                    <Text style={styles.a4StrikethroughPrice}>{item.oldPrice}</Text>
+                    <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.price}</Text>
+                  </>
+                ) : (
+                  <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.price}</Text>
+                )}
+              </View>
+            )}
+            {quotationSettings.showDiscount && (
+              <Text style={[styles.a4Td, { flex: 0.95, textAlign: 'right', color: item.discount ? '#D97706' : '#94A3B8', fontWeight: item.discount ? '700' : '400' }]} numberOfLines={1}>
+                {item.discount ? `− ${item.discount}` : '—'}
+              </Text>
+            )}
+            <Text style={[styles.a4Td, { flex: 1.25, textAlign: 'right', fontWeight: '700' }]} numberOfLines={1}>{item.total}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Stamp & Signatures */}
+      {quotationSettings.showSignature && (
+        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }]}>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع وقبول العميل' : isKurdish ? 'واژووی کڕیار / پەسەندکردن' : 'Client Acceptance'}</Text>
+          </View>
+
+          {/* Authentic Circular Company Stamp Graphic */}
+          <View style={styles.a4StampSeal}>
+            <View style={styles.a4StampInner}>
+              <Text style={styles.a4StampBizText}>{business.name || (isAr ? 'فروشيار' : isKurdish ? 'فرۆشیار' : 'Froshiar')}</Text>
+              <Text style={styles.a4StampApprovedText}>★ APPROVED ★</Text>
+              <Text style={styles.a4StampSubText}>{isAr ? 'الختم الرسمي' : isKurdish ? 'مۆری فەرمی پڕۆژە' : 'OFFICIAL SEAL'}</Text>
+            </View>
+            <View style={[styles.a4SigLine, { marginTop: 4 }]} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'ختم وتوقيع الشركة' : isKurdish ? 'واژوو و مۆری کۆمپانیا' : 'Company Seal & Signature'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Footer */}
+      <Text style={styles.a4BrandCredit}>
+        {isAr ? 'عرض أسعار · نظام فروشيار الرسمي · www.froshiar.store · #Q-2026-045' : isKurdish ? 'عەرزی نرخ · سیستەمی فەرمی فرۆشیار · www.froshiar.store · #Q-2026-045' : 'Price Quotation · Powered by Froshiar · www.froshiar.store · #Q-2026-045'}
+      </Text>
+    </View>
+  );
+
+  // 4. Inventory A4 Preview (Matches lib/inventoryPDFReports.ts / lib/inventoryReportTemplate.ts)
+  const renderInventoryA4Preview = () => (
+    <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
+      {/* Inventory Header */}
+      {inventorySettings.showBusinessHeader && (
+        <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.a4ColBusiness}>
+            <View style={styles.a4LogoFrame}>
+              {business.logoUri ? (
+                <Image source={{ uri: business.logoUri }} style={styles.a4LogoImg} resizeMode="contain" />
+              ) : (
+                <View style={styles.a4LogoMono}>
+                  <Text style={styles.a4LogoMonoText}>{monogram}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.a4BizName, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={1}>
+              {displayBizName}
+            </Text>
+            <Text style={styles.a4BizMeta}>{mockInventory.warehouseName}</Text>
+            <Text style={styles.a4BizMeta}>{business.phone || '0770 000 0000'}</Text>
+          </View>
+
+          <View style={styles.a4ColInvoice}>
+            <Text style={styles.a4InvTypeLabel}>{isAr ? 'تقرير الجرد الشامل للمخزن' : isKurdish ? 'ڕاپۆرتی سەرژمێری و کۆگای گشتی' : 'FULL INVENTORY AUDIT'}</Text>
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.a4InvMetaTitle}>#{mockInventory.reportCode}</Text>
+            </View>
+            {inventorySettings.showDate && (
+              <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.a4RowLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                <Text style={styles.a4RowVal}>{mockInventory.date} - {mockInventory.time}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* 4 KPI Metric Cards */}
+      {inventorySettings.showStatsCards !== false && (
+        <View style={[styles.a4KpiRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.a4KpiCard}>
+            <Text style={styles.a4KpiLabel}>{isAr ? 'إجمالي المواد' : isKurdish ? 'کۆی کاڵاکان' : 'Total Items'}</Text>
+            <Text style={styles.a4KpiVal}>{mockInventory.stats.totalItems}</Text>
+          </View>
+          <View style={styles.a4KpiCard}>
+            <Text style={styles.a4KpiLabel}>{isAr ? 'المتوفر في المخزن' : isKurdish ? 'کۆی عەدەد' : 'In Stock'}</Text>
+            <Text style={styles.a4KpiVal}>{mockInventory.stats.totalQty} {isAr ? 'قطعة' : isKurdish ? 'دانە' : 'Units'}</Text>
+          </View>
+          <View style={[styles.a4KpiCard, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+            <Text style={[styles.a4KpiLabel, { color: '#92400E' }]}>{isAr ? 'مخزون منخفض' : isKurdish ? 'کەمبووەوە' : 'Low Stock'}</Text>
+            <Text style={[styles.a4KpiVal, { color: '#B45309' }]}>{mockInventory.stats.lowStockCount} ⚠️</Text>
+          </View>
+          <View style={styles.a4KpiCard}>
+            <Text style={styles.a4KpiLabel}>{isAr ? 'إجمالي القيمة' : isKurdish ? 'بەهای گشتی' : 'Total Value'}</Text>
+            <Text style={[styles.a4KpiVal, { fontSize: 10 }]} numberOfLines={1}>{mockInventory.stats.totalValueIQD}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Inventory Audit Table */}
+      <View style={styles.a4TableWrap}>
+        <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { flex: 1.7, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          {inventorySettings.showItemId && <Text style={[styles.a4Th, { flex: 0.75, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'ID'}</Text>}
+          {inventorySettings.showCategory && <Text style={[styles.a4Th, { flex: 0.85, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'التصنيف' : isKurdish ? 'هاوپۆل' : 'Cat.'}</Text>}
+          {inventorySettings.showQuantity && <Text style={[styles.a4Th, { flex: 0.6, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>}
+          {inventorySettings.showBuyPrice && <Text style={[styles.a4Th, { flex: 0.8, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost'}</Text>}
+          {inventorySettings.showSellPrice && <Text style={[styles.a4Th, { flex: 0.8, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'البيع' : isKurdish ? 'فرۆشتن' : 'Sell'}</Text>}
+          {inventorySettings.showTotalValue && <Text style={[styles.a4Th, { flex: 0.9, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'القيمة' : isKurdish ? 'بەها' : 'Value'}</Text>}
+          {inventorySettings.showStatus && <Text style={[styles.a4Th, { flex: 1.15, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الحالة' : isKurdish ? 'دۆخ' : 'Status'}</Text>}
+        </View>
+
+        {mockInventory.items.map((item, idx) => (
+          <View key={item.id} style={[styles.a4TableRow, idx % 2 === 1 && { backgroundColor: '#F8FAFC' }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={[styles.a4Td, { flex: 0.35, textAlign: 'center' }]}>{idx + 1}</Text>
+            <View style={{ flex: 1.7 }}>
+              <Text style={styles.a4ItemName} numberOfLines={1}>{item.name}</Text>
+              {inventorySettings.showSupplier && (
+                <Text style={styles.a4ItemSupplier} numberOfLines={1}>{item.supplier}</Text>
+              )}
+            </View>
+            {inventorySettings.showItemId && (
+              <View style={{ flex: 0.75, alignItems: 'center' }}>
+                <Text style={styles.a4IdChip} numberOfLines={1}>{item.itemId}</Text>
+              </View>
+            )}
+            {inventorySettings.showCategory && <Text style={[styles.a4Td, { flex: 0.85, color: '#64748B' }]} numberOfLines={1}>{item.category}</Text>}
+            {inventorySettings.showQuantity && <Text style={[styles.a4Td, { flex: 0.6, textAlign: 'center', fontWeight: '700' }]} numberOfLines={1}>{item.qty}</Text>}
+            {inventorySettings.showBuyPrice && <Text style={[styles.a4Td, { flex: 0.8, textAlign: 'right' }]} numberOfLines={1}>{item.buyPrice}</Text>}
+            {inventorySettings.showSellPrice && <Text style={[styles.a4Td, { flex: 0.8, textAlign: 'right' }]} numberOfLines={1}>{item.sellPrice}</Text>}
+            {inventorySettings.showTotalValue && <Text style={[styles.a4Td, { flex: 0.9, textAlign: 'right', fontWeight: '700' }]} numberOfLines={1}>{item.totalValue}</Text>}
+            {inventorySettings.showStatus && (
+              <View style={{ flex: 1.15, alignItems: 'center' }}>
+                <View style={[styles.a4InvStatusBadge, item.status === 'low' ? styles.a4InvStatusLow : styles.a4InvStatusOk]}>
+                  <Text style={[styles.a4InvStatusText, item.status === 'low' ? { color: '#B45309' } : { color: '#047857' }]} numberOfLines={1}>
+                    {item.status === 'low' ? (isAr ? 'منخفض ⚠️' : isKurdish ? 'کەمبوون ⚠️' : 'Low ⚠️') : (isAr ? 'متوفر' : isKurdish ? 'بەردەست' : 'In Stock')}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        ))}
+      </View>
+
+      {/* Warehouse Audit Note */}
+      {inventorySettings.showNotes && (
+        <View style={styles.a4PolicyCard}>
+          <Text style={styles.a4PolicyLabel}>{isAr ? 'ملاحظات وتقرير الجرد' : isKurdish ? 'تێبینی و ڕاپۆرتی سەرژمێری' : 'INVENTORY AUDIT NOTES'}</Text>
+          <Text style={styles.a4PolicyText}>
+            {getInventoryFooterNote()}
+          </Text>
+        </View>
+      )}
+
+      {/* Signatures */}
+      {inventorySettings.showSignatureArea !== false && (
+        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع أمين المخزن' : isKurdish ? 'واژووی چاودێری کۆگا' : 'Warehouse Keeper'}</Text>
+          </View>
+          <View style={styles.a4SigCol}>
+            <View style={styles.a4SigLine} />
+            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع مشرف الجرد' : isKurdish ? 'واژووی سەرپەرشتیاری سەرژمێری' : 'Audit Supervisor'}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Footer */}
+      <Text style={styles.a4BrandCredit}>
+        {isAr ? 'تقرير جرد المخزن · نظام فروشيار · www.froshiar.store' : isKurdish ? 'ڕاپۆرتی سەرژمێری کۆگا · سیستەمی فرۆشیار · www.froshiar.store' : 'Inventory Audit Report · Powered by Froshiar · www.froshiar.store'}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
       <SettingsBackground />
       <AppHeader
-        title={isKurdish ? 'شێوازی چاپ و ڕێکخستنی پسوولە' : 'Print & Receipt Customization'}
+        title={isAr ? 'تخصيص وإعدادات طباعة الفواتير' : isKurdish ? 'شێوازی چاپ و ڕێکخستنی پسوولە' : 'Print & Receipt Customization'}
         showBack
       />
 
@@ -419,10 +1365,10 @@ export default function ReceiptCustomizationScreen() {
           contentContainerStyle={[styles.moduleTabsContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
         >
           {([
-            { id: 'sales', label: isKurdish ? 'فرۆشتن' : 'Sales', icon: 'cart-outline' },
-            { id: 'purchases', label: isKurdish ? 'کڕین' : 'Purchases', icon: 'bag-check-outline' },
-            { id: 'quotation', label: isKurdish ? 'عەرز (Quotation)' : 'Quotations', icon: 'document-text-outline' },
-            { id: 'inventory', label: isKurdish ? 'کۆگا' : 'Inventory', icon: 'cube-outline' },
+            { id: 'sales', label: isAr ? 'المبيعات' : isKurdish ? 'فرۆشتن' : 'Sales', icon: 'cart-outline' },
+            { id: 'purchases', label: isAr ? 'المشتريات' : isKurdish ? 'کڕین' : 'Purchases', icon: 'bag-check-outline' },
+            { id: 'quotation', label: isAr ? 'عروض الأسعار' : isKurdish ? 'عەرز (Quotation)' : 'Quotations', icon: 'document-text-outline' },
+            { id: 'inventory', label: isAr ? 'المخزن' : isKurdish ? 'کۆگا' : 'Inventory', icon: 'cube-outline' },
           ] as const).map((tab) => {
             const isSelected = activeTab === tab.id;
             return (
@@ -449,7 +1395,7 @@ export default function ReceiptCustomizationScreen() {
                   style={[
                     styles.moduleTabButtonText,
                     { color: isSelected ? '#FFFFFF' : colors.black },
-                    isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                    isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
                   {tab.label}
@@ -472,10 +1418,10 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.sectionHeading,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'قەبارەی وەسڵ و کاغەز (Paper Size)' : 'Receipt & Paper Size'}
+              {isAr ? 'مقاس الورق والفاتورة' : isKurdish ? 'قەبارەی وەسڵ و کاغەز (Paper Size)' : 'Receipt & Paper Size'}
             </Text>
           </View>
 
@@ -483,12 +1429,14 @@ export default function ReceiptCustomizationScreen() {
             <View style={[styles.a4OnlyNoticeBox, { backgroundColor: colors.softBlue, borderColor: colors.primary }]}>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="document-text" size={20} color={colors.primary} />
-                <Text style={[styles.a4OnlyNoticeTitle, { color: colors.primary }, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                  {isKurdish ? 'پەڕەی ستانداردی A4' : 'Standard A4 Sheet (21 × 29.7 cm)'}
+                <Text style={[styles.a4OnlyNoticeTitle, { color: colors.primary }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {isAr ? 'ورقة A4 الرسمية (21 × 29.7 سم)' : isKurdish ? 'پەڕەی ستانداردی A4' : 'Standard A4 Sheet (21 × 29.7 cm)'}
                 </Text>
               </View>
-              <Text style={[styles.a4OnlyNoticeSub, { color: colors.gray600, textAlign }, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {isKurdish
+              <Text style={[styles.a4OnlyNoticeSub, { color: colors.gray600, textAlign }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                {isAr
+                  ? 'قسم عروض الأسعار (Quotation) يُطبع رسمياً فقط على ورق A4 القياسي وليس للطابعات الحرارية.'
+                  : isKurdish
                   ? 'بەشی عەرز و ئۆفەر (Quotation) بە شێوازی فەرمی تەنها لەسەر پەڕەی A4 چاپ دەکرێت و بۆ پرینتەری حەراری نییە.'
                   : 'Quotations and price proposals are designed exclusively for standard official A4 paper format.'}
               </Text>
@@ -523,7 +1471,7 @@ export default function ReceiptCustomizationScreen() {
                       style={[
                         styles.widthTabLabel,
                         { color: isSelected ? colors.primary : colors.black },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                       ]}
                     >
                       {opt.label}
@@ -551,11 +1499,11 @@ export default function ReceiptCustomizationScreen() {
                       style={[
                         styles.widthTabDesc,
                         { color: isSelected ? colors.primary : colors.gray400 },
-                        isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+                        isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
                       ]}
                       numberOfLines={1}
                     >
-                      {opt.desc}
+                      {isAr ? opt.descAr : isKurdish ? opt.desc : opt.descEn}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -572,200 +1520,22 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.sectionHeading,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'پێشبینینی ڕاستەوخۆ (Live Preview)' : 'Live Document Preview'}
+              {isAr ? 'معاينة مباشرة للمستند' : isKurdish ? 'پێشبینینی ڕاستەوخۆ (Live Preview)' : 'Live Document Preview'}
             </Text>
           </View>
 
           <View style={styles.previewContainer}>
             {activePaperSize === 'A4' ? (
-              /* ── A4 FORMAL SHEET PREVIEW ── */
-              <View style={[styles.a4PreviewSheet, { width: previewCardWidth }]}>
-                {/* A4 Header Banner */}
-                <View style={styles.a4Header}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.a4BizName, isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                      {business.name || 'مارکێتی فرۆشیار'}
-                    </Text>
-                    {((activeTab === 'sales' && salesSettings.showBusinessAddress) ||
-                      (activeTab === 'purchases' && purchaseSettings.showBusinessAddress) ||
-                      (activeTab === 'quotation' && quotationSettings.showBusinessAddress) ||
-                      (activeTab === 'inventory' && inventorySettings.showBusinessHeader)) && (
-                      <Text style={styles.a4BizContact}>
-                        {business.address || 'شەقامی سەرەکی، هەولێر'}
-                      </Text>
-                    )}
-                    {((activeTab === 'sales' && salesSettings.showBusinessPhone) ||
-                      (activeTab === 'purchases' && purchaseSettings.showBusinessPhone) ||
-                      (activeTab === 'quotation' && quotationSettings.showBusinessPhone) ||
-                      (activeTab === 'inventory' && inventorySettings.showBusinessHeader)) && (
-                      <Text style={styles.a4BizContact}>
-                        {business.phone || '0770 000 0000'}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.a4DocBadge}>
-                    <Text style={styles.a4DocBadgeText}>
-                      {activeTab === 'sales'
-                        ? (isKurdish ? 'وەسڵی فرۆشتن (A4)' : 'Sales Invoice')
-                        : activeTab === 'purchases'
-                        ? (isKurdish ? 'وەسڵی کڕین (A4)' : 'Purchase Voucher')
-                        : activeTab === 'quotation'
-                        ? (isKurdish ? 'عەرزی نرخ (Quotation)' : 'Price Proposal')
-                        : (isKurdish ? 'سەرژمێری کۆگا (A4)' : 'Inventory Audit')}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* A4 Metadata Cards */}
-                <View style={styles.a4MetaGrid}>
-                  <View style={styles.a4MetaCard}>
-                    <Text style={styles.a4MetaLabel}>
-                      {activeTab === 'sales' ? 'پسوولە #' : activeTab === 'purchases' ? 'وەسڵی کڕین #' : activeTab === 'quotation' ? 'عەرز #' : 'کۆد #'}
-                    </Text>
-                    <Text style={styles.a4MetaVal}>
-                      {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : activeTab === 'quotation' ? '#Q-2026-045' : '#INV-2026'}
-                    </Text>
-                    <Text style={[styles.a4MetaLabel, { marginTop: 4 }]}>بەروار:</Text>
-                    <Text style={styles.a4MetaVal}>2026/10/29</Text>
-                  </View>
-
-                  <View style={styles.a4MetaCard}>
-                    {activeTab === 'sales' && salesSettings.showCustomerName && (
-                      <>
-                        <Text style={styles.a4MetaLabel}>کڕیار:</Text>
-                        <Text style={styles.a4MetaVal}>ئارام محەمەد</Text>
-                      </>
-                    )}
-                    {activeTab === 'sales' && salesSettings.showCustomerPhone && (
-                      <Text style={styles.a4MetaValSub}>0750 123 4567</Text>
-                    )}
-                    {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
-                      <>
-                        <Text style={styles.a4MetaLabel}>دابینکەر:</Text>
-                        <Text style={styles.a4MetaVal}>کۆمپانیای عەلی بۆ هاوردەکردن</Text>
-                      </>
-                    )}
-                    {activeTab === 'purchases' && purchaseSettings.showSupplierPhone && (
-                      <Text style={styles.a4MetaValSub}>0770 123 9988</Text>
-                    )}
-                    {activeTab === 'quotation' && quotationSettings.showCustomerName && (
-                      <>
-                        <Text style={styles.a4MetaLabel}>بۆ بەڕێز:</Text>
-                        <Text style={styles.a4MetaVal}>کۆمپانیای ئاسۆ بۆ تەکنەلۆجیا</Text>
-                      </>
-                    )}
-                    {activeTab === 'inventory' && (
-                      <>
-                        <Text style={styles.a4MetaLabel}>بەش / کۆگا:</Text>
-                        <Text style={styles.a4MetaVal}>کۆگای سەرەکی سلێمانی</Text>
-                      </>
-                    )}
-                  </View>
-                </View>
-
-                {/* A4 Items Table */}
-                <View style={styles.a4Table}>
-                  <View style={styles.a4TableHeader}>
-                    <Text style={[styles.a4Th, { flex: 0.5 }]}>#</Text>
-                    <Text style={[styles.a4Th, { flex: 2 }]}>کاڵا</Text>
-                    {((activeTab === 'sales' && salesSettings.showItemBarcode) ||
-                      (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
-                      (activeTab === 'quotation' && quotationSettings.showItemBarcode) ||
-                      (activeTab === 'inventory' && inventorySettings.showItemId)) && (
-                      <Text style={[styles.a4Th, { flex: 1 }]}>کۆد</Text>
-                    )}
-                    <Text style={[styles.a4Th, { flex: 0.8, textAlign: 'center' }]}>بڕ</Text>
-                    <Text style={[styles.a4Th, { flex: 1.3, textAlign: 'right' }]}>نرخ</Text>
-                    <Text style={[styles.a4Th, { flex: 1.4, textAlign: 'right' }]}>کۆ</Text>
-                  </View>
-
-                  {/* Sample rows */}
-                  <View style={styles.a4TableRow}>
-                    <Text style={[styles.a4Td, { flex: 0.5 }]}>1</Text>
-                    <Text style={[styles.a4Td, { flex: 2, fontWeight: '600' }]}>کۆلا قتوو ٣٣٠مل</Text>
-                    {((activeTab === 'sales' && salesSettings.showItemBarcode) ||
-                      (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
-                      (activeTab === 'quotation' && quotationSettings.showItemBarcode) ||
-                      (activeTab === 'inventory' && inventorySettings.showItemId)) && (
-                      <Text style={[styles.a4Td, { flex: 1, color: '#64748B' }]}>COL-330</Text>
-                    )}
-                    <Text style={[styles.a4Td, { flex: 0.8, textAlign: 'center' }]}>2</Text>
-                    <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right' }]}>500</Text>
-                    <Text style={[styles.a4Td, { flex: 1.4, textAlign: 'right', fontWeight: '700' }]}>1,000</Text>
-                  </View>
-
-                  <View style={[styles.a4TableRow, { backgroundColor: '#F8FAFC' }]}>
-                    <Text style={[styles.a4Td, { flex: 0.5 }]}>2</Text>
-                    <Text style={[styles.a4Td, { flex: 2, fontWeight: '600' }]}>چپس دوریتۆس گەورە</Text>
-                    {((activeTab === 'sales' && salesSettings.showItemBarcode) ||
-                      (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
-                      (activeTab === 'quotation' && quotationSettings.showItemBarcode) ||
-                      (activeTab === 'inventory' && inventorySettings.showItemId)) && (
-                      <Text style={[styles.a4Td, { flex: 1, color: '#64748B' }]}>DOR-BIG</Text>
-                    )}
-                    <Text style={[styles.a4Td, { flex: 0.8, textAlign: 'center' }]}>1</Text>
-                    <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right' }]}>1,500</Text>
-                    <Text style={[styles.a4Td, { flex: 1.4, textAlign: 'right', fontWeight: '700' }]}>1,500</Text>
-                  </View>
-
-                  <View style={styles.a4TableRow}>
-                    <Text style={[styles.a4Td, { flex: 0.5 }]}>3</Text>
-                    <Text style={[styles.a4Td, { flex: 2, fontWeight: '600' }]}>شوکۆلاتە کیندەر بوێنۆ</Text>
-                    {((activeTab === 'sales' && salesSettings.showItemBarcode) ||
-                      (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
-                      (activeTab === 'quotation' && quotationSettings.showItemBarcode) ||
-                      (activeTab === 'inventory' && inventorySettings.showItemId)) && (
-                      <Text style={[styles.a4Td, { flex: 1, color: '#64748B' }]}>KIN-BUE</Text>
-                    )}
-                    <Text style={[styles.a4Td, { flex: 0.8, textAlign: 'center' }]}>3</Text>
-                    <View style={{ flex: 1.3, alignItems: 'flex-end', justifyContent: 'center' }}>
-                      <Text style={[styles.a4Td, { textDecorationLine: 'line-through', color: '#94A3B8', fontSize: 10 }]}>750</Text>
-                      <Text style={[styles.a4Td, { fontWeight: '700' }]}>500</Text>
-                    </View>
-                    <Text style={[styles.a4Td, { flex: 1.4, textAlign: 'right', fontWeight: '700' }]}>1,500</Text>
-                  </View>
-                </View>
-
-                {/* A4 Summary Box */}
-                <View style={styles.a4SummaryRow}>
-                  <View style={styles.a4NotesBox}>
-                    <Text style={styles.a4NotesTitle}>تێبینی و مەرجەکان:</Text>
-                    <Text style={styles.a4NotesText}>
-                      {activeTab === 'quotation'
-                        ? (quotationSettings.customFooterNote || 'ئەم عەرزە بۆ ماوەی دیاریکراو کارایە.')
-                        : (salesSettings.customFooterNote || 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ.')}
-                    </Text>
-                  </View>
-
-                  <View style={styles.a4TotalsBox}>
-                    <View style={styles.a4TotalRow}>
-                      <Text style={styles.a4TotalLabel}>کۆی کاڵاکان:</Text>
-                      <Text style={styles.a4TotalVal}>4,750 IQD</Text>
-                    </View>
-                    <View style={styles.a4TotalRow}>
-                      <Text style={styles.a4TotalLabel}>داشکاندن:</Text>
-                      <Text style={[styles.a4TotalVal, { color: '#D97706' }]}>− 750 IQD</Text>
-                    </View>
-                    <View style={[styles.a4TotalRow, styles.a4GrandRow]}>
-                      <Text style={styles.a4GrandLabel}>کۆی گشتی:</Text>
-                      <Text style={styles.a4GrandVal}>4,000 IQD</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* A4 Signature Section */}
-                <View style={styles.a4SignatureRow}>
-                  <View style={styles.a4SignatureCol}>
-                    <Text style={styles.a4SignatureLine}>واژووی کڕیار / وەرگر</Text>
-                  </View>
-                  <View style={styles.a4SignatureCol}>
-                    <Text style={styles.a4SignatureLine}>مۆر و واژووی فرۆشگا</Text>
-                  </View>
-                </View>
-              </View>
+              activeTab === 'sales'
+                ? renderSalesA4Preview()
+                : activeTab === 'purchases'
+                ? renderPurchasesA4Preview()
+                : activeTab === 'quotation'
+                ? renderQuotationA4Preview()
+                : renderInventoryA4Preview()
             ) : (
               /* ── THERMAL RECEIPT ROLL PREVIEW (58mm, 80mm, 110mm) ── */
               <View style={[styles.receiptPaper, { width: previewCardWidth }]}>
@@ -779,14 +1549,14 @@ export default function ReceiptCustomizationScreen() {
                 {/* Receipt Header */}
                 <View style={styles.receiptHeader}>
                   <Text style={styles.receiptStoreName}>
-                    {business.name || 'مارکێتی فرۆشیار'}
+                    {displayBizName}
                   </Text>
 
                   {((activeTab === 'sales' && salesSettings.showBusinessAddress) ||
                     (activeTab === 'purchases' && purchaseSettings.showBusinessAddress) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader)) && (
                     <Text style={styles.receiptContact}>
-                      {business.address || 'شەقامی سەرەکی، هەولێر'}
+                      {displayBizAddress}
                     </Text>
                   )}
 
@@ -806,7 +1576,7 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showInvoiceNumber) ||
                     (activeTab === 'purchases' && purchaseSettings.showInvoiceNumber)) && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'پسوولە:' : 'Receipt #:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'رقم الفاتورة:' : isKurdish ? 'پسوولە:' : 'Receipt #:'}</Text>
                       <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
                         {activeTab === 'sales' ? '#F-00124' : '#P-00892'}
                       </Text>
@@ -817,29 +1587,29 @@ export default function ReceiptCustomizationScreen() {
                     (activeTab === 'purchases' && purchaseSettings.showDate) ||
                     (activeTab === 'inventory' && inventorySettings.showDate)) && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
                       <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
                     </View>
                   )}
 
                   {activeTab === 'sales' && salesSettings.showCustomerName && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'کڕیار:' : 'Customer:'}</Text>
-                      <Text style={styles.receiptValue}>ئارام محەمەد</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Customer:'}</Text>
+                      <Text style={styles.receiptValue}>{mockSale.customerName}</Text>
                     </View>
                   )}
 
                   {activeTab === 'sales' && salesSettings.showCustomerPhone && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'مۆبایل:' : 'Phone:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}</Text>
                       <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
                     </View>
                   )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'دابینکەر:' : 'Supplier:'}</Text>
-                      <Text style={styles.receiptValue}>کۆمپانیای عەلی بۆ هاوردەکردن</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'المورد:' : isKurdish ? 'دابینکەر:' : 'Supplier:'}</Text>
+                      <Text style={styles.receiptValue}>{mockPurchase.supplierName}</Text>
                     </View>
                   )}
                 </View>
@@ -890,20 +1660,20 @@ export default function ReceiptCustomizationScreen() {
                   <View style={styles.tableWrap}>
                     <View style={styles.tableHeaderRow}>
                       <Text style={[styles.colHeader, { flex: 2 }]}>
-                        {isKurdish ? 'کاڵا' : 'Item'}
+                        {isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Item'}
                       </Text>
                       {salesSettings.showQty && (
                         <Text style={[styles.colHeader, styles.colCenter, { flex: 0.8 }]}>
-                          {isKurdish ? 'عەدەد' : 'Qty'}
+                          {isAr ? 'العدد' : isKurdish ? 'عەدەد' : 'Qty'}
                         </Text>
                       )}
                       {salesSettings.showItemPrice && (
                         <Text style={[styles.colHeader, styles.colRight, { flex: 1.3 }]}>
-                          {isKurdish ? 'نرخ' : 'Price'}
+                          {isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price'}
                         </Text>
                       )}
                       <Text style={[styles.colHeader, styles.colRight, { flex: 1.3 }]}>
-                        {isKurdish ? 'کۆی گشتی' : 'Total'}
+                        {isAr ? 'المجموع الكلي' : isKurdish ? 'کۆی گشتی' : 'Total'}
                       </Text>
                     </View>
 
@@ -953,34 +1723,34 @@ export default function ReceiptCustomizationScreen() {
                 {/* Financial Totals */}
                 <View style={styles.receiptTotals}>
                   <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>{isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
+                    <Text style={styles.receiptLabel}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
                     <Text style={styles.receiptValue}>4,750 IQD</Text>
                   </View>
 
                   {salesSettings.showDiscount && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
                       <Text style={styles.receiptValue}>− 750 IQD</Text>
                     </View>
                   )}
 
                   <View style={[styles.receiptRow, styles.receiptGrandTotalRow]}>
                     <Text style={styles.receiptGrandTotalLabel}>
-                      {isKurdish ? 'کۆی گشتی:' : 'Total:'}
+                      {isAr ? 'المجموع الكلي:' : isKurdish ? 'کۆی گشتی:' : 'Total:'}
                     </Text>
                     <Text style={styles.receiptGrandTotalAmount}>4,000 IQD</Text>
                   </View>
 
                   {salesSettings.showPaymentMethod && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
                       <Text style={styles.receiptValue}>Cash</Text>
                     </View>
                   )}
 
                   {salesSettings.showRemainingDebt && (
                     <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+                      <Text style={styles.receiptLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
                       <Text style={styles.receiptValue}>0 IQD</Text>
                     </View>
                   )}
@@ -989,16 +1759,22 @@ export default function ReceiptCustomizationScreen() {
                 {/* Notes & Policy */}
                 {salesSettings.showNotes && (
                   <View style={styles.receiptNotesBox}>
-                    <Text style={styles.receiptNotesTitle}>{isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
+                    <Text style={styles.receiptNotesTitle}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
                     <Text style={styles.receiptNotesText}>{mockSale.notes}</Text>
                   </View>
                 )}
 
                 {/* Footer Message & Barcode */}
                 <View style={styles.receiptFooter}>
-                  {salesSettings.customFooterNote ? (
-                    <Text style={styles.receiptFooterNote}>{salesSettings.customFooterNote}</Text>
-                  ) : null}
+                  {activeTab === 'purchases' ? (
+                    getPurchaseFooterNote() ? (
+                      <Text style={styles.receiptFooterNote}>{getPurchaseFooterNote()}</Text>
+                    ) : null
+                  ) : (
+                    getSalesFooterNote() ? (
+                      <Text style={styles.receiptFooterNote}>{getSalesFooterNote()}</Text>
+                    ) : null
+                  )}
 
                   {salesSettings.showFooterBarcode && (
                     <View style={styles.barcodeBox}>
@@ -1032,84 +1808,444 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.sectionHeading,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'دەستکاری بڕگە و زانیارییەکان' : 'Field Customization'}
+              {isAr ? 'تخصيص الحقول والبيانات' : isKurdish ? 'دەستکاری بڕگە و زانیارییەکان' : 'Field Customization'}
             </Text>
           </View>
 
           {/* Dynamic list of toggles based on activeTab */}
           {activeTab === 'sales' && (
             <View>
-              {renderToggleRow('ژمارەی تەلەفۆنی فرۆشگا', 'پیشاندانی پەیوەندی فرۆشگا لە سەرپەڕە', salesSettings.showBusinessPhone, () => updateSalesSettings({ showBusinessPhone: !salesSettings.showBusinessPhone }), 'call-outline')}
-              {renderToggleRow('ناونیشانی فرۆشگا', 'پیشاندانی ناونیشان لە سەرپەڕەی پسوولە', salesSettings.showBusinessAddress, () => updateSalesSettings({ showBusinessAddress: !salesSettings.showBusinessAddress }), 'location-outline')}
-              {renderToggleRow('ناوی کڕیار', 'پیشاندانی ناوی کڕیاری دیاریکراو', salesSettings.showCustomerName, () => updateSalesSettings({ showCustomerName: !salesSettings.showCustomerName }), 'person-outline')}
-              {renderToggleRow('ژمارەی مۆبایلی کڕیار', 'پیشاندانی ژمارەی پەیوەندی کڕیار', salesSettings.showCustomerPhone, () => updateSalesSettings({ showCustomerPhone: !salesSettings.showCustomerPhone }), 'phone-portrait-outline')}
-              {renderToggleRow('ژمارەی پسوولە (#Invoice)', 'پیشاندانی کۆدی تایبەتی پسوولە', salesSettings.showInvoiceNumber, () => updateSalesSettings({ showInvoiceNumber: !salesSettings.showInvoiceNumber }), 'receipt-outline')}
-              {renderToggleRow('بەروار و کات', 'پیشاندانی کات و ڕۆژی فرۆشتنەکە', salesSettings.showDate, () => updateSalesSettings({ showDate: !salesSettings.showDate }), 'calendar-outline')}
-              {renderToggleRow('بڕ و عەدەد (Qty)', 'پیشاندانی ژمارەی دانەی هەر کاڵایەک', salesSettings.showQty, () => updateSalesSettings({ showQty: !salesSettings.showQty }), 'layers-outline')}
-              {renderToggleRow('نرخی تاک (Unit Price)', 'پیشاندانی نرخی تاک بە هێڵ کێشان بەسەر نرخی کۆندا', salesSettings.showItemPrice, () => updateSalesSettings({ showItemPrice: !salesSettings.showItemPrice }), 'pricetag-outline')}
-              {renderToggleRow('داشکاندن (Discount)', 'پیشاندانی بڕی داشکێنراو بۆ کاڵاکان و گشتی', salesSettings.showDiscount, () => updateSalesSettings({ showDiscount: !salesSettings.showDiscount }), 'cut-outline')}
-              {renderToggleRow('بارکۆد و ئایدی کاڵا (Item ID)', 'پیشاندانی کۆدی ناسینەوە لەژێر ناوی کاڵا', salesSettings.showItemBarcode, () => updateSalesSettings({ showItemBarcode: !salesSettings.showItemBarcode }), 'barcode-outline')}
-              {renderToggleRow('شێوازی پارەدان (Payment Method)', 'کاش، قەرز، یان کارت', salesSettings.showPaymentMethod, () => updateSalesSettings({ showPaymentMethod: !salesSettings.showPaymentMethod }), 'wallet-outline')}
-              {renderToggleRow('قەرزی ماوە (Remaining Debt)', 'پیشاندانی بڕی قەرزی تۆمارکراو', salesSettings.showRemainingDebt, () => updateSalesSettings({ showRemainingDebt: !salesSettings.showRemainingDebt }), 'alert-circle-outline')}
-              {renderToggleRow('تێبینی و سیاسەت (Notes & Policy)', 'پیشاندانی مەرج و گرەنتی فرۆشتن', salesSettings.showNotes, () => updateSalesSettings({ showNotes: !salesSettings.showNotes }), 'document-text-outline')}
-              {renderToggleRow('بارکۆدی کۆتایی پسوولە (Footer Barcode)', 'بارکۆدی خێرا بۆ سکانکردنەوەی پسوولە', salesSettings.showFooterBarcode, () => updateSalesSettings({ showFooterBarcode: !salesSettings.showFooterBarcode }), 'qr-code-outline')}
+              {renderToggleRow(
+                isAr ? 'رقم هاتف المتجر' : isKurdish ? 'ژمارەی تەلەفۆنی فرۆشگا' : 'Store Phone Number',
+                isAr ? 'إظهار هاتف المتجر في الترويسة' : isKurdish ? 'پیشاندانی پەیوەندی فرۆشگا لە سەرپەڕە' : 'Show store phone number in header',
+                salesSettings.showBusinessPhone,
+                () => updateSalesSettings({ showBusinessPhone: !salesSettings.showBusinessPhone }),
+                'call-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'عنوان المتجر' : isKurdish ? 'ناونیشانی فرۆشگا' : 'Store Address',
+                isAr ? 'إظهار عنوان المتجر في الترويسة' : isKurdish ? 'پیشاندانی ناونیشان لە سەرپەڕەی پسوولە' : 'Show store address in header',
+                salesSettings.showBusinessAddress,
+                () => updateSalesSettings({ showBusinessAddress: !salesSettings.showBusinessAddress }),
+                'location-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'اسم الزبون' : isKurdish ? 'ناوی کڕیار' : 'Customer Name',
+                isAr ? 'إظهار اسم الزبون المحدد' : isKurdish ? 'پیشاندانی ناوی کڕیاری دیاریکراو' : 'Show assigned customer name',
+                salesSettings.showCustomerName,
+                () => updateSalesSettings({ showCustomerName: !salesSettings.showCustomerName }),
+                'person-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رقم هاتف الزبون' : isKurdish ? 'ژمارەی مۆبایلی کڕیار' : 'Customer Phone Number',
+                isAr ? 'إظهار رقم هاتف الزبون' : isKurdish ? 'پیشاندانی ژمارەی پەیوەندی کڕیار' : 'Show customer contact number',
+                salesSettings.showCustomerPhone,
+                () => updateSalesSettings({ showCustomerPhone: !salesSettings.showCustomerPhone }),
+                'phone-portrait-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رقم الفاتورة (#Invoice)' : isKurdish ? 'ژمارەی پسوولە (#Invoice)' : 'Invoice Number (#Invoice)',
+                isAr ? 'إظهار الرقم التعريفي للفاتورة' : isKurdish ? 'پیشاندانی کۆدی تایبەتی پسوولە' : 'Show unique invoice identifier',
+                salesSettings.showInvoiceNumber,
+                () => updateSalesSettings({ showInvoiceNumber: !salesSettings.showInvoiceNumber }),
+                'receipt-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'التاريخ والوقت' : isKurdish ? 'بەروار و کات' : 'Date & Time',
+                isAr ? 'إظهار تاريخ وتوقيت البيع' : isKurdish ? 'پیشاندانی کات و ڕۆژی فرۆشتنەکە' : 'Show date and timestamp',
+                salesSettings.showDate,
+                () => updateSalesSettings({ showDate: !salesSettings.showDate }),
+                'calendar-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الكمية (Qty)' : isKurdish ? 'بڕ و عەدەد (Qty)' : 'Quantity (Qty)',
+                isAr ? 'إظهار عدد القطع لكل مادة' : isKurdish ? 'پیشاندانی ژمارەی دانەی هەر کاڵایەک' : 'Show item quantities in table',
+                salesSettings.showQty,
+                () => updateSalesSettings({ showQty: !salesSettings.showQty }),
+                'layers-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'سعر المفرد (Unit Price)' : isKurdish ? 'نرخی تاک (Unit Price)' : 'Unit Price',
+                isAr ? 'إظهار سعر المفرد مع خط الشطب عند الخصم' : isKurdish ? 'پیشاندانی نرخی تاک بە داشکاندنەوە' : 'Show unit price with discount strikethrough',
+                salesSettings.showItemPrice,
+                () => updateSalesSettings({ showItemPrice: !salesSettings.showItemPrice }),
+                'pricetag-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'تفاصيل الخصم (Discount)' : isKurdish ? 'داشکاندن (Discount)' : 'Discount Breakdown',
+                isAr ? 'إظهار قيمة الخصم للمواد والإجمالي' : isKurdish ? 'پیشاندانی بڕی داشکێنراو بۆ کاڵاکان و گشتی' : 'Show item and cart discount amounts',
+                salesSettings.showDiscount,
+                () => updateSalesSettings({ showDiscount: !salesSettings.showDiscount }),
+                'cut-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رمز وباركود المادة (Item ID)' : isKurdish ? 'بارکۆد و ئایدی کاڵا (Item ID)' : 'Product Code & Barcode',
+                isAr ? 'إظهار شارة رمز المادة تحت اسمها' : isKurdish ? 'پیشاندانی کۆدی ناسینەوە لەژێر ناوی کاڵا' : 'Show item identification chip',
+                salesSettings.showItemBarcode,
+                () => updateSalesSettings({ showItemBarcode: !salesSettings.showItemBarcode }),
+                'barcode-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'طريقة الدفع (Payment Method)' : isKurdish ? 'شێوازی پارەدان (Payment Method)' : 'Payment Method',
+                isAr ? 'شارة الدفع (نقداً، دين، أو بطاقة)' : isKurdish ? 'کاش، قەرز، یان کارت' : 'Cash, debt, or card status badge',
+                salesSettings.showPaymentMethod,
+                () => updateSalesSettings({ showPaymentMethod: !salesSettings.showPaymentMethod }),
+                'wallet-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الدين المتبقي (Remaining Debt)' : isKurdish ? 'قەرزی ماوە (Remaining Debt)' : 'Remaining Debt',
+                isAr ? 'إظهار صف رصيد الدين المتبقي' : isKurdish ? 'پیشاندانی بڕی قەرزی تۆمارکراو' : 'Show remaining balance row',
+                salesSettings.showRemainingDebt,
+                () => updateSalesSettings({ showRemainingDebt: !salesSettings.showRemainingDebt }),
+                'alert-circle-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الملاحظات والسياسة (Notes & Policy)' : isKurdish ? 'تێبینی و سیاسەت (Notes & Policy)' : 'Notes & Policy',
+                isAr ? 'إظهار شروط وضمان البيع' : isKurdish ? 'پیشاندانی مەرج و گرەنتی فرۆشتن' : 'Show warranty and transaction notes',
+                salesSettings.showNotes,
+                () => updateSalesSettings({ showNotes: !salesSettings.showNotes }),
+                'document-text-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'سياسة وضمان الشركة (Policy)' : isKurdish ? 'دەربارەی سیاسەت و گەرەنتی (Policy)' : 'Company Policy Box',
+                isAr ? 'إظهار بطاقة سياسة الشركة والضمان في الأعلى' : isKurdish ? 'پیشاندانی مەرجی فرۆشتن و گەرەنتی لە سەرەوە' : 'Show company policy card at the top',
+                salesSettings.showAboutPolicy !== false,
+                () => updateSalesSettings({ showAboutPolicy: !(salesSettings.showAboutPolicy !== false) }),
+                'shield-checkmark-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'خانات التوقيع والختم (Signatures)' : isKurdish ? 'شوێنی واژوو و مۆر (Signatures)' : 'Signature & Stamp Lines',
+                isAr ? 'إظهار توقيع الزبون وختم المتجر' : isKurdish ? 'پیشاندانی واژووی کڕیار و مۆری فرۆشگا لە وەسڵدا' : 'Show customer signature and store stamp',
+                salesSettings.showSignature !== false,
+                () => updateSalesSettings({ showSignature: !(salesSettings.showSignature !== false) }),
+                'pencil-outline'
+              )}
+              {activePaperSize !== 'A4' && renderToggleRow(
+                isAr ? 'باركود أسفل الفاتورة (Footer Barcode)' : isKurdish ? 'بارکۆدی کۆتایی پسوولە (Footer Barcode)' : 'Footer Barcode',
+                isAr ? 'إظهار باركود سريع في أسفل الفاتورة للمسح' : isKurdish ? 'بارکۆدی خێرا بۆ سکانکردنەوەی پسوولە' : 'Show quick scan barcode at receipt footer',
+                salesSettings.showFooterBarcode,
+                () => updateSalesSettings({ showFooterBarcode: !salesSettings.showFooterBarcode }),
+                'qr-code-outline'
+              )}
             </View>
           )}
 
           {activeTab === 'purchases' && (
             <View>
-              {renderToggleRow('تەلەفۆنی کۆمپانیا', 'پیشاندانی ژمارەی پەیوەندی لە سەرپەڕە', purchaseSettings.showBusinessPhone, () => updatePurchaseSettings({ showBusinessPhone: !purchaseSettings.showBusinessPhone }), 'call-outline')}
-              {renderToggleRow('ناونیشانی کۆمپانیا', 'پیشاندانی ناونیشانی کۆگا لە سەرپەڕە', purchaseSettings.showBusinessAddress, () => updatePurchaseSettings({ showBusinessAddress: !purchaseSettings.showBusinessAddress }), 'location-outline')}
-              {renderToggleRow('ناوی دابینکەر / سەپلایەر', 'پیشاندانی ناوی کۆمپانیا یان کەسی دابینکەر', purchaseSettings.showSupplierName, () => updatePurchaseSettings({ showSupplierName: !purchaseSettings.showSupplierName }), 'business-outline')}
-              {renderToggleRow('تەلەفۆنی دابینکەر', 'پیشاندانی مۆبایلی سەپلایەر بۆ پەیوەندی', purchaseSettings.showSupplierPhone, () => updatePurchaseSettings({ showSupplierPhone: !purchaseSettings.showSupplierPhone }), 'phone-portrait-outline')}
-              {renderToggleRow('ژمارەی وەسڵی کڕین (#Bill)', 'کۆدی وەسڵی کڕین لە سیستەم', purchaseSettings.showInvoiceNumber, () => updatePurchaseSettings({ showInvoiceNumber: !purchaseSettings.showInvoiceNumber }), 'receipt-outline')}
-              {renderToggleRow('بەروار و کات', 'کاتی تۆمارکردنی کڕین لە سیستەم', purchaseSettings.showDate, () => updatePurchaseSettings({ showDate: !purchaseSettings.showDate }), 'calendar-outline')}
-              {renderToggleRow('بڕ و عەدەد (Quantity)', 'عەدەدی کڕدراو بۆ مەخزەن', purchaseSettings.showQty, () => updatePurchaseSettings({ showQty: !purchaseSettings.showQty }), 'layers-outline')}
-              {renderToggleRow('نرخی کڕین و تێچوو (Cost)', 'نرخی کڕینی تاک بە داشکاندنەوە', purchaseSettings.showBuyPrice, () => updatePurchaseSettings({ showBuyPrice: !purchaseSettings.showBuyPrice }), 'cash-outline')}
-              {renderToggleRow('داشکاندنی کڕین (Discount)', 'پیشاندانی داشکاندنی دراو لەلایەن سەپلایەرەوە', purchaseSettings.showDiscount, () => updatePurchaseSettings({ showDiscount: !purchaseSettings.showDiscount }), 'cut-outline')}
-              {renderToggleRow('بارکۆد و ئایدی کاڵا (Item ID)', 'کۆدی کاڵای کڕدراو', purchaseSettings.showItemBarcode, () => updatePurchaseSettings({ showItemBarcode: !purchaseSettings.showItemBarcode }), 'barcode-outline')}
-              {renderToggleRow('دۆخی پارەدان (کاش، FIB، قەرز)', 'پیشاندانی چۆنیەتی درانی پارە بە دابینکەر', purchaseSettings.showPaymentMethod, () => updatePurchaseSettings({ showPaymentMethod: !purchaseSettings.showPaymentMethod }), 'wallet-outline')}
-              {renderToggleRow('قەرزی ماوەی دابینکەر', 'بڕی ماوە کە دەبێت بدرێتەوە بە دابینکەر', purchaseSettings.showRemainingDebt, () => updatePurchaseSettings({ showRemainingDebt: !purchaseSettings.showRemainingDebt }), 'alert-circle-outline')}
-              {renderToggleRow('تێبینییەکانی کڕین', 'پیشاندانی ڕوونکردنەوە و تێبینی سەر وەسڵ', purchaseSettings.showNotes, () => updatePurchaseSettings({ showNotes: !purchaseSettings.showNotes }), 'document-text-outline')}
-              {renderToggleRow('بارکۆدی خوارەوە', 'بارکۆدی خێرا بۆ گەڕان لەناو سیستەم', purchaseSettings.showFooterBarcode, () => updatePurchaseSettings({ showFooterBarcode: !purchaseSettings.showFooterBarcode }), 'qr-code-outline')}
+              {renderToggleRow(
+                isAr ? 'رقم هاتف الشركة' : isKurdish ? 'تەلەفۆنی کۆمپانیا' : 'Company Phone Number',
+                isAr ? 'إظهار هاتف الشركة في الترويسة' : isKurdish ? 'پیشاندانی ژمارەی پەیوەندی لە سەرپەڕە' : 'Show warehouse/company phone in header',
+                purchaseSettings.showBusinessPhone,
+                () => updatePurchaseSettings({ showBusinessPhone: !purchaseSettings.showBusinessPhone }),
+                'call-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'عنوان الشركة' : isKurdish ? 'ناونیشانی کۆمپانیا' : 'Company Address',
+                isAr ? 'إظهار عنوان المخزن/الشركة في الترويسة' : isKurdish ? 'پیشاندانی ناونیشانی کۆگا لە سەرپەڕە' : 'Show company/warehouse address',
+                purchaseSettings.showBusinessAddress,
+                () => updatePurchaseSettings({ showBusinessAddress: !purchaseSettings.showBusinessAddress }),
+                'location-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'اسم المورد' : isKurdish ? 'ناوی دابینکەر / سەپلایەر' : 'Supplier Name',
+                isAr ? 'إظهار اسم الشركة أو الشخص المورد' : isKurdish ? 'پیشاندانی ناوی کۆمپانیا یان کەسی دابینکەر' : 'Show vendor or supplier name',
+                purchaseSettings.showSupplierName,
+                () => updatePurchaseSettings({ showSupplierName: !purchaseSettings.showSupplierName }),
+                'business-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'هاتف المورد' : isKurdish ? 'تەلەفۆنی دابینکەر' : 'Supplier Phone Number',
+                isAr ? 'إظهار هاتف المورد للتواصل' : isKurdish ? 'پیشاندانی مۆبایلی سەپلایەر بۆ پەیوەندی' : 'Show supplier phone contact',
+                purchaseSettings.showSupplierPhone,
+                () => updatePurchaseSettings({ showSupplierPhone: !purchaseSettings.showSupplierPhone }),
+                'phone-portrait-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رقم وصل الشراء (#Bill)' : isKurdish ? 'ژمارەی وەسڵی کڕین (#Bill)' : 'Purchase Voucher #',
+                isAr ? 'إظهار رقم وصل الشراء في النظام' : isKurdish ? 'کۆدی وەسڵی کڕین لە سیستەم' : 'Show system purchase bill number',
+                purchaseSettings.showInvoiceNumber,
+                () => updatePurchaseSettings({ showInvoiceNumber: !purchaseSettings.showInvoiceNumber }),
+                'receipt-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'التاريخ والوقت' : isKurdish ? 'بەروار و کات' : 'Date & Time',
+                isAr ? 'إظهار تاريخ وتوقيت تسجيل الشراء' : isKurdish ? 'کاتی تۆمارکردنی کڕین لە سیستەم' : 'Show procurement date and time',
+                purchaseSettings.showDate,
+                () => updatePurchaseSettings({ showDate: !purchaseSettings.showDate }),
+                'calendar-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الكمية والعدد (Qty)' : isKurdish ? 'بڕ و عەدەد (Quantity)' : 'Quantity (Qty)',
+                isAr ? 'إظهار الكميات المشتراة للمخزن' : isKurdish ? 'عەدەدی کڕدراو بۆ مەخزەن' : 'Show purchased quantities',
+                purchaseSettings.showQty,
+                () => updatePurchaseSettings({ showQty: !purchaseSettings.showQty }),
+                'layers-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'تكلفة الشراء وسعر المفرد (Cost)' : isKurdish ? 'نرخی کڕین و تێچوو (Cost)' : 'Purchase Cost (Unit Price)',
+                isAr ? 'إظهار تكلفة المفرد مع الخصم' : isKurdish ? 'نرخی کڕینی تاک بە داشکاندنەوە' : 'Show unit cost with discounts',
+                purchaseSettings.showBuyPrice,
+                () => updatePurchaseSettings({ showBuyPrice: !purchaseSettings.showBuyPrice }),
+                'cash-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'خصم الشراء (Discount)' : isKurdish ? 'داشکاندنی کڕین (Discount)' : 'Supplier Discount',
+                isAr ? 'إظهار الخصم الممنوح من المورد' : isKurdish ? 'پیشاندانی داشکاندنی دراو لەلایەن سەپلایەرەوە' : 'Show discount provided by supplier',
+                purchaseSettings.showDiscount,
+                () => updatePurchaseSettings({ showDiscount: !purchaseSettings.showDiscount }),
+                'cut-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رمز المادة وباركودها (Item ID)' : isKurdish ? 'بارکۆد و ئایدی کاڵا (Item ID)' : 'Product Code (Item ID)',
+                isAr ? 'إظهار الرموز التعريفية للمواد المشتراة' : isKurdish ? 'کۆدی کاڵای کڕدراو' : 'Show purchased product identifiers',
+                purchaseSettings.showItemBarcode,
+                () => updatePurchaseSettings({ showItemBarcode: !purchaseSettings.showItemBarcode }),
+                'barcode-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'حالة وطريقة الدفع (نقداً، FIB، دين)' : isKurdish ? 'دۆخی پارەدان (کاش، FIB، قەرز)' : 'Payment Status & Method',
+                isAr ? 'إظهار شارة سداد المستحقات للمورد' : isKurdish ? 'پیشاندانی چۆنیەتی درانی پارە بە دابینکەر' : 'Show payment badge (Paid, FIB, Debt)',
+                purchaseSettings.showPaymentMethod,
+                () => updatePurchaseSettings({ showPaymentMethod: !purchaseSettings.showPaymentMethod }),
+                'wallet-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الدين المتبقي للمورد' : isKurdish ? 'قەرزی ماوەی دابینکەر' : 'Remaining Payable Debt',
+                isAr ? 'إظهار رصيد الدين المتبقي سداده للمورد' : isKurdish ? 'بڕی ماوە کە دەبێت بدرێتەوە بە دابینکەر' : 'Show unpaid debt balance to supplier',
+                purchaseSettings.showRemainingDebt,
+                () => updatePurchaseSettings({ showRemainingDebt: !purchaseSettings.showRemainingDebt }),
+                'alert-circle-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'ملاحظات الشراء والفحص' : isKurdish ? 'تێبینییەکانی کڕین' : 'Purchase & Inspection Notes',
+                isAr ? 'إظهار الملاحظات وتفاصيل الفحص على الوصل' : isKurdish ? 'پیشاندانی ڕوونکردنەوە و تێبینی سەر وەسڵ' : 'Show inspection and warranty notes',
+                purchaseSettings.showNotes,
+                () => updatePurchaseSettings({ showNotes: !purchaseSettings.showNotes }),
+                'document-text-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'سياسة الشراء والاستلام (Policy)' : isKurdish ? 'سیاسەتی وەرگرتن و کڕین (Policy)' : 'Procurement Policy Box',
+                isAr ? 'إظهار إرشادات وسياسة استلام البضائع للمخزن' : isKurdish ? 'ڕێنمایی وەرگرتنی کاڵا بۆ مەخزەن' : 'Show warehouse procurement policy notice',
+                purchaseSettings.showAboutPolicy !== false,
+                () => updatePurchaseSettings({ showAboutPolicy: !(purchaseSettings.showAboutPolicy !== false) }),
+                'shield-checkmark-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'تواقيع أمين المخزن والمدير (Signatures)' : isKurdish ? 'واژووی مەخزەن و سەرپەرشتیار (Signatures)' : 'Warehouse & Manager Signatures',
+                isAr ? 'إظهار خانات توقيع الاستلام والإشراف في الأسفل' : isKurdish ? 'پیشاندانی واژووی وەرگرتنی مەخزەن لە خوارەوە' : 'Show receiver and supervisor signature lines',
+                purchaseSettings.showSignature !== false,
+                () => updatePurchaseSettings({ showSignature: !(purchaseSettings.showSignature !== false) }),
+                'pencil-outline'
+              )}
+              {activePaperSize !== 'A4' && renderToggleRow(
+                isAr ? 'باركود أسفل الوصل' : isKurdish ? 'بارکۆدی خوارەوە' : 'Footer Barcode',
+                isAr ? 'إظهار باركود سريع للبحث في النظام' : isKurdish ? 'بارکۆدی خێرا بۆ گەڕان لەناو سیستەم' : 'Show document barcode at bottom',
+                purchaseSettings.showFooterBarcode,
+                () => updatePurchaseSettings({ showFooterBarcode: !purchaseSettings.showFooterBarcode }),
+                'qr-code-outline'
+              )}
             </View>
           )}
 
           {activeTab === 'quotation' && (
             <View>
-              {renderToggleRow('پەیوەندی و تەلەفۆنی کۆمپانیا', 'پیشاندانی پەیوەندی لەسەر عەرز', quotationSettings.showBusinessPhone, () => updateQuotationSettings({ showBusinessPhone: !quotationSettings.showBusinessPhone }), 'call-outline')}
-              {renderToggleRow('ناونیشانی فەرمی کۆمپانیا', 'ناونیشانی ئۆفیسی پێشکەشکار', quotationSettings.showBusinessAddress, () => updateQuotationSettings({ showBusinessAddress: !quotationSettings.showBusinessAddress }), 'location-outline')}
-              {renderToggleRow('ناوی کڕیار / کۆمپانیا', 'ناوی لایەنی داواکار لەسەر عەرز', quotationSettings.showCustomerName, () => updateQuotationSettings({ showCustomerName: !quotationSettings.showCustomerName }), 'person-outline')}
-              {renderToggleRow('تەلەفۆنی کڕیار', 'مۆبایلی کڕیار بۆ پەیوەندی فەرمی', quotationSettings.showCustomerPhone, () => updateQuotationSettings({ showCustomerPhone: !quotationSettings.showCustomerPhone }), 'phone-portrait-outline')}
-              {renderToggleRow('ژمارەی فەرمی عەرز (#Quotation)', 'کۆدی زنجیرەیی عەرزەکە', quotationSettings.showQuotationNumber, () => updateQuotationSettings({ showQuotationNumber: !quotationSettings.showQuotationNumber }), 'document-outline')}
-              {renderToggleRow('بەرواری دەرچوون', 'بەرواری دەرکردنی عەرزەکە', quotationSettings.showDate, () => updateQuotationSettings({ showDate: !quotationSettings.showDate }), 'calendar-outline')}
-              {renderToggleRow('وادەی کارابوون (Valid Until)', 'ماوەی کارابوونی نرخە پێشنیارکراوەکان', quotationSettings.showValidUntil, () => updateQuotationSettings({ showValidUntil: !quotationSettings.showValidUntil }), 'time-outline')}
-              {renderToggleRow('کۆد و بارکۆدی کاڵاکان', 'کۆدی ناسینەوە لە خشتەی عەرزدا', quotationSettings.showItemBarcode, () => updateQuotationSettings({ showItemBarcode: !quotationSettings.showItemBarcode }), 'barcode-outline')}
-              {renderToggleRow('بڕ و عەدەد (Quantity)', 'ژمارەی دانەی پێشکەشکراو', quotationSettings.showQty, () => updateQuotationSettings({ showQty: !quotationSettings.showQty }), 'layers-outline')}
-              {renderToggleRow('نرخی یەکە (Unit Price)', 'نرخی پێشنیارکراو بە داشکاندنەوە', quotationSettings.showItemPrice, () => updateQuotationSettings({ showItemPrice: !quotationSettings.showItemPrice }), 'pricetag-outline')}
-              {renderToggleRow('داشکاندن لەسەر کاڵاکان', 'پیشاندانی داشکاندنی تایبەت بۆ پڕۆژەکە', quotationSettings.showDiscount, () => updateQuotationSettings({ showDiscount: !quotationSettings.showDiscount }), 'cut-outline')}
-              {renderToggleRow('دەربارەی کۆمپانیا و سیاسەت', 'سیاسەتی فرۆشتن و گەرەنتی', quotationSettings.showAboutPolicy, () => updateQuotationSettings({ showAboutPolicy: !quotationSettings.showAboutPolicy }), 'information-circle-outline')}
-              {renderToggleRow('تێبینی و مەرجەکان', 'مەرجەکانی پارەدان و گواستنەوە', quotationSettings.showNotes, () => updateQuotationSettings({ showNotes: !quotationSettings.showNotes }), 'document-text-outline')}
-              {renderToggleRow('شوێنی مۆر و واژوو (Signatures)', 'بەشی فەرمی واژووی وەرگر و پێشکەشکار', quotationSettings.showSignature, () => updateQuotationSettings({ showSignature: !quotationSettings.showSignature }), 'pencil-outline')}
+              {renderToggleRow(
+                isAr ? 'هاتف وتواصل الشركة' : isKurdish ? 'پەیوەندی و تەلەفۆنی کۆمپانیا' : 'Company Phone Number',
+                isAr ? 'إظهار هاتف الشركة في عرض الأسعار' : isKurdish ? 'پیشاندانی پەیوەندی لەسەر عەرز' : 'Show company phone contact in proposal',
+                quotationSettings.showBusinessPhone,
+                () => updateQuotationSettings({ showBusinessPhone: !quotationSettings.showBusinessPhone }),
+                'call-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'العنوان الرسمي للشركة' : isKurdish ? 'ناونیشانی فەرمی کۆمپانیا' : 'Company Address',
+                isAr ? 'إظهار مقر الشركة المُقدِمة للعرض' : isKurdish ? 'ناونیشانی ئۆفیسی پێشکەشکار' : 'Show company headquarters address',
+                quotationSettings.showBusinessAddress,
+                () => updateQuotationSettings({ showBusinessAddress: !quotationSettings.showBusinessAddress }),
+                'location-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'اسم العميل / الشركة' : isKurdish ? 'ناوی کڕیار / کۆمپانیا' : 'Client / Company Name',
+                isAr ? 'إظهار اسم الجهة الطالبة في عرض الأسعار' : isKurdish ? 'ناوی لایەنی داواکار لەسەر عەرز' : 'Show target client or enterprise name',
+                quotationSettings.showCustomerName,
+                () => updateQuotationSettings({ showCustomerName: !quotationSettings.showCustomerName }),
+                'person-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'هاتف العميل' : isKurdish ? 'تەلەفۆنی کڕیار' : 'Client Phone Number',
+                isAr ? 'إظهار هاتف العميل للتواصل الرسمي' : isKurdish ? 'مۆبایلی کڕیار بۆ پەیوەندی فەرمی' : 'Show client contact phone number',
+                quotationSettings.showCustomerPhone,
+                () => updateQuotationSettings({ showCustomerPhone: !quotationSettings.showCustomerPhone }),
+                'phone-portrait-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الرقم الرسمي للعرض (#Quotation)' : isKurdish ? 'ژمارەی فەرمی عەرز (#Quotation)' : 'Quotation # Identifier',
+                isAr ? 'إظهار الرقم التسلسلي المرجعي لعرض الأسعار' : isKurdish ? 'کۆدی زنجیرەیی عەرزەکە' : 'Show proposal serial reference number',
+                quotationSettings.showQuotationNumber,
+                () => updateQuotationSettings({ showQuotationNumber: !quotationSettings.showQuotationNumber }),
+                'document-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'تاريخ الإصدار' : isKurdish ? 'بەرواری دەرچوون' : 'Issuance Date',
+                isAr ? 'إظهار تاريخ إصدار عرض الأسعار' : isKurdish ? 'بەرواری دەرکردنی عەرزەکە' : 'Show proposal release date',
+                quotationSettings.showDate,
+                () => updateQuotationSettings({ showDate: !quotationSettings.showDate }),
+                'calendar-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'مدة الصلاحية والانتهاء (Valid Until)' : isKurdish ? 'وادەی کارابوون (Valid Until)' : 'Validity Period & Expiry',
+                isAr ? 'إظهار مربع مدة صلاحية الأسعار المقترحة' : isKurdish ? 'ماوەی کارابوونی نرخە پێشنیارکراوەکان' : 'Show validity days and expiration date box',
+                quotationSettings.showValidUntil,
+                () => updateQuotationSettings({ showValidUntil: !quotationSettings.showValidUntil }),
+                'time-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'رمز وباركود المواد' : isKurdish ? 'کۆد و بارکۆدی کاڵاکان' : 'Item Code / Barcode',
+                isAr ? 'إظهار الرمز التعريفي في جدول العرض' : isKurdish ? 'کۆدی ناسینەوە لە خشتەی عەرزدا' : 'Show product identification code',
+                quotationSettings.showItemBarcode,
+                () => updateQuotationSettings({ showItemBarcode: !quotationSettings.showItemBarcode }),
+                'barcode-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الكمية والعدد (Qty)' : isKurdish ? 'بڕ و عەدەد (Quantity)' : 'Quantity (Qty)',
+                isAr ? 'إظهار كميات المواد المقترحة' : isKurdish ? 'ژمارەی دانەی پێشکەشکراو' : 'Show quoted item quantities',
+                quotationSettings.showQty,
+                () => updateQuotationSettings({ showQty: !quotationSettings.showQty }),
+                'layers-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'سعر الوحدة (Unit Price)' : isKurdish ? 'نرخی یەکە (Unit Price)' : 'Unit Price',
+                isAr ? 'إظهار سعر الوحدة المقترح' : isKurdish ? 'نرخی پێشنیارکراو بە داشکاندنەوە' : 'Show quoted unit price',
+                quotationSettings.showItemPrice,
+                () => updateQuotationSettings({ showItemPrice: !quotationSettings.showItemPrice }),
+                'pricetag-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الخصم على المواد' : isKurdish ? 'داشکاندن لەسەر کاڵاکان' : 'Proposal Discount',
+                isAr ? 'إظهار مخصصات الخصم الخاص بالمشروع' : isKurdish ? 'پیشاندانی داشکاندنی تایبەت بۆ پڕۆژەکە' : 'Show special discount allowances',
+                quotationSettings.showDiscount,
+                () => updateQuotationSettings({ showDiscount: !quotationSettings.showDiscount }),
+                'cut-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'بطاقة سياسة الشركة والشروط' : isKurdish ? 'دەربارەی کۆمپانیا و سیاسەت' : 'About Policy & Terms Card',
+                isAr ? 'إظهار سياسة الشركة وتفاصيل الضمان' : isKurdish ? 'سیاسەتی فرۆشتن و گەرەنتی پڕۆژە' : 'Show company policy and warranty details',
+                quotationSettings.showAboutPolicy,
+                () => updateQuotationSettings({ showAboutPolicy: !quotationSettings.showAboutPolicy }),
+                'information-circle-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الملاحظات والشروط' : isKurdish ? 'تێبینی و مەرجەکان' : 'Terms & Conditions',
+                isAr ? 'إظهار شروط الدفع والجدول الزمني للتسليم' : isKurdish ? 'مەرجەکانی پارەدان و گواستنەوە' : 'Show terms of payment and delivery timeline',
+                quotationSettings.showNotes,
+                () => updateQuotationSettings({ showNotes: !quotationSettings.showNotes }),
+                'document-text-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'خانات الختم والتوقيع الرسمي' : isKurdish ? 'شوێنی مۆر و واژوو (Signatures)' : 'Official Stamp & Signatures',
+                isAr ? 'إظهار الختم الرسمي للشركة وموافقة العميل' : isKurdish ? 'بەشی فەرمی واژووی وەرگر و مۆری کۆمپانیا' : 'Show official company seal and client acceptance',
+                quotationSettings.showSignature,
+                () => updateQuotationSettings({ showSignature: !quotationSettings.showSignature }),
+                'pencil-outline'
+              )}
             </View>
           )}
 
           {activeTab === 'inventory' && (
             <View>
-              {renderToggleRow('سەرپەڕەی فەرمی و زانیاری کۆگا', 'ناوی کۆگا، پەیوەندی و ناونیشان', inventorySettings.showBusinessHeader, () => updateInventorySettings({ showBusinessHeader: !inventorySettings.showBusinessHeader }), 'business-outline')}
-              {renderToggleRow('هاوپۆل و دەستە (Category)', 'هاوپۆلی کاڵا لە خشتەی کۆگادا', inventorySettings.showCategory, () => updateInventorySettings({ showCategory: !inventorySettings.showCategory }), 'grid-outline')}
-              {renderToggleRow('بارکۆد و ئایدی کاڵا (Item ID)', 'کۆدی ستاندارد یان بارکۆدی کاڵا', inventorySettings.showItemId, () => updateInventorySettings({ showItemId: !inventorySettings.showItemId }), 'barcode-outline')}
-              {renderToggleRow('بڕی بەردەست (Stock Qty)', 'ژمارەی دانەی ماوە لە مەخزەندا', inventorySettings.showQuantity, () => updateInventorySettings({ showQuantity: !inventorySettings.showQuantity }), 'layers-outline')}
-              {renderToggleRow('نرخی کڕین / تێچوو (Cost)', 'تێچووی کڕین بۆ یەکەی کاڵا', inventorySettings.showBuyPrice, () => updateInventorySettings({ showBuyPrice: !inventorySettings.showBuyPrice }), 'cash-outline')}
-              {renderToggleRow('نرخی فرۆشتن (Selling Price)', 'نرخی دیاریکراو بۆ فرۆشتن', inventorySettings.showSellPrice, () => updateInventorySettings({ showSellPrice: !inventorySettings.showSellPrice }), 'pricetag-outline')}
-              {renderToggleRow('بەهای گشتی کاڵاکان (Total Value)', 'کۆی بەهای هەموو کاڵاکانی مەخزەن', inventorySettings.showTotalValue, () => updateInventorySettings({ showTotalValue: !inventorySettings.showTotalValue }), 'calculator-outline')}
-              {renderToggleRow('ناوی دابینکەر (Supplier)', 'کۆمپانیای سەرچاوەی کاڵاکان', inventorySettings.showSupplier, () => updateInventorySettings({ showSupplier: !inventorySettings.showSupplier }), 'people-outline')}
-              {renderToggleRow('دۆخی کاڵا و ئاگاداری کەمی (Status)', 'پیشاندانی دۆخی لەبارە یان کەمبوونەوە', inventorySettings.showStatus, () => updateInventorySettings({ showStatus: !inventorySettings.showStatus }), 'alert-circle-outline')}
-              {renderToggleRow('بەروار و کاتی سەرژمێری', 'کاتی دەرهێنانی ڕاپۆرتی کۆگا', inventorySettings.showDate, () => updateInventorySettings({ showDate: !inventorySettings.showDate }), 'calendar-outline')}
-              {renderToggleRow('تێبینی و کورتە', 'ڕوونکردنەوەی فەرمی کۆتایی ڕاپۆرت', inventorySettings.showNotes, () => updateInventorySettings({ showNotes: !inventorySettings.showNotes }), 'document-text-outline')}
+              {renderToggleRow(
+                isAr ? 'الترويسة الرسمية لبيانات المخزن' : isKurdish ? 'سەرپەڕەی فەرمی و زانیاری کۆگا' : 'Official Warehouse Header',
+                isAr ? 'إظهار اسم المخزن، الهاتف، والعنوان' : isKurdish ? 'ناوی کۆگا، پەیوەندی و ناونیشان' : 'Show warehouse name, phone, and address',
+                inventorySettings.showBusinessHeader,
+                () => updateInventorySettings({ showBusinessHeader: !inventorySettings.showBusinessHeader }),
+                'business-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'بطاقات ملخص إحصائيات المخزن (KPI)' : isKurdish ? 'کارتەکانی پوختەی ئاماری کۆگا (KPI Cards)' : 'Inventory KPI Summary Cards',
+                isAr ? 'إظهار 4 بطاقات: إجمالي المواد، المتوفر، المنخفض، والقيمة' : isKurdish ? 'پیشاندانی ٤ کارتی کۆی کاڵا، عەدەد، کەمبوون و بەها' : 'Show 4 cards: Total Items, In Stock, Low Stock, Value',
+                inventorySettings.showStatsCards !== false,
+                () => updateInventorySettings({ showStatsCards: !(inventorySettings.showStatsCards !== false) }),
+                'stats-chart-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'عمود التصنيف والفئة (Category)' : isKurdish ? 'هاوپۆل و دەستە (Category)' : 'Category Column',
+                isAr ? 'إظهار عمود تصنيف المواد في جدول المخزن' : isKurdish ? 'هاوپۆلی کاڵا لە خشتەی کۆگادا' : 'Show product classification column',
+                inventorySettings.showCategory,
+                () => updateInventorySettings({ showCategory: !inventorySettings.showCategory }),
+                'grid-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'عمود رمز وباركود المادة (Item ID)' : isKurdish ? 'بارکۆد و ئایدی کاڵا (Item ID)' : 'Item ID / Barcode Column',
+                isAr ? 'إظهار شارة رمز المادة' : isKurdish ? 'کۆدی ستاندارد یان بارکۆدی کاڵا' : 'Show item code badge',
+                inventorySettings.showItemId,
+                () => updateInventorySettings({ showItemId: !inventorySettings.showItemId }),
+                'barcode-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'الكمية المتوفرة (Stock Qty)' : isKurdish ? 'بڕی بەردەست (Stock Qty)' : 'Stock Quantity',
+                isAr ? 'إظهار عدد القطع المتوفرة في المخزن' : isKurdish ? 'ژمارەی دانەی ماوە لە مەخزەندا' : 'Show current stock counts',
+                inventorySettings.showQuantity,
+                () => updateInventorySettings({ showQuantity: !inventorySettings.showQuantity }),
+                'layers-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'تكلفة الشراء وسعر التكلفة (Cost)' : isKurdish ? 'نرخی کڕین / تێچوو (Cost)' : 'Purchase Cost Price',
+                isAr ? 'إظهار تكلفة شراء الوحدة الواحدة' : isKurdish ? 'تێچووی کڕین بۆ یەکەی کاڵا' : 'Show procurement unit cost',
+                inventorySettings.showBuyPrice,
+                () => updateInventorySettings({ showBuyPrice: !inventorySettings.showBuyPrice }),
+                'cash-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'سعر البيع (Selling Price)' : isKurdish ? 'نرخی فرۆشتن (Selling Price)' : 'Selling Price',
+                isAr ? 'إظهار سعر البيع للمستهلك' : isKurdish ? 'نرخی دیاریکراو بۆ فرۆشتن' : 'Show retail selling price',
+                inventorySettings.showSellPrice,
+                () => updateInventorySettings({ showSellPrice: !inventorySettings.showSellPrice }),
+                'pricetag-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'إجمالي قيمة المخزون (Total Value)' : isKurdish ? 'بەهای گشتی کاڵاکان (Total Value)' : 'Total Inventory Value',
+                isAr ? 'إظهار إجمالي القيمة النقدية لكافة بضائع المخزن' : isKurdish ? 'کۆی بەهای هەموو کاڵاکانی مەخزەن' : 'Show total monetary inventory value',
+                inventorySettings.showTotalValue,
+                () => updateInventorySettings({ showTotalValue: !inventorySettings.showTotalValue }),
+                'calculator-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'عمود اسم المورد (Supplier)' : isKurdish ? 'ناوی دابینکەر (Supplier)' : 'Supplier Column',
+                isAr ? 'إظهار اسم الشركة أو الجهة الموردة' : isKurdish ? 'کۆمپانیای سەرچاوەی کاڵاکان' : 'Show supplying vendor name',
+                inventorySettings.showSupplier,
+                () => updateInventorySettings({ showSupplier: !inventorySettings.showSupplier }),
+                'people-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'حالة المادة وتنبيه النقص (Status)' : isKurdish ? 'دۆخی کاڵا و ئاگاداری کەمی (Status)' : 'Stock Status & Low Alert',
+                isAr ? 'إظهار شارات التوفر وتنبيهات نفاد المخزون' : isKurdish ? 'پیشاندانی دۆخی لەبارە یان کەمبوونەوە' : 'Show in-stock and low-stock warning badges',
+                inventorySettings.showStatus,
+                () => updateInventorySettings({ showStatus: !inventorySettings.showStatus }),
+                'alert-circle-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'توقيت وتاريخ الجرد' : isKurdish ? 'بەروار و کاتی سەرژمێری' : 'Audit Timestamp',
+                isAr ? 'إظهار تاريخ وتوقيت إنشاء تقرير الجرد' : isKurdish ? 'کاتی دەرهێنانی ڕاپۆرتی کۆگا' : 'Show audit generation timestamp',
+                inventorySettings.showDate,
+                () => updateInventorySettings({ showDate: !inventorySettings.showDate }),
+                'calendar-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'ملخص وملاحظات الجرد' : isKurdish ? 'تێبینی و کورتە' : 'Audit Notes & Report Summary',
+                isAr ? 'إظهار الملاحظات الرسمية لمشرف الجرد في نهاية التقرير' : isKurdish ? 'ڕوونکردنەوەی فەرمی کۆتایی ڕاپۆرت' : 'Show official audit supervisor commentary',
+                inventorySettings.showNotes,
+                () => updateInventorySettings({ showNotes: !inventorySettings.showNotes }),
+                'document-text-outline'
+              )}
+              {renderToggleRow(
+                isAr ? 'منطقة تواقيع الجرد (Signatures)' : isKurdish ? 'شوێنی واژووی سەرژمێری (Signatures)' : 'Audit Signatures Area',
+                isAr ? 'إظهار خطوط توقيع أمين المخزن ومشرف الجرد' : isKurdish ? 'واژووی چاودێری کۆگا و بەڕێوەبەری سەرژمێری' : 'Show warehouse keeper and audit supervisor lines',
+                inventorySettings.showSignatureArea !== false,
+                () => updateInventorySettings({ showSignatureArea: !(inventorySettings.showSignatureArea !== false) }),
+                'pencil-outline'
+              )}
             </View>
           )}
         </SettingsCard>
@@ -1122,20 +2258,22 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.sectionHeading,
                 { color: colors.black, textAlign },
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'دەقی دڵخوازی خوارەوەی وەسڵ' : 'Custom Footer Note'}
+              {isAr ? 'ملاحظة مخصصة في أسفل الفاتورة' : isKurdish ? 'دەقی دڵخوازی خوارەوەی وەسڵ' : 'Custom Footer Note'}
             </Text>
           </View>
           <Text
             style={[
               styles.sectionDesc,
               { color: colors.gray500, textAlign },
-              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+              isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
           >
-            {isKurdish
+            {isAr
+              ? 'يظهر هذا النص في أسفل كافة الإيصالات والمطبوعات للشكر أو توضيح شروط المحل.'
+              : isKurdish
               ? 'ئەم دەقە لە کۆتایی هەموو وەسڵ و چاپەکاندا پیشان دەدرێت بۆ سوپاسگوزاری یان مەرجی فرۆشگا.'
               : 'This note is printed at the bottom of the receipt/invoice.'}
           </Text>
@@ -1149,7 +2287,7 @@ export default function ReceiptCustomizationScreen() {
                 backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.white,
                 textAlign,
               },
-              isKurdish && { fontFamily: SETTINGS_KURDISH_FONT },
+              isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
             value={
               activeTab === 'sales'
@@ -1166,7 +2304,7 @@ export default function ReceiptCustomizationScreen() {
               else if (activeTab === 'quotation') updateQuotationSettings({ customFooterNote: txt });
               else if (activeTab === 'inventory') updateInventorySettings({ customFooterNote: txt });
             }}
-            placeholder={isKurdish ? 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن' : 'Thank you for your business'}
+            placeholder={isAr ? 'شكراً لتعاملكم معنا • أهلاً وسهلاً بكم' : isKurdish ? 'سوپاس بۆ سەردانەکەتان • هەمیشە بەخێربێن' : 'Thank you for your business'}
             placeholderTextColor={colors.gray400}
             multiline
             numberOfLines={2}
@@ -1185,11 +2323,11 @@ export default function ReceiptCustomizationScreen() {
             <Text
               style={[
                 styles.testPrintBtnText,
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
               {isPrintingTest
-                ? (isKurdish ? 'چاپ دەکرێت...' : 'Printing...')
+                ? (isAr ? 'جارٍ الطباعة...' : isKurdish ? 'چاپ دەکرێت...' : 'Printing...')
                 : isKurdish
                 ? `چاپی تاقیکاری (${activePaperSize})`
                 : `Test Print (${activePaperSize})`}
@@ -1211,10 +2349,10 @@ export default function ReceiptCustomizationScreen() {
             <Text
               style={[
                 styles.resetBtnText,
-                isKurdish && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {isKurdish ? 'گەڕاندنەوەی سەرەتایی ئەم بەشە' : 'Reset Module to Default'}
+              {isAr ? 'استعادة الإعدادات الافتراضية لهذا القسم' : isKurdish ? 'گەڕاندنەوەی سەرەتایی ئەم بەشە' : 'Reset Module to Default'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1355,174 +2493,464 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  a4Header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  a4SheetReal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  a4ProposalBanner: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  a4ProposalBannerText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    flex: 1,
+  },
+  a4HeaderCols: {
     alignItems: 'flex-start',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
     paddingBottom: 8,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  a4ColBusiness: {
+    flex: 1.1,
+    paddingHorizontal: 3,
+  },
+  a4LogoFrame: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  a4LogoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  a4LogoMono: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  a4LogoMonoText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#D4AF37',
   },
   a4BizName: {
-    fontSize: 15,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0F172A',
+    marginBottom: 1,
   },
-  a4BizContact: {
-    fontSize: 10,
+  a4BizMeta: {
+    fontSize: 9,
     color: '#64748B',
-    marginTop: 1,
+    lineHeight: 12.5,
   },
-  a4DocBadge: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  a4DocBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '800',
-  },
-  a4MetaGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  a4MetaCard: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 6,
-    borderWidth: 1,
+  a4ColCustomer: {
+    flex: 1.15,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 8,
-  },
-  a4MetaLabel: {
-    fontSize: 9.5,
-    color: '#64748B',
-  },
-  a4MetaVal: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  a4MetaValSub: {
-    fontSize: 10,
-    color: '#334155',
-    marginTop: 1,
-  },
-  a4Table: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 6,
+    paddingHorizontal: 4,
     overflow: 'hidden',
-    marginBottom: 10,
   },
-  a4TableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
-  },
-  a4Th: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  a4TableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E2E8F0',
-  },
-  a4Td: {
-    fontSize: 10,
-    color: '#0F172A',
-  },
-  a4SummaryRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  a4NotesBox: {
-    flex: 1.2,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 6,
-    padding: 8,
-  },
-  a4NotesTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#334155',
+  a4ColLabelTag: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  a4NotesText: {
-    fontSize: 9.5,
-    color: '#64748B',
-    lineHeight: 14,
+  a4InfoRow: {
+    alignItems: 'baseline',
+    gap: 3,
+    marginBottom: 1,
+    overflow: 'hidden',
   },
-  a4TotalsBox: {
+  a4RowLabel: {
+    fontSize: 8,
+    color: '#64748B',
+    fontWeight: '700',
+    flexShrink: 0,
+  },
+  a4RowVal: {
+    fontSize: 8,
+    color: '#0F172A',
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  a4ColInvoice: {
+    flex: 1.05,
+    paddingHorizontal: 3,
+    overflow: 'hidden',
+  },
+  a4InvTypeLabel: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  a4InvMetaRow: {
+    alignItems: 'baseline',
+    gap: 3,
+    marginBottom: 1,
+  },
+  a4InvMetaTitle: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  a4StatusPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+  a4StatusPillText: {
+    fontSize: 7.5,
+    fontWeight: '800',
+  },
+  a4ValidityDoubleBox: {
+    borderWidth: 1.5,
+    borderColor: '#0F172A',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignItems: 'center',
+    marginTop: 3,
+    backgroundColor: '#FFFFFF',
+  },
+  a4ValidityLabel: {
+    fontSize: 7.5,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  a4ValidityValue: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0F172A',
+    lineHeight: 15,
+  },
+  a4ValiditySub: {
+    fontSize: 7.5,
+    color: '#64748B',
+  },
+  a4PolicyCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    padding: 6,
+    marginBottom: 8,
+  },
+  a4PolicyLabel: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  a4PolicyText: {
+    fontSize: 9,
+    color: '#0F172A',
+    lineHeight: 13,
+  },
+  a4TopSummaryPair: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  a4SummaryCard: {
     flex: 1,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 6,
-    padding: 8,
+    padding: 6,
   },
-  a4TotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  a4CardLabel: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#475569',
+    textTransform: 'uppercase',
     marginBottom: 3,
   },
-  a4TotalLabel: {
-    fontSize: 10,
-    color: '#64748B',
+  a4FinRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 1.5,
   },
-  a4TotalVal: {
-    fontSize: 10,
+  a4FinLabel: {
+    fontSize: 8.5,
+    color: '#475569',
+  },
+  a4FinVal: {
+    fontSize: 8.5,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  a4TotalBlock: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 5,
+    paddingVertical: 3.5,
+    paddingHorizontal: 5,
+    marginVertical: 3,
+  },
+  a4TotalBlockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  a4TotalBlockLabel: {
+    fontSize: 7.5,
+    fontWeight: '700',
+    color: '#1E293B',
+    textTransform: 'uppercase',
+  },
+  a4TotalBlockAmount: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  a4TotalDivider: {
+    height: 1,
+    borderTopWidth: 1,
+    borderTopColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    marginVertical: 2,
+    width: '100%',
+  },
+  a4TotalBlockSub: {
+    fontSize: 7,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  a4TotalBlockSubAmount: {
+    fontSize: 7.5,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  a4NotesWarrantyTitle: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 2,
+  },
+  a4NotesWarrantyText: {
+    fontSize: 8.5,
+    color: '#475569',
+    lineHeight: 12,
+  },
+  a4NotesDivider: {
+    height: 0.5,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 3,
+  },
+  a4TableWrap: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  a4TableHeaderRow: {
+    backgroundColor: '#F1F5F9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#CBD5E1',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  a4Th: {
+    fontSize: 7.5,
+    fontWeight: '800',
+    color: '#1E293B',
+    textTransform: 'uppercase',
+  },
+  a4TableRow: {
+    paddingVertical: 3.5,
+    paddingHorizontal: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  a4Td: {
+    fontSize: 8,
+    color: '#0F172A',
+  },
+  a4ItemName: {
+    fontSize: 8.5,
     fontWeight: '700',
     color: '#0F172A',
   },
-  a4GrandRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#CBD5E1',
-    paddingTop: 4,
+  a4ItemSupplier: {
+    fontSize: 7,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  a4IdChip: {
+    fontSize: 6.5,
+    fontWeight: '700',
+    color: '#334155',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 0.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 2.5,
+    paddingHorizontal: 2,
+    paddingVertical: 0.5,
+  },
+  a4StrikethroughPrice: {
+    fontSize: 8,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  a4SignaturesRow: {
+    justifyContent: 'space-between',
+    paddingTop: 6,
+    paddingHorizontal: 6,
+    marginBottom: 4,
+  },
+  a4SigCol: {
+    alignItems: 'center',
+    width: 95,
+  },
+  a4SigLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#94A3B8',
+    marginBottom: 3,
+  },
+  a4SigLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  a4StampSeal: {
+    alignItems: 'center',
+    width: 105,
+  },
+  a4StampInner: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 1.5,
+    borderColor: '#B91C1C',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+    backgroundColor: '#FEF2F2',
+  },
+  a4StampBizText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#B91C1C',
+  },
+  a4StampApprovedText: {
+    fontSize: 6.5,
+    fontWeight: '800',
+    color: '#B91C1C',
+    letterSpacing: 0.3,
+    marginVertical: 1,
+  },
+  a4StampSubText: {
+    fontSize: 6,
+    color: '#B91C1C',
+  },
+  a4BarcodeSection: {
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  a4BarcodeCode: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+    letterSpacing: 0.8,
+  },
+  a4BrandCredit: {
+    fontSize: 7.5,
+    color: '#94A3B8',
+    textAlign: 'center',
     marginTop: 2,
   },
-  a4GrandLabel: {
-    fontSize: 11,
+  a4KpiRow: {
+    gap: 4,
+    marginBottom: 8,
+  },
+  a4KpiCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    padding: 4,
+    alignItems: 'center',
+  },
+  a4KpiLabel: {
+    fontSize: 7.5,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 1,
+  },
+  a4KpiVal: {
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#0F172A',
   },
-  a4GrandVal: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#D97706',
+  a4InvStatusBadge: {
+    paddingHorizontal: 3.5,
+    paddingVertical: 1,
+    borderRadius: 3,
+    borderWidth: 0.5,
   },
-  a4SignatureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    paddingHorizontal: 12,
+  a4InvStatusOk: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#BBF7D0',
   },
-  a4SignatureCol: {
-    alignItems: 'center',
+  a4InvStatusLow: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
   },
-  a4SignatureLine: {
-    fontSize: 9.5,
-    color: '#64748B',
-    borderTopWidth: 1,
-    borderTopColor: '#94A3B8',
-    paddingTop: 4,
-    width: 100,
-    textAlign: 'center',
+  a4InvStatusText: {
+    fontSize: 7.5,
+    fontWeight: '700',
   },
 
   /* Thermal Receipt Paper Styles */

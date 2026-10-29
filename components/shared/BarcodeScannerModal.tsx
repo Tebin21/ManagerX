@@ -78,7 +78,10 @@ export function BarcodeScannerModal({
   onFinishMulti,
 }: BarcodeScannerModalProps) {
   const { colors } = useAppTheme();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language) || 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuLanguage = currentLang === 'ku';
+  const isKuOrAr = isKuLanguage || isAr;
   const { isTablet } = useResponsive();
   const { isRTL } = useRTL();
   const fallbackHook = () => [{ granted: true }, async () => ({ granted: true })];
@@ -177,7 +180,7 @@ export function BarcodeScannerModal({
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch {}
           setLastScannedFeedback({
-            text: isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${rawCode}` : `Duplicate ID: ${rawCode}`,
+            text: isAr ? `هذا الرمز مكرر: ${rawCode}` : isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${rawCode}` : `Duplicate ID: ${rawCode}`,
             type: 'warning',
           });
           if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
@@ -201,7 +204,7 @@ export function BarcodeScannerModal({
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         } catch {}
         setLastScannedFeedback({
-          text: isKuLanguage ? `ئەم کۆدە پێشتر زیادکراوە: ${rawCode}` : `Already added: ${rawCode}`,
+          text: isAr ? `تمت إضافة هذا الرمز مسبقاً: ${rawCode}` : isKuLanguage ? `ئەم کۆدە پێشتر زیادکراوە: ${rawCode}` : `Already added: ${rawCode}`,
           type: 'warning',
         });
         if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
@@ -217,7 +220,7 @@ export function BarcodeScannerModal({
       setBatchCodes((prev) => [...prev, rawCode]);
       setScannedCount((prev) => prev + 1);
       setLastScannedFeedback({
-        text: isKuLanguage ? `کۆد زیادکرا: ${rawCode}` : `Code added: ${rawCode}`,
+        text: isAr ? `تمت إضافة الرمز: ${rawCode}` : isKuLanguage ? `کۆد زیادکرا: ${rawCode}` : `Code added: ${rawCode}`,
         type: 'success',
       });
       if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
@@ -240,8 +243,8 @@ export function BarcodeScannerModal({
           typeof scanRes === 'object' && scanRes && scanRes.message
             ? scanRes.message
             : isSuccess
-            ? (isKuLanguage ? `زیادکرا: ${itemTitle}` : `Added: ${itemTitle}`)
-            : (isKuLanguage ? `نەدۆزرایەوە: ${rawCode}` : `Not found: ${rawCode}`);
+            ? (isAr ? `تمت الإضافة: ${itemTitle}` : isKuLanguage ? `زیادکرا: ${itemTitle}` : `Added: ${itemTitle}`)
+            : (isAr ? `لم يتم العثور على: ${rawCode}` : isKuLanguage ? `نەدۆزرایەوە: ${rawCode}` : `Not found: ${rawCode}`);
 
         if (isSuccess) {
           try {
@@ -281,7 +284,7 @@ export function BarcodeScannerModal({
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           } catch {}
           setLastScannedFeedback({
-            text: isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${trimmed}` : `Duplicate ID: ${trimmed}`,
+            text: isAr ? `هذا الرمز مكرر: ${trimmed}` : isKuLanguage ? `ئەم ئایدییە دووبارەیە: ${trimmed}` : `Duplicate ID: ${trimmed}`,
             type: 'warning',
           });
           if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
@@ -298,7 +301,7 @@ export function BarcodeScannerModal({
     } else if (mode === 'batch_ids') {
       if (batchCodes.includes(trimmed)) {
         setLastScannedFeedback({
-          text: isKuLanguage ? `ئەم کۆدە پێشتر زیادکراوە: ${trimmed}` : `Already added: ${trimmed}`,
+          text: isAr ? `تمت إضافة هذا الرمز مسبقاً: ${trimmed}` : isKuLanguage ? `ئەم کۆدە پێشتر زیادکراوە: ${trimmed}` : `Already added: ${trimmed}`,
           type: 'warning',
         });
       } else {
@@ -308,7 +311,7 @@ export function BarcodeScannerModal({
         setBatchCodes((prev) => [...prev, trimmed]);
         setScannedCount((prev) => prev + 1);
         setLastScannedFeedback({
-          text: isKuLanguage ? `کۆد زیادکرا: ${trimmed}` : `Code added: ${trimmed}`,
+          text: isAr ? `تمت إضافة الرمز: ${trimmed}` : isKuLanguage ? `کۆد زیادکرا: ${trimmed}` : `Code added: ${trimmed}`,
           type: 'success',
         });
       }
@@ -372,7 +375,7 @@ export function BarcodeScannerModal({
                   isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
               >
-                {isKuLanguage ? 'مۆڵەتی کامێرا پێویستە' : 'Camera Permission Required'}
+                {isAr ? 'مطلوب إذن استخدام الكاميرا' : isKuLanguage ? 'مۆڵەتی کامێرا پێویستە' : 'Camera Permission Required'}
               </Text>
               <Text
                 style={[
@@ -396,7 +399,7 @@ export function BarcodeScannerModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                   ]}
                 >
-                  {isKuLanguage ? 'ڕێگەپێدان بە کامێرا' : 'Grant Permission'}
+                  {isAr ? 'منح الإذن' : isKuLanguage ? 'ڕێگەپێدان بە کامێرا' : 'Grant Permission'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -410,7 +413,7 @@ export function BarcodeScannerModal({
                     isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_REGULAR, fontWeight: 'normal' },
                   ]}
                 >
-                  {isKuLanguage ? 'داخستن' : 'Cancel'}
+                  {isAr ? 'إلغاء' : isKuLanguage ? 'داخستن' : 'Cancel'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -520,7 +523,7 @@ export function BarcodeScannerModal({
                           },
                         ]}
                       >
-                        {isKuLanguage ? 'کۆدی سکانکراو:' : 'Scanned Code:'}
+                        {isAr ? 'الرمز الممسوح:' : isKuLanguage ? 'کۆدی سکانکراو:' : 'Scanned Code:'}
                       </Text>
                     </View>
                     <View style={styles.floatingCornerIndexPill}>
@@ -553,7 +556,7 @@ export function BarcodeScannerModal({
                           },
                         ]}
                       >
-                        {isKuLanguage ? 'سڕینەوە' : 'Delete'}
+                        {isAr ? 'حذف' : isKuLanguage ? 'سڕینەوە' : 'Delete'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -603,8 +606,8 @@ export function BarcodeScannerModal({
                     ]}
                   >
                     {mode === 'multi'
-                      ? (isKuLanguage ? 'سکان بەردەوامە — هەرچەندت دەوێ بیگرە بەرامبەری' : 'Continuous scan — scan multiple barcodes sequentially')
-                      : (isKuLanguage ? 'بارکۆدەکە ڕابگرە لە ناو چوارچێوەکەدا' : 'Center barcode inside the frame')}
+                      ? (isAr ? 'مسح مستمر — يمكنك مسح عدة باركودات متتالية' : isKuLanguage ? 'سکان بەردەوامە — هەرچەندت دەوێ بیگرە بەرامبەری' : 'Continuous scan — scan multiple barcodes sequentially')
+                      : (isAr ? 'وجّه الباركود داخل الإطار' : isKuLanguage ? 'بارکۆدەکە ڕابگرە لە ناو چوارچێوەکەدا' : 'Center barcode inside the frame')}
                   </Text>
                 </View>
               </View>
@@ -686,7 +689,7 @@ export function BarcodeScannerModal({
                                 },
                               ]}
                             >
-                              {isKuLanguage ? 'سڕینەوەی هەمووی' : 'Clear all'}
+                              {isAr ? 'مسح الكل' : isKuLanguage ? 'سڕینەوەی هەمووی' : 'Clear all'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -705,7 +708,7 @@ export function BarcodeScannerModal({
                               },
                             ]}
                           >
-                            {isKuLanguage ? 'دەستی' : 'Manual'}
+                            {isAr ? 'يدوي' : isKuLanguage ? 'دەستی' : 'Manual'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -828,7 +831,7 @@ export function BarcodeScannerModal({
                             },
                           ]}
                         >
-                          {isKuLanguage ? 'کۆدی دەستی' : 'Manual Code'}
+                          {isAr ? 'رمز يدوي' : isKuLanguage ? 'کۆدی دەستی' : 'Manual Code'}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -887,7 +890,7 @@ export function BarcodeScannerModal({
                           },
                         ]}
                       >
-                        {isKuLanguage ? 'نووسینی دەستیی کۆد' : 'Type Code Manually'}
+                        {isAr ? 'إدخال الرمز يدوياً' : isKuLanguage ? 'نووسینی دەستیی کۆد' : 'Type Code Manually'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -909,7 +912,7 @@ export function BarcodeScannerModal({
                       },
                     ]}
                   >
-                    {isKuLanguage ? 'نووسینی بارکۆد / کۆدی بەرهەم' : 'Enter Barcode / Item ID'}
+                    {isAr ? 'أدخل الباركود / رمز المادة' : isKuLanguage ? 'نووسینی بارکۆد / کۆدی بەرهەم' : 'Enter Barcode / Item ID'}
                   </Text>
                   <TextInput
                     style={[
@@ -927,7 +930,7 @@ export function BarcodeScannerModal({
                     ]}
                     value={manualCode}
                     onChangeText={setManualCode}
-                    placeholder={isKuLanguage ? 'کۆدەکە بنووسە...' : 'Type code...'}
+                    placeholder={isAr ? 'اكتب الرمز هنا...' : isKuLanguage ? 'کۆدەکە بنووسە...' : 'Type code...'}
                     placeholderTextColor="#9CA3AF"
                     autoFocus
                     autoCapitalize="characters"
@@ -948,7 +951,7 @@ export function BarcodeScannerModal({
                           },
                         ]}
                       >
-                        {isKuLanguage ? 'پەشیمانبوونەوە' : 'Cancel'}
+                        {isAr ? 'إلغاء' : isKuLanguage ? 'پەشیمانبوونەوە' : 'Cancel'}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -964,7 +967,7 @@ export function BarcodeScannerModal({
                           },
                         ]}
                       >
-                        {isKuLanguage ? 'تەواوە' : 'OK'}
+                        {isAr ? 'موافق' : isKuLanguage ? 'تەواوە' : 'OK'}
                       </Text>
                     </TouchableOpacity>
                   </View>

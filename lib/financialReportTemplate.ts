@@ -57,8 +57,11 @@ export function buildFinancialReportHTML(
   // data (business/supplier names, categories typed free-form) are NEVER
   // routed through `ku()`/`t()` and so always keep rendering in the base
   // font stack with plain LTR digits, regardless of app language.
-  const isKurdish = i18n.language === 'ku';
-  const lang = isKurdish ? 'ku' : 'en';
+  const isKu = i18n.language === 'ku';
+  const isAr = i18n.language === 'ar';
+  const isKuOrAr = isKu || isAr;
+  const isKurdish = isKuOrAr;
+  const lang = isAr ? 'ar' : isKu ? 'ku' : 'en';
   const t = (key: string, opts?: Record<string, unknown>): string =>
     i18n.t(`financialReportPdf.${key}`, opts) as string;
   const tCat = (cat: string): string =>

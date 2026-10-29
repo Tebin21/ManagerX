@@ -54,7 +54,10 @@ export function InventoryFilterModal({
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
   const { isTablet, isTabletLandscape, sheetMaxWidth, width: screenWidth } = useResponsive();
 
   const stockOptions: { key: StockStatusFilter; label: string; icon: any }[] = [
@@ -383,10 +386,10 @@ export function InventoryFilterModal({
                 style={[
                   styles.resetBtnText,
                   { color: colors.darkBlue },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
               >
-                {isKuLanguage ? 'سڕینەوە' : 'Reset'}
+                {isAr ? 'إعادة ضبط' : isKuLanguage ? 'سڕینەوە' : 'Reset'}
               </Text>
             </TouchableOpacity>
 
@@ -398,10 +401,10 @@ export function InventoryFilterModal({
               <Text
                 style={[
                   styles.applyBtnText,
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                  isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
                 ]}
               >
-                {isKuLanguage ? 'جێبەجێکردن' : 'Apply'}
+                {isAr ? 'تطبيق' : isKuLanguage ? 'جێبەجێکردن' : 'Apply'}
               </Text>
             </TouchableOpacity>
           </View>

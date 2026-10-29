@@ -114,15 +114,22 @@ export default function CustomerProfileScreen() {
     );
   }, [deleteSale, loadCustomers, loadAll, t]);
 
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
   const isDirectCustomer = isDirectCustomerName(customer?.name);
+  const displayCustomerName = isDirectCustomer
+    ? (isArLanguage ? 'الزبون المباشر' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer')
+    : customer?.name ?? '';
 
   const handleDeleteCustomer = useCallback(() => {
     if (!customer) return;
     if (isDirectCustomer) {
       Alert.alert(
         t('common.error'),
-        isKuLanguage
+        isArLanguage
+          ? 'هذا الحساب مخصص للبيع المباشر (النظام) ولا يمكن حذفه بأي شكل.'
+          : isKuLanguage
           ? 'ئەم ئەکاونتە تایبەتە بە فرۆشتنی ڕاستەوخۆ (سیستەم) و ناتوانرێت بسڕدرێتەوە.'
           : 'Direct Customer is a permanent system account and cannot be deleted.'
       );
@@ -145,7 +152,9 @@ export default function CustomerProfileScreen() {
               if (msg === 'CANNOT_DELETE_DIRECT_CUSTOMER') {
                 Alert.alert(
                   t('common.error'),
-                  isKuLanguage
+                  isArLanguage
+                    ? 'هذا الحساب مخصص للبيع المباشر (النظام) ولا يمكن حذفه بأي شكل.'
+                    : isKuLanguage
                     ? 'ئەم ئەکاونتە تایبەتە بە فرۆشتنی ڕاستەوخۆ (سیستەم) و ناتوانرێت بسڕدرێتەوە.'
                     : 'Direct Customer is a permanent system account and cannot be deleted.'
                 );
@@ -161,7 +170,7 @@ export default function CustomerProfileScreen() {
         },
       ]
     );
-  }, [customer, isDirectCustomer, isKuLanguage, deleteCustomer, router, t]);
+  }, [customer, isDirectCustomer, isKuLanguage, isArLanguage, deleteCustomer, router, t]);
 
   const handleExportPDF = useCallback(async () => {
     if (!customer) return;
@@ -208,7 +217,7 @@ export default function CustomerProfileScreen() {
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.gray50 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AppHeader
-        title={customer?.name ?? '…'}
+        title={displayCustomerName || '…'}
         showBack
         onBack={() => router.back()}
       />
@@ -229,7 +238,7 @@ export default function CustomerProfileScreen() {
                 <View style={[styles.directCustomerChip, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB', borderColor: isDark ? '#D97706' : '#FDE68A', flexDirection }]}>
                   <Ionicons name="flash" size={13} color="#D97706" />
                   <Text style={[styles.directCustomerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
-                    {isKuLanguage ? 'کڕیاری ڕاستەوخۆ (سیستەم)' : 'Direct Customer'}
+                    {isArLanguage ? 'الزبون المباشر (نظام)' : isKuLanguage ? 'کڕیاری ڕاستەوخۆ (سیستەم)' : 'Direct Customer'}
                   </Text>
                 </View>
               )}
@@ -254,7 +263,7 @@ export default function CustomerProfileScreen() {
                   </View>
                   <View style={styles.addressContent}>
                     <Text style={[styles.addressLabel, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]}>
-                      {isKuLanguage ? 'ناونیشان' : 'Address'}
+                      {isArLanguage ? 'العنوان' : isKuLanguage ? 'ناونیشان' : 'Address'}
                     </Text>
                     <Text style={[styles.addressText, { color: colors.gray700, textAlign: isRTL ? 'right' : 'left' }]}>
                       {customer.address}
@@ -425,11 +434,13 @@ export default function CustomerProfileScreen() {
                 <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 8 }]}>
                   <Ionicons name="shield-checkmark" size={22} color="#D97706" />
                   <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#FBBF24' : '#B45309' }}>
-                    {isKuLanguage ? 'ئەکاونتی هەمیشەیی سیستەم' : 'Permanent System Account'}
+                    {isArLanguage ? 'حساب النظام الدائم' : isKuLanguage ? 'ئەکاونتی هەمیشەیی سیستەم' : 'Permanent System Account'}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 13, lineHeight: 21, color: isDark ? '#E2E8F0' : '#78350F', textAlign }}>
-                  {isKuLanguage
+                  {isArLanguage
+                    ? 'هذا الزبون مخصص للمبيعات المباشرة والفورية في المحل (الزبون المباشر). لا يمكن حذفه أبداً للحفاظ على سجلات المعاملات والحسابات.'
+                    : isKuLanguage
                     ? 'ئەم کڕیارە تایبەتە بە فرۆشتنە دەستبەجێکانی دووکان (کڕیاری ڕاستەوخۆ). بە هیچ شێوەیەک ناسڕدرێتەوە تا هەموو کات مێژووی فرۆشتن و حساباتی دووکانت پارێزراو بێت.'
                     : 'This is the permanent account for walk-in direct sales. It cannot be deleted to ensure all historical transactions remain intact.'}
                 </Text>

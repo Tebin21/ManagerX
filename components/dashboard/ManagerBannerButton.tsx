@@ -8,6 +8,9 @@ import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import { useManagementStore } from '@/store/managementStore';
 import type { EmployeeAccount } from '@/lib/management/types';
 
 interface ManagerBannerButtonProps {
@@ -20,9 +23,19 @@ export function ManagerBannerButton({
   isDriveConnected = false,
 }: ManagerBannerButtonProps) {
   const router = useRouter();
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+
+  // Hard safety guard: Employees must NEVER see management controls
+  if (isEmployee) {
+    return null;
+  }
+
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
   const { isTablet } = useResponsive();
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKu = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
 
   const count = employees?.length || 0;
   const hasEmployees = count > 0;
@@ -73,10 +86,11 @@ export function ManagerBannerButton({
                   color: isDark ? '#FFFFFF' : '#1E1B4B',
                   fontSize: isTablet ? 17 : 15,
                 },
+                (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
               numberOfLines={1}
             >
-              {isRTL ? 'بەڕێوەبردنی کارمەندان' : 'Employee Management'}
+              {isAr ? 'إدارة الموظفين والصلاحيات' : isKu ? 'بەڕێوەبردنی کارمەندان' : 'Employee Management'}
             </Text>
 
             {/* Status Badge */}
@@ -119,13 +133,14 @@ export function ManagerBannerButton({
                       ? '#EF4444'
                       : '#10B981',
                   },
+                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
               >
                 {!hasEmployees
-                  ? (isRTL ? 'بەڕێوەبەر' : 'Manager')
+                  ? (isAr ? 'مدير' : isKu ? 'بەڕێوەبەر' : 'Manager')
                   : isSuspended
-                  ? (isRTL ? 'ڕاگیراو' : 'Suspended')
-                  : (isRTL ? 'چالاک' : 'Active')}
+                  ? (isAr ? 'معلق' : isKu ? 'ڕاگیراو' : 'Suspended')
+                  : (isAr ? 'نشط' : isKu ? 'چالاک' : 'Active')}
               </Text>
             </View>
           </View>
@@ -143,10 +158,10 @@ export function ManagerBannerButton({
               numberOfLines={1}
             >
               {!hasEmployees
-                ? (isRTL ? 'دەستنیشانکردنی کارمەند و دەسەڵاتەکان' : 'Manage staff & permissions')
+                ? (isAr ? 'تحديد الموظفين وتعيين الصلاحيات' : isKu ? 'دەستنیشانکردنی کارمەند و دەسەڵاتەکان' : 'Manage staff & permissions')
                 : count === 1
-                ? `${isRTL ? 'کارمەند:' : 'Staff:'} ${firstEmp?.displayName}`
-                : `${isRTL ? 'کارمەندان:' : 'Staff:'} ${firstEmp?.displayName} (+${count - 1})`}
+                ? `${isAr ? 'الموظف:' : isKu ? 'کارمەند:' : 'Staff:'} ${firstEmp?.displayName}`
+                : `${isAr ? 'الموظفين:' : isKu ? 'کارمەندان:' : 'Staff:'} ${firstEmp?.displayName} (+${count - 1})`}
             </Text>
 
             {hasEmployees && (
@@ -168,11 +183,12 @@ export function ManagerBannerButton({
                   style={[
                     styles.driveText,
                     { color: isDriveConnected ? '#10B981' : '#F59E0B' },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
                   {isDriveConnected
-                    ? (isRTL ? 'درایڤ بەستراوە' : 'Drive Synced')
-                    : (isRTL ? 'درایڤ ببەستەوە' : 'Connect Drive')}
+                    ? (isAr ? 'متصل بـ Drive' : isKu ? 'درایڤ بەستراوە' : 'Drive Synced')
+                    : (isAr ? 'ربط Drive' : isKu ? 'درایڤ ببەستەوە' : 'Connect Drive')}
                 </Text>
               </View>
             )}

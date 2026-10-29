@@ -35,7 +35,10 @@ export function PeriodFilterModal({
   exportPdfLabel,
 }: Props) {
   const { colors } = useAppTheme();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [customModalVisible, setCustomModalVisible] = useState(false);
@@ -46,7 +49,7 @@ export function PeriodFilterModal({
     { key: 'week', label: labels?.week ?? i18n.t('common.thisWeek'), icon: 'calendar-outline' },
     { key: 'month', label: labels?.month ?? i18n.t('common.thisMonth'), icon: 'calendar-number-outline' },
     { key: 'year', label: labels?.year ?? i18n.t('reports.year'), icon: 'stats-chart-outline' },
-    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
+    ...(includeAll ? [{ key: 'all' as PeriodKey, label: labels?.all ?? (isAr ? 'الكل' : isKuLanguage ? 'هەمووی' : 'All'), icon: 'infinite-outline' as const }] : []),
     { key: 'custom', label: labels?.custom ?? i18n.t('reports.custom'), icon: 'options-outline' },
   ];
 
@@ -104,7 +107,7 @@ export function PeriodFilterModal({
               <>
                 <Ionicons name="document-text-outline" size={18} color={colors.primary} />
                 <Text style={[styles.exportBtnText, { color: colors.primary }]}>
-                  {exportPdfLabel ?? (isKuLanguage ? 'دەرکردنی جەردی فرۆشتن بە PDF' : 'Export Sales Audit (PDF)')}
+                  {exportPdfLabel ?? (isAr ? 'تصدير كشف التدقيق (PDF)' : isKuLanguage ? 'دەرکردنی جەردی فرۆشتن بە PDF' : 'Export Sales Audit (PDF)')}
                 </Text>
               </>
             )}

@@ -2406,7 +2406,12 @@ export function isDirectCustomerName(name?: string | null): boolean {
   return (
     n === DIRECT_CUSTOMER_NAME.toLowerCase() ||
     n === 'direct customer' ||
-    n === 'walk-in customer'
+    n === 'walk-in customer' ||
+    n === 'کڕیاری راستەوخۆ' ||
+    n === 'کڕیاری دەستبەجێ' ||
+    n === 'الزبون المباشر' ||
+    n === 'عميل مباشر' ||
+    n === 'زبون مباشر'
   );
 }
 
@@ -3519,7 +3524,9 @@ export function isDirectSupplierName(name?: string | null): boolean {
     n === 'direct supplier' ||
     n === 'walk-in supplier' ||
     n === 'دابینکەری راستەوخۆ' ||
-    n === 'دابینکەری دەستبەجێ'
+    n === 'دابینکەری دەستبەجێ' ||
+    n === 'المورد المباشر' ||
+    n === 'مورد مباشر'
   );
 }
 

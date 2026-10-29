@@ -14,6 +14,8 @@ import { Text } from '@/components/ui/AppText';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLanguageStore } from '@/store/languageStore';
+import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { SUPPORT_PHONE } from '@/constants/config';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -28,6 +30,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
   const { isTablet } = useResponsive();
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKu = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = () => {
@@ -43,7 +48,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
 
   const handleWhatsApp = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    const text = isRTL
+    const text = isAr
+      ? 'مرحباً، أود تفعيل متجر إلكتروني لعملي عبر تطبيق فروشيار.'
+      : isKu
       ? 'سڵاو، دەمەوێت وێبسایتی ئۆنلاین بۆ بزنسەکەم لە ئەپڵیکەیشنی فرۆشیار چالاک بکەم.'
       : 'Hello, I want to activate an online storefront for my business on Froshiar.';
     Linking.openURL(`https://wa.me/964${SUPPORT_PHONE.replace(/^0/, '')}?text=${encodeURIComponent(text)}`).catch(() => {});
@@ -83,20 +90,21 @@ export function CreateWebsiteCtaButton({ style }: Props) {
           </View>
 
           {/* Details */}
-          <View style={styles.content}>
+          <View style={[styles.content, { marginHorizontal: isTablet ? 12 : 8 }]}>
             <View style={[styles.titleRow, { flexDirection }]}>
               <Text
                 style={[
                   styles.title,
                   {
                     color: isDark ? '#FFFFFF' : '#0F172A',
-                    fontSize: isTablet ? 17 : 15,
+                    fontSize: isTablet ? 17 : 13.5,
                     textAlign,
                   },
+                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
                 numberOfLines={1}
               >
-                {isRTL ? 'وێبسایتی بزنسەکەت دروست بکە' : 'Create Your Business Website'}
+                {isAr ? 'إنشاء موقع إلكتروني لمتجرك' : isKu ? 'وێبسایتی بزنسەکەت دروست بکە' : 'Create Your Business Website'}
               </Text>
 
               {/* Sparkle badge */}
@@ -110,8 +118,8 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                 ]}
               >
                 <Ionicons name="sparkles" size={11} color="#D4AF37" />
-                <Text style={styles.sparkleText}>
-                  {isRTL ? 'ئۆنلاین' : 'Online'}
+                <Text style={[styles.sparkleText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                  {isAr ? 'أونلاين' : isKu ? 'ئۆنلاین' : 'Online'}
                 </Text>
               </View>
             </View>
@@ -127,7 +135,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
               ]}
               numberOfLines={1}
             >
-              {isRTL
+              {isAr
+                ? 'متجر إلكتروني خاص لعرض وبيع منتجاتك'
+                : isKu
                 ? 'فرۆشگای تایبەت بە ناوی مارکێتەکەت بۆ فرۆشتنی کاڵاکان'
                 : 'Online storefront under your brand to sell products'}
             </Text>
@@ -177,7 +187,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                   { color: isDark ? '#CBD5E1' : '#334155', textAlign },
                 ]}
               >
-                {isRTL
+                {isAr
+                  ? 'مع الموقع الرسمي من فروشيار، تُعرض جميع منتجاتك وأسعارك أونلاين، ويمكن لزبائنك تصفحها والطلب مباشرة من أي مكان.'
+                  : isKu
                   ? 'بە وێبسایتی فەرمی فرۆشیار، سەرجەم کاڵا و نرخەکانت لەسەر ئینتەرنێت بڵاودەبنەوە و کڕیارانت دەتوانن لە هەر شوێنێک بن ڕاستەوخۆ کاڵاکان ببینن و داواکاری بنێرن.'
                   : 'With Froshiar Online Store, all your products are published online with live prices and images, allowing customers to order directly from anywhere.'}
               </Text>
@@ -209,9 +221,10 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                     style={[
                       styles.featureTitle,
                       { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isRTL ? 'هاوکاتبوونی خۆکار لەگەڵ کۆگا' : 'Real-time Catalog Sync'}
+                    {isAr ? 'مزامنة تلقائية مع المخزن' : isKu ? 'هاوکاتبوونی خۆکار لەگەڵ کۆگا' : 'Real-time Catalog Sync'}
                   </Text>
                   <Text
                     style={[
@@ -219,7 +232,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                       { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
-                    {isRTL
+                    {isAr
+                      ? 'يتم نشر جميع المنتجات والأسعار التي تضيفها تلقائياً على موقعك.'
+                      : isKu
                       ? 'هەموو کاڵا و نرخەکانت کە لە ئەپەکەدا زیادیان دەکەیت خۆکارانە لەسەر وێبسایتەکەت بڵاودەبنەوە.'
                       : 'Products, prices, and stock added in the app are automatically synced to your website.'}
                   </Text>
@@ -250,9 +265,10 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                     style={[
                       styles.featureTitle,
                       { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isRTL ? 'داواکاری ڕاستەوخۆ بە واتسئەپ' : 'Direct WhatsApp Ordering'}
+                    {isAr ? 'طلب مباشر عبر واتساب' : isKu ? 'داواکاری ڕاستەوخۆ بە واتسئەپ' : 'Direct WhatsApp Ordering'}
                   </Text>
                   <Text
                     style={[
@@ -260,7 +276,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                       { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
-                    {isRTL
+                    {isAr
+                      ? 'يمكن للزبائن ملء سلة التسوق وإرسال الفاتورة مباشرة إلى واتساب الخاص بك بنقرة واحدة.'
+                      : isKu
                       ? 'کڕیارەکان دەتوانن سەبەتەی کڕین پڕبکەنەوە و بە یەک کلیک وەسڵی داواکاری بۆ واتسئەپت بنێرن.'
                       : 'Customers add items to cart and send organized invoices directly to your WhatsApp.'}
                   </Text>
@@ -291,9 +309,10 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                     style={[
                       styles.featureTitle,
                       { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isRTL ? 'دۆمەین و بەستەری فەرمی مارکێتەکەت' : 'Official Store Link'}
+                    {isAr ? 'رابط رسمي لمتجرك' : isKu ? 'دۆمەین و بەستەری فەرمی مارکێتەکەت' : 'Official Store Link'}
                   </Text>
                   <Text
                     style={[
@@ -301,7 +320,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                       { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
-                    {isRTL
+                    {isAr
+                      ? 'رابط مخصص باسم متجرك للمشاركة على إنستغرام، سناب شات وفيسبوك.'
+                      : isKu
                       ? 'بەستەرێکی تایبەت بە ناوی فرۆشگاکەتەوە بۆ بڵاوکردنەوە لە ئینستاگرام، سناپچات و فەیسبووک.'
                       : 'A dedicated store link with your brand name to share across all social media platforms.'}
                   </Text>
@@ -332,9 +353,10 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                     style={[
                       styles.featureTitle,
                       { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
+                      (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
-                    {isRTL ? '١٠٠٪ بێ کۆمسیۆن و داهاتی تەواو' : '100% Commission Free'}
+                    {isAr ? 'بدون عمولة وأرباحك كاملة 100%' : isKu ? '١٠٠٪ بێ کۆمسیۆن و داهاتی تەواو' : '100% Commission Free'}
                   </Text>
                   <Text
                     style={[
@@ -342,7 +364,9 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                       { color: isDark ? '#94A3B8' : '#64748B', textAlign },
                     ]}
                   >
-                    {isRTL
+                    {isAr
+                      ? 'جميع الأرباح والمبيعات تعود إليك بالكامل دون أي استقطاع.'
+                      : isKu
                       ? 'هەموو قازانج و داهاتی فرۆشتنەکان بۆ خۆت دەبێت و هیچ بڕە پارەیەکی زیادە نابڕدرێت.'
                       : 'All profits and earnings from orders belong 100% to you without any deductions.'}
                   </Text>
@@ -366,9 +390,12 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                   style={[
                     styles.contactPrompt,
                     { color: isDark ? '#FFFFFF' : '#1E1B4B', textAlign },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
-                  {isRTL
+                  {isAr
+                    ? 'لإنشاء وتفعيل موقع إلكتروني لمتجرك، تواصل مع الإدارة:'
+                    : isKu
                     ? 'بۆ دروستکردن و چالاککردنی وێبسایت بۆ بزنسەکەت، پەیوەندی بە ئەدمینەوە بکە:'
                     : 'To create and activate a website for your business, contact the Admin:'}
                 </Text>
@@ -387,8 +414,8 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                   style={[styles.callBtn, { flexDirection }]}
                 >
                   <Ionicons name="call" size={16} color="#FFFFFF" />
-                  <Text style={styles.callBtnText}>
-                    {isRTL ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
+                  <Text style={[styles.callBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'اتصال هاتفي' : isKu ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
                   </Text>
                 </TouchableOpacity>
 
@@ -398,8 +425,8 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                   style={[styles.whatsappBtn, { flexDirection }]}
                 >
                   <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
-                  <Text style={styles.whatsappBtnText}>
-                    {isRTL ? 'نامە لە واتسئەپ' : 'WhatsApp'}
+                  <Text style={[styles.whatsappBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isAr ? 'مراسلة واتساب' : isKu ? 'نامە لە واتسئەپ' : 'WhatsApp'}
                   </Text>
                 </TouchableOpacity>
               </View>

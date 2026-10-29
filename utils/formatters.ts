@@ -1,4 +1,5 @@
 import type { Sale } from '@/types/sales';
+import i18n from '@/lib/i18n';
 
 const IQD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 0, maximumFractionDigits: 0 };
 const USD_OPTS: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
@@ -355,6 +356,20 @@ function formatDurationKurdish(duration: DateDurationBreakdown): string {
   return parts.join(' و ');
 }
 
+function formatDurationArabic(duration: DateDurationBreakdown): string {
+  const parts: string[] = [];
+  if (duration.years > 0) {
+    parts.push(duration.years === 1 ? 'سنة واحدة' : duration.years === 2 ? 'سنتان' : `${duration.years} سنوات`);
+  }
+  if (duration.months > 0) {
+    parts.push(duration.months === 1 ? 'شهر واحد' : duration.months === 2 ? 'شهران' : `${duration.months} أشهر`);
+  }
+  if (duration.days > 0 || parts.length === 0) {
+    parts.push(duration.days === 1 ? 'يوم واحد' : duration.days === 2 ? 'يومان' : `${duration.days} أيام`);
+  }
+  return parts.join(' و ');
+}
+
 function formatDurationEnglish(duration: DateDurationBreakdown): string {
   const parts: string[] = [];
   if (duration.years > 0) {
@@ -385,13 +400,16 @@ export function formatExpiryCountdown(
 
   const msPerDay = 1000 * 60 * 60 * 24;
   const daysDiff = Math.round((expDay.getTime() - today.getTime()) / msPerDay);
+  const lang = i18n.language || (isKuLanguage ? 'ku' : 'en');
+  const isAr = lang === 'ar';
+  const isKu = lang === 'ku' || (isKuLanguage && !isAr);
 
   if (daysDiff < 0) {
     const pastDuration = calculateDateDuration(expDay, today);
-    const durStr = isKuLanguage ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
+    const durStr = isAr ? formatDurationArabic(pastDuration) : isKu ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
     return {
-      text: isKuLanguage ? `\u200Fبەسەرچووە (${durStr} لەمەوپێش)` : `Expired (${durStr} ago)`,
-      badgeText: isKuLanguage ? `بەسەرچووە` : `Expired`,
+      text: isAr ? `منتهي الصلاحية (منذ ${durStr})` : isKu ? `\u200Fبەسەرچووە (${durStr} لەمەوپێش)` : `Expired (${durStr} ago)`,
+      badgeText: isAr ? `منتهي الصلاحية` : isKu ? `بەسەرچووە` : `Expired`,
       status: 'expired',
       daysDiff,
     };
@@ -399,21 +417,21 @@ export function formatExpiryCountdown(
 
   if (daysDiff === 0) {
     return {
-      text: isKuLanguage ? 'ئەمڕۆ بەسەردەچێت!' : 'Expires today!',
-      badgeText: isKuLanguage ? 'ئەمڕۆ بەسەردەچێت' : 'Expires today',
+      text: isAr ? 'ينتهي اليوم!' : isKu ? 'ئەمڕۆ بەسەردەچێت!' : 'Expires today!',
+      badgeText: isAr ? 'ينتهي اليوم' : isKu ? 'ئەمڕۆ بەسەردەچێت' : 'Expires today',
       status: 'warning',
       daysDiff: 0,
     };
   }
 
   const futureDuration = calculateDateDuration(today, expDay);
-  const durStr = isKuLanguage ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
+  const durStr = isAr ? formatDurationArabic(futureDuration) : isKu ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
 
   const status: 'safe' | 'warning' = daysDiff <= 30 ? 'warning' : 'safe';
 
   return {
-    text: isKuLanguage ? `\u200F${durStr} ماوە بۆ بەسەرچوون` : `${durStr} left until expiry`,
-    badgeText: isKuLanguage ? `\u200F${durStr} ماوە` : `${durStr} left`,
+    text: isAr ? `متبقي ${durStr} حتى انتهاء الصلاحية` : isKu ? `\u200F${durStr} ماوە بۆ بەسەرچوون` : `${durStr} left until expiry`,
+    badgeText: isAr ? `متبقي ${durStr}` : isKu ? `\u200F${durStr} ماوە` : `${durStr} left`,
     status,
     daysDiff,
   };
@@ -430,19 +448,22 @@ export function formatProductionAge(
 
   const msPerDay = 1000 * 60 * 60 * 24;
   const daysDiff = Math.round((today.getTime() - prodDay.getTime()) / msPerDay);
+  const lang = i18n.language || (isKuLanguage ? 'ku' : 'en');
+  const isAr = lang === 'ar';
+  const isKu = lang === 'ku' || (isKuLanguage && !isAr);
 
   if (daysDiff === 0) {
-    return isKuLanguage ? 'ئەمڕۆ دروستکراوە' : 'Produced today';
+    return isAr ? 'تم الإنتاج اليوم' : isKu ? 'ئەمڕۆ دروستکراوە' : 'Produced today';
   }
   if (daysDiff < 0) {
     const futureDuration = calculateDateDuration(today, prodDay);
-    const durStr = isKuLanguage ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
-    return isKuLanguage ? `\u200F${durStr} بۆ دەرچوون` : `${durStr} until production`;
+    const durStr = isAr ? formatDurationArabic(futureDuration) : isKu ? formatDurationKurdish(futureDuration) : formatDurationEnglish(futureDuration);
+    return isAr ? `متبقي ${durStr} حتى الإنتاج` : isKu ? `\u200F${durStr} بۆ دەرچوون` : `${durStr} until production`;
   }
 
   const pastDuration = calculateDateDuration(prodDay, today);
-  const durStr = isKuLanguage ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
-  return isKuLanguage ? `\u200F${durStr} لەمەوپێش دروستکراوە` : `Produced ${durStr} ago`;
+  const durStr = isAr ? formatDurationArabic(pastDuration) : isKu ? formatDurationKurdish(pastDuration) : formatDurationEnglish(pastDuration);
+  return isAr ? `أُنتج منذ ${durStr}` : isKu ? `\u200F${durStr} لەمەوپێش دروستکراوە` : `Produced ${durStr} ago`;
 }
 
 export function formatShelfLife(
@@ -457,7 +478,11 @@ export function formatShelfLife(
 
   if (expDay.getTime() <= prodDay.getTime()) return null;
 
+  const lang = i18n.language || (isKuLanguage ? 'ku' : 'en');
+  const isAr = lang === 'ar';
+  const isKu = lang === 'ku' || (isKuLanguage && !isAr);
+
   const dur = calculateDateDuration(prodDay, expDay);
-  const durStr = isKuLanguage ? formatDurationKurdish(dur) : formatDurationEnglish(dur);
-  return isKuLanguage ? `\u200Fماوەی سەلاحییەت: ${durStr}` : `Shelf life: ${durStr}`;
+  const durStr = isAr ? formatDurationArabic(dur) : isKu ? formatDurationKurdish(dur) : formatDurationEnglish(dur);
+  return isAr ? `مدة الصلاحية: ${durStr}` : isKu ? `\u200Fماوەی سەلاحییەت: ${durStr}` : `Shelf life: ${durStr}`;
 }

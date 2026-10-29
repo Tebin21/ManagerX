@@ -27,7 +27,10 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isTablet } = useResponsive();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isAr = currentLang === 'ar';
+  const isKuOrAr = isKuLanguage || isAr;
   const isPaid = purchase.paymentStatus === 'paid';
   const isFib = purchase.paymentStatus === 'fib';
   const statusTint = useMemo(
@@ -86,7 +89,7 @@ export function PurchaseGridCard({ purchase, onPress, onDelete }: Props) {
                 ]}
                 numberOfLines={1}
               >
-                {isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
+                {isAr ? 'مورد مباشر' : isKuLanguage ? 'دابینکەری ڕاستەوخۆ' : 'Direct Supplier'}
               </Text>
             </View>
           ) : (

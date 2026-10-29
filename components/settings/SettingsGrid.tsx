@@ -15,7 +15,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { hexToRgba } from '@/lib/colorUtils';
 import { fmtExchangeRate } from '@/utils/formatters';
-import { KurdistanFlagIcon, UKFlagIcon } from '@/components/settings/LanguageToggleSwitch';
+import { KurdistanFlagIcon, UKFlagIcon, IraqFlagIcon } from '@/components/settings/LanguageToggleSwitch';
 import { SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -23,8 +23,8 @@ interface SettingsGridProps {
   businessName?: string;
   itemLimit: number;
   exchangeRate: number;
-  language?: 'ku' | 'en' | null;
-  setLanguage: (lang: 'ku' | 'en') => void;
+  language?: 'ku' | 'en' | 'ar' | null;
+  setLanguage: (lang: 'ku' | 'en' | 'ar') => void;
   isDark: boolean;
   toggleTheme: () => void;
   userEmail?: string | null;
@@ -190,12 +190,14 @@ export function SettingsGrid({
   const tileColors = getSettingsTileColors(isDark);
   const expiryTrackingEnabled = useSettingsStore((s) => s.expiryTrackingEnabled);
 
-  // Quick Language Toggle
+  // Quick Language Toggle: ku -> ar -> en -> ku
   const handleToggleLanguage = () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch {}
-    setLanguage(isKu ? 'en' : 'ku');
+    if (language === 'ku') setLanguage('ar');
+    else if (language === 'ar') setLanguage('en');
+    else setLanguage('ku');
   };
 
   // Quick Appearance (Theme) Toggle
@@ -259,14 +261,26 @@ export function SettingsGrid({
           <SettingsGridTile
             icon="language"
             color={tileColors.language}
-            title={isKu ? 'زمان' : 'Language'}
-            sub={isKu ? 'کلیک بکە بۆ ئینگلیزی' : 'Tap for Kurdish'}
+            title={t('settings.language')}
+            sub={
+              language === 'ku'
+                ? 'کلیک بکە بۆ گۆڕین'
+                : language === 'ar'
+                ? 'انقر للتبديل'
+                : 'Tap to switch'
+            }
             onPress={handleToggleLanguage}
             badge={
               <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                {isKu ? <KurdistanFlagIcon size={16} /> : <UKFlagIcon size={16} />}
+                {language === 'ku' ? (
+                  <KurdistanFlagIcon size={16} />
+                ) : language === 'ar' ? (
+                  <IraqFlagIcon size={16} />
+                ) : (
+                  <UKFlagIcon size={16} />
+                )}
                 <Text style={[styles.statusBadgeText, { color: colors.black, marginStart: 4 }]}>
-                  {isKu ? 'کوردی' : 'English'}
+                  {language === 'ku' ? 'کوردی' : language === 'ar' ? 'العربية' : 'English'}
                 </Text>
               </View>
             }

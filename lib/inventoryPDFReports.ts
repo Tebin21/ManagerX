@@ -43,6 +43,29 @@ function logoBlock(logoUri: string | null): string {
   return `<img src="${logoUri}" style="height:54px;max-width:130px;object-fit:contain;display:block;background:#fff;border-radius:5px;padding:3px;margin-bottom:9px;" alt="logo" />`;
 }
 
+function getInventoryReceiptSettings() {
+  return useSettingsStore.getState().inventoryReceiptSettings ?? {
+    showBusinessHeader: true,
+    showStatsCards: true,
+    showSignatureArea: true,
+    customFooterNote: '',
+  };
+}
+
+function buildSignatureSection(isKurdish: boolean, isAr: boolean): string {
+  const keeperText = isAr ? 'توقيع أمين المخزن' : isKurdish ? 'واژووی چاودێری کۆگا' : 'Warehouse Keeper';
+  const supervisorText = isAr ? 'توقيع مشرف الجرد' : isKurdish ? 'واژووی سەرپەرشتیاری سەرژمێری' : 'Audit Supervisor';
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:24px 10px 12px;page-break-inside:avoid;direction:${isKurdish ? 'rtl' : 'ltr'};">
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(keeperText)}</div>
+    </div>
+    <div style="text-align:center;width:150px;">
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(supervisorText)}</div>
+    </div>
+  </div>`;
+}
+
 // ─── Table Rendering ────────────────────────────────────────────────────────
 // Natural CSS print table pagination: <thead> displays table-header-group so
 // WebKit/Blink repeats it on every page, <tr> has page-break-inside: avoid so
@@ -378,7 +401,8 @@ export function buildFullInventoryReportHTML(
   _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
   const isKurdish = isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
+  const isAr = i18n.language === 'ar';
+  const lang = isAr ? 'ar' : isKurdish ? 'ku' : 'en';
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
@@ -394,6 +418,13 @@ export function buildFullInventoryReportHTML(
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
   const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+
+  const inventorySettings = useSettingsStore.getState().inventoryReceiptSettings ?? {
+    showBusinessHeader: true,
+    showStatsCards: true,
+    showSignatureArea: true,
+    customFooterNote: '',
+  };
 
   const rows = products.map((p) => {
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
@@ -489,6 +520,13 @@ export function buildFullInventoryReportHTML(
             <td colspan="2"></td>`,
     })}
 
+  ${inventorySettings.customFooterNote ? `
+  <div style="margin: 16px 0; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11.5px; color: #334155;">
+    ${ku(escHtml(inventorySettings.customFooterNote))}
+  </div>` : ''}
+
+  ${inventorySettings.showSignatureArea !== false ? buildSignatureSection(isKurdish, isAr) : ''}
+
   </div>
 
   <div class="footer">
@@ -511,7 +549,9 @@ export function buildLowStockReportHTML(
   _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
   const isKurdish = isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
+  const isAr = i18n.language === 'ar';
+  const inventorySettings = getInventoryReceiptSettings();
+  const lang = isAr ? 'ar' : isKurdish ? 'ku' : 'en';
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
@@ -563,6 +603,13 @@ export function buildLowStockReportHTML(
             <th style="width:12%;text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
       bodyRows: rows,
     })}
+  ${inventorySettings.customFooterNote ? `
+  <div style="margin: 16px 0; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11.5px; color: #334155;">
+    ${ku(escHtml(inventorySettings.customFooterNote))}
+  </div>` : ''}
+
+  ${inventorySettings.showSignatureArea !== false ? buildSignatureSection(isKurdish, isAr) : ''}
+
   </div>
 
   <div class="footer">
@@ -585,7 +632,9 @@ export function buildOutOfStockReportHTML(
   _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
   const isKurdish = isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
+  const isAr = i18n.language === 'ar';
+  const inventorySettings = getInventoryReceiptSettings();
+  const lang = isAr ? 'ar' : isKurdish ? 'ku' : 'en';
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const now = new Date();
@@ -637,6 +686,13 @@ export function buildOutOfStockReportHTML(
             <th style="width:12%;text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
       bodyRows: rows,
     })}
+  ${inventorySettings.customFooterNote ? `
+  <div style="margin: 16px 0; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11.5px; color: #334155;">
+    ${ku(escHtml(inventorySettings.customFooterNote))}
+  </div>` : ''}
+
+  ${inventorySettings.showSignatureArea !== false ? buildSignatureSection(isKurdish, isAr) : ''}
+
   </div>
 
   <div class="footer">
@@ -660,7 +716,8 @@ export function buildCategoryReportHTML(
   _dir: 'ltr' | 'rtl' = 'ltr',
 ): string {
   const isKurdish = isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
+  const isAr = i18n.language === 'ar';
+  const lang = isAr ? 'ar' : isKurdish ? 'ku' : 'en';
   const dir = isKurdish ? 'rtl' : 'ltr';
   const kuAlign = isKurdish ? 'right' : 'left';
   const numAlign = isKurdish ? 'left' : 'right';
@@ -678,6 +735,13 @@ export function buildCategoryReportHTML(
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
   const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
+
+  const inventorySettings = useSettingsStore.getState().inventoryReceiptSettings ?? {
+    showBusinessHeader: true,
+    showStatsCards: true,
+    showSignatureArea: true,
+    customFooterNote: '',
+  };
 
   const rows = products.map((p) => {
     const val = fmtMoney(p.purchasePrice * p.quantity);
@@ -754,6 +818,13 @@ export function buildCategoryReportHTML(
             <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;font-weight:700;">${fmtMoney(totalValue)}</td>
             <td></td>`,
     })}
+
+  ${inventorySettings.customFooterNote ? `
+  <div style="margin: 16px 0; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11.5px; color: #334155;">
+    ${ku(escHtml(inventorySettings.customFooterNote))}
+  </div>` : ''}
+
+  ${inventorySettings.showSignatureArea !== false ? buildSignatureSection(isKurdish, isAr) : ''}
 
   </div>
 

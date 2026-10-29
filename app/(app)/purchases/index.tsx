@@ -40,7 +40,9 @@ export default function PurchasesScreen() {
   const { colors, isDark } = useAppTheme();
   const { purchases, loadPurchases } = usePurchaseStore();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
-  const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
+  const currentLang = useLanguageStore((s) => s.language);
+  const isKuLanguage = currentLang === 'ku';
+  const isArLanguage = currentLang === 'ar';
 
   useEffect(() => {
     loadPurchases();
@@ -482,11 +484,11 @@ export default function PurchasesScreen() {
                           fontSize: isTabletLandscape ? 21 : 19,
                           marginBottom: 4,
                         },
-                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                         { color: colors.black, textAlign: isRTL ? 'right' : 'left' },
                       ]}
                     >
-                      {isKuLanguage ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos Library'}
+                      {isArLanguage ? 'مكتبة الصور المحفوظة' : isKuLanguage ? 'وێنە پاشەکەوتکراوەکان' : 'Saved Photos Library'}
                     </Text>
                     {savedPhotosCount > 0 && (
                       <View
@@ -502,7 +504,7 @@ export default function PurchasesScreen() {
                             fontSize: 11,
                             fontWeight: '700',
                             color: colors.primary,
-                            fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                            fontFamily: (isKuLanguage || isArLanguage) ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                           }}
                         >
                           {savedPhotosCount}
@@ -514,11 +516,13 @@ export default function PurchasesScreen() {
                     style={[
                       styles.secondarySub,
                       isTablet && { fontSize: isTabletLandscape ? 15.5 : 14 },
-                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                      (isKuLanguage || isArLanguage) && { fontFamily: SETTINGS_KURDISH_FONT },
                       { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' },
                     ]}
                   >
-                    {isKuLanguage
+                    {isArLanguage
+                      ? 'عرض وإضافة واستعراض الصور المحفوظة والقوالب'
+                      : isKuLanguage
                       ? 'بینین، زیادکردن و پشکنینی وێنە و کاڵاکانی پێشوو'
                       : 'View, add, and inspect saved photos and presets'}
                   </Text>
