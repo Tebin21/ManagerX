@@ -617,6 +617,13 @@ export function CartItemRow({
       <View style={[styles.lineTotalRow, { borderTopColor: colors.gray100, flexDirection }]}>
         <Text style={[styles.lineTotalLabel, { color: colors.gray400, textAlign }]}>{t('sales.lineTotal')}</Text>
         <View style={[styles.lineTotalStack, { alignItems: alignEnd }]}>
+          {item.discount > 0 && (
+            <AmountText
+              value={item.sellingPrice * item.quantity}
+              variant="small"
+              style={[{ textDecorationLine: 'line-through', color: colors.gray400, fontSize: 12.5, marginBottom: 2, textAlign: isRTL ? 'left' : 'right' }]}
+            />
+          )}
           <AmountText value={item.lineTotal} variant="large" style={[styles.lineTotal, { color: colors.primary, textAlign: isRTL ? 'left' : 'right' }]} />
           {isUSD ? (
             <Text style={[styles.lineTotalUsd, { color: colors.gray400, textAlign: isRTL ? 'left' : 'right' }]}>

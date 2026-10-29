@@ -232,7 +232,20 @@ export function InvoiceView({ sale, compact = false }: Props) {
                   </View>
                   <IdText style={[styles.colId, styles.tableCellMuted, { color: item.itemId ? colors.primary : colors.gray300 }]}>{item.itemId ?? '—'}</IdText>
                   <Text style={[styles.colQty, styles.tableCellMuted, { color: colors.gray600 }]}>{item.quantity}</Text>
-                  <Text style={[styles.colUnitPrice, styles.tableCellValue, { color: colors.gray600 }]}>{fmtMoney(item.sellingPrice)}</Text>
+                  <View style={[styles.colUnitPrice, { justifyContent: 'center', alignItems: 'center' }]}>
+                    {item.discount > 0 ? (
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={[styles.tableCellValue, { textDecorationLine: 'line-through', color: colors.gray400, fontSize: 10 }]}>
+                          {fmtMoney(item.sellingPrice)}
+                        </Text>
+                        <Text style={[styles.tableCellValue, { color: colors.black, fontWeight: '700' }]}>
+                          {fmtMoney(item.sellingPrice - item.discount)}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.tableCellValue, { color: colors.gray600 }]}>{fmtMoney(item.sellingPrice)}</Text>
+                    )}
+                  </View>
                   <Text style={[styles.colDiscount, styles.tableCellValue, { color: item.discount > 0 ? colors.success : colors.gray300 }]}>
                     {fmtDiscount(item.discount)}
                   </Text>

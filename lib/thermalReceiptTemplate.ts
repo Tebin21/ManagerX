@@ -401,12 +401,16 @@ export function buildThermalReceiptHTML(
           ? `<span class="item-id-sub">#${escHtml(item.itemId)}</span>`
           : '';
 
+      const unitPriceWithDiscount = settings.showDiscount && item.discount > 0
+        ? `<span style="text-decoration:line-through;color:#777777;margin-inline-end:3px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>`
+        : fmtRow(item.sellingPrice);
+
       const qtyPricePart = settings.showQty && settings.showItemPrice
-        ? `${item.quantity} × ${fmtRow(item.sellingPrice)}`
+        ? `${item.quantity} × ${unitPriceWithDiscount}`
         : settings.showQty
         ? `${item.quantity} ${ku(isKurdish ? 'دانە' : 'pcs')}`
         : settings.showItemPrice
-        ? `${fmtRow(item.sellingPrice)}`
+        ? unitPriceWithDiscount
         : '';
 
       return `
@@ -426,7 +430,7 @@ export function buildThermalReceiptHTML(
   } else {
     // 80mm & 110mm columnar layout
     const qtyColWidth = width === '110mm' ? '12%' : '14%';
-    const priceColWidth = width === '110mm' ? '20%' : '24%';
+    const priceColWidth = width === '110mm' ? '22%' : '26%';
     const totalColWidth = width === '110mm' ? '22%' : '26%';
 
     const rows = items.map((item, i) => {
@@ -439,6 +443,10 @@ export function buildThermalReceiptHTML(
           ? `<span class="item-discount-sub">${ku(isKurdish ? 'داشکاندن:' : 'Disc:')} -${fmtRow(item.discount)}</span>`
           : '';
 
+      const unitPriceCell = settings.showDiscount && item.discount > 0
+        ? `<span style="text-decoration:line-through;color:#777777;font-size:0.9em;margin-inline-end:3px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>`
+        : fmtRow(item.sellingPrice);
+
       return `
         <tr>
           <td class="item-name-cell">
@@ -447,7 +455,7 @@ export function buildThermalReceiptHTML(
             ${discountTag}
           </td>
           ${settings.showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
-          ${settings.showItemPrice ? `<td class="num-col" style="width:${priceColWidth};">${fmtRow(item.sellingPrice)}</td>` : ''}
+          ${settings.showItemPrice ? `<td class="num-col" style="width:${priceColWidth};">${unitPriceCell}</td>` : ''}
           <td class="num-col" style="width:${totalColWidth};font-weight:700;">${fmtRow(item.lineTotal)}</td>
         </tr>
       `;

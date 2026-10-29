@@ -106,10 +106,10 @@ export default function ReceiptCustomizationScreen() {
     customerPhone: '0750 123 4567',
     customerAddress: 'سلێمانی - تووی مەلیك',
     subtotal: 4750,
-    discountTotal: 0,
-    globalDiscount: 250,
-    grandTotal: 4500,
-    paidAmount: 4500,
+    discountTotal: 750,
+    globalDiscount: 0,
+    grandTotal: 4000,
+    paidAmount: 4000,
     remainingDebt: 0,
     paymentMethod: 'cash',
     notes: 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.',
@@ -144,8 +144,8 @@ export default function ReceiptCustomizationScreen() {
         productName: 'شوکۆلاتە کیندەر بوێنۆ',
         quantity: 3,
         sellingPrice: 750,
-        discount: 0,
-        lineTotal: 2250,
+        discount: 250,
+        lineTotal: 1500,
         itemId: 'KIN-BUE',
       },
     ],
@@ -462,15 +462,25 @@ export default function ReceiptCustomizationScreen() {
                         )}
                       </View>
                       <View style={styles.item58Bottom}>
-                        <Text style={styles.item58QtyPrice}>
-                          {settings.showQty && settings.showItemPrice
-                            ? `${item.quantity} × ${item.sellingPrice}`
-                            : settings.showQty
-                            ? `${item.quantity} دانە`
-                            : settings.showItemPrice
-                            ? `${item.sellingPrice}`
-                            : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                          {settings.showQty && (
+                            <Text style={styles.item58QtyPrice}>{item.quantity} × </Text>
+                          )}
+                          {settings.showItemPrice && (
+                            settings.showDiscount && item.discount > 0 ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10 }]}>
+                                  {item.sellingPrice}
+                                </Text>
+                                <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000' }]}>
+                                  {item.sellingPrice - item.discount}
+                                </Text>
+                              </View>
+                            ) : (
+                              <Text style={styles.item58QtyPrice}>{item.sellingPrice}</Text>
+                            )
+                          )}
+                        </View>
                         <Text style={styles.item58Total}>{item.lineTotal} IQD</Text>
                       </View>
                     </View>
@@ -489,7 +499,7 @@ export default function ReceiptCustomizationScreen() {
                       </Text>
                     )}
                     {settings.showItemPrice && (
-                      <Text style={[styles.colHeader, styles.colRight, { flex: 1.2 }]}>
+                      <Text style={[styles.colHeader, styles.colRight, { flex: 1.3 }]}>
                         {isKurdish ? 'نرخ' : 'Price'}
                       </Text>
                     )}
@@ -514,9 +524,22 @@ export default function ReceiptCustomizationScreen() {
                         </Text>
                       )}
                       {settings.showItemPrice && (
-                        <Text style={[styles.tableItemCell, styles.colRight, { flex: 1.2 }]}>
-                          {item.sellingPrice}
-                        </Text>
+                        <View style={{ flex: 1.3, justifyContent: 'center', alignItems: 'flex-end' }}>
+                          {settings.showDiscount && item.discount > 0 ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                              <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5 }]}>
+                                {item.sellingPrice}
+                              </Text>
+                              <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000' }]}>
+                                {item.sellingPrice - item.discount}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Text style={[styles.tableItemCell, styles.colRight]}>
+                              {item.sellingPrice}
+                            </Text>
+                          )}
+                        </View>
                       )}
                       <Text style={[styles.tableItemCell, styles.colRight, { flex: 1.3, fontWeight: '700' }]}>
                         {item.lineTotal}
@@ -541,7 +564,7 @@ export default function ReceiptCustomizationScreen() {
                 {settings.showDiscount && (
                   <View style={styles.receiptRow}>
                     <Text style={styles.receiptLabel}>{isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
-                    <Text style={styles.receiptValue}>− 250 IQD</Text>
+                    <Text style={styles.receiptValue}>− 750 IQD</Text>
                   </View>
                 )}
 
@@ -550,7 +573,7 @@ export default function ReceiptCustomizationScreen() {
                   <Text style={styles.receiptGrandTotalLabel}>
                     {isKurdish ? 'کۆی گشتی:' : 'Total:'}
                   </Text>
-                  <Text style={styles.receiptGrandTotalAmount}>4,500 IQD</Text>
+                  <Text style={styles.receiptGrandTotalAmount}>4,000 IQD</Text>
                 </View>
 
                 {settings.showPaymentMethod && (

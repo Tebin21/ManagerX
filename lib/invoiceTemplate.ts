@@ -494,7 +494,7 @@ export function buildInvoiceHTML(
       <td style="width:36%;text-align:${kuAlign};"><span class="item-name">${escHtml(item.productName)}</span>${item.itemDescription ? `<span class="item-desc">${escHtml(item.itemDescription)}</span>` : ''}</td>
       <td class="center" style="width:12%;">${item.itemId ? `<span class="id-chip">${escHtml(item.itemId)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="center" style="width:6%;">${item.quantity}</td>
-      <td class="right" style="width:13%;white-space:nowrap !important;">${fmtRow(item.sellingPrice)}</td>
+      <td class="right" style="width:13%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="text-decoration:line-through;color:#94a3b8;font-size:0.9em;margin-inline-end:4px;">${fmtRow(item.sellingPrice)}</span><span style="font-weight:700;">${fmtRow(item.sellingPrice - item.discount)}</span>` : fmtRow(item.sellingPrice)}</td>
       <td class="right" style="width:11%;white-space:nowrap !important;">${item.discount > 0 ? `<span style="color:#d97706;font-weight:600;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="right" style="width:18%;white-space:nowrap !important;font-weight:700;">${fmtRow(item.lineTotal)}</td>
     </tr>

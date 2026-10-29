@@ -79,7 +79,7 @@ export function buildQuotationHTML(
         ${item.itemId ? `<span class="id-chip"><span class="en-num" dir="ltr">${escHtml(item.itemId)}</span></span>` : '<span class="muted-cell">—</span>'}
       </td>
       <td class="center" style="width:6%;font-weight:700;"><span class="en-num" dir="ltr">${item.quantity}</span></td>
-      <td class="price-col" style="width:13%;"><span class="en-num" dir="ltr">${fmtRow(item.unitPrice)}</span></td>
+      <td class="price-col" style="width:13%;">${item.discount > 0 ? `<span class="en-num" dir="ltr" style="text-decoration:line-through;color:#94a3b8;font-size:0.9em;margin-inline-end:4px;">${fmtRow(item.unitPrice)}</span><span class="en-num" dir="ltr" style="font-weight:700;">${fmtRow(item.unitPrice - item.discount)}</span>` : `<span class="en-num" dir="ltr">${fmtRow(item.unitPrice)}</span>`}</td>
       <td class="price-col" style="width:11%;">${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;color:#d97706;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
       <td class="price-col" style="width:16%;font-weight:800;color:#000000;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
     </tr>
