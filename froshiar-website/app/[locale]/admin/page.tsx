@@ -671,22 +671,18 @@ export default function AdminDashboardPage() {
         >
           {/* Logo & Header */}
           <div className="text-center mb-6 sm:mb-8">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#D4AF37]/40 p-2.5 flex items-center justify-center border border-[#D4AF37]/30 shadow-lg">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-4 rounded-3xl p-1 bg-gradient-to-tr from-[#D4AF37] via-[#F59E0B] to-[#D4AF37] shadow-xl shadow-[#D4AF37]/25 transition-transform duration-300 hover:scale-105">
               <img
-                src="/logo.png"
-                alt="Froshiar Logo"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
+                src="/logo-icon.png"
+                alt="Froshiar App Store Icon"
+                className="w-full h-full object-cover rounded-[20px]"
               />
-              <span className="text-2xl font-black text-[#D4AF37] select-none">F</span>
             </div>
 
-            <h1 className="text-2xl font-bold tracking-tight mb-1.5 text-inherit">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-1.5 text-inherit">
               {t.loginTitle}
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs sm:text-sm font-semibold text-slate-400">
               {t.loginSubtitle}
             </p>
           </div>
@@ -802,7 +798,10 @@ export default function AdminDashboardPage() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="w-px h-5 bg-slate-300/40 dark:bg-slate-700/60 shrink-0" />
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 border border-[#D4AF37]/40 shadow-xs">
+                <img src="/logo-icon.png" alt="Froshiar" className="w-full h-full object-cover" />
+              </div>
               <span className="text-sm sm:text-xl font-extrabold tracking-tight truncate">
                 {t.adminTitle}
               </span>
@@ -896,8 +895,12 @@ export default function AdminDashboardPage() {
         {/* Drawer Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#F59E0B] flex items-center justify-center text-slate-950 font-black text-base shadow-md shrink-0">
-              F
+            <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-md shrink-0 border border-[#D4AF37]/30">
+              <img
+                src="/logo-icon.png"
+                alt="Froshiar"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="min-w-0">
               <h3 className="text-base font-extrabold text-inherit truncate">
