@@ -46,6 +46,11 @@ import {
   Layers,
   ArrowUpDown,
   AlertTriangle,
+  Crown,
+  KeyRound,
+  UserCheck,
+  BadgeCheck,
+  Wand2,
 } from 'lucide-react';
 import { getClientFirestore } from '@/lib/firebase';
 import {
@@ -125,7 +130,33 @@ export interface EmployeeAccount {
   deviceModel?: string;
   deviceName?: string;
   permissions: EmployeePermissions;
+  accountType?: 'registered' | 'custom';
+  role?: 'manager' | 'employee';
+  provider?: string;
 }
+
+export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {
+  sales: 'active',
+  purchases: 'active',
+  inventory: 'active',
+  reports: 'active',
+  history: 'active',
+  invoices: 'active',
+  debts: 'active',
+  expenses: 'active',
+  quotations: 'active',
+  dashboard: 'active',
+  onlineStore: 'active',
+
+  canDeleteInvoice: true,
+
+  settingsLanguage: 'active',
+  settingsProfile: 'active',
+  settingsCurrency: 'active',
+  settingsTheme: 'active',
+  settingsBackup: 'active',
+  settingsDeleteAccount: 'active',
+};
 
 export const DEFAULT_LIMITS: EmployeeUsageLimits = {
   maxItems: 20,
@@ -529,6 +560,11 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalMode, setAddModalMode] = useState<'upgrade_registered' | 'create_custom'>('upgrade_registered');
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  const [regUsersLoading, setRegUsersLoading] = useState(false);
+  const [selectedRegisteredUserEmail, setSelectedRegisteredUserEmail] = useState('');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [isPermModalOpen, setIsPermModalOpen] = useState(false);
@@ -650,6 +686,70 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       setLoading(false);
     }
   }, []);
+
+  // Fetch registered users from app_telemetry_users
+  const fetchRegisteredUsers = useCallback(async () => {
+    const db = getClientFirestore();
+    if (!db) return;
+    setRegUsersLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'app_telemetry_users'));
+      const list: any[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data && (data.email || data.user_id || data.display_name)) {
+          list.push({ id: d.id, ...data });
+        }
+      });
+      list.sort((a, b) => new Date(b.last_login_at || b.created_at || 0).getTime() - new Date(a.last_login_at || a.created_at || 0).getTime());
+      setRegisteredUsers(list);
+    } catch (err) {
+      console.warn('Could not fetch app_telemetry_users:', err);
+    } finally {
+      setRegUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRegisteredUsers();
+  }, [fetchRegisteredUsers]);
+
+  // Filtered registered users
+  const filteredRegisteredUsers = useMemo(() => {
+    if (!userSearchTerm.trim()) return registeredUsers.slice(0, 35);
+    const q = userSearchTerm.toLowerCase().trim();
+    return registeredUsers.filter((u) => {
+      const email = (u.email || '').toLowerCase();
+      const name = (u.display_name || '').toLowerCase();
+      const bName = (u.business_name || '').toLowerCase();
+      const phone = (u.phone || '').toLowerCase();
+      return email.includes(q) || name.includes(q) || bName.includes(q) || phone.includes(q);
+    });
+  }, [registeredUsers, userSearchTerm]);
+
+  // Select a registered user in Upgrade Modal
+  const handleSelectRegisteredUser = (user: any) => {
+    const cleanEmail = (user.email || user.user_id || '').trim().toLowerCase();
+    setSelectedRegisteredUserEmail(cleanEmail);
+    const dName = user.display_name || user.business_name || (cleanEmail ? cleanEmail.split('@')[0] : '');
+    setFormName(dName);
+    setFormEmail(cleanEmail);
+    setFormPhone(user.phone || '');
+    setFormManagerEmail(cleanEmail); // Defaults to user's email for independent Google Drive sync
+    const sName = user.business_name || dName;
+    setStoreName(sName);
+    setStoreSubdomain(slugifyStoreName(sName || cleanEmail.split('@')[0]));
+  };
+
+  // Helper: Generate Random Password
+  const generateRandomPassword = () => {
+    const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+    let pass = '';
+    for (let i = 0; i < 8; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  };
 
   // Unique list of managers
   const managerList = useMemo(() => {
@@ -890,7 +990,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setFormError(null);
 
     try {
-      const docRef = doc(db, 'employee_accounts', selectedEmployee.id || getCleanDocId(selectedEmployee.email));
+      const cleanEmail = formEmail.trim().toLowerCase();
+      const docId = selectedEmployee.id || getCleanDocId(cleanEmail);
+      const docRef = doc(db, 'employee_accounts', docId);
 
       const updatedLimits: EmployeeUsageLimits = {
         maxItems: unlimitedItems ? 'unlimited' : Number(formLimits.maxItems) || 20,
@@ -900,30 +1002,79 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
+      const finalStoreName = storeName.trim() || formName.trim() || selectedEmployee.displayName;
+      const finalSubdomain = storeSubdomain.trim() || slugifyStoreName(finalStoreName) || getCleanDocId(selectedEmployee.displayName);
+
       const updatedStore: OnlineStoreConfig | undefined = storeEnabled
         ? {
             enabled: true,
-            storeName: storeName.trim() || selectedEmployee.displayName,
-            subdomain: storeSubdomain.trim() || getCleanDocId(selectedEmployee.displayName),
+            storeName: finalStoreName,
+            subdomain: finalSubdomain,
             status: selectedEmployee.onlineStore?.status || 'active',
+            activatedAt: selectedEmployee.onlineStore?.activatedAt || new Date().toISOString(),
           }
         : undefined;
 
+      const startDate = formStartedAt ? new Date(formStartedAt).toISOString() : selectedEmployee.startedAt || selectedEmployee.createdAt;
+      const expDate = formExpiresAt ? new Date(formExpiresAt).toISOString() : undefined;
+
       const payload: Partial<EmployeeAccount> = {
-        displayName: formName.trim(),
-        email: formEmail.trim().toLowerCase(),
-        password: formPassword.trim(),
-        managerEmail: formManagerEmail.trim().toLowerCase(),
+        displayName: formName.trim() || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        password: formPassword.trim() ? formPassword.trim() : (selectedEmployee.password || ''),
+        managerEmail: formManagerEmail.trim().toLowerCase() || cleanEmail,
         phone: formPhone.trim(),
         priceAmount: formPrice.trim(),
-        startedAt: formStartedAt ? new Date(formStartedAt).toISOString() : selectedEmployee.startedAt || selectedEmployee.createdAt,
-        expiresAt: formExpiresAt ? new Date(formExpiresAt).toISOString() : undefined,
+        startedAt: startDate,
+        expiresAt: expDate,
         durationDays: typeof formDuration === 'number' ? formDuration : undefined,
         limits: updatedLimits,
         onlineStore: updatedStore,
       };
 
       await setDoc(docRef, payload, { merge: true });
+
+      // Synchronize to user_subscriptions
+      try {
+        const subRef = doc(db, 'user_subscriptions', docId);
+        await setDoc(
+          subRef,
+          {
+            id: docId,
+            email: cleanEmail,
+            customerName: formName.trim() || cleanEmail.split('@')[0],
+            phone: formPhone.trim(),
+            status: selectedEmployee.status || 'active',
+            startDate: startDate,
+            expiresAt: expDate || null,
+            storefront_enabled: storeEnabled,
+            onlineStoreActive: storeEnabled,
+            onlineStore: updatedStore || null,
+            priceAmount: formPrice.trim() || null,
+            limits: updatedLimits,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        if (storeEnabled) {
+          await setDoc(
+            doc(db, 'store_activations', docId),
+            {
+              email: cleanEmail,
+              enabled: true,
+              status: selectedEmployee.onlineStore?.status || 'active',
+              storeName: finalStoreName,
+              subdomain: finalSubdomain,
+              activatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
+      } catch (subErr) {
+        console.warn('Subscription sync warning in edit:', subErr);
+      }
+
       setIsEditModalOpen(false);
       setSelectedEmployee(null);
     } catch (err: any) {
@@ -958,8 +1109,9 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       }
       baseDate.setDate(baseDate.getDate() + Number(renewDays));
       const newExpiresAt = baseDate.toISOString();
+      const docId = selectedEmployee.id || getCleanDocId(selectedEmployee.email);
 
-      const docRef = doc(db, 'employee_accounts', selectedEmployee.id || getCleanDocId(selectedEmployee.email));
+      const docRef = doc(db, 'employee_accounts', docId);
       await setDoc(
         docRef,
         {
@@ -969,6 +1121,22 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         },
         { merge: true }
       );
+
+      // Also sync user_subscriptions
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          {
+            status: 'active',
+            expiresAt: newExpiresAt,
+            priceAmount: renewPrice.trim() || selectedEmployee.priceAmount,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (sErr) {
+        console.warn('Subscription renewal sync warning:', sErr);
+      }
 
       setIsRenewModalOpen(false);
       setSelectedEmployee(null);
@@ -1011,11 +1179,54 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     }
   };
 
-  // Open Add Modal
-  const handleOpenAdd = () => {
+  // ── Button 1: Open Upgrade Registered User Modal ──
+  const handleOpenUpgradeUser = () => {
+    setAddModalMode('upgrade_registered');
     setFormName('');
     setFormEmail('');
     setFormPassword('');
+    setFormManagerEmail('');
+    setFormPhone('');
+    setFormPrice('');
+    setFormDuration('unlimited');
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    setFormStartedAt(todayStr);
+    setFormExpiresAt(''); // Unlimited default for upgraded registered owners
+
+    setFormLimits({
+      maxItems: 'unlimited',
+      maxQuantity: 'unlimited',
+      maxSales: 'unlimited',
+      maxInvoices: 'unlimited',
+      maxQuotations: 'unlimited',
+    });
+    setUnlimitedItems(true);
+    setUnlimitedQuantity(true);
+    setUnlimitedSales(true);
+    setUnlimitedInvoices(true);
+    setUnlimitedQuotations(true);
+
+    setStoreEnabled(true);
+    setStoreName('');
+    setStoreSubdomain('');
+
+    setSelectedRegisteredUserEmail('');
+    setUserSearchTerm('');
+    setShowCalendar(false);
+    setFormError(null);
+    setIsAddModalOpen(true);
+
+    fetchRegisteredUsers();
+  };
+
+  // ── Button 2: Open Create Custom Account with Password Modal ──
+  const handleOpenCreateCustom = () => {
+    setAddModalMode('create_custom');
+    setFormName('');
+    setFormEmail('');
+    setFormPassword(generateRandomPassword());
     setFormManagerEmail('');
     setFormPhone('');
     setFormPrice('');
@@ -1040,17 +1251,42 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     setStoreName('');
     setStoreSubdomain('');
 
+    setSelectedRegisteredUserEmail('');
+    setUserSearchTerm('');
     setShowCalendar(false);
     setFormError(null);
     setIsAddModalOpen(true);
   };
 
-  // Execute Add
+  // Alias for backward compatibility
+  const handleOpenAdd = handleOpenUpgradeUser;
+
+  // Execute Add / Upgrade
   const handleSaveAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formEmail.trim() || !formPassword.trim() || !formManagerEmail.trim()) {
-      setFormError(isKu ? 'تکایە هەموو خانە سەرەکییەکان پڕبکەرەوە' : 'Please fill all required fields');
-      return;
+
+    if (addModalMode === 'create_custom') {
+      if (!formName.trim() || !formEmail.trim() || !formPassword.trim() || !formManagerEmail.trim()) {
+        setFormError(
+          isKu
+            ? 'تکایە هەموو خانە سەرەکییەکان (ناو، ئیمەیڵ، تێپەڕەوشە، ئیمەیڵی بەڕێوەبەر) پڕبکەرەوە'
+            : 'Please fill all required fields (Name, Email, Password, Manager Email)'
+        );
+        return;
+      }
+    } else {
+      // upgrade_registered mode
+      if (!formEmail.trim()) {
+        setFormError(
+          isKu
+            ? 'تکایە ئیمەیڵی بەکارهێنەری تۆمارکراو دیاریبکە یان بنووسە'
+            : 'Please select or type the registered user email'
+        );
+        return;
+      }
+      if (!formName.trim()) {
+        setFormName(formEmail.trim().split('@')[0]);
+      }
     }
 
     const cleanEmail = formEmail.trim().toLowerCase();
@@ -1071,12 +1307,16 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
+      const finalStoreName = storeName.trim() || formName.trim() || cleanEmail.split('@')[0];
+      const finalSubdomain = storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId;
+
       const updatedStore: OnlineStoreConfig | undefined = storeEnabled
         ? {
             enabled: true,
-            storeName: storeName.trim() || formName.trim(),
-            subdomain: storeSubdomain.trim() || getCleanDocId(formName.trim()),
+            storeName: finalStoreName,
+            subdomain: finalSubdomain,
             status: 'active',
+            activatedAt: new Date().toISOString(),
           }
         : undefined;
 
@@ -1087,12 +1327,15 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         ? new Date(Date.now() + formDuration * 24 * 60 * 60 * 1000).toISOString()
         : undefined;
 
+      const mgrEmail = formManagerEmail.trim().toLowerCase() || cleanEmail;
+
+      // 1. Write to employee_accounts
       const newAccount: EmployeeAccount = {
         id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         email: cleanEmail,
-        displayName: formName.trim(),
-        password: formPassword.trim(),
-        managerEmail: formManagerEmail.trim().toLowerCase(),
+        displayName: formName.trim() || cleanEmail.split('@')[0],
+        password: addModalMode === 'create_custom' ? formPassword.trim() : '',
+        managerEmail: mgrEmail,
         phone: formPhone.trim(),
         priceAmount: formPrice.trim(),
         durationDays: typeof formDuration === 'number' ? formDuration : undefined,
@@ -1101,17 +1344,78 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         status: 'active',
         limits: updatedLimits,
         onlineStore: updatedStore,
-        permissions: DEFAULT_PERMISSIONS,
+        permissions: addModalMode === 'upgrade_registered' ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
         createdAt: new Date().toISOString(),
+        accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
+        role: addModalMode === 'upgrade_registered' ? 'manager' : 'employee',
       };
 
       const docRef = doc(db, 'employee_accounts', docId);
       await setDoc(docRef, newAccount, { merge: true });
 
+      // 2. Synchronize to user_subscriptions so cloud verification activates in mobile app
+      try {
+        const subRef = doc(db, 'user_subscriptions', docId);
+        await setDoc(
+          subRef,
+          {
+            id: docId,
+            email: cleanEmail,
+            customerName: formName.trim() || cleanEmail.split('@')[0],
+            phone: formPhone.trim(),
+            status: 'active',
+            tier: addModalMode === 'upgrade_registered' ? 'pro' : 'standard',
+            planId: formDuration === 'unlimited' || !expDate ? 'lifetime' : `${formDuration}d`,
+            startDate: startDate,
+            expiresAt: expDate || null,
+            storefront_enabled: storeEnabled,
+            onlineStoreActive: storeEnabled,
+            onlineStore: updatedStore || null,
+            priceAmount: formPrice.trim() || null,
+            limits: updatedLimits,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        // 3. If online storefront is enabled, also write to store_activations
+        if (storeEnabled) {
+          await setDoc(
+            doc(db, 'store_activations', docId),
+            {
+              email: cleanEmail,
+              enabled: true,
+              status: 'active',
+              storeName: finalStoreName,
+              subdomain: finalSubdomain,
+              activatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
+
+        // 4. Update app_telemetry_users tier & details
+        await setDoc(
+          doc(db, 'app_telemetry_users', docId),
+          {
+            email: cleanEmail,
+            phone: formPhone.trim() || null,
+            display_name: formName.trim() || null,
+            business_name: finalStoreName,
+            tier: 'pro',
+            subscription_status: 'active',
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (subErr) {
+        console.warn('Subscription sync warning:', subErr);
+      }
+
       setIsAddModalOpen(false);
     } catch (err: any) {
-      console.error('Error adding employee:', err);
-      setFormError(err?.message || (isKu ? 'هەڵەیەک ڕوویدا' : 'Failed to add employee'));
+      console.error('Error adding/upgrading employee:', err);
+      setFormError(err?.message || (isKu ? 'هەڵەیەک ڕوویدا' : 'Failed to save account'));
     } finally {
       setSubmitting(false);
     }
@@ -1211,14 +1515,34 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
           </div>
         </div>
 
-        {/* Action Button: Add Employee */}
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>{isKu ? '+ زیادکردنی ئەکاونتی نوێ' : '+ Add New Account'}</span>
-        </button>
+        {/* Action Buttons: 1. Upgrade Registered User | 2. Create Account with Password */}
+        <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          {/* Button 1: Upgrade Registered User */}
+          <button
+            type="button"
+            onClick={handleOpenUpgradeUser}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 cursor-pointer shrink-0 border border-amber-400/50"
+          >
+            <Sparkles className="w-4 h-4 text-slate-950 fill-slate-950" />
+            <span>{isKu ? '+ بەرزکردنەوەی ئەکاونتی تۆمارکراو' : '+ Upgrade Registered User'}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-950/20 font-mono font-extrabold hidden md:inline">
+              {isKu ? 'گووگڵ / ئەپڵ' : 'Google/Apple'}
+            </span>
+          </button>
+
+          {/* Button 2: Create Custom Account with Password */}
+          <button
+            type="button"
+            onClick={handleOpenCreateCustom}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 cursor-pointer shrink-0 border border-purple-400/30"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{isKu ? '+ دروستکردنی ئەکاونتی نوێ بە پاسۆرد' : '+ Create Account with Password'}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 font-mono font-extrabold hidden md:inline">
+              {isKu ? 'کارمەند' : 'Staff'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ── KPI Stat Cards ── */}
@@ -1481,6 +1805,19 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                               : isKu ? 'چالاک' : 'Active'}
                           </span>
 
+                          {/* Account Type Badge */}
+                          {emp.accountType === 'registered' || !emp.password ? (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-amber-500" />
+                              <span>{isKu ? 'ئەکاونتی فەرمی (گووگڵ/ئەپڵ)' : 'Registered User'}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                              <Key className="w-3 h-3 text-purple-500" />
+                              <span>{isKu ? 'کارمەند (پاسۆرد)' : 'Password Account'}</span>
+                            </span>
+                          )}
+
                           {/* Price Tag */}
                           {emp.priceAmount && (
                             <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold border ${
@@ -1712,34 +2049,43 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                       <span className={`flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
                         <Key className="w-4 h-4 text-amber-500 shrink-0" />
-                        <span>{isKu ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}</span>
+                        <span>{isKu ? 'شێوازی چوونەژوورەوە:' : 'Login Method:'}</span>
                       </span>
                       <div className="flex items-center gap-2">
-                        {emp.passwordUpdatedAt && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                            {isKu ? 'نوێکراوەتەوە ⚡' : 'Updated ⚡'}
+                        {emp.accountType === 'registered' || !emp.password ? (
+                          <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>{isKu ? 'چوونەژوورەوەی فەرمی (گووگڵ / ئەپڵ / ئیمەیڵ - بێ پاسۆرد)' : 'Official Login (Passwordless)'}</span>
                           </span>
+                        ) : (
+                          <>
+                            {emp.passwordUpdatedAt && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                {isKu ? 'نوێکراوەتەوە ⚡' : 'Updated ⚡'}
+                              </span>
+                            )}
+                            <span className={`font-mono text-xs sm:text-sm font-black px-2.5 py-1 rounded-lg border tracking-wider select-all ${
+                              isDarkMode ? 'bg-slate-800 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-950 border-amber-300 font-bold shadow-2xs'
+                            }`}>
+                              {emp.password}
+                            </span>
+                            <button
+                              onClick={() => handleCopyCredentials(emp)}
+                              className={`p-1.5 rounded-md transition cursor-pointer border ${
+                                isDarkMode
+                                  ? 'hover:bg-slate-800 text-slate-400 hover:text-white border-transparent'
+                                  : 'hover:bg-slate-200 text-slate-700 border-slate-300 shadow-2xs'
+                              }`}
+                              title={isKu ? 'کۆپیکردنی زانیاری چوونەژوورەوە' : 'Copy credentials'}
+                            >
+                              {copiedId === emp.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </>
                         )}
-                        <span className={`font-mono text-xs sm:text-sm font-black px-2.5 py-1 rounded-lg border tracking-wider select-all ${
-                          isDarkMode ? 'bg-slate-800 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-950 border-amber-300 font-bold shadow-2xs'
-                        }`}>
-                          {emp.password ? emp.password : '••••••••'}
-                        </span>
-                        <button
-                          onClick={() => handleCopyCredentials(emp)}
-                          className={`p-1.5 rounded-md transition cursor-pointer border ${
-                            isDarkMode
-                              ? 'hover:bg-slate-800 text-slate-400 hover:text-white border-transparent'
-                              : 'hover:bg-slate-200 text-slate-700 border-slate-300 shadow-2xs'
-                          }`}
-                          title={isKu ? 'کۆپیکردنی زانیاری چوونەژوورەوە' : 'Copy credentials'}
-                        >
-                          {copiedId === emp.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1809,15 +2155,27 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             {/* Header */}
             <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0">
-                  <UserPlus className="w-6 h-6" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 ${
+                  addModalMode === 'upgrade_registered'
+                    ? 'bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-600 text-slate-950 shadow-amber-500/20'
+                    : 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-purple-500/20'
+                }`}>
+                  {addModalMode === 'upgrade_registered' ? (
+                    <Sparkles className="w-6 h-6 text-slate-950 fill-slate-950" />
+                  ) : (
+                    <UserPlus className="w-6 h-6 text-white" />
+                  )}
                 </div>
                 <div>
                   <h3 className={`text-lg sm:text-xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                    {isKu ? 'زیادکردنی ئەکاونتی نوێ و دیاریکردنی بەشداریکردن' : 'Add Employee Account & Plan'}
+                    {addModalMode === 'upgrade_registered'
+                      ? (isKu ? 'بەرزکردنەوە و کاراکردنی پلانی بەکارهێنەری تۆمارکراو' : 'Upgrade & Activate Registered User Plan')
+                      : (isKu ? 'دروستکردنی ئەکاونتی نوێ بە تێپەڕەوشە (پاسۆرد)' : 'Create New Account with Password')}
                   </h3>
                   <p className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {isKu ? 'تۆمارکردنی ئیمەیڵ، پاسۆرد، بەڕێوەبەر، کاتی دەستپێک و کۆتایی، پارە و لیمیتەکان' : 'Credentials, manager link, dates, price & usage limits'}
+                    {addModalMode === 'upgrade_registered'
+                      ? (isKu ? 'تایبەت بە بەکارهێنەرانی چوونەژوورەوەی فەرمی (گووگڵ / ئەپڵ / ئیمەیڵ) بێ پێویستی بە پاسۆرد' : 'For users logged in via official providers (Google/Apple/Email) - passwordless')
+                      : (isKu ? 'تۆمارکردنی ناوی کارمەند، ئیمەیڵ، تێپەڕەوشە، ئیمەیڵی بەڕێوەبەر، ماوە و سنوورەکان' : 'Name, phone, employee login, password, supervising manager, dates & limits')}
                   </p>
                 </div>
               </div>
@@ -1831,6 +2189,61 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
               </button>
             </div>
 
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddModalMode('upgrade_registered');
+                  setFormDuration('unlimited');
+                  setFormExpiresAt('');
+                  setFormLimits({
+                    maxItems: 'unlimited',
+                    maxQuantity: 'unlimited',
+                    maxSales: 'unlimited',
+                    maxInvoices: 'unlimited',
+                    maxQuotations: 'unlimited',
+                  });
+                  setUnlimitedItems(true);
+                  setUnlimitedQuantity(true);
+                  setUnlimitedSales(true);
+                  setUnlimitedInvoices(true);
+                  setUnlimitedQuotations(true);
+                  setStoreEnabled(true);
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  addModalMode === 'upgrade_registered'
+                    ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/25 border border-amber-400/50'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>{isKu ? '١. بەرزکردنەوەی ئەکاونتی تۆمارکراو (گووگڵ / ئەپڵ)' : '1. Upgrade Registered User (Google/Apple)'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAddModalMode('create_custom');
+                  if (!formPassword) setFormPassword(generateRandomPassword());
+                  setFormLimits(DEFAULT_LIMITS);
+                  setUnlimitedItems(false);
+                  setUnlimitedQuantity(false);
+                  setUnlimitedSales(false);
+                  setUnlimitedInvoices(false);
+                  setUnlimitedQuotations(false);
+                }}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  addModalMode === 'create_custom'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 border border-purple-400/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-4 h-4 shrink-0" />
+                <span>{isKu ? '٢. دروستکردنی ئەکاونتی نوێ بە پاسۆرد (کارمەند)' : '2. Create Custom Account (Password)'}</span>
+              </button>
+            </div>
+
             {formError && (
               <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs sm:text-sm flex items-center gap-2 font-bold">
                 <AlertCircle className="w-5 h-5 shrink-0" />
@@ -1839,109 +2252,336 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             )}
 
             <form onSubmit={handleSaveAdd} className="space-y-6">
-              {/* Section 1: Basic Information & Credentials */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-purple-600 dark:text-purple-400">
-                  <Users className="w-4 h-4" />
-                  <span>{isKu ? 'زانیارییە سەرەکییەکان و هەژماری چوونەژوورەوە:' : 'Basic Credentials & Login:'}</span>
+              {/* Section 1: User Selection or Credentials */}
+              {addModalMode === 'upgrade_registered' ? (
+                /* ── UPGRADE REGISTERED USER FLOW ── */
+                <div className="space-y-4">
+                  <div className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
+                    isDarkMode ? 'bg-[#0E1524] border-amber-500/30' : 'bg-amber-50/70 border-amber-200'
+                  }`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-black text-amber-700 dark:text-amber-400">
+                          {isKu ? 'هەڵبژاردنی بەکارهێنەری تۆمارکراو لەناو سیستەمدا:' : 'Select Registered App User:'}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        {registeredUsers.length} {isKu ? 'بەکارهێنەر لە سیستەمدا هەن' : 'registered users found'}
+                      </span>
+                    </div>
+
+                    {/* Search box for registered users */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder={isKu ? 'گەڕان بەپێی ناو، ئیمەیڵ، ژمارە تەلەفۆن، یان ناوی مارکێت...' : 'Search by name, email, phone, business...'}
+                        value={userSearchTerm}
+                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                        className={`w-full px-4 py-2.5 pr-10 rounded-xl text-xs sm:text-sm border outline-none font-medium transition ${
+                          isDarkMode ? 'bg-[#10182B] border-slate-700 text-white placeholder-slate-500 focus:border-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-500 shadow-2xs'
+                        }`}
+                      />
+                      <Search className="w-4 h-4 absolute right-3 top-3 text-slate-400" />
+                    </div>
+
+                    {/* Quick Registered Users List Scrollable */}
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                      {regUsersLoading ? (
+                        <div className="text-center py-4 text-xs font-bold text-slate-400 flex items-center justify-center gap-2">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>{isKu ? 'بارکردنی بەکارهێنەران...' : 'Loading users...'}</span>
+                        </div>
+                      ) : filteredRegisteredUsers.length === 0 ? (
+                        <div className="text-center py-4 text-xs font-bold text-slate-400">
+                          {isKu ? 'هیچ بەکارهێنەرێک نەدۆزرایەوە بەم ناوە' : 'No matching users found'}
+                        </div>
+                      ) : (
+                        filteredRegisteredUsers.map((u) => {
+                          const uEmail = (u.email || u.user_id || '').trim().toLowerCase();
+                          const isSelected = selectedRegisteredUserEmail === uEmail && uEmail !== '';
+                          const providerName = u.provider || (u.email?.includes('gmail') ? 'google.com' : u.email?.includes('privaterelay') ? 'apple.com' : 'email');
+                          const isGoogle = providerName.includes('google');
+                          const isApple = providerName.includes('apple');
+
+                          return (
+                            <div
+                              key={u.id || u.user_id || u.email}
+                              onClick={() => handleSelectRegisteredUser(u)}
+                              className={`p-2.5 sm:p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'bg-amber-500/20 border-amber-500 shadow-sm'
+                                  : isDarkMode
+                                  ? 'bg-[#10182B] border-slate-800 hover:border-amber-500/60 hover:bg-slate-800/60'
+                                  : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 shadow-2xs'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
+                                  isGoogle
+                                    ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30'
+                                    : isApple
+                                    ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
+                                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                                }`}>
+                                  {u.display_name ? u.display_name.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-xs font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                      {u.display_name || u.business_name || (u.email ? u.email.split('@')[0] : 'User')}
+                                    </span>
+                                    {/* Provider badge */}
+                                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                                      isGoogle ? 'bg-red-500/15 text-red-600' : isApple ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300' : 'bg-blue-500/15 text-blue-600'
+                                    }`}>
+                                      {isGoogle ? 'Google' : isApple ? 'Apple' : 'Email'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] font-mono text-slate-500 truncate">
+                                    {u.email || u.user_id} {u.phone ? `• ${u.phone}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                {isSelected ? (
+                                  <span className="px-2 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-[11px] flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    <span>{isKu ? 'دیاریکراو' : 'Selected'}</span>
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition ${
+                                    isDarkMode ? 'border-slate-700 text-slate-300 hover:text-white' : 'border-slate-300 text-slate-700 hover:text-slate-900 bg-slate-50'
+                                  }`}>
+                                    {isKu ? 'هەڵبژاردن' : 'Select'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Explanatory callout */}
+                    <div className={`p-3 rounded-xl border text-xs leading-relaxed space-y-1 ${
+                      isDarkMode ? 'bg-amber-950/20 border-amber-500/30 text-amber-300/90' : 'bg-amber-50 border-amber-300 text-amber-950'
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isKu ? 'چۆنیەتی کارکردن و بەستنەوە:' : 'How this account works:'}</span>
+                      </div>
+                      <p>
+                        {isKu
+                          ? 'ئەم بەکارهێنەرە بە فەرمی بە (Google / Apple / Email) دەچێتەژوورەوە و هیچ پێویستی بە پاسۆرد نییە. کاتێك پلانەکەی بۆ بەرز دەکەیتەوە، یەکسەر هەموو سنوورەکان و ستۆری ئۆنلاین بۆی دەکرێتەوە و ڕاستەوخۆ دەتوانێت گووگڵ درایڤ ببەستێتەوە بۆ باکئەپی سەرەکی.'
+                          : 'User logs in via official provider without a password. Upgrading unlocks their limits & online store and enables instant Google Drive sync.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Upgraded User Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                    {/* User Email */}
+                    <div className="md:col-span-2">
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ئیمەیڵی فەرمی بەکارهێنەر (بۆ بەرزکردنەوە) *' : 'Registered User Email *'}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="user@gmail.com"
+                        value={formEmail}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormEmail(val);
+                          if (!formManagerEmail) setFormManagerEmail(val);
+                        }}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-amber-500/50 text-slate-100 placeholder-slate-500 focus:border-amber-500'
+                            : 'bg-white border-amber-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Display Name */}
+                    <div>
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ناوی بەکارهێنەر / مارکێت' : 'Display / Store Name'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={isKu ? 'نموونە: ئارام محەمەد' : 'e.g. John Doe'}
+                        value={formName}
+                        onChange={(e) => setFormName(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-medium ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ژمارەی مۆبایل (بۆ وەتسئەپ)' : 'Phone (WhatsApp)'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="0750XXXXXXX"
+                        value={formPhone}
+                        onChange={(e) => setFormPhone(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Manager Email (Pre-filled with own email for Google Drive Sync) */}
+                    <div className="md:col-span-2">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                          {isKu ? 'ئیمەیڵی سەرپەرشتیار (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ)' : 'Supervising Manager Email (Drive Sync)'}
+                        </label>
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                          {isKu ? 'خۆکارانە ئیمەیڵی خۆیەتی بۆ درایڤی سەربەخۆ' : 'Defaults to own email for independent Drive'}
+                        </span>
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="manager@gmail.com"
+                        value={formManagerEmail || formEmail}
+                        onChange={(e) => setFormManagerEmail(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-                  {/* Name */}
-                  <div>
-                    <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'ناوی کارمەند / لق *' : 'Display Name / Store *'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={isKu ? 'نموونە: ئارام ئەحمەد' : 'e.g. John Doe'}
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-medium ${
-                        isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                      }`}
-                    />
+              ) : (
+                /* ── CREATE CUSTOM ACCOUNT FLOW (WITH PASSWORD) ── */
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-purple-600 dark:text-purple-400">
+                    <KeyRound className="w-4 h-4" />
+                    <span>{isKu ? 'زانیارییە سەرەکییەکان و هەژماری چوونەژوورەوە:' : 'Basic Credentials & Login:'}</span>
                   </div>
 
-                  {/* Phone */}
-                  <div>
-                    <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'ژمارەی مۆبایل (بۆ وەتسئەپ)' : 'Phone (WhatsApp)'}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="0750XXXXXXX"
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                        isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                      }`}
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                    {/* Name */}
+                    <div>
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ناوی کارمەند / لق *' : 'Display Name / Store *'}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={isKu ? 'نموونە: ئارام ئەحمەد' : 'e.g. John Doe'}
+                        value={formName}
+                        onChange={(e) => setFormName(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-medium ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
 
-                  {/* Email */}
-                  <div>
-                    <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'ئیمەیڵی کارمەند (بۆ چوونەژوورەوە) *' : 'Employee Login Email *'}
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="cashier@market.com"
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                        isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                      }`}
-                    />
-                  </div>
+                    {/* Phone */}
+                    <div>
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ژمارەی مۆبایل (بۆ وەتسئەپ)' : 'Phone (WhatsApp)'}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="0750XXXXXXX"
+                        value={formPhone}
+                        onChange={(e) => setFormPhone(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
 
-                  {/* Password */}
-                  <div>
-                    <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'تێپەڕەوشە (پاسۆرد) *' : 'Password *'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="••••••••"
-                      value={formPassword}
-                      onChange={(e) => setFormPassword(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                        isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                      }`}
-                    />
-                  </div>
+                    {/* Email */}
+                    <div>
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ئیمەیڵی کارمەند (بۆ چوونەژوورەوە) *' : 'Employee Login Email *'}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="cashier@market.com"
+                        value={formEmail}
+                        onChange={(e) => setFormEmail(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
 
-                  {/* Supervising Manager Email */}
-                  <div className="md:col-span-2">
-                    <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'ئیمەیڵی فەرمی بەڕێوەبەر (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ) *' : 'Supervising Manager Email *'}
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="manager@gmail.com"
-                      value={formManagerEmail}
-                      onChange={(e) => setFormManagerEmail(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                        isDarkMode
-                          ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
-                      }`}
-                    />
+                    {/* Password */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                          {isKu ? 'تێپەڕەوشە (پاسۆرد) *' : 'Password *'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setFormPassword(generateRandomPassword())}
+                          className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <Wand2 className="w-3 h-3" />
+                          <span>{isKu ? '🎲 هەڕەمەکی' : '🎲 Random'}</span>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="••••••••"
+                        value={formPassword}
+                        onChange={(e) => setFormPassword(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono font-bold ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Supervising Manager Email */}
+                    <div className="md:col-span-2">
+                      <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+                        {isKu ? 'ئیمەیڵی فەرمی بەڕێوەبەر (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ) *' : 'Supervising Manager Email *'}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="manager@gmail.com"
+                        value={formManagerEmail}
+                        onChange={(e) => setFormManagerEmail(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
+                          isDarkMode
+                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-purple-500'
+                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-100 shadow-2xs'
+                        }`}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Section 2: Subscription Validity, Dates & Pricing */}
               <div
@@ -2449,14 +3089,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-500/25 flex items-center gap-2 transition cursor-pointer"
+                  className={`px-6 py-2.5 rounded-xl disabled:opacity-50 text-xs sm:text-sm font-black shadow-lg flex items-center gap-2 transition cursor-pointer ${
+                    addModalMode === 'upgrade_registered'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 shadow-amber-500/25 border border-amber-400/50'
+                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-500/25 border border-purple-400/30'
+                  }`}
                 >
                   {submitting ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : addModalMode === 'upgrade_registered' ? (
+                    <Sparkles className="w-4 h-4 text-slate-950 fill-slate-950" />
                   ) : (
                     <UserPlus className="w-4 h-4" />
                   )}
-                  <span>{isKu ? 'دروستکردنی ئەکاونت' : 'Create Account'}</span>
+                  <span>
+                    {addModalMode === 'upgrade_registered'
+                      ? (isKu ? '🌟 بەرزکردنەوە و کاراکردنی پلانی بەکارهێنەر' : '🌟 Upgrade & Activate User Plan')
+                      : (isKu ? 'دروستکردنی ئەکاونت' : 'Create Account')}
+                  </span>
                 </button>
               </div>
             </form>
@@ -2573,11 +3223,14 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                   {/* Password */}
                   <div>
                     <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                      {isKu ? 'تێپەڕەوشە (پاسۆرد) *' : 'Password *'}
+                      {selectedEmployee.accountType === 'registered' || !selectedEmployee.password
+                        ? (isKu ? 'تێپەڕەوشە (ئارەزوومەندانە - ئەکاونتی فەرمییە)' : 'Password (Optional - Provider Login)')
+                        : (isKu ? 'تێپەڕەوشە (پاسۆرد) *' : 'Password *')}
                     </label>
                     <input
                       type="text"
-                      required
+                      required={selectedEmployee.accountType !== 'registered' && Boolean(selectedEmployee.password)}
+                      placeholder={selectedEmployee.accountType === 'registered' || !selectedEmployee.password ? (isKu ? 'بێ پاسۆرد (بە فەرمی لۆگین دەبێت)' : 'No password (Provider login)') : '••••••••'}
                       value={formPassword}
                       onChange={(e) => setFormPassword(e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
