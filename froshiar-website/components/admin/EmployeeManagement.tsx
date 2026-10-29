@@ -3029,7 +3029,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                             className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
                               isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
                             }`}
-                            style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
+                            style={{ color: isDarkMode ? '#FFFFFF' : '#000000', opacity: 1 }}
                           />
                         </div>
                       </div>
@@ -3707,7 +3707,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                             className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
                               isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
                             }`}
-                            style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
+                            style={{ color: isDarkMode ? '#FFFFFF' : '#000000', opacity: 1 }}
                           />
                         </div>
                       </div>

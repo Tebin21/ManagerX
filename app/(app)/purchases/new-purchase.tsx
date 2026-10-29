@@ -1229,8 +1229,8 @@ export default function NewPurchaseScreen() {
         style={[styles.textarea, isRTL && { fontSize: 13 }]}
       />
 
-      <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign, marginBottom: 0 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+      <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+        <Text style={[styles.fieldLabel, { color: colors.gray600, textAlign, marginBottom: 0, flexShrink: 1 }, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
           {t('purchases.websiteDescription')}
         </Text>
         <TouchableOpacity
@@ -1244,6 +1244,7 @@ export default function NewPurchaseScreen() {
             borderWidth: 1,
             backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
             borderColor: isDark ? '#D97706' : '#FDE68A',
+            flexShrink: 0,
           }}
           onPress={() => {
             if (itemDescription?.trim()) {

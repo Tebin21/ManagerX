@@ -868,8 +868,8 @@ export default function EditProductScreen() {
           </MotiView>
 
           <MotiView animate={{ backgroundColor: fieldBg('websiteDescription') }} transition={{ type: 'timing', duration: 600 }} style={styles.fieldWrap}>
-            <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <Text style={[styles.label, { color: colors.gray500, textAlign, marginBottom: 0 }]}>{t('inventory.websiteDescription')}</Text>
+            <View style={{ flexDirection, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              <Text style={[styles.label, { color: colors.gray500, textAlign, marginBottom: 0, flexShrink: 1 }]}>{t('inventory.websiteDescription')}</Text>
               <TouchableOpacity
                 style={{
                   flexDirection,
@@ -881,6 +881,7 @@ export default function EditProductScreen() {
                   borderWidth: 1,
                   backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7',
                   borderColor: isDark ? '#D97706' : '#FDE68A',
+                  flexShrink: 0,
                 }}
                 onPress={() => {
                   if (description?.trim()) {

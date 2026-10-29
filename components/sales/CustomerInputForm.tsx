@@ -355,6 +355,8 @@ function getStyles(colors: AppColors, isDark: boolean) {
     directCustomerActiveHeader: {
       alignItems: 'center',
       justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 8,
     },
     directCustomerActiveBadge: {
       alignItems: 'center',
@@ -363,10 +365,12 @@ function getStyles(colors: AppColors, isDark: boolean) {
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 8,
+      flexShrink: 1,
     },
     directCustomerActiveTitle: {
       fontSize: 13,
       fontWeight: 'bold',
+      flexShrink: 1,
     },
     directCustomerChangeBtn: {
       alignItems: 'center',
@@ -375,6 +379,7 @@ function getStyles(colors: AppColors, isDark: boolean) {
       paddingVertical: 5,
       borderRadius: 8,
       borderWidth: 1,
+      flexShrink: 0,
     },
     directCustomerChangeBtnText: {
       fontSize: 11,

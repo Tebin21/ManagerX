@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
+    marginBottom: 16,
   },
   headerBtn: {
     paddingVertical: 10,

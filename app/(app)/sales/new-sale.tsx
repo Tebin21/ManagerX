@@ -1229,15 +1229,17 @@ export default function NewSaleScreen() {
 
                 <InvoiceAboutPolicyAccordion />
 
-                <PrimaryButton
-                  label={
-                    checkoutMode === 'print'
-                      ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                      : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-                  }
-                  onPress={handleCompleteSale}
-                  loading={isSubmitting}
-                />
+                <View style={{ marginTop: 12 }}>
+                  <PrimaryButton
+                    label={
+                      checkoutMode === 'print'
+                        ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                        : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+                    }
+                    onPress={handleCompleteSale}
+                    loading={isSubmitting}
+                  />
+                </View>
               </ScrollView>
             </View>
           </View>
@@ -1391,15 +1393,17 @@ export default function NewSaleScreen() {
 
           <InvoiceAboutPolicyAccordion />
 
-          <PrimaryButton
-            label={
-              checkoutMode === 'print'
-                ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
-                : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
-            }
-            onPress={handleCompleteSale}
-            loading={isSubmitting}
-          />
+          <View style={{ marginTop: 12 }}>
+            <PrimaryButton
+              label={
+                checkoutMode === 'print'
+                  ? (isKuLanguage ? 'تەواوکردن و پرینت 🖨️' : 'Complete & Print 🖨️')
+                  : (isKuLanguage ? 'تەواوکردنی فرۆشتن ✓' : 'Complete Sale ✓')
+              }
+              onPress={handleCompleteSale}
+              loading={isSubmitting}
+            />
+          </View>
 
           <View style={styles.bottomSpacer} />
         </KeyboardAwareScrollView>
