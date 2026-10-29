@@ -10,6 +10,26 @@ try {
   gracefulFs.gracefulify(fs);
 } catch {}
 
+// Pre-cache metro error formatting modules so they are never read under high fd load
+try {
+  require('@expo/metro/metro/lib/formatBundlingError');
+} catch {}
+
+// Intercept Expo CLI's aggressive handleTooManyOpenFileErrors so transient EMFILEs don't terminate Metro
+const origListeners = process.rawListeners('uncaughtException');
+for (const listener of origListeners) {
+  if (listener.name === 'handleTooManyOpenFileErrors') {
+    process.removeListener('uncaughtException', listener);
+    process.on('uncaughtException', (err) => {
+      if (err?.code === 'EMFILE') {
+        console.warn('[Metro] Ignored transient EMFILE error, server stays alive:', err.message);
+        return;
+      }
+      listener(err);
+    });
+  }
+}
+
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 
