@@ -21,3 +21,31 @@ export async function generateUniqueProductId(
   }
   throw new Error('ID_EXHAUSTED');
 }
+
+export async function generateMultipleUniqueProductIds(
+  count: number,
+  existingIds: string[] = [],
+  maxAttempts = 50
+): Promise<string[]> {
+  const taken = new Set(existingIds.map((s) => s.trim().toLowerCase()).filter(Boolean));
+  const results: string[] = [];
+
+  for (let c = 0; c < count; c++) {
+    let found = false;
+    for (let i = 0; i < maxAttempts; i++) {
+      const candidate = generateRandomProductId();
+      const lower = candidate.toLowerCase();
+      if (taken.has(lower)) continue;
+      const rows = await getProductsByItemId(candidate);
+      if (rows.length === 0) {
+        taken.add(lower);
+        results.push(candidate);
+        found = true;
+        break;
+      }
+    }
+    if (!found) throw new Error('ID_EXHAUSTED');
+  }
+
+  return results;
+}

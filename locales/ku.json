@@ -531,6 +531,7 @@
     "idType": "جۆری ئایدی",
     "sharedId": "ئایدی هاوبەش",
     "customIds": "ئایدیی تایبەت",
+    "autoAll": "ئۆتۆ بۆ هەموو",
     "sharedIdLabel": "ئایدی هاوبەش (یەکسان بۆ هەموو)",
     "warranty": "گەرەنتی",
     "warrantyPlaceholder": "نموونە: 1 ساڵ، 6 مانگ",

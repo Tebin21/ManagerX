@@ -38,7 +38,7 @@ import { Theme } from '@/constants/theme';
 import { hexToRgba } from '@/lib/colorUtils';
 import type { PurchaseIdType, PurchasePaymentStatus } from '@/types/purchases';
 import { getProductCategories, DIRECT_SUPPLIER_NAME, isDirectSupplierName } from '@/lib/sqlite';
-import { generateUniqueProductId } from '@/lib/generateId';
+import { generateUniqueProductId, generateMultipleUniqueProductIds } from '@/lib/generateId';
 import { CategoryAutocompleteInput } from '@/components/shared/CategoryAutocompleteInput';
 import { SupplierInputForm } from '@/components/purchases/SupplierInputForm';
 import { SupplierLogoPicker } from '@/components/purchases/SupplierLogoPicker';
@@ -781,6 +781,52 @@ export default function NewPurchaseScreen() {
         ? t('purchases.idExhausted') : t('common.tryAgain'));
     } finally {
       setCustomGenerating(idx, false);
+    }
+  }
+
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+
+  async function handleGenerateAllCustomIds() {
+    if (isGeneratingAll || qtyNum <= 0) return;
+    setIsGeneratingAll(true);
+    try {
+      const activeSlots = Array.from({ length: qtyNum }, (_, i) => customIds[i] ?? '');
+      const hasAnyEmpty = activeSlots.some((id) => !id || !id.trim());
+
+      // If any slots are empty, only generate new IDs for the empty ones (preserving existing valid codes).
+      // If all slots are already filled, generate fresh unique IDs for all slots.
+      const currentFilled = hasAnyEmpty
+        ? activeSlots.filter((id) => id && id.trim())
+        : [];
+      const countNeeded = hasAnyEmpty
+        ? activeSlots.filter((id) => !id || !id.trim()).length
+        : qtyNum;
+
+      const newIds = await generateMultipleUniqueProductIds(countNeeded, currentFilled);
+      let newIdIdx = 0;
+
+      setCustomIds((prev) => {
+        const next = [...prev];
+        while (next.length < qtyNum) next.push('');
+        for (let i = 0; i < qtyNum; i++) {
+          if (hasAnyEmpty) {
+            if (!next[i] || !next[i].trim()) {
+              next[i] = newIds[newIdIdx++] || '';
+            }
+          } else {
+            next[i] = newIds[newIdIdx++] || '';
+          }
+        }
+        return next;
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      Alert.alert(
+        t('common.error'),
+        msg === 'ID_EXHAUSTED' ? t('purchases.idExhausted') : t('common.tryAgain')
+      );
+    } finally {
+      setIsGeneratingAll(false);
     }
   }
 
@@ -1756,30 +1802,63 @@ export default function NewPurchaseScreen() {
                 {isKuLanguage ? `ئایدیی تایبەت بۆ هەر ئایتەمێک (${qtyNum} دانە)` : `Custom Item IDs (${qtyNum})`}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                const next = qtyNum + 1;
-                setQty(String(next));
-                setCustomIds((prev) => [...prev, '']);
-              }}
-              style={[
-                styles.addSlotBtn,
-                { borderColor: colors.primary, backgroundColor: colors.softBlue },
-                { flexDirection: isRTL ? 'row-reverse' : 'row' },
-              ]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={15} color={colors.primary} />
-              <Text
+            <View style={[styles.customIdsHeaderActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <TouchableOpacity
+                onPress={handleGenerateAllCustomIds}
                 style={[
-                  styles.addSlotBtnText,
-                  { color: colors.primary },
-                  isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  styles.autoAllBtn,
+                  {
+                    borderColor: isDark ? '#D97706' : '#FDE68A',
+                    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.16)' : '#FEF3C7',
+                  },
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
                 ]}
+                activeOpacity={0.7}
+                disabled={isGeneratingAll}
               >
-                {isKuLanguage ? 'زیادکردنی ئایتم' : 'Add Item'}
-              </Text>
-            </TouchableOpacity>
+                {isGeneratingAll ? (
+                  <ActivityIndicator size="small" color={isDark ? '#FBBF24' : '#B45309'} />
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={13} color={isDark ? '#FBBF24' : '#B45309'} />
+                    <Text
+                      style={[
+                        styles.autoAllBtnText,
+                        { color: isDark ? '#FBBF24' : '#B45309' },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {t('purchases.autoAll')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  const next = qtyNum + 1;
+                  setQty(String(next));
+                  setCustomIds((prev) => [...prev, '']);
+                }}
+                style={[
+                  styles.addSlotBtn,
+                  { borderColor: colors.primary, backgroundColor: colors.softBlue },
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={15} color={colors.primary} />
+                <Text
+                  style={[
+                    styles.addSlotBtnText,
+                    { color: colors.primary },
+                    isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
+                  {isKuLanguage ? 'زیادکردنی ئایتم' : 'Add Item'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {Array.from({ length: qtyNum }, (_, i) => {
@@ -3260,6 +3339,26 @@ const styles = StyleSheet.create({
   customIdsHeaderTitle: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  customIdsHeaderActions: {
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  autoAllBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1.2,
+    gap: 4,
+    flexShrink: 0,
+  },
+  autoAllBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    includeFontPadding: false,
   },
   addSlotBtn: {
     alignItems: 'center',

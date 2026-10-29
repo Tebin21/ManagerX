@@ -494,6 +494,7 @@
     "idType":              "ID Type",
     "sharedId":            "Shared ID",
     "customIds":           "Custom IDs",
+    "autoAll":             "Auto All",
     "sharedIdLabel":       "Shared ID (same for all items)",
     "warranty":            "Warranty",
     "warrantyPlaceholder": "e.g. 1 year, 6 months",
