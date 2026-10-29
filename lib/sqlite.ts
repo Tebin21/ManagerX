@@ -1068,29 +1068,56 @@ export async function getAllManagedCategories(): Promise<Array<{ name: string; p
        FROM purchase_items
        WHERE category IS NOT NULL AND TRIM(category) != ''`
     );
-    // Guarantee at least one category is marked as default
-    await database.runAsync(
-      `UPDATE categories SET is_default = 1
-       WHERE (SELECT COUNT(*) FROM categories WHERE is_default = 1) = 0
-         AND (name = 'General' OR id = (SELECT MIN(id) FROM categories))`
+
+    // Guarantee EXACTLY one canonical category is marked as default (is_default = 1).
+    const defaultRow = await database.getFirstAsync<{ id: number; name: string }>(
+      'SELECT id, name FROM categories WHERE is_default = 1 LIMIT 1'
     );
+
+    if (!defaultRow) {
+      // Check if 'General' exists:
+      const genRow = await database.getFirstAsync<{ id: number }>(
+        "SELECT id FROM categories WHERE name = 'General' LIMIT 1"
+      );
+      if (genRow) {
+        await database.runAsync('UPDATE categories SET is_default = 1 WHERE id = ?', [genRow.id]);
+      } else {
+        // 'General' does not exist in categories. Insert it as the default category!
+        await database.runAsync(
+          "INSERT OR IGNORE INTO categories (name, uuid, is_default) VALUES ('General', lower(hex(randomblob(16))), 1)"
+        );
+        await database.runAsync("UPDATE categories SET is_default = 1 WHERE name = 'General'");
+      }
+    } else {
+      // If a custom default exists (e.g. renamed from General), clean up any unused dummy 'General' row
+      if (defaultRow.name !== 'General') {
+        const genWithProducts = await database.getFirstAsync<{ cnt: number }>(
+          "SELECT COUNT(*) AS cnt FROM products WHERE category = 'General' AND is_active = 1"
+        );
+        if ((genWithProducts?.cnt ?? 0) === 0) {
+          await database.runAsync("DELETE FROM categories WHERE name = 'General' AND is_default = 0");
+        }
+      }
+      // Ensure only this single row has is_default = 1
+      await database.runAsync('UPDATE categories SET is_default = 0 WHERE id != ?', [defaultRow.id]);
+    }
   } catch (syncErr) {
     console.warn('[Categories] Auto-sync error:', syncErr);
   }
 
   const rows = await database.getAllAsync<{ name: string; product_count: number; is_default: number | null }>(
     `SELECT c.name,
-            COALESCE(c.is_default, CASE WHEN c.name = 'General' THEN 1 ELSE 0 END) AS is_default,
+            COALESCE(c.is_default, 0) AS is_default,
             COUNT(CASE WHEN p.is_active = 1 THEN 1 END) AS product_count
      FROM categories c
      LEFT JOIN products p ON p.category = c.name
      GROUP BY c.name
-     ORDER BY c.name ASC`
+     ORDER BY c.is_default DESC, c.name COLLATE NOCASE ASC`
   );
   return rows.map((r) => ({
     name: r.name,
     productCount: r.product_count,
-    isDefault: (r.is_default ?? 0) === 1 || r.name === DEFAULT_CATEGORY,
+    isDefault: (r.is_default ?? 0) === 1,
   }));
 }
 
@@ -1109,7 +1136,7 @@ export async function deleteManagedCategory(name: string): Promise<void> {
     'SELECT is_default FROM categories WHERE name = ?',
     [name]
   );
-  if (name === DEFAULT_CATEGORY || (cat?.is_default ?? 0) === 1) {
+  if ((cat?.is_default ?? 0) === 1 || name === DEFAULT_CATEGORY) {
     throw new Error('CATEGORY_IS_DEFAULT');
   }
   const row = await database.getFirstAsync<{ cnt: number }>(
@@ -1133,7 +1160,31 @@ export async function renameManagedCategory(oldName: string, newName: string): P
   );
   if ((existing?.cnt ?? 0) > 0) throw new Error('CATEGORY_ALREADY_EXISTS');
 
-  await database.runAsync('UPDATE categories SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?', [trimmed, oldName]);
+  // Check if old category was default
+  const oldCat = await database.getFirstAsync<{ id: number; is_default: number | null }>(
+    'SELECT id, is_default FROM categories WHERE name = ?',
+    [oldName]
+  );
+  const isDefaultCat = (oldCat?.is_default ?? 0) === 1 || oldName === DEFAULT_CATEGORY;
+
+  if (!oldCat) {
+    // If oldName didn't exist in categories table yet, insert the new one directly with proper default flag
+    await database.runAsync(
+      'INSERT OR REPLACE INTO categories (name, uuid, is_default, updated_at) VALUES (?, lower(hex(randomblob(16))), ?, CURRENT_TIMESTAMP)',
+      [trimmed, isDefaultCat ? 1 : 0]
+    );
+  } else {
+    await database.runAsync(
+      'UPDATE categories SET name = ?, is_default = CASE WHEN ? = 1 THEN 1 ELSE is_default END, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
+      [trimmed, isDefaultCat ? 1 : 0, oldName]
+    );
+  }
+
+  if (isDefaultCat) {
+    // Clear is_default from any other category to ensure single default
+    await database.runAsync('UPDATE categories SET is_default = 0 WHERE name != ?', [trimmed]);
+  }
+
   await database.runAsync(
     'UPDATE products SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE category = ?',
     [trimmed, oldName]

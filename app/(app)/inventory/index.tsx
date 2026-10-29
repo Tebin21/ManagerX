@@ -1447,7 +1447,11 @@ export default function InventoryScreen() {
                   </View>
 
                   {/* Managed categories list */}
-                  <ScrollView style={styles.catList} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={styles.catList}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {managedCategories.map((cat) => (
                       <View
                         key={cat.name}
@@ -1502,13 +1506,20 @@ export default function InventoryScreen() {
                               </Text>
                               {cat.isDefault && (
                                 <View
-                                  style={[styles.defaultBadge, { backgroundColor: colors.gray100 }]}
+                                  style={[
+                                    styles.defaultBadge,
+                                    {
+                                      backgroundColor: isDark ? 'rgba(212, 175, 55, 0.18)' : '#FEF3C7',
+                                      borderColor: isDark ? '#D97706' : '#FDE68A',
+                                      borderWidth: 1,
+                                    },
+                                  ]}
                                 >
                                   <Text
                                     style={[
                                       styles.defaultBadgeText,
-                                      { color: colors.gray500 },
-                                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT },
+                                      { color: isDark ? '#FBBF24' : '#B45309' },
+                                      isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                                     ]}
                                   >
                                     {t('inventory.defaultCategoryBadge')}
