@@ -1,3 +1,8 @@
+// Ensure /opt/homebrew/bin is in PATH for child processes & watchman capability checks
+if (!process.env.PATH?.includes('/opt/homebrew/bin')) {
+  process.env.PATH = `/opt/homebrew/bin:/opt/homebrew/sbin:${process.env.PATH || ''}`;
+}
+
 // Prevent EMFILE crashes by patching Node fs with graceful-fs retry queues
 try {
   const fs = require('fs');
@@ -46,5 +51,7 @@ finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   return context.resolveRequest(context, moduleName, platform);
 };
+
+finalConfig.resolver.useWatchman = true;
 
 module.exports = finalConfig;
