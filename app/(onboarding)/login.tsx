@@ -169,6 +169,8 @@ export default function LoginScreen() {
     } else if (needsVerification) {
       router.replace('/(onboarding)/verify-email' as never);
     } else {
+      const { useManagementStore } = await import('@/store/managementStore');
+      useManagementStore.getState().clearEmployeeSession();
       useOnboardingStore.getState().completeOnboarding();
       router.replace('/(app)/dashboard');
     }
@@ -180,6 +182,8 @@ export default function LoginScreen() {
     if (error) {
       setAuthError(error);
     } else {
+      const { useManagementStore } = await import('@/store/managementStore');
+      useManagementStore.getState().clearEmployeeSession();
       useOnboardingStore.getState().completeOnboarding();
       router.replace('/(app)/dashboard');
     }
@@ -191,6 +195,8 @@ export default function LoginScreen() {
     if (error) {
       setAuthError(error);
     } else {
+      const { useManagementStore } = await import('@/store/managementStore');
+      useManagementStore.getState().clearEmployeeSession();
       useOnboardingStore.getState().completeOnboarding();
       router.replace('/(app)/dashboard');
     }
@@ -209,6 +215,8 @@ export default function LoginScreen() {
       const { initializeDatabase } = await import('@/lib/sqlite');
       await initializeDatabase();
     } catch {}
+    const { useManagementStore } = await import('@/store/managementStore');
+    useManagementStore.getState().clearEmployeeSession();
     const mockUser = {
       id: 'dev_user_1',
       uid: 'dev_user_1',

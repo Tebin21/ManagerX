@@ -77,6 +77,7 @@ export default function SettingsScreen() {
   const permProfile = useEffectivePermission('settingsProfile');
   const permCurrency = useEffectivePermission('settingsCurrency');
   const permTheme = useEffectivePermission('settingsTheme');
+  const permReceipt = useEffectivePermission('settingsReceiptCustomization');
   const permBackup = useEffectivePermission('settingsBackup');
   const permDeleteAccount = useEffectivePermission('settingsDeleteAccount');
 
@@ -270,13 +271,22 @@ export default function SettingsScreen() {
                 sub={t('settings.themeColorsSub')}
                 onPress={() => router.push('/(app)/settings/theme' as never)}
               />
-              <SettingRow
-                icon="receipt"
-                color={colors.primary}
-                label={t('settings.thermalReceipt')}
-                sub={t('settings.thermalReceiptSub')}
-                onPress={() => router.push('/(app)/settings/receipt-customization' as never)}
-              />
+              {!permReceipt.isHidden && (
+                <SettingRow
+                  icon="receipt"
+                  color={colors.primary}
+                  label={t('settings.thermalReceipt')}
+                  sub={t('settings.thermalReceiptSub')}
+                  disabled={permReceipt.isDisabled}
+                  onPress={() => {
+                    if (permReceipt.isDisabled) {
+                      Alert.alert(t('common.error'), t('management.disabledNotice'));
+                      return;
+                    }
+                    router.push('/(app)/settings/receipt-customization' as never);
+                  }}
+                />
+              )}
             </SettingSection>
 
             {/* Modules */}

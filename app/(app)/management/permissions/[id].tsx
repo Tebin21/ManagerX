@@ -286,6 +286,7 @@ export default function EmployeePermissionsScreen() {
     { label: isAr ? 'اسم المتجر والشعار' : isKu ? 'دەستکاری ناوی مارکێت و لۆگۆ' : 'Store Profile & Logo', key: 'settingsProfile', icon: 'business-outline' },
     { label: isAr ? 'العملة الأساسية والأسعار' : isKu ? 'دراوی بنچینە و نرخ' : 'Base Currency & Rates', key: 'settingsCurrency', icon: 'cash-outline' },
     { label: isAr ? 'المظهر والألوان' : isKu ? 'ڕووکار و ڕەنگ' : 'Theme & Colors', key: 'settingsTheme', icon: 'color-palette-outline' },
+    { label: isAr ? 'إعدادات طباعة الفواتير' : isKu ? 'شێوازی چاپ و پسوولە' : 'Receipt & Print Settings', key: 'settingsReceiptCustomization', icon: 'print-outline' },
     { label: isAr ? 'النسخ الاحتياطي والبيانات' : isKu ? 'داتا و باکئەپ' : 'Data & Backup', key: 'settingsBackup', icon: 'cloud-upload-outline' },
     { label: isAr ? 'حذف الحساب وقاعدة البيانات' : isKu ? 'سڕینەوەی ئەکاونت و داتابەیس' : 'Delete Account & Database', key: 'settingsDeleteAccount', icon: 'trash-outline' },
   ];
@@ -420,6 +421,40 @@ export default function EmployeePermissionsScreen() {
             onValueChange={(val) => {
               Haptics.selectionAsync().catch(() => { });
               setPermissions((prev) => ({ ...prev, canDeleteInvoice: val }));
+            }}
+            trackColor={{ false: colors.gray300, true: colors.primary }}
+          />
+        </View>
+
+        {/* Can Edit / Customize Receipts */}
+        <View
+          style={[
+            styles.actionCard,
+            {
+              backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
+              borderColor: colors.gray200,
+              flexDirection,
+              marginTop: 10,
+            },
+          ]}
+        >
+          <View style={styles.actionTextGroup}>
+            <Text style={[styles.actionLabel, { color: colors.black }]}>
+              {isAr ? 'تعديل وتخصيص إعدادات طباعة الفواتير' : isKu ? 'دەستکاریکردنی شێوازی چاپ و ڕێکخستنی پسوولەکان' : 'Customize Receipt & Print Layout'}
+            </Text>
+            <Text style={[styles.actionDesc, { color: colors.gray500 }]}>
+              {isAr
+                ? 'السماح للموظف بتعديل أحجام الأوراق (58mm, 80mm, 110mm, A4) وتفاصيل الفواتير للأقسام الـ 5 (المبيعات، المشتريات، العروض، المخزن، الديون).'
+                : isKu
+                ? 'ڕێگەپێدانی کارمەند بۆ دەستکاریکردنی قەبارەی وەسڵەکان (58mm, 80mm, 110mm, A4) و زانیارییەکانی هەر ٥ بەشەکە (فرۆشتن، کڕین، عەرز، کۆگا، قەرز).'
+                : 'Allow employee to customize paper sizes and layout options across all 5 modules (Sales, Purchases, Quotations, Inventory, Debts).'}
+            </Text>
+          </View>
+          <Switch
+            value={Boolean(permissions.canEditReceiptCustomization)}
+            onValueChange={(val) => {
+              Haptics.selectionAsync().catch(() => {});
+              setPermissions((prev) => ({ ...prev, canEditReceiptCustomization: val }));
             }}
             trackColor={{ false: colors.gray300, true: colors.primary }}
           />

@@ -88,6 +88,24 @@ export interface InventoryReceiptSettings {
   customFooterNote: string;
 }
 
+export interface DebtReceiptSettings {
+  showBusinessPhone: boolean;
+  showBusinessAddress: boolean;
+  showCustomerName: boolean;
+  showCustomerPhone: boolean;
+  showInvoiceNumber: boolean;
+  showDate: boolean;
+  showRemainingDebt: boolean;
+  showPaidAmount: boolean;
+  showTotalDebt: boolean;
+  showPaymentMethod: boolean;
+  showNotes: boolean;
+  showSignature: boolean;
+  showAboutPolicy: boolean;
+  showFooterBarcode: boolean;
+  customFooterNote: string;
+}
+
 export const DEFAULT_SALES_RECEIPT_SETTINGS: SalesReceiptSettings = {
   showBusinessPhone: true,
   showBusinessAddress: true,
@@ -165,6 +183,24 @@ export const DEFAULT_INVENTORY_RECEIPT_SETTINGS: InventoryReceiptSettings = {
   customFooterNote: 'ڕاپۆرتی سەرژمێری و تۆماری فەرمی کۆگا',
 };
 
+export const DEFAULT_DEBT_RECEIPT_SETTINGS: DebtReceiptSettings = {
+  showBusinessPhone: true,
+  showBusinessAddress: true,
+  showCustomerName: true,
+  showCustomerPhone: true,
+  showInvoiceNumber: true,
+  showDate: true,
+  showRemainingDebt: true,
+  showPaidAmount: true,
+  showTotalDebt: true,
+  showPaymentMethod: true,
+  showNotes: true,
+  showSignature: true,
+  showAboutPolicy: true,
+  showFooterBarcode: true,
+  customFooterNote: 'پسوولەی فەرمی وەرگرتنی پارە و تۆماری قەرز',
+};
+
 interface SettingsState {
   isDarkMode:    boolean;
   exchangeRate:  number;
@@ -203,11 +239,13 @@ interface SettingsState {
   purchasePaperSizePreference: ReceiptPaperSize;
   inventoryPaperSizePreference: ReceiptPaperSize;
   quotationPaperSizePreference: 'A4';
+  debtPaperSizePreference: ReceiptPaperSize;
 
   salesReceiptSettings: SalesReceiptSettings;
   purchaseReceiptSettings: PurchaseReceiptSettings;
   quotationReceiptSettings: QuotationReceiptSettings;
   inventoryReceiptSettings: InventoryReceiptSettings;
+  debtReceiptSettings: DebtReceiptSettings;
 
   purchaseDebtDownPaymentMethodPreference: 'cash' | 'fib';
   invoiceAboutPolicy: string;
@@ -249,6 +287,7 @@ interface SettingsState {
   setSalesPaperSizePreference: (size: ReceiptPaperSize) => void;
   setPurchasePaperSizePreference: (size: ReceiptPaperSize) => void;
   setInventoryPaperSizePreference: (size: ReceiptPaperSize) => void;
+  setDebtPaperSizePreference: (size: ReceiptPaperSize) => void;
 
   setSalesReceiptSettings: (settings: Partial<SalesReceiptSettings>) => void;
   resetSalesReceiptSettings: () => void;
@@ -258,6 +297,8 @@ interface SettingsState {
   resetQuotationReceiptSettings: () => void;
   setInventoryReceiptSettings: (settings: Partial<InventoryReceiptSettings>) => void;
   resetInventoryReceiptSettings: () => void;
+  setDebtReceiptSettings: (settings: Partial<DebtReceiptSettings>) => void;
+  resetDebtReceiptSettings: () => void;
 
   setPurchaseDebtDownPaymentMethodPreference: (val: 'cash' | 'fib') => void;
   setInvoiceAboutPolicy: (val: string) => void;
@@ -324,11 +365,13 @@ export const useSettingsStore = create<SettingsState>()(
       purchasePaperSizePreference: '80mm',
       inventoryPaperSizePreference: 'A4',
       quotationPaperSizePreference: 'A4',
+      debtPaperSizePreference: '80mm',
 
       salesReceiptSettings: DEFAULT_SALES_RECEIPT_SETTINGS,
       purchaseReceiptSettings: DEFAULT_PURCHASE_RECEIPT_SETTINGS,
       quotationReceiptSettings: DEFAULT_QUOTATION_RECEIPT_SETTINGS,
       inventoryReceiptSettings: DEFAULT_INVENTORY_RECEIPT_SETTINGS,
+      debtReceiptSettings: DEFAULT_DEBT_RECEIPT_SETTINGS,
 
       purchaseDebtDownPaymentMethodPreference: 'cash',
       invoiceAboutPolicy: '',
@@ -447,6 +490,20 @@ export const useSettingsStore = create<SettingsState>()(
         set({ inventoryReceiptSettings: DEFAULT_INVENTORY_RECEIPT_SETTINGS });
         notifyPreferencesChanged();
       },
+      setDebtPaperSizePreference: (size) => {
+        set({ debtPaperSizePreference: size });
+        notifyPreferencesChanged();
+      },
+      setDebtReceiptSettings: (newSettings) => {
+        set((s) => ({
+          debtReceiptSettings: { ...s.debtReceiptSettings, ...newSettings },
+        }));
+        notifyPreferencesChanged();
+      },
+      resetDebtReceiptSettings: () => {
+        set({ debtReceiptSettings: DEFAULT_DEBT_RECEIPT_SETTINGS });
+        notifyPreferencesChanged();
+      },
       setPurchaseDebtDownPaymentMethodPreference: (val) => { set({ purchaseDebtDownPaymentMethodPreference: val }); notifyPreferencesChanged(); },
       setExpiryTrackingEnabled:    (val) => {
         set({ expiryTrackingEnabled: val });
@@ -516,6 +573,7 @@ export const useSettingsStore = create<SettingsState>()(
           purchasePaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.purchasePaperSizePreference as string) ? p?.purchasePaperSizePreference : '80mm') as ReceiptPaperSize,
           inventoryPaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.inventoryPaperSizePreference as string) ? p?.inventoryPaperSizePreference : 'A4') as ReceiptPaperSize,
           quotationPaperSizePreference: 'A4',
+          debtPaperSizePreference: (['58mm', '80mm', '110mm', 'A4'].includes(p?.debtPaperSizePreference as string) ? p?.debtPaperSizePreference : '80mm') as ReceiptPaperSize,
 
           salesReceiptSettings: {
             ...DEFAULT_SALES_RECEIPT_SETTINGS,
@@ -532,6 +590,10 @@ export const useSettingsStore = create<SettingsState>()(
           inventoryReceiptSettings: {
             ...DEFAULT_INVENTORY_RECEIPT_SETTINGS,
             ...(p?.inventoryReceiptSettings || {}),
+          },
+          debtReceiptSettings: {
+            ...DEFAULT_DEBT_RECEIPT_SETTINGS,
+            ...(p?.debtReceiptSettings || {}),
           },
           purchaseDebtDownPaymentMethodPreference: (p?.purchaseDebtDownPaymentMethodPreference === 'fib' ? 'fib' : 'cash') as 'cash' | 'fib',
           invoiceAboutPolicy: p?.invoiceAboutPolicy ?? '',

@@ -56,9 +56,24 @@ export default function AppLayout() {
       initEmployeeLiveSubscription,
       initManagerSubscription,
       initSuperAdminSubscription,
+      clearEmployeeSession,
     } = useManagementStore.getState();
+
+    // Verification check: Only genuine employee accounts should retain employee state
+    const isRealEmployee = Boolean(
+      isEmployee &&
+      currentEmployeeAccount?.email &&
+      user?.email &&
+      currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase()
+    );
+
+    if (isEmployee && !isRealEmployee) {
+      // Residue from previous employee session; user is a normal user/manager!
+      clearEmployeeSession();
+    }
+
     let unsubEmployee: (() => void) | undefined;
-    if (isEmployee && currentEmployeeAccount?.email) {
+    if (isRealEmployee && currentEmployeeAccount?.email) {
       unsubEmployee = initEmployeeLiveSubscription(currentEmployeeAccount.email);
     }
 
@@ -66,7 +81,7 @@ export default function AppLayout() {
     // Strictly forbidden for employee accounts — employees never manage staff
     let unsubManager: (() => void) | undefined;
     let unsubAdmin: (() => void) | undefined;
-    if (user?.email && !isEmployee) {
+    if (user?.email && !isRealEmployee) {
       if (isAdminEmail(user.email)) {
         unsubAdmin = initSuperAdminSubscription();
       }

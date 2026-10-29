@@ -98,6 +98,7 @@ export interface EmployeePermissions {
 
   // Actions
   canDeleteInvoice: boolean;
+  canEditReceiptCustomization?: boolean;
 
   // Granular Settings items (button-by-button)
   settingsLanguage: PermissionState;
@@ -105,6 +106,7 @@ export interface EmployeePermissions {
   settingsCurrency: PermissionState;
   settingsTheme: PermissionState;
   settingsBackup: PermissionState;
+  settingsReceiptCustomization?: PermissionState;
   settingsDeleteAccount: PermissionState;
 }
 
@@ -149,12 +151,14 @@ export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {
   onlineStore: 'active',
 
   canDeleteInvoice: true,
+  canEditReceiptCustomization: true,
 
   settingsLanguage: 'active',
   settingsProfile: 'active',
   settingsCurrency: 'active',
   settingsTheme: 'active',
   settingsBackup: 'active',
+  settingsReceiptCustomization: 'active',
   settingsDeleteAccount: 'active',
 };
 
@@ -180,12 +184,14 @@ export const DEFAULT_PERMISSIONS: EmployeePermissions = {
   onlineStore: 'disabled',
 
   canDeleteInvoice: false,
+  canEditReceiptCustomization: false,
 
   settingsLanguage: 'disabled',
   settingsProfile: 'hidden',
   settingsCurrency: 'hidden',
   settingsTheme: 'active',
   settingsBackup: 'hidden',
+  settingsReceiptCustomization: 'disabled',
   settingsDeleteAccount: 'hidden',
 };
 
@@ -219,6 +225,7 @@ const SETTINGS_ITEMS: Array<{
   { key: 'settingsCurrency', labelKu: 'دراو و نرخی دۆلار', labelEn: 'Currency & Exchange Rate', descKu: 'دیاریکردنی دراوی بنەڕەتی و نرخی ئاڵوگۆڕ' },
   { key: 'settingsTheme', labelKu: 'دۆخی تاریک / ڕۆشن', labelEn: 'Theme Light / Dark', descKu: 'گۆڕینی ڕەنگ و ڕووکاری سیستەم' },
   { key: 'settingsBackup', labelKu: 'باک ئەپ و گۆگڵ درایڤ', labelEn: 'Backup & Cloud Sync', descKu: 'کۆپی یەدەگ و بەستنەوەی هەور' },
+  { key: 'settingsReceiptCustomization', labelKu: 'شێوازی چاپ و ڕێکخستنی پسوولەکان', labelEn: 'Print & Receipt Customization', descKu: 'دەسەڵاتی گۆڕینی قەبارە و داتای وەسڵەکان' },
   { key: 'settingsDeleteAccount', labelKu: 'سڕینەوەی ئەکاونت و داتا', labelEn: 'Reset & Delete Data', descKu: 'سڕینەوەی سەرجەم داتا و مێژووی سیستەم' },
 ];
 

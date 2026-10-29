@@ -33,6 +33,7 @@ export interface EmployeePermissions {
 
   // Actions
   canDeleteInvoice: boolean;
+  canEditReceiptCustomization?: boolean;
 
   // Granular Settings items (button-by-button)
   settingsLanguage: PermissionState;
@@ -40,6 +41,7 @@ export interface EmployeePermissions {
   settingsCurrency: PermissionState;
   settingsTheme: PermissionState;
   settingsBackup: PermissionState;
+  settingsReceiptCustomization?: PermissionState;
   settingsDeleteAccount: PermissionState;
 }
 
@@ -97,12 +99,14 @@ export const DEFAULT_EMPLOYEE_PERMISSIONS: EmployeePermissions = {
   onlineStore: 'disabled',
 
   canDeleteInvoice: false,
+  canEditReceiptCustomization: false,
 
   settingsLanguage: 'disabled',
   settingsProfile: 'hidden',
   settingsCurrency: 'hidden',
   settingsTheme: 'active',
   settingsBackup: 'hidden',
+  settingsReceiptCustomization: 'disabled',
   settingsDeleteAccount: 'hidden',
 };
 

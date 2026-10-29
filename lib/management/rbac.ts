@@ -45,11 +45,20 @@ export function useEffectivePermission(key: keyof EmployeePermissions): {
   const user = useAuthStore((s) => s.user);
   const currentPermissions = useManagementStore((s) => s.currentPermissions);
   const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
 
   const isAdmin = isAdminEmail(user?.email);
 
-  // Super-admin or non-employee managers have full permissions
-  if (isAdmin || !isEmployee || !currentPermissions) {
+  const isRealEmployee = Boolean(
+    isEmployee &&
+    currentEmployeeAccount?.email &&
+    user?.email &&
+    currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
+    !isAdmin
+  );
+
+  // Super-admin or non-employee users/owners have full permissions
+  if (isAdmin || !isRealEmployee || !currentPermissions) {
     return {
       state: 'active',
       isHidden: false,
