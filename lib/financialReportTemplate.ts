@@ -159,7 +159,7 @@ export function buildFinancialReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
   const lossMoney = (n: number) => n > 0 ? `(${fmtMoney(n)})` : fmtMoney(0);
 
   // ── Loss products rows (only ever interpolated when non-empty) ────────────

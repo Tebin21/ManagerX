@@ -26,7 +26,7 @@ export function buildInventoryHistoryReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());

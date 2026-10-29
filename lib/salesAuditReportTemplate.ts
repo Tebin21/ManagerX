@@ -40,7 +40,7 @@ export function buildSalesAuditReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const now = new Date();
   const dateStr = fmtDate(now.toISOString());
@@ -127,8 +127,14 @@ export function buildSalesAuditReportHTML(
   @media print {
     body { background: #FFFFFF; }
     .page { padding: 0; max-width: 100%; }
-    tr { page-break-inside: avoid; }
-    .kpi-grid { page-break-inside: avoid; }
+    table { overflow: visible !important; border-radius: 0; page-break-inside: auto !important; break-inside: auto !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .kpi-grid { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .header-card { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .signoff-box { page-break-inside: avoid !important; break-inside: avoid !important; }
   }
 
   /* Force Western digits and LTR flow for numbers/dates */
@@ -251,20 +257,27 @@ export function buildSalesAuditReportHTML(
     border-collapse: collapse;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    overflow: hidden;
+    border-radius: 8px;
+    overflow: visible;
     margin-bottom: 24px;
+    page-break-inside: auto;
+    break-inside: auto;
   }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  th, td { page-break-inside: avoid !important; break-inside: avoid !important; box-sizing: border-box; }
   th {
     background: #F1F5F9;
     color: #475569;
     font-weight: 700;
-    font-size: 11.5px;
-    padding: 10px 12px;
+    font-size: 11px;
+    padding: 8px 10px;
     border-bottom: 1px solid #CBD5E1;
   }
   td {
-    padding: 10px 12px;
+    padding: 8px 10px;
+    font-size: 11.5px;
     border-bottom: 1px solid #F1F5F9;
     vertical-align: middle;
   }

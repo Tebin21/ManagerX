@@ -46,7 +46,7 @@ export function buildFullReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const safeLogoUri = sanitizeImageUri(business.logoUri);
   const logoHTML = safeLogoUri

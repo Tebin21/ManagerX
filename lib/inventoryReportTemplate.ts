@@ -59,7 +59,7 @@ export function buildInventoryReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -170,14 +170,18 @@ export function buildInventoryReportHTML(
     padding-bottom: 8px; border-bottom: 1px solid #F1F5F9;
   }
 
-  .table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid #E2E8F0; margin-bottom: 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: ${dir}; }
-  thead tr { background: linear-gradient(135deg, #3B300C 0%, #A88924 100%); color: white; }
-  th { padding: 11px 12px; text-align: ${isKurdish ? 'right' : 'left'}; font-size: 10.5px; font-weight: ${isKurdish ? 400 : 700}; text-transform: ${isKurdish ? 'none' : 'uppercase'}; letter-spacing: 0.5px; }
-  td { padding: 10px 12px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+  .table-wrap { border-radius: 8px; overflow: visible; border: 1px solid #E2E8F0; margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; direction: ${dir}; page-break-inside: auto; break-inside: auto; table-layout: fixed; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  th, td { page-break-inside: avoid !important; break-inside: avoid !important; box-sizing: border-box; }
+  thead tr { background: linear-gradient(135deg, #3B300C 0%, #A88924 100%); color: white; page-break-inside: avoid; break-inside: avoid; }
+  th { padding: 8px 8px; text-align: ${isKurdish ? 'right' : 'left'}; font-size: 10px; font-weight: ${isKurdish ? 400 : 700}; text-transform: ${isKurdish ? 'none' : 'uppercase'}; letter-spacing: 0.5px; }
+  td { padding: 7px 8px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
-  tfoot tr { background: #F8FAFC; }
-  tfoot td { border-top: 2px solid #E2E8F0; font-weight: ${isKurdish ? 400 : 700}; padding: 12px; }
+  tfoot tr { background: #F8FAFC; page-break-inside: avoid; break-inside: avoid; }
+  tfoot td { border-top: 2px solid #E2E8F0; font-weight: ${isKurdish ? 400 : 700}; padding: 8px; }
 
   .footer {
     border-top: 1px solid #E2E8F0;
@@ -191,6 +195,13 @@ export function buildInventoryReportHTML(
   @media print {
     body { background: white; }
     .page { max-width: 100%; }
+    .table-wrap { overflow: visible !important; border-radius: 0; }
+    table { page-break-inside: auto !important; break-inside: auto !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .summary-row, .breakdown-row { page-break-inside: avoid !important; break-inside: avoid !important; }
     thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
@@ -223,7 +234,7 @@ export function buildInventoryReportHTML(
     <div class="summary-row">
       ${summaryCard(isKurdish ? escHtml(t('totalProducts')) : 'Total Products', fmtIQD(stats.totalProducts), '#FBF7EA', '#3B300C', '#EFE1B3', isKurdish)}
       ${summaryCard(isKurdish ? escHtml(t('totalQuantity')) : 'Total Quantity', fmtIQD(stats.totalQuantity), '#F0FDF4', '#166534', '#BBF7D0', isKurdish)}
-      ${summaryCard(isKurdish ? escHtml(t('totalValueIQD')) : 'Total Value (IQD)', `${fmtIQD(stats.totalValueIQD)} IQD`, '#FBF7EA', '#5D4C14', '#EFE1B3', isKurdish)}
+      ${summaryCard(isKurdish ? escHtml(t('totalValueIQD')) : 'Total Value (IQD)', `${fmtIQD(stats.totalValueIQD)}&nbsp;IQD`, '#FBF7EA', '#5D4C14', '#EFE1B3', isKurdish)}
       ${summaryCard(isKurdish ? escHtml(t('lowStock')) : 'Low Stock', fmtIQD(stats.lowStockCount), stats.lowStockCount > 0 ? '#FFFBEB' : '#F0FDF4', stats.lowStockCount > 0 ? '#92400E' : '#166534', stats.lowStockCount > 0 ? '#FDE68A' : '#BBF7D0', isKurdish)}
     </div>
 
@@ -257,7 +268,7 @@ export function buildInventoryReportHTML(
         <tfoot>
           <tr>
             <td colspan="5" style="text-align:right;color:#475569;padding-right:12px;">${isKurdish ? escHtml(t('totalInventoryValue')) : 'Total Inventory Value:'}</td>
-            <td style="direction:ltr;text-align:left;color:${isKurdish ? '#0F172A' : '#3B300C'};font-size:14px;">${fmtIQD(stats.totalValueIQD)} IQD</td>
+            <td style="direction:ltr;text-align:left;color:${isKurdish ? '#0F172A' : '#3B300C'};font-size:14px;white-space:nowrap !important;">${fmtIQD(stats.totalValueIQD)}&nbsp;IQD</td>
             <td colspan="2"></td>
           </tr>
         </tfoot>

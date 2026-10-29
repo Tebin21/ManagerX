@@ -107,8 +107,12 @@ function sharedCSS(dir: 'ltr' | 'rtl'): string {
     }
 
     /* ── Tables ── */
-    .table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid #E2E8F0; }
-    table { width: 100%; border-collapse: collapse; }
+    .table-wrap { border-radius: 8px; overflow: visible; border: 1px solid #E2E8F0; }
+    table { width: 100%; border-collapse: collapse; page-break-inside: auto; break-inside: auto; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
     th {
       background: #F1F5F9; padding: 10px 14px;
       text-align: left; font-size: 10.5px;
@@ -116,7 +120,7 @@ function sharedCSS(dir: 'ltr' | 'rtl'): string {
       text-transform: uppercase; letter-spacing: 0.5px;
       border-bottom: 1px solid #E2E8F0;
     }
-    td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+    td { padding: 9px 14px; font-size: 12px; border-bottom: 1px solid #F1F5F9; color: #334155; }
     tr:last-child td { border-bottom: none; }
 
     /* ── Detail table (two-col) ── */
@@ -136,6 +140,12 @@ function sharedCSS(dir: 'ltr' | 'rtl'): string {
     @media print {
       body { background: white; }
       .stat-cell { border: 1px solid #ddd; }
+      .table-wrap { overflow: visible !important; border-radius: 0; }
+      table { page-break-inside: auto !important; break-inside: auto !important; }
+      thead { display: table-header-group !important; }
+      tfoot { display: table-footer-group !important; }
+      tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+      th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
     }
   `;
 }
@@ -157,7 +167,7 @@ export function buildSalesDebtReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
@@ -360,7 +370,7 @@ export function buildPurchaseDebtReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
@@ -570,7 +580,7 @@ export function buildDebtsAuditReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   let sections: DebtReportSections;
   if (typeof target === 'object') {

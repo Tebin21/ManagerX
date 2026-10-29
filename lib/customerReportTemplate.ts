@@ -34,7 +34,7 @@ export function buildCustomerReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 
@@ -138,8 +138,12 @@ export function buildCustomerReportHTML(
   .section { padding: 22px 32px; border-bottom: 1px solid #F1F5F9; }
   .section:last-child { border-bottom: none; }
 
-  .table-wrap { border-radius: 8px; overflow: hidden; border: 1px solid #E2E8F0; }
-  table { width: 100%; border-collapse: collapse; }
+  .table-wrap { border-radius: 8px; overflow: visible; border: 1px solid #E2E8F0; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: auto; break-inside: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
   th {
     background: #F1F5F9; padding: 10px 10px;
     text-align: left; font-size: 10.5px;
@@ -147,7 +151,7 @@ export function buildCustomerReportHTML(
     text-transform: uppercase; letter-spacing: 0.5px;
     border-bottom: 1px solid #E2E8F0;
   }
-  td { padding: 10px 10px; border-bottom: 1px solid #F1F5F9; font-size: 12.5px; color: #334155; vertical-align: middle; }
+  td { padding: 8px 10px; border-bottom: 1px solid #F1F5F9; font-size: 11.5px; color: #334155; vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
 
   .notes-box {
@@ -172,7 +176,13 @@ export function buildCustomerReportHTML(
   @media print {
     body { background: white; }
     .page { max-width: 100%; }
-    .stats-grid { border: 1px solid #ddd; }
+    .table-wrap { overflow: visible !important; border-radius: 0; }
+    table { page-break-inside: auto !important; break-inside: auto !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .stats-grid { border: 1px solid #ddd; page-break-inside: avoid !important; break-inside: avoid !important; }
   }
 </style>
 </head>

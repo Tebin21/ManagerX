@@ -37,27 +37,27 @@ export function buildQuotationHTML(
 
   // When system is USD (or mode is usd), all item prices and subtotal are in USD!
   const isItemUsd = isSystemUsd || isUsdOnly;
-  const fmtRow = (val: number) => isItemUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtRow = (val: number) => isItemUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const totalUSD = fmtUSD(quotation.grandTotal / rate);
   const totalIQD = fmtIQD(quotation.grandTotal);
 
-  let grandTotalPrimary = `${totalIQD} IQD`;
+  let grandTotalPrimary = `${totalIQD}&nbsp;IQD`;
   let grandTotalSecondary = '';
 
   if (isUsdOnly) {
     grandTotalPrimary = `$${totalUSD} USD`;
     grandTotalSecondary = '';
   } else if (isIqdOnly) {
-    grandTotalPrimary = `${totalIQD} IQD`;
+    grandTotalPrimary = `${totalIQD}&nbsp;IQD`;
     grandTotalSecondary = '';
   } else {
     // Both mode:
     if (isSystemUsd) {
       grandTotalPrimary = `$${totalUSD} USD`;
-      grandTotalSecondary = `≈ ${totalIQD} IQD`;
+      grandTotalSecondary = `≈ ${totalIQD}&nbsp;IQD`;
     } else {
-      grandTotalPrimary = `${totalIQD} IQD`;
+      grandTotalPrimary = `${totalIQD}&nbsp;IQD`;
       grandTotalSecondary = `≈ $${totalUSD} USD`;
     }
   }
@@ -71,17 +71,17 @@ export function buildQuotationHTML(
   const items = quotation.items || [];
   const itemRows = items.length > 0 ? items.map((item, idx) => `
     <tr>
-      <td class="num-col"><span class="en-num" dir="ltr">${idx + 1}</span></td>
-      <td style="text-align:${kuAlign};">
+      <td class="num-col" style="width:5%;"><span class="en-num" dir="ltr">${idx + 1}</span></td>
+      <td style="width:37%;text-align:${kuAlign};">
         <span class="item-name">${escHtml(item.productName)}</span>
       </td>
-      <td class="center">
+      <td class="center" style="width:12%;">
         ${item.itemId ? `<span class="id-chip"><span class="en-num" dir="ltr">${escHtml(item.itemId)}</span></span>` : '<span class="muted-cell">—</span>'}
       </td>
-      <td class="center" style="font-weight:700;"><span class="en-num" dir="ltr">${item.quantity}</span></td>
-      <td class="price-col"><span class="en-num" dir="ltr">${fmtRow(item.unitPrice)}</span></td>
-      <td class="price-col">${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;color:#d97706;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
-      <td class="price-col" style="font-weight:800;color:#000000;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
+      <td class="center" style="width:6%;font-weight:700;"><span class="en-num" dir="ltr">${item.quantity}</span></td>
+      <td class="price-col" style="width:13%;"><span class="en-num" dir="ltr">${fmtRow(item.unitPrice)}</span></td>
+      <td class="price-col" style="width:11%;">${item.discount > 0 ? `<span class="en-num" dir="ltr" style="font-weight:600;color:#d97706;">− ${fmtRow(item.discount)}</span>` : '<span class="muted-cell">—</span>'}</td>
+      <td class="price-col" style="width:16%;font-weight:800;color:#000000;"><span class="en-num" dir="ltr">${fmtRow(item.lineTotal)}</span></td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty-row">${isKurdish ? ku('هیچ بەرهەمێک لەم عەرزەدا نییە') : 'No items in this quotation'}</td></tr>`;
 
@@ -293,7 +293,7 @@ export function buildQuotationHTML(
   .table-wrap {
     border: 1px solid #D4D4D4;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     margin-bottom: 18px;
     direction: ${pageDir};
   }
@@ -301,36 +301,43 @@ export function buildQuotationHTML(
     width: 100%;
     border-collapse: collapse;
     direction: ${pageDir};
+    page-break-inside: auto;
+    break-inside: auto;
+    table-layout: fixed;
   }
+  thead { display: table-header-group; }
+  tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  th, td { page-break-inside: avoid !important; break-inside: avoid !important; box-sizing: border-box; }
   th {
     background: #F4F4F5;
-    padding: 10px 12px;
-    font-size: 11px;
+    padding: 8px 8px;
+    font-size: 10px;
     font-weight: 700;
     color: #000000;
     border-bottom: 1px solid #D4D4D4;
   }
   td {
-    padding: 10px 12px;
-    font-size: 12.5px;
+    padding: 8px 8px;
+    font-size: 11.5px;
     border-bottom: 1px solid #E5E5E5;
     color: #000000;
   }
   tr:nth-child(even) td { background: #FAFAFA; }
   tr:last-child td { border-bottom: none; }
-  .num-col { text-align: center; font-weight: 700; color: #000000; width: 36px; }
+  .num-col { text-align: center; font-weight: 700; color: #000000; width: 36px; white-space: nowrap; }
   .center { text-align: center; }
-  .price-col { text-align: ${isKurdish ? 'left' : 'right'}; font-variant-numeric: tabular-nums; }
-  .item-name { font-weight: 700; color: #000000; font-size: 13px; }
+  .price-col { text-align: ${isKurdish ? 'left' : 'right'}; font-variant-numeric: tabular-nums; white-space: nowrap !important; }
+  .item-name { font-weight: 700; color: #000000; font-size: 12px; word-break: break-word; overflow-wrap: break-word; line-height: 1.35; }
   .id-chip {
     display: inline-block;
-    padding: 2px 7px;
+    padding: 2px 5px;
     border-radius: 4px;
     background: #F4F4F5;
     border: 1px solid #D4D4D4;
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 600;
     color: #000000;
+    word-break: break-all;
   }
   .muted-cell { color: #888888; }
   .empty-row { text-align: center; padding: 28px; color: #888888; font-style: italic; }
@@ -514,6 +521,20 @@ export function buildQuotationHTML(
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color: inherit;
   }
+
+  @media print {
+    body { background: white; }
+    .table-wrap { overflow: visible !important; border-radius: 0; }
+    table { page-break-inside: auto !important; break-inside: auto !important; }
+    thead { display: table-header-group !important; }
+    tfoot { display: table-footer-group !important; }
+    tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+    th, td { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .header-top, .notes-top-card, .policy-card, .top-summary-pair, .signatures-row {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -626,13 +647,13 @@ export function buildQuotationHTML(
     <table>
       <thead>
         <tr>
-          <th class="num-col">#</th>
-          <th style="text-align:${kuAlign};">${isKurdish ? ku('ناوی بەرهەم') : 'Product Name'}</th>
-          <th class="center">${isKurdish ? ku('کۆد') : 'Item ID'}</th>
-          <th class="center">${isKurdish ? ku('بڕ') : 'Qty'}</th>
-          <th class="price-col">${isKurdish ? ku('نرخی تاک') : 'Unit Price'}</th>
-          <th class="price-col">${isKurdish ? ku('داشکاندن') : 'Discount'}</th>
-          <th class="price-col">${isKurdish ? ku('کۆی نرخ') : 'Total'}</th>
+          <th class="num-col" style="width:5%;min-width:28px;">#</th>
+          <th style="width:37%;text-align:${kuAlign};">${isKurdish ? ku('ناوی بەرهەم') : 'Product Name'}</th>
+          <th class="center" style="width:12%;min-width:65px;">${isKurdish ? ku('کۆد') : 'Item ID'}</th>
+          <th class="center" style="width:6%;min-width:35px;">${isKurdish ? ku('بڕ') : 'Qty'}</th>
+          <th class="price-col" style="width:13%;min-width:85px;white-space:nowrap;">${isKurdish ? ku('نرخی تاک') : 'Unit Price'}</th>
+          <th class="price-col" style="width:11%;min-width:75px;white-space:nowrap;">${isKurdish ? ku('داشکاندن') : 'Discount'}</th>
+          <th class="price-col" style="width:16%;min-width:95px;white-space:nowrap;">${isKurdish ? ku('کۆی نرخ') : 'Total'}</th>
         </tr>
       </thead>
       <tbody>

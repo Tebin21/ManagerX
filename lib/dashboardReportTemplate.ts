@@ -98,7 +98,7 @@ export function buildDashboardReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
   const fmtMoneyVal = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : fmtIQD(val);
   const curUnit = isUsd ? 'USD' : 'IQD';
 

@@ -43,85 +43,25 @@ function logoBlock(logoUri: string | null): string {
   return `<img src="${logoUri}" style="height:54px;max-width:130px;object-fit:contain;display:block;background:#fff;border-radius:5px;padding:3px;margin-bottom:9px;" alt="logo" />`;
 }
 
-// ─── Manual row pagination ─────────────────────────────────────────────────
-// expo-print's PDF pipeline (WebKit on iOS, Chromium print on Android) does
-// not reliably honor `page-break-inside`/`break-inside: avoid` on <tr>, so a
-// product row can still get sliced across a page boundary even with that CSS
-// in place. Instead, row placement is decided here, in JS, before any HTML is
-// emitted: for every row we check whether it fits in the space left on the
-// current page; if it doesn't, a new page starts and the row is placed there
-// instead. Each page is rendered as its own <table>, and a real (not "avoid")
-// page-break-before is inserted between them -- that's a hard instruction to
-// start a fresh page, not a fit-calculation hint, so it's honored reliably.
-//
-// The measurements below are computed directly from the fixed CSS in
-// reportCSS() (row padding, font-size, line-height, borders) -- they track
-// the real rendered height closely rather than being padded with a large
-// blanket safety margin, so pages fill up almost completely instead of
-// breaking early. The only deliberate slack is PAGE_CONTENT_HEIGHT_PX's
-// one-row buffer (see below) plus MAX_ROWS_PER_PAGE, a backstop ceiling that
-// only matters if a page's real content ever runs taller than expected.
-const PX_PER_MM = 96 / 25.4;
-// A4 (297mm) minus the @page 15mm top/bottom margins (~1009px), minus roughly
-// one table row's worth of buffer -- this is the "leave about one row of
-// slack before breaking" margin, not a large blanket safety cushion.
-const PAGE_CONTENT_HEIGHT_PX = Math.floor((297 - 15 - 15) * PX_PER_MM) - 40;
-const TABLE_HEADER_ROW_HEIGHT_PX = 40; // thead th row: padding 10+10 + line-height(10.5*1.5) + border
-const TABLE_BODY_ROW_HEIGHT_PX = 40;   // tbody td row: padding 9+9 + line-height(12.5*1.5) + border
-const REPORT_HEADER_NO_KPI_PX = 300;   // header block + period banner + section label (no KPI grid)
-const REPORT_HEADER_WITH_KPI_PX = 400; // same, plus the KPI grid
-// Backstop ceiling on rows per page, well above what the height estimates
-// above would ever pack onto one page -- guards against the header-block
-// estimate being off (e.g. extra-long wrapped business address) without
-// forcing early breaks on ordinary pages.
-const MAX_ROWS_PER_PAGE = 24;
-
-// Splits `bodyRows` into per-page chunks so a row is never split across a
-// page boundary: each row is checked against the remaining space on the
-// current page (and against the hard row-count ceiling) before being placed
-// there; if it doesn't fit, a new page starts and the row goes there instead.
-function paginateRows<T>(bodyRows: T[], firstPageHeaderPx: number): T[][] {
-  const pages: T[][] = [];
-  let currentPage: T[] = [];
-  let remaining = PAGE_CONTENT_HEIGHT_PX - firstPageHeaderPx - TABLE_HEADER_ROW_HEIGHT_PX;
-
-  for (const row of bodyRows) {
-    const pageFull = currentPage.length > 0 &&
-      (TABLE_BODY_ROW_HEIGHT_PX > remaining || currentPage.length >= MAX_ROWS_PER_PAGE);
-    if (pageFull) {
-      pages.push(currentPage);
-      currentPage = [];
-      remaining = PAGE_CONTENT_HEIGHT_PX - TABLE_HEADER_ROW_HEIGHT_PX;
-    }
-    currentPage.push(row);
-    remaining -= TABLE_BODY_ROW_HEIGHT_PX;
-  }
-  if (currentPage.length > 0) pages.push(currentPage);
-  return pages;
-}
-
-// Renders `bodyRows` as one or more <table>s (one per page), each with its
-// own repeated header row, forcing a real page break before every table
-// after the first. `tfootHTML` (if given) is only attached to the last page.
+// ─── Table Rendering ────────────────────────────────────────────────────────
+// Natural CSS print table pagination: <thead> displays table-header-group so
+// WebKit/Blink repeats it on every page, <tr> has page-break-inside: avoid so
+// rows never split across page boundaries, and containers have overflow: visible
+// so page splitting is clean and never generates awkward blank gaps.
 function renderPaginatedTable(opts: {
   theadRowHTML: string;
   bodyRows: string[];
   tfootHTML?: string;
-  headerBudgetPx: number;
+  headerBudgetPx?: number;
 }): string {
-  const pages = paginateRows(opts.bodyRows, opts.headerBudgetPx);
-  return pages.map((pageRows, i) => {
-    const isFirst = i === 0;
-    const isLast = i === pages.length - 1;
-    return `
-    <div class="table-wrap"${isFirst ? '' : ' style="page-break-before: always;"'}>
+  return `
+    <div class="table-wrap">
       <table>
         <thead><tr>${opts.theadRowHTML}</tr></thead>
-        <tbody>${pageRows.join('')}</tbody>
-        ${isLast && opts.tfootHTML ? `<tfoot><tr>${opts.tfootHTML}</tr></tfoot>` : ''}
+        <tbody>${opts.bodyRows.join('')}</tbody>
+        ${opts.tfootHTML ? `<tfoot><tr>${opts.tfootHTML}</tr></tfoot>` : ''}
       </table>
     </div>`;
-  }).join('');
 }
 
 // ─── Shared white/monochrome CSS ──────────────────────────────────────────────
@@ -148,7 +88,7 @@ function reportCSS(isKurdish: boolean): string {
 
     /* ── Header ── */
     .header {
-      padding: 24px 32px 20px;
+      padding: 18px 20px 14px;
       border-bottom: 1px solid #e2e8f0;
     }
     .header-inner {
@@ -175,7 +115,7 @@ function reportCSS(isKurdish: boolean): string {
     .report-date { color: ${isKurdish ? '#000000' : '#94a3b8'}; font-size: 11.5px; margin-top: 4px; }
 
     /* ── Body ── */
-    .body { padding: 22px 32px 32px; }
+    .body { padding: 12px 14px 20px; }
 
     /* ── Period banner ── */
     .period-row {
@@ -233,73 +173,112 @@ function reportCSS(isKurdish: boolean): string {
     /* ── Table ── */
     .table-wrap {
       border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      overflow: hidden;
+      border-radius: 8px;
+      overflow: visible;
+      margin-bottom: 18px;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: ${isKurdish ? 'rtl' : 'ltr'}; }
-    thead tr { background: #f8fafc; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      direction: ${isKurdish ? 'rtl' : 'ltr'};
+      page-break-inside: auto;
+      break-inside: auto;
+      table-layout: fixed;
+    }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    thead tr {
+      background: #f8fafc;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    tbody tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    th, td {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
     th {
-      padding: 10px 11px;
+      padding: 8px 6px;
       text-align: ${kuAlign};
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: ${isKurdish ? 400 : 700};
       text-transform: ${isKurdish ? 'none' : 'uppercase'};
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       color: #000000;
-      white-space: nowrap;
       border-bottom: 1.5px solid #e2e8f0;
+      vertical-align: middle;
+      box-sizing: border-box;
     }
     td {
-      padding: 9px 11px;
+      padding: 6px 6px;
       border-bottom: 1px solid #f1f5f9;
       vertical-align: middle;
       color: #000000;
+      font-size: 11px;
+      line-height: 1.35;
+      box-sizing: border-box;
     }
     tbody tr:nth-child(even) { background: #f8fafc; }
     tr:last-child td { border-bottom: none; }
-    tfoot tr { background: #f8fafc; }
+    tfoot tr {
+      background: #f8fafc;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     tfoot td {
       border-top: 2px solid #e2e8f0;
       font-weight: ${isKurdish ? 400 : 700};
-      font-size: 12.5px;
-      padding: 11px;
+      font-size: 11px;
+      padding: 8px 6px;
       color: #000000;
+      box-sizing: border-box;
     }
 
     /* ── Status badges (monochrome) ── */
     .badge-instock {
       display: inline-block;
-      border: 1px solid #e2e8f0;
-      border-radius: 20px;
-      padding: 2px 8px;
-      font-size: 10.5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 1.5px 5px;
+      font-size: 9px;
       color: #475569;
       white-space: nowrap;
+      box-sizing: border-box;
+      line-height: 1.3;
     }
     .badge-lowstock {
       display: inline-block;
-      border: 1.5px solid #000000;
-      border-radius: 20px;
-      padding: 2px 8px;
-      font-size: 10.5px;
+      border: 1.2px solid #000000;
+      border-radius: 12px;
+      padding: 1.5px 5px;
+      font-size: 9px;
       font-weight: ${isKurdish ? 400 : 700};
       color: #000000;
       white-space: nowrap;
+      box-sizing: border-box;
+      line-height: 1.3;
     }
     .badge-outofstock {
       display: inline-block;
       background: #000000;
-      border-radius: 20px;
-      padding: 2px 8px;
-      font-size: 10.5px;
+      border-radius: 12px;
+      padding: 1.5px 5px;
+      font-size: 9px;
       font-weight: ${isKurdish ? 400 : 700};
       color: #ffffff;
       white-space: nowrap;
+      box-sizing: border-box;
+      line-height: 1.3;
     }
     .badge-sold {
       font-style: ${isKurdish ? 'normal' : 'italic'};
       color: #94a3b8;
-      font-size: 11px;
+      font-size: 9.5px;
+      white-space: nowrap;
     }
 
     /* ── Footer ── */
@@ -307,21 +286,24 @@ function reportCSS(isKurdish: boolean): string {
       background: #f8fafc;
       border-top: 1px solid #e2e8f0;
       text-align: center;
-      padding: 14px 32px 18px;
+      padding: 14px 20px 18px;
       color: #94a3b8;
       font-size: 11px;
     }
     .footer strong { color: #475569; font-weight: 700; }
 
     /* ── Print / A4 ── */
-    @page { size: A4; margin: 15mm; }
+    @page { size: A4; margin: 10mm 8mm; }
     thead { display: table-header-group; }
-    tr { page-break-inside: avoid; }
+    tr { page-break-inside: avoid !important; break-inside: avoid !important; }
     @media print {
       body { background: #fff; }
-      .page { max-width: 100%; }
+      .page { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+      .table-wrap { overflow: visible !important; border-radius: 0; }
       thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .kpi-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .kpi-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid; break-inside: avoid; }
+      .period-row { page-break-inside: avoid; break-inside: avoid; }
+      .header { page-break-inside: avoid; break-inside: avoid; }
     }
   `;
 }
@@ -411,7 +393,7 @@ export function buildFullInventoryReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const rows = products.map((p) => {
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
@@ -435,15 +417,15 @@ export function buildFullInventoryReportHTML(
 
     return `
       <tr>
-        <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
-        <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
-        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
-        <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${totalVal}</td>
-        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
-        <td style="text-align:center;">${statusCell}</td>
+        <td style="width:22%;font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.name)}</td>
+        <td style="width:9%;color:#475569;font-size:10px;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-all;">${escHtml(p.itemId ?? '—')}</td>
+        <td style="width:11%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.category)}</td>
+        <td style="width:5%;text-align:center;font-weight:${isKurdish ? 400 : 600};white-space:nowrap;">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
+        <td style="width:12%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
+        <td style="width:12%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
+        <td style="width:13%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;font-weight:${isKurdish ? 400 : 700};">${totalVal}</td>
+        <td style="width:10%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.supplierName ?? '—')}</td>
+        <td style="width:6%;text-align:center;white-space:nowrap;">${statusCell}</td>
       </tr>`;
   });
 
@@ -491,21 +473,20 @@ export function buildFullInventoryReportHTML(
     <div class="section-label">${allProductsLabel}</div>
     ${renderPaginatedTable({
       theadRowHTML: `
-            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
-            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
-            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
-            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+            <th style="width:22%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th style="width:9%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th style="width:11%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="width:5%;text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
+            <th style="width:12%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
+            <th style="width:12%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
+            <th style="width:13%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
+            <th style="width:10%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="width:6%;text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
       bodyRows: rows,
       tfootHTML: `
             <td colspan="6" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('totalInventoryValue'))) : 'Total Inventory Value:'}</td>
-            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtMoney(totalValueIQD)}</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;font-weight:700;">${fmtMoney(totalValueIQD)}</td>
             <td colspan="2"></td>`,
-      headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
     })}
 
   </div>
@@ -540,12 +521,12 @@ export function buildLowStockReportHTML(
 
   const rows = products.map((p) => `
     <tr>
-      <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
-      <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
-      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
-      <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
-      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
-      <td style="text-align:center;"><span class="badge-lowstock">${isKurdish ? ku(escHtml(t('lowStockBadge'))) : 'Low Stock'} &#9888;</span></td>
+      <td style="width:32%;font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.name)}</td>
+      <td style="width:14%;color:#475569;font-size:10px;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-all;">${escHtml(p.itemId ?? '—')}</td>
+      <td style="width:18%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.category)}</td>
+      <td style="width:10%;text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;white-space:nowrap;">${p.quantity}</td>
+      <td style="width:14%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.supplierName ?? '—')}</td>
+      <td style="width:12%;text-align:center;white-space:nowrap;"><span class="badge-lowstock">${isKurdish ? ku(escHtml(t('lowStockBadge'))) : 'Low Stock'} &#9888;</span></td>
     </tr>`);
 
   const titleHTML = isKurdish ? ku(escHtml(t('lowStockReportTitle'))) : 'Low Stock Report';
@@ -574,14 +555,13 @@ export function buildLowStockReportHTML(
     <div class="section-label">${sectionLabel}</div>
     ${renderPaginatedTable({
       theadRowHTML: `
-            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
-            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
-            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
-            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+            <th style="width:32%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th style="width:14%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th style="width:18%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="width:10%;text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
+            <th style="width:14%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="width:12%;text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
       bodyRows: rows,
-      headerBudgetPx: REPORT_HEADER_NO_KPI_PX,
     })}
   </div>
 
@@ -615,12 +595,12 @@ export function buildOutOfStockReportHTML(
 
   const rows = products.map((p) => `
     <tr>
-      <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
-      <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
-      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.category)}</td>
-      <td style="text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;">${p.quantity}</td>
-      <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
-      <td style="text-align:center;"><span class="badge-outofstock">${isKurdish ? ku(escHtml(t('outOfStock'))) : 'Out of Stock'}</span></td>
+      <td style="width:34%;font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.name)}</td>
+      <td style="width:14%;color:#475569;font-size:10px;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-all;">${escHtml(p.itemId ?? '—')}</td>
+      <td style="width:18%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.category)}</td>
+      <td style="width:10%;text-align:center;font-weight:${isKurdish ? 400 : 700};color:#000000;white-space:nowrap;">${p.quantity}</td>
+      <td style="width:12%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.supplierName ?? '—')}</td>
+      <td style="width:12%;text-align:center;white-space:nowrap;"><span class="badge-outofstock">${isKurdish ? ku(escHtml(t('outOfStock'))) : 'Out of Stock'}</span></td>
     </tr>`);
 
   const titleHTML = isKurdish ? ku(escHtml(t('outOfStockReportTitle'))) : 'Out of Stock Report';
@@ -649,14 +629,13 @@ export function buildOutOfStockReportHTML(
     <div class="section-label">${sectionLabel}</div>
     ${renderPaginatedTable({
       theadRowHTML: `
-            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
-            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
-            <th>${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
-            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
+            <th style="width:34%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th style="width:14%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th style="width:18%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('category'))) : 'Category'}</th>
+            <th style="width:10%;text-align:center;">${isKurdish ? ku(escHtml(t('qtyRemaining'))) : 'Qty Remaining'}</th>
+            <th style="width:12%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>
+            <th style="width:12%;text-align:center;">${isKurdish ? ku(escHtml(t('status'))) : 'Status'}</th>`,
       bodyRows: rows,
-      headerBudgetPx: REPORT_HEADER_NO_KPI_PX,
     })}
   </div>
 
@@ -698,20 +677,20 @@ export function buildCategoryReportHTML(
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
   const rate = useSettingsStore.getState().exchangeRate || 1310;
   const isUsd = baseCurrency === 'USD';
-  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)} IQD`;
+  const fmtMoney = (val: number) => isUsd ? `$${fmtUSD(val / rate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
   const rows = products.map((p) => {
     const val = fmtMoney(p.purchasePrice * p.quantity);
     const isSold = !p.isActive || (p.idMode === 'unique' && p.quantity === 0);
     return `
       <tr>
-        <td style="font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.name)}</td>
-        <td style="color:#475569;font-size:11px;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.itemId ?? '—')}</td>
-        <td style="text-align:center;font-weight:${isKurdish ? 400 : 600};">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
-        <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;font-weight:${isKurdish ? 400 : 700};">${val}</td>
-        <td style="color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;">${escHtml(p.supplierName ?? '—')}</td>
+        <td style="width:26%;font-weight:${isKurdish ? 400 : 600};text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.name)}</td>
+        <td style="width:10%;color:#475569;font-size:10px;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-all;">${escHtml(p.itemId ?? '—')}</td>
+        <td style="width:8%;text-align:center;font-weight:${isKurdish ? 400 : 600};white-space:nowrap;">${isSold ? `<span style="color:#94a3b8;font-style:${isKurdish ? 'normal' : 'italic'};">—</span>` : String(p.quantity)}</td>
+        <td style="width:14%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;color:#475569;">${fmtMoney(p.purchasePrice)}</td>
+        <td style="width:14%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;color:#000000;font-weight:${isKurdish ? 400 : 600};">${fmtMoney(p.sellingPrice)}</td>
+        <td style="width:14%;text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;font-weight:${isKurdish ? 400 : 700};">${val}</td>
+        <td style="width:14%;color:#475569;text-align:${kuAlign};unicode-bidi:plaintext;word-break:break-word;overflow-wrap:break-word;">${escHtml(p.supplierName ?? '—')}</td>
       </tr>`;
   });
 
@@ -762,19 +741,18 @@ export function buildCategoryReportHTML(
     <div class="section-label">${sectionLabel}</div>
     ${renderPaginatedTable({
       theadRowHTML: `
-            <th>${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
-            <th>${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
-            <th style="text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
-            <th style="text-align:${numAlign};">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
-            <th>${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>`,
+            <th style="width:26%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('product'))) : 'Product'}</th>
+            <th style="width:10%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('id'))) : 'ID'}</th>
+            <th style="width:8%;text-align:center;">${isKurdish ? ku(escHtml(t('qty'))) : 'Qty'}</th>
+            <th style="width:14%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('buyPrice'))) : 'Buy Price'}</th>
+            <th style="width:14%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('sellPrice'))) : 'Sell Price'}</th>
+            <th style="width:14%;text-align:${numAlign};white-space:nowrap;">${isKurdish ? ku(escHtml(t('totalValue'))) : 'Total Value'}</th>
+            <th style="width:14%;text-align:${kuAlign};">${isKurdish ? ku(escHtml(t('supplier'))) : 'Supplier'}</th>`,
       bodyRows: rows,
       tfootHTML: `
             <td colspan="5" style="text-align:${kuAlign};color:#475569;font-weight:500;">${isKurdish ? ku(escHtml(t('categoryTotalValue'))) : 'Category Total Value:'}</td>
-            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;">${fmtMoney(totalValue)}</td>
+            <td style="text-align:${numAlign};direction:ltr;unicode-bidi:isolate;white-space:nowrap !important;font-variant-numeric:tabular-nums;font-weight:700;">${fmtMoney(totalValue)}</td>
             <td></td>`,
-      headerBudgetPx: REPORT_HEADER_WITH_KPI_PX,
     })}
 
   </div>
