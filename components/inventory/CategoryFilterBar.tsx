@@ -17,7 +17,18 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
   const { colors } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
   const { isTablet } = useResponsive();
-  const all = ['all', ...categories];
+
+  const sortedCategories = React.useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const isADefault = a === 'بنەرەت' || a === 'بنەڕەت' || a === 'General' || a === 'افتراضي';
+      const isBDefault = b === 'بنەرەت' || b === 'بنەڕەت' || b === 'General' || b === 'افتراضي';
+      if (isADefault && !isBDefault) return -1;
+      if (!isADefault && isBDefault) return 1;
+      return a.localeCompare(b);
+    });
+  }, [categories]);
+
+  const all = ['all', ...sortedCategories];
 
   function categoryLabel(cat: string): string {
     if (cat === 'all') return i18n.t('inventory.filterAll');

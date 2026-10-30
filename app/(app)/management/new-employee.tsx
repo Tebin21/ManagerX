@@ -39,12 +39,16 @@ export default function NewEmployeeScreen() {
   const isManager = useManagementStore((s) => s.isManager);
   const isAdmin = isAdminEmail(currentAuthUser?.email);
 
-  // Security route guard: Employees or unauthorized users cannot access employee creation
+  // Security route guard: Adding employees is strictly prohibited in the mobile app for store managers; only central website Admin Panel can create staff
   React.useEffect(() => {
-    if (isEmployee || (!isAdmin && !isManager)) {
-      router.replace('/(app)/dashboard');
+    if (!isAdmin) {
+      Alert.alert(
+        'دەسەڵاتت نییە',
+        'زیادکردنی کارمەندی نوێ تەنها لە ڕێگەی ئەدمین پانێڵی سایتەکەوە ئەنجام دەدرێت.'
+      );
+      router.replace('/(app)/management');
     }
-  }, [isEmployee, isAdmin, isManager]);
+  }, [isAdmin]);
 
   // Pre-fill manager email if available, otherwise blank
   const defaultManagerEmail = (currentAuthUser?.email || '').trim().toLowerCase();
@@ -124,11 +128,12 @@ export default function NewEmployeeScreen() {
                 backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
                 borderColor: colors.gray200,
               },
+              isTablet && { padding: 32, borderRadius: 24 },
             ]}
           >
             {/* Display Name */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.black }]}>
+              <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
                 {t('management.employeeName')}
               </Text>
               <TextInput
@@ -140,6 +145,7 @@ export default function NewEmployeeScreen() {
                     color: colors.black,
                     textAlign,
                   },
+                  isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
                 ]}
                 placeholder="نموونە: ئارام ئەحمەد"
                 placeholderTextColor={colors.gray400}
@@ -150,7 +156,7 @@ export default function NewEmployeeScreen() {
 
             {/* Email */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.black }]}>
+              <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
                 {t('management.employeeEmail')}
               </Text>
               <TextInput
@@ -162,6 +168,7 @@ export default function NewEmployeeScreen() {
                     color: colors.black,
                     textAlign: 'left',
                   },
+                  isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
                 ]}
                 placeholder="employee@market.com"
                 placeholderTextColor={colors.gray400}
@@ -174,7 +181,7 @@ export default function NewEmployeeScreen() {
 
             {/* Password */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.black }]}>
+              <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
                 {t('management.password')}
               </Text>
               <View
@@ -184,6 +191,7 @@ export default function NewEmployeeScreen() {
                     backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
                     borderColor: colors.gray300,
                   },
+                  isTablet && { height: 56, paddingHorizontal: 18, borderRadius: 14 },
                 ]}
               >
                 <TextInput
@@ -193,6 +201,7 @@ export default function NewEmployeeScreen() {
                       color: colors.black,
                       textAlign: 'left',
                     },
+                    isTablet && { fontSize: 16 },
                   ]}
                   placeholder="••••••••"
                   placeholderTextColor={colors.gray400}
@@ -206,7 +215,7 @@ export default function NewEmployeeScreen() {
                 >
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
+                    size={isTablet ? 24 : 20}
                     color={colors.gray400}
                   />
                 </TouchableOpacity>
@@ -216,13 +225,13 @@ export default function NewEmployeeScreen() {
             {/* Manager Official Email */}
             <View style={styles.formGroup}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={[styles.label, { color: colors.black }]}>
+                <Text style={[styles.label, { color: colors.black }, isTablet && { fontSize: 16 }]}>
                   {t('management.managerEmail')}
                 </Text>
                 {!isAdmin && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="lock-closed" size={13} color={colors.primary} />
-                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                    <Ionicons name="lock-closed" size={isTablet ? 15 : 13} color={colors.primary} />
+                    <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.primary, fontWeight: '600' }}>
                       تایبەت بە هەژماری خۆت
                     </Text>
                   </View>
@@ -238,6 +247,7 @@ export default function NewEmployeeScreen() {
                     textAlign: 'left',
                     opacity: !isAdmin ? 0.85 : 1,
                   },
+                  isTablet && { height: 56, fontSize: 16, paddingHorizontal: 18, borderRadius: 14 },
                 ]}
                 placeholder="manager@gmail.com"
                 placeholderTextColor={colors.gray400}
@@ -247,7 +257,7 @@ export default function NewEmployeeScreen() {
                 value={isAdmin ? managerEmail : (currentAuthUser?.email || '')}
                 onChangeText={setManagerEmail}
               />
-              <Text style={[styles.hint, { color: colors.gray500 }]}>
+              <Text style={[styles.hint, { color: colors.gray500 }, isTablet && { fontSize: 13.5, lineHeight: 20 }]}>
                 {!isAdmin
                   ? 'ئەم کارمەندە تەنها دەبەسترێتەوە بە کۆگاو مارکێتەکەی خۆت و هیچ بەڕێوەبەرێکی تر نایبینێت.'
                   : 'داتاکانی کارمەند ڕاستەوخۆ دەبەسترێنەوە بە هەژماری کلاود و گۆگڵ درایڤی ئەم بەڕێوەبەرە.'}
@@ -262,6 +272,7 @@ export default function NewEmployeeScreen() {
                   backgroundColor: colors.primary,
                   opacity: isSubmitting ? 0.7 : 1,
                 },
+                isTablet && { height: 60, borderRadius: 18, marginTop: 18 },
               ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
@@ -270,7 +281,7 @@ export default function NewEmployeeScreen() {
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitBtnText}>{t('management.addEmployee')}</Text>
+                <Text style={[styles.submitBtnText, isTablet && { fontSize: 18 }]}>{t('management.addEmployee')}</Text>
               )}
             </TouchableOpacity>
           </View>

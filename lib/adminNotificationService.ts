@@ -5,7 +5,6 @@ import { getFirebaseFirestore, collection, query, where, onSnapshot } from '@/li
 export const ADMIN_EMAILS = [
   'tebin.faruq@gmail.com',
   'tebin.232375@univsul.edu.iq',
-  'demo@froshiar.store',
 ];
 
 export interface PaymentRequestData {

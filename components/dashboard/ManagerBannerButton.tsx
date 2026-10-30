@@ -32,7 +32,7 @@ export function ManagerBannerButton({
 
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const currentLang = useLanguageStore((s) => s.language);
   const isKu = currentLang === 'ku';
   const isAr = currentLang === 'ar';
@@ -48,7 +48,7 @@ export function ManagerBannerButton({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isTablet && { paddingHorizontal: 20 }]}>
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.85}
@@ -58,6 +58,10 @@ export function ManagerBannerButton({
             backgroundColor: isDark ? '#1C1B33' : '#F6F3FF',
             borderColor: isDark ? '#6366F1' : '#818CF8',
             flexDirection,
+            minHeight: isTablet ? 86 : 74,
+            paddingVertical: isTablet ? 16 : 14,
+            paddingHorizontal: isTablet ? 18 : 14,
+            borderRadius: isTablet ? 22 : 20,
           },
         ]}
       >
@@ -67,24 +71,24 @@ export function ManagerBannerButton({
             styles.iconWrapper,
             {
               backgroundColor: isDark ? '#4F46E5' : '#6366F1',
-              width: isTablet ? 52 : 46,
-              height: isTablet ? 52 : 46,
+              width: isTablet ? 56 : 46,
+              height: isTablet ? 56 : 46,
               borderRadius: isTablet ? 18 : 15,
             },
           ]}
         >
-          <Ionicons name="shield-checkmark" size={isTablet ? 26 : 22} color="#FFFFFF" />
+          <Ionicons name="shield-checkmark" size={isTablet ? 28 : 22} color="#FFFFFF" />
         </View>
 
         {/* Center Details */}
-        <View style={styles.content}>
+        <View style={[styles.content, isTablet && { marginHorizontal: 16 }]}>
           <View style={[styles.titleRow, { flexDirection, justifyContent: 'space-between' }]}>
             <Text
               style={[
                 styles.title,
                 {
                   color: isDark ? '#FFFFFF' : '#1E1B4B',
-                  fontSize: isTablet ? 17 : 15,
+                  fontSize: isTabletLandscape ? 19 : isTablet ? 17.5 : 15,
                 },
                 (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
@@ -108,6 +112,9 @@ export function ManagerBannerButton({
                     : isSuspended
                     ? '#EF444466'
                     : '#10B98166',
+                  paddingHorizontal: isTablet ? 12 : 8,
+                  paddingVertical: isTablet ? 4.5 : 2.5,
+                  borderRadius: isTablet ? 10 : 8,
                 },
               ]}
             >
@@ -120,6 +127,9 @@ export function ManagerBannerButton({
                       : isSuspended
                       ? '#EF4444'
                       : '#10B981',
+                    width: isTablet ? 7 : 6,
+                    height: isTablet ? 7 : 6,
+                    borderRadius: isTablet ? 3.5 : 3,
                   },
                 ]}
               />
@@ -132,6 +142,7 @@ export function ManagerBannerButton({
                       : isSuspended
                       ? '#EF4444'
                       : '#10B981',
+                    fontSize: isTablet ? 12.5 : 10.5,
                   },
                   (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                 ]}
@@ -152,7 +163,7 @@ export function ManagerBannerButton({
                 styles.subtitle,
                 {
                   color: isDark ? '#A5B4FC' : '#4338CA',
-                  fontSize: isTablet ? 14 : 12.5,
+                  fontSize: isTabletLandscape ? 15 : isTablet ? 14 : 12.5,
                 },
               ]}
               numberOfLines={1}
@@ -171,18 +182,24 @@ export function ManagerBannerButton({
                   {
                     backgroundColor: isDriveConnected ? '#10B98115' : '#F59E0B15',
                     borderColor: isDriveConnected ? '#10B98133' : '#F59E0B33',
+                    paddingHorizontal: isTablet ? 10 : 7,
+                    paddingVertical: isTablet ? 3.5 : 2,
+                    borderRadius: isTablet ? 9 : 7,
                   },
                 ]}
               >
                 <Ionicons
                   name={isDriveConnected ? 'cloud-done' : 'cloud-offline'}
-                  size={12}
+                  size={isTablet ? 14 : 12}
                   color={isDriveConnected ? '#10B981' : '#F59E0B'}
                 />
                 <Text
                   style={[
                     styles.driveText,
-                    { color: isDriveConnected ? '#10B981' : '#F59E0B' },
+                    {
+                      color: isDriveConnected ? '#10B981' : '#F59E0B',
+                      fontSize: isTablet ? 11.5 : 10,
+                    },
                     (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
@@ -202,12 +219,15 @@ export function ManagerBannerButton({
             {
               backgroundColor: isDark ? '#312E8166' : '#EEF2FF',
               borderColor: isDark ? '#4338CA88' : '#E0E7FF',
+              width: isTablet ? 36 : 28,
+              height: isTablet ? 36 : 28,
+              borderRadius: isTablet ? 18 : 14,
             },
           ]}
         >
           <Ionicons
             name={isRTL ? 'chevron-back' : 'chevron-forward'}
-            size={16}
+            size={isTablet ? 19 : 16}
             color={isDark ? '#A5B4FC' : '#4F46E5'}
           />
         </View>

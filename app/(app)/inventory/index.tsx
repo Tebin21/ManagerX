@@ -573,8 +573,30 @@ export default function InventoryScreen() {
       },
     ];
 
+    // Find the default category if defined in managedCategories
+    const defaultCatName = managedCategories.find((c) => c.isDefault)?.name;
+
+    // Ensure the default category ALWAYS comes first among categories (right after 'all')
+    const sortedCategories = [...categories].sort((a, b) => {
+      const isADefault =
+        (defaultCatName && a.trim().toLowerCase() === defaultCatName.trim().toLowerCase()) ||
+        a === 'بنەرەت' ||
+        a === 'بنەڕەت' ||
+        a === 'General' ||
+        a === 'افتراضي';
+      const isBDefault =
+        (defaultCatName && b.trim().toLowerCase() === defaultCatName.trim().toLowerCase()) ||
+        b === 'بنەرەت' ||
+        b === 'بنەڕەت' ||
+        b === 'General' ||
+        b === 'افتراضي';
+      if (isADefault && !isBDefault) return -1;
+      if (!isADefault && isBDefault) return 1;
+      return a.localeCompare(b);
+    });
+
     // Append Category chips
-    categories.forEach((catName) => {
+    sortedCategories.forEach((catName) => {
       list.push({
         id: `cat_${catName}`,
         label: catName,
@@ -586,7 +608,7 @@ export default function InventoryScreen() {
     });
 
     return list;
-  }, [selectedCategory, categories, setCategory, t]);
+  }, [selectedCategory, categories, managedCategories, setCategory, t]);
 
   const renderEmpty = () => (
     <MotiView

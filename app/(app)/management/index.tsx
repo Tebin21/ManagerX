@@ -24,7 +24,6 @@ import { isAdminEmail } from '@/lib/adminNotificationService';
 import { useManagementStore } from '@/store/managementStore';
 import {
   setEmployeeStatus,
-  deleteEmployeeAccount,
 } from '@/lib/management/managementService';
 import { getGoogleDriveConfig, connectGoogleDrive, GoogleDriveConfig } from '@/lib/googleDriveBackup';
 import type { EmployeeAccount } from '@/lib/management/types';
@@ -36,7 +35,7 @@ export default function ManagementScreen() {
   const rtl = useRTL();
   const isRTL = rtl?.isRTL ?? true;
   const flexDirection = rtl?.flexDirection ?? 'row-reverse';
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
 
   const currentLang = useLanguageStore((s) => s.language);
   const isKu = currentLang === 'ku';
@@ -138,27 +137,6 @@ export default function ManagementScreen() {
     }
   };
 
-  const handleDelete = (emp: EmployeeAccount) => {
-    Alert.alert(
-      t('management.deleteEmployee'),
-      `${t('management.deleteConfirm')}\n(${emp.displayName} - ${emp.email})`,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-              await deleteEmployeeAccount(emp.email);
-            } catch {
-              Alert.alert(t('common.error'), t('common.tryAgain'));
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—';
@@ -181,19 +159,7 @@ export default function ManagementScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
-      <AppHeader
-        title={t('management.title')}
-        rightAction={
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(app)/management/new-employee' as never)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person-add" size={18} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>{t('management.addEmployee')}</Text>
-          </TouchableOpacity>
-        }
-      />
+      <AppHeader title={t('management.title')} />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}
@@ -211,18 +177,20 @@ export default function ManagementScreen() {
                 : isDark ? '#78350F33' : '#FFFBEB',
               borderColor: gdriveConfig?.isConnected ? '#10B981' : '#F59E0B',
             },
+            isTablet && { padding: 20, marginBottom: 20, borderRadius: 20 },
           ]}
         >
-          <View style={[styles.driveCardHeader, { flexDirection }]}>
+          <View style={[styles.driveCardHeader, { flexDirection }, isTablet && { gap: 16 }]}>
             <View
               style={[
                 styles.driveIconBox,
                 { backgroundColor: gdriveConfig?.isConnected ? '#10B98122' : '#F59E0B22' },
+                isTablet && { width: 50, height: 50, borderRadius: 15 },
               ]}
             >
               <Ionicons
                 name={gdriveConfig?.isConnected ? 'cloud-done' : 'cloud-upload'}
-                size={22}
+                size={isTablet ? 26 : 22}
                 color={gdriveConfig?.isConnected ? '#10B981' : '#F59E0B'}
               />
             </View>
@@ -232,6 +200,7 @@ export default function ManagementScreen() {
                 style={[
                   styles.driveTitle,
                   { color: gdriveConfig?.isConnected ? (isDark ? '#34D399' : '#065F46') : (isDark ? '#FBBF24' : '#92400E') },
+                  isTablet && { fontSize: 16 },
                 ]}
               >
                 {gdriveConfig?.isConnected
@@ -242,6 +211,7 @@ export default function ManagementScreen() {
                 style={[
                   styles.driveDesc,
                   { color: isDark ? '#94A3B8' : '#64748B' },
+                  isTablet && { fontSize: 13, lineHeight: 19 },
                 ]}
               >
                 {gdriveConfig?.isConnected
@@ -262,13 +232,17 @@ export default function ManagementScreen() {
               <TouchableOpacity
                 onPress={handleConnectDrive}
                 disabled={connectingDrive}
-                style={[styles.driveActionBtn, { backgroundColor: '#F59E0B' }]}
+                style={[
+                  styles.driveActionBtn,
+                  { backgroundColor: '#F59E0B' },
+                  isTablet && { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+                ]}
                 activeOpacity={0.8}
               >
                 {connectingDrive ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.driveActionBtnText}>
+                  <Text style={[styles.driveActionBtnText, isTablet && { fontSize: 13.5 }]}>
                     {isAr ? 'ربط الآن' : isKu ? 'بەستنەوە' : 'Connect'}
                   </Text>
                 )}
@@ -278,34 +252,41 @@ export default function ManagementScreen() {
         </View>
 
         {/* KPI Top Cards */}
-        <View style={[styles.kpiRow, { flexDirection }]}>
-          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }]}>
-            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-              <Ionicons name="people" size={20} color="#3B82F6" />
+        <View style={[styles.kpiRow, { flexDirection }, isTablet && { gap: 16, marginBottom: 24 }]}>
+          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }, isTablet && { padding: 18 }]}>
+            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }, isTablet && { width: 44, height: 44, borderRadius: 22, marginBottom: 8 }]}>
+              <Ionicons name="people" size={isTablet ? 24 : 20} color="#3B82F6" />
             </View>
-            <Text style={[styles.kpiVal, { color: colors.black }]}>{totalEmployees}</Text>
-            <Text style={[styles.kpiLbl, { color: colors.gray500 }]}>{t('management.employeesCount')}</Text>
+            <Text style={[styles.kpiVal, { color: colors.black }, isTablet && { fontSize: 24 }]}>{totalEmployees}</Text>
+            <Text style={[styles.kpiLbl, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>{t('management.employeesCount')}</Text>
           </View>
 
-          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }]}>
-            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }, isTablet && { padding: 18 }]}>
+            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }, isTablet && { width: 44, height: 44, borderRadius: 22, marginBottom: 8 }]}>
+              <Ionicons name="checkmark-circle" size={isTablet ? 24 : 20} color="#10B981" />
             </View>
-            <Text style={[styles.kpiVal, { color: '#10B981' }]}>{activeCount}</Text>
-            <Text style={[styles.kpiLbl, { color: colors.gray500 }]}>{t('management.activeCount')}</Text>
+            <Text style={[styles.kpiVal, { color: '#10B981' }, isTablet && { fontSize: 24 }]}>{activeCount}</Text>
+            <Text style={[styles.kpiLbl, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>{t('management.activeCount')}</Text>
           </View>
 
-          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }]}>
-            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-              <Ionicons name="pause-circle" size={20} color="#EF4444" />
+          <View style={[styles.kpiCard, { backgroundColor: isDark ? colors.gray100 : '#FFFFFF', borderColor: colors.gray200 }, isTablet && { padding: 18 }]}>
+            <View style={[styles.kpiIcon, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }, isTablet && { width: 44, height: 44, borderRadius: 22, marginBottom: 8 }]}>
+              <Ionicons name="pause-circle" size={isTablet ? 24 : 20} color="#EF4444" />
             </View>
-            <Text style={[styles.kpiVal, { color: '#EF4444' }]}>{suspendedCount}</Text>
-            <Text style={[styles.kpiLbl, { color: colors.gray500 }]}>{t('management.suspendedCount')}</Text>
+            <Text style={[styles.kpiVal, { color: '#EF4444' }, isTablet && { fontSize: 24 }]}>{suspendedCount}</Text>
+            <Text style={[styles.kpiLbl, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>{t('management.suspendedCount')}</Text>
           </View>
         </View>
 
         {/* Employee List */}
-        <View style={styles.listSection}>
+        <View
+          style={[
+            styles.listSection,
+            isTablet && displayEmployees.length > 1
+              ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 }
+              : undefined,
+          ]}
+        >
           {isLoading && displayEmployees.length === 0 ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : displayEmployees.length === 0 ? (
@@ -330,15 +311,19 @@ export default function ManagementScreen() {
                       borderColor: isSuspended ? '#EF4444' : colors.gray200,
                       borderLeftWidth: isSuspended ? 4 : 1,
                     },
+                    isTablet && {
+                      padding: 20,
+                      width: displayEmployees.length > 1 ? (isTabletLandscape ? '48.8%' : '48.5%') : '100%',
+                    },
                   ]}
                 >
                   {/* Top: Name, Status & Bound Manager */}
                   <View style={[styles.empHeader, { flexDirection }]}>
                     <View style={styles.nameBlock}>
-                      <Text style={[styles.empName, { color: colors.black }]}>
+                      <Text style={[styles.empName, { color: colors.black }, isTablet && { fontSize: 18 }]}>
                         {emp.displayName}
                       </Text>
-                      <Text style={[styles.empEmail, { color: colors.gray500 }]}>
+                      <Text style={[styles.empEmail, { color: colors.gray500 }, isTablet && { fontSize: 14 }]}>
                         {emp.email}
                       </Text>
                     </View>
@@ -372,10 +357,10 @@ export default function ManagementScreen() {
                   {/* Bound Manager Info */}
                   <View style={[styles.infoRow, { flexDirection }]}>
                     <Ionicons name="business-outline" size={14} color={colors.primary} />
-                    <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
+                    <Text style={[styles.infoLabel, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>
                       {t('management.managerEmail')}:
                     </Text>
-                    <Text style={[styles.infoValue, { color: colors.black }]}>
+                    <Text style={[styles.infoValue, { color: colors.black }, isTablet && { fontSize: 13.5 }]}>
                       {emp.managerEmail || '—'}
                     </Text>
                   </View>
@@ -383,10 +368,10 @@ export default function ManagementScreen() {
                   {/* Device Info */}
                   <View style={[styles.infoRow, { flexDirection }]}>
                     <Ionicons name="phone-portrait-outline" size={14} color="#6366F1" />
-                    <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
+                    <Text style={[styles.infoLabel, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>
                       {t('management.device')}:
                     </Text>
-                    <Text style={[styles.infoValue, { color: colors.black }]}>
+                    <Text style={[styles.infoValue, { color: colors.black }, isTablet && { fontSize: 13.5 }]}>
                       {emp.deviceName || emp.deviceModel || '—'}
                     </Text>
                   </View>
@@ -394,10 +379,10 @@ export default function ManagementScreen() {
                   {/* Login Time */}
                   <View style={[styles.infoRow, { flexDirection }]}>
                     <Ionicons name="time-outline" size={14} color="#F59E0B" />
-                    <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
+                    <Text style={[styles.infoLabel, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>
                       {t('management.lastLogin')}:
                     </Text>
-                    <Text style={[styles.infoValue, { color: colors.black }]}>
+                    <Text style={[styles.infoValue, { color: colors.black }, isTablet && { fontSize: 13.5 }]}>
                       {formatDateTime(emp.lastLoginAt)}
                     </Text>
                   </View>
@@ -405,10 +390,10 @@ export default function ManagementScreen() {
                   {/* Password Info */}
                   <View style={[styles.infoRow, { flexDirection }]}>
                     <Ionicons name="key-outline" size={14} color="#D97706" />
-                    <Text style={[styles.infoLabel, { color: colors.gray500 }]}>
+                    <Text style={[styles.infoLabel, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>
                       {isAr ? 'كلمة المرور:' : isKu ? 'تێپەڕەوشە (پاسۆرد):' : 'Password:'}
                     </Text>
-                    <Text style={[styles.infoValue, { color: colors.black, fontFamily: 'monospace', fontWeight: 'bold' }]}>
+                    <Text style={[styles.infoValue, { color: colors.black, fontFamily: 'monospace', fontWeight: 'bold' }, isTablet && { fontSize: 13.5 }]}>
                       {emp.password || '••••••••'}
                     </Text>
                   </View>
@@ -417,7 +402,11 @@ export default function ManagementScreen() {
                   <View style={[styles.cardActions, { flexDirection }]}>
                     {/* Permissions Button */}
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: colors.softBlue, borderColor: colors.primary + '33' }]}
+                      style={[
+                        styles.actionBtn,
+                        { backgroundColor: colors.softBlue, borderColor: colors.primary + '33' },
+                        isTablet && { paddingVertical: 11, paddingHorizontal: 12 },
+                      ]}
                       onPress={() =>
                         router.push({
                           pathname: '/(app)/management/permissions/[id]',
@@ -426,8 +415,8 @@ export default function ManagementScreen() {
                       }
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="options-outline" size={15} color={colors.primary} />
-                      <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+                      <Ionicons name="options-outline" size={isTablet ? 17 : 15} color={colors.primary} />
+                      <Text style={[styles.actionBtnText, { color: colors.primary }, isTablet && { fontSize: 13.5 }]}>
                         {t('management.editPermissions')}
                       </Text>
                     </TouchableOpacity>
@@ -440,6 +429,7 @@ export default function ManagementScreen() {
                           backgroundColor: isSuspended ? '#ECFDF5' : '#FEF2F2',
                           borderColor: isSuspended ? '#A7F3D0' : '#FECACA',
                         },
+                        isTablet && { paddingVertical: 11, paddingHorizontal: 12 },
                       ]}
                       onPress={() => handleToggleStatus(emp)}
                       disabled={isBusy}
@@ -451,13 +441,14 @@ export default function ManagementScreen() {
                         <>
                           <Ionicons
                             name={isSuspended ? 'play' : 'pause'}
-                            size={14}
+                            size={isTablet ? 16 : 14}
                             color={isSuspended ? '#10B981' : '#EF4444'}
                           />
                           <Text
                             style={[
                               styles.actionBtnText,
                               { color: isSuspended ? '#10B981' : '#EF4444' },
+                              isTablet && { fontSize: 13.5 },
                             ]}
                           >
                             {isSuspended
@@ -466,15 +457,6 @@ export default function ManagementScreen() {
                           </Text>
                         </>
                       )}
-                    </TouchableOpacity>
-
-                    {/* Delete Icon Button */}
-                    <TouchableOpacity
-                      style={[styles.deleteIconBtn, { borderColor: colors.gray200 }]}
-                      onPress={() => handleDelete(emp)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 </View>

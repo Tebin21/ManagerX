@@ -565,8 +565,8 @@ function BusinessHeaderImpl() {
   const resolved = resolveType(type, isKurdish, isArabic);
   const typeEmoji = resolved?.emoji || '🏢';
   const styles = React.useMemo(
-    () => getStyles(isTablet, isTabletLandscape, insets.top, uiScaleFactor),
-    [isTablet, isTabletLandscape, insets.top, uiScaleFactor]
+    () => getStyles(isTablet, isTabletLandscape, uiScaleFactor, isDark),
+    [isTablet, isTabletLandscape, uiScaleFactor, isDark]
   );
 
   // Current tab media for modal UI
@@ -590,7 +590,7 @@ function BusinessHeaderImpl() {
         >
           {/* Priority 1: Background Video (Plays on loop) */}
           {canPlayVideo ? (
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={[StyleSheet.absoluteFillObject, { borderRadius: styles.pressableRoot.borderRadius, overflow: 'hidden' }]} pointerEvents="none">
               <HeaderVideo previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`} uri={activeVideo!} />
               <LinearGradient
                 colors={
@@ -603,7 +603,7 @@ function BusinessHeaderImpl() {
             </View>
           ) : currentSlides.length === 1 ? (
             /* Priority 2A: Single Background Slide (Direct rendering, 100% glitch-free) */
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={[StyleSheet.absoluteFillObject, { borderRadius: styles.pressableRoot.borderRadius, overflow: 'hidden' }]} pointerEvents="none">
               <Image
                 source={currentSlides[0].source}
                 style={styles.bgImage}
@@ -620,13 +620,13 @@ function BusinessHeaderImpl() {
             </View>
           ) : currentSlides.length > 1 ? (
             /* Priority 2B: Multiple Background Slides with Smooth Hardware-Accelerated Fade */
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={[StyleSheet.absoluteFillObject, { borderRadius: styles.pressableRoot.borderRadius, overflow: 'hidden' }]} pointerEvents="none">
               {currentSlides.map((slide, i) => (
                 <View
                   key={slide.id}
                   style={[
                     StyleSheet.absoluteFillObject,
-                    { opacity: i === activeIndex ? 1 : 0 },
+                    { opacity: i === activeIndex ? 1 : 0, borderRadius: styles.pressableRoot.borderRadius, overflow: 'hidden' },
                   ]}
                 >
                   <Image
@@ -1100,32 +1100,43 @@ function BusinessHeaderImpl() {
 
 export const BusinessHeader = React.memo(BusinessHeaderImpl);
 
-function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, insetsTop: number = 0, scale: number = 1.0) {
-  const dynamicTopPadding = Math.max(insetsTop + (isTabletLandscape ? 8 : isTablet ? 12 : 16), isTablet ? 44 : 54);
-  const dynamicMinHeight = Math.round(((isTabletLandscape ? 240 : isTablet ? 230 : 210) + Math.max(insetsTop, 20)) * scale);
+function getStyles(isTablet: boolean, isTabletLandscape: boolean = false, scale: number = 1.0, isDark: boolean = false) {
+  const cardRadius = Math.round((isTabletLandscape ? 30 : isTablet ? 26 : 24) * scale);
+  const cardPaddingTop = Math.round((isTabletLandscape ? 22 : isTablet ? 20 : 16) * scale);
+  const cardPaddingBottom = Math.round((isTabletLandscape ? 20 : isTablet ? 18 : 16) * scale);
+  const cardPaddingHorizontal = Math.round((isTabletLandscape ? 28 : isTablet ? 22 : 16) * scale);
+  const dynamicMinHeight = Math.round((isTabletLandscape ? 240 : isTablet ? 225 : 205) * scale);
 
   return StyleSheet.create({
     pressableRoot: {
-      overflow: 'hidden',
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
+      marginHorizontal: isTablet ? 20 : 16,
+      marginTop: 2,
       marginBottom: 6,
+      borderRadius: cardRadius,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDark ? 0.45 : 0.12,
+      shadowRadius: 10,
+      elevation: 6,
     },
     gradient: {
       position: 'relative',
-      borderBottomLeftRadius: 32,
-      borderBottomRightRadius: 32,
+      borderRadius: cardRadius,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(212, 175, 55, 0.22)',
       overflow: 'hidden',
     },
     bgImage: {
       width: '100%',
       height: '100%',
+      borderRadius: cardRadius,
       ...StyleSheet.absoluteFillObject,
     },
     container: {
-      paddingTop: dynamicTopPadding,
-      paddingBottom: isTabletLandscape ? 38 : isTablet ? 36 : 32,
-      paddingHorizontal: isTabletLandscape ? 36 : isTablet ? 28 : 22,
+      paddingTop: cardPaddingTop,
+      paddingBottom: cardPaddingBottom,
+      paddingHorizontal: cardPaddingHorizontal,
       minHeight: dynamicMinHeight,
       justifyContent: 'space-between',
     },

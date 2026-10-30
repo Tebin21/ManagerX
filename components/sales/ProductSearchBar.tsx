@@ -33,7 +33,18 @@ export function ProductSearchBar({
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
   const isKurdish = resolveInputIsKurdish({ isKuLanguage, value: query, placeholder: t('sales.searchProducts') });
   const styles = useMemo(() => getStyles(colors, isTablet), [colors, isTablet]);
-  const allCategories = ['all', ...categories];
+
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const isADefault = a === 'بنەرەت' || a === 'بنەڕەت' || a === 'General' || a === 'افتراضي';
+      const isBDefault = b === 'بنەرەت' || b === 'بنەڕەت' || b === 'General' || b === 'افتراضي';
+      if (isADefault && !isBDefault) return -1;
+      if (!isADefault && isBDefault) return 1;
+      return a.localeCompare(b);
+    });
+  }, [categories]);
+
+  const allCategories = ['all', ...sortedCategories];
 
   return (
     <View style={styles.container}>

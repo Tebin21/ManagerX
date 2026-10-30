@@ -10,6 +10,7 @@ import {
   Platform,
   useWindowDimensions,
   Image,
+  Text as RNText,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Text } from '@/components/settings/SettingsText';
@@ -45,6 +46,7 @@ import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT } from '@/lib/settingsFont';
 import { hexToRgba } from '@/lib/colorUtils';
+import { fmtIQD } from '@/utils/formatters';
 import type { Sale } from '@/types/sales';
 
 type ModuleTab = 'sales' | 'purchases' | 'quotation' | 'inventory' | 'debts';
@@ -69,7 +71,7 @@ export default function ReceiptCustomizationScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle, contentMaxWidth } = useResponsive();
   const { width: windowWidth } = useWindowDimensions();
   const currentLang = useLanguageStore((s) => s.language) || 'ku';
   const isAr = currentLang === 'ar';
@@ -217,61 +219,68 @@ export default function ReceiptCustomizationScreen() {
     );
   };
 
-  // Mock Sales Data
+  // Mock Sales Data (Matches official A4 invoice shown in actual sales print)
   const mockSale: Sale = useMemo(() => ({
     id: 9999,
-    invoiceNumber: 'F-00124',
-    date: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    customerName: isAr ? 'أرام محمد' : isKurdish ? 'ئارام محەمەد' : 'Aram Mohammed',
-    customerPhone: '0750 123 4567',
-    customerAddress: isAr ? 'السليمانية - شارع سالم' : isKurdish ? 'سلێمانی - تووی مەلیك' : 'Sulaymaniyah - Salim St.',
-    subtotal: 4750,
-    discountTotal: 750,
+    invoiceNumber: 'F-00004',
+    date: '2026/10/30',
+    createdAt: '2026/10/30',
+    customerName: isAr ? 'زبون مباشر' : isKurdish ? 'کڕیاری ڕاستەوخۆ' : 'Direct Customer',
+    customerPhone: '',
+    customerAddress: '',
+    subtotal: 3370250,
+    discountTotal: 0,
     globalDiscount: 0,
-    grandTotal: 4000,
-    paidAmount: 4000,
+    grandTotal: 3370250,
+    paidAmount: 3370250,
     remainingDebt: 0,
     paymentMethod: 'cash',
-    notes: isAr
-      ? 'يمكن استبدال البضائع المباعة خلال 7 أيام بشرط تقديم هذا الإيصال.'
-      : isKurdish
-      ? 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.'
-      : 'Goods can be exchanged within 7 days upon presentation of this invoice.',
-    warranty: isAr ? 'ضمان لمدة 1 شهر' : isKurdish ? 'گرەنتی ١ مانگ' : '1-month warranty',
+    notes: isAr ? 'لا توجد ملاحظات' : isKurdish ? 'هیچ تێبینییەک نییە' : 'No notes',
+    warranty: '',
     items: [
       {
         id: 1,
         saleId: 9999,
         productId: 101,
-        productName: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml',
-        quantity: 2,
-        sellingPrice: 500,
+        productName: 'iPhone 15 Pro Max',
+        quantity: 1,
+        sellingPrice: 1450000,
         discount: 0,
-        lineTotal: 1000,
-        itemId: 'COL-330',
+        lineTotal: 1450000,
+        itemId: 'IPH-15PM',
       },
       {
         id: 2,
         saleId: 9999,
         productId: 102,
-        productName: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large',
+        productName: 'MacBook Air M3',
         quantity: 1,
-        sellingPrice: 1500,
+        sellingPrice: 1550000,
         discount: 0,
-        lineTotal: 1500,
-        itemId: 'DOR-BIG',
+        lineTotal: 1550000,
+        itemId: 'MBA-M3',
       },
       {
         id: 3,
         saleId: 9999,
         productId: 103,
-        productName: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate',
-        quantity: 3,
-        sellingPrice: 750,
-        discount: 250,
-        lineTotal: 1500,
-        itemId: 'KIN-BUE',
+        productName: isAr ? 'ساعة' : isKurdish ? 'سەعات' : 'Watch',
+        quantity: 1,
+        sellingPrice: 85250,
+        discount: 0,
+        lineTotal: 85250,
+        itemId: 'WAT-003',
+      },
+      {
+        id: 4,
+        saleId: 9999,
+        productId: 104,
+        productName: 'AirPods Pro 2',
+        quantity: 1,
+        sellingPrice: 285000,
+        discount: 0,
+        lineTotal: 285000,
+        itemId: 'APP-004',
       },
     ],
   } as Sale), [isKurdish, isAr]);
@@ -484,14 +493,24 @@ export default function ReceiptCustomizationScreen() {
     }
   };
 
-  // Preview card width
-  const previewCardWidth = activePaperSize === '58mm'
-    ? Math.min(270, windowWidth - 48)
-    : activePaperSize === '80mm'
-    ? Math.min(320, windowWidth - 36)
-    : activePaperSize === '110mm'
-    ? Math.min(360, windowWidth - 28)
-    : Math.min(380, windowWidth - 24); // A4 Sheet Preview
+  // Preview card width - beautifully responsive for Phones, iPad Portrait and iPad Landscape
+  const previewCardWidth = useMemo(() => {
+    if (activePaperSize === '58mm') {
+      return isTablet ? 360 : Math.min(270, windowWidth - 48);
+    }
+    if (activePaperSize === '80mm') {
+      return isTablet ? 460 : Math.min(320, windowWidth - 36);
+    }
+    if (activePaperSize === '110mm') {
+      return isTablet ? 560 : Math.min(360, windowWidth - 28);
+    }
+    // A4 Sheet Preview
+    return isTablet
+      ? isTabletLandscape
+        ? Math.min(780, (contentMaxWidth || 1000) - 48)
+        : Math.min(680, windowWidth - 64)
+      : Math.min(380, windowWidth - 24);
+  }, [activePaperSize, isTablet, isTabletLandscape, contentMaxWidth, windowWidth]);
 
   // Generic Toggle Renderer
   const renderToggleRow = (
@@ -524,10 +543,11 @@ export default function ReceiptCustomizationScreen() {
         style={[
           styles.switchRow,
           { flexDirection: isRTL ? 'row-reverse' : 'row' },
+          isTablet && { paddingVertical: 15 },
           isLockedForEmployee && { opacity: 0.75 },
         ]}
       >
-        <View style={[styles.switchRowLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.switchRowLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }, isTablet && { gap: 14 }]}>
           <View
             style={[
               styles.switchRowIcon,
@@ -535,12 +555,15 @@ export default function ReceiptCustomizationScreen() {
                 backgroundColor: isChecked
                   ? hexToRgba(colors.primary, isDark ? 0.25 : 0.14)
                   : (isDark ? 'rgba(255,255,255,0.06)' : colors.gray100),
+                width: isTablet ? 42 : 32,
+                height: isTablet ? 42 : 32,
+                borderRadius: isTablet ? 12 : 8,
               },
             ]}
           >
             <Ionicons
               name={icon}
-              size={18}
+              size={isTablet ? 22 : 18}
               color={isChecked ? colors.primary : colors.gray400}
             />
           </View>
@@ -549,6 +572,7 @@ export default function ReceiptCustomizationScreen() {
               style={[
                 styles.switchRowTitle,
                 { color: colors.black, textAlign },
+                isTablet && { fontSize: 16 },
                 isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
@@ -559,6 +583,7 @@ export default function ReceiptCustomizationScreen() {
                 style={[
                   styles.switchRowSub,
                   { color: colors.gray400, textAlign },
+                  isTablet && { fontSize: 13, marginTop: 2 },
                   isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
@@ -572,6 +597,7 @@ export default function ReceiptCustomizationScreen() {
           value={isChecked}
           disabled={isLockedForEmployee}
           onValueChange={handlePress}
+          style={isTablet ? { transform: [{ scaleX: 1.15 }, { scaleY: 1.15 }] } : undefined}
           trackColor={{ false: isDark ? '#334155' : '#E2E8F0', true: colors.primary }}
           thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
         />
@@ -630,12 +656,12 @@ export default function ReceiptCustomizationScreen() {
 
   const monogram = (displayBizName || 'F').trim().charAt(0).toUpperCase() || 'F';
 
-  // 1. Sales A4 Preview (Matches lib/invoiceTemplate.ts buildSalesCSS / buildInvoiceHTML)
+  // 1. Sales A4 Preview (Exact replica of official sales receipt from lib/invoiceTemplate.ts)
   const renderSalesA4Preview = () => (
     <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
-      {/* 3-Column Header */}
-      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Col 1: Business */}
+      {/* 3-Column Header (Business Left | Customer Center | Invoice Info Right) */}
+      <View style={[styles.a4HeaderCols, { flexDirection: 'row' }]}>
+        {/* Col 1: Business (Left) */}
         <View style={styles.a4ColBusiness}>
           <View style={styles.a4LogoFrame}>
             {business.logoUri ? (
@@ -657,22 +683,24 @@ export default function ReceiptCustomizationScreen() {
           )}
         </View>
 
-        {/* Col 2: Customer */}
+        {/* Col 2: Customer (Center) */}
         <View style={styles.a4ColCustomer}>
-          <Text style={styles.a4ColLabelTag}>{isAr ? 'الزبون' : isKurdish ? 'کڕیار' : 'CUSTOMER'}</Text>
+          <Text style={[styles.a4ColLabelTag, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {isAr ? 'الزبون' : isKurdish ? 'کڕیار' : 'CUSTOMER'}
+          </Text>
           {salesSettings.showCustomerName && (
             <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={styles.a4RowLabel}>{isAr ? 'الاسم:' : isKurdish ? 'ناو:' : 'Name:'}</Text>
               <Text style={styles.a4RowVal} numberOfLines={1}>{mockSale.customerName}</Text>
             </View>
           )}
-          {salesSettings.showCustomerPhone && (
+          {salesSettings.showCustomerPhone && !!mockSale.customerPhone && (
             <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={styles.a4RowLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'تەلەفۆن:' : 'Phone:'}</Text>
-              <Text style={[styles.a4RowVal, { direction: 'ltr' }]} numberOfLines={1}>{mockSale.customerPhone}</Text>
+              <RNText style={[styles.a4RowVal, { direction: 'ltr' }]} numberOfLines={1}>{mockSale.customerPhone}</RNText>
             </View>
           )}
-          {salesSettings.showBusinessAddress && (
+          {salesSettings.showBusinessAddress && !!mockSale.customerAddress && (
             <View style={[styles.a4InfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={styles.a4RowLabel}>{isAr ? 'العنوان:' : isKurdish ? 'ناونیشان:' : 'Address:'}</Text>
               <Text style={styles.a4RowVal} numberOfLines={1}>{mockSale.customerAddress}</Text>
@@ -680,123 +708,94 @@ export default function ReceiptCustomizationScreen() {
           )}
         </View>
 
-        {/* Col 3: Invoice Info */}
+        {/* Col 3: Invoice Info (Right) */}
         <View style={styles.a4ColInvoice}>
-          <Text style={styles.a4InvTypeLabel}>{isAr ? 'فاتورة مبيعات' : isKurdish ? 'وەسڵی فرۆشتن' : 'SALES INVOICE'}</Text>
+          <Text style={[styles.a4InvTypeLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {isAr ? 'فاتورة مبيعات' : isKurdish ? 'پسوولەی فرۆشتن' : 'SALES INVOICE'}
+          </Text>
           {salesSettings.showInvoiceNumber && (
             <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Text style={styles.a4InvMetaTitle}>#{mockSale.invoiceNumber}</Text>
+              <Text style={styles.a4RowLabel}>{isAr ? 'رقم الفاتورة' : isKurdish ? 'ژمارەی پسوولە' : 'Invoice #:'}</Text>
+              <RNText style={[styles.a4RowVal, { fontWeight: '800' }]}>{mockSale.invoiceNumber}</RNText>
             </View>
           )}
           {salesSettings.showDate && (
             <>
               <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={styles.a4RowLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
-                <Text style={styles.a4RowVal} numberOfLines={1}>2026/10/29</Text>
+                <RNText style={styles.a4RowVal}>Oct 30, 2026</RNText>
               </View>
               <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={styles.a4RowLabel}>{isAr ? 'الوقت:' : isKurdish ? 'کات:' : 'Time:'}</Text>
-                <Text style={styles.a4RowVal} numberOfLines={1}>02:45 PM</Text>
+                <RNText style={styles.a4RowVal}>2:07 PM</RNText>
               </View>
             </>
           )}
           {salesSettings.showPaymentMethod && (
-            <View style={[styles.a4StatusPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-              <Text style={[styles.a4StatusPillText, { color: '#047857' }]}>
-                {isAr ? '● نقداً (مدفوع)' : isKurdish ? '● نەقد (پارەدراو)' : '● PAID (CASH)'}
-              </Text>
+            <View style={[styles.a4InvMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginTop: 3 }]}>
+              <Text style={styles.a4RowLabel}>{isAr ? 'الحالة:' : isKurdish ? 'دۆخ:' : 'Status:'}</Text>
+              <View style={[styles.a4StatusPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                <Text style={[styles.a4StatusPillText, { color: '#047857' }]}>
+                  {isAr ? 'مدفوع' : isKurdish ? 'پارەدراوە' : 'Paid'}
+                </Text>
+              </View>
             </View>
           )}
         </View>
       </View>
 
-      {/* Policy Card */}
-      {salesSettings.showAboutPolicy !== false && (
-        <View style={styles.a4PolicyCard}>
-          <Text style={styles.a4PolicyLabel}>{isAr ? 'حول سياسة الشركة والضمان' : isKurdish ? 'دەربارەی سیاسەت و گەرەنتی' : 'COMPANY POLICY & WARRANTY'}</Text>
-          <Text style={styles.a4PolicyText}>
-            {isAr
-              ? 'يمكن استبدال البضائع المباعة خلال 7 أيام بشرط تقديم هذا الإيصال.'
-              : isKurdish
-              ? 'کاڵای فرۆشراو دەگۆڕدرێتەوە تا ٧ ڕۆژ بە مەرجی پێشکەشکردنی ئەم پسوولەیە.'
-              : 'Goods can be exchanged within 7 days upon presentation of this invoice.'}
-          </Text>
-        </View>
-      )}
-
-      {/* Top Summary Pair (Side-by-side above table) */}
-      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Left: Financial Card */}
+      {/* Top Summary Pair (Side-by-side above table: Left = Payment Summary | Right = Notes) */}
+      <View style={[styles.a4TopSummaryPair, { flexDirection: 'row' }]}>
+        {/* Left: Financial Card (پوختەی پارەدان) */}
         <View style={styles.a4SummaryCard}>
-          <Text style={styles.a4CardLabel}>{isAr ? 'الملخص المالي' : isKurdish ? 'خوێندنەوەی دارایی' : 'PAYMENT SUMMARY'}</Text>
-          <View style={styles.a4FinRow}>
-            <Text style={styles.a4FinLabel}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
-            <Text style={styles.a4FinVal}>4,750 IQD</Text>
+          <Text style={[styles.a4CardLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {isAr ? 'ملخص الدفع' : isKurdish ? 'پوختەی پارەدان' : 'PAYMENT SUMMARY'}
+          </Text>
+          <View style={[styles.a4FinRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={styles.a4FinLabel}>{isAr ? 'المجموع الأولي:' : isKurdish ? 'کۆی سەرەتایی' : 'Subtotal:'}</Text>
+            <RNText style={styles.a4FinVal}>{fmtIQD(mockSale.subtotal)} IQD</RNText>
           </View>
-          {salesSettings.showDiscount && (
-            <View style={styles.a4FinRow}>
+          {salesSettings.showDiscount && (mockSale.discountTotal > 0 || mockSale.globalDiscount > 0) && (
+            <View style={[styles.a4FinRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
-              <Text style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− 750 IQD</Text>
+              <RNText style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− {fmtIQD(mockSale.discountTotal + mockSale.globalDiscount)} IQD</RNText>
             </View>
           )}
           <View style={styles.a4TotalBlock}>
             <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={styles.a4TotalBlockLabel}>{isAr ? 'المجموع الكلي (IQD)' : isKurdish ? 'کۆی گشتی (IQD)' : 'Grand Total (IQD)'}</Text>
-              <Text style={styles.a4TotalBlockAmount}>4,000 IQD</Text>
-            </View>
-            <View style={styles.a4TotalDivider} />
-            <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Text style={styles.a4TotalBlockSub}>{isAr ? 'المجموع الكلي بالدولار' : isKurdish ? 'کۆی گشتی بە دۆلار' : 'Total in USD'}</Text>
-              <Text style={styles.a4TotalBlockSubAmount}>$3.05 USD</Text>
+              <RNText style={styles.a4TotalBlockAmount}>{fmtIQD(mockSale.grandTotal)} IQD</RNText>
             </View>
           </View>
-          {salesSettings.showPaymentMethod && (
-            <View style={styles.a4FinRow}>
-              <Text style={styles.a4FinLabel}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
-              <Text style={styles.a4FinVal}>{isAr ? 'نقداً' : isKurdish ? 'کاش (نەقد)' : 'Cash'}</Text>
-            </View>
-          )}
-          {salesSettings.showRemainingDebt && (
-            <View style={styles.a4FinRow}>
-              <Text style={styles.a4FinLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
-              <Text style={[styles.a4FinVal, { color: '#047857', fontWeight: '700' }]}>0 IQD</Text>
-            </View>
-          )}
         </View>
 
-        {/* Right: Notes Card */}
+        {/* Right: Notes Card (تێبینی) */}
         {salesSettings.showNotes && (
           <View style={styles.a4SummaryCard}>
-            <Text style={styles.a4CardLabel}>{isAr ? 'الملاحظات والضمان' : isKurdish ? 'تێبینی و سیاسەت' : 'NOTES & WARRANTY'}</Text>
-            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'ضمان البيع:' : isKurdish ? 'گرەنتی فرۆشتن:' : 'Warranty:'}</Text>
-            <Text style={styles.a4NotesWarrantyText}>{isAr ? 'ضمان استبدال بمنتج جديد لمدة 6 أشهر.' : isKurdish ? 'گرەنتی ٦ مانگ گۆڕین بە کاڵای نوێ.' : '6-month exchange warranty.'}</Text>
+            <Text style={[styles.a4CardLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {isAr ? 'ملاحظات' : isKurdish ? 'تێبینی' : 'NOTES'}
+            </Text>
+            <Text style={[styles.a4NotesWarrantyText, { textAlign: isRTL ? 'right' : 'left', marginBottom: 6 }]}>
+              {mockSale.notes}
+            </Text>
             <View style={styles.a4NotesDivider} />
-            <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'الملاحظات:' : isKurdish ? 'تێبینیەکان:' : 'Notes:'}</Text>
-            <Text style={styles.a4NotesWarrantyText} numberOfLines={3}>
+            <Text style={[styles.a4NotesWarrantyText, { textAlign: isRTL ? 'right' : 'left', color: '#64748B' }]} numberOfLines={2}>
               {getSalesFooterNote()}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Items Table */}
+      {/* Items Table (Exact Columns: # | کاڵا | ئایدی کاڵا | بڕ | نرخی یەکە | داشکاندن | کۆی ڕیز) */}
       <View style={styles.a4TableWrap}>
         <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
-          <Text style={[styles.a4Th, { flex: 2.2, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
-          {salesSettings.showItemBarcode && (
-            <Text style={[styles.a4Th, { flex: 1.0, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'Code'}</Text>
-          )}
-          {salesSettings.showQty && (
-            <Text style={[styles.a4Th, { flex: 0.55, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
-          )}
-          {salesSettings.showItemPrice && (
-            <Text style={[styles.a4Th, { flex: 1.15, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price'}</Text>
-          )}
-          {salesSettings.showDiscount && (
-            <Text style={[styles.a4Th, { flex: 1.0, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
-          )}
-          <Text style={[styles.a4Th, { flex: 1.25, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆ' : 'Total'}</Text>
+          <Text style={[styles.a4Th, { width: '4%', textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { width: '26%', textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          <Text style={[styles.a4Th, { width: '11%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'رمز المادة' : isKurdish ? 'ئایدی کاڵا' : 'Code'}</Text>
+          <Text style={[styles.a4Th, { width: '5%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          <Text style={[styles.a4Th, { width: '18%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'سعر الوحدة' : isKurdish ? 'نرخی یەکە' : 'Price'}</Text>
+          <Text style={[styles.a4Th, { width: '14%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الخصم' : isKurdish ? 'داشکاندن' : 'Disc.'}</Text>
+          <Text style={[styles.a4Th, { width: '22%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆی ڕیز' : 'Total'}</Text>
         </View>
 
         {(mockSale.items ?? []).map((item, idx) => (
@@ -808,68 +807,56 @@ export default function ReceiptCustomizationScreen() {
               { flexDirection: isRTL ? 'row-reverse' : 'row' },
             ]}
           >
-            <Text style={[styles.a4Td, { flex: 0.4, textAlign: 'center' }]}>{idx + 1}</Text>
-            <View style={{ flex: 2.2 }}>
+            <RNText style={[styles.a4TdNum, { width: '4%', textAlign: 'center' }]}>{idx + 1}</RNText>
+            <View style={{ width: '26%' }}>
               <Text style={styles.a4ItemName} numberOfLines={1}>{item.productName}</Text>
             </View>
-            {salesSettings.showItemBarcode && (
-              <View style={{ flex: 1.1, alignItems: 'center' }}>
-                <Text style={styles.a4IdChip} numberOfLines={1}>{item.itemId}</Text>
-              </View>
-            )}
-            {salesSettings.showQty && <Text style={[styles.a4Td, { flex: 0.6, textAlign: 'center' }]}>{item.quantity}</Text>}
-            {salesSettings.showItemPrice && (
-              <View style={{ flex: 1.2, alignItems: 'flex-end', justifyContent: 'center' }}>
-                {salesSettings.showDiscount && item.discount > 0 ? (
-                  <>
-                    <Text style={styles.a4StrikethroughPrice}>{item.sellingPrice + item.discount}</Text>
-                    <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.sellingPrice}</Text>
-                  </>
-                ) : (
-                  <Text style={[styles.a4Td, { fontWeight: '700' }]} numberOfLines={1}>{item.sellingPrice}</Text>
-                )}
-              </View>
-            )}
-            {salesSettings.showDiscount && (
-              <Text
-                style={[
-                  styles.a4Td,
-                  {
-                    flex: 1.1,
-                    textAlign: 'right',
-                    color: item.discount > 0 ? '#D97706' : '#94A3B8',
-                    fontWeight: item.discount > 0 ? '700' : '400',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.discount > 0 ? `− ${item.discount}` : '—'}
-              </Text>
-            )}
-            <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right', fontWeight: '700' }]}>
-              {item.lineTotal.toLocaleString()}
-            </Text>
+            <View style={{ width: '11%', alignItems: 'center', justifyContent: 'center' }}>
+              {salesSettings.showItemBarcode && item.itemId && item.itemId !== '—' ? (
+                <RNText style={styles.a4IdChip} numberOfLines={1}>
+                  {item.itemId}
+                </RNText>
+              ) : (
+                <RNText style={[styles.a4Td, { textAlign: 'center', color: '#94A3B8' }]} numberOfLines={1}>
+                  —
+                </RNText>
+              )}
+            </View>
+            <RNText style={[styles.a4TdNum, { width: '5%', textAlign: 'center', fontWeight: '700' }]}>{item.quantity}</RNText>
+            <RNText style={[styles.a4TdAmount, { width: '18%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>
+              {fmtIQD(item.sellingPrice)} IQD
+            </RNText>
+            <RNText style={[styles.a4Td, { width: '14%', textAlign: 'center', color: '#64748B' }]} numberOfLines={1}>
+              {salesSettings.showDiscount && item.discount > 0 ? `− ${fmtIQD(item.discount)}` : '—'}
+            </RNText>
+            <RNText style={[styles.a4TdAmountBold, { width: '22%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>
+              {fmtIQD(item.lineTotal)} IQD
+            </RNText>
           </View>
         ))}
       </View>
 
-      {/* Signatures */}
+      {/* Signatures (Customer Signature Right | Store Stamp & Signature Left) */}
       {salesSettings.showSignature !== false && (
-        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={styles.a4SigCol}>
+        <View style={[styles.a4SignaturesRow, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 18, marginBottom: 12 }]}>
+          <View style={[styles.a4SigCol, { width: 130, alignItems: 'center' }]}>
             <View style={styles.a4SigLine} />
-            <Text style={styles.a4SigLabel}>{isAr ? 'توقيع الزبون / المستلم' : isKurdish ? 'واژووی کڕیار / وەرگر' : 'Customer Signature'}</Text>
+            <Text style={styles.a4SigLabel}>
+              {isAr ? 'توقيع الزبون / المستلم' : isKurdish ? 'واژووی کڕیار / وەرگر' : 'Customer Signature'}
+            </Text>
           </View>
-          <View style={styles.a4SigCol}>
+          <View style={[styles.a4SigCol, { width: 130, alignItems: 'center' }]}>
             <View style={styles.a4SigLine} />
-            <Text style={styles.a4SigLabel}>{isAr ? 'ختم وتوقيع المتجر' : isKurdish ? 'مۆر و واژووی فرۆشگا' : 'Store Stamp & Signature'}</Text>
+            <Text style={styles.a4SigLabel}>
+              {isAr ? 'ختم وتوقيع المتجر' : isKurdish ? 'مۆر و واژووی فرۆشگا' : 'Store Stamp & Signature'}
+            </Text>
           </View>
         </View>
       )}
 
       {/* Footer */}
       <Text style={styles.a4BrandCredit}>
-        {isAr ? 'فاتورة مبيعات · نظام فروشيار · www.froshiar.store · #F-00124' : isKurdish ? 'وەسڵی فرۆشتن · بەرهەمی فرۆشیار · www.froshiar.store · #F-00124' : 'Sales Invoice · Powered by Froshiar · www.froshiar.store · #F-00124'}
+        {`F-00004 · www.froshiar.store · ${isAr ? 'فاتورة مبيعات · تم التطوير بواسطة Froshiar' : isKurdish ? 'پسوولەی فرۆشتن · دروستکراوە لەلایەن Froshiar' : 'Sales Invoice · Developed by Froshiar'}`}
       </Text>
     </View>
   );
@@ -878,7 +865,7 @@ export default function ReceiptCustomizationScreen() {
   const renderPurchasesA4Preview = () => (
     <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
       {/* 3-Column Header */}
-      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4HeaderCols, { flexDirection: 'row' }]}>
         {/* Col 1: Business */}
         <View style={styles.a4ColBusiness}>
           <View style={styles.a4LogoFrame}>
@@ -969,7 +956,7 @@ export default function ReceiptCustomizationScreen() {
       )}
 
       {/* Top Summary Pair */}
-      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4TopSummaryPair, { flexDirection: 'row' }]}>
         {/* Left: Financial Card */}
         <View style={styles.a4SummaryCard}>
           <Text style={styles.a4CardLabel}>{isAr ? 'ملخص الشراء المالي' : isKurdish ? 'پوختەی دارایی کڕین' : 'PURCHASE SUMMARY'}</Text>
@@ -1108,7 +1095,7 @@ export default function ReceiptCustomizationScreen() {
       </View>
 
       {/* 3-Column Header */}
-      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4HeaderCols, { flexDirection: 'row' }]}>
         {/* Col 1: Business */}
         <View style={styles.a4ColBusiness}>
           <View style={styles.a4LogoFrame}>
@@ -1194,7 +1181,7 @@ export default function ReceiptCustomizationScreen() {
       )}
 
       {/* Top Summary Pair */}
-      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4TopSummaryPair, { flexDirection: 'row' }]}>
         {/* Left: Financial Card */}
         <View style={styles.a4SummaryCard}>
           <Text style={styles.a4CardLabel}>{isAr ? 'الملخص المالي للعرض' : isKurdish ? 'پوختەی دارایی پێشنیار' : 'PROPOSAL FINANCIALS'}</Text>
@@ -1319,7 +1306,7 @@ export default function ReceiptCustomizationScreen() {
     <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
       {/* Inventory Header */}
       {inventorySettings.showBusinessHeader && (
-        <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.a4HeaderCols, { flexDirection: 'row' }]}>
           <View style={styles.a4ColBusiness}>
             <View style={styles.a4LogoFrame}>
               {business.logoUri ? (
@@ -1455,7 +1442,7 @@ export default function ReceiptCustomizationScreen() {
   const renderDebtsA4Preview = () => (
     <View style={[styles.a4SheetReal, { width: previewCardWidth }]}>
       {/* 3-Column Header */}
-      <View style={[styles.a4HeaderCols, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4HeaderCols, { flexDirection: 'row' }]}>
         {/* Col 1: Business */}
         <View style={styles.a4ColBusiness}>
           <View style={styles.a4LogoFrame}>
@@ -1530,7 +1517,7 @@ export default function ReceiptCustomizationScreen() {
       </View>
 
       {/* Top Summary Pair */}
-      <View style={[styles.a4TopSummaryPair, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.a4TopSummaryPair, { flexDirection: 'row' }]}>
         {/* Left: Financial Card */}
         <View style={styles.a4SummaryCard}>
           <Text style={styles.a4CardLabel}>{isAr ? 'خلاصة الحساب المالي' : isKurdish ? 'پوختەی حیسابی دارایی' : 'DEBT ACCOUNT SUMMARY'}</Text>
@@ -1654,8 +1641,25 @@ export default function ReceiptCustomizationScreen() {
       />
 
       {/* ── 5 MODULE SELECTOR TABS (فرۆشتن • کڕین • عەرز • کۆگا • قەرز) ── */}
-      <View style={[styles.moduleTabsWrapper, { backgroundColor: isDark ? colors.gray100 : colors.white, borderBottomColor: colors.gray200 }]}>
-        <View style={[styles.moduleTabsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View
+        style={[
+          styles.moduleTabsWrapper,
+          { backgroundColor: isDark ? colors.gray100 : colors.white, borderBottomColor: colors.gray200 },
+          isTablet && { paddingVertical: 12, paddingHorizontal: 16 },
+        ]}
+      >
+        <View
+          style={[
+            styles.moduleTabsRow,
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            isTablet && {
+              maxWidth: contentMaxWidth || 980,
+              width: '100%',
+              alignSelf: 'center',
+              gap: 8,
+            },
+          ]}
+        >
           {([
             { id: 'sales', label: isAr ? 'المبيعات' : isKurdish ? 'فرۆشتن' : 'Sales', icon: 'cart-outline' },
             { id: 'purchases', label: isAr ? 'المشتريات' : isKurdish ? 'کڕین' : 'Purchases', icon: 'bag-check-outline' },
@@ -1677,17 +1681,24 @@ export default function ReceiptCustomizationScreen() {
                       : (isDark ? 'rgba(255,255,255,0.06)' : colors.gray50),
                     borderColor: isSelected ? colors.primary : colors.gray200,
                   },
+                  isTablet && {
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderRadius: 16,
+                    gap: 6,
+                  },
                 ]}
               >
                 <Ionicons
                   name={tab.icon as any}
-                  size={14}
+                  size={isTablet ? 18 : 14}
                   color={isSelected ? '#FFFFFF' : colors.gray500}
                 />
                 <Text
                   style={[
                     styles.moduleTabButtonText,
                     { color: isSelected ? '#FFFFFF' : colors.black },
+                    isTablet && { fontSize: 15 },
                     isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                   numberOfLines={1}
@@ -1786,72 +1797,91 @@ export default function ReceiptCustomizationScreen() {
               </Text>
             </View>
           ) : (
-            <View style={[styles.widthTabsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {PAPER_OPTIONS.map((opt) => {
-                const isSelected = activePaperSize === opt.id;
-                return (
-                  <TouchableOpacity
-                    key={opt.id}
-                    activeOpacity={0.8}
-                    onPress={() => handleSelectPaperSize(opt.id)}
-                    style={[
-                      styles.widthTab,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.primary + (isDark ? '25' : '15')
-                          : (isDark ? 'rgba(255,255,255,0.05)' : colors.gray100),
-                        borderColor: isSelected
-                          ? colors.primary
-                          : (isDark ? 'rgba(255,255,255,0.1)' : colors.gray200),
-                      },
-                    ]}
-                  >
-                    {isSelected && (
-                      <View style={[styles.activeCheckBadge, { backgroundColor: colors.primary }]}>
-                        <Ionicons name="checkmark" size={9} color="#FFFFFF" />
-                      </View>
-                    )}
-                    <Text
-                      style={[
-                        styles.widthTabLabel,
-                        { color: isSelected ? colors.primary : colors.black },
-                        isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                    <View
-                      style={[
-                        styles.widthCmBadge,
-                        {
-                          backgroundColor: isSelected
-                            ? colors.primary + '25'
-                            : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
-                        },
-                      ]}
-                    >
-                      <Text
+            <View style={[styles.widthTabsContainer, isTablet && { gap: 14 }]}>
+              {(isTabletLandscape
+                ? [PAPER_OPTIONS]
+                : [PAPER_OPTIONS.slice(0, 2), PAPER_OPTIONS.slice(2, 4)]
+              ).map((rowGroup, rowIdx) => (
+                <View
+                  key={`paper_row_${rowIdx}`}
+                  style={[
+                    styles.widthTabsRow,
+                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    isTablet && { gap: 14 },
+                  ]}
+                >
+                  {rowGroup.map((opt) => {
+                    const isSelected = activePaperSize === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        activeOpacity={0.8}
+                        onPress={() => handleSelectPaperSize(opt.id)}
                         style={[
-                          styles.widthCmBadgeText,
-                          { color: isSelected ? colors.primary : colors.gray500 },
+                          styles.widthTab,
+                          isTablet && { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 16 },
+                          {
+                            backgroundColor: isSelected
+                              ? colors.primary + (isDark ? '25' : '15')
+                              : (isDark ? 'rgba(255,255,255,0.05)' : colors.gray100),
+                            borderColor: isSelected
+                              ? colors.primary
+                              : (isDark ? 'rgba(255,255,255,0.1)' : colors.gray200),
+                          },
                         ]}
                       >
-                        {opt.widthCm}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.widthTabDesc,
-                        { color: isSelected ? colors.primary : colors.gray400 },
-                        isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {isAr ? opt.descAr : isKurdish ? opt.desc : opt.descEn}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                        {isSelected && (
+                          <View style={[styles.activeCheckBadge, { backgroundColor: colors.primary }]}>
+                            <Ionicons name="checkmark" size={isTablet ? 12 : 10} color="#FFFFFF" />
+                          </View>
+                        )}
+                        <Text
+                          style={[
+                            styles.widthTabLabel,
+                            isTablet && { fontSize: 16.5 },
+                            { color: isSelected ? colors.primary : colors.black },
+                            isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                        <View
+                          style={[
+                            styles.widthCmBadge,
+                            isTablet && { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
+                            {
+                              backgroundColor: isSelected
+                                ? colors.primary + '25'
+                                : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.widthCmBadgeText,
+                              isTablet && { fontSize: 12 },
+                              { color: isSelected ? colors.primary : colors.gray500 },
+                            ]}
+                          >
+                            {opt.widthCm}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.widthTabDesc,
+                            isTablet && { fontSize: 12 },
+                            { color: isSelected ? colors.primary : colors.gray400 },
+                            isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {isAr ? opt.descAr : isKurdish ? opt.desc : opt.descEn}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           )}
         </SettingsCard>
@@ -2805,6 +2835,7 @@ export default function ReceiptCustomizationScreen() {
                 textAlign,
                 opacity: isLockedForEmployee ? 0.7 : 1,
               },
+              isTablet && { minHeight: 80, fontSize: 15, padding: 16 },
               isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
             ]}
             value={
@@ -2835,17 +2866,22 @@ export default function ReceiptCustomizationScreen() {
         </SettingsCard>
 
         {/* ── 5. Action Buttons (Test Print & Reset) ── */}
-        <View style={styles.actionsContainer}>
+        <View style={[styles.actionsContainer, isTablet && { marginTop: 14, gap: 14 }]}>
           <TouchableOpacity
-            style={[styles.testPrintBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.testPrintBtn,
+              { backgroundColor: colors.primary },
+              isTablet && { paddingVertical: 18, borderRadius: 18 },
+            ]}
             activeOpacity={0.8}
             onPress={handleTestPrint}
             disabled={isPrintingTest}
           >
-            <Ionicons name="print-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="print-outline" size={isTablet ? 24 : 20} color="#FFFFFF" />
             <Text
               style={[
                 styles.testPrintBtnText,
+                isTablet && { fontSize: 17 },
                 isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
@@ -2864,14 +2900,16 @@ export default function ReceiptCustomizationScreen() {
                 backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2',
                 borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FCA5A5',
               },
+              isTablet && { paddingVertical: 16, borderRadius: 16 },
             ]}
             activeOpacity={0.8}
             onPress={handleResetCurrentModule}
           >
-            <Ionicons name="refresh-outline" size={18} color="#EF4444" />
+            <Ionicons name="refresh-outline" size={isTablet ? 21 : 18} color="#EF4444" />
             <Text
               style={[
                 styles.resetBtnText,
+                isTablet && { fontSize: 15 },
                 isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
@@ -2968,47 +3006,52 @@ const styles = StyleSheet.create({
   },
 
   /* Paper Size Selectors */
+  widthTabsContainer: {
+    gap: 10,
+    marginTop: 8,
+  },
   widthTabsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: 10,
   },
   widthTab: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
+    minHeight: 88,
   },
   activeCheckBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: 7,
+    right: 7,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   widthTabLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     marginBottom: 4,
   },
   widthCmBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    paddingHorizontal: 8,
     borderRadius: 6,
     marginBottom: 4,
   },
   widthCmBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   widthTabDesc: {
-    fontSize: 9.5,
+    fontSize: 11,
     textAlign: 'center',
   },
 
@@ -3247,7 +3290,7 @@ const styles = StyleSheet.create({
   },
   a4SummaryCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 6,
@@ -3367,6 +3410,24 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: '#0F172A',
   },
+  a4TdNum: {
+    fontSize: 7.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',
+  },
+  a4TdAmount: {
+    fontSize: 7.2,
+    fontWeight: '600',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',
+  },
+  a4TdAmountBold: {
+    fontSize: 7.2,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',
+  },
   a4ItemName: {
     fontSize: 8.5,
     fontWeight: '700',
@@ -3387,6 +3448,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     paddingHorizontal: 2,
     paddingVertical: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',
   },
   a4StrikethroughPrice: {
     fontSize: 8,

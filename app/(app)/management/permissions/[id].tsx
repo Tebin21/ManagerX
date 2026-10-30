@@ -41,7 +41,7 @@ export default function EmployeePermissionsScreen() {
   const isRTL = rtl?.isRTL ?? true;
   const flexDirection = rtl?.flexDirection ?? 'row-reverse';
   const textAlign = rtl?.textAlign ?? 'right';
-  const { isTablet, contentContainerStyle } = useResponsive();
+  const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
   const currentLang = useLanguageStore((s) => s.language);
   const isKu = currentLang === 'ku';
   const isAr = currentLang === 'ar';
@@ -188,19 +188,25 @@ export default function EmployeePermissionsScreen() {
             backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
             borderColor: colors.gray200,
           },
+          isTablet && {
+            width: isTabletLandscape ? '48.8%' : '48.5%',
+            padding: 16,
+            borderRadius: 18,
+          },
         ]}
       >
         <View style={[styles.permTitleRow, { flexDirection }]}>
-          <Ionicons name={icon} size={18} color={colors.primary} />
-          <Text style={[styles.permTitle, { color: colors.black }]}>{label}</Text>
+          <Ionicons name={icon} size={isTablet ? 20 : 18} color={colors.primary} />
+          <Text style={[styles.permTitle, { color: colors.black }, isTablet && { fontSize: 15.5 }]}>{label}</Text>
         </View>
 
         {/* 3-way State Selector: Active / Disabled / Hidden */}
-        <View style={[styles.segmentGroup, { flexDirection }]}>
+        <View style={[styles.segmentGroup, { flexDirection }, isTablet && { padding: 4 }]}>
           {/* Active */}
           <TouchableOpacity
             style={[
               styles.segmentBtn,
+              isTablet && { paddingVertical: 10, borderRadius: 10 },
               currentState === 'active' && [
                 styles.segmentBtnActive,
                 { backgroundColor: '#10B981' },
@@ -212,6 +218,7 @@ export default function EmployeePermissionsScreen() {
             <Text
               style={[
                 styles.segmentText,
+                isTablet && { fontSize: 13 },
                 { color: currentState === 'active' ? '#FFFFFF' : colors.gray500 },
               ]}
             >
@@ -223,6 +230,7 @@ export default function EmployeePermissionsScreen() {
           <TouchableOpacity
             style={[
               styles.segmentBtn,
+              isTablet && { paddingVertical: 10, borderRadius: 10 },
               currentState === 'disabled' && [
                 styles.segmentBtnActive,
                 { backgroundColor: '#F59E0B' },
@@ -234,6 +242,7 @@ export default function EmployeePermissionsScreen() {
             <Text
               style={[
                 styles.segmentText,
+                isTablet && { fontSize: 13 },
                 { color: currentState === 'disabled' ? '#FFFFFF' : colors.gray500 },
               ]}
             >
@@ -245,6 +254,7 @@ export default function EmployeePermissionsScreen() {
           <TouchableOpacity
             style={[
               styles.segmentBtn,
+              isTablet && { paddingVertical: 10, borderRadius: 10 },
               currentState === 'hidden' && [
                 styles.segmentBtnActive,
                 { backgroundColor: '#EF4444' },
@@ -256,6 +266,7 @@ export default function EmployeePermissionsScreen() {
             <Text
               style={[
                 styles.segmentText,
+                isTablet && { fontSize: 13 },
                 { color: currentState === 'hidden' ? '#FFFFFF' : colors.gray500 },
               ]}
             >
@@ -298,7 +309,11 @@ export default function EmployeePermissionsScreen() {
         onBack={() => router.back()}
         rightAction={
           <TouchableOpacity
-            style={[styles.saveHeaderBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.saveHeaderBtn,
+              { backgroundColor: colors.primary },
+              isTablet && { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+            ]}
             onPress={handleSave}
             disabled={isSaving}
             activeOpacity={0.8}
@@ -306,7 +321,7 @@ export default function EmployeePermissionsScreen() {
             {isSaving ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.saveHeaderBtnText}>{t('management.savePermissions')}</Text>
+              <Text style={[styles.saveHeaderBtnText, isTablet && { fontSize: 15 }]}>{t('management.savePermissions')}</Text>
             )}
           </TouchableOpacity>
         }
@@ -314,7 +329,7 @@ export default function EmployeePermissionsScreen() {
 
       <ScrollView contentContainerStyle={[styles.scrollContent, isTablet && contentContainerStyle]}>
         {/* Section 0: Employee Password Management */}
-        <Text style={[styles.sectionTitle, { color: colors.black }]}>
+        <Text style={[styles.sectionTitle, { color: colors.black }, isTablet && { fontSize: 18, marginBottom: 14 }]}>
           {isAr ? 'كلمة مرور تسجيل دخول الموظف' : isKu ? 'تێپەڕەوشەی چوونەژوورەوەی کارمەند' : 'Employee Login Password'}
         </Text>
         <View
@@ -324,15 +339,16 @@ export default function EmployeePermissionsScreen() {
               backgroundColor: isDark ? colors.gray100 : '#FFFFFF',
               borderColor: colors.gray200,
             },
+            isTablet && { padding: 22, borderRadius: 20 },
           ]}
         >
           <View style={[styles.passwordHeader, { flexDirection }]}>
-            <Ionicons name="key" size={18} color={colors.primary} />
-            <Text style={[styles.passwordTitle, { color: colors.black }]}>
+            <Ionicons name="key" size={isTablet ? 22 : 18} color={colors.primary} />
+            <Text style={[styles.passwordTitle, { color: colors.black }, isTablet && { fontSize: 16 }]}>
               {isAr ? 'تغيير كلمة المرور' : isKu ? 'گۆڕینی تێپەڕەوشە (پاسۆرد)' : 'Change Employee Password'}
             </Text>
             {(currentDisplayPassword || foundEmp?.password) ? (
-              <Text style={[styles.currentPassLabel, { color: colors.gray500 }]}>
+              <Text style={[styles.currentPassLabel, { color: colors.gray500 }, isTablet && { fontSize: 13 }]}>
                 {isAr
                   ? `الحالية: ${currentDisplayPassword || foundEmp?.password}`
                   : isKu
@@ -352,6 +368,7 @@ export default function EmployeePermissionsScreen() {
                   color: colors.black,
                   textAlign: isRTL ? 'right' : 'left',
                 },
+                isTablet && { height: 50, fontSize: 15, paddingHorizontal: 16 },
               ]}
               placeholder={isAr ? 'كلمة المرور الجديدة (6 أحرف على الأقل)...' : isKu ? 'تێپەڕەوشەی نوێ (لانیکەم ٦ پیت)...' : 'Enter new password (min 6 chars)...'}
               placeholderTextColor={colors.gray400}
@@ -368,13 +385,14 @@ export default function EmployeePermissionsScreen() {
                 {
                   backgroundColor: newPassword.trim().length >= 6 ? colors.primary : colors.gray400,
                 },
+                isTablet && { height: 50, paddingHorizontal: 18, borderRadius: 14 },
               ]}
               activeOpacity={0.8}
             >
               {isUpdatingPassword ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.updatePassBtnText}>
+                <Text style={[styles.updatePassBtnText, isTablet && { fontSize: 14 }]}>
                   {isAr ? 'تحديث' : isKu ? 'نوێکردنەوە' : 'Update'}
                 </Text>
               )}
@@ -383,15 +401,15 @@ export default function EmployeePermissionsScreen() {
         </View>
 
         {/* Section 1: Main Modules */}
-        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 20 }]}>
+        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 20 }, isTablet && { fontSize: 18, marginTop: 26, marginBottom: 14 }]}>
           {t('management.modulesPermissions')}
         </Text>
-        <View style={styles.groupContainer}>
+        <View style={[styles.groupContainer, isTablet && { flexDirection: 'row', flexWrap: 'wrap', gap: 14 }]}>
           {moduleItems.map((item) => renderSegmentItem(item.label, item.key, item.icon))}
         </View>
 
         {/* Section 2: Actions & Safety */}
-        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 24 }]}>
+        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 24 }, isTablet && { fontSize: 18, marginTop: 28, marginBottom: 14 }]}>
           {t('management.actionsPermissions')}
         </Text>
         <View
@@ -402,13 +420,14 @@ export default function EmployeePermissionsScreen() {
               borderColor: colors.gray200,
               flexDirection,
             },
+            isTablet && { padding: 20, borderRadius: 20 },
           ]}
         >
           <View style={styles.actionTextGroup}>
-            <Text style={[styles.actionLabel, { color: colors.black }]}>
+            <Text style={[styles.actionLabel, { color: colors.black }, isTablet && { fontSize: 16 }]}>
               {t('management.canDeleteInvoice')}
             </Text>
-            <Text style={[styles.actionDesc, { color: colors.gray500 }]}>
+            <Text style={[styles.actionDesc, { color: colors.gray500 }, isTablet && { fontSize: 13.5, lineHeight: 20 }]}>
               {isAr
                 ? 'يمنع الموظف من حذف أي فاتورة بيع أو شراء.'
                 : isKu
@@ -423,6 +442,7 @@ export default function EmployeePermissionsScreen() {
               setPermissions((prev) => ({ ...prev, canDeleteInvoice: val }));
             }}
             trackColor={{ false: colors.gray300, true: colors.primary }}
+            style={isTablet ? { transform: [{ scaleX: 1.15 }, { scaleY: 1.15 }] } : undefined}
           />
         </View>
 
@@ -436,13 +456,14 @@ export default function EmployeePermissionsScreen() {
               flexDirection,
               marginTop: 10,
             },
+            isTablet && { padding: 20, borderRadius: 20 },
           ]}
         >
           <View style={styles.actionTextGroup}>
-            <Text style={[styles.actionLabel, { color: colors.black }]}>
+            <Text style={[styles.actionLabel, { color: colors.black }, isTablet && { fontSize: 16 }]}>
               {isAr ? 'تعديل وتخصيص إعدادات طباعة الفواتير' : isKu ? 'دەستکاریکردنی شێوازی چاپ و ڕێکخستنی پسوولەکان' : 'Customize Receipt & Print Layout'}
             </Text>
-            <Text style={[styles.actionDesc, { color: colors.gray500 }]}>
+            <Text style={[styles.actionDesc, { color: colors.gray500 }, isTablet && { fontSize: 13.5, lineHeight: 20 }]}>
               {isAr
                 ? 'السماح للموظف بتعديل أحجام الأوراق (58mm, 80mm, 110mm, A4) وتفاصيل الفواتير للأقسام الـ 5 (المبيعات، المشتريات، العروض، المخزن، الديون).'
                 : isKu
@@ -457,14 +478,15 @@ export default function EmployeePermissionsScreen() {
               setPermissions((prev) => ({ ...prev, canEditReceiptCustomization: val }));
             }}
             trackColor={{ false: colors.gray300, true: colors.primary }}
+            style={isTablet ? { transform: [{ scaleX: 1.15 }, { scaleY: 1.15 }] } : undefined}
           />
         </View>
 
         {/* Section 3: Settings Button-by-Button */}
-        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 24 }]}>
+        <Text style={[styles.sectionTitle, { color: colors.black, marginTop: 24 }, isTablet && { fontSize: 18, marginTop: 28, marginBottom: 14 }]}>
           {t('management.settingsPermissions')}
         </Text>
-        <View style={styles.groupContainer}>
+        <View style={[styles.groupContainer, isTablet && { flexDirection: 'row', flexWrap: 'wrap', gap: 14 }]}>
           {settingsItems.map((item) => renderSegmentItem(item.label, item.key, item.icon))}
         </View>
 
@@ -473,6 +495,7 @@ export default function EmployeePermissionsScreen() {
           style={[
             styles.bottomSaveBtn,
             { backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 },
+            isTablet && { height: 60, borderRadius: 18, marginTop: 36 },
           ]}
           onPress={handleSave}
           disabled={isSaving}
@@ -481,7 +504,7 @@ export default function EmployeePermissionsScreen() {
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.bottomSaveBtnText}>{t('management.savePermissions')}</Text>
+            <Text style={[styles.bottomSaveBtnText, isTablet && { fontSize: 18 }]}>{t('management.savePermissions')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

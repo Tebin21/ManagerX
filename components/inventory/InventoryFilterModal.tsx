@@ -60,6 +60,16 @@ export function InventoryFilterModal({
   const isKuOrAr = isKuLanguage || isAr;
   const { isTablet, isTabletLandscape, sheetMaxWidth, width: screenWidth } = useResponsive();
 
+  const sortedCategories = React.useMemo(() => {
+    return [...categories].sort((a: string, b: string) => {
+      const isADefault = a === 'بنەرەت' || a === 'بنەڕەت' || a === 'General' || a === 'افتراضي';
+      const isBDefault = b === 'بنەرەت' || b === 'بنەڕەت' || b === 'General' || b === 'افتراضي';
+      if (isADefault && !isBDefault) return -1;
+      if (!isADefault && isBDefault) return 1;
+      return a.localeCompare(b);
+    });
+  }, [categories]);
+
   const stockOptions: { key: StockStatusFilter; label: string; icon: any }[] = [
     { key: 'all',        label: t('inventory.filterAll'),        icon: 'apps-outline' },
     { key: 'inStock',    label: t('inventory.inStockFilter'),    icon: 'checkmark-circle-outline' },
@@ -272,7 +282,7 @@ export function InventoryFilterModal({
                     </Text>
                   </TouchableOpacity>
 
-                  {categories.map((cat) => {
+                  {sortedCategories.map((cat: string) => {
                     const isSelected = selectedCategory === cat;
                     return (
                       <TouchableOpacity

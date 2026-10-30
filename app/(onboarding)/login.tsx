@@ -216,12 +216,12 @@ export default function LoginScreen() {
       await initializeDatabase();
     } catch {}
     const { useManagementStore } = await import('@/store/managementStore');
-    useManagementStore.getState().clearEmployeeSession();
+    useManagementStore.getState().resetAllManagementState();
     const mockUser = {
       id: 'dev_user_1',
       uid: 'dev_user_1',
       email: 'demo@froshiar.store',
-      displayName: 'Dev Administrator',
+      displayName: 'Demo Account',
     };
     useAuthStore.setState({ user: mockUser as any, isLoading: false });
     const { useOnboardingStore } = await import('@/store/onboardingStore');

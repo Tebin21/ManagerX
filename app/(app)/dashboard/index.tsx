@@ -31,13 +31,26 @@ export default function DashboardScreen() {
   const allEmployees = useManagementStore((s) => s.employees);
   const user = useAuthStore((s) => s.user);
   const isAdmin = isAdminEmail(user?.email);
+  const isDemoAccount =
+    !user?.email ||
+    user.email.toLowerCase().trim() === 'demo@froshiar.store' ||
+    user.id === 'dev_user_1';
   const displayEmployees = isAdmin ? (allEmployees.length > 0 ? allEmployees : managedEmployees) : managedEmployees;
 
-  // Management banner is strictly hidden for employees and normal users.
-  // Visible ONLY to Super Admin or verified Managers who supervise active staff accounts.
-  const showManagementBanner = !isEmployee && (isAdmin || (isManager && managedEmployees.length > 0));
+  // Management banner is strictly hidden for employees, demo/test accounts, and normal users.
+  // Visible ONLY to real Super Admin or verified Managers who supervise active staff accounts.
+  const showManagementBanner =
+    !isEmployee &&
+    !isDemoAccount &&
+    (isAdmin || (isManager && managedEmployees.length > 0));
 
   const [isDriveConnected, setIsDriveConnected] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isDemoAccount) {
+      useManagementStore.getState().resetAllManagementState();
+    }
+  }, [isDemoAccount]);
 
   React.useEffect(() => {
     getGoogleDriveConfig()
@@ -45,21 +58,14 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, []);
 
-  // When the business header is hidden, ensure proper breathing space below the status bar / Dynamic Island
-  const safeTopPadding = !showDashboardNavigation ? Math.max(insets.top, 16) + 12 : 10;
+  // Ensure proper breathing space below the status bar / Dynamic Island (iPhone Dynamic Island is ~54-59pt)
+  const safeTopPadding = Platform.OS === 'ios' ? Math.max(insets.top, 54) + 10 : Math.max(insets.top, 24) + 8;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gray50 }]}>
-      <StatusBar barStyle={showDashboardNavigation ? 'light-content' : (isDark ? 'light-content' : 'dark-content')} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Top Banner Header (Fixed at top, not inside the ScrollView) */}
-      {showDashboardNavigation && (
-        <View style={styles.headerFixedWrapper}>
-          <BusinessHeader />
-        </View>
-      )}
-
-      {/* Scrollable Content (Logo, Settings, Modules and Store scroll under BusinessHeader) */}
+      {/* Scrollable Content (Hero Banner, Logo & Settings, Modules and Store scroll naturally) */}
       <ScrollView
         style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
@@ -71,11 +77,21 @@ export default function DashboardScreen() {
         ]}
       >
         <View style={[styles.bodyWrapper, isTablet && contentContainerStyle]}>
-          {/* Top Bar with BexDre Logo & Settings Button */}
+          {/* 1. Large Floating Hero Banner (Rounded rectangle, top of page, detached from notch) */}
+          {showDashboardNavigation && (
+            <View style={{ paddingTop: safeTopPadding }}>
+              <BusinessHeader />
+            </View>
+          )}
+
+          {/* 2. Bar with BexDre Logo & Settings Button (Positioned below the banner) */}
           <View
             style={[
               styles.sectionHeader,
-              { paddingTop: safeTopPadding, paddingBottom: 10 },
+              {
+                paddingTop: showDashboardNavigation ? 4 : safeTopPadding,
+                paddingBottom: 10,
+              },
             ]}
           >
             <BexDreLogoButton />
@@ -99,7 +115,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Full-width Management Button (visible when user is manager of staff accounts or admin) */}
+          {/* 3. Full-width Management Button (strictly hidden for demo/test accounts, employees, normal users) */}
           {showManagementBanner && (
             <ManagerBannerButton
               employees={displayEmployees}
@@ -107,10 +123,13 @@ export default function DashboardScreen() {
             />
           )}
 
+          {/* 4. Modules Grid */}
           <ModuleGrid />
 
+          {/* 5. Online Store Card */}
           <OnlineStoreCard />
 
+          {/* 6. Support Footer */}
           <SupportFooter compact />
         </View>
       </ScrollView>
@@ -120,10 +139,6 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   screen:  { flex: 1 },
-  headerFixedWrapper: {
-    zIndex: 10,
-    elevation: 8,
-  },
   scrollFlex: { flex: 1 },
   scroll:  { flexGrow: 1 },
   bodyWrapper: {

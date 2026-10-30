@@ -152,11 +152,13 @@ export default function NewPurchaseScreen() {
     }
 
     // 2. Barcode / Item ID binding
-    if (preset.itemId) {
+    if (preset.itemId && preset.itemId.trim()) {
       setIdType('shared');
-      setSharedId(preset.itemId);
-      setBoundProductIdentity({ name: preset.name, itemId: preset.itemId });
+      setSharedId(preset.itemId.trim());
+      setBoundProductIdentity({ name: preset.name, itemId: preset.itemId.trim() });
       setIdClearedNotice(null);
+    } else {
+      setBoundProductIdentity(null);
     }
 
     // 3. Prices (Buy & Sell in IQD and USD)
@@ -252,7 +254,7 @@ export default function NewPurchaseScreen() {
     const cleanName = productName.trim().toLowerCase();
     if (!cleanName) return null;
 
-    // 1. By bound identity
+    // 1. By bound identity matching an existing inventory product
     if (boundProductIdentity?.name && boundProductIdentity.name.trim().toLowerCase() === cleanName) {
       const match = inventoryProducts.find(
         (p) => p.name.trim().toLowerCase() === cleanName ||
@@ -267,7 +269,7 @@ export default function NewPurchaseScreen() {
     );
     if (matchByName) return matchByName;
 
-    // 3. By saved presets
+    // 3. By saved presets ONLY IF that preset points to an actual inventory product
     const matchPreset = savedPresets.find(
       (p) => p.name.trim().toLowerCase() === cleanName
     );
@@ -277,38 +279,38 @@ export default function NewPurchaseScreen() {
                p.name.trim().toLowerCase() === matchPreset.name.trim().toLowerCase()
       );
       if (invP) return invP;
-      return {
-        id: 0,
-        name: matchPreset.name,
-        itemId: matchPreset.itemId ?? '',
-        quantity: 0,
-        purchasePrice: matchPreset.buyPriceIQD || 0,
-        sellingPrice: matchPreset.sellPriceIQD || 0,
-        category: matchPreset.category || 'General',
-      } as any;
     }
 
     return null;
   }, [productName, boundProductIdentity, inventoryProducts, savedPresets]);
 
-  const isRepurchasingExisting = Boolean(existingInventoryProduct);
-  const existingProductLockedId = existingInventoryProduct?.itemId || boundProductIdentity?.itemId || sharedId;
+  // A purchase is strictly a locked restock ONLY IF:
+  // 1. It already exists in inventory (id > 0)
+  // 2. AND it already has a non-empty itemId / barcode!
+  const isRepurchasingExisting = Boolean(
+    existingInventoryProduct &&
+    existingInventoryProduct.id > 0 &&
+    Boolean(existingInventoryProduct.itemId?.trim())
+  );
+  const existingProductLockedId = existingInventoryProduct?.itemId?.trim() || '';
 
   // Auto-lock and auto-fill existing product ID when repurchasing
   useEffect(() => {
-    if (existingInventoryProduct) {
-      const targetId = existingInventoryProduct.itemId || boundProductIdentity?.itemId;
-      if (targetId && sharedId !== targetId) {
-        setSharedId(targetId);
-      }
-      if (idType !== 'shared') {
-        setIdType('shared');
-      }
-      if (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== existingInventoryProduct.name.trim().toLowerCase()) {
-        setBoundProductIdentity({
-          name: existingInventoryProduct.name,
-          itemId: targetId || '',
-        });
+    if (existingInventoryProduct && existingInventoryProduct.id > 0) {
+      const targetId = existingInventoryProduct.itemId?.trim() || '';
+      if (targetId) {
+        if (sharedId !== targetId) {
+          setSharedId(targetId);
+        }
+        if (idType !== 'shared') {
+          setIdType('shared');
+        }
+        if (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== existingInventoryProduct.name.trim().toLowerCase()) {
+          setBoundProductIdentity({
+            name: existingInventoryProduct.name,
+            itemId: targetId,
+          });
+        }
       }
       // Auto-fill prices if empty
       if (!buyIQD && existingInventoryProduct.purchasePrice > 0) {
@@ -341,7 +343,7 @@ export default function NewPurchaseScreen() {
         }).catch(() => {});
       }
     }
-  }, [existingInventoryProduct]);
+  }, [existingInventoryProduct, isRepurchasingExisting]);
 
   // ─── Barcode Scanner ────────────────────────────────────────────────────────
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -1487,7 +1489,7 @@ export default function NewPurchaseScreen() {
               </Text>
             </View>
 
-            {existingInventoryProduct.quantity !== undefined && (
+            {existingInventoryProduct && existingInventoryProduct.quantity !== undefined && (
               <View
                 style={[
                   styles.existingStockDisplayBox,
@@ -1527,10 +1529,10 @@ export default function NewPurchaseScreen() {
               ]}
             >
               {isArLanguage
-                ? `بعد شراء هذه الـ ${qtyNum} قطع، سيصبح إجمالي المخزن ${(existingInventoryProduct.quantity || 0) + qtyNum} قطعة.`
+                ? `بعد شراء هذه الـ ${qtyNum} قطع، سيصبح إجمالي المخزن ${((existingInventoryProduct?.quantity || 0) + qtyNum)} قطعة.`
                 : isKuLanguage
-                ? `دوای کڕینی ئەم ${qtyNum} دانەیە، کۆی گشتی کۆگا دەبێتە ${(existingInventoryProduct.quantity || 0) + qtyNum} دانە.`
-                : `After purchasing ${qtyNum} units, total inventory will be ${(existingInventoryProduct.quantity || 0) + qtyNum} pcs.`}
+                ? `دوای کڕینی ئەم ${qtyNum} دانەیە، کۆی گشتی کۆگا دەبێتە ${((existingInventoryProduct?.quantity || 0) + qtyNum)} دانە.`
+                : `After purchasing ${qtyNum} units, total inventory will be ${((existingInventoryProduct?.quantity || 0) + qtyNum)} pcs.`}
             </Text>
           </View>
         </View>

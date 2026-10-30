@@ -1047,7 +1047,7 @@ export async function getProductCategories(): Promise<string[]> {
   }
 
   const rows = await database.getAllAsync<{ name: string }>(
-    `SELECT name FROM categories ORDER BY name ASC`
+    `SELECT name FROM categories ORDER BY COALESCE(is_default, 0) DESC, name COLLATE NOCASE ASC`
   );
   return rows.map((r) => r.name);
 }
@@ -3991,7 +3991,7 @@ export async function getPurchaseById(id: number): Promise<Purchase | null> {
     'SELECT image_uri, image_remote_url, item_description FROM products WHERE purchase_id = ? ORDER BY id ASC LIMIT 1', [id]
   );
   purchase.imageUri = productRow?.image_uri || productRow?.image_remote_url || null;
-  purchase.itemDescription = productRow?.item_description ?? null;
+  purchase.itemDescription = purchase.description || productRow?.item_description || null;
   return purchase;
 }
 
