@@ -38,7 +38,7 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme, MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
-import type { SalesDebtDetail, PurchaseDebt } from '@/types/debt';
+import type { SalesDebtDetail, PurchaseDebt, DebtPaymentReceiptData } from '@/types/debt';
 import { fmtIQD, toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
 import { roundToNearest250, roundUSD } from '@/utils/rounding';
 import { useRTL, useDirectionalChevron, RTL_SPACING } from '@/lib/rtl';
@@ -49,6 +49,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { shareDebtsAuditReport, shareSalesDebtReport } from '@/lib/generateInvoice';
 import { getSalesDebtById, getDebtPayments, getSaleById } from '@/lib/sqlite';
 import { DebtPdfExportModal } from '@/components/debt/DebtPdfExportModal';
+import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import { CustomDateRangeModal } from '@/components/shared/CustomDateRangeModal';
 import type { DebtReportSections } from '@/lib/debtReportTemplate';
 
@@ -726,6 +727,8 @@ export default function DebtScreen() {
   const [query, setQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
+  const [createdReceipt, setCreatedReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const filterScrollRef = useRef<ScrollView>(null);
@@ -874,60 +877,19 @@ export default function DebtScreen() {
   const handlePay = useCallback(async (amount: number, paymentMethod: 'cash' | 'fib' = 'cash') => {
     if (!payTarget) return;
     try {
-      const isSettling = amount >= payTarget.remaining;
-      const target = payTarget;
+      let receipt: DebtPaymentReceiptData;
       if (payTarget.type === 'sales') {
-        await paySalesDebt(payTarget.id, amount, undefined, paymentMethod);
-        setPayTarget(null);
-        if (isSettling) {
-          Alert.alert(
-            isAr ? 'تسوية الدين' : isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
-            isKuLanguage
-              ? 'قەرزەکە بە سەرکەوتوویی تەواو کرا. ئایا دەتەوێت وەسڵی قەرزەکە پرینت بکەیت؟'
-              : 'The debt has been fully settled. Would you like to print the debt receipt?',
-            [
-              {
-                text: isAr ? 'لا / رجوع' : isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
-                style: 'cancel',
-                onPress: () => router.replace('/(app)/sales' as never),
-              },
-              {
-                text: isAr ? 'طباعة الوصل' : isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
-                onPress: async () => {
-                  try {
-                    const [d, p] = await Promise.all([
-                      getSalesDebtById(target.id),
-                      getDebtPayments(target.id, 'sales'),
-                    ]);
-                    if (d) {
-                      const s = d.saleId ? await getSaleById(d.saleId) : null;
-                      const biz = useBusinessStore.getState();
-                      await shareSalesDebtReport(d, p, {
-                        name: biz.name,
-                        phone: biz.phone,
-                        address: biz.address,
-                        logoUri: biz.logoUri,
-                      }, s?.items);
-                    }
-                  } catch (e) {
-                    console.error('Quick pay print error:', e);
-                  } finally {
-                    router.replace('/(app)/sales' as never);
-                  }
-                },
-              },
-            ]
-          );
-          return;
-        }
+        receipt = await paySalesDebt(payTarget.id, amount, undefined, paymentMethod);
       } else {
-        await payPurchaseDebt(payTarget.id, amount, undefined, paymentMethod);
-        setPayTarget(null);
+        receipt = await payPurchaseDebt(payTarget.id, amount, undefined, paymentMethod);
       }
+      setPayTarget(null);
+      setCreatedReceipt(receipt);
+      setShowReceiptModal(true);
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     }
-  }, [payTarget, paySalesDebt, payPurchaseDebt, isKuLanguage, router, t]);
+  }, [payTarget, paySalesDebt, payPurchaseDebt, t]);
 
   const handlePaySalesPress = useCallback((debtId: number) => {
     const debt = visibleSales.find((d) => d.id === debtId);
@@ -1720,6 +1682,16 @@ type PurchaseDebtOrFiller = PurchaseDebt | { id: string | number; isFiller: true
         remaining={payTarget?.remaining ?? 0}
         onCancel={() => setPayTarget(null)}
         onConfirm={handlePay}
+      />
+
+      {/* ── Debt Payment Receipt 4-Size Modal ── */}
+      <DebtPaymentReceiptModal
+        visible={showReceiptModal}
+        receipt={createdReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setCreatedReceipt(null);
+        }}
       />
 
       {/* ── PDF Export Options Modal ── */}

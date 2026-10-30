@@ -712,6 +712,8 @@ export interface PurchaseItemRow {
   lineTotalIQD: number;
   idType: string | null;
   itemIds: string[];
+  description?: string | null;
+  itemDescription?: string | null;
 }
 
 
@@ -862,21 +864,22 @@ function buildPurchaseCSS(isKurdish: boolean): string {
   .right  { text-align: ${numAlign}; unicode-bidi: isolate; direction: ltr; white-space: nowrap !important; }
   .item-name { font-weight: 600; color: #000000; font-size: 12px; display: block; unicode-bidi: plaintext; word-break: break-word; overflow-wrap: break-word; line-height: 1.35; }
   .item-desc { display: block; font-size: 9.5px; font-weight: 400; color: #64748b; margin-top: 2px; unicode-bidi: plaintext; word-break: break-word; overflow-wrap: break-word; }
-  .item-id {
-    display: inline-flex;
-    flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
-    align-items: baseline;
-    gap: 4px;
-    margin-top: 2px;
-    font-size: 9.5px;
+  .id-chip {
+    display: inline-block;
+    font-size: 9px;
     color: #334155;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    padding: 1px 5px;
+    padding: 1px 4px;
     font-weight: 600;
+    unicode-bidi: isolate;
+    direction: ltr;
+    word-break: break-all;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
-  .item-id-value { direction: ltr; unicode-bidi: isolate; }
-  .num-col { color: #000000; font-size: 11.5px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; }
+  .num-col { color: #000000; font-size: 11px; font-weight: 700; text-align: center; unicode-bidi: isolate; direction: ltr; white-space: nowrap; }
+  .empty-row { text-align: center; color: #64748b; padding: 22px 14px; font-size: 12px; }
+  .muted-cell { color: #94a3b8; }
 
   /* ── Financial ── */
   .fin-row {
@@ -1061,24 +1064,44 @@ function buildPurchaseCSS(isKurdish: boolean): string {
 // quantity, matching what was actually entered for the purchase.
 interface PurchaseDisplayRow {
   name: string;
+  category: string | null;
   qty: number;
   unitPriceIQD: number;
   totalIQD: number;
   idChip: string | null;
+  description: string | null;
 }
 
 function expandPurchaseRow(
   name: string,
+  category: string | null,
   qty: number,
   unitPriceIQD: number,
   lineTotalIQD: number,
   itemIds: string[],
+  description: string | null = null,
 ): PurchaseDisplayRow[] {
   const ids = itemIds.map((v) => v.trim()).filter(Boolean);
   if (ids.length > 1) {
-    return ids.map((id) => ({ name, qty: 1, unitPriceIQD, totalIQD: unitPriceIQD, idChip: id }));
+    return ids.map((id) => ({
+      name,
+      category,
+      qty: 1,
+      unitPriceIQD,
+      totalIQD: unitPriceIQD,
+      idChip: id,
+      description,
+    }));
   }
-  return [{ name, qty, unitPriceIQD, totalIQD: lineTotalIQD, idChip: ids[0] ?? null }];
+  return [{
+    name,
+    category,
+    qty,
+    unitPriceIQD,
+    totalIQD: lineTotalIQD,
+    idChip: ids[0] ?? null,
+    description,
+  }];
 }
 
 export function buildPurchaseInvoiceHTML(
@@ -1110,8 +1133,11 @@ export function buildPurchaseInvoiceHTML(
   };
 
   const isKurdish = isKurdishPdfActive();
-  const lang = isKurdish ? 'ku' : 'en';
-  const kuAlign = isKurdish ? 'right' : 'left';
+  const currentPurchaseLang = i18n.language || (isKurdish ? 'ku' : 'en');
+  const isPurchaseAr = currentPurchaseLang === 'ar';
+  const isPurchaseKu = isKurdish;
+  const lang = isPurchaseAr ? 'ar' : isPurchaseKu ? 'ku' : 'en';
+  const kuAlign = (isPurchaseKu || isPurchaseAr) ? 'right' : 'left';
 
   const monogram = (business.name ?? '').trim().charAt(0).toUpperCase() || 'B';
   const safeLogoUri = sanitizeImageUri(business.logoUri);
@@ -1119,20 +1145,20 @@ export function buildPurchaseInvoiceHTML(
     ? `<img src="${safeLogoUri}" class="logo-img" alt="logo" />`
     : `<div class="logo-mono">${escHtml(monogram)}</div>`;
 
-  const statusBadge = purchase.paymentStatus === 'paid'
-    ? `<span class="pill pill-paid">${ku(t('statusPaid'))}</span>`
+  const statusBadge = (purchase.paymentStatus === 'paid')
+    ? `<span class="pill pill-paid">${ku(isPurchaseAr ? '● مدفوع (نقداً)' : isPurchaseKu ? '● پارەدراو (کاش)' : '● PAID (CASH)')}</span>`
     : (purchase.paymentStatus === 'fib'
-        ? `<span class="pill pill-fib">FIB</span>`
-        : `<span class="pill pill-debt">${ku(t('statusDebt'))}</span>`);
+        ? `<span class="pill pill-fib">● FIB</span>`
+        : `<span class="pill pill-debt">${ku(isPurchaseAr ? '● آجل (دين)' : isPurchaseKu ? '● قەرزدار' : '● DEBT')}</span>`);
 
   // ── Supplier (rendered inside the header's middle column) ──
   const showSuppName = purchaseSettings.showSupplierName && purchase.supplierName;
   const showSuppPhone = purchaseSettings.showSupplierPhone && purchase.supplierPhone;
   const supplierColumn = (showSuppName || showSuppPhone || purchase.supplierAddress) ? `
-      <div class="card-label">${ku(t('supplier'))}</div>
-      ${showSuppName    ? `<div class="info-row"><span class="row-label">${ku(t('name') + ':')}</span><span class="row-value">${escHtml(purchase.supplierName!)}</span></div>` : ''}
-      ${showSuppPhone   ? `<div class="info-row"><span class="row-label">${ku(t('phone') + ':')}</span><span class="row-value">${escHtml(purchase.supplierPhone!)}</span></div>` : ''}
-      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(t('address') + ':')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
+      <div class="card-label">${ku(isPurchaseAr ? 'المورد' : isPurchaseKu ? 'دابینکەر' : 'SUPPLIER')}</div>
+      ${showSuppName    ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'المورد:' : isPurchaseKu ? 'دابینکەر:' : 'Supplier:')}</span><span class="row-value">${escHtml(purchase.supplierName!)}</span></div>` : ''}
+      ${showSuppPhone   ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'الهاتف:' : isPurchaseKu ? 'تەلەفۆن:' : 'Phone:')}</span><span class="row-value row-value-ltr">${escHtml(purchase.supplierPhone!)}</span></div>` : ''}
+      ${purchase.supplierAddress ? `<div class="info-row"><span class="row-label">${ku(isPurchaseAr ? 'العنوان:' : isPurchaseKu ? 'ناونیشان:' : 'Address:')}</span><span class="row-value">${escHtml(purchase.supplierAddress)}</span></div>` : ''}` : '';
 
   // ── Items table ──
   const baseCurrency = useSettingsStore.getState().baseCurrency || 'IQD';
@@ -1140,37 +1166,55 @@ export function buildPurchaseInvoiceHTML(
   const effectiveExchangeRate = (purchase.exchangeRate > 0 ? purchase.exchangeRate : 0) || useSettingsStore.getState().exchangeRate || 1310;
   const fmtRow = (val: number) => isUsdBase ? `$${fmtUSD(val / effectiveExchangeRate)}` : `${fmtIQD(val)}&nbsp;IQD`;
 
+  const fallbackDesc = purchase.itemDescription || purchase.description || null;
   const displayRows: PurchaseDisplayRow[] = purchaseItems.length > 0
-    ? purchaseItems.flatMap((item) => expandPurchaseRow(item.productName, item.quantity, item.buyPriceIQD, item.lineTotalIQD, item.itemIds))
-    : expandPurchaseRow(purchase.productName, purchase.quantity, purchase.buyPriceIQD, purchase.totalIQD, purchase.itemIds);
+    ? purchaseItems.flatMap((item) =>
+        expandPurchaseRow(
+          item.productName,
+          item.category || purchase.category || null,
+          item.quantity,
+          item.buyPriceIQD,
+          item.lineTotalIQD,
+          item.itemIds,
+          item.itemDescription || item.description || fallbackDesc
+        )
+      )
+    : expandPurchaseRow(
+        purchase.productName,
+        purchase.category || null,
+        purchase.quantity,
+        purchase.buyPriceIQD,
+        purchase.totalIQD,
+        purchase.itemIds,
+        fallbackDesc
+      );
 
-  const rows = displayRows.map((row, i) => `
+  const rows = displayRows.length > 0 ? displayRows.map((row, i) => `
         <tr>
-          <td class="num-col" style="width:5%;">${i + 1}</td>
-          <td style="width:51%;text-align:${kuAlign};">
+          <td class="num-col" style="width:4%;">${i + 1}</td>
+          <td style="width:28%;text-align:${kuAlign};">
             <span class="item-name">${escHtml(row.name)}</span>
-            ${purchase.itemDescription ? `<span class="item-desc">${escHtml(purchase.itemDescription)}</span>` : ''}
-            ${row.idChip ? `<span class="item-id"><span class="item-id-label">${ku(t('itemIdLabel') + ':')}</span><span class="item-id-value">${escHtml(row.idChip)}</span></span>` : ''}
+            ${row.description ? `<span class="item-desc">${escHtml(row.description)}</span>` : ''}
           </td>
-          <td class="center" style="width:8%;">${row.qty}</td>
-          <td class="right" style="width:18%;white-space:nowrap !important;">${fmtRow(row.unitPriceIQD)}</td>
-          <td class="right" style="width:18%;white-space:nowrap !important;font-weight:700;">${fmtRow(row.totalIQD)}</td>
-        </tr>`).join('');
-
-  const currentPurchaseLang = i18n.language || 'ku';
-  const isPurchaseAr = currentPurchaseLang === 'ar';
-  const isPurchaseKu = currentPurchaseLang === 'ku';
+          <td class="center" style="width:12%;">${(purchaseSettings.showItemBarcode && row.idChip) ? `<span class="id-chip">${escHtml(row.idChip)}</span>` : '<span class="muted-cell">—</span>'}</td>
+          <td class="center" style="width:14%;color:#64748b;font-size:11px;">${escHtml(row.category || '—')}</td>
+          <td class="center" style="width:6%;font-weight:700;">${row.qty}</td>
+          <td class="right" style="width:16%;white-space:nowrap !important;">${fmtRow(row.unitPriceIQD)}</td>
+          <td class="right" style="width:20%;white-space:nowrap !important;font-weight:700;">${fmtRow(row.totalIQD)}</td>
+        </tr>`).join('') : `<tr><td colspan="7" class="empty-row">${ku(t('noItems'))}</td></tr>`;
 
   const itemsContent = `
       <div class="table-card">
         <table>
           <thead>
             <tr>
-              <th class="center" style="width:5%;min-width:30px;">#</th>
-              <th style="width:51%;text-align:${kuAlign};">${ku(t('colProduct'))}</th>
-              <th class="center" style="width:8%;min-width:45px;">${ku(t('colQty'))}</th>
-              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'سعر المفرد ($)' : isPurchaseKu ? 'نرخی یەکە ($)' : 'Unit Price ($)') : ku(t('colUnitPriceIqd'))}</th>
-              <th class="right" style="width:18%;min-width:100px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'المجموع ($)' : isPurchaseKu ? 'کۆ ($)' : 'Total ($)') : ku(t('totalIqd'))}</th>
+              <th class="center" style="width:4%;min-width:24px;">#</th>
+              <th style="width:28%;text-align:${kuAlign};">${isPurchaseAr ? 'المادة' : isPurchaseKu ? 'کاڵا' : 'Product'}</th>
+              <th class="center" style="width:12%;">${isPurchaseAr ? 'رمز المادة' : isPurchaseKu ? 'ئایدی کاڵا' : 'Item ID'}</th>
+              <th class="center" style="width:14%;">${isPurchaseAr ? 'التصنيف' : isPurchaseKu ? 'هاوپۆل' : 'Category'}</th>
+              <th class="center" style="width:6%;min-width:36px;">${isPurchaseAr ? 'الكمية' : isPurchaseKu ? 'بڕ' : 'Qty'}</th>
+              <th class="right" style="width:16%;min-width:80px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'التكلفة ($)' : isPurchaseKu ? 'تێچوو ($)' : 'Cost ($)') : (isPurchaseAr ? 'التكلفة' : isPurchaseKu ? 'تێچوو' : 'Cost')}</th>
+              <th class="right" style="width:20%;min-width:80px;white-space:nowrap;">${isUsdBase ? (isPurchaseAr ? 'المجموع ($)' : isPurchaseKu ? 'کۆ ($)' : 'Total ($)') : (isPurchaseAr ? 'المجموع' : isPurchaseKu ? 'کۆ' : 'Total')}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1178,62 +1222,84 @@ export function buildPurchaseInvoiceHTML(
       </div>`;
 
   // ── Financial ──
-  const { totalBlock, usdCard } = buildGrandTotal(currencyMode, purchase.totalIQD, effectiveExchangeRate, isUsdBase, isKurdish);
-
-  const paidAmount = purchaseDebt?.paidAmount ?? 0;
-  const remainingAmount = purchaseDebt?.remainingAmount ?? Math.max(0, purchase.totalIQD - paidAmount);
-
-  const initialMethod = purchase.initialPaymentMethod || purchaseDebt?.initialPaymentMethod;
-  const initialMethodTag = initialMethod ? ` (${initialMethod === 'fib' ? 'FIB' : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش' : 'Cash')})` : '';
-  const paidRows = (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib')
-    ? ''
-    : `<div class="fin-row" style="margin-top:3px;"><span style="color:#047857;font-weight:600;">${ku(t('amountPaid'))}${initialMethodTag}</span><span class="fin-amount fin-amount-paid en-num" dir="ltr">${fmtRow(paidAmount)}</span></div>
-       <div class="fin-row" style="margin-top:2px;"><span style="color:#b91c1c;font-weight:700;">${ku(t('remainingDebt'))}</span><span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(remainingAmount)}</span></div>`;
+  const paidAmount = purchaseDebt?.paidAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? purchase.totalIQD : 0);
+  const remainingAmount = purchaseDebt?.remainingAmount ?? (purchase.paymentStatus === 'paid' || purchase.paymentStatus === 'fib' ? 0 : Math.max(0, purchase.totalIQD - paidAmount));
+  const subtotalUSD = effectiveExchangeRate > 0 ? (purchase.totalIQD / effectiveExchangeRate) : 0;
 
   const financialCard = `
     <div class="card">
-      <div class="card-label">${ku(t('paymentSummary'))}</div>
-      ${totalBlock}
-      ${paidRows}
-      <div class="fin-row" style="margin-top:3px;">
-        <span>${ku(t('paymentStatusLabel'))}</span>
-        <span>${statusBadge}</span>
+      <div class="card-label">${ku(isPurchaseAr ? 'ملخص الشراء المالي' : isPurchaseKu ? 'پوختەی دارایی کڕین' : 'PURCHASE SUMMARY')}</div>
+      <div class="fin-row">
+        <span>${ku(isPurchaseAr ? 'إجمالي التكلفة:' : isPurchaseKu ? 'کۆی تێچوو:' : 'Subtotal:')}</span>
+        <span class="fin-amount en-num" dir="ltr">${fmtRow(purchase.totalIQD)}</span>
       </div>
+      <div class="total-block">
+        <div class="total-row">
+          <span class="total-label">${ku(isPurchaseAr ? 'إجمالي تكلفة الشراء (IQD)' : isPurchaseKu ? 'کۆی گشتی کڕین' : 'Total Cost (IQD)')}</span>
+          <span class="total-amount en-num" dir="ltr">${fmtIQD(purchase.totalIQD)} IQD</span>
+        </div>
+        <div class="total-divider"></div>
+        <div class="total-row">
+          <span class="total-sub-label">${ku(isPurchaseAr ? 'المجموع الكلي بالدولار' : isPurchaseKu ? 'کۆی گشتی بە دۆلار' : 'Total in USD')}</span>
+          <span class="total-sub-amount en-num" dir="ltr">$${fmtUSD(subtotalUSD)} USD</span>
+        </div>
+      </div>
+      ${purchaseSettings.showPaymentMethod ? `
+      <div class="fin-row" style="margin-top:3px;">
+        <span>${ku(isPurchaseAr ? 'طريقة السداد:' : isPurchaseKu ? 'شێوازی دران:' : 'Payment:')}</span>
+        <span class="fin-amount">${purchase.paymentStatus === 'fib' ? 'FIB' : (purchase.paymentStatus === 'debt' ? (isPurchaseAr ? 'آجل (دين)' : isPurchaseKu ? 'قەرز' : 'Debt') : (isPurchaseAr ? 'نقداً' : isPurchaseKu ? 'کاش (نەقد)' : 'Cash'))}</span>
+      </div>` : ''}
+      ${(purchaseSettings.showRemainingDebt && (purchase.paymentStatus === 'debt' || remainingAmount > 0)) ? `
+      <div class="fin-row" style="margin-top:2px;">
+        <span style="color:#b91c1c;font-weight:700;">${ku(isPurchaseAr ? 'الدين المتبقي:' : isPurchaseKu ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
+        <span class="fin-amount fin-amount-debt en-num" dir="ltr">${fmtRow(remainingAmount)}</span>
+      </div>` : (purchaseSettings.showRemainingDebt ? `
+      <div class="fin-row" style="margin-top:2px;">
+        <span style="color:#047857;font-weight:700;">${ku(isPurchaseAr ? 'الدين المتبقي:' : isPurchaseKu ? 'قەرزی ماوە:' : 'Remaining Debt:')}</span>
+        <span class="fin-amount fin-amount-paid en-num" dir="ltr">0 IQD</span>
+      </div>` : '')}
     </div>`;
 
   // ── Optional blocks ──
   const blockTextStyle = isKurdish ? `direction:rtl;text-align:${kuAlign};white-space:pre-wrap;` : '';
 
-  const notesCard = `
+  const notesCard = purchaseSettings.showNotes ? `
     <div class="card">
+      <div class="card-label">${ku(isPurchaseAr ? 'ملاحظات الشراء' : isPurchaseKu ? 'تێبینیەکانی کڕین' : 'PURCHASE NOTES')}</div>
       ${purchase.warranty ? `
       <div style="margin-bottom: 6px;">
-        <div class="card-label">${ku(t('warranty'))}</div>
+        <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
         <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.warranty)}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
-      ` : ''}
-      ${purchase.description ? `
+      ` : `
       <div style="margin-bottom: 6px;">
-        <div class="card-label">${ku(t('description'))}</div>
-        <p class="block-text" style="${blockTextStyle}">${escHtml(purchase.description)}</p>
+        <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ضمان المورد:' : isPurchaseKu ? 'گرەنتی دابینکەر:' : 'Supplier Warranty:')}</div>
+        <p class="block-text" style="${blockTextStyle}">${isPurchaseAr ? 'ضمان رسمي لمدة 1 سنة من الشركة الموردة.' : isPurchaseKu ? 'گرەنتی فەرمی ١ ساڵ لە کۆمپانیای دابینکەرەوە.' : '1-year official supplier warranty.'}</p>
       </div>
       <div style="margin: 6px 0; border-top: 1px dashed #e2e8f0;"></div>
-      ` : ''}
+      `}
       <div>
-        <div class="card-label">${ku(t('notes'))}</div>
-        <p class="block-text" style="${blockTextStyle}">${purchase.notes ? escHtml(purchase.notes) : ku(t('noNotes'))}</p>
+        <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 2px;">${ku(isPurchaseAr ? 'ملاحظات الفحص والاستلام:' : isPurchaseKu ? 'تێبینی و پشکنین:' : 'Inspection Notes:')}</div>
+        <p class="block-text" style="${blockTextStyle}">${purchase.notes ? escHtml(purchase.notes) : (purchaseSettings.customFooterNote ? escHtml(purchaseSettings.customFooterNote) : (isPurchaseAr ? 'وصل شراء وتوثيق استلام البضائع في النظام' : isPurchaseKu ? 'وەسڵی کڕین و تۆمارکردنی کاڵاکان لە سیستەم' : 'Purchase voucher and warehouse inventory intake record'))}</p>
       </div>
-    </div>`;
+    </div>` : '';
 
   const purchaseDateTime = purchase.date ?? purchase.createdAt;
 
-  const aboutPolicyText = (purchase.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim();
-  const aboutPolicySection = aboutPolicyText ? `
+  const defaultPolicy = isPurchaseAr
+    ? 'تم استلام كافة المواد وفقاً لفاتورة المورد الرسمية وتم إدخالها إلى نظام المخزن.'
+    : isPurchaseKu
+    ? 'سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون.'
+    : 'Goods received according to supplier official invoice and registered in warehouse.';
+  const aboutPolicyText = (purchase.aboutPolicy ?? useSettingsStore.getState().invoiceAboutPolicy ?? '').trim() || defaultPolicy;
+  const aboutPolicySection = purchaseSettings.showAboutPolicy !== false ? `
   <div class="policy-card">
-    <div class="policy-label">${ku(t('companyPolicy'))}</div>
+    <div class="policy-label">${ku(isPurchaseAr ? 'سياسة الشراء والاستلام' : isPurchaseKu ? 'سیاسەتی وەرگرتن و کڕین' : 'PROCUREMENT POLICY')}</div>
     <p class="policy-text">${escHtml(aboutPolicyText)}</p>
   </div>` : '';
+
+  const cleanPurchaseNum = (purchase.purchaseNumber || '').replace(/^#/, '');
 
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="ltr">
@@ -1259,24 +1325,22 @@ export function buildPurchaseInvoiceHTML(
       ${supplierColumn}
     </div>
     <div class="col-invoice">
-      <div class="inv-label">${ku(t('purchaseInvoiceLabel'))}</div>
+      <div class="inv-label">${ku(isPurchaseAr ? 'وصل شراء' : isPurchaseKu ? 'وەسڵی کڕین' : 'PURCHASE VOUCHER')}</div>
       ${purchaseSettings.showInvoiceNumber ? `
       <div class="inv-meta-row inv-meta-row-title">
-        <span class="row-label">${ku(t('invoiceNumberLabel'))}</span>
-        <span class="row-value row-value-ltr">${purchase.purchaseNumber?.startsWith('F-') || purchase.purchaseNumber?.startsWith('B-') ? '' : '#'}${escHtml(purchase.purchaseNumber)}</span>
+        <span class="row-value row-value-ltr">#${escHtml(cleanPurchaseNum)}</span>
       </div>` : ''}
       ${purchaseSettings.showDate ? `
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('date') + ':')}</span>
+        <span class="row-label">${ku(isPurchaseAr ? 'التاريخ:' : isPurchaseKu ? 'بەروار:' : 'Date:')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatDate(purchaseDateTime))}</span>
       </div>
       <div class="inv-meta-row">
-        <span class="row-label">${ku(t('time') + ':')}</span>
+        <span class="row-label">${ku(isPurchaseAr ? 'الوقت:' : isPurchaseKu ? 'کات:' : 'Time:')}</span>
         <span class="row-value row-value-ltr">${escHtml(formatTime(purchaseDateTime))}</span>
       </div>` : ''}
       ${purchaseSettings.showPaymentMethod ? `
       <div class="inv-status-row">
-        <span class="inv-meta-line">${ku(t('status') + ':')}</span>
         ${statusBadge}
       </div>` : ''}
     </div>
@@ -1301,17 +1365,17 @@ export function buildPurchaseInvoiceHTML(
   ${purchaseSettings.showSignature !== false ? `
   <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:24px 32px 10px;page-break-inside:avoid;direction:${isKurdish ? 'rtl' : 'ltr'};">
     <div style="text-align:center;width:150px;">
-      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع أمين المخزن' : isPurchaseKu ? 'واژووی وەرگری مەخزەن' : 'Warehouse Receiver')}</div>
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع مستلم المخزن' : isPurchaseKu ? 'واژووی وەرگری مەخزەن' : 'Warehouse Receiver')}</div>
     </div>
     <div style="text-align:center;width:150px;">
-      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع مدير المشتريات' : isPurchaseKu ? 'واژووی سەرپەرشتیاری کڕین' : 'Procurement Manager')}</div>
+      <div style="border-top:1px solid #94a3b8;padding-top:6px;font-size:11.5px;color:#475569;font-weight:600;">${ku(isPurchaseAr ? 'توقيع مسؤول المشتريات' : isPurchaseKu ? 'واژووی سەرپەرشتیاری کڕین' : 'Procurement Manager')}</div>
     </div>
   </div>` : ''}
 
 </div>
 
 <div class="footer">
-  ${ku(t('purchaseInvoiceLabel'))} &nbsp;·&nbsp; ${ku(pdfDevelopedByText())} · ${PDF_BRAND_WEBSITE} &nbsp;·&nbsp; ${escHtml(purchase.purchaseNumber)}
+  ${ku(isPurchaseAr ? 'وصل شراء' : isPurchaseKu ? 'وەسڵی کڕین' : 'Purchase Voucher')} &nbsp;·&nbsp; ${ku(isPurchaseAr ? 'نظام فروشيار' : isPurchaseKu ? 'سیستەمی فرۆشیار' : 'Froshiar System')} · ${PDF_BRAND_WEBSITE} &nbsp;·&nbsp; #${escHtml(cleanPurchaseNum)}
 </div>
 
 </body>

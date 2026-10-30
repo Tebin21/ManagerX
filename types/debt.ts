@@ -59,6 +59,26 @@ export interface DebtPayment {
   createdAt: string;
 }
 
+export interface DebtPaymentReceiptData {
+  id: number;
+  paymentNumber: string; // e.g. "DP-00001"
+  debtId: number;
+  debtType: DebtType; // 'sales' | 'purchase'
+  partyName: string;
+  partyPhone?: string | null;
+  partyAddress?: string | null;
+  referenceNumber?: string | null;
+  amount: number;
+  previousBalance: number;
+  remainingAfter: number;
+  paymentMethod: string;
+  note?: string | null;
+  createdAt: string;
+  originalAmount?: number;
+  printCount?: number;
+  viewCount?: number;
+}
+
 export type LedgerEventType = 'debt_created' | 'payment' | 'debt_fully_paid';
 
 export interface FinancialLedgerEvent {

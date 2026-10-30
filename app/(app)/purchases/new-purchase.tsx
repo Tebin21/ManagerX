@@ -983,7 +983,7 @@ export default function NewPurchaseScreen() {
         idType,
         itemIds: finalItemIds,
         warranty,
-        description: '',
+        description: itemDescription.trim() || '',
         notes,
         websiteDescription,
         itemDescription,

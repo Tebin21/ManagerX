@@ -41,7 +41,8 @@ import { useLanguageStore } from '@/store/languageStore';
 import { applyKurdishFont, resolveInputIsKurdish, SETTINGS_KURDISH_FONT, SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import type { SupplierWithStats } from '@/types/suppliers';
 import type { Purchase } from '@/types/purchases';
-import type { PurchaseDebt, FinancialLedgerEvent } from '@/types/debt';
+import type { PurchaseDebt, FinancialLedgerEvent, DebtPaymentReceiptData } from '@/types/debt';
+import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import { fmtIQD, sanitizeNumericInput } from '@/utils/formatters';
 import { useRTL, RTL_SPACING, useDirectionalChevron } from '@/lib/rtl';
 
@@ -261,6 +262,8 @@ export default function SupplierDetailScreen() {
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
   const [logoSheetVisible, setLogoSheetVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createdReceipt, setCreatedReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const supplier: SupplierWithStats | undefined = suppliers.find((s) => s.id === Number(id));
   const currentLang = useLanguageStore((s) => s.language);
@@ -420,10 +423,17 @@ export default function SupplierDetailScreen() {
   const canDelete = purchases.length === 0 && activeDebts.length === 0 && !isDirectSupplier;
 
   const handlePay = useCallback(async (debtId: number, amount: number, paymentMethod?: string) => {
-    await payPurchaseDebt(debtId, amount, undefined, paymentMethod);
-    await loadDebts();
-    await loadAll();
-  }, [payPurchaseDebt, loadDebts, loadAll]);
+    try {
+      const receipt = await payPurchaseDebt(debtId, amount, undefined, paymentMethod);
+      await loadDebts();
+      await loadAll();
+      setCreatedReceipt(receipt);
+      setShowReceiptModal(true);
+    } catch (e) {
+      console.error('Supplier pay error:', e);
+      Alert.alert(t('common.error'), t('debt.errorPayment', 'Failed to record payment'));
+    }
+  }, [payPurchaseDebt, loadDebts, loadAll, t]);
 
   const handleSaveEdit = useCallback(async () => {
     if (!supplier || !editName.trim()) return;
@@ -1039,6 +1049,16 @@ export default function SupplierDetailScreen() {
           </Text>
         </TouchableOpacity>
       </AppSheet>
+
+      {/* ── Debt Payment Receipt 4-Size Modal ── */}
+      <DebtPaymentReceiptModal
+        visible={showReceiptModal}
+        receipt={createdReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setCreatedReceipt(null);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

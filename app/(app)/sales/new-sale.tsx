@@ -71,7 +71,7 @@ export default function NewSaleScreen() {
   const { t } = useTranslation();
   const { isRTL, textAlign, flexDirection, alignEnd } = useRTL();
   const { colors, isDark } = useAppTheme();
-  const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle, headerButtonSize, headerIconSize } = useResponsive();
+  const { isTablet, isTabletLandscape, cardColumns, contentContainerStyle, headerButtonSize, headerIconSize, width: screenWidth } = useResponsive();
   const errorTint = getStatusTint('error', colors, isDark);
   const inventory = useInventoryStore();
   const cart = useCartStore();
@@ -93,6 +93,8 @@ export default function NewSaleScreen() {
   const { customerId } = useLocalSearchParams<{ customerId?: string }>();
 
   const [step, setStep] = useState<Step>(1);
+  const [activeCartIndex, setActiveCartIndex] = useState(0);
+  const cartScrollRef = React.useRef<ScrollView>(null);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,6 +133,34 @@ export default function NewSaleScreen() {
   const grandTotal = cart.grandTotal();
   const maxDownPayment = cart.maxDownPayment();
   const rawPaidNum = parseFloat(toEnglishDigits(cart.paidAmount).replace(/,/g, '')) || 0;
+
+  // Clamp active cart index on item removal
+  useEffect(() => {
+    if (activeCartIndex >= cart.items.length && cart.items.length > 0) {
+      setActiveCartIndex(cart.items.length - 1);
+    }
+  }, [cart.items.length, activeCartIndex]);
+
+  const mobileCardWidth = Math.min(screenWidth - 44, 380);
+
+  const onCartScroll = (e: any) => {
+    const offsetX = e.nativeEvent?.contentOffset?.x ?? 0;
+    const itemFullWidth = mobileCardWidth + 10;
+    const index = Math.round(offsetX / itemFullWidth);
+    const clamped = Math.max(0, Math.min(index, cart.items.length - 1));
+    if (clamped !== activeCartIndex) {
+      setActiveCartIndex(clamped);
+    }
+  };
+
+  const scrollToCartIndex = (index: number) => {
+    const target = Math.max(0, Math.min(index, cart.items.length - 1));
+    setActiveCartIndex(target);
+    cartScrollRef.current?.scrollTo({
+      x: target * (mobileCardWidth + 10),
+      animated: true,
+    });
+  };
   const isPaidExceeded = cart.paymentMethod === 'debt' && rawPaidNum > maxDownPayment;
   const maxDownPaymentDisplay = isUSD ? `$${maxDownPayment}` : `${maxDownPayment.toLocaleString()} IQD`;
   const remainingDebt = cart.remainingDebt();
@@ -835,11 +865,29 @@ export default function NewSaleScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Cart Items Grid: 2 columns on tablet/iPad, 1 column on mobile */}
-          <View style={[styles.cartGrid, isTablet && styles.cartGridTablet, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            {cart.items.map((item) => (
-              <View key={item.product.id} style={[styles.cartGridCol, isTablet && styles.cartGridColTablet]}>
+          {/* Cart Items on Mobile (Horizontal Swipeable Carousel with Micro Cue) vs Tablet (Multi-column Grid) */}
+          {isTablet ? (
+            <View style={[styles.cartGrid, styles.cartGridTablet, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {cart.items.map((item) => (
+                <View key={item.product.id} style={[styles.cartGridCol, styles.cartGridColTablet]}>
+                  <CartItemRow
+                    item={item}
+                    onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+                    onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+                    onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+                    onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+                    onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                    onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
+                    onRemove={() => cart.removeItem(item.product.id)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : cart.items.length <= 1 ? (
+            <View style={styles.cartGridCol}>
+              {cart.items.map((item) => (
                 <CartItemRow
+                  key={item.product.id}
                   item={item}
                   onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
                   onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
@@ -849,9 +897,169 @@ export default function NewSaleScreen() {
                   onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
                   onRemove={() => cart.removeItem(item.product.id)}
                 />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.cartCarouselContainer}>
+              {/* Micro Indicator Bar above cards */}
+              <View style={[styles.mobileSwipeIndicatorRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {/* Counter & Micro Dots */}
+                <View style={[styles.mobileSwipeCounterWrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <Text style={[styles.mobileSwipeCounterText, isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                    {isKuLanguage
+                      ? `کاڵای ${activeCartIndex + 1} لە ${cart.items.length}`
+                      : `Item ${activeCartIndex + 1} of ${cart.items.length}`}
+                  </Text>
+                  <View style={[styles.microDotsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    {cart.items.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.microDot,
+                          i === activeCartIndex
+                            ? [styles.microDotActive, { backgroundColor: colors.primary }]
+                            : [styles.microDotInactive, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : colors.gray300 }],
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Very Small Swipe-Left Micro Hint ("هێمایەکی بچووک بچووک کە ئاماژە بێت بۆ لێفت ساید کردن") */}
+                {activeCartIndex < cart.items.length - 1 ? (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => scrollToCartIndex(activeCartIndex + 1)}
+                    style={[
+                      styles.microSwipeHintPill,
+                      {
+                        backgroundColor: isDark ? hexToRgba(colors.primary, 0.15) : hexToRgba(colors.primary, 0.1),
+                        borderColor: isDark ? hexToRgba(colors.primary, 0.32) : hexToRgba(colors.primary, 0.28),
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="arrow-back" size={11} color={colors.primary} />
+                    <Text
+                      style={[
+                        styles.microSwipeHintText,
+                        { color: colors.primary },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKuLanguage ? 'خلیسکاندن بۆ لای چەپ' : 'Swipe left'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => scrollToCartIndex(0)}
+                    style={[
+                      styles.microSwipeHintPill,
+                      {
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray100,
+                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : colors.gray200,
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                      },
+                    ]}
+                  >
+                    <Ionicons name="arrow-forward" size={11} color={colors.gray500} />
+                    <Text
+                      style={[
+                        styles.microSwipeHintText,
+                        { color: colors.gray500 },
+                        isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                      ]}
+                    >
+                      {isKuLanguage ? 'گەڕانەوە بۆ سەرەتا' : 'Back to first'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            ))}
-          </View>
+
+              {/* Smooth Horizontal Snapping ScrollView with Peek */}
+              <View style={styles.carouselWrapper}>
+                <ScrollView
+                  ref={cartScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                  directionalLockEnabled={true}
+                  keyboardShouldPersistTaps="handled"
+                  snapToInterval={mobileCardWidth + 10}
+                  snapToAlignment="start"
+                  decelerationRate="fast"
+                  style={[
+                    styles.cartMobileScroll,
+                    isRTL ? { transform: [{ scaleX: -1 }] } : undefined,
+                  ]}
+                  contentContainerStyle={[
+                    styles.cartMobileScrollContent,
+                    { gap: 10, paddingEnd: 12 },
+                  ]}
+                  onScroll={onCartScroll}
+                  scrollEventThrottle={16}
+                >
+                  {cart.items.map((item) => (
+                    <View
+                      key={item.product.id}
+                      style={[
+                        { width: mobileCardWidth },
+                        isRTL && { transform: [{ scaleX: -1 }] },
+                      ]}
+                    >
+                      <CartItemRow
+                        item={item}
+                        onUpdateQty={(qty) => cart.updateQuantity(item.product.id, qty)}
+                        onUpdatePrice={(price) => cart.updateSellingPrice(item.product.id, price)}
+                        onUpdateDiscount={(disc) => cart.updateDiscount(item.product.id, disc)}
+                        onUpdateDiscountType={(type) => cart.updateDiscountType(item.product.id, type)}
+                        onUpdateDiscountPct={(pct) => cart.updateDiscountPct(item.product.id, pct)}
+                        onUpdateBatch={(batch) => cart.updateBatch(item.product.id, batch)}
+                        onRemove={() => cart.removeItem(item.product.id)}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Left Micro Cue Chevron (when there are more items to the left) */}
+                {activeCartIndex < cart.items.length - 1 && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => scrollToCartIndex(activeCartIndex + 1)}
+                    style={[
+                      styles.sideMicroChevronLeft,
+                      {
+                        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.18)' : colors.gray200,
+                      },
+                    ]}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <Ionicons name="chevron-back" size={12} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+
+                {/* Right Micro Cue Chevron (when on card > 0, to slide back) */}
+                {activeCartIndex > 0 && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => scrollToCartIndex(activeCartIndex - 1)}
+                    style={[
+                      styles.sideMicroChevronRight,
+                      {
+                        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.18)' : colors.gray200,
+                      },
+                    ]}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <Ionicons name="chevron-forward" size={12} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
 
           <GlobalDiscountBar
             type={cart.globalDiscountType}
@@ -1595,6 +1803,100 @@ const styles = StyleSheet.create({
   },
   cartGridColTablet: {
     width: '48.8%',
+  },
+  cartCarouselContainer: {
+    width: '100%',
+    position: 'relative',
+    marginBottom: 6,
+  },
+  carouselWrapper: {
+    width: '100%',
+    position: 'relative',
+  },
+  cartMobileScroll: {
+    width: '100%',
+    overflow: 'visible',
+  },
+  cartMobileScrollContent: {
+    alignItems: 'stretch',
+    paddingVertical: 2,
+  },
+  mobileSwipeIndicatorRow: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  mobileSwipeCounterWrap: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobileSwipeCounterText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  microDotsRow: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  microDot: {
+    height: 4,
+    borderRadius: 2,
+  },
+  microDotActive: {
+    width: 12,
+  },
+  microDotInactive: {
+    width: 4,
+  },
+  microSwipeHintPill: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  microSwipeHintText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
+  sideMicroChevronLeft: {
+    position: 'absolute',
+    left: -4,
+    top: '42%',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  sideMicroChevronRight: {
+    position: 'absolute',
+    right: -4,
+    top: '42%',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
   },
   listContent:   { padding: 16, paddingBottom: 100 },
   empty:         { paddingTop: 60, alignItems: 'center', padding: 20 },

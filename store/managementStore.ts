@@ -10,6 +10,7 @@ import {
   subscribeToEmployees,
   subscribeToEmployeeLive,
   subscribeToManagerEmployees,
+  subscribeToAccountLimitsLive,
 } from '@/lib/management/managementService';
 
 interface ManagementState {
@@ -19,16 +20,19 @@ interface ManagementState {
   isEmployee: boolean;
   isManager: boolean;
   currentEmployeeAccount: EmployeeAccount | null;
+  currentUserAccount: EmployeeAccount | null;
   currentPermissions: EmployeePermissions | null;
 
   setEmployees: (employees: EmployeeAccount[]) => void;
   setManagedEmployees: (employees: EmployeeAccount[]) => void;
   setCurrentEmployee: (account: EmployeeAccount | null) => void;
+  setCurrentUserAccount: (account: EmployeeAccount | null) => void;
   updateCurrentPermissions: (permissions: EmployeePermissions) => void;
   clearEmployeeSession: () => void;
   resetAllManagementState: () => void;
   initSuperAdminSubscription: () => () => void;
   initEmployeeLiveSubscription: (email: string) => () => void;
+  initCurrentUserLiveSubscription: (email: string) => () => void;
   initManagerSubscription: (managerEmail: string) => () => void;
 }
 
@@ -41,6 +45,7 @@ export const useManagementStore = create<ManagementState>()(
       isEmployee: false,
       isManager: false,
       currentEmployeeAccount: null,
+      currentUserAccount: null,
       currentPermissions: null,
 
       setEmployees: (employees) => set({ employees, isLoading: false }),
@@ -76,6 +81,14 @@ export const useManagementStore = create<ManagementState>()(
         }
       },
 
+      setCurrentUserAccount: (account) => {
+        set({ currentUserAccount: account });
+        // Immediately invalidate license cache so live limit updates are instant
+        try {
+          import('@/lib/itemLimit').then((m) => m.invalidateLicenseCache());
+        } catch {}
+      },
+
       updateCurrentPermissions: (permissions) =>
         set((state) => ({
           currentPermissions: permissions,
@@ -99,6 +112,7 @@ export const useManagementStore = create<ManagementState>()(
           isEmployee: false,
           isManager: false,
           currentEmployeeAccount: null,
+          currentUserAccount: null,
           currentPermissions: null,
         }),
 
@@ -106,6 +120,14 @@ export const useManagementStore = create<ManagementState>()(
         set({ isLoading: true });
         const unsubscribe = subscribeToEmployees((employees) => {
           get().setEmployees(employees);
+        });
+        return unsubscribe;
+      },
+
+      initCurrentUserLiveSubscription: (email: string) => {
+        if (!email || !email.includes('@')) return () => {};
+        const unsubscribe = subscribeToAccountLimitsLive(email, (account) => {
+          get().setCurrentUserAccount(account);
         });
         return unsubscribe;
       },
@@ -151,6 +173,7 @@ export const useManagementStore = create<ManagementState>()(
         isManager: state.isManager,
         managedEmployees: state.managedEmployees,
         currentEmployeeAccount: state.currentEmployeeAccount,
+        currentUserAccount: state.currentUserAccount,
         currentPermissions: state.currentPermissions,
       }),
     }

@@ -7,7 +7,7 @@ import type {
 import type { Purchase, PurchasePaymentStatus, PurchaseIdType } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats, NewProductData, DiscardedProduct, DiscardedLossStats, ProductPurchaseHistoryItem } from '@/types/inventory';
 import type { Customer, CustomerWithStats, UpdateSaleInput } from '@/types/customers';
-import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtOverviewSummary, FinancialLedgerEvent, LedgerEventType, DebtType } from '@/types/debt';
+import type { PurchaseDebt, SalesDebtDetail, DebtPayment, DebtPaymentReceiptData, DebtOverviewSummary, FinancialLedgerEvent, LedgerEventType, DebtType } from '@/types/debt';
 import type { SoldProductRecord } from '@/types/soldProducts';
 import type { Supplier, SupplierWithStats } from '@/types/suppliers';
 import { newUuid } from '@/lib/uuid';
@@ -386,7 +386,9 @@ async function runInitializeDatabase(): Promise<void> {
       amount          REAL NOT NULL,
       remaining_after REAL NOT NULL,
       note            TEXT,
-      created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      print_count     INTEGER DEFAULT 0,
+      view_count      INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS expenses (
@@ -743,11 +745,13 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE sales ADD COLUMN initial_payment_method TEXT`,
     `ALTER TABLE debts ADD COLUMN initial_payment_method TEXT`,
     `ALTER TABLE purchase_debts ADD COLUMN initial_payment_method TEXT`,
-    // Print and view counters for sales and purchases invoices
+    // Print and view counters for sales, purchases, and debt payment invoices
     `ALTER TABLE sales ADD COLUMN print_count INTEGER DEFAULT 0`,
     `ALTER TABLE sales ADD COLUMN view_count INTEGER DEFAULT 0`,
     `ALTER TABLE purchases ADD COLUMN print_count INTEGER DEFAULT 0`,
     `ALTER TABLE purchases ADD COLUMN view_count INTEGER DEFAULT 0`,
+    `ALTER TABLE debt_payments ADD COLUMN print_count INTEGER DEFAULT 0`,
+    `ALTER TABLE debt_payments ADD COLUMN view_count INTEGER DEFAULT 0`,
     // Batch tracking for FIFO sales
     `ALTER TABLE sale_items ADD COLUMN batch_number INTEGER`,
     `ALTER TABLE sale_items ADD COLUMN purchase_id INTEGER`,
@@ -2782,17 +2786,38 @@ export async function getDebtsByCustomerId(customerId: number): Promise<Debt[]> 
   }));
 }
 
-export async function addPaymentToDebt(debtId: number, amount: number, paymentDate?: string, paymentMethod: string = 'cash'): Promise<void> {
+export async function addPaymentToDebt(
+  debtId: number,
+  amount: number,
+  paymentDate?: string,
+  paymentMethod: string = 'cash'
+): Promise<DebtPaymentReceiptData> {
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
-  await database.withTransactionAsync(async () => {
-    const debt = await database.getFirstAsync<{ sale_id: number; remaining_amount: number; original_amount: number }>(
-      'SELECT sale_id, remaining_amount, original_amount FROM debts WHERE id = ?', [debtId]
-    );
-    if (!debt) return;
+  let receipt: DebtPaymentReceiptData | null = null;
 
-    const sale = await database.getFirstAsync<{ customer_id: number | null; invoice_number: string | null }>(
-      'SELECT customer_id, invoice_number FROM sales WHERE id = ?', [debt.sale_id]
+  await database.withTransactionAsync(async () => {
+    const debt = await database.getFirstAsync<{
+      sale_id: number;
+      remaining_amount: number;
+      original_amount: number;
+      customer_name?: string | null;
+      customer_phone?: string | null;
+    }>(
+      'SELECT sale_id, remaining_amount, original_amount, customer_name, customer_phone FROM debts WHERE id = ?',
+      [debtId]
+    );
+    if (!debt) throw new Error(`Debt not found for id ${debtId}`);
+
+    const sale = await database.getFirstAsync<{
+      customer_id: number | null;
+      customer_name: string | null;
+      customer_phone: string | null;
+      customer_address: string | null;
+      invoice_number: string | null;
+    }>(
+      'SELECT customer_id, customer_name, customer_phone, customer_address, invoice_number FROM sales WHERE id = ?',
+      [debt.sale_id]
     );
 
     const clamped = Math.min(amount, debt.remaining_amount);
@@ -2818,14 +2843,43 @@ export async function addPaymentToDebt(debtId: number, amount: number, paymentDa
       [clamped, clamped, debt.sale_id]
     );
 
-    await database.runAsync(
+    const insertRes = await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
          event_type, customer_id, reference_number, original_amount, payment_method
        ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?)`,
       [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod]
     );
+
+    const paymentId = insertRes.lastInsertRowId;
+    const paymentNumber = `DP-${String(paymentId).padStart(5, '0')}`;
+    const partyName = debt.customer_name || sale?.customer_name || 'کڕیار';
+    const partyPhone = debt.customer_phone || sale?.customer_phone || null;
+    const partyAddress = sale?.customer_address || null;
+
+    receipt = {
+      id: paymentId,
+      paymentNumber,
+      debtId,
+      debtType: 'sales',
+      partyName,
+      partyPhone,
+      partyAddress,
+      referenceNumber: sale?.invoice_number ?? null,
+      amount: clamped,
+      previousBalance: debt.remaining_amount,
+      remainingAfter: newRemaining,
+      paymentMethod,
+      note: null,
+      createdAt: ts,
+      originalAmount: debt.original_amount,
+    };
   });
+
+  if (!receipt) {
+    throw new Error('Failed to create debt payment receipt');
+  }
+  return receipt;
 }
 
 export async function updateSaleInfo(id: number, data: UpdateSaleInput): Promise<void> {
@@ -4679,21 +4733,30 @@ export async function getPurchaseDebtByPurchaseId(purchaseId: number): Promise<P
   return row ? rowToPurchaseDebt(row) : null;
 }
 
-export async function addPaymentToPurchaseDebt(id: number, amount: number, paymentDate?: string, paymentMethod: string = 'cash'): Promise<void> {
+export async function addPaymentToPurchaseDebt(
+  id: number,
+  amount: number,
+  paymentDate?: string,
+  paymentMethod: string = 'cash'
+): Promise<DebtPaymentReceiptData> {
   const database = await getDatabase();
   const ts = paymentDate ?? new Date().toISOString();
+  let receipt: DebtPaymentReceiptData | null = null;
+
   await database.withTransactionAsync(async () => {
     const debt = await database.getFirstAsync<{
       remaining_amount: number;
       purchase_id: number | null;
       supplier_name: string;
+      supplier_phone: string | null;
+      supplier_address: string | null;
       purchase_number: string | null;
       original_amount: number;
     }>(
-      'SELECT remaining_amount, purchase_id, supplier_name, purchase_number, original_amount FROM purchase_debts WHERE id = ?',
+      'SELECT remaining_amount, purchase_id, supplier_name, supplier_phone, supplier_address, purchase_number, original_amount FROM purchase_debts WHERE id = ?',
       [id]
     );
-    if (!debt) return;
+    if (!debt) throw new Error(`Purchase debt not found for id ${id}`);
 
     const clamped = Math.min(amount, debt.remaining_amount);
     const newRemaining = Math.max(0, debt.remaining_amount - clamped);
@@ -4709,7 +4772,7 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
       [clamped, newRemaining, newRemaining, ts, id]
     );
 
-    await database.runAsync(
+    const insertRes = await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
          event_type, supplier_name, reference_number, original_amount, payment_method
@@ -4727,7 +4790,33 @@ export async function addPaymentToPurchaseDebt(id: number, amount: number, payme
         [debt.purchase_id]
       );
     }
+
+    const paymentId = insertRes.lastInsertRowId;
+    const paymentNumber = `DP-${String(paymentId).padStart(5, '0')}`;
+
+    receipt = {
+      id: paymentId,
+      paymentNumber,
+      debtId: id,
+      debtType: 'purchase',
+      partyName: debt.supplier_name || 'دابینکەر',
+      partyPhone: debt.supplier_phone || null,
+      partyAddress: debt.supplier_address || null,
+      referenceNumber: debt.purchase_number || null,
+      amount: clamped,
+      previousBalance: debt.remaining_amount,
+      remainingAfter: newRemaining,
+      paymentMethod,
+      note: null,
+      createdAt: ts,
+      originalAmount: debt.original_amount,
+    };
   });
+
+  if (!receipt) {
+    throw new Error('Failed to create purchase debt payment receipt');
+  }
+  return receipt;
 }
 
 // ─── Sales Debts (Detailed) ───────────────────────────────────────────────────
@@ -4991,6 +5080,169 @@ export async function getDebtOverviewSummary(): Promise<DebtOverviewSummary> {
     activePurchaseCount: purchaseRow?.cnt    ?? 0,
     overdueCount:        overdueRow?.cnt     ?? 0,
   };
+}
+
+// ─── Debt Payment Receipts ────────────────────────────────────────────────────
+
+export async function getAllDebtPaymentReceipts(): Promise<DebtPaymentReceiptData[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(`
+    SELECT
+      dp.id,
+      dp.debt_id,
+      dp.debt_type,
+      dp.amount,
+      dp.remaining_after,
+      dp.payment_method,
+      dp.note,
+      dp.created_at,
+      dp.original_amount,
+      dp.reference_number,
+      COALESCE(dp.print_count, 0) AS print_count,
+      COALESCE(dp.view_count, 0) AS view_count,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(d.customer_name, s.customer_name, c.name, 'کڕیار')
+        ELSE COALESCE(dp.supplier_name, pd.supplier_name, sup.name, 'دابینکەر')
+      END AS party_name,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(d.customer_phone, s.customer_phone, c.phone)
+        ELSE COALESCE(pd.supplier_phone, sup.phone)
+      END AS party_phone,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN s.customer_address
+        ELSE COALESCE(pd.supplier_address, sup.address)
+      END AS party_address,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(dp.reference_number, s.invoice_number)
+        ELSE COALESCE(dp.reference_number, pd.purchase_number)
+      END AS resolved_ref_number
+    FROM debt_payments dp
+    LEFT JOIN debts d ON dp.debt_type = 'sales' AND dp.debt_id = d.id
+    LEFT JOIN sales s ON d.sale_id = s.id
+    LEFT JOIN customers c ON dp.customer_id = c.id
+    LEFT JOIN purchase_debts pd ON dp.debt_type = 'purchase' AND dp.debt_id = pd.id
+    LEFT JOIN suppliers sup ON pd.supplier_name = sup.name
+    WHERE dp.event_type = 'payment'
+    ORDER BY dp.created_at DESC, dp.id DESC
+  `);
+
+  return rows.map((row) => {
+    const id = row.id as number;
+    const amount = (row.amount as number) || 0;
+    const remainingAfter = (row.remaining_after as number) || 0;
+    const originalAmount = (row.original_amount as number) || (remainingAfter + amount);
+    return {
+      id,
+      paymentNumber: `DP-${String(id).padStart(5, '0')}`,
+      debtId: row.debt_id as number,
+      debtType: (row.debt_type as 'sales' | 'purchase') || 'sales',
+      partyName: (row.party_name as string) || (row.debt_type === 'purchase' ? 'دابینکەر' : 'کڕیار'),
+      partyPhone: (row.party_phone as string | null) ?? null,
+      partyAddress: (row.party_address as string | null) ?? null,
+      referenceNumber: (row.resolved_ref_number as string | null) ?? (row.reference_number as string | null) ?? null,
+      amount,
+      previousBalance: remainingAfter + amount,
+      remainingAfter,
+      paymentMethod: (row.payment_method as string) || 'cash',
+      note: (row.note as string | null) ?? null,
+      createdAt: (row.created_at as string) || new Date().toISOString(),
+      originalAmount,
+      printCount: (row.print_count as number) || 0,
+      viewCount: (row.view_count as number) || 0,
+    };
+  });
+}
+
+export async function getDebtPaymentReceiptById(id: number): Promise<DebtPaymentReceiptData | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<Record<string, unknown>>(`
+    SELECT
+      dp.id,
+      dp.debt_id,
+      dp.debt_type,
+      dp.amount,
+      dp.remaining_after,
+      dp.payment_method,
+      dp.note,
+      dp.created_at,
+      dp.original_amount,
+      dp.reference_number,
+      COALESCE(dp.print_count, 0) AS print_count,
+      COALESCE(dp.view_count, 0) AS view_count,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(d.customer_name, s.customer_name, c.name, 'کڕیار')
+        ELSE COALESCE(dp.supplier_name, pd.supplier_name, sup.name, 'دابینکەر')
+      END AS party_name,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(d.customer_phone, s.customer_phone, c.phone)
+        ELSE COALESCE(pd.supplier_phone, sup.phone)
+      END AS party_phone,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN s.customer_address
+        ELSE COALESCE(pd.supplier_address, sup.address)
+      END AS party_address,
+      CASE
+        WHEN dp.debt_type = 'sales' THEN COALESCE(dp.reference_number, s.invoice_number)
+        ELSE COALESCE(dp.reference_number, pd.purchase_number)
+      END AS resolved_ref_number
+    FROM debt_payments dp
+    LEFT JOIN debts d ON dp.debt_type = 'sales' AND dp.debt_id = d.id
+    LEFT JOIN sales s ON d.sale_id = s.id
+    LEFT JOIN customers c ON dp.customer_id = c.id
+    LEFT JOIN purchase_debts pd ON dp.debt_type = 'purchase' AND dp.debt_id = pd.id
+    LEFT JOIN suppliers sup ON pd.supplier_name = sup.name
+    WHERE dp.id = ?
+  `, [id]);
+
+  if (!row) return null;
+  const amount = (row.amount as number) || 0;
+  const remainingAfter = (row.remaining_after as number) || 0;
+  const originalAmount = (row.original_amount as number) || (remainingAfter + amount);
+  return {
+    id,
+    paymentNumber: `DP-${String(id).padStart(5, '0')}`,
+    debtId: row.debt_id as number,
+    debtType: (row.debt_type as 'sales' | 'purchase') || 'sales',
+    partyName: (row.party_name as string) || (row.debt_type === 'purchase' ? 'دابینکەر' : 'کڕیار'),
+    partyPhone: (row.party_phone as string | null) ?? null,
+    partyAddress: (row.party_address as string | null) ?? null,
+    referenceNumber: (row.resolved_ref_number as string | null) ?? (row.reference_number as string | null) ?? null,
+    amount,
+    previousBalance: remainingAfter + amount,
+    remainingAfter,
+    paymentMethod: (row.payment_method as string) || 'cash',
+    note: (row.note as string | null) ?? null,
+    createdAt: (row.created_at as string) || new Date().toISOString(),
+    originalAmount,
+    printCount: (row.print_count as number) || 0,
+    viewCount: (row.view_count as number) || 0,
+  };
+}
+
+export async function incrementDebtReceiptPrintCount(paymentId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE debt_payments SET print_count = COALESCE(print_count, 0) + 1 WHERE id = ?',
+    [paymentId]
+  );
+  const row = await database.getFirstAsync<{ print_count: number }>(
+    'SELECT print_count FROM debt_payments WHERE id = ?',
+    [paymentId]
+  );
+  return row?.print_count ?? 1;
+}
+
+export async function incrementDebtReceiptViewCount(paymentId: number): Promise<number> {
+  const database = await getDatabase();
+  await database.runAsync(
+    'UPDATE debt_payments SET view_count = COALESCE(view_count, 0) + 1 WHERE id = ?',
+    [paymentId]
+  );
+  const row = await database.getFirstAsync<{ view_count: number }>(
+    'SELECT view_count FROM debt_payments WHERE id = ?',
+    [paymentId]
+  );
+  return row?.view_count ?? 1;
 }
 
 // ─── Extended Report Functions ────────────────────────────────────────────────
@@ -5656,6 +5908,7 @@ export interface PurchaseItem {
   itemIds: string[];
   productionDate?: string | null;
   expiryDate?: string | null;
+  itemDescription?: string | null;
   createdAt: string;
 }
 
@@ -5675,6 +5928,7 @@ function rowToPurchaseItem(row: Record<string, unknown>): PurchaseItem {
     itemIds:      JSON.parse((row.item_ids as string) || '[]') as string[],
     productionDate: (row.production_date as string | null) ?? null,
     expiryDate:   (row.expiry_date as string | null) ?? null,
+    itemDescription: (row.item_description as string | null) ?? (row.product_item_description as string | null) ?? (row.purchase_description as string | null) ?? null,
     createdAt:    row.created_at     as string,
   };
 }
@@ -5721,7 +5975,13 @@ export async function insertPurchaseItem(
 export async function getPurchaseItemsByPurchaseId(purchaseId: number): Promise<PurchaseItem[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM purchase_items WHERE purchase_id = ? ORDER BY id ASC',
+    `SELECT pi.*, p.description AS purchase_description, prod.item_description AS product_item_description
+     FROM purchase_items pi
+     LEFT JOIN purchases p ON p.id = pi.purchase_id
+     LEFT JOIN products prod ON prod.purchase_id = pi.purchase_id
+     WHERE pi.purchase_id = ?
+     GROUP BY pi.id
+     ORDER BY pi.id ASC`,
     [purchaseId]
   );
   return rows.map(rowToPurchaseItem);

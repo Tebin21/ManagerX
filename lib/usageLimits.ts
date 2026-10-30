@@ -3,6 +3,7 @@ import { useQuotationStore } from '@/store/quotationStore';
 import { loadLicenseFromDb } from '@/lib/itemLimit';
 import { showUsageLimitModal } from '@/store/usageLimitModalStore';
 import { useManagementStore } from '@/store/managementStore';
+import type { EmployeeUsageLimits } from '@/lib/management/types';
 
 export const USAGE_LIMITS = {
   MAX_ITEMS: 20,           // ٢٠ ئایتم
@@ -12,9 +13,15 @@ export const USAGE_LIMITS = {
   MAX_QUOTATIONS: 5,       // ٥ عەرز
 } as const;
 
-function getCustomAccountConfig() {
+export function getCustomAccountConfig(): {
+  limits?: EmployeeUsageLimits;
+  expiresAt?: string;
+  isSuspended: boolean;
+} | null {
   try {
-    const { isEmployee, currentEmployeeAccount, isManager, managedEmployees } = useManagementStore.getState();
+    const { isEmployee, currentEmployeeAccount, currentUserAccount, isManager, managedEmployees } = useManagementStore.getState();
+
+    // 1. Employee session
     if (isEmployee && currentEmployeeAccount) {
       return {
         limits: currentEmployeeAccount.limits,
@@ -22,10 +29,21 @@ function getCustomAccountConfig() {
         isSuspended: currentEmployeeAccount.status === 'suspended' || currentEmployeeAccount.managerStatus === 'suspended',
       };
     }
+
+    // 2. Logged-in user custom/live config from admin website (demo account, registered owner, or manager)
+    if (currentUserAccount) {
+      return {
+        limits: currentUserAccount.limits,
+        expiresAt: currentUserAccount.expiresAt,
+        isSuspended: currentUserAccount.status === 'suspended',
+      };
+    }
+
+    // 3. Fallback for manager without individual document
     if (isManager && managedEmployees.length > 0) {
       const isSuspended = managedEmployees.some((e) => e.managerStatus === 'suspended');
       return {
-        limits: undefined, // Managers operate without employee tier limits
+        limits: undefined,
         expiresAt: undefined,
         isSuspended,
       };
@@ -66,11 +84,11 @@ export async function checkItemsLimit(additionalItems: number = 0): Promise<{ al
   if (isAccountExpired()) {
     return { allowed: false, current: 0, limit: 0 };
   }
-  if (await isLicenseActive()) {
-    return { allowed: true, current: 0, limit: Infinity };
-  }
   const cfg = getCustomAccountConfig();
   if (cfg?.limits?.maxItems === 'unlimited') {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  if (!cfg?.limits && (await isLicenseActive())) {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -95,11 +113,11 @@ export async function checkQuantityLimit(additionalQuantity: number = 0): Promis
   if (isAccountExpired()) {
     return { allowed: false, current: 0, limit: 0 };
   }
-  if (await isLicenseActive()) {
-    return { allowed: true, current: 0, limit: Infinity };
-  }
   const cfg = getCustomAccountConfig();
   if (cfg?.limits?.maxQuantity === 'unlimited') {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  if (!cfg?.limits && (await isLicenseActive())) {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -125,11 +143,11 @@ export async function checkSalesLimit(): Promise<{ allowed: boolean; current: nu
   if (isAccountExpired()) {
     return { allowed: false, current: 0, limit: 0 };
   }
-  if (await isLicenseActive()) {
-    return { allowed: true, current: 0, limit: Infinity };
-  }
   const cfg = getCustomAccountConfig();
   if (cfg?.limits?.maxSales === 'unlimited') {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  if (!cfg?.limits && (await isLicenseActive())) {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -154,11 +172,11 @@ export async function checkQuotationsLimit(): Promise<{ allowed: boolean; curren
   if (isAccountExpired()) {
     return { allowed: false, current: 0, limit: 0 };
   }
-  if (await isLicenseActive()) {
-    return { allowed: true, current: 0, limit: Infinity };
-  }
   const cfg = getCustomAccountConfig();
   if (cfg?.limits?.maxQuotations === 'unlimited') {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  if (!cfg?.limits && (await isLicenseActive())) {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {
@@ -180,11 +198,11 @@ export async function checkInvoicePrintLimit(): Promise<{ allowed: boolean; curr
   if (isAccountExpired()) {
     return { allowed: false, current: 0, limit: 0 };
   }
-  if (await isLicenseActive()) {
-    return { allowed: true, current: 0, limit: Infinity };
-  }
   const cfg = getCustomAccountConfig();
   if (cfg?.limits?.maxInvoices === 'unlimited') {
+    return { allowed: true, current: 0, limit: Infinity };
+  }
+  if (!cfg?.limits && (await isLicenseActive())) {
     return { allowed: true, current: 0, limit: Infinity };
   }
   try {

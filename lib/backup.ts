@@ -55,16 +55,22 @@ export interface FroshiarBackup {
     expenses:          Record<string, unknown>[];
     suppliers:         Record<string, unknown>[];
     exchange_rates:    Record<string, unknown>[];
+    discarded_products?: Record<string, unknown>[];
   };
   /** Business-only slices of the AsyncStorage-persisted Zustand stores — plain
    *  filtered objects (NOT the zustand `{state, version}` persist envelope). */
   stores: {
     business: string;
     settings: string;
+    quotations?: string;
+    dashboardBanners?: string;
   };
+  /** Media files (logo, product photos, supplier logos, presets, banners)
+   *  mapped from relative path to base64 binary string. */
+  media?: Record<string, string>;
 }
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 // Portable business/storefront config kept in the generic SQLite `settings`
 // key-value table. Everything else in that table (device_id, license keys,
@@ -83,6 +89,123 @@ const SETTINGS_ALLOWLIST = [
   'online_store_whatsapp',
 ] as const;
 
+const MEDIA_SUBDIRS = [
+  'logo_images',
+  'product_images',
+  'supplier_logos',
+  'saved_presets',
+  'dashboard_banners',
+  'header_backgrounds',
+  'header_videos',
+] as const;
+
+/**
+ * Normalizes a local file URI or relative path to a portable relative media path
+ * (e.g. 'product_images/media_123.jpg') so it can be restored on any device.
+ */
+function normalizeMediaUri(uri: unknown): string | null {
+  if (typeof uri !== 'string' || !uri.trim()) return null;
+  const trimmed = uri.trim();
+  const match = trimmed.match(/(?:^|.*\/)((?:logo_images|product_images|supplier_logos|saved_presets|dashboard_banners|header_backgrounds|header_videos)\/[a-zA-Z0-9_.-]+)$/);
+  return match ? match[1] : trimmed;
+}
+
+/**
+ * Resolves a portable relative media path back to an absolute file URI on the current device.
+ */
+function resolveMediaUri(relOrAbs: unknown, baseDocDir: string | null): string | null {
+  if (typeof relOrAbs !== 'string' || !relOrAbs.trim()) return null;
+  const trimmed = relOrAbs.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (!baseDocDir) return trimmed;
+  const match = trimmed.match(/(?:^|.*\/)((?:logo_images|product_images|supplier_logos|saved_presets|dashboard_banners|header_backgrounds|header_videos)\/[a-zA-Z0-9_.-]+)$/);
+  return match ? `${baseDocDir}${match[1]}` : trimmed;
+}
+
+/**
+ * Reads all user-selected pictures/media from permanent app directories into Base64 strings.
+ */
+async function collectMediaFiles(): Promise<Record<string, string>> {
+  const media: Record<string, string> = {};
+  try {
+    const FileSystem = await import('expo-file-system/legacy');
+    const baseDir = FileSystem.documentDirectory;
+    if (!baseDir) return media;
+
+    for (const subdir of MEDIA_SUBDIRS) {
+      const dirUri = `${baseDir}${subdir}/`;
+      try {
+        const info = await FileSystem.getInfoAsync(dirUri);
+        if (!info.exists || !info.isDirectory) continue;
+        const files = await FileSystem.readDirectoryAsync(dirUri);
+        for (const filename of files) {
+          if (filename.startsWith('.')) continue;
+          const fileUri = `${dirUri}${filename}`;
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            if (!fileInfo.exists || fileInfo.isDirectory) continue;
+            // Skip oversized files (> 8MB) to keep backup responsive
+            if (fileInfo.size && fileInfo.size > 8 * 1024 * 1024) continue;
+
+            const base64 = await FileSystem.readAsStringAsync(fileUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            if (base64) {
+              media[`${subdir}/${filename}`] = base64;
+            }
+          } catch (fileErr) {
+            console.warn(`[Backup] Skipping unreadable media file ${filename}:`, fileErr);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Backup] Error reading media subdir ${subdir}:`, err);
+      }
+    }
+  } catch (err) {
+    console.warn('[Backup] collectMediaFiles error:', err);
+  }
+  return media;
+}
+
+/**
+ * Restores Base64 media files into the target device's permanent document directory.
+ */
+async function restoreMediaFiles(media: Record<string, string> | undefined): Promise<number> {
+  if (!media || typeof media !== 'object') return 0;
+  try {
+    const FileSystem = await import('expo-file-system/legacy');
+    const baseDir = FileSystem.documentDirectory;
+    if (!baseDir) return 0;
+
+    let count = 0;
+    for (const [relPath, base64Data] of Object.entries(media)) {
+      if (!relPath || !base64Data || relPath.includes('..')) continue;
+      try {
+        const parts = relPath.split('/');
+        if (parts.length < 2) continue;
+        const subdir = parts[0].replace(/[^a-zA-Z0-9_-]/g, '');
+        const filename = parts.slice(1).join('/').replace(/[^a-zA-Z0-9_.-]/g, '');
+        if (!subdir || !filename) continue;
+
+        const targetDir = `${baseDir}${subdir}/`;
+        await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
+
+        const targetPath = `${targetDir}${filename}`;
+        await FileSystem.writeAsStringAsync(targetPath, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        count++;
+      } catch (err) {
+        console.warn(`[Restore] Failed to restore media file ${relPath}:`, err);
+      }
+    }
+    return count;
+  } catch (err) {
+    console.warn('[Restore] restoreMediaFiles error:', err);
+    return 0;
+  }
+}
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export async function exportBackup(): Promise<string> {
@@ -97,6 +220,7 @@ export async function exportBackup(): Promise<string> {
     customers, sales, sale_items,
     debts, invoice_counter, purchases, purchase_items, purchase_counter,
     purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
+    discarded_products,
   ] = await Promise.all([
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM businesses'),
     db.getAllAsync<Record<string, unknown>>(
@@ -120,15 +244,58 @@ export async function exportBackup(): Promise<string> {
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM expenses'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM suppliers'),
     db.getAllAsync<Record<string, unknown>>('SELECT * FROM exchange_rates'),
+    db.getAllAsync<Record<string, unknown>>('SELECT * FROM discarded_products'),
   ]);
 
-  // Business identity only — never the local logo file path (device-specific,
-  // and the image file itself was never portable across devices anyway).
-  const businessesScrubbed = businesses.map((row) => ({ ...row, logo_path: null }));
+  // Clean relative media URIs in DB records so they travel portably
+  const businessesCleaned = businesses.map((row) => ({
+    ...row,
+    logo_path: normalizeMediaUri(row.logo_path),
+  }));
 
-  const [storedBusinessRaw, storedSettingsRaw] = await Promise.all([
+  const productsCleaned = products.map((row) => ({
+    ...row,
+    image_uri: normalizeMediaUri(row.image_uri),
+  }));
+
+  const suppliersCleaned = suppliers.map((row) => ({
+    ...row,
+    image_uri: normalizeMediaUri(row.image_uri),
+  }));
+
+  const purchasesCleaned = purchases.map((row) => ({
+    ...row,
+    supplier_image_uri: normalizeMediaUri(row.supplier_image_uri),
+  }));
+
+  const inventoryHistoryCleaned = inventory_history.map((row) => ({
+    ...row,
+    image_uri: normalizeMediaUri(row.image_uri),
+  }));
+
+  const discardedProductsCleaned = discarded_products.map((row) => ({
+    ...row,
+    image_uri: normalizeMediaUri(row.image_uri),
+  }));
+
+  const [
+    storedBusinessRaw,
+    storedSettingsRaw,
+    storedQuotationsRaw,
+    bannersRaw,
+    bizBannersRaw,
+    bannerVideoRaw,
+    bizVideoRaw,
+    mediaFiles,
+  ] = await Promise.all([
     AsyncStorage.getItem('@froshiar_business'),
     AsyncStorage.getItem('@froshiar_settings'),
+    AsyncStorage.getItem('froshiar-quotations-storage'),
+    AsyncStorage.getItem('@froshiar_dashboard_custom_banners_v2'),
+    AsyncStorage.getItem('@froshiar_business_card_custom_banners_v2'),
+    AsyncStorage.getItem('@froshiar_dashboard_banner_video_v1'),
+    AsyncStorage.getItem('@froshiar_business_card_video_v1'),
+    collectMediaFiles(),
   ]);
 
   const storedBusiness = parseZustandState(storedBusinessRaw);
@@ -137,33 +304,74 @@ export async function exportBackup(): Promise<string> {
   const backup: FroshiarBackup = {
     meta: {
       schemaVersion: CURRENT_SCHEMA_VERSION,
-      version:    '2.0',
+      version:    '2.1',
       backupDate: new Date().toISOString(),
-      appVersion: '1.0.0',
+      appVersion: '1.0.1',
       platform:   Platform.OS,
     },
     database: {
-      businesses: businessesScrubbed, settings, categories, products, inventory_history,
-      customers, sales, sale_items,
-      debts, invoice_counter, purchases, purchase_items, purchase_counter,
-      purchase_debts, purchase_audit_log, debt_payments, expenses, suppliers, exchange_rates,
+      businesses: businessesCleaned,
+      settings,
+      categories,
+      products: productsCleaned,
+      inventory_history: inventoryHistoryCleaned,
+      customers,
+      sales,
+      sale_items,
+      debts,
+      invoice_counter,
+      purchases: purchasesCleaned,
+      purchase_items,
+      purchase_counter,
+      purchase_debts,
+      purchase_audit_log,
+      debt_payments,
+      expenses,
+      suppliers: suppliersCleaned,
+      exchange_rates,
+      discarded_products: discardedProductsCleaned,
     },
     stores: {
-      // Business identity fields only — never logoUri (device file path),
-      // ownerUserId (account-linkage marker), or isSetupComplete (device flow state).
       business: JSON.stringify({
         name:    storedBusiness?.name    ?? '',
         phone:   storedBusiness?.phone   ?? '',
         address: storedBusiness?.address ?? '',
+        logoUri: normalizeMediaUri(storedBusiness?.logoUri),
       }),
-      // Financial/operational config only — never isDarkMode or accentColor (UI prefs).
       settings: JSON.stringify({
-        exchangeRate:             storedSettings?.exchangeRate,
-        rateUpdatedAt:            storedSettings?.rateUpdatedAt,
-        globalLowStockEnabled:    storedSettings?.globalLowStockEnabled,
-        globalLowStockThreshold:  storedSettings?.globalLowStockThreshold,
+        exchangeRate:                      storedSettings?.exchangeRate,
+        rateUpdatedAt:                     storedSettings?.rateUpdatedAt,
+        baseCurrency:                      storedSettings?.baseCurrency,
+        globalLowStockEnabled:             storedSettings?.globalLowStockEnabled,
+        globalLowStockThreshold:           storedSettings?.globalLowStockThreshold,
+        salesPaperSizePreference:          storedSettings?.salesPaperSizePreference,
+        purchasePaperSizePreference:       storedSettings?.purchasePaperSizePreference,
+        inventoryPaperSizePreference:      storedSettings?.inventoryPaperSizePreference,
+        debtPaperSizePreference:           storedSettings?.debtPaperSizePreference,
+        thermalReceiptWidthPreference:     storedSettings?.thermalReceiptWidthPreference,
+        thermalReceiptSettings:            storedSettings?.thermalReceiptSettings,
+        salesReceiptSettings:              storedSettings?.salesReceiptSettings,
+        purchaseReceiptSettings:           storedSettings?.purchaseReceiptSettings,
+        quotationReceiptSettings:          storedSettings?.quotationReceiptSettings,
+        debtReceiptSettings:               storedSettings?.debtReceiptSettings,
+        inventoryReceiptSettings:          storedSettings?.inventoryReceiptSettings,
+        invoiceAboutPolicy:                storedSettings?.invoiceAboutPolicy,
+        expiryTrackingEnabled:             storedSettings?.expiryTrackingEnabled,
+        expiryAlertDays:                   storedSettings?.expiryAlertDays,
+        purchasePaymentStatusPreference:   storedSettings?.purchasePaymentStatusPreference,
+        purchaseReceiptCurrencyPreference: storedSettings?.purchaseReceiptCurrencyPreference,
+        saleCheckoutModePreference:        storedSettings?.saleCheckoutModePreference,
+        purchaseCheckoutModePreference:    storedSettings?.purchaseCheckoutModePreference,
+      }),
+      quotations: storedQuotationsRaw || '',
+      dashboardBanners: JSON.stringify({
+        banners: bannersRaw ? JSON.parse(bannersRaw) : null,
+        bizBanners: bizBannersRaw ? JSON.parse(bizBannersRaw) : null,
+        bannerVideo: bannerVideoRaw,
+        bizVideo: bizVideoRaw,
       }),
     },
+    media: mediaFiles,
   };
 
   const dateStr  = new Date().toISOString().split('T')[0];
@@ -195,6 +403,7 @@ const KNOWN_TABLES = [
   'customers', 'sales', 'sale_items', 'debts', 'invoice_counter',
   'purchases', 'purchase_items', 'purchase_counter', 'purchase_debts',
   'purchase_audit_log', 'debt_payments', 'expenses', 'suppliers', 'exchange_rates',
+  'discarded_products',
 ] as const;
 
 // Spot-check only — one required, never-null column per table, checked on the
@@ -208,6 +417,7 @@ const REQUIRED_FIELD: Partial<Record<(typeof KNOWN_TABLES)[number], string>> = {
   purchases: 'purchase_number',
   categories: 'name',
   expenses: 'amount',
+  discarded_products: 'product_name',
 };
 
 export async function validateAndParseBackup(fileUri: string): Promise<FroshiarBackup> {
@@ -327,7 +537,7 @@ export interface RestoreSummary {
 
 type RemapMap = Map<number, number>; // backup row id -> local row id
 
-const TOTAL_RESTORE_STEPS = 19;
+const TOTAL_RESTORE_STEPS = 21;
 
 export async function performRestore(
   backup: FroshiarBackup,
@@ -336,6 +546,9 @@ export async function performRestore(
   const db = await getDatabase();
   const { database } = backup;
   const isLegacy = !backup.meta?.schemaVersion || backup.meta.schemaVersion < 2;
+
+  const FileSystem = await import('expo-file-system/legacy');
+  const baseDocDir = FileSystem.documentDirectory;
 
   const warnings: string[] = [];
   const perTable: Record<string, RestoreTableCounts> = {};
@@ -362,9 +575,16 @@ export async function performRestore(
 
   let isFreshDevice = false;
 
+  // 1. Restore media files (logo, product photos, supplier logos, banners) before DB writes
+  if (backup.media && Object.keys(backup.media).length > 0) {
+    start('media_files');
+    const mediaCount = await restoreMediaFiles(backup.media);
+    report('media_files', { inserted: mediaCount, updated: 0, skipped: 0 });
+  }
+
   await db.withTransactionAsync(async () => {
     start('businesses');
-    isFreshDevice = await mergeBusinessSingleton(db, database.businesses ?? []);
+    isFreshDevice = await mergeBusinessSingleton(db, database.businesses ?? [], baseDocDir);
 
     start('settings');
     report('settings', await mergeSettingsKV(db, database.settings ?? []));
@@ -403,6 +623,10 @@ export async function performRestore(
       },
       policy: 'mutable',
       timestampColumn: 'updated_at',
+      beforeWrite: (row) => {
+        if (row.image_uri) row.image_uri = resolveMediaUri(row.image_uri, baseDocDir);
+        return true;
+      },
     }, suppliersRemap, warnings));
 
     start('purchases');
@@ -411,12 +635,13 @@ export async function performRestore(
       policy: 'immutable',
       beforeWrite: (row) => {
         if (row.supplier_id != null) row.supplier_id = suppliersRemap.get(row.supplier_id as number) ?? null;
+        if (row.supplier_image_uri) row.supplier_image_uri = resolveMediaUri(row.supplier_image_uri, baseDocDir);
         return true;
       },
     }, purchasesRemap, warnings));
 
     start('products');
-    report('products', await mergeProducts(db, database.products ?? [], purchasesRemap, productsRemap, warnings));
+    report('products', await mergeProducts(db, database.products ?? [], purchasesRemap, productsRemap, warnings, baseDocDir));
 
     start('purchase_items');
     report('purchase_items', await mergeSimpleTable(db, 'purchase_items', database.purchase_items ?? [], {
@@ -458,6 +683,7 @@ export async function performRestore(
         if (mappedProduct == null) return false;
         row.product_id = mappedProduct;
         if (row.purchase_id != null) row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? null;
+        if (row.image_uri) row.image_uri = resolveMediaUri(row.image_uri, baseDocDir);
         return true;
       },
     }, undefined, warnings));
@@ -517,12 +743,96 @@ export async function performRestore(
         return true;
       },
     }, undefined, warnings));
+
+    start('discarded_products');
+    report('discarded_products', await mergeSimpleTable(db, 'discarded_products', database.discarded_products ?? [], {
+      policy: 'immutable',
+      beforeWrite: (row) => {
+        if (row.product_id != null) row.product_id = productsRemap.get(row.product_id as number) ?? null;
+        if (row.image_uri) row.image_uri = resolveMediaUri(row.image_uri, baseDocDir);
+        return true;
+      },
+    }, undefined, warnings));
   });
+
+  // ── Financial Ledger Reconciliation ──
+  // Re-synchronize customer purchases, supplier totals, and debt remaining balances
+  // so all dashboard numbers, customer cards, supplier cards, and debt screens match 100%.
+  try {
+    await db.runAsync(`
+      UPDATE customers SET total_purchases = (
+        SELECT COALESCE(SUM(grand_total), 0)
+        FROM sales
+        WHERE sales.customer_id = customers.id
+      )
+    `);
+
+    await db.runAsync(`
+      UPDATE suppliers SET total_spent = (
+        SELECT COALESCE(SUM(total_iqd), 0)
+        FROM purchases
+        WHERE purchases.supplier_id = suppliers.id
+      )
+    `);
+
+    await db.runAsync(`
+      UPDATE debts SET
+        paid_amount = (
+          SELECT COALESCE(SUM(amount), 0)
+          FROM debt_payments
+          WHERE debt_payments.debt_id = debts.id AND debt_payments.debt_type = 'sales'
+        ),
+        remaining_amount = MAX(0, original_amount - (
+          SELECT COALESCE(SUM(amount), 0)
+          FROM debt_payments
+          WHERE debt_payments.debt_id = debts.id AND debt_payments.debt_type = 'sales'
+        )),
+        status = CASE
+          WHEN MAX(0, original_amount - (
+            SELECT COALESCE(SUM(amount), 0)
+            FROM debt_payments
+            WHERE debt_payments.debt_id = debts.id AND debt_payments.debt_type = 'sales'
+          )) = 0 THEN 'paid'
+          ELSE 'active'
+        END
+    `);
+
+    await db.runAsync(`
+      UPDATE purchase_debts SET
+        paid_amount = (
+          SELECT COALESCE(SUM(amount), 0)
+          FROM debt_payments
+          WHERE debt_payments.debt_id = purchase_debts.id AND debt_payments.debt_type = 'purchase'
+        ),
+        remaining_amount = MAX(0, original_amount - (
+          SELECT COALESCE(SUM(amount), 0)
+          FROM debt_payments
+          WHERE debt_payments.debt_id = purchase_debts.id AND debt_payments.debt_type = 'purchase'
+        )),
+        status = CASE
+          WHEN MAX(0, original_amount - (
+            SELECT COALESCE(SUM(amount), 0)
+            FROM debt_payments
+            WHERE debt_payments.debt_id = purchase_debts.id AND debt_payments.debt_type = 'purchase'
+          )) = 0 THEN 'paid'
+          ELSE 'active'
+        END
+    `);
+  } catch (err) {
+    console.warn('[Restore] Ledger reconciliation warning:', err);
+  }
+
+  try {
+    const { clearReportsCache } = await import('@/lib/sqlite');
+    await clearReportsCache();
+  } catch {}
 
   // AsyncStorage stores — outside the SQLite transaction, matching today's behavior.
   onProgress?.({ phase: 'stores' });
-  await mergeBusinessStore(backup.stores?.business);
+  await mergeBusinessStore(backup.stores?.business, baseDocDir);
   await mergeSettingsStore(backup.stores?.settings, isFreshDevice);
+  await mergeQuotationsStore(backup.stores?.quotations);
+  await mergeDashboardBanners(backup.stores?.dashboardBanners, baseDocDir);
 
   if (isLegacy) {
     warnings.push(

@@ -293,8 +293,7 @@ export default function ReceiptCustomizationScreen() {
     supplierName: isAr ? 'شركة علي للاستيراد والتوزيع' : isKurdish ? 'کۆمپانیای عەلی بۆ هاوردەکردن' : 'Ali Import & Distribution Co.',
     supplierPhone: '0770 123 9988',
     supplierAddress: isAr ? 'السليمانية - المنطقة الصناعية' : isKurdish ? 'سلێمانی - ناوچەی پیشەسازی' : 'Industrial Zone, Sulaymaniyah',
-    subtotal: 4750,
-    discountTotal: 750,
+    subtotal: 4000,
     totalIQD: 4000,
     paidAmount: 4000,
     remainingDebt: 0,
@@ -307,9 +306,9 @@ export default function ReceiptCustomizationScreen() {
       ? 'کاڵاکان بە تەواوی وەرگیراون و داخڵی مەخزەنی سەرەکی کراون.'
       : 'All goods inspected, verified, and received into warehouse.',
     items: [
-      { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 2, buyPrice: 400, total: 800 },
-      { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 1, buyPrice: 1200, total: 1200 },
-      { id: 3, name: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate', itemId: 'KIN-BUE', category: isAr ? 'الحلويات' : isKurdish ? 'شیرینی' : 'Sweets', qty: 3, buyPrice: 666, oldBuyPrice: 750, discount: 250, total: 2000 },
+      { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', description: isAr ? 'مشروب غازي مثلج' : isKurdish ? 'خواردنەوەی گازی سارد' : 'Original chilled can', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 2, buyPrice: 500, total: 1000 },
+      { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', description: isAr ? 'وجبة خفيفة بنكهة الجبنة' : isKurdish ? 'بە تامی پەنیری ناچۆ' : 'Nacho cheese flavored', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 1, buyPrice: 1500, total: 1500 },
+      { id: 3, name: isAr ? 'شوكولاتة كندر بوينو' : isKurdish ? 'شوکۆلاتە کیندەر بوێنۆ' : 'Kinder Bueno Chocolate', description: isAr ? 'ويفر مقرمش بكريمة البندق' : isKurdish ? 'شوکۆلاتەی بەندقی کریمی' : 'Crispy hazelnut wafer', itemId: 'KIN-BUE', category: isAr ? 'الحلويات' : isKurdish ? 'شیرینی' : 'Sweets', qty: 3, buyPrice: 500, total: 1500 },
     ],
   }), [isKurdish, isAr]);
 
@@ -810,6 +809,9 @@ export default function ReceiptCustomizationScreen() {
             <RNText style={[styles.a4TdNum, { width: '4%', textAlign: 'center' }]}>{idx + 1}</RNText>
             <View style={{ width: '26%' }}>
               <Text style={styles.a4ItemName} numberOfLines={1}>{item.productName}</Text>
+              {item.itemDescription ? (
+                <Text style={styles.a4ItemDesc} numberOfLines={1}>{item.itemDescription}</Text>
+              ) : null}
             </View>
             <View style={{ width: '11%', alignItems: 'center', justifyContent: 'center' }}>
               {salesSettings.showItemBarcode && item.itemId && item.itemId !== '—' ? (
@@ -962,14 +964,8 @@ export default function ReceiptCustomizationScreen() {
           <Text style={styles.a4CardLabel}>{isAr ? 'ملخص الشراء المالي' : isKurdish ? 'پوختەی دارایی کڕین' : 'PURCHASE SUMMARY'}</Text>
           <View style={styles.a4FinRow}>
             <Text style={styles.a4FinLabel}>{isAr ? 'إجمالي التكلفة:' : isKurdish ? 'کۆی تێچوو:' : 'Subtotal:'}</Text>
-            <Text style={styles.a4FinVal}>4,750 IQD</Text>
+            <Text style={styles.a4FinVal}>4,000 IQD</Text>
           </View>
-          {purchaseSettings.showDiscount && (
-            <View style={styles.a4FinRow}>
-              <Text style={[styles.a4FinLabel, { color: '#D97706', fontWeight: '700' }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
-              <Text style={[styles.a4FinVal, { color: '#D97706', fontWeight: '700' }]}>− 750 IQD</Text>
-            </View>
-          )}
           <View style={styles.a4TotalBlock}>
             <View style={[styles.a4TotalBlockRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text style={styles.a4TotalBlockLabel}>{isAr ? 'إجمالي تكلفة الشراء (IQD)' : isKurdish ? 'کۆی گشتی کڕین' : 'Total Cost (IQD)'}</Text>
@@ -1013,47 +1009,41 @@ export default function ReceiptCustomizationScreen() {
       {/* Items Table */}
       <View style={styles.a4TableWrap}>
         <View style={[styles.a4TableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Text style={[styles.a4Th, { flex: 0.35, textAlign: 'center' }]} numberOfLines={1}>#</Text>
-          <Text style={[styles.a4Th, { flex: 2.1, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
-          {purchaseSettings.showItemBarcode && (
-            <Text style={[styles.a4Th, { flex: 0.9, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الرمز' : isKurdish ? 'کۆد' : 'Code'}</Text>
-          )}
-          <Text style={[styles.a4Th, { flex: 0.95, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'التصنيف' : isKurdish ? 'هاوپۆل' : 'Cat.'}</Text>
-          {purchaseSettings.showQty && (
-            <Text style={[styles.a4Th, { flex: 0.55, textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
-          )}
-          {purchaseSettings.showBuyPrice && (
-            <Text style={[styles.a4Th, { flex: 1.05, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost'}</Text>
-          )}
-          <Text style={[styles.a4Th, { flex: 1.15, textAlign: 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆ' : 'Total'}</Text>
+          <Text style={[styles.a4Th, { width: '4%', textAlign: 'center' }]} numberOfLines={1}>#</Text>
+          <Text style={[styles.a4Th, { width: '28%', textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Product'}</Text>
+          <Text style={[styles.a4Th, { width: '12%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'رمز المادة' : isKurdish ? 'ئایدی کاڵا' : 'Item ID'}</Text>
+          <Text style={[styles.a4Th, { width: '14%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'التصنيف' : isKurdish ? 'هاوپۆل' : 'Cat.'}</Text>
+          <Text style={[styles.a4Th, { width: '6%', textAlign: 'center' }]} numberOfLines={1}>{isAr ? 'الكمية' : isKurdish ? 'بڕ' : 'Qty'}</Text>
+          <Text style={[styles.a4Th, { width: '16%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost'}</Text>
+          <Text style={[styles.a4Th, { width: '20%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{isAr ? 'المجموع' : isKurdish ? 'کۆ' : 'Total'}</Text>
         </View>
 
         {mockPurchase.items.map((item, idx) => (
           <View key={item.id} style={[styles.a4TableRow, idx % 2 === 1 && { backgroundColor: '#F8FAFC' }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Text style={[styles.a4Td, { flex: 0.4, textAlign: 'center' }]}>{idx + 1}</Text>
-            <View style={{ flex: 2.2 }}>
-              <Text style={styles.a4ItemName}>{item.name}</Text>
+            <RNText style={[styles.a4TdNum, { width: '4%', textAlign: 'center' }]}>{idx + 1}</RNText>
+            <View style={{ width: '28%' }}>
+              <Text style={styles.a4ItemName} numberOfLines={1}>{item.name}</Text>
+              {item.description ? (
+                <Text style={styles.a4ItemDesc} numberOfLines={1}>{item.description}</Text>
+              ) : null}
             </View>
-            {purchaseSettings.showItemBarcode && (
-              <View style={{ flex: 1.1, alignItems: 'center' }}>
-                <Text style={styles.a4IdChip}>{item.itemId}</Text>
-              </View>
-            )}
-            <Text style={[styles.a4Td, { flex: 1.2, color: '#64748B' }]} numberOfLines={1}>{item.category}</Text>
-            {purchaseSettings.showQty && <Text style={[styles.a4Td, { flex: 0.6, textAlign: 'center' }]}>{item.qty}</Text>}
-            {purchaseSettings.showBuyPrice && (
-              <View style={{ flex: 1.2, alignItems: 'flex-end', justifyContent: 'center' }}>
-                {purchaseSettings.showDiscount && item.discount ? (
-                  <>
-                    <Text style={styles.a4StrikethroughPrice}>{item.oldBuyPrice}</Text>
-                    <Text style={[styles.a4Td, { fontWeight: '700' }]}>{item.buyPrice}</Text>
-                  </>
-                ) : (
-                  <Text style={[styles.a4Td, { fontWeight: '700' }]}>{item.buyPrice}</Text>
-                )}
-              </View>
-            )}
-            <Text style={[styles.a4Td, { flex: 1.3, textAlign: 'right', fontWeight: '700' }]}>{item.total}</Text>
+            <View style={{ width: '12%', alignItems: 'center', justifyContent: 'center' }}>
+              {purchaseSettings.showItemBarcode && item.itemId && item.itemId !== '—' ? (
+                <RNText style={styles.a4IdChip} numberOfLines={1}>
+                  {item.itemId}
+                </RNText>
+              ) : (
+                <RNText style={[styles.a4Td, { textAlign: 'center', color: '#94A3B8' }]} numberOfLines={1}>
+                  —
+                </RNText>
+              )}
+            </View>
+            <RNText style={[styles.a4Td, { width: '14%', textAlign: 'center', color: '#64748B' }]} numberOfLines={1}>{item.category}</RNText>
+            <RNText style={[styles.a4TdNum, { width: '6%', textAlign: 'center', fontWeight: '700' }]}>{item.qty}</RNText>
+            <View style={{ width: '16%', alignItems: isRTL ? 'flex-start' : 'flex-end', justifyContent: 'center' }}>
+              <RNText style={[styles.a4TdAmount, { textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{fmtIQD(item.buyPrice)}</RNText>
+            </View>
+            <RNText style={[styles.a4TdAmountBold, { width: '20%', textAlign: isRTL ? 'left' : 'right' }]} numberOfLines={1}>{fmtIQD(item.total)} IQD</RNText>
           </View>
         ))}
       </View>
@@ -2437,17 +2427,10 @@ export default function ReceiptCustomizationScreen() {
               )}
               {renderToggleRow(
                 isAr ? 'تكلفة الشراء وسعر المفرد (Cost)' : isKurdish ? 'نرخی کڕین و تێچوو (Cost)' : 'Purchase Cost (Unit Price)',
-                isAr ? 'إظهار تكلفة المفرد مع الخصم' : isKurdish ? 'نرخی کڕینی تاک بە داشکاندنەوە' : 'Show unit cost with discounts',
+                isAr ? 'إظهار سعر الشراء الفردي لكل مادة' : isKurdish ? 'پیشاندانی تێچووی یەکە بۆ هەر کاڵایەک' : 'Show unit purchase cost for each item',
                 purchaseSettings.showBuyPrice,
                 () => updatePurchaseSettings({ showBuyPrice: !purchaseSettings.showBuyPrice }),
                 'cash-outline'
-              )}
-              {renderToggleRow(
-                isAr ? 'خصم الشراء (Discount)' : isKurdish ? 'داشکاندنی کڕین (Discount)' : 'Supplier Discount',
-                isAr ? 'إظهار الخصم الممنوح من المورد' : isKurdish ? 'پیشاندانی داشکاندنی دراو لەلایەن سەپلایەرەوە' : 'Show discount provided by supplier',
-                purchaseSettings.showDiscount,
-                () => updatePurchaseSettings({ showDiscount: !purchaseSettings.showDiscount }),
-                'cut-outline'
               )}
               {renderToggleRow(
                 isAr ? 'رمز المادة وباركودها (Item ID)' : isKurdish ? 'بارکۆد و ئایدی کاڵا (Item ID)' : 'Product Code (Item ID)',
@@ -3432,6 +3415,11 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  a4ItemDesc: {
+    fontSize: 6.8,
+    color: '#64748B',
+    marginTop: 1,
   },
   a4ItemSupplier: {
     fontSize: 7,

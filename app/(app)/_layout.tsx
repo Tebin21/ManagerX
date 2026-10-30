@@ -49,15 +49,22 @@ export default function AppLayout() {
       useOnlineStoreSubscriptionStore.getState().loadSubscription();
     });
 
-    // Employee Live Permission & Suspend listener
+    // Employee & User Account Live Limits & Permissions listener
     const {
       isEmployee,
       currentEmployeeAccount,
       initEmployeeLiveSubscription,
+      initCurrentUserLiveSubscription,
       initManagerSubscription,
       initSuperAdminSubscription,
       clearEmployeeSession,
     } = useManagementStore.getState();
+
+    // Live account limits subscription for current logged-in user (demo, registered owner, or manager)
+    let unsubCurrentUser: (() => void) | undefined;
+    if (user?.email) {
+      unsubCurrentUser = initCurrentUserLiveSubscription(user.email);
+    }
 
     // Verification check: Only genuine employee accounts should retain employee state
     const isRealEmployee = Boolean(
@@ -89,6 +96,7 @@ export default function AppLayout() {
     }
 
     return () => {
+      unsubCurrentUser?.();
       unsubEmployee?.();
       unsubManager?.();
       unsubAdmin?.();

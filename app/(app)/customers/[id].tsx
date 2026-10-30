@@ -29,7 +29,8 @@ import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import type { CustomerWithStats } from '@/types/customers';
 import type { Sale, Debt } from '@/types/sales';
-import type { FinancialLedgerEvent } from '@/types/debt';
+import type { FinancialLedgerEvent, DebtPaymentReceiptData } from '@/types/debt';
+import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { isDirectCustomerName } from '@/lib/sqlite';
@@ -45,6 +46,8 @@ export default function CustomerProfileScreen() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [timeline, setTimeline] = useState<FinancialLedgerEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createdReceipt, setCreatedReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -83,9 +86,16 @@ export default function CustomerProfileScreen() {
   );
 
   const handlePayment = useCallback(async (debtId: number, amount: number, paymentMethod?: string) => {
-    await addDebtPayment(debtId, amount, Number(id), paymentMethod);
-    await loadAll();
-  }, [addDebtPayment, loadAll, id]);
+    try {
+      const receipt = await addDebtPayment(debtId, amount, Number(id), paymentMethod);
+      await loadAll();
+      setCreatedReceipt(receipt);
+      setShowReceiptModal(true);
+    } catch (e) {
+      console.error('Customer payment error:', e);
+      Alert.alert(t('common.error'), t('debt.errorPayment', 'Failed to record payment'));
+    }
+  }, [addDebtPayment, loadAll, id, t]);
 
   const handleDeleteSale = useCallback((sale: Sale) => {
     Alert.alert(
@@ -494,6 +504,16 @@ export default function CustomerProfileScreen() {
           )}
         </KeyboardAwareScrollView>
       )}
+
+      {/* ── Debt Payment Receipt 4-Size Modal ── */}
+      <DebtPaymentReceiptModal
+        visible={showReceiptModal}
+        receipt={createdReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setCreatedReceipt(null);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

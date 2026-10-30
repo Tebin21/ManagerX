@@ -81,7 +81,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       idType:          input.idType,
       itemIds:         input.itemIds,
       warranty:        input.warranty.trim()        || null,
-      description:     input.description.trim()     || null,
+      description:     (input.itemDescription?.trim() || input.description?.trim()) || null,
       notes:           input.notes.trim()           || null,
       paymentStatus:   input.paymentStatus,
       initialPaymentMethod: input.initialPaymentMethod ?? null,

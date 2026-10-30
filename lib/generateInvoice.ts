@@ -23,7 +23,7 @@ import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import { buildInvoiceHTML, buildPurchaseInvoiceHTML, type PurchaseItemRow, type ReceiptCurrencyMode } from './invoiceTemplate';
 import { buildThermalReceiptHTML } from './thermalReceiptTemplate';
-import { useSettingsStore, type ThermalReceiptWidth } from '@/store/settingsStore';
+import { useSettingsStore, type ThermalReceiptWidth, type ReceiptPaperSize } from '@/store/settingsStore';
 import { PURCHASE_RATE } from '@/types/purchases';
 import { buildInventoryReportHTML } from './inventoryReportTemplate';
 import {
@@ -43,6 +43,8 @@ import type { Purchase } from '@/types/purchases';
 import type { InventoryProduct, InventoryStats, InventoryHistoryItem } from '@/types/inventory';
 import type { CustomerWithStats } from '@/types/customers';
 import type { SupplierWithStats } from '@/types/suppliers';
+import type { DebtPaymentReceiptData } from '@/types/debt';
+import type { DebtReceiptPaperSize } from './debtPaymentReceiptTemplate';
 import type { SalesDebtDetail, PurchaseDebt, DebtPayment, DebtOverviewSummary } from '@/types/debt';
 import type { Quotation } from '@/types/quotation';
 import i18n from '@/lib/i18n';
@@ -431,7 +433,8 @@ export async function sharePurchaseInvoice(
 export async function directPrintInvoice(
   sale: Sale,
   business: BusinessInfo,
-  currencyMode: ReceiptCurrencyMode = 'iqd'
+  currencyMode: ReceiptCurrencyMode = 'iqd',
+  paperSize: ReceiptPaperSize = '80mm'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -447,14 +450,24 @@ export async function directPrintInvoice(
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
-    await shareInvoice(sale, business, currencyMode);
+    if (paperSize === 'A4') {
+      await shareInvoice(sale, business, currencyMode);
+    } else {
+      await shareThermalInvoice(sale, business, paperSize as ThermalReceiptWidth, currencyMode);
+    }
     return true;
   }
   if (!tryAcquireGenerationLock()) return false;
   try {
     const biz = await withResolvedLogo(business);
-    const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
-    const html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
+    let html: string;
+    if (paperSize === 'A4') {
+      const rate = sale.exchangeRateUsed ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+      html = buildInvoiceHTML(sale, biz, getDir(), rate, currencyMode);
+    } else {
+      const { buildThermalReceiptHTML } = await import('./thermalReceiptTemplate');
+      html = buildThermalReceiptHTML(sale, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+    }
     await Print.printAsync({ html });
     await recordInvoicePrint();
     return true;
@@ -541,7 +554,8 @@ export async function directPrintPurchaseInvoice(
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd',
-  purchaseDebt?: PurchaseDebt | null
+  purchaseDebt?: PurchaseDebt | null,
+  paperSize: ReceiptPaperSize = '80mm'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -572,7 +586,21 @@ export async function directPrintPurchaseInvoice(
       }
     }
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+    let html: string;
+    if (paperSize === 'A4') {
+      html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+    } else {
+      const { buildThermalPurchaseReceiptHTML } = await import('./thermalReceiptTemplate');
+      const thermalItems = purchaseItems.map((item, idx) => ({
+        id: idx + 1,
+        productName: item.productName,
+        quantity: item.quantity,
+        buyPrice: item.buyPriceIQD ?? 0,
+        lineTotal: item.lineTotalIQD ?? ((item.buyPriceIQD ?? 0) * item.quantity),
+        itemId: Array.isArray(item.itemIds) && item.itemIds.length > 0 ? item.itemIds.join(', ') : undefined,
+      }));
+      html = buildThermalPurchaseReceiptHTML(purchase, thermalItems, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+    }
     await Print.printAsync({ html });
     await recordInvoicePrint();
     return true;
@@ -1084,6 +1112,131 @@ export async function shareQuotationInvoice(
   } catch (err) {
     console.error('[PDF] shareQuotationInvoice unexpected error:', err);
     Alert.alert('Error', 'Could not generate quotation PDF. Please try again.');
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function directPrintQuotationInvoice(
+  quotation: Quotation,
+  business: BusinessInfo,
+  currencyMode: ReceiptCurrencyMode = 'both',
+  paperSize: ReceiptPaperSize = '80mm'
+): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
+  if (Platform.OS === 'web') {
+    Alert.alert('Not supported', 'Direct printing is not available on web.');
+    return false;
+  }
+  const Print = await getPrintModule();
+  if (!Print || typeof Print.printAsync !== 'function') {
+    return await shareQuotationInvoice(quotation, business, currencyMode);
+  }
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    let html: string;
+    if (paperSize === 'A4') {
+      const { buildQuotationHTML } = await import('./quotationTemplate');
+      html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
+    } else {
+      const { buildThermalQuotationReceiptHTML } = await import('./thermalReceiptTemplate');
+      html = buildThermalQuotationReceiptHTML(quotation, biz, paperSize as ThermalReceiptWidth, undefined, currencyMode);
+    }
+    await Print.printAsync({ html });
+    await recordInvoicePrint();
+    return true;
+  } catch (err) {
+    console.error('[Print] directPrintQuotationInvoice unexpected error:', err);
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function directPrintDebtPaymentReceipt(
+  receipt: DebtPaymentReceiptData,
+  business: BusinessInfo,
+  paperSize: DebtReceiptPaperSize = '80mm',
+  exchangeRate?: number
+): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
+  if (Platform.OS === 'web') {
+    Alert.alert('Not supported', 'Direct printing is not available on web.');
+    return false;
+  }
+  const Print = await getPrintModule();
+  if (!Print || typeof Print.printAsync !== 'function') {
+    return await shareDebtPaymentReceipt(receipt, business, paperSize, exchangeRate);
+  }
+
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const rate = exchangeRate ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+    const { buildDebtPaymentHTML } = await import('./debtPaymentReceiptTemplate');
+    const html = buildDebtPaymentHTML(receipt, biz, paperSize, rate);
+    await Print.printAsync({ html });
+    await recordInvoicePrint();
+    return true;
+  } catch (err) {
+    console.error('[Print] directPrintDebtPaymentReceipt unexpected error:', err);
+    return false;
+  } finally {
+    releaseGenerationLock();
+  }
+}
+
+export async function shareDebtPaymentReceipt(
+  receipt: DebtPaymentReceiptData,
+  business: BusinessInfo,
+  paperSize: DebtReceiptPaperSize = '80mm',
+  exchangeRate?: number
+): Promise<boolean> {
+  const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
+  const printCheck = await checkInvoicePrintLimit();
+  if (!printCheck.allowed) {
+    const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+    showUsageLimitModal();
+    return false;
+  }
+
+  if (!tryAcquireGenerationLock()) return false;
+  try {
+    const biz = await withResolvedLogo(business);
+    const rate = exchangeRate ?? useSettingsStore.getState().exchangeRate ?? PURCHASE_RATE;
+    const { buildDebtPaymentHTML } = await import('./debtPaymentReceiptTemplate');
+    const html = buildDebtPaymentHTML(receipt, biz, paperSize, rate);
+    const fileName = buildFroshiarPdfFileName(receipt.paymentNumber, 'DebtPayment');
+    const docTitle = receipt.debtType === 'sales' ? 'وەسڵی وەرگرتنی پارەی قەرز' : 'وەسڵی دانەوەی قەرزی دابینکەر';
+    const success = await generateAndShare(
+      html,
+      `${docTitle} — ${receipt.paymentNumber}`,
+      'نەتوانرا وەسڵی پارەدان دروست بکرێت. تکایە دووبارە هەوڵبدەرەوە.',
+      fileName
+    );
+    if (success) {
+      await recordInvoicePrint();
+    }
+    return success;
+  } catch (err) {
+    console.error('[PDF] shareDebtPaymentReceipt unexpected error:', err);
+    Alert.alert('Error', 'Could not generate debt payment receipt PDF. Please try again.');
     return false;
   } finally {
     releaseGenerationLock();

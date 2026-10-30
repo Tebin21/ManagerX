@@ -34,7 +34,8 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
-import type { SalesDebtDetail, DebtPayment } from '@/types/debt';
+import type { SalesDebtDetail, DebtPayment, DebtPaymentReceiptData } from '@/types/debt';
+import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import type { Sale } from '@/types/sales';
 import { roundToNearest250 } from '@/utils/rounding';
 import { toEnglishDigits, sanitizeNumericInput } from '@/utils/formatters';
@@ -182,6 +183,8 @@ export default function SalesDebtDetailScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [showPayForm, setShowPayForm] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [createdReceipt, setCreatedReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const debtId = Number(id);
 
@@ -240,7 +243,7 @@ export default function SalesDebtDetailScreen() {
     setIsPaying(true);
     try {
       const ts = paymentDate.toISOString();
-      await paySalesDebt(debtId, amt, ts, paymentMethod);
+      const receipt = await paySalesDebt(debtId, amt, ts, paymentMethod);
 
       // Instant, optimistic patch so the screen reflects the payment in this
       // same tick — the silent reload below then reconciles payment history.
@@ -263,44 +266,8 @@ export default function SalesDebtDetailScreen() {
       setShowPayForm(false);
       await load({ silent: true });
 
-      if (isSettled) {
-        Alert.alert(
-          isKuLanguage ? 'تەواوبوونی قەرز' : 'Debt Settled',
-          isKuLanguage
-            ? 'قەرزەکە بە سەرکەوتوویی تەواو کرا. ئایا دەتەوێت وەسڵی قەرزەکە پرینت بکەیت؟'
-            : 'The debt has been fully settled. Would you like to print the debt receipt?',
-          [
-            {
-              text: isKuLanguage ? 'نەخێر / گەڕانەوە' : 'No / Return',
-              style: 'cancel',
-              onPress: () => router.replace('/(app)/sales' as never),
-            },
-            {
-              text: isKuLanguage ? 'پرینتکردنی وەسڵ' : 'Print Receipt',
-              onPress: async () => {
-                try {
-                  const updatedPayments = await getDebtPayments(debtId, 'sales');
-                  await shareSalesDebtReport(
-                    updatedDebt,
-                    updatedPayments,
-                    {
-                      name: business.name,
-                      phone: business.phone,
-                      address: business.address,
-                      logoUri: business.logoUri,
-                    },
-                    sale?.items
-                  );
-                } catch (e) {
-                  console.error('Print error after settle:', e);
-                } finally {
-                  router.replace('/(app)/sales' as never);
-                }
-              },
-            },
-          ]
-        );
-      }
+      setCreatedReceipt(receipt);
+      setShowReceiptModal(true);
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     } finally {
@@ -686,6 +653,20 @@ export default function SalesDebtDetailScreen() {
 
         <View style={{ height: 32 }} />
       </KeyboardAwareScrollView>
+
+      {/* ── Debt Payment Receipt 4-Size Modal ── */}
+      <DebtPaymentReceiptModal
+        visible={showReceiptModal}
+        receipt={createdReceipt}
+        onClose={() => {
+          const settled = createdReceipt && createdReceipt.remainingAfter <= 0;
+          setShowReceiptModal(false);
+          setCreatedReceipt(null);
+          if (settled) {
+            router.replace('/(app)/sales' as never);
+          }
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

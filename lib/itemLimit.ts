@@ -109,6 +109,42 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
     }
   } catch {}
 
+  // Check live Management Account config (Employee or Registered/Demo User)
+  try {
+    const { useManagementStore } = await import('@/store/managementStore');
+    const { currentUserAccount, currentEmployeeAccount, isEmployee } = useManagementStore.getState();
+    const liveAccount = isEmployee && currentEmployeeAccount ? currentEmployeeAccount : currentUserAccount;
+    if (liveAccount && liveAccount.status === 'active') {
+      const isNotExpired = !liveAccount.expiresAt || new Date(liveAccount.expiresAt).getTime() > Date.now();
+      if (isNotExpired) {
+        const isUnlimited =
+          liveAccount.limits?.maxQuantity === 'unlimited' ||
+          (liveAccount.limits?.maxItems === 'unlimited' && !liveAccount.limits?.maxQuantity);
+        const qtyLimit =
+          typeof liveAccount.limits?.maxQuantity === 'number'
+            ? liveAccount.limits.maxQuantity
+            : isUnlimited
+            ? TOKEN_TO_LIMIT.UNL
+            : 30;
+
+        if (isUnlimited || qtyLimit > 30) {
+          const liveInfo: LicenseInfo = {
+            plan: isUnlimited ? 'unlimited' : 'custom',
+            limit: isUnlimited ? TOKEN_TO_LIMIT.UNL : qtyLimit,
+            activatedAt: liveAccount.startedAt || liveAccount.createdAt || new Date().toISOString(),
+            deviceId,
+            licenseCode: `MANAGEMENT-${(liveAccount.role || 'LIVE').toUpperCase()}`,
+            expiresAt: liveAccount.expiresAt || null,
+            expired: false,
+          };
+          cachedInfo = liveInfo;
+          cachedAt = Date.now();
+          return liveInfo;
+        }
+      }
+    }
+  } catch {}
+
   // Check Cloud user subscription in Firebase Firestore (approved by admin)
   try {
     const { useAuthStore } = await import('@/store/authStore');
@@ -117,19 +153,35 @@ export async function loadLicenseFromDb(): Promise<LicenseInfo> {
       const { getFirebaseFirestore, doc, getDoc } = await import('@/lib/firebase');
       const db = getFirebaseFirestore();
       const subDocId = email.replace(/[^a-z0-9_]/gi, '_');
-      const snap = await getDoc(doc(db, 'user_subscriptions', subDocId));
+
+      let snap = await getDoc(doc(db, 'user_subscriptions', subDocId));
+      if (!snap || !(typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
+        snap = await getDoc(doc(db, 'employee_accounts', subDocId));
+      }
+
       if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
         const data = snap.data();
         if (data && data.status === 'active') {
           const isLifetime = data.planId === 'lifetime' || !data.expiresAt;
           const isNotExpired = isLifetime || new Date(data.expiresAt).getTime() > Date.now();
           if (isNotExpired) {
+            const isUnlimited =
+              data.limits?.maxQuantity === 'unlimited' ||
+              (data.limits?.maxItems === 'unlimited' && !data.limits?.maxQuantity) ||
+              !data.limits;
+            const qtyLimit =
+              typeof data.limits?.maxQuantity === 'number'
+                ? data.limits.maxQuantity
+                : isUnlimited
+                ? TOKEN_TO_LIMIT.UNL
+                : 30;
+
             const subInfo: LicenseInfo = {
-              plan: 'unlimited',
-              limit: TOKEN_TO_LIMIT.UNL,
-              activatedAt: data.startDate || new Date().toISOString(),
+              plan: isUnlimited ? 'unlimited' : 'custom',
+              limit: isUnlimited ? TOKEN_TO_LIMIT.UNL : qtyLimit,
+              activatedAt: data.startDate || data.createdAt || new Date().toISOString(),
               deviceId,
-              licenseCode: `CLOUD-SUB-${(data.planId || 'UNLIMITED').toUpperCase()}`,
+              licenseCode: `CLOUD-SUB-${(data.planId || data.role || 'ACTIVE').toUpperCase()}`,
               expiresAt: data.expiresAt || null,
               expired: false,
             };
@@ -229,15 +281,13 @@ export async function activateLicense(rawCode: string): Promise<ActivationResult
 // as 100 separate products with quantity 1 each. totalQuantity (not totalProducts)
 // is the correct metric here.
 export async function assertItemLimitNotExceeded(additionalQuantity: number): Promise<void> {
-  const license = await loadLicenseFromDb();
-  const isLicensed = Boolean(license.licenseCode && !license.expired && license.plan !== 'basic');
-  const effectiveLimit = isLicensed ? license.limit : 30;
-  const stats = await getInventoryStats();
-  if (stats.totalQuantity + additionalQuantity > effectiveLimit || (!isLicensed && additionalQuantity > 30)) {
+  const { checkQuantityLimit } = await import('@/lib/usageLimits');
+  const check = await checkQuantityLimit(additionalQuantity);
+  if (!check.allowed) {
     try {
       const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
       showUsageLimitModal();
     } catch {}
-    throw new Error(`ITEM_LIMIT_REACHED|${stats.totalQuantity},${effectiveLimit}`);
+    throw new Error(`ITEM_LIMIT_REACHED|${check.current},${check.limit}`);
   }
 }

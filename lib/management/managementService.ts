@@ -9,7 +9,7 @@ import {
   onSnapshot,
   query,
 } from '@/lib/firebase';
-import { EmployeeAccount, EmployeePermissions, DEFAULT_EMPLOYEE_PERMISSIONS } from './types';
+import { EmployeeAccount, EmployeePermissions, DEFAULT_EMPLOYEE_PERMISSIONS, ALL_ACTIVE_PERMISSIONS } from './types';
 import { getOrCreateDeviceId } from '@/lib/deviceId';
 
 const COLLECTION_NAME = 'employee_accounts';
@@ -558,4 +558,126 @@ export async function authenticateEmployee(
     return { success: false, error: err?.message || 'AUTH_ERROR' };
   }
 }
+
+/**
+ * Subscribes in real-time to an account's usage limits, status and expiration across Firestore.
+ * Concurrently listens to employee_accounts[cleanId] AND user_subscriptions[cleanId].
+ * Triggers instantly whenever an admin raises limits (individual numbers or unlimited) on the admin website.
+ */
+export function subscribeToAccountLimitsLive(
+  email: string,
+  onUpdate: (account: EmployeeAccount | null) => void
+): () => void {
+  if (!email || !email.includes('@')) {
+    return () => {};
+  }
+
+  try {
+    const db = getFirebaseFirestore();
+    const cleanId = getCleanDocId(email);
+
+    let empData: EmployeeAccount | null = null;
+    let subData: any = null;
+    let hasReceivedEmp = false;
+    let hasReceivedSub = false;
+
+    const emitMerged = () => {
+      if (!empData && !subData) {
+        if (hasReceivedEmp && hasReceivedSub) {
+          onUpdate(null);
+        }
+        return;
+      }
+
+      // Merge limits: prioritize explicit limits from either document
+      let limits = empData?.limits || subData?.limits;
+
+      // If user_subscriptions has lifetime or pro tier and no specific limit, treat as unlimited
+      if (!limits && subData) {
+        if (subData.planId === 'lifetime' || subData.tier === 'pro') {
+          limits = {
+            maxItems: 'unlimited',
+            maxQuantity: 'unlimited',
+            maxSales: 'unlimited',
+            maxInvoices: 'unlimited',
+            maxQuotations: 'unlimited',
+          };
+        }
+      }
+
+      const status = empData?.status || subData?.status || 'active';
+      const expiresAt = empData?.expiresAt ?? subData?.expiresAt;
+
+      const merged: EmployeeAccount = {
+        id: empData?.id || cleanId,
+        email: email.trim().toLowerCase(),
+        displayName: empData?.displayName || subData?.customerName || email.split('@')[0],
+        managerEmail: empData?.managerEmail || email.trim().toLowerCase(),
+        status,
+        expiresAt,
+        limits,
+        onlineStore: empData?.onlineStore || subData?.onlineStore,
+        permissions: empData?.permissions || ALL_ACTIVE_PERMISSIONS,
+        createdAt: empData?.createdAt || subData?.startDate || new Date().toISOString(),
+        role: empData?.role || 'manager',
+        accountType: empData?.accountType || 'registered',
+      };
+
+      onUpdate(merged);
+    };
+
+    const unsubEmp = onSnapshot(
+      doc(db, COLLECTION_NAME, cleanId),
+      (snap) => {
+        hasReceivedEmp = true;
+        if (snap.exists()) {
+          const data = snap.data() as EmployeeAccount;
+          empData = {
+            ...data,
+            id: snap.id,
+            permissions: {
+              ...DEFAULT_EMPLOYEE_PERMISSIONS,
+              ...(data.permissions || {}),
+            },
+          };
+        } else {
+          empData = null;
+        }
+        emitMerged();
+      },
+      (err) => {
+        hasReceivedEmp = true;
+        console.warn('[ManagementService] subscribeToAccountLimitsLive emp error:', err);
+        emitMerged();
+      }
+    );
+
+    const unsubSub = onSnapshot(
+      doc(db, 'user_subscriptions', cleanId),
+      (snap) => {
+        hasReceivedSub = true;
+        if (snap.exists()) {
+          subData = snap.data();
+        } else {
+          subData = null;
+        }
+        emitMerged();
+      },
+      (err) => {
+        hasReceivedSub = true;
+        console.warn('[ManagementService] subscribeToAccountLimitsLive sub error:', err);
+        emitMerged();
+      }
+    );
+
+    return () => {
+      unsubEmp();
+      unsubSub();
+    };
+  } catch (err) {
+    console.warn('[ManagementService] Failed to subscribe to account limits live:', err);
+    return () => {};
+  }
+}
+
 

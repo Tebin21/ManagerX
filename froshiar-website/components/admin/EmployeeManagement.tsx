@@ -859,7 +859,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     if (!db) return;
     const nextStatus = emp.status === 'active' ? 'suspended' : 'active';
     try {
-      const docRef = doc(db, 'employee_accounts', emp.id || getCleanDocId(emp.email));
+      const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
       await setDoc(docRef, { status: nextStatus }, { merge: true });
     } catch (e) {
       console.error('Failed to toggle status:', e);
@@ -912,7 +912,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     if (!db) return;
 
     try {
-      const docRef = doc(db, 'employee_accounts', emp.id || getCleanDocId(emp.email));
+      const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
       await deleteDoc(docRef);
     } catch (e) {
       console.error('Failed to delete employee:', e);
@@ -934,7 +934,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     const nextStatus = currentStore.status === 'active' ? 'suspended' : 'active';
 
     try {
-      const docRef = doc(db, 'employee_accounts', emp.id || getCleanDocId(emp.email));
+      const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
       await setDoc(
         docRef,
         {
@@ -998,7 +998,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
     try {
       const cleanEmail = formEmail.trim().toLowerCase();
-      const docId = selectedEmployee.id || getCleanDocId(cleanEmail);
+      const docId = getCleanDocId(cleanEmail) || selectedEmployee.id;
       const docRef = doc(db, 'employee_accounts', docId);
 
       const updatedLimits: EmployeeUsageLimits = {
@@ -1116,7 +1116,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       }
       baseDate.setDate(baseDate.getDate() + Number(renewDays));
       const newExpiresAt = baseDate.toISOString();
-      const docId = selectedEmployee.id || getCleanDocId(selectedEmployee.email);
+      const docId = getCleanDocId(selectedEmployee.email) || selectedEmployee.id;
 
       const docRef = doc(db, 'employee_accounts', docId);
       await setDoc(
@@ -1174,7 +1174,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
 
     setSavingPerms(true);
     try {
-      const docRef = doc(db, 'employee_accounts', selectedEmployee.id || getCleanDocId(selectedEmployee.email));
+      const docRef = doc(db, 'employee_accounts', getCleanDocId(selectedEmployee.email) || selectedEmployee.id);
       await setDoc(docRef, { permissions: editingPermissions }, { merge: true });
       setIsPermModalOpen(false);
       setSelectedEmployee(null);

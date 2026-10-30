@@ -550,6 +550,26 @@ export default function PaymentManagement({
       const db = getClientFirestore();
       if (db) {
         await setDoc(doc(db, 'user_subscriptions', subDocId), subRecord, { merge: true });
+        // Also mirror active status and limits into employee_accounts
+        await setDoc(
+          doc(db, 'employee_accounts', subDocId),
+          {
+            email: cleanEmail,
+            displayName: customerName.trim() || cleanEmail.split('@')[0],
+            status: 'active',
+            role: 'manager',
+            accountType: 'registered',
+            expiresAt: expiresAtIso,
+            limits: {
+              maxItems: 'unlimited',
+              maxQuantity: 'unlimited',
+              maxSales: 'unlimited',
+              maxInvoices: 'unlimited',
+              maxQuotations: 'unlimited',
+            },
+          },
+          { merge: true }
+        );
         subSaved = true;
       }
     } catch {}

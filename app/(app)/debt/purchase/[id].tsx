@@ -35,7 +35,8 @@ import { useAppTheme, type AppColors } from '@/contexts/ThemeContext';
 import { getStatusTint } from '@/constants/statusTints';
 import { Theme } from '@/constants/theme';
 import { getOverdueLevel, getDebtDisplayStatus } from '@/types/debt';
-import type { PurchaseDebt, DebtPayment } from '@/types/debt';
+import type { PurchaseDebt, DebtPayment, DebtPaymentReceiptData } from '@/types/debt';
+import { DebtPaymentReceiptModal } from '@/components/debt/DebtPaymentReceiptModal';
 import type { Purchase } from '@/types/purchases';
 import { roundToNearest250 } from '@/utils/rounding';
 import { toEnglishDigits, sanitizeNumericInput, fmtIQD } from '@/utils/formatters';
@@ -183,6 +184,8 @@ export default function PurchaseDebtDetailScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'fib'>('cash');
   const [showPayForm, setShowPayForm]   = useState(false);
   const [isPaying, setIsPaying]         = useState(false);
+  const [createdReceipt, setCreatedReceipt] = useState<DebtPaymentReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const debtId = Number(id);
   const debtGradient: [string, string] = [Colors.errorDark, Colors.error];
@@ -237,7 +240,7 @@ export default function PurchaseDebtDetailScreen() {
     setIsPaying(true);
     try {
       const ts = paymentDate.toISOString();
-      await payPurchaseDebt(debtId, amt, ts, paymentMethod);
+      const receipt = await payPurchaseDebt(debtId, amt, ts, paymentMethod);
 
       // Instant, optimistic patch so the screen reflects the payment in this
       // same tick — the silent reload below then reconciles payment history.
@@ -256,6 +259,9 @@ export default function PurchaseDebtDetailScreen() {
       setPaymentMethod('cash');
       setShowPayForm(false);
       await load({ silent: true });
+
+      setCreatedReceipt(receipt);
+      setShowReceiptModal(true);
     } catch {
       Alert.alert(t('common.error'), t('debt.errorPayment'));
     } finally {
@@ -631,6 +637,16 @@ export default function PurchaseDebtDetailScreen() {
 
         <View style={{ height: 32 }} />
       </KeyboardAwareScrollView>
+
+      {/* ── Debt Payment Receipt 4-Size Modal ── */}
+      <DebtPaymentReceiptModal
+        visible={showReceiptModal}
+        receipt={createdReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setCreatedReceipt(null);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

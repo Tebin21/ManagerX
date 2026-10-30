@@ -14,7 +14,7 @@ import {
 import type { CustomerWithStats, UpdateSaleInput } from '@/types/customers';
 import type { Sale } from '@/types/sales';
 import type { Debt } from '@/types/sales';
-import type { FinancialLedgerEvent } from '@/types/debt';
+import type { FinancialLedgerEvent, DebtPaymentReceiptData } from '@/types/debt';
 
 interface CustomerState {
   customers: CustomerWithStats[];
@@ -27,7 +27,7 @@ interface CustomerState {
 
   editCustomer: (id: number, data: Partial<{ name: string; phone: string | null; address: string | null; notes: string | null }>) => Promise<void>;
   deleteCustomer: (id: number) => Promise<void>;
-  addDebtPayment: (debtId: number, amount: number, customerId: number, paymentMethod?: string) => Promise<void>;
+  addDebtPayment: (debtId: number, amount: number, customerId: number, paymentMethod?: string) => Promise<DebtPaymentReceiptData>;
   editSaleInfo: (saleId: number, data: UpdateSaleInput) => Promise<void>;
   /** Replaces one customer's row in place; falls back to a full reload if the
    *  row is missing (e.g. it was deleted from another device mid-session). */
@@ -113,8 +113,9 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   },
 
   addDebtPayment: async (debtId: number, amount: number, customerId: number, paymentMethod?: string) => {
-    await addPaymentToDebt(debtId, amount, undefined, paymentMethod);
+    const receipt = await addPaymentToDebt(debtId, amount, undefined, paymentMethod);
     await get().refreshCustomer(customerId);
+    return receipt;
   },
 
   editSaleInfo: async (saleId: number, data: UpdateSaleInput) => {

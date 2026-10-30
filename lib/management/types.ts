@@ -66,8 +66,35 @@ export interface EmployeeAccount {
   lastLogoutAt?: string;
   deviceModel?: string;
   deviceName?: string;
+  role?: 'manager' | 'employee';
+  accountType?: 'registered' | 'custom';
   permissions: EmployeePermissions;
 }
+
+export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {
+  sales: 'active',
+  purchases: 'active',
+  inventory: 'active',
+  reports: 'active',
+  history: 'active',
+  invoices: 'active',
+  debts: 'active',
+  expenses: 'active',
+  quotations: 'active',
+  dashboard: 'active',
+  onlineStore: 'active',
+
+  canDeleteInvoice: true,
+  canEditReceiptCustomization: true,
+
+  settingsLanguage: 'active',
+  settingsProfile: 'active',
+  settingsCurrency: 'active',
+  settingsTheme: 'active',
+  settingsBackup: 'active',
+  settingsReceiptCustomization: 'active',
+  settingsDeleteAccount: 'active',
+};
 
 export const DEFAULT_USAGE_LIMITS: EmployeeUsageLimits = {
   maxItems: 20,
