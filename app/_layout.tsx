@@ -80,7 +80,25 @@ function AppStack() {
           animation: isRTL ? 'slide_from_left' : 'slide_from_right',
         }}
       >
-        <Stack.Screen name="index" />
+        <Stack.Screen
+          name="index"
+          options={{
+            animation: 'none',
+            contentStyle: { backgroundColor: '#000000' },
+          }}
+        />
+        <Stack.Screen
+          name="(app)"
+          options={{
+            animation: 'none',
+          }}
+        />
+        <Stack.Screen
+          name="(onboarding)"
+          options={{
+            animation: 'none',
+          }}
+        />
       </Stack>
     </>
   );
@@ -155,19 +173,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return (
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0B111E' }}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Image
-            source={require('@/assets/images/logo-icon.png')}
-            style={{ width: 68, height: 68, marginBottom: 20 }}
-            resizeMode="contain"
-          />
-          <ActivityIndicator size="large" color="#D4AF37" />
-          <Text style={{ color: '#D4AF37', fontSize: 16, marginTop: 14, fontWeight: '700' }}>
-            چاوەڕێ بە...
-          </Text>
-        </View>
-      </GestureHandlerRootView>
+      <View style={{ flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', paddingBottom: 55 }}>
+        <StatusBar style="light" />
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={{ width: 170, height: 170 }}
+          resizeMode="contain"
+        />
+      </View>
     );
   }
 
