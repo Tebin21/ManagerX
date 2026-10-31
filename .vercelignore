@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+android/
+ios/
+dist/
+web-build/
+web-dist/
+froshiar-website/node_modules/
+froshiar-website/.next/
+froshiar-website/out/
+.git/
+

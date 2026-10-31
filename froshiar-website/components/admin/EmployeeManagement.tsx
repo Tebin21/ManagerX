@@ -276,6 +276,22 @@ function slugifyStoreName(name: string): string {
   return clean || getCleanDocId(name);
 }
 
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(stripUndefined) as unknown as T;
+  }
+  const clean: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      clean[key] = stripUndefined(value);
+    }
+  }
+  return clean;
+}
+
 const PRESET_OPTIONS = [
   { days: 30,  titleKu: '١ مانگ',  subKu: '+٣٠ ڕۆژ',  titleEn: '1 Month',  subEn: '+30 Days' },
   { days: 60,  titleKu: '٢ مانگ',  subKu: '+٦٠ ڕۆژ',  titleEn: '2 Months', subEn: '+60 Days' },
@@ -1039,32 +1055,32 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       const startDate = formStartedAt ? new Date(formStartedAt).toISOString() : selectedEmployee.startedAt || selectedEmployee.createdAt;
       const expDate = formExpiresAt ? new Date(formExpiresAt).toISOString() : undefined;
 
-      const payload: Partial<EmployeeAccount> = {
+      const payload: any = {
         displayName: formName.trim() || cleanEmail.split('@')[0],
         email: cleanEmail,
         password: formPassword.trim() ? formPassword.trim() : (selectedEmployee.password || ''),
         managerEmail: formManagerEmail.trim().toLowerCase() || cleanEmail,
         phone: formPhone.trim(),
-        priceAmount: formPrice.trim(),
+        priceAmount: formPrice.trim() || null,
         startedAt: startDate,
-        expiresAt: expDate,
-        durationDays: typeof formDuration === 'number' ? formDuration : undefined,
+        expiresAt: expDate || null,
+        durationDays: typeof formDuration === 'number' ? formDuration : null,
         limits: updatedLimits,
-        onlineStore: updatedStore,
+        onlineStore: updatedStore || null,
       };
 
-      await setDoc(docRef, payload, { merge: true });
+      await setDoc(docRef, stripUndefined(payload), { merge: true });
 
       // Synchronize to user_subscriptions
       try {
         const subRef = doc(db, 'user_subscriptions', docId);
         await setDoc(
           subRef,
-          {
+          stripUndefined({
             id: docId,
             email: cleanEmail,
             customerName: formName.trim() || cleanEmail.split('@')[0],
-            phone: formPhone.trim(),
+            phone: formPhone.trim() || null,
             status: selectedEmployee.status || 'active',
             startDate: startDate,
             expiresAt: expDate || null,
@@ -1074,7 +1090,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             priceAmount: formPrice.trim() || null,
             limits: updatedLimits,
             updatedAt: new Date().toISOString(),
-          },
+          }),
           { merge: true }
         );
 
@@ -1371,20 +1387,20 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       };
 
       // 1. Write to employee_accounts
-      const newAccount: EmployeeAccount = {
+      const newAccount: any = {
         id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         email: cleanEmail,
         displayName: formName.trim() || cleanEmail.split('@')[0],
         password: addModalMode === 'create_custom' ? formPassword.trim() : '',
         managerEmail: mgrEmail,
-        phone: formPhone.trim(),
-        priceAmount: formPrice.trim(),
-        durationDays: typeof formDuration === 'number' ? formDuration : undefined,
+        phone: formPhone.trim() || null,
+        priceAmount: formPrice.trim() || null,
+        durationDays: typeof formDuration === 'number' ? formDuration : null,
         startedAt: startDate,
-        expiresAt: expDate,
+        expiresAt: expDate || null,
         status: 'active',
         limits: updatedLimits,
-        onlineStore: updatedStore,
+        onlineStore: updatedStore || null,
         permissions: addModalMode === 'upgrade_registered' ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
@@ -1393,18 +1409,18 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       };
 
       const docRef = doc(db, 'employee_accounts', docId);
-      await setDoc(docRef, newAccount, { merge: true });
+      await setDoc(docRef, stripUndefined(newAccount), { merge: true });
 
       // 2. Synchronize to user_subscriptions so cloud verification activates in mobile app
       try {
         const subRef = doc(db, 'user_subscriptions', docId);
         await setDoc(
           subRef,
-          {
+          stripUndefined({
             id: docId,
             email: cleanEmail,
             customerName: formName.trim() || cleanEmail.split('@')[0],
-            phone: formPhone.trim(),
+            phone: formPhone.trim() || null,
             status: 'active',
             tier: addModalMode === 'upgrade_registered' ? 'pro' : 'standard',
             planId: formDuration === 'unlimited' || !expDate ? 'lifetime' : `${formDuration}d`,
@@ -1418,7 +1434,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             upgradeReceipt: upgradeReceiptData,
             upgradedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-          },
+          }),
           { merge: true }
         );
 
