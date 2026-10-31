@@ -41,8 +41,7 @@ import {
   Sliders,
   Info,
 } from 'lucide-react';
-import { getClientFirestore, getClientStorage } from '@/lib/firebase';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getClientFirestore } from '@/lib/firebase';
 import {
   doc,
   getDoc,
@@ -407,50 +406,7 @@ export default function HeroBannerManagement({
   }, [previewLanguage, kurdishPhrases, englishPhrases]);
 
   // ─── 5. Media Upload Handlers ─────────────────────────────────────────────
-  // Helper: Upload Blob to Firebase Storage with Fallback to Base64
-  const uploadBlobToStorage = useCallback(
-    async (
-      blobOrFile: Blob | File,
-      folder: 'banner_videos' | 'banner_images',
-      target: 'mobile' | 'tablet' | 'large'
-    ): Promise<string> => {
-      try {
-        const storage = getClientStorage();
-        if (storage) {
-          const isVideo = folder === 'banner_videos';
-          const ext = isVideo
-            ? blobOrFile.type.includes('mp4')
-              ? 'mp4'
-              : blobOrFile.type.includes('webm')
-              ? 'webm'
-              : 'mov'
-            : 'jpg';
-          const filename = `${folder}/${Date.now()}_${target}_${Math.random()
-            .toString(36)
-            .slice(2, 7)}.${ext}`;
-          const fileRef = storageRef(storage, filename);
-          const snap = await uploadBytes(fileRef, blobOrFile, {
-            contentType: blobOrFile.type || (isVideo ? 'video/webm' : 'image/jpeg'),
-          });
-          const downloadUrl = await getDownloadURL(snap.ref);
-          return downloadUrl;
-        }
-      } catch (storageErr) {
-        console.warn('Firebase Storage upload failed, falling back to base64 Data URL:', storageErr);
-      }
-
-      // Fallback: Convert to Data URL
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blobOrFile);
-      });
-    },
-    []
-  );
-
-  // A. Image Upload with Automatic Canvas Compression & Cloud Upload
+  // A. Image Upload with Instant Canvas Compression
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     target: 'mobile' | 'tablet' | 'large'
@@ -459,11 +415,11 @@ export default function HeroBannerManagement({
     if (!file) return;
     e.target.value = '';
 
-    if (file.size > 12 * 1024 * 1024) {
+    if (file.size > 15 * 1024 * 1024) {
       alert(
         isKurdish
-          ? 'قەبارەی وێنەکە لە ١٢ مێگابایت زیاترە، تکایە وێنەیەکی بچووکتر دیاری بکە.'
-          : 'File too large (> 12MB). Please choose a smaller image.'
+          ? 'قەبارەی وێنەکە لە ١٥ مێگابایت زیاترە، تکایە وێنەیەکی بچووکتر دیاری بکە.'
+          : 'File too large (> 15MB). Please choose a smaller image.'
       );
       return;
     }
@@ -471,8 +427,8 @@ export default function HeroBannerManagement({
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
-      img.onload = async () => {
-        const maxDim = target === 'large' ? 1600 : target === 'tablet' ? 1200 : 900;
+      img.onload = () => {
+        const maxDim = target === 'large' ? 1400 : target === 'tablet' ? 1080 : 800;
         let width = img.width;
         let height = img.height;
 
@@ -493,40 +449,24 @@ export default function HeroBannerManagement({
         if (!ctx) return;
 
         ctx.drawImage(img, 0, 0, width, height);
+        // Clean JPEG compression to ~80-150 KB
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
 
-        canvas.toBlob(
-          async (blob) => {
-            if (blob) {
-              const url = await uploadBlobToStorage(blob, 'banner_images', target);
-              if (target === 'mobile') setMobileBannerUrl(url);
-              else if (target === 'tablet') setIpadBannerUrl(url);
-              else setLargeBannerUrl(url);
+        if (target === 'mobile') setMobileBannerUrl(compressedBase64);
+        else if (target === 'tablet') setIpadBannerUrl(compressedBase64);
+        else setLargeBannerUrl(compressedBase64);
 
-              // Auto-sync preview
-              setPreviewDevice(target);
-              setActiveDeviceTab(target);
-              setActiveMediaKind('image');
-            } else {
-              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-              if (target === 'mobile') setMobileBannerUrl(compressedBase64);
-              else if (target === 'tablet') setIpadBannerUrl(compressedBase64);
-              else setLargeBannerUrl(compressedBase64);
-
-              setPreviewDevice(target);
-              setActiveDeviceTab(target);
-              setActiveMediaKind('image');
-            }
-          },
-          'image/jpeg',
-          0.85
-        );
+        // Auto-sync preview
+        setPreviewDevice(target);
+        setActiveDeviceTab(target);
+        setActiveMediaKind('image');
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
 
-  // Helper: Auto-Trim to 20.0s & Compress Video In-Browser
+  // Helper: Fast Auto-Trim to 20.0s & High-Efficiency Compression
   const processAndUploadVideo = useCallback(
     async (
       file: File,
@@ -535,34 +475,95 @@ export default function HeroBannerManagement({
       return new Promise((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
         const tempVideo = document.createElement('video');
-        tempVideo.preload = 'auto';
+
+        // Essential for mobile & Safari playback without user interaction blocks
         tempVideo.muted = true;
+        tempVideo.volume = 0;
         tempVideo.playsInline = true;
+        tempVideo.setAttribute('playsinline', '');
+        tempVideo.setAttribute('webkit-playsinline', '');
+        tempVideo.preload = 'auto';
         tempVideo.crossOrigin = 'anonymous';
+
+        // Invisible DOM attachment to ensure browser decodes frames without stalling
+        tempVideo.style.position = 'fixed';
+        tempVideo.style.top = '-9999px';
+        tempVideo.style.left = '-9999px';
+        tempVideo.style.width = '1px';
+        tempVideo.style.height = '1px';
+        tempVideo.style.opacity = '0';
+        tempVideo.style.pointerEvents = 'none';
+        document.body.appendChild(tempVideo);
+
+        let cleanupDone = false;
+        const cleanup = () => {
+          if (cleanupDone) return;
+          cleanupDone = true;
+          try {
+            tempVideo.pause();
+            tempVideo.src = '';
+            tempVideo.load();
+            if (tempVideo.parentNode) {
+              tempVideo.parentNode.removeChild(tempVideo);
+            }
+          } catch {}
+          try {
+            URL.revokeObjectURL(objectUrl);
+          } catch {}
+        };
+
+        // If file is already short (<= 20.5s) and compact (<= 750KB), read directly!
+        const checkDirectRead = (duration: number) => {
+          if (file.size <= 750 * 1024 && duration <= 20.5) {
+            setVideoProcessing({
+              isProcessing: true,
+              target,
+              progress: 50,
+              statusText: isKurdish ? 'خوێندنەوەی ڤیدیۆ...' : 'Loading video file...',
+            });
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              cleanup();
+              setVideoProcessing({ isProcessing: false, target: null, progress: 100, statusText: '' });
+              resolve(ev.target?.result as string);
+            };
+            reader.onerror = (err) => {
+              cleanup();
+              setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+              reject(err);
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+          return false;
+        };
 
         tempVideo.onloadedmetadata = async () => {
           try {
             const rawDuration = tempVideo.duration || 0;
-            const targetDuration = Math.min(rawDuration, 20.0);
+            const targetDuration = Math.min(rawDuration || 20, 20.0);
             const wasTrimmed = rawDuration > 20.2;
+
+            // Check if fast direct read is possible
+            if (checkDirectRead(rawDuration)) return;
 
             setVideoProcessing({
               isProcessing: true,
               target,
-              progress: 5,
+              progress: 10,
               statusText: isKurdish
                 ? wasTrimmed
-                  ? `ڤیدیۆکە (${Math.round(rawDuration)} چرکە)یە. خۆکار تەنها یەکەم ٢٠ چرکەی دەبڕدرێت و کۆمپریس دەکرێت...`
-                  : 'دەستپێکردنی کۆمپریس کردنی ڤیدیۆ (٢٠ چرکە)...'
+                  ? `بڕینی یەکەم ٢٠ چرکە لە کۆی (${Math.round(rawDuration)} چرکە) و کۆمپریس کردن...`
+                  : 'دەستپێکردنی کۆمپریس کردنی ڤیدیۆ...'
                 : wasTrimmed
-                ? `Video is ${Math.round(rawDuration)}s. Trimming to first 20s and compressing...`
+                ? `Trimming first 20s from ${Math.round(rawDuration)}s and compressing...`
                 : 'Compressing video (max 20s)...',
             });
 
-            // Target dimensions for high quality and responsive bandwidth
-            const maxDim = target === 'large' ? 1280 : target === 'tablet' ? 960 : 720;
-            let w = tempVideo.videoWidth || 720;
-            let h = tempVideo.videoHeight || 1280;
+            // Target dimensions for bandwidth-optimized background video
+            const maxDim = target === 'large' ? 640 : target === 'tablet' ? 540 : 440;
+            let w = tempVideo.videoWidth || 480;
+            let h = tempVideo.videoHeight || 270;
 
             if (w > maxDim || h > maxDim) {
               if (w > h) {
@@ -581,30 +582,34 @@ export default function HeroBannerManagement({
             canvas.height = h;
             const ctx = canvas.getContext('2d', { alpha: false });
 
-            // Fallback if canvas stream or MediaRecorder is not supported
+            // If browser cannot transcode via canvas or MediaRecorder
             if (!ctx || typeof (canvas as any).captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
-              setVideoProcessing((prev) => ({
-                ...prev,
-                progress: 60,
-                statusText: isKurdish ? 'بارکردنی ڕاستەوخۆ بۆ کڵاود...' : 'Uploading directly to cloud...',
-              }));
-              const directUrl = await uploadBlobToStorage(file, 'banner_videos', target);
-              URL.revokeObjectURL(objectUrl);
-              setVideoProcessing({ isProcessing: false, target: null, progress: 100, statusText: '' });
-              resolve(directUrl);
+              const reader = new FileReader();
+              reader.onload = () => {
+                cleanup();
+                setVideoProcessing({ isProcessing: false, target: null, progress: 100, statusText: '' });
+                resolve(reader.result as string);
+              };
+              reader.onerror = (e) => {
+                cleanup();
+                setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+                reject(e);
+              };
+              reader.readAsDataURL(file);
               return;
             }
 
-            // Detect best supported MIME type
-            let mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+            // Determine best supported MIME type
+            let mimeType = 'video/webm;codecs=vp8';
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
+            else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mimeType = 'video/webm;codecs=vp8';
+            else if (MediaRecorder.isTypeSupported('video/webm')) mimeType = 'video/webm';
+            else if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4';
+            else mimeType = '';
 
             const stream = (canvas as any).captureStream(24);
             const recorderOptions: MediaRecorderOptions = {
-              videoBitsPerSecond: target === 'mobile' ? 850_000 : 1_100_000,
+              videoBitsPerSecond: 250_000, // 250 kbps ensures 20s is ~600 KB (safely within 1MB Firestore limit)
             };
             if (mimeType) recorderOptions.mimeType = mimeType;
 
@@ -615,47 +620,86 @@ export default function HeroBannerManagement({
               if (ev.data && ev.data.size > 0) chunks.push(ev.data);
             };
 
-            recorder.onstop = async () => {
+            let isStopped = false;
+            const stopRecording = () => {
+              if (isStopped) return;
+              isStopped = true;
+              if (recorder.state === 'recording') {
+                recorder.stop();
+              }
+            };
+
+            recorder.onstop = () => {
               try {
                 setVideoProcessing((prev) => ({
                   ...prev,
-                  progress: 90,
+                  progress: 95,
                   statusText: isKurdish
-                    ? 'پاشەکەوتکردنی فایلی کۆمپریس کراو لە کڵاود...'
-                    : 'Saving compressed video to cloud...',
+                    ? 'کۆتاییهاتن بە ئامادەکردنی ڤیدیۆ...'
+                    : 'Finalizing compressed video...',
                 }));
 
                 const finalBlob = new Blob(chunks, { type: mimeType || 'video/webm' });
-                const downloadUrl = await uploadBlobToStorage(finalBlob, 'banner_videos', target);
-
-                setVideoProcessing({
-                  isProcessing: false,
-                  target: null,
-                  progress: 100,
-                  statusText: isKurdish ? 'ڤیدیۆکە بە سەرکەوتوویی ئامادەکرا (٢٠ چرکە)' : 'Video ready (20s)!',
-                });
-
-                URL.revokeObjectURL(objectUrl);
-                resolve(downloadUrl);
+                const reader = new FileReader();
+                reader.onload = () => {
+                  cleanup();
+                  setVideoProcessing({
+                    isProcessing: false,
+                    target: null,
+                    progress: 100,
+                    statusText: isKurdish ? 'ڤیدیۆکە ئامادەیە (٢٠ چرکە)' : 'Video ready (20s)!',
+                  });
+                  resolve(reader.result as string);
+                };
+                reader.onerror = (err) => {
+                  cleanup();
+                  setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+                  reject(err);
+                };
+                reader.readAsDataURL(finalBlob);
               } catch (err) {
-                URL.revokeObjectURL(objectUrl);
+                cleanup();
                 setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
                 reject(err);
               }
             };
 
+            // 2x speed for faster transcoding (completes 20s in ~8-10 seconds)
+            try {
+              tempVideo.playbackRate = 2.0;
+            } catch {}
+
             recorder.start(250);
-            tempVideo.currentTime = 0;
-            await tempVideo.play();
 
-            let animationFrameId: number;
-            const drawLoop = () => {
-              if (tempVideo.paused || tempVideo.ended) return;
+            // Attempt playback safely
+            try {
+              tempVideo.currentTime = 0;
+              await tempVideo.play();
+            } catch (playErr) {
+              tempVideo.muted = true;
+              await tempVideo.play().catch(() => {});
+            }
 
-              ctx.drawImage(tempVideo, 0, 0, w, h);
+            // Frame pump timer at 24fps
+            const fpsInterval = 1000 / 24;
+            const pumpTimer = setInterval(() => {
+              if (isStopped) {
+                clearInterval(pumpTimer);
+                return;
+              }
+
+              // Ensure video is playing
+              if (tempVideo.paused && !tempVideo.ended && tempVideo.currentTime < targetDuration) {
+                tempVideo.play().catch(() => {});
+              }
+
+              // Draw frame to canvas
+              try {
+                ctx.drawImage(tempVideo, 0, 0, w, h);
+              } catch {}
 
               const cur = tempVideo.currentTime;
-              const pct = Math.min(88, Math.round((cur / targetDuration) * 88));
+              const pct = Math.min(92, Math.max(12, Math.round((cur / targetDuration) * 92)));
               setVideoProcessing((prev) => ({
                 ...prev,
                 progress: pct,
@@ -664,35 +708,36 @@ export default function HeroBannerManagement({
                   : `Trimming & compressing: ${Math.round(cur)}s / ${Math.round(targetDuration)}s (${pct}%)`,
               }));
 
-              // Stop recording when 20.0 seconds or video end is reached
               if (cur >= targetDuration || tempVideo.ended) {
-                cancelAnimationFrame(animationFrameId);
-                tempVideo.pause();
-                recorder.stop();
-                return;
+                clearInterval(pumpTimer);
+                stopRecording();
               }
+            }, fpsInterval);
 
-              animationFrameId = requestAnimationFrame(drawLoop);
-            };
-
-            animationFrameId = requestAnimationFrame(drawLoop);
+            // Absolute safety timeout: after 14 seconds max, stop recording and complete!
+            setTimeout(() => {
+              if (!isStopped) {
+                clearInterval(pumpTimer);
+                stopRecording();
+              }
+            }, 14000);
           } catch (err) {
-            URL.revokeObjectURL(objectUrl);
+            cleanup();
             setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
             reject(err);
           }
         };
 
         tempVideo.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
+          cleanup();
           setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
-          reject(new Error(isKurdish ? 'هەڵە ڕوویدا لە خوێندنەوەی ڤیدیۆکە' : 'Failed to read video file'));
+          reject(new Error(isKurdish ? 'هەڵە ڕوویدا لە خوێندنەوەی فایلی ڤیدیۆ' : 'Failed to read video file'));
         };
 
         tempVideo.src = objectUrl;
       });
     },
-    [isKurdish, uploadBlobToStorage]
+    [isKurdish]
   );
 
   // B. Video Upload with Automatic 20-Second Trimming, Compression & Cloud Upload
