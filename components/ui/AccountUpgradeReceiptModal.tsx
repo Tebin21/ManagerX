@@ -111,26 +111,18 @@ export function AccountUpgradeReceiptModal() {
   const currentUserAccount = useManagementStore((s) => s.currentUserAccount);
   const appLang = useLanguageStore((s) => s.language);
 
-  const [visible, setVisible] = useState(__DEV__);
+  const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<'lang' | 'receipt'>('lang');
+  console.log('[AccountUpgradeReceiptModal] LIVE RENDER step:', step);
   const [selectedLang, setSelectedLang] = useState<ModalLang>(
     appLang === 'en' ? 'en' : 'ku'
   );
   const [countdown, setCountdown] = useState(25);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const dummyReceipt = __DEV__ ? {
-    receiptId: 'REC-LANG-TEST-001',
-    planDuration: 'بێ سنوور (هەمیشەیی)',
-    startDate: new Date().toISOString(),
-    expiresAt: null,
-    priceAmount: 'دیارینەکراو',
-    customerName: 'ئارام محەمەد',
-    email: 'user@gmail.com',
-    upgradedAt: new Date().toISOString(),
-  } : null;
-
-  const receipt = currentUserAccount?.upgradeReceipt || dummyReceipt;
+  const receipt = currentUserAccount?.upgradeReceipt
+    ? { ...currentUserAccount.upgradeReceipt, receiptId: 'REC-UNSEEN-001' }
+    : null;
 
   useEffect(() => {
     if (!receipt || !receipt.receiptId) return;
