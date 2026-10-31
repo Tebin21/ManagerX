@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAPt_45ZxiC6VZALYX65NN_igouWJ-Qpjo',
@@ -11,6 +12,7 @@ const firebaseConfig = {
 };
 
 let _firestore: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 
 export function getClientFirestore(): Firestore | null {
   try {
@@ -19,6 +21,18 @@ export function getClientFirestore(): Firestore | null {
       _firestore = getFirestore(app);
     }
     return _firestore;
+  } catch {
+    return null;
+  }
+}
+
+export function getClientStorage(): FirebaseStorage | null {
+  try {
+    if (!_storage) {
+      const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+      _storage = getStorage(app);
+    }
+    return _storage;
   } catch {
     return null;
   }

@@ -121,6 +121,17 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
       } catch {}
     });
 
+    // Enforce max 20.0 seconds looping boundary for any video
+    const subTime = player.addListener?.('timeUpdate', (event: any) => {
+      try {
+        const cur = typeof event === 'number' ? event : event?.currentTime;
+        if (typeof cur === 'number' && cur >= 20.0) {
+          player.currentTime = 0;
+          player.play();
+        }
+      } catch {}
+    });
+
     // Auto-play when ready
     const subStatus = player.addListener?.('statusChange', ({ status }: any) => {
       if (status === 'readyToPlay') {
@@ -154,6 +165,7 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
 
     return () => {
       subEnd?.remove?.();
+      subTime?.remove?.();
       subStatus?.remove?.();
       subPlaying?.remove?.();
       appStateSub?.remove?.();
@@ -427,7 +439,7 @@ function BusinessHeaderImpl() {
     setShowOnDashboard(tab === 'business');
   };
 
-  // 7. Video Picker with Strict 10-Second Validation
+  // 7. Video Picker with 20-Second Validation
   const pickVideo = async () => {
     if (!ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
       Alert.alert(
@@ -459,7 +471,7 @@ function BusinessHeaderImpl() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
         allowsEditing: true,
-        videoMaxDuration: 10,
+        videoMaxDuration: 20,
       });
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
@@ -468,15 +480,15 @@ function BusinessHeaderImpl() {
       const rawDuration = asset.duration ?? 0;
       const durationSec = rawDuration > 100 ? rawDuration / 1000 : rawDuration;
 
-      // Reject if video is longer than 10 seconds (with minor buffer for frame rounding)
-      if (durationSec > 11.5) {
+      // Allow videos up to 20 seconds (with buffer for frame rounding)
+      if (durationSec > 21.5) {
         Alert.alert(
           isArabic ? 'تنبيه' : isKurdish ? 'ئاگاداری' : 'Warning',
           isArabic
-            ? 'يجب ألا يتجاوز الفيديو 10 ثوانٍ'
+            ? 'يجب ألا يتجاوز الفيديو 20 ثانية'
             : isKurdish
-            ? 'نابێت ڤیدیۆکە لە ١٠ چرکە زیاتر بێت'
-            : 'The video must not exceed 10 seconds'
+            ? 'نابێت ڤیدیۆکە لە ٢٠ چرکە زیاتر بێت'
+            : 'The video must not exceed 20 seconds'
         );
         return;
       }
@@ -876,7 +888,7 @@ function BusinessHeaderImpl() {
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* SECTION 1: VIDEO UPLOAD (≤ 10 Seconds) */}
+              {/* SECTION 1: VIDEO UPLOAD (≤ 20 Seconds) */}
               <View style={styles.sectionHeader}>
                 <View style={[styles.sectionTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Ionicons name="videocam-outline" size={17} color={themeColors.primary} />
@@ -890,7 +902,7 @@ function BusinessHeaderImpl() {
                     {t('dashboard.headerBgVideo')}
                   </Text>
                 </View>
-                {/* Exact Kurdish requirement: نابێت ڤیدیۆکە لە 10 چرکە زیاتر بێت */}
+                {/* Exact Kurdish requirement: نابێت ڤیدیۆکە لە 20 چرکە زیاتر بێت */}
                 <Text style={[styles.sectionSubtitle, { color: themeColors.gray400, textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' }]}>
                   {t('dashboard.video10SecNote')}
                 </Text>
@@ -915,7 +927,7 @@ function BusinessHeaderImpl() {
 
                   <View style={[styles.videoBadge, { [isRTL ? 'right' : 'left']: 10 }]}>
                     <Ionicons name="videocam" size={11} color="#FFFFFF" />
-                    <Text style={styles.videoBadgeText}>10s</Text>
+                    <Text style={styles.videoBadgeText}>20s</Text>
                   </View>
 
                   <View style={[styles.slotActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>

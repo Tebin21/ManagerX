@@ -35,8 +35,14 @@ import {
   ChevronDown,
   UserCheck,
   ShieldAlert,
+  Loader2,
+  Maximize2,
+  Scissors,
+  Sliders,
+  Info,
 } from 'lucide-react';
-import { getClientFirestore } from '@/lib/firebase';
+import { getClientFirestore, getClientStorage } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   doc,
   getDoc,
@@ -115,10 +121,26 @@ export default function HeroBannerManagement({
   const [ipadBannerUrl, setIpadBannerUrl] = useState('');
   const [largeBannerUrl, setLargeBannerUrl] = useState('');
 
-  // 10-Second Looping Background Videos
+  // 20-Second Looping Background Videos (Auto-trimmed and compressed)
   const [mobileVideoUrl, setMobileVideoUrl] = useState('');
   const [ipadVideoUrl, setIpadVideoUrl] = useState('');
   const [largeVideoUrl, setLargeVideoUrl] = useState('');
+
+  // Video processing & in-browser compression state
+  const [videoProcessing, setVideoProcessing] = useState<{
+    isProcessing: boolean;
+    target: 'mobile' | 'tablet' | 'large' | null;
+    progress: number;
+    statusText: string;
+  }>({
+    isProcessing: false,
+    target: null,
+    progress: 0,
+    statusText: '',
+  });
+
+  // Safe area crop guide overlay toggle
+  const [showCropGuides, setShowCropGuides] = useState(false);
 
   // Typewriter Text
   const [kurdishPhrases, setKurdishPhrases] = useState<string[]>(DEFAULT_KURDISH_PHRASES);
@@ -385,19 +407,63 @@ export default function HeroBannerManagement({
   }, [previewLanguage, kurdishPhrases, englishPhrases]);
 
   // ─── 5. Media Upload Handlers ─────────────────────────────────────────────
-  // A. Image Upload with Automatic Canvas Compression
+  // Helper: Upload Blob to Firebase Storage with Fallback to Base64
+  const uploadBlobToStorage = useCallback(
+    async (
+      blobOrFile: Blob | File,
+      folder: 'banner_videos' | 'banner_images',
+      target: 'mobile' | 'tablet' | 'large'
+    ): Promise<string> => {
+      try {
+        const storage = getClientStorage();
+        if (storage) {
+          const isVideo = folder === 'banner_videos';
+          const ext = isVideo
+            ? blobOrFile.type.includes('mp4')
+              ? 'mp4'
+              : blobOrFile.type.includes('webm')
+              ? 'webm'
+              : 'mov'
+            : 'jpg';
+          const filename = `${folder}/${Date.now()}_${target}_${Math.random()
+            .toString(36)
+            .slice(2, 7)}.${ext}`;
+          const fileRef = storageRef(storage, filename);
+          const snap = await uploadBytes(fileRef, blobOrFile, {
+            contentType: blobOrFile.type || (isVideo ? 'video/webm' : 'image/jpeg'),
+          });
+          const downloadUrl = await getDownloadURL(snap.ref);
+          return downloadUrl;
+        }
+      } catch (storageErr) {
+        console.warn('Firebase Storage upload failed, falling back to base64 Data URL:', storageErr);
+      }
+
+      // Fallback: Convert to Data URL
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blobOrFile);
+      });
+    },
+    []
+  );
+
+  // A. Image Upload with Automatic Canvas Compression & Cloud Upload
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     target: 'mobile' | 'tablet' | 'large'
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
-    if (file.size > 8 * 1024 * 1024) {
+    if (file.size > 12 * 1024 * 1024) {
       alert(
         isKurdish
-          ? 'قەبارەی وێنەکە لە ٨ مێگابایت زیاترە، تکایە وێنەیەکی بچووکتر دیاری بکە.'
-          : 'File too large (> 8MB). Please choose a smaller image.'
+          ? 'قەبارەی وێنەکە لە ١٢ مێگابایت زیاترە، تکایە وێنەیەکی بچووکتر دیاری بکە.'
+          : 'File too large (> 12MB). Please choose a smaller image.'
       );
       return;
     }
@@ -405,7 +471,7 @@ export default function HeroBannerManagement({
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const maxDim = target === 'large' ? 1600 : target === 'tablet' ? 1200 : 900;
         let width = img.width;
         let height = img.height;
@@ -427,72 +493,237 @@ export default function HeroBannerManagement({
         if (!ctx) return;
 
         ctx.drawImage(img, 0, 0, width, height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
-        if (target === 'mobile') setMobileBannerUrl(compressedBase64);
-        else if (target === 'tablet') setIpadBannerUrl(compressedBase64);
-        else setLargeBannerUrl(compressedBase64);
+        canvas.toBlob(
+          async (blob) => {
+            if (blob) {
+              const url = await uploadBlobToStorage(blob, 'banner_images', target);
+              if (target === 'mobile') setMobileBannerUrl(url);
+              else if (target === 'tablet') setIpadBannerUrl(url);
+              else setLargeBannerUrl(url);
+
+              // Auto-sync preview
+              setPreviewDevice(target);
+              setActiveDeviceTab(target);
+              setActiveMediaKind('image');
+            } else {
+              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              if (target === 'mobile') setMobileBannerUrl(compressedBase64);
+              else if (target === 'tablet') setIpadBannerUrl(compressedBase64);
+              else setLargeBannerUrl(compressedBase64);
+
+              setPreviewDevice(target);
+              setActiveDeviceTab(target);
+              setActiveMediaKind('image');
+            }
+          },
+          'image/jpeg',
+          0.85
+        );
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
 
-  // B. Video Upload with STRICT 10-Second Validation
-  const handleVideoUpload = (
+  // Helper: Auto-Trim to 20.0s & Compress Video In-Browser
+  const processAndUploadVideo = useCallback(
+    async (
+      file: File,
+      target: 'mobile' | 'tablet' | 'large'
+    ): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const tempVideo = document.createElement('video');
+        tempVideo.preload = 'auto';
+        tempVideo.muted = true;
+        tempVideo.playsInline = true;
+        tempVideo.crossOrigin = 'anonymous';
+
+        tempVideo.onloadedmetadata = async () => {
+          try {
+            const rawDuration = tempVideo.duration || 0;
+            const targetDuration = Math.min(rawDuration, 20.0);
+            const wasTrimmed = rawDuration > 20.2;
+
+            setVideoProcessing({
+              isProcessing: true,
+              target,
+              progress: 5,
+              statusText: isKurdish
+                ? wasTrimmed
+                  ? `ڤیدیۆکە (${Math.round(rawDuration)} چرکە)یە. خۆکار تەنها یەکەم ٢٠ چرکەی دەبڕدرێت و کۆمپریس دەکرێت...`
+                  : 'دەستپێکردنی کۆمپریس کردنی ڤیدیۆ (٢٠ چرکە)...'
+                : wasTrimmed
+                ? `Video is ${Math.round(rawDuration)}s. Trimming to first 20s and compressing...`
+                : 'Compressing video (max 20s)...',
+            });
+
+            // Target dimensions for high quality and responsive bandwidth
+            const maxDim = target === 'large' ? 1280 : target === 'tablet' ? 960 : 720;
+            let w = tempVideo.videoWidth || 720;
+            let h = tempVideo.videoHeight || 1280;
+
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            w = Math.floor(w / 2) * 2;
+            h = Math.floor(h / 2) * 2;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d', { alpha: false });
+
+            // Fallback if canvas stream or MediaRecorder is not supported
+            if (!ctx || typeof (canvas as any).captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
+              setVideoProcessing((prev) => ({
+                ...prev,
+                progress: 60,
+                statusText: isKurdish ? 'بارکردنی ڕاستەوخۆ بۆ کڵاود...' : 'Uploading directly to cloud...',
+              }));
+              const directUrl = await uploadBlobToStorage(file, 'banner_videos', target);
+              URL.revokeObjectURL(objectUrl);
+              setVideoProcessing({ isProcessing: false, target: null, progress: 100, statusText: '' });
+              resolve(directUrl);
+              return;
+            }
+
+            // Detect best supported MIME type
+            let mimeType = 'video/webm;codecs=vp9';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+
+            const stream = (canvas as any).captureStream(24);
+            const recorderOptions: MediaRecorderOptions = {
+              videoBitsPerSecond: target === 'mobile' ? 850_000 : 1_100_000,
+            };
+            if (mimeType) recorderOptions.mimeType = mimeType;
+
+            const recorder = new MediaRecorder(stream, recorderOptions);
+            const chunks: Blob[] = [];
+
+            recorder.ondataavailable = (ev) => {
+              if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+            };
+
+            recorder.onstop = async () => {
+              try {
+                setVideoProcessing((prev) => ({
+                  ...prev,
+                  progress: 90,
+                  statusText: isKurdish
+                    ? 'پاشەکەوتکردنی فایلی کۆمپریس کراو لە کڵاود...'
+                    : 'Saving compressed video to cloud...',
+                }));
+
+                const finalBlob = new Blob(chunks, { type: mimeType || 'video/webm' });
+                const downloadUrl = await uploadBlobToStorage(finalBlob, 'banner_videos', target);
+
+                setVideoProcessing({
+                  isProcessing: false,
+                  target: null,
+                  progress: 100,
+                  statusText: isKurdish ? 'ڤیدیۆکە بە سەرکەوتوویی ئامادەکرا (٢٠ چرکە)' : 'Video ready (20s)!',
+                });
+
+                URL.revokeObjectURL(objectUrl);
+                resolve(downloadUrl);
+              } catch (err) {
+                URL.revokeObjectURL(objectUrl);
+                setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+                reject(err);
+              }
+            };
+
+            recorder.start(250);
+            tempVideo.currentTime = 0;
+            await tempVideo.play();
+
+            let animationFrameId: number;
+            const drawLoop = () => {
+              if (tempVideo.paused || tempVideo.ended) return;
+
+              ctx.drawImage(tempVideo, 0, 0, w, h);
+
+              const cur = tempVideo.currentTime;
+              const pct = Math.min(88, Math.round((cur / targetDuration) * 88));
+              setVideoProcessing((prev) => ({
+                ...prev,
+                progress: pct,
+                statusText: isKurdish
+                  ? `بڕین و کۆمپریس کردن: ${Math.round(cur)} / ${Math.round(targetDuration)} چرکە (%${pct})`
+                  : `Trimming & compressing: ${Math.round(cur)}s / ${Math.round(targetDuration)}s (${pct}%)`,
+              }));
+
+              // Stop recording when 20.0 seconds or video end is reached
+              if (cur >= targetDuration || tempVideo.ended) {
+                cancelAnimationFrame(animationFrameId);
+                tempVideo.pause();
+                recorder.stop();
+                return;
+              }
+
+              animationFrameId = requestAnimationFrame(drawLoop);
+            };
+
+            animationFrameId = requestAnimationFrame(drawLoop);
+          } catch (err) {
+            URL.revokeObjectURL(objectUrl);
+            setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+            reject(err);
+          }
+        };
+
+        tempVideo.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          setVideoProcessing({ isProcessing: false, target: null, progress: 0, statusText: '' });
+          reject(new Error(isKurdish ? 'هەڵە ڕوویدا لە خوێندنەوەی ڤیدیۆکە' : 'Failed to read video file'));
+        };
+
+        tempVideo.src = objectUrl;
+      });
+    },
+    [isKurdish, uploadBlobToStorage]
+  );
+
+  // B. Video Upload with Automatic 20-Second Trimming, Compression & Cloud Upload
+  const handleVideoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     target: 'mobile' | 'tablet' | 'large'
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
-    const objectUrl = URL.createObjectURL(file);
-    const tempVideo = document.createElement('video');
-    tempVideo.preload = 'metadata';
+    try {
+      setErrorMessage(null);
+      const uploadedUrl = await processAndUploadVideo(file, target);
+      if (target === 'mobile') setMobileVideoUrl(uploadedUrl);
+      else if (target === 'tablet') setIpadVideoUrl(uploadedUrl);
+      else setLargeVideoUrl(uploadedUrl);
 
-    tempVideo.onloadedmetadata = () => {
-      URL.revokeObjectURL(objectUrl);
-      const duration = tempVideo.duration;
-
-      // Strict 10-second limit check (allow 10.5 for rounding)
-      if (duration > 10.5) {
-        alert(
-          isKurdish
-            ? `⚠️ سەرنج: ڤیدیۆی باکگراوند نابێت لە ١٠ چرکە زیاتر بێت!\n\nدرێژی ئەم ڤیدیۆیە: ${Math.round(
-                duration
-              )} چرکەیە.\nتکایە ڤیدیۆیەکی کورتتر هەڵبژێرە کە زۆرینەی ١٠ چرکە بێت.`
-            : `⚠️ Warning: Background video must not exceed 10 seconds!\n\nSelected video is ${Math.round(
-                duration
-              )}s long.\nPlease choose or trim a video of at most 10 seconds.`
-        );
-        return;
-      }
-
-      if (file.size > 25 * 1024 * 1024) {
-        alert(
-          isKurdish
-            ? 'قەبارەی فایلی ڤیدیۆکە لە ٢٥ مێگابایت زیاترە. تکایە فایلێکی کۆمپریس کراو هەڵبژێرە.'
-            : 'Video file size exceeds 25MB. Please choose a compressed file.'
-        );
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const base64 = ev.target?.result as string;
-        if (target === 'mobile') setMobileVideoUrl(base64);
-        else if (target === 'tablet') setIpadVideoUrl(base64);
-        else setLargeVideoUrl(base64);
-      };
-      reader.readAsDataURL(file);
-    };
-
-    tempVideo.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      alert(isKurdish ? 'هەڵە ڕوویدا لە کاتی خوێندنەوەی ڤیدیۆ' : 'Failed to load video file');
-    };
-
-    tempVideo.src = objectUrl;
+      // Auto-sync preview
+      setPreviewDevice(target);
+      setActiveDeviceTab(target);
+      setActiveMediaKind('video');
+    } catch (err: any) {
+      console.error('Video upload failed:', err);
+      alert(
+        err?.message ||
+          (isKurdish
+            ? 'هەڵەیەک ڕوویدا لە کاتی ئامادەکردن یان بارکردنی ڤیدیۆکە'
+            : 'An error occurred while processing or uploading the video')
+      );
+    }
   };
 
   // ─── 6. Save to Firestore (Global OR Selected Account) ────────────────────
@@ -701,8 +932,8 @@ export default function HeroBannerManagement({
                 }`}
               >
                 {isKurdish
-                  ? 'گۆڕینی وێنەی سابتی بانەر، دانانی ڤیدیۆی ١٠ چرکەیی بەپێی قەبارەی ئامێر (مۆبایل، ئایپاد، شاشەی گەورە)، دیاریکردنی بانەری تایبەت بۆ ئەکاونتەکان و دەستەواژەکانی تایپینگ'
-                  : 'Manage responsive banner images, 10-second background videos for Mobile, iPad, and Large Screens, with per-account customization and live typewriter phrases.'}
+                  ? 'گۆڕینی وێنەی سابتی بانەر، دانانی ڤیدیۆی ٢٠ چرکەیی بەپێی قەبارەی ئامێر (مۆبایل، ئایپاد، شاشەی گەورە) بە بڕین و کۆمپرسی خۆکار، پێشبینینی ڕاستەوخۆی کەت بوون و دەرکەوتن'
+                  : 'Manage responsive banner images, 20-second auto-trimmed and compressed background videos for Mobile, iPad, and Large Screens with live crop preview.'}
               </p>
             </div>
           </div>
@@ -1050,7 +1281,41 @@ export default function HeroBannerManagement({
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Media type toggle for preview (Image vs Video) */}
+            <div
+              className={`p-1 rounded-xl border flex items-center text-xs font-semibold ${
+                isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-200'
+              }`}
+            >
+              <button
+                onClick={() => setActiveMediaKind('image')}
+                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                  activeMediaKind === 'image'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                    : isDarkMode
+                    ? 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>{isKurdish ? 'وێنە' : 'Image'}</span>
+              </button>
+              <button
+                onClick={() => setActiveMediaKind('video')}
+                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                  activeMediaKind === 'video'
+                    ? 'bg-purple-600 text-white shadow-sm font-bold'
+                    : isDarkMode
+                    ? 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Film className="w-3.5 h-3.5" />
+                <span>{isKurdish ? 'ڤیدیۆ (٢٠ چرکە)' : '20s Video'}</span>
+              </button>
+            </div>
+
             {/* Language toggle for preview */}
             <div
               className={`p-1 rounded-xl border flex items-center text-xs font-semibold ${
@@ -1083,17 +1348,20 @@ export default function HeroBannerManagement({
               </button>
             </div>
 
-            {/* Device selector for preview */}
+            {/* Device selector for preview (automatically syncs device tabs below) */}
             <div
               className={`p-1 rounded-xl border flex items-center text-xs font-semibold ${
                 isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-200'
               }`}
             >
               <button
-                onClick={() => setPreviewDevice('mobile')}
+                onClick={() => {
+                  setPreviewDevice('mobile');
+                  setActiveDeviceTab('mobile');
+                }}
                 className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                   previewDevice === 'mobile'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                     : isDarkMode
                     ? 'text-slate-400 hover:text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -1103,10 +1371,13 @@ export default function HeroBannerManagement({
                 <span>{isKurdish ? 'مۆبایل' : 'Phone'}</span>
               </button>
               <button
-                onClick={() => setPreviewDevice('tablet')}
+                onClick={() => {
+                  setPreviewDevice('tablet');
+                  setActiveDeviceTab('tablet');
+                }}
                 className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                   previewDevice === 'tablet'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                     : isDarkMode
                     ? 'text-slate-400 hover:text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -1116,10 +1387,13 @@ export default function HeroBannerManagement({
                 <span>{isKurdish ? 'ئایپاد' : 'iPad'}</span>
               </button>
               <button
-                onClick={() => setPreviewDevice('large')}
+                onClick={() => {
+                  setPreviewDevice('large');
+                  setActiveDeviceTab('large');
+                }}
                 className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                   previewDevice === 'large'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                     : isDarkMode
                     ? 'text-slate-400 hover:text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -1129,6 +1403,22 @@ export default function HeroBannerManagement({
                 <span>{isKurdish ? 'شاشەی گەورە' : 'Large'}</span>
               </button>
             </div>
+
+            {/* Crop Guides Toggle */}
+            <button
+              onClick={() => setShowCropGuides(!showCropGuides)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
+                showCropGuides
+                  ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-sm'
+                  : isDarkMode
+                  ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+              title={isKurdish ? 'پشکنینی چوارچێوەی دەق و کەت بوون' : 'Toggle Safe Area & Crop Guides'}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>{isKurdish ? 'هێڵی کەت بوون' : 'Crop Guides'}</span>
+            </button>
           </div>
         </div>
 
@@ -1139,16 +1429,32 @@ export default function HeroBannerManagement({
               previewDevice === 'mobile'
                 ? 'w-full max-w-[340px] aspect-[16/10]'
                 : previewDevice === 'tablet'
-                ? 'w-full max-w-[560px] aspect-[16/9]'
+                ? 'w-full max-w-[560px] aspect-[16/10]'
                 : 'w-full max-w-[760px] aspect-[21/9]'
             } ${
               isDarkMode ? 'border-slate-700 bg-slate-950' : 'border-slate-300 bg-slate-900'
             }`}
           >
-            {/* Background Media: 10s Looping Video OR Image */}
-            {activePreviewVideo ? (
+            {/* Background Media: 20s Looping Video OR Image */}
+            {activeMediaKind === 'video' && activePreviewVideo ? (
               <video
-                key={activePreviewVideo}
+                key={`video_${previewDevice}_${activePreviewVideo}`}
+                src={activePreviewVideo}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : activeMediaKind === 'image' && activePreviewImage ? (
+              <img
+                src={activePreviewImage}
+                alt="Banner Preview"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : activePreviewVideo ? (
+              <video
+                key={`video_fallback_${previewDevice}_${activePreviewVideo}`}
                 src={activePreviewVideo}
                 autoPlay
                 loop
@@ -1174,6 +1480,28 @@ export default function HeroBannerManagement({
               </div>
             )}
 
+            {/* Safe Area & Crop Guides Overlay (Optional visualizer) */}
+            {showCropGuides && (
+              <div className="absolute inset-0 z-30 pointer-events-none p-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between border-2 border-dashed border-amber-400/70 bg-amber-500/10 rounded-xl px-2.5 py-1.5 backdrop-blur-[2px]">
+                  <span className="text-[10px] font-bold text-amber-300">
+                    {isKurdish ? '★ ناوچەی پارێزراوی سەرەوە (لۆگۆ و ناوی بازرگانی)' : '★ Top Safe Zone (Brand & Logo)'}
+                  </span>
+                  <span className="text-[9px] font-mono text-amber-400/90">
+                    {previewDevice === 'mobile' ? '16:10' : previewDevice === 'tablet' ? '16:10' : '21:9'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-2 border-dashed border-amber-400/70 bg-amber-500/10 rounded-xl px-2.5 py-1.5 backdrop-blur-[2px]">
+                  <span className="text-[10px] font-bold text-amber-300">
+                    {isKurdish ? '★ ناوچەی پارێزراوی خوارەوە (دەقی تایپینگ)' : '★ Bottom Safe Zone (Typewriter)'}
+                  </span>
+                  <span className="text-[9px] font-mono text-amber-400/90">
+                    {isKurdish ? 'ناپۆشرێت' : 'Protected'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Gradient Overlays like native app */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-slate-950/20" />
             <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-3xl pointer-events-none" />
@@ -1193,14 +1521,19 @@ export default function HeroBannerManagement({
 
                 <div className="flex items-center gap-1.5">
                   {/* Media Kind Badge */}
-                  {activePreviewVideo ? (
+                  {activeMediaKind === 'video' && activePreviewVideo ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
                       <Film className="w-3 h-3" />
-                      <span>{isKurdish ? 'ڤیدیۆ (10 چرکە)' : '10s Video'}</span>
+                      <span>{isKurdish ? 'ڤیدیۆ (٢٠ چرکە)' : '20s Video'}</span>
                     </span>
                   ) : activePreviewImage ? (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-white/80 backdrop-blur-md border border-white/15">
                       {isKurdish ? 'وێنەی کاستەم' : 'Custom Image'}
+                    </span>
+                  ) : activePreviewVideo ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <Film className="w-3 h-3" />
+                      <span>{isKurdish ? 'ڤیدیۆ (٢٠ چرکە)' : '20s Video'}</span>
                     </span>
                   ) : (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-white/80 backdrop-blur-md border border-white/15">
@@ -1285,7 +1618,7 @@ export default function HeroBannerManagement({
                 }`}
               >
                 <Film className="w-3.5 h-3.5" />
-                <span>{isKurdish ? 'ڤیدیۆ (١٠ چرکە)' : '10s Videos'}</span>
+                <span>{isKurdish ? 'ڤیدیۆ (٢٠ چرکە)' : '20s Videos'}</span>
               </button>
             </div>
           </div>
@@ -1297,7 +1630,10 @@ export default function HeroBannerManagement({
             }`}
           >
             <button
-              onClick={() => setActiveDeviceTab('mobile')}
+              onClick={() => {
+                setActiveDeviceTab('mobile');
+                setPreviewDevice('mobile');
+              }}
               className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeDeviceTab === 'mobile'
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
@@ -1311,7 +1647,10 @@ export default function HeroBannerManagement({
             </button>
 
             <button
-              onClick={() => setActiveDeviceTab('tablet')}
+              onClick={() => {
+                setActiveDeviceTab('tablet');
+                setPreviewDevice('tablet');
+              }}
               className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeDeviceTab === 'tablet'
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
@@ -1325,7 +1664,10 @@ export default function HeroBannerManagement({
             </button>
 
             <button
-              onClick={() => setActiveDeviceTab('large')}
+              onClick={() => {
+                setActiveDeviceTab('large');
+                setPreviewDevice('large');
+              }}
               className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeDeviceTab === 'large'
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
@@ -1345,18 +1687,24 @@ export default function HeroBannerManagement({
               <>
                 {activeDeviceTab === 'mobile' && (
                   <DeviceImageSection
+                    device="mobile"
                     title={isKurdish ? 'وێنەی بانەری مۆبایل (iPhone & Android)' : 'Mobile Phone Banner Image'}
-                    subtitle={isKurdish ? 'ڕێژەی پێشنیازکراو: 16:9 بۆ شاشەی مۆبایل' : 'Recommended ratio: ~16:9 for mobile'}
+                    subtitle={isKurdish ? 'ڕێژەی پێشنیازکراو: 16:10 بۆ شاشەی مۆبایل' : 'Recommended ratio: ~16:10 for mobile'}
                     value={mobileBannerUrl}
                     onChange={setMobileBannerUrl}
                     onUpload={(e) => handleImageUpload(e, 'mobile')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
 
                 {activeDeviceTab === 'tablet' && (
                   <DeviceImageSection
+                    device="tablet"
                     title={isKurdish ? 'وێنەی بانەری ئایپاد و تابلێت (iPad Portrait)' : 'iPad & Tablet Banner Image'}
                     subtitle={isKurdish ? 'ڕێژەی پێشنیازکراو: 4:3 یان 16:10 بۆ ئایپاد' : 'Recommended ratio: 4:3 or 16:10 for iPad'}
                     value={ipadBannerUrl}
@@ -1364,11 +1712,16 @@ export default function HeroBannerManagement({
                     onUpload={(e) => handleImageUpload(e, 'tablet')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
 
                 {activeDeviceTab === 'large' && (
                   <DeviceImageSection
+                    device="large"
                     title={isKurdish ? 'وێنەی بانەری شاشەی گەورە (iPad Landscape & Large)' : 'Large Screens Banner Image'}
                     subtitle={isKurdish ? 'ڕێژەی پێشنیازکراو: 16:9 یان 21:9 پان' : 'Recommended ratio: 16:9 or 21:9 widescreen'}
                     value={largeBannerUrl}
@@ -1376,6 +1729,10 @@ export default function HeroBannerManagement({
                     onUpload={(e) => handleImageUpload(e, 'large')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
               </>
@@ -1383,37 +1740,61 @@ export default function HeroBannerManagement({
               <>
                 {activeDeviceTab === 'mobile' && (
                   <DeviceVideoSection
-                    title={isKurdish ? 'ڤیدیۆی باکگراوندی مۆبایل (زۆرینە ١٠ چرکە)' : 'Mobile Background Video (Max 10s)'}
-                    subtitle={isKurdish ? 'ڤیدیۆیەکی جووڵاو بۆ مۆبایل (نابێت لە ١٠ چرکە زیاتر بێت)' : 'Looping video for mobile devices (Strict max 10 seconds)'}
+                    device="mobile"
+                    title={isKurdish ? 'ڤیدیۆی باکگراوندی مۆبایل (زۆرینە ٢٠ چرکە)' : 'Mobile Background Video (Max 20s)'}
+                    subtitle={isKurdish ? 'ڤیدیۆی جووڵاو بۆ مۆبایل • خۆکار دەبڕدرێت و کۆمپریس دەکرێت' : 'Looping video for mobile • Auto-trimmed to 20s & compressed'}
                     value={mobileVideoUrl}
                     onChange={setMobileVideoUrl}
                     onUpload={(e) => handleVideoUpload(e, 'mobile')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    isProcessing={videoProcessing.isProcessing && videoProcessing.target === 'mobile'}
+                    processingProgress={videoProcessing.progress}
+                    processingStatus={videoProcessing.statusText}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
 
                 {activeDeviceTab === 'tablet' && (
                   <DeviceVideoSection
-                    title={isKurdish ? 'ڤیدیۆی باکگراوندی ئایپاد و تابلێت (زۆرینە ١٠ چرکە)' : 'iPad Background Video (Max 10s)'}
-                    subtitle={isKurdish ? 'ڤیدیۆی جووڵاو بە سایزی تابلێت و ئایپاد' : 'Looping video sized for iPads & Tablets (Strict max 10 seconds)'}
+                    device="tablet"
+                    title={isKurdish ? 'ڤیدیۆی باکگراوندی ئایپاد و تابلێت (زۆرینە ٢٠ چرکە)' : 'iPad Background Video (Max 20s)'}
+                    subtitle={isKurdish ? 'ڤیدیۆی جووڵاو بۆ تابلێت و ئایپاد • خۆکار دەبڕدرێت و کۆمپریس دەکرێت' : 'Looping video for iPads • Auto-trimmed to 20s & compressed'}
                     value={ipadVideoUrl}
                     onChange={setIpadVideoUrl}
                     onUpload={(e) => handleVideoUpload(e, 'tablet')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    isProcessing={videoProcessing.isProcessing && videoProcessing.target === 'tablet'}
+                    processingProgress={videoProcessing.progress}
+                    processingStatus={videoProcessing.statusText}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
 
                 {activeDeviceTab === 'large' && (
                   <DeviceVideoSection
-                    title={isKurdish ? 'ڤیدیۆی شاشەی گەورە و تابلێتی پان (زۆرینە ١٠ چرکە)' : 'Large Screen Video (Max 10s)'}
-                    subtitle={isKurdish ? 'ڤیدیۆی کوالێتی بەرز بۆ شاشەی پان و کاشێر' : 'Widescreen looping video for desktop registers (Strict max 10 seconds)'}
+                    device="large"
+                    title={isKurdish ? 'ڤیدیۆی شاشەی گەورە و تابلێتی پان (زۆرینە ٢٠ چرکە)' : 'Large Screen Video (Max 20s)'}
+                    subtitle={isKurdish ? 'ڤیدیۆی کوالێتی بەرز بۆ شاشەی پان و کاشێر • خۆکار دەبڕدرێت و کۆمپریس دەکرێت' : 'Widescreen video for desktop • Auto-trimmed to 20s & compressed'}
                     value={largeVideoUrl}
                     onChange={setLargeVideoUrl}
                     onUpload={(e) => handleVideoUpload(e, 'large')}
                     isDarkMode={isDarkMode}
                     isKurdish={isKurdish}
+                    typewriterText={typewriterText}
+                    businessName={selectedUser ? selectedUser.businessName || 'Froshiar' : 'Froshiar'}
+                    isProcessing={videoProcessing.isProcessing && videoProcessing.target === 'large'}
+                    processingProgress={videoProcessing.progress}
+                    processingStatus={videoProcessing.statusText}
+                    showCropGuides={showCropGuides}
+                    onToggleCropGuides={() => setShowCropGuides(!showCropGuides)}
                   />
                 )}
               </>
@@ -1742,8 +2123,9 @@ export default function HeroBannerManagement({
   );
 }
 
-// ─── HELPER COMPONENT FOR DEVICE IMAGE UPLOAD & URL INPUT ───────────────────
+// ─── HELPER COMPONENT FOR DEVICE IMAGE UPLOAD & LIVE CROP PREVIEW ────────────
 interface DeviceImageSectionProps {
+  device: 'mobile' | 'tablet' | 'large';
   title: string;
   subtitle: string;
   value: string;
@@ -1751,9 +2133,14 @@ interface DeviceImageSectionProps {
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isDarkMode: boolean;
   isKurdish: boolean;
+  typewriterText: string;
+  businessName: string;
+  showCropGuides: boolean;
+  onToggleCropGuides: () => void;
 }
 
 function DeviceImageSection({
+  device,
   title,
   subtitle,
   value,
@@ -1761,39 +2148,153 @@ function DeviceImageSection({
   onUpload,
   isDarkMode,
   isKurdish,
+  typewriterText,
+  businessName,
+  showCropGuides,
+  onToggleCropGuides,
 }: DeviceImageSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const aspectClass =
+    device === 'mobile'
+      ? 'aspect-[16/10] max-w-[340px]'
+      : device === 'tablet'
+      ? 'aspect-[16/10] max-w-[480px]'
+      : 'aspect-[21/9] max-w-[620px]';
+
+  const ratioLabel =
+    device === 'mobile'
+      ? '16:10 (iPhone & Android)'
+      : device === 'tablet'
+      ? '16:10 / 4:3 (iPad)'
+      : '21:9 (Widescreen Monitor)';
+
   return (
     <div
-      className={`p-4 rounded-xl border space-y-3.5 ${
-        isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+      className={`p-4 sm:p-5 rounded-2xl border space-y-4 ${
+        isDarkMode ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-50 border-slate-200 shadow-xs'
       }`}
     >
-      <div>
-        <h3 className="text-sm font-bold flex items-center gap-1.5">
-          <ImageIcon className="w-4 h-4 text-amber-500" />
-          <span>{title}</span>
-        </h3>
-        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-amber-500" />
+            <span>{title}</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            {ratioLabel}
+          </span>
+          {value && (
+            <button
+              onClick={onToggleCropGuides}
+              className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 cursor-pointer transition-all ${
+                showCropGuides
+                  ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                  : isDarkMode
+                  ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title={isKurdish ? 'پشکنینی هێڵەکانی کەت بوون و دەق' : 'Toggle crop safe area'}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-semibold">{isKurdish ? 'هێڵی کەت بوون' : 'Crop Guide'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Image Preview / Drop area */}
-      <div className="relative group">
+      {/* Realistic Device Frame & Live Crop Mockup */}
+      <div className="relative">
         {value ? (
-          <div className="relative w-full h-44 rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
-            <img src={value} alt="Banner" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+          <div className="flex flex-col items-center">
+            {/* Device Casing Mockup */}
+            <div
+              className={`relative w-full ${aspectClass} mx-auto rounded-3xl overflow-hidden border-2 shadow-xl ${
+                isDarkMode ? 'border-slate-700 bg-slate-950' : 'border-slate-300 bg-slate-900'
+              }`}
+            >
+              {/* Device Notch / Camera / Bezel Details */}
+              {device === 'mobile' && (
+                <div className="absolute top-2 inset-x-0 z-30 flex justify-between items-center px-4 pointer-events-none">
+                  <span className="text-[9px] font-bold text-white/70">09:41</span>
+                  {/* Dynamic Island pill */}
+                  <div className="w-16 h-3.5 bg-black rounded-full border border-white/10 shadow-sm" />
+                  <div className="flex items-center gap-1 text-[8px] text-white/70">
+                    <span>5G</span>
+                    <div className="w-3.5 h-2 border border-white/70 rounded-xs flex items-center p-0.5">
+                      <div className="w-full h-full bg-white/70 rounded-2xs" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {device === 'tablet' && (
+                <div className="absolute top-1.5 inset-x-0 z-30 flex justify-center pointer-events-none">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-white/20" />
+                </div>
+              )}
+
+              {/* Banner Background Image */}
+              <img src={value} alt="Device Banner Preview" className="w-full h-full object-cover" />
+
+              {/* Native App Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-slate-950/20 pointer-events-none" />
+
+              {/* Crop & Safe Area Visualizer */}
+              {showCropGuides && (
+                <div className="absolute inset-0 z-20 pointer-events-none p-3 flex flex-col justify-between">
+                  <div className="border border-dashed border-amber-400/80 bg-amber-500/15 rounded-lg px-2 py-1 text-[9px] text-amber-300 font-bold self-start backdrop-blur-xs">
+                    {isKurdish ? '★ ناوچەی پارێزراوی لۆگۆ و ناوی فرۆشگا' : '★ Brand Safe Zone'}
+                  </div>
+                  <div className="border border-dashed border-amber-400/80 bg-amber-500/15 rounded-lg px-2 py-1 text-[9px] text-amber-300 font-bold self-end backdrop-blur-xs">
+                    {isKurdish ? '★ ناوچەی دەقی تایپینگ (پارێزراو لە بڕین)' : '★ Typewriter Safe Zone'}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Overlay: Brand & Typewriter Simulation */}
+              <div className="absolute inset-0 p-4 sm:p-5 flex flex-col justify-between z-10 pointer-events-none">
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black text-[10px] shadow-sm">
+                      F
+                    </div>
+                    <span className="font-bold text-white text-xs tracking-wide drop-shadow-md">
+                      {businessName}
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/90 backdrop-blur-xs border border-white/15">
+                    {ratioLabel}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-white/10 shadow-md">
+                    <span className="text-[11px] sm:text-xs font-semibold text-amber-400">
+                      {typewriterText || (isKurdish ? 'فرۆشیار' : 'Froshiar')}
+                    </span>
+                    <span className="inline-block w-1.5 h-3 bg-amber-400 animate-pulse rounded-2xs" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions Under Frame */}
+            <div className="flex items-center justify-center gap-2 mt-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-lg cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>{isKurdish ? 'گۆڕین' : 'Change'}</span>
+                <span>{isKurdish ? 'گۆڕینی وێنە' : 'Change Image'}</span>
               </button>
               <button
                 onClick={() => onChange('')}
-                className="px-3 py-1.5 rounded-lg bg-rose-500 text-white font-bold text-xs flex items-center gap-1 shadow-lg cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isKurdish ? 'سڕینەوە' : 'Remove'}</span>
@@ -1803,21 +2304,23 @@ function DeviceImageSection({
         ) : (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className={`w-full h-36 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+            className={`w-full h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2.5 cursor-pointer transition-all ${
               isDarkMode
-                ? 'border-slate-700 hover:border-amber-500/60 bg-slate-950/40'
-                : 'border-slate-300 hover:border-amber-500/60 bg-white'
+                ? 'border-slate-700 hover:border-amber-500/70 bg-slate-950/40'
+                : 'border-slate-300 hover:border-amber-500/70 bg-white'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-xs">
               <Upload className="w-5 h-5" />
             </div>
-            <div className="text-center">
-              <p className="text-xs font-semibold">
-                {isKurdish ? 'کرتە بکە بۆ هەڵبژاردنی وێنە لە ئامێرەکەت' : 'Click to select image file from your device'}
+            <div className="text-center px-4">
+              <p className="text-xs font-bold text-slate-200">
+                {isKurdish ? `کرتە بکە بۆ هەڵبژاردنی وێنەی ${title}` : `Click to choose ${title}`}
               </p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                {isKurdish ? 'یان لینکی وێنەکە لە خوارەوە دابنێ' : 'or paste direct image URL below'}
+                {isKurdish
+                  ? `ڕێژەی ڕاستەقینەی ئامێر: ${ratioLabel} • فۆرمات: JPG, PNG, WebP`
+                  : `Target Ratio: ${ratioLabel} • Format: JPG, PNG, WebP`}
               </p>
             </div>
           </div>
@@ -1833,16 +2336,22 @@ function DeviceImageSection({
       </div>
 
       {/* Direct URL Input */}
-      <div className="space-y-1">
+      <div className="space-y-1 pt-1">
         <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
           <LinkIcon className="w-3 h-3" />
-          <span>{isKurdish ? 'یان بەستەری ڕاستەوخۆی وێنە (Image URL):' : 'Or direct Image URL:'}</span>
+          <span>{isKurdish ? 'یان لینکی ڕاستەوخۆی وێنەکە (Image URL):' : 'Or direct Image URL:'}</span>
         </label>
         <div className="flex items-center gap-2">
           <input
             type="text"
             placeholder="https://example.com/banner.jpg"
-            value={value.startsWith('data:') ? (isKurdish ? '(وێنەی فایل لە ئامێرەوە بارکراوە)' : '(Uploaded from local file)') : value}
+            value={
+              value.startsWith('data:')
+                ? isKurdish
+                  ? '(وێنەی فایل لە ئامێرەوە بارکراوە)'
+                  : '(Uploaded local file)'
+                : value
+            }
             onChange={(e) => onChange(e.target.value)}
             disabled={value.startsWith('data:')}
             className={`flex-1 px-3 py-2 rounded-xl border text-xs ${
@@ -1865,8 +2374,9 @@ function DeviceImageSection({
   );
 }
 
-// ─── HELPER COMPONENT FOR 10-SECOND BACKGROUND VIDEO UPLOAD & URL ───────────
+// ─── HELPER COMPONENT FOR 20-SECOND BACKGROUND VIDEO WITH CROP & COMPRESSION ─
 interface DeviceVideoSectionProps {
+  device: 'mobile' | 'tablet' | 'large';
   title: string;
   subtitle: string;
   value: string;
@@ -1874,9 +2384,17 @@ interface DeviceVideoSectionProps {
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isDarkMode: boolean;
   isKurdish: boolean;
+  typewriterText: string;
+  businessName: string;
+  isProcessing: boolean;
+  processingProgress: number;
+  processingStatus: string;
+  showCropGuides: boolean;
+  onToggleCropGuides: () => void;
 }
 
 function DeviceVideoSection({
+  device,
   title,
   subtitle,
   value,
@@ -1884,102 +2402,249 @@ function DeviceVideoSection({
   onUpload,
   isDarkMode,
   isKurdish,
+  typewriterText,
+  businessName,
+  isProcessing,
+  processingProgress,
+  processingStatus,
+  showCropGuides,
+  onToggleCropGuides,
 }: DeviceVideoSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const aspectClass =
+    device === 'mobile'
+      ? 'aspect-[16/10] max-w-[340px]'
+      : device === 'tablet'
+      ? 'aspect-[16/10] max-w-[480px]'
+      : 'aspect-[21/9] max-w-[620px]';
+
+  const ratioLabel =
+    device === 'mobile'
+      ? '16:10 (iPhone & Android)'
+      : device === 'tablet'
+      ? '16:10 / 4:3 (iPad)'
+      : '21:9 (Widescreen Monitor)';
+
   return (
     <div
-      className={`p-4 rounded-xl border space-y-3.5 ${
-        isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+      className={`p-4 sm:p-5 rounded-2xl border space-y-4 ${
+        isDarkMode ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-50 border-slate-200 shadow-xs'
       }`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-bold flex items-center gap-1.5 text-purple-400">
+          <h3 className="text-sm font-bold flex items-center gap-2 text-purple-400">
             <Film className="w-4 h-4" />
             <span>{title}</span>
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
         </div>
 
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-          {isKurdish ? 'زۆرینە ١٠ چرکە' : 'Max 10s'}
-        </span>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            {isKurdish ? 'زۆرینە ٢٠ چرکە • کۆمپرسی خۆکار' : 'Max 20s • Auto-Compressed'}
+          </span>
+          {value && !isProcessing && (
+            <button
+              onClick={onToggleCropGuides}
+              className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 cursor-pointer transition-all ${
+                showCropGuides
+                  ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                  : isDarkMode
+                  ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'
+              }`}
+              title={isKurdish ? 'پشکنینی هێڵەکانی کەت بوون و دەق' : 'Toggle crop safe area'}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-semibold">{isKurdish ? 'هێڵی کەت بوون' : 'Crop Guide'}</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Video In-Progress Banner (Trimming & Compressing) */}
+      {isProcessing && (
+        <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/40 space-y-3 animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-300">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs font-bold">
+                {isKurdish ? 'خەریکی بڕین (زۆرینە ٢٠ چرکە) و کۆمپریس کردنە...' : 'Trimming to 20s and compressing...'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-bold text-amber-400">%{processingProgress}</span>
+          </div>
+
+          {/* Animated Progress Bar */}
+          <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-purple-500/30">
+            <div
+              className="h-full bg-gradient-to-r from-purple-500 via-amber-400 to-amber-300 transition-all duration-300"
+              style={{ width: `${processingProgress}%` }}
+            />
+          </div>
+
+          <p className="text-[11px] text-purple-300/80">{processingStatus}</p>
+        </div>
+      )}
 
       {/* Video Preview / Drop area */}
-      <div className="relative group">
-        {value ? (
-          <div className="relative w-full h-44 rounded-xl overflow-hidden border border-purple-500/30 bg-slate-950">
-            <video
-              key={value}
-              src={value}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center gap-1 shadow-lg cursor-pointer"
+      {!isProcessing && (
+        <div className="relative">
+          {value ? (
+            <div className="flex flex-col items-center">
+              {/* Realistic Device Frame */}
+              <div
+                className={`relative w-full ${aspectClass} mx-auto rounded-3xl overflow-hidden border-2 shadow-xl ${
+                  isDarkMode ? 'border-purple-500/40 bg-slate-950' : 'border-purple-300 bg-slate-900'
+                }`}
               >
-                <Upload className="w-3.5 h-3.5" />
-                <span>{isKurdish ? 'گۆڕین' : 'Change'}</span>
-              </button>
-              <button
-                onClick={() => onChange('')}
-                className="px-3 py-1.5 rounded-lg bg-rose-500 text-white font-bold text-xs flex items-center gap-1 shadow-lg cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{isKurdish ? 'سڕینەوە' : 'Remove'}</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className={`w-full h-36 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
-              isDarkMode
-                ? 'border-purple-500/30 hover:border-purple-500/70 bg-purple-500/5'
-                : 'border-purple-300 hover:border-purple-500 bg-purple-50/30'
-            }`}
-          >
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-              <Film className="w-5 h-5" />
-            </div>
-            <div className="text-center">
-              <p className="text-xs font-semibold text-purple-300">
-                {isKurdish ? 'کرتە بکە بۆ هەڵبژاردنی ڤیدیۆ لە ئامێرەکەت (١٠ چرکە)' : 'Click to select 10s video from your device'}
-              </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                {isKurdish ? 'فۆرمات: MP4, MOV, WebM • سیستم خۆکار پشکنینی درێژی دەکات' : 'Format: MP4, MOV, WebM • Auto duration validation'}
-              </p>
-            </div>
-          </div>
-        )}
+                {/* Device Notch / Camera / Bezel Details */}
+                {device === 'mobile' && (
+                  <div className="absolute top-2 inset-x-0 z-30 flex justify-between items-center px-4 pointer-events-none">
+                    <span className="text-[9px] font-bold text-white/70">09:41</span>
+                    <div className="w-16 h-3.5 bg-black rounded-full border border-white/10 shadow-sm" />
+                    <div className="flex items-center gap-1 text-[8px] text-white/70">
+                      <span>5G</span>
+                      <div className="w-3.5 h-2 border border-white/70 rounded-xs flex items-center p-0.5">
+                        <div className="w-full h-full bg-white/70 rounded-2xs" />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/mp4,video/quicktime,video/webm"
-          onChange={onUpload}
-          className="hidden"
-        />
-      </div>
+                {device === 'tablet' && (
+                  <div className="absolute top-1.5 inset-x-0 z-30 flex justify-center pointer-events-none">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-white/20" />
+                  </div>
+                )}
+
+                {/* Looping 20-Second Video Element */}
+                <video
+                  key={`video_crop_${device}_${value}`}
+                  src={value}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Native App Dark Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-slate-950/20 pointer-events-none" />
+
+                {/* Safe Area Crop Guides */}
+                {showCropGuides && (
+                  <div className="absolute inset-0 z-20 pointer-events-none p-3 flex flex-col justify-between">
+                    <div className="border border-dashed border-amber-400/80 bg-amber-500/15 rounded-lg px-2 py-1 text-[9px] text-amber-300 font-bold self-start backdrop-blur-xs">
+                      {isKurdish ? '★ ناوچەی پارێزراوی لۆگۆ و ناوی فرۆشگا' : '★ Brand Safe Zone'}
+                    </div>
+                    <div className="border border-dashed border-amber-400/80 bg-amber-500/15 rounded-lg px-2 py-1 text-[9px] text-amber-300 font-bold self-end backdrop-blur-xs">
+                      {isKurdish ? '★ ناوچەی دەقی تایپینگ (پارێزراو لە بڕین)' : '★ Typewriter Safe Zone'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Overlays: Brand & Typewriter Simulation */}
+                <div className="absolute inset-0 p-4 sm:p-5 flex flex-col justify-between z-10 pointer-events-none">
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black text-[10px] shadow-sm">
+                        F
+                      </div>
+                      <span className="font-bold text-white text-xs tracking-wide drop-shadow-md">
+                        {businessName}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500/30 text-purple-200 backdrop-blur-xs border border-purple-500/40">
+                      {isKurdish ? '٢٠ چرکە' : '20s'} • {ratioLabel}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-white/10 shadow-md">
+                      <span className="text-[11px] sm:text-xs font-semibold text-amber-400">
+                        {typewriterText || (isKurdish ? 'فرۆشیار' : 'Froshiar')}
+                      </span>
+                      <span className="inline-block w-1.5 h-3 bg-amber-400 animate-pulse rounded-2xs" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Under Frame */}
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{isKurdish ? 'گۆڕینی ڤیدیۆ' : 'Change Video'}</span>
+                </button>
+                <button
+                  onClick={() => onChange('')}
+                  className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{isKurdish ? 'سڕینەوە' : 'Remove'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className={`w-full h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2.5 cursor-pointer transition-all ${
+                isDarkMode
+                  ? 'border-purple-500/40 hover:border-purple-500/80 bg-purple-950/10'
+                  : 'border-purple-300 hover:border-purple-500 bg-purple-50/40'
+              }`}
+            >
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center shadow-xs">
+                <Film className="w-5 h-5" />
+              </div>
+              <div className="text-center px-4">
+                <p className="text-xs font-bold text-purple-300">
+                  {isKurdish
+                    ? `کرتە بکە بۆ هەڵبژاردنی ڤیدیۆ (${title})`
+                    : `Click to select video for ${title}`}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                  {isKurdish
+                    ? `ماوە: زۆرینەی ٢٠ چرکە (ئەگەر ٣٠ چرکەش بێت سیستم خۆکار دەیبڕێت و کۆمپرسی دەکات)`
+                    : `Duration: Max 20s (Longer videos will be automatically trimmed to 20s and compressed)`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm"
+            onChange={onUpload}
+            className="hidden"
+          />
+        </div>
+      )}
 
       {/* Direct Video URL Input */}
-      <div className="space-y-1">
+      <div className="space-y-1 pt-1">
         <label className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
           <LinkIcon className="w-3 h-3" />
-          <span>{isKurdish ? 'یان لینکی ڕاستەوخۆی ڤیدیۆ (Video URL):' : 'Or direct Video URL (.mp4):'}</span>
+          <span>{isKurdish ? 'یان بەستەری ڕاستەوخۆی ڤیدیۆ (Video URL):' : 'Or direct Video URL (.mp4):'}</span>
         </label>
         <div className="flex items-center gap-2">
           <input
             type="text"
             placeholder="https://example.com/video.mp4"
-            value={value.startsWith('data:') ? (isKurdish ? '(فایلی ڤیدیۆ لە ئامێرەوە بارکراوە)' : '(Uploaded from local file)') : value}
+            value={
+              value.startsWith('data:')
+                ? isKurdish
+                  ? '(فایلی ڤیدیۆ لە ئامێرەوە بارکراوە)'
+                  : '(Uploaded local video)'
+                : value
+            }
             onChange={(e) => onChange(e.target.value)}
             disabled={value.startsWith('data:')}
             className={`flex-1 px-3 py-2 rounded-xl border text-xs ${
