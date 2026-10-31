@@ -63,5 +63,10 @@ service cloud.firestore {
     match /app_config/{configId} {
       allow read, write: if true;
     }
+
+    // User-specific banner and video custom configuration
+    match /user_banner_configs/{docId} {
+      allow read, write: if true;
+    }
   }
 }

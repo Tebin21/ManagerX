@@ -17,9 +17,35 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { SUPPORT_PHONE } from '@/constants/config';
+import { hexToRgba, hexToHsl, hslToHex } from '@/lib/colorUtils';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+/**
+ * Ensures an accent color has high contrast against the current surface:
+ * - In Dark Mode (#1E293B): lightness is boosted to at least 65-70% so icons,
+ *   borders, and badges glow and pop vividly across ALL color presets.
+ * - In Light Mode (#FFFFFF): lightness is held at <= 45% so it never washes out.
+ */
+function getContrastAccent(hex: string, isDark: boolean): string {
+  try {
+    const [h, s, l] = hexToHsl(hex);
+    if (isDark) {
+      if (l < 62) {
+        return hslToHex(h, Math.max(s, 60), 68);
+      }
+      return hex;
+    } else {
+      if (l > 48) {
+        return hslToHex(h, Math.max(s, 65), 40);
+      }
+      return hex;
+    }
+  } catch {
+    return isDark ? '#E2C264' : '#B8860B';
+  }
 }
 
 interface Props {
@@ -29,11 +55,18 @@ interface Props {
 export function CreateWebsiteCtaButton({ style }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, flexDirection, textAlign } = useRTL();
-  const { isTablet } = useResponsive();
+  const { isTablet, isTabletLandscape } = useResponsive();
   const currentLang = useLanguageStore((s) => s.language);
   const isKu = currentLang === 'ku';
   const isAr = currentLang === 'ar';
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Dynamic High-Contrast Theme Accent Color (100% visible across all color presets & dark/light)
+  const baseAccent = colors.primary || '#D4AF37';
+  const primaryAccent = getContrastAccent(baseAccent, isDark);
+  const cardBorderColor = isDark
+    ? hexToRgba(primaryAccent, 0.55)
+    : hexToRgba(primaryAccent, 0.65);
 
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -57,13 +90,18 @@ export function CreateWebsiteCtaButton({ style }: Props) {
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, isTablet && { paddingHorizontal: 20 }, style]}>
       <View
         style={[
           styles.card,
           {
             backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderColor: isDark ? '#D4AF3744' : '#D4AF3777',
+            borderColor: cardBorderColor,
+            borderWidth: isTablet ? 2 : 1.5,
+            borderRadius: isTablet ? 22 : 18,
+            paddingHorizontal: isTabletLandscape ? 18 : isTablet ? 16 : 12,
+            paddingVertical: isTabletLandscape ? 16 : isTablet ? 14 : 11,
+            shadowColor: primaryAccent,
           },
         ]}
       >
@@ -73,31 +111,48 @@ export function CreateWebsiteCtaButton({ style }: Props) {
           activeOpacity={0.85}
           style={[styles.mainRow, { flexDirection }]}
         >
-          {/* Storefront Icon with Gold Glow */}
+          {/* Storefront Icon with Dynamic Theme Glow */}
           <View
             style={[
               styles.iconWrapper,
               {
-                backgroundColor: isDark ? '#D4AF3722' : '#FFFBEB',
-                borderColor: isDark ? '#D4AF3755' : '#FDE68A',
-                width: isTablet ? 54 : 46,
-                height: isTablet ? 54 : 46,
-                borderRadius: isTablet ? 18 : 15,
+                backgroundColor: isDark
+                  ? hexToRgba(primaryAccent, 0.18)
+                  : hexToRgba(primaryAccent, 0.10),
+                borderColor: isDark
+                  ? hexToRgba(primaryAccent, 0.45)
+                  : hexToRgba(primaryAccent, 0.35),
+                width: isTabletLandscape ? 56 : isTablet ? 52 : 44,
+                height: isTabletLandscape ? 56 : isTablet ? 52 : 44,
+                borderRadius: isTablet ? 16 : 13,
               },
             ]}
           >
-            <Ionicons name="storefront" size={isTablet ? 26 : 22} color="#D4AF37" />
+            <Ionicons
+              name="storefront"
+              size={isTabletLandscape ? 28 : isTablet ? 25 : 21}
+              color={primaryAccent}
+            />
           </View>
 
           {/* Details */}
           <View style={[styles.content, { marginHorizontal: isTablet ? 12 : 8 }]}>
-            <View style={[styles.titleRow, { flexDirection }]}>
+            <View
+              style={[
+                styles.titleRow,
+                {
+                  flexDirection,
+                  alignItems: 'center',
+                  gap: 6,
+                },
+              ]}
+            >
               <Text
                 style={[
                   styles.title,
                   {
                     color: isDark ? '#FFFFFF' : '#0F172A',
-                    fontSize: isTablet ? 17 : 13.5,
+                    fontSize: isTabletLandscape ? 17.5 : isTablet ? 16 : 13,
                     textAlign,
                   },
                   (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
@@ -112,13 +167,23 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                 style={[
                   styles.sparkleBadge,
                   {
-                    backgroundColor: isDark ? '#D4AF3722' : '#FEF3C7',
-                    borderColor: isDark ? '#D4AF3744' : '#FDE68A',
+                    backgroundColor: isDark
+                      ? hexToRgba(primaryAccent, 0.20)
+                      : hexToRgba(primaryAccent, 0.12),
+                    borderColor: isDark
+                      ? hexToRgba(primaryAccent, 0.50)
+                      : hexToRgba(primaryAccent, 0.35),
                   },
                 ]}
               >
-                <Ionicons name="sparkles" size={11} color="#D4AF37" />
-                <Text style={[styles.sparkleText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                <Ionicons name="sparkles" size={isTablet ? 12 : 10.5} color={primaryAccent} />
+                <Text
+                  style={[
+                    styles.sparkleText,
+                    { color: primaryAccent },
+                    (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                  ]}
+                >
                   {isAr ? 'أونلاين' : isKu ? 'ئۆنلاین' : 'Online'}
                 </Text>
               </View>
@@ -128,12 +193,13 @@ export function CreateWebsiteCtaButton({ style }: Props) {
               style={[
                 styles.subtitle,
                 {
-                  color: isDark ? '#94A3B8' : '#64748B',
-                  fontSize: isTablet ? 13.5 : 12,
+                  color: isDark ? '#E2E8F0' : '#334155',
+                  fontSize: isTabletLandscape ? 13.5 : isTablet ? 12.5 : 11.5,
+                  lineHeight: isTablet ? 19 : 17,
                   textAlign,
                 },
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {isAr
                 ? 'متجر إلكتروني خاص لعرض وبيع منتجاتك'
@@ -148,15 +214,22 @@ export function CreateWebsiteCtaButton({ style }: Props) {
             style={[
               styles.arrowCircle,
               {
-                backgroundColor: isDark ? '#334155' : '#F8FAFC',
-                borderColor: isDark ? '#475569' : '#E2E8F0',
+                backgroundColor: isDark
+                  ? hexToRgba(primaryAccent, 0.16)
+                  : hexToRgba(primaryAccent, 0.10),
+                borderColor: isDark
+                  ? hexToRgba(primaryAccent, 0.40)
+                  : hexToRgba(primaryAccent, 0.30),
+                width: isTablet ? 34 : 28,
+                height: isTablet ? 34 : 28,
+                borderRadius: isTablet ? 17 : 14,
               },
             ]}
           >
             <Ionicons
               name={isExpanded ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color="#D4AF37"
+              size={isTablet ? 20 : 18}
+              color={primaryAccent}
             />
           </View>
         </TouchableOpacity>
@@ -167,7 +240,11 @@ export function CreateWebsiteCtaButton({ style }: Props) {
             <View
               style={[
                 styles.divider,
-                { backgroundColor: isDark ? '#334155' : '#E2E8F0' },
+                {
+                  backgroundColor: isDark
+                    ? hexToRgba(primaryAccent, 0.22)
+                    : hexToRgba(primaryAccent, 0.18),
+                },
               ]}
             />
 
@@ -176,8 +253,12 @@ export function CreateWebsiteCtaButton({ style }: Props) {
               style={[
                 styles.introBox,
                 {
-                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
-                  borderColor: isDark ? '#334155' : '#E2E8F0',
+                  backgroundColor: isDark
+                    ? hexToRgba(primaryAccent, 0.05)
+                    : hexToRgba(primaryAccent, 0.03),
+                  borderColor: isDark
+                    ? hexToRgba(primaryAccent, 0.25)
+                    : hexToRgba(primaryAccent, 0.18),
                 },
               ]}
             >
@@ -343,10 +424,13 @@ export function CreateWebsiteCtaButton({ style }: Props) {
                 <View
                   style={[
                     styles.featureIconWrap,
-                    { backgroundColor: '#D4AF3715', borderColor: '#D4AF3744' },
+                    {
+                      backgroundColor: hexToRgba(primaryAccent, 0.14),
+                      borderColor: hexToRgba(primaryAccent, 0.35),
+                    },
                   ]}
                 >
-                  <Ionicons name="ribbon-outline" size={18} color="#D4AF37" />
+                  <Ionicons name="ribbon-outline" size={18} color={primaryAccent} />
                 </View>
                 <View style={styles.featureTextWrap}>
                   <Text
@@ -447,12 +531,8 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 14,
-    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.14,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -467,17 +547,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginHorizontal: 12,
+    marginHorizontal: 10,
     justifyContent: 'center',
   },
   titleRow: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   title: {
     fontWeight: '800',
     letterSpacing: -0.2,
-    flexShrink: 1,
   },
   sparkleBadge: {
     flexDirection: 'row',
@@ -492,7 +571,6 @@ const styles = StyleSheet.create({
   sparkleText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#D4AF37',
   },
   subtitle: {
     fontWeight: '600',

@@ -36,7 +36,7 @@ import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
 import { hexToRgba } from '@/lib/colorUtils';
-import { useRemoteBannerConfig, getResponsiveDefaultBanner } from '@/lib/remoteBannerConfig';
+import { useRemoteBannerConfig, getResponsiveDefaultBanner, getResponsiveRemoteVideo } from '@/lib/remoteBannerConfig';
 
 let ExpoVideo: {
   useVideoPlayer: (uri: string, setup?: (player: any) => void) => any;
@@ -241,8 +241,14 @@ function BusinessHeaderImpl() {
 
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Active media resolution
-  const activeVideo = showOnDashboard ? bizVideo : bannerVideo;
+  // Remote responsive video resolution (Mobile, iPad, Large)
+  const remoteBannerVideo = useMemo(() => {
+    return getResponsiveRemoteVideo(remoteBannerConfig, { isTablet, isTabletLandscape });
+  }, [remoteBannerConfig, isTablet, isTabletLandscape]);
+
+  // Active media resolution (Local custom video takes user priority; otherwise remote video plays)
+  const effectiveBannerVideo = bannerVideo || remoteBannerVideo;
+  const activeVideo = showOnDashboard ? (bizVideo || remoteBannerVideo) : effectiveBannerVideo;
   const canPlayVideo = Boolean(
     activeVideo &&
     activeVideo.trim().length > 0 &&

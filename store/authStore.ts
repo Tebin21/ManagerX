@@ -1119,6 +1119,16 @@ export const useAuthStore = create<AuthState>()(
             photoUrl: null,
           });
         } catch {}
+        try {
+          // Reset expiry tracking so any new account starts strictly with expiry OFF
+          const { useSettingsStore } = await import('@/store/settingsStore');
+          const { useModuleStore } = await import('@/store/moduleStore');
+          const { saveSetting } = await import('@/lib/sqlite');
+          useSettingsStore.getState().setExpiryTrackingEnabled(false);
+          useSettingsStore.getState().setExpiryTermsAccepted(false);
+          useModuleStore.getState().setModuleEnabled('expiry', false);
+          await saveSetting('expiry_tracking_enabled', '0');
+        } catch {}
         set({ user: null });
       },
 
