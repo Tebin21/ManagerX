@@ -1104,7 +1104,8 @@ export async function shareDebtsAuditReport(
 export async function shareQuotationInvoice(
   quotation: Quotation,
   business: BusinessInfo,
-  currencyMode: ReceiptCurrencyMode = 'both'
+  currencyMode: ReceiptCurrencyMode = 'both',
+  paperSize: ReceiptPaperSize = '80mm'
 ): Promise<boolean> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -1117,15 +1118,29 @@ export async function shareQuotationInvoice(
   if (!tryAcquireGenerationLock()) return false;
   try {
     const biz = await withResolvedLogo(business);
-    const { buildQuotationHTML } = await import('./quotationTemplate');
-    const html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
+    let html: string;
+    let fileName: string;
+    if (paperSize === 'A4') {
+      const { buildQuotationHTML } = await import('./quotationTemplate');
+      html = buildQuotationHTML(quotation, biz, getDir(), currencyMode);
+      fileName = buildFroshiarPdfFileName(quotation.quotationNumber, 'Quotation');
+    } else {
+      const { buildThermalQuotationReceiptHTML } = await import('./thermalReceiptTemplate');
+      html = buildThermalQuotationReceiptHTML(
+        quotation,
+        biz,
+        paperSize as ThermalReceiptWidth,
+        undefined,
+        currencyMode
+      );
+      fileName = buildFroshiarPdfFileName(`${quotation.quotationNumber}-${paperSize}`, 'QuotationThermal');
+    }
     const lang = i18n.language || 'ku';
     const isAr = lang === 'ar';
     const isKu = lang === 'ku';
-    const fileName = buildFroshiarPdfFileName(quotation.quotationNumber, 'Quotation');
     const success = await generateAndShare(
       html,
-      isAr ? `عرض أسعار — ${quotation.quotationNumber}` : isKu ? `عەرزی نرخ — ${quotation.quotationNumber}` : `Price Quotation — ${quotation.quotationNumber}`,
+      isAr ? `عرض أسعار — ${quotation.quotationNumber} (${paperSize})` : isKu ? `عەرزی نرخ — ${quotation.quotationNumber} (${paperSize})` : `Price Quotation — ${quotation.quotationNumber} (${paperSize})`,
       isAr ? 'تعذر إنشاء عرض الأسعار بصيغة PDF. يرجى المحاولة مرة أخرى.' : isKu ? 'نەتوانرا وەسڵی عەرزی نرخ دروست بکرێت. تکایە دووبارە هەوڵ بدەرەوە.' : 'Could not generate quotation PDF. Please try again.',
       fileName
     );
@@ -1162,7 +1177,7 @@ export async function directPrintQuotationInvoice(
   }
   const Print = await getPrintModule();
   if (!Print || typeof Print.printAsync !== 'function') {
-    return await shareQuotationInvoice(quotation, business, currencyMode);
+    return await shareQuotationInvoice(quotation, business, currencyMode, paperSize);
   }
   if (!tryAcquireGenerationLock()) return false;
   try {

@@ -836,6 +836,7 @@ export default function InvoicesHubScreen() {
         useSettingsStore.getState().setSalesPaperSizePreference(paperSize);
         await executePrintSale(formatPickerTarget.sale, paperSize);
       } else if (formatPickerTarget.type === 'quotation') {
+        useSettingsStore.getState().setQuotationPaperSizePreference(paperSize);
         await executePrintQuotation(formatPickerTarget.quotation, paperSize);
       }
     } catch (err) {

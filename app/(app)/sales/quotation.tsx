@@ -37,13 +37,14 @@ import { EditDefaultNotesModal } from '@/components/quotations/EditDefaultNotesM
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useBusinessStore } from '@/store/businessStore';
 import { useCustomerStore } from '@/store/customerStore';
-import { useSettingsStore } from '@/store/settingsStore';
+import { useSettingsStore, type ReceiptPaperSize } from '@/store/settingsStore';
 import { useQuotationStore } from '@/store/quotationStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
 import { shareQuotationInvoice } from '@/lib/generateInvoice';
+import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
 import {
   getOrCreateCustomerAccount,
   searchCustomersList,
@@ -177,6 +178,8 @@ export default function SalesQuotationScreen() {
   // Generated Quotation for Step 3
   const [generatedQuotation, setGeneratedQuotation] = useState<Quotation | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [formatPickerVisible, setFormatPickerVisible] = useState(false);
+  const [quoteToPrint, setQuoteToPrint] = useState<Quotation | null>(null);
 
   useEffect(() => {
     inventory.loadInventory();
@@ -530,8 +533,15 @@ export default function SalesQuotationScreen() {
     }
   };
 
-  const handleSharePDF = async (quoteToShare?: Quotation) => {
+  const handleSharePDF = (quoteToShare?: Quotation) => {
     const q = quoteToShare || generatedQuotation;
+    if (!q) return;
+    setQuoteToPrint(q);
+    setFormatPickerVisible(true);
+  };
+
+  const handleConfirmPrintFormat = async (paperSize: ReceiptPaperSize) => {
+    const q = quoteToPrint || generatedQuotation;
     if (!q) return;
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
@@ -542,6 +552,7 @@ export default function SalesQuotationScreen() {
     }
     setIsGenerating(true);
     try {
+      useSettingsStore.getState().setQuotationPaperSizePreference(paperSize);
       await shareQuotationInvoice(
         q,
         {
@@ -550,7 +561,8 @@ export default function SalesQuotationScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        q.currencyMode || currencyMode || 'both'
+        q.currencyMode || currencyMode || 'both',
+        paperSize
       );
       // Increment print count in store immediately
       useQuotationStore.getState().incrementPrintCount(q.id);
@@ -564,6 +576,8 @@ export default function SalesQuotationScreen() {
       console.error('[Quotation] Share error:', err);
     } finally {
       setIsGenerating(false);
+      setFormatPickerVisible(false);
+      setQuoteToPrint(null);
     }
   };
 
@@ -2091,6 +2105,20 @@ export default function SalesQuotationScreen() {
           setDefaultNotes(newNotes);
           setNotes(newNotes);
         }}
+      />
+
+      {/* Quotation Print & Share Paper Format Picker Modal */}
+      <PrintFormatPickerModal
+        visible={formatPickerVisible}
+        onClose={() => {
+          if (!isGenerating) setFormatPickerVisible(false);
+        }}
+        onConfirm={handleConfirmPrintFormat}
+        isPrinting={isGenerating}
+        initialPaperSize={useSettingsStore.getState().quotationPaperSizePreference || '80mm'}
+        title={isKuLanguage ? 'قەبارەی چاپی وەسڵی عەرز' : 'Quotation Invoice Paper Size'}
+        invoiceNumber={quoteToPrint?.quotationNumber || generatedQuotation?.quotationNumber}
+        partyName={quoteToPrint?.customerName || generatedQuotation?.customerName || (isKuLanguage ? 'کڕیاری دیارینەکراو' : 'Customer')}
       />
     </View>
   );

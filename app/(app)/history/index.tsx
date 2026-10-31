@@ -485,6 +485,7 @@ export default function HistoryScreen() {
 
   const handleQuotationShare = useCallback(async (q: Quotation) => {
     try {
+      const paperSize = useSettingsStore.getState().quotationPaperSizePreference || '80mm';
       await shareQuotationInvoice(
         q,
         {
@@ -493,7 +494,8 @@ export default function HistoryScreen() {
           address: business.address,
           logoUri: business.logoUri,
         },
-        q.currencyMode || useQuotationStore.getState().currencyMode || 'both'
+        q.currencyMode || useQuotationStore.getState().currencyMode || 'both',
+        paperSize
       );
       useQuotationStore.getState().incrementPrintCount(q.id);
     } catch (err) {

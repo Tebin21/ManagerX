@@ -238,7 +238,7 @@ interface SettingsState {
   salesPaperSizePreference: ReceiptPaperSize;
   purchasePaperSizePreference: ReceiptPaperSize;
   inventoryPaperSizePreference: ReceiptPaperSize;
-  quotationPaperSizePreference: 'A4';
+  quotationPaperSizePreference: ReceiptPaperSize;
   debtPaperSizePreference: ReceiptPaperSize;
 
   salesReceiptSettings: SalesReceiptSettings;
@@ -287,6 +287,7 @@ interface SettingsState {
   setSalesPaperSizePreference: (size: ReceiptPaperSize) => void;
   setPurchasePaperSizePreference: (size: ReceiptPaperSize) => void;
   setInventoryPaperSizePreference: (size: ReceiptPaperSize) => void;
+  setQuotationPaperSizePreference: (size: ReceiptPaperSize) => void;
   setDebtPaperSizePreference: (size: ReceiptPaperSize) => void;
 
   setSalesReceiptSettings: (settings: Partial<SalesReceiptSettings>) => void;
@@ -440,6 +441,10 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setInventoryPaperSizePreference: (size) => {
         set({ inventoryPaperSizePreference: size });
+        notifyPreferencesChanged();
+      },
+      setQuotationPaperSizePreference: (size) => {
+        set({ quotationPaperSizePreference: size });
         notifyPreferencesChanged();
       },
 

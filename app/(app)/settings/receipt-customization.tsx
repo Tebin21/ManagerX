@@ -117,12 +117,13 @@ export default function ReceiptCustomizationScreen() {
   const salesPaperSize = useSettingsStore((s) => s.salesPaperSizePreference ?? '80mm');
   const purchasePaperSize = useSettingsStore((s) => s.purchasePaperSizePreference ?? '80mm');
   const inventoryPaperSize = useSettingsStore((s) => s.inventoryPaperSizePreference ?? 'A4');
-  const quotationPaperSize = useSettingsStore((s) => s.quotationPaperSizePreference ?? 'A4');
+  const quotationPaperSize = useSettingsStore((s) => s.quotationPaperSizePreference ?? '80mm');
   const debtPaperSize = useSettingsStore((s) => s.debtPaperSizePreference ?? '80mm');
 
   const setSalesPaperSize = useSettingsStore((s) => s.setSalesPaperSizePreference);
   const setPurchasePaperSize = useSettingsStore((s) => s.setPurchasePaperSizePreference);
   const setInventoryPaperSize = useSettingsStore((s) => s.setInventoryPaperSizePreference);
+  const setQuotationPaperSize = useSettingsStore((s) => s.setQuotationPaperSizePreference);
   const setDebtPaperSize = useSettingsStore((s) => s.setDebtPaperSizePreference);
 
   useEffect(() => {
@@ -131,6 +132,7 @@ export default function ReceiptCustomizationScreen() {
       if (params.tab === 'sales' || !params.tab) setSalesPaperSize(params.size);
       else if (params.tab === 'purchases') setPurchasePaperSize(params.size);
       else if (params.tab === 'inventory') setInventoryPaperSize(params.size);
+      else if (params.tab === 'quotation') setQuotationPaperSize(params.size);
       else if (params.tab === 'debts') setDebtPaperSize(params.size);
     }
   }, [params.tab, params.size]);
@@ -161,10 +163,11 @@ export default function ReceiptCustomizationScreen() {
       case 'sales': return salesPaperSize;
       case 'purchases': return purchasePaperSize;
       case 'inventory': return inventoryPaperSize;
-      case 'quotation': return 'A4';
+      case 'quotation': return quotationPaperSize;
       case 'debts': return debtPaperSize;
+      default: return '80mm';
     }
-  }, [activeTab, salesPaperSize, purchasePaperSize, inventoryPaperSize, debtPaperSize]);
+  }, [activeTab, salesPaperSize, purchasePaperSize, inventoryPaperSize, quotationPaperSize, debtPaperSize]);
 
   const handleSelectPaperSize = (size: ReceiptPaperSize) => {
     if (isLockedForEmployee) {
@@ -178,11 +181,11 @@ export default function ReceiptCustomizationScreen() {
       );
       return;
     }
-    if (activeTab === 'quotation') return; // Quotation is strictly A4
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { }); } catch { }
     if (activeTab === 'sales') setSalesPaperSize(size);
     else if (activeTab === 'purchases') setPurchasePaperSize(size);
     else if (activeTab === 'inventory') setInventoryPaperSize(size);
+    else if (activeTab === 'quotation') setQuotationPaperSize(size);
     else if (activeTab === 'debts') setDebtPaperSize(size);
   };
 
@@ -370,6 +373,41 @@ export default function ReceiptCustomizationScreen() {
     ],
   }), [isKurdish, isAr]);
 
+  // Unified thermal items for Live Preview across all modules
+  const previewThermalItems = useMemo(() => {
+    if (activeTab === 'purchases') {
+      return mockPurchase.items.map((it) => ({
+        id: it.id,
+        productName: it.name,
+        barcode: it.itemId,
+        quantity: it.qty,
+        price: it.buyPrice,
+        discount: 0,
+        lineTotal: `${it.total}`,
+      }));
+    }
+    if (activeTab === 'quotation') {
+      return mockQuotation.items.map((it) => ({
+        id: it.id,
+        productName: it.name,
+        barcode: it.itemId,
+        quantity: it.qty,
+        price: it.price,
+        discount: it.discount ? Number(String(it.discount).replace(/[^0-9]/g, '')) : 0,
+        lineTotal: it.total,
+      }));
+    }
+    return (mockSale.items ?? []).map((it) => ({
+      id: it.id,
+      productName: it.productName,
+      barcode: it.itemId || (it as any).barcode,
+      quantity: it.quantity,
+      price: it.sellingPrice,
+      discount: it.discount || 0,
+      lineTotal: `${it.lineTotal}`,
+    }));
+  }, [activeTab, mockPurchase.items, mockQuotation.items, mockSale.items]);
+
   const handleTestPrint = async () => {
     setIsPrintingTest(true);
     const testBiz = {
@@ -428,8 +466,8 @@ export default function ReceiptCustomizationScreen() {
           testBiz
         );
       } else if (activeTab === 'quotation') {
-        const { shareQuotationInvoice } = await import('@/lib/generateInvoice');
-        await shareQuotationInvoice(
+        const { directPrintQuotationInvoice } = await import('@/lib/generateInvoice');
+        await directPrintQuotationInvoice(
           {
             id: 'Q-01',
             quotationNumber: 'Q-2026-045',
@@ -450,7 +488,9 @@ export default function ReceiptCustomizationScreen() {
               { id: '2', productId: 2, productName: isAr ? 'ماوس ولوحة مفاتيح لاسلكية' : isKurdish ? 'ماوس و کیبۆرد بێوایەر' : 'Wireless Mouse & Keyboard', quantity: 5, unitPrice: 35000, discount: 0, lineTotal: 175000, itemId: 'ACC-MK' },
             ],
           },
-          testBiz
+          testBiz,
+          'both',
+          activePaperSize
         );
       } else if (activeTab === 'inventory') {
         const { shareFullInventoryReport } = await import('@/lib/generateInvoice');
@@ -1777,110 +1817,92 @@ export default function ReceiptCustomizationScreen() {
             </Text>
           </View>
 
-          {activeTab === 'quotation' ? (
-            <View style={[styles.a4OnlyNoticeBox, { backgroundColor: colors.softBlue, borderColor: colors.primary }]}>
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="document-text" size={20} color={colors.primary} />
-                <Text style={[styles.a4OnlyNoticeTitle, { color: colors.primary }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                  {isAr ? 'ورقة A4 الرسمية (21 × 29.7 سم)' : isKurdish ? 'پەڕەی ستانداردی A4' : 'Standard A4 Sheet (21 × 29.7 cm)'}
-                </Text>
-              </View>
-              <Text style={[styles.a4OnlyNoticeSub, { color: colors.gray600, textAlign }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                {isAr
-                  ? 'قسم عروض الأسعار (Quotation) يُطبع رسمياً فقط على ورق A4 القياسي وليس للطابعات الحرارية.'
-                  : isKurdish
-                    ? 'بەشی عەرز و ئۆفەر (Quotation) بە شێوازی فەرمی تەنها لەسەر پەڕەی A4 چاپ دەکرێت و بۆ پرینتەری حەراری نییە.'
-                    : 'Quotations and price proposals are designed exclusively for standard official A4 paper format.'}
-              </Text>
-            </View>
-          ) : (
-            <View style={[styles.widthTabsContainer, isTablet && { gap: 14 }]}>
-              {(isTabletLandscape
-                ? [PAPER_OPTIONS]
-                : [PAPER_OPTIONS.slice(0, 2), PAPER_OPTIONS.slice(2, 4)]
-              ).map((rowGroup, rowIdx) => (
-                <View
-                  key={`paper_row_${rowIdx}`}
-                  style={[
-                    styles.widthTabsRow,
-                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                    isTablet && { gap: 14 },
-                  ]}
-                >
-                  {rowGroup.map((opt) => {
-                    const isSelected = activePaperSize === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        activeOpacity={0.8}
-                        onPress={() => handleSelectPaperSize(opt.id)}
+          <View style={[styles.widthTabsContainer, isTablet && { gap: 14 }]}>
+            {(isTabletLandscape
+              ? [PAPER_OPTIONS]
+              : [PAPER_OPTIONS.slice(0, 2), PAPER_OPTIONS.slice(2, 4)]
+            ).map((rowGroup, rowIdx) => (
+              <View
+                key={`paper_row_${rowIdx}`}
+                style={[
+                  styles.widthTabsRow,
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                  isTablet && { gap: 14 },
+                ]}
+              >
+                {rowGroup.map((opt) => {
+                  const isSelected = activePaperSize === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      activeOpacity={0.8}
+                      onPress={() => handleSelectPaperSize(opt.id)}
+                      style={[
+                        styles.widthTab,
+                        isTablet && { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 16 },
+                        {
+                          backgroundColor: isSelected
+                            ? colors.primary + (isDark ? '25' : '15')
+                            : (isDark ? 'rgba(255,255,255,0.05)' : colors.gray100),
+                          borderColor: isSelected
+                            ? colors.primary
+                            : (isDark ? 'rgba(255,255,255,0.1)' : colors.gray200),
+                        },
+                      ]}
+                    >
+                      {isSelected && (
+                        <View style={[styles.activeCheckBadge, { backgroundColor: colors.primary }]}>
+                          <Ionicons name="checkmark" size={isTablet ? 12 : 10} color="#FFFFFF" />
+                        </View>
+                      )}
+                      <Text
                         style={[
-                          styles.widthTab,
-                          isTablet && { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 16 },
+                          styles.widthTabLabel,
+                          isTablet && { fontSize: 16.5 },
+                          { color: isSelected ? colors.primary : colors.black },
+                          isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                      <View
+                        style={[
+                          styles.widthCmBadge,
+                          isTablet && { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
                           {
                             backgroundColor: isSelected
-                              ? colors.primary + (isDark ? '25' : '15')
-                              : (isDark ? 'rgba(255,255,255,0.05)' : colors.gray100),
-                            borderColor: isSelected
-                              ? colors.primary
-                              : (isDark ? 'rgba(255,255,255,0.1)' : colors.gray200),
+                              ? colors.primary + '25'
+                              : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
                           },
                         ]}
                       >
-                        {isSelected && (
-                          <View style={[styles.activeCheckBadge, { backgroundColor: colors.primary }]}>
-                            <Ionicons name="checkmark" size={isTablet ? 12 : 10} color="#FFFFFF" />
-                          </View>
-                        )}
                         <Text
                           style={[
-                            styles.widthTabLabel,
-                            isTablet && { fontSize: 16.5 },
-                            { color: isSelected ? colors.primary : colors.black },
-                            isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                        <View
-                          style={[
-                            styles.widthCmBadge,
-                            isTablet && { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
-                            {
-                              backgroundColor: isSelected
-                                ? colors.primary + '25'
-                                : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.widthCmBadgeText,
-                              isTablet && { fontSize: 12 },
-                              { color: isSelected ? colors.primary : colors.gray500 },
-                            ]}
-                          >
-                            {opt.widthCm}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.widthTabDesc,
+                            styles.widthCmBadgeText,
                             isTablet && { fontSize: 12 },
-                            { color: isSelected ? colors.primary : colors.gray400 },
-                            isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+                            { color: isSelected ? colors.primary : colors.gray500 },
                           ]}
-                          numberOfLines={1}
                         >
-                          {isAr ? opt.descAr : isKurdish ? opt.desc : opt.descEn}
+                          {opt.widthCm}
                         </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.widthTabDesc,
+                          isTablet && { fontSize: 12 },
+                          { color: isSelected ? colors.primary : colors.gray400 },
+                          isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {isAr ? opt.descAr : isKurdish ? opt.desc : opt.descEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
         </SettingsCard>
 
         {/* ── 2. Live Receipt Preview (نموونەی ڕاستەوخۆ) ── */}
@@ -1928,6 +1950,7 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showBusinessAddress) ||
                     (activeTab === 'purchases' && purchaseSettings.showBusinessAddress) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
+                    (activeTab === 'quotation' && quotationSettings.showBusinessAddress) ||
                     (activeTab === 'debts' && debtSettings.showBusinessAddress)) && (
                       <Text style={styles.receiptContact}>
                         {displayBizAddress}
@@ -1937,6 +1960,7 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showBusinessPhone) ||
                     (activeTab === 'purchases' && purchaseSettings.showBusinessPhone) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
+                    (activeTab === 'quotation' && quotationSettings.showBusinessPhone) ||
                     (activeTab === 'debts' && debtSettings.showBusinessPhone)) && (
                       <Text style={styles.receiptContact}>
                         {business.phone || '0770 000 0000'}
@@ -1950,6 +1974,7 @@ export default function ReceiptCustomizationScreen() {
                 <View style={styles.receiptMeta}>
                   {((activeTab === 'sales' && salesSettings.showInvoiceNumber) ||
                     (activeTab === 'purchases' && purchaseSettings.showInvoiceNumber) ||
+                    (activeTab === 'quotation' && quotationSettings.showQuotationNumber) ||
                     (activeTab === 'debts' && debtSettings.showInvoiceNumber)) && (
                       <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
                         <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
@@ -1958,10 +1983,12 @@ export default function ReceiptCustomizationScreen() {
                               ? (isAr ? 'رقم السند: ' : isKurdish ? 'ژمارەی پسوولە: ' : 'Slip #: ')
                               : activeTab === 'purchases'
                               ? (isAr ? 'رقم وصل الشراء: ' : isKurdish ? 'وەسڵی کڕین: ' : 'Bill #: ')
+                              : activeTab === 'quotation'
+                              ? (isAr ? 'رقم عرض السعر: ' : isKurdish ? 'ژمارەی عەرز: ' : 'Quote #: ')
                               : (isAr ? 'رقم الفاتورة: ' : isKurdish ? 'پسوولە: ' : 'Receipt #: ')}
                           </Text>
                           <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
-                            {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                            {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : activeTab === 'quotation' ? `#${mockQuotation.quotationNumber}` : '#D-00412'}
                           </Text>
                         </Text>
                       </View>
@@ -1970,18 +1997,20 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showDate) ||
                     (activeTab === 'purchases' && purchaseSettings.showDate) ||
                     (activeTab === 'inventory' && inventorySettings.showDate) ||
+                    (activeTab === 'quotation' && quotationSettings.showDate) ||
                     (activeTab === 'debts' && debtSettings.showDate)) && (
                       <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
                         <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
                           <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
                             {isAr ? 'التاريخ: ' : isKurdish ? 'بەروار: ' : 'Date: '}
                           </Text>
-                          <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
+                          <Text style={styles.receiptValue}>{activeTab === 'quotation' ? mockQuotation.date : '2026/10/29 - 02:45 PM'}</Text>
                         </Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerName) ||
+                    (activeTab === 'quotation' && quotationSettings.showCustomerName) ||
                     (activeTab === 'debts' && debtSettings.showCustomerName)) && (
                       <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
                         <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
@@ -1991,23 +2020,39 @@ export default function ReceiptCustomizationScreen() {
                               : (isAr ? 'الزبون: ' : isKurdish ? 'کڕیار: ' : 'Customer: ')}
                           </Text>
                           <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                            {mockSale.customerName}
+                            {activeTab === 'quotation' ? mockQuotation.customerName : mockSale.customerName}
                           </Text>
                         </Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerPhone) ||
+                    (activeTab === 'quotation' && quotationSettings.showCustomerPhone) ||
                     (activeTab === 'debts' && debtSettings.showCustomerPhone)) && (
                       <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
                         <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
                           <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
                             {isAr ? 'الهاتف: ' : isKurdish ? 'مۆبایل: ' : 'Phone: '}
                           </Text>
-                          <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
+                          <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                            {activeTab === 'quotation' ? mockQuotation.customerPhone : '0750 123 4567'}
+                          </Text>
                         </Text>
                       </View>
                     )}
+
+                  {activeTab === 'quotation' && quotationSettings.showValidUntil && (
+                    <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                      <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                        <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                          {isAr ? 'صلاحية العرض: ' : isKurdish ? 'بڕوابەپێکراو تا: ' : 'Valid Until: '}
+                        </Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                          {`${mockQuotation.validityDays} ${isAr ? 'أيام' : isKurdish ? 'ڕۆژ' : 'Days'} (${mockQuotation.validUntil})`}
+                        </Text>
+                      </Text>
+                    </View>
+                  )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
                     <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
@@ -2070,35 +2115,48 @@ export default function ReceiptCustomizationScreen() {
                 ) : activePaperSize === '58mm' ? (
                   /* 58mm 2-line layout */
                   <View style={styles.items58}>
-                    {(activeTab === 'purchases' ? mockPurchase.items : mockSale.items ?? []).map((item: any, idx: number) => {
-                      const itemPrice = activeTab === 'purchases' ? item.costPrice : item.sellingPrice;
-                      const hasDiscount = activeTab === 'sales' && salesSettings.showDiscount && (item.discount || 0) > 0;
+                    {previewThermalItems.map((item, idx) => {
+                      const itemPrice = item.price;
+                      const hasDiscount = (activeTab === 'sales' && salesSettings.showDiscount && item.discount > 0) ||
+                                          (activeTab === 'quotation' && quotationSettings.showDiscount && item.discount > 0);
+                      const showBarcode = (activeTab === 'sales' && salesSettings.showItemBarcode) ||
+                                          (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
+                                          (activeTab === 'quotation' && quotationSettings.showItemBarcode);
+                      const showQty = (activeTab === 'sales' && salesSettings.showQty) ||
+                                      (activeTab === 'purchases' && purchaseSettings.showQty) ||
+                                      (activeTab === 'quotation' && quotationSettings.showQty);
+                      const showPrice = (activeTab === 'sales' && salesSettings.showItemPrice) ||
+                                        (activeTab === 'purchases' && purchaseSettings.showBuyPrice) ||
+                                        (activeTab === 'quotation' && quotationSettings.showItemPrice);
+
                       return (
                         <View key={item.id} style={styles.item58Block}>
                           <View style={[styles.item58Top, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.item58Name, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
-                                <Text style={{ fontSize: 10, color: '#666', fontFamily: 'Inter_700Bold' }}>{idx + 1}. </Text>
+                            <View style={{ flex: 1, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                              <Text style={{ fontSize: 10, color: '#666', fontFamily: 'Inter_700Bold', marginHorizontal: 2 }}>
+                                {idx + 1}.{' '}
+                              </Text>
+                              <Text style={[styles.item58Name, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left', flex: 1 }]} numberOfLines={1}>
                                 {item.productName}
                               </Text>
                             </View>
-                            {((activeTab === 'sales' && salesSettings.showItemBarcode) || (activeTab === 'purchases' && purchaseSettings.showItemBarcode)) && (item.itemId || item.barcode) && (
-                              <Text style={styles.item58Id}>#{item.itemId || item.barcode}</Text>
+                            {showBarcode && !!item.barcode && (
+                              <Text style={styles.item58Id}>#{item.barcode}</Text>
                             )}
                           </View>
                           <View style={[styles.item58Bottom, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
-                              {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                              {showQty && (
                                 <Text style={styles.item58QtyPrice}>{item.quantity} × </Text>
                               )}
-                              {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                              {showPrice && (
                                 hasDiscount ? (
                                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
                                     <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10 }]}>
                                       {itemPrice}
                                     </Text>
                                     <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000' }]}>
-                                      {itemPrice - item.discount}
+                                      {typeof itemPrice === 'number' ? itemPrice - item.discount : itemPrice}
                                     </Text>
                                   </View>
                                 ) : (
@@ -2119,12 +2177,16 @@ export default function ReceiptCustomizationScreen() {
                       <Text style={[styles.colHeader, { flex: 2, textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Item'}
                       </Text>
-                      {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                      {((activeTab === 'sales' && salesSettings.showQty) ||
+                        (activeTab === 'purchases' && purchaseSettings.showQty) ||
+                        (activeTab === 'quotation' && quotationSettings.showQty)) && (
                         <Text style={[styles.colHeader, styles.colCenter, { flex: 0.8 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                           {isAr ? 'العدد' : isKurdish ? 'عەدەد' : 'Qty'}
                         </Text>
                       )}
-                      {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                      {((activeTab === 'sales' && salesSettings.showItemPrice) ||
+                        (activeTab === 'purchases' && purchaseSettings.showBuyPrice) ||
+                        (activeTab === 'quotation' && quotationSettings.showItemPrice)) && (
                         <Text style={[styles.colHeader, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                           {activeTab === 'purchases'
                             ? (isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost')
@@ -2136,26 +2198,41 @@ export default function ReceiptCustomizationScreen() {
                       </Text>
                     </View>
 
-                    {(activeTab === 'purchases' ? mockPurchase.items : mockSale.items ?? []).map((item: any, idx: number) => {
-                      const itemPrice = activeTab === 'purchases' ? item.costPrice : item.sellingPrice;
-                      const hasDiscount = activeTab === 'sales' && salesSettings.showDiscount && (item.discount || 0) > 0;
+                    {previewThermalItems.map((item, idx) => {
+                      const itemPrice = item.price;
+                      const hasDiscount = (activeTab === 'sales' && salesSettings.showDiscount && item.discount > 0) ||
+                                          (activeTab === 'quotation' && quotationSettings.showDiscount && item.discount > 0);
+                      const showBarcode = (activeTab === 'sales' && salesSettings.showItemBarcode) ||
+                                          (activeTab === 'purchases' && purchaseSettings.showItemBarcode) ||
+                                          (activeTab === 'quotation' && quotationSettings.showItemBarcode);
+                      const showQty = (activeTab === 'sales' && salesSettings.showQty) ||
+                                      (activeTab === 'purchases' && purchaseSettings.showQty) ||
+                                      (activeTab === 'quotation' && quotationSettings.showQty);
+                      const showPrice = (activeTab === 'sales' && salesSettings.showItemPrice) ||
+                                        (activeTab === 'purchases' && purchaseSettings.showBuyPrice) ||
+                                        (activeTab === 'quotation' && quotationSettings.showItemPrice);
+
                       return (
                         <View key={item.id} style={[styles.tableRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                           <View style={{ flex: 2 }}>
-                            <Text style={[styles.tableItemName, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={2}>
-                              <Text style={{ fontSize: 9.5, color: '#666', fontFamily: 'Inter_700Bold' }}>{idx + 1}. </Text>
-                              {item.productName}
-                            </Text>
-                            {((activeTab === 'sales' && salesSettings.showItemBarcode) || (activeTab === 'purchases' && purchaseSettings.showItemBarcode)) && (item.itemId || item.barcode) && (
-                              <Text style={[styles.tableItemId, { textAlign: isRTL ? 'right' : 'left' }]}>#{item.itemId || item.barcode}</Text>
+                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                              <Text style={{ fontSize: 9.5, color: '#666', fontFamily: 'Inter_700Bold', marginHorizontal: 2 }}>
+                                {idx + 1}.{' '}
+                              </Text>
+                              <Text style={[styles.tableItemName, { textAlign: isRTL ? 'right' : 'left', flex: 1 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={2}>
+                                {item.productName}
+                              </Text>
+                            </View>
+                            {showBarcode && !!item.barcode && (
+                              <Text style={[styles.tableItemId, { textAlign: isRTL ? 'right' : 'left' }]}>#{item.barcode}</Text>
                             )}
                           </View>
-                          {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                          {showQty && (
                             <Text style={[styles.tableItemCell, styles.colCenter, { flex: 0.8 }]}>
                               {item.quantity}
                             </Text>
                           )}
-                          {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                          {showPrice && (
                             <View style={{ flex: 1.3, justifyContent: 'center', alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                               {hasDiscount ? (
                                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-start' : 'flex-end', gap: 3 }}>
@@ -2163,7 +2240,7 @@ export default function ReceiptCustomizationScreen() {
                                     {itemPrice}
                                   </Text>
                                   <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000' }]}>
-                                    {itemPrice - item.discount}
+                                    {typeof itemPrice === 'number' ? itemPrice - item.discount : itemPrice}
                                   </Text>
                                 </View>
                               ) : (
@@ -2184,7 +2261,7 @@ export default function ReceiptCustomizationScreen() {
 
                 <View style={styles.dashedDivider} />
 
-                {/* Financial Totals (Sales & Purchases) */}
+                {/* Financial Totals (Sales, Purchases & Quotation) */}
                 {activeTab === 'purchases' ? (
                   <View style={styles.receiptTotals}>
                     <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -2207,6 +2284,30 @@ export default function ReceiptCustomizationScreen() {
                         <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'نقداً (Cash)' : isKurdish ? 'نەختینە (کاش)' : 'Cash'}</Text>
                       </View>
                     )}
+                  </View>
+                ) : activeTab === 'quotation' ? (
+                  <View style={styles.receiptTotals}>
+                    <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
+                      <Text style={styles.receiptValue}>{mockQuotation.subtotal}</Text>
+                    </View>
+
+                    {quotationSettings.showDiscount && (
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+                        <Text style={styles.receiptValue}>− {mockQuotation.discount}</Text>
+                      </View>
+                    )}
+
+                    <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptGrandTotalLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isAr ? 'المجموع الكلي:' : isKurdish ? 'کۆی گشتی:' : 'Total:'}
+                      </Text>
+                      <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                        <Text style={styles.receiptGrandTotalAmount}>{mockQuotation.grandTotalIQD}</Text>
+                        <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '600', marginTop: 1 }}>{mockQuotation.grandTotalUSD}</Text>
+                      </View>
+                    </View>
                   </View>
                 ) : activeTab === 'sales' ? (
                   <View style={styles.receiptTotals}>
@@ -2248,29 +2349,37 @@ export default function ReceiptCustomizationScreen() {
                 {/* Notes & Policy */}
                 {((activeTab === 'sales' && salesSettings.showNotes) ||
                   (activeTab === 'purchases' && purchaseSettings.showNotes) ||
+                  (activeTab === 'quotation' && quotationSettings.showNotes) ||
                   (activeTab === 'debts' && debtSettings.showNotes)) && (
                     <View style={styles.receiptNotesBox}>
                       <Text style={[styles.receiptNotesTitle, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
                       <Text style={[styles.receiptNotesText, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {activeTab === 'debts' ? getDebtFooterNote() : activeTab === 'purchases' ? mockPurchase.notes : mockSale.notes}
+                        {activeTab === 'debts'
+                          ? getDebtFooterNote()
+                          : activeTab === 'purchases'
+                          ? mockPurchase.notes
+                          : activeTab === 'quotation'
+                          ? mockQuotation.notes
+                          : mockSale.notes}
                       </Text>
                     </View>
                   )}
 
-                {/* Signature Line for Debts on Thermal */}
-                {activeTab === 'debts' && debtSettings.showSignature && (
+                {/* Signature Line for Debts or Quotation on Thermal */}
+                {((activeTab === 'debts' && debtSettings.showSignature) ||
+                  (activeTab === 'quotation' && quotationSettings.showSignature)) && (
                   <View style={{ marginTop: 10, marginBottom: 6 }}>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingHorizontal: 6 }}>
                       <View style={{ alignItems: 'center', width: '45%' }}>
                         <View style={{ width: '100%', height: 1, backgroundColor: '#94A3B8', marginBottom: 4 }} />
                         <Text style={{ fontSize: 9, color: '#64748B', fontWeight: '600' }}>
-                          {isAr ? 'توقيع المستلم' : isKurdish ? 'واژووی کڕیار' : 'Client Signature'}
+                          {isAr ? 'توقيع العميل' : isKurdish ? 'واژووی کڕیار' : 'Client Signature'}
                         </Text>
                       </View>
                       <View style={{ alignItems: 'center', width: '45%' }}>
                         <View style={{ width: '100%', height: 1, backgroundColor: '#94A3B8', marginBottom: 4 }} />
                         <Text style={{ fontSize: 9, color: '#64748B', fontWeight: '600' }}>
-                          {isAr ? 'ختم المحل' : isKurdish ? 'مۆری فرۆشگا' : 'Store Stamp'}
+                          {isAr ? 'ختم الشركة' : isKurdish ? 'مۆری کۆمپانیا' : 'Company Stamp'}
                         </Text>
                       </View>
                     </View>
@@ -2287,6 +2396,10 @@ export default function ReceiptCustomizationScreen() {
                     getDebtFooterNote() ? (
                       <Text style={styles.receiptFooterNote}>{getDebtFooterNote()}</Text>
                     ) : null
+                  ) : activeTab === 'quotation' ? (
+                    getQuotationFooterNote() ? (
+                      <Text style={styles.receiptFooterNote}>{getQuotationFooterNote()}</Text>
+                    ) : null
                   ) : (
                     getSalesFooterNote() ? (
                       <Text style={styles.receiptFooterNote}>{getSalesFooterNote()}</Text>
@@ -2295,6 +2408,7 @@ export default function ReceiptCustomizationScreen() {
 
                   {((activeTab === 'sales' && salesSettings.showFooterBarcode) ||
                     (activeTab === 'purchases' && purchaseSettings.showFooterBarcode) ||
+                    (activeTab === 'quotation' && quotationSettings.showItemBarcode) ||
                     (activeTab === 'debts' && debtSettings.showFooterBarcode)) && (
                       <View style={styles.barcodeBox}>
                         <View style={styles.barcodeMockLines}>
@@ -2309,7 +2423,13 @@ export default function ReceiptCustomizationScreen() {
                           ))}
                         </View>
                         <Text style={styles.barcodeCode}>
-                          {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                          {activeTab === 'sales'
+                            ? '#F-00124'
+                            : activeTab === 'purchases'
+                            ? '#P-00892'
+                            : activeTab === 'quotation'
+                            ? `#${mockQuotation.quotationNumber}`
+                            : '#D-00412'}
                         </Text>
                       </View>
                     )}

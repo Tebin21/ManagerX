@@ -1087,7 +1087,7 @@ export function buildThermalQuotationReceiptHTML(
 
       return `
         <tr class="item-row">
-          <td class="col-item">${i + 1}. ${escHtml(item.productName)}${barcodeTag}${discountTag}</td>
+          <td class="col-item"><span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>${barcodeTag}${discountTag}</td>
           ${settings.showQty ? `<td class="col-qty" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
           ${settings.showItemPrice ? `<td class="col-price" style="width:${priceColWidth};">${unitPrice}</td>` : ''}
           <td class="col-total" style="width:${totalColWidth};">${fmtRow(item.lineTotal)}</td>
