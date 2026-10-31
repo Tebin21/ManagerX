@@ -74,6 +74,19 @@ export interface EmployeePermissions {
   subPermissions?: GranularSubPermissions;
 }
 
+export interface UpgradeReceipt {
+  receiptId: string;
+  upgradedAt: string; // ISO date string
+  customerName: string;
+  email: string;
+  planDuration: string; // e.g. "1 ساڵ", "6 مانگ", "بێ سنوور (هەمیشەیی)"
+  startDate: string;
+  expiresAt?: string | null;
+  priceAmount?: string | null;
+  limits?: EmployeeUsageLimits;
+  storeEnabled?: boolean;
+}
+
 export interface EmployeeAccount {
   id: string; // Firebase Auth UID
   email: string;
@@ -98,6 +111,7 @@ export interface EmployeeAccount {
   role?: 'manager' | 'employee' | 'user';
   accountType?: 'registered' | 'custom';
   permissions: EmployeePermissions;
+  upgradeReceipt?: UpgradeReceipt;
 }
 
 export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {

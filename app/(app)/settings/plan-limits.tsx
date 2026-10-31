@@ -1,325 +1,816 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, ScrollView, TouchableOpacity, Linking,
-  KeyboardAvoidingView, Platform, StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Text } from '@/components/settings/SettingsText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { MotiView } from 'moti';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 
 import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeader';
-import { SettingsCard } from '@/components/settings/SettingsCard';
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { SettingsTextInput as AppTextInput } from '@/components/settings/SettingsTextInput';
-import { SettingsPrimaryButton as PrimaryButton } from '@/components/settings/SettingsPrimaryButton';
-import { LTRNumber } from '@/components/ui/LTRNumber';
-import { IdText } from '@/components/ui/IdText';
 import { AppleSubscriptionPaywall } from '@/components/settings/AppleSubscriptionPaywall';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLicenseStore } from '@/store/licenseStore';
+import { useManagementStore } from '@/store/managementStore';
+import { useAuthStore } from '@/store/authStore';
+import { useLanguageStore } from '@/store/languageStore';
 import { getInventoryStats } from '@/lib/sqlite';
-import { SUPPORT_PHONE } from '@/constants/config';
 import { useRTL } from '@/lib/rtl';
-import { formatDateShort } from '@/utils/formatters';
-
-const PLAN_LABEL_KEYS: Record<string, string> = {
-  basic: 'settings.upgradeScreen.planBasic',
-  plus: 'settings.upgradeScreen.planPlus',
-  pro: 'settings.upgradeScreen.planPro',
-  business: 'settings.upgradeScreen.planBusiness',
-  unlimited: 'settings.upgradeScreen.planUnlimited',
-  pro_monthly: 'iap.monthly',
-  pro_6months: 'iap.sixMonths',
-  pro_yearly: 'iap.yearly',
-};
+import { SETTINGS_KURDISH_FONT_BOLD, SETTINGS_KURDISH_FONT_REGULAR } from '@/lib/settingsFont';
+import * as Haptics from 'expo-haptics';
 
 type ResultState = { type: 'success' | 'error'; message: string } | null;
 
 export default function PlanLimitsScreen() {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
-  const { textAlign, flexDirection } = useRTL();
+  const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const { isRTL } = useRTL();
+  const isKu = useLanguageStore((s) => s.language === 'ku');
 
-  const plan        = useLicenseStore((s) => s.plan);
-  const limit       = useLicenseStore((s) => s.limit);
-  const deviceId    = useLicenseStore((s) => s.deviceId);
-  const expiresAt   = useLicenseStore((s) => s.expiresAt);
-  const expired     = useLicenseStore((s) => s.expired);
-  const activate    = useLicenseStore((s) => s.activate);
+  // Stores
+  const currentUserAccount = useManagementStore((s) => s.currentUserAccount);
+  const user = useAuthStore((s) => s.user);
 
-  const [used, setUsed]           = useState(0);
-  const [code, setCode]           = useState('');
+  const plan = useLicenseStore((s) => s.plan);
+  const licenseLimit = useLicenseStore((s) => s.limit);
+  const licenseExpiresAt = useLicenseStore((s) => s.expiresAt);
+  const activate = useLicenseStore((s) => s.activate);
+
+  const [usedProducts, setUsedProducts] = useState(0);
+  const [usedQuantity, setUsedQuantity] = useState(0);
+  const [code, setCode] = useState('');
   const [activating, setActivating] = useState(false);
-  const [result, setResult]       = useState<ResultState>(null);
+  const [result, setResult] = useState<ResultState>(null);
+  const [showAppleIAP, setShowAppleIAP] = useState(false);
 
-  const loadUsed = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     try {
       const stats = await getInventoryStats();
-      // The plan limit is on total stock quantity, not the number of distinct
-      // products — one product with quantity 100 uses the same 100 "items" as
-      // 100 separate single-quantity products.
-      setUsed(stats.totalQuantity);
-    } catch { /* non-critical */ }
+      setUsedProducts(stats.totalProducts || 0);
+      setUsedQuantity(stats.totalQuantity || 0);
+    } catch {
+      /* non-critical */
+    }
   }, []);
 
-  useEffect(() => { loadUsed(); }, [loadUsed]);
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
-  // Apple In-App Purchase Subscriptions on iOS
-  if (Platform.OS === 'ios') {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-        <SettingsBackground />
-        <AppHeader title={t('settings.upgradeScreen.title')} showBack />
-        <AppleSubscriptionPaywall group="pro" />
-      </View>
-    );
+  // Determine active subscription & limits
+  const upgradeReceipt = currentUserAccount?.upgradeReceipt;
+  const cloudExpiresAt = currentUserAccount?.expiresAt || upgradeReceipt?.expiresAt;
+  const effectiveExpiresAt = cloudExpiresAt || licenseExpiresAt;
+
+  const limits = currentUserAccount?.limits || upgradeReceipt?.limits;
+  const isOnlineStoreEnabled =
+    currentUserAccount?.onlineStore?.enabled ??
+    upgradeReceipt?.storeEnabled ??
+    false;
+
+  // Max limits
+  const maxItems = limits?.maxItems ?? (Number.isFinite(licenseLimit) ? licenseLimit : 'unlimited');
+  const maxQuantity = limits?.maxQuantity ?? 'unlimited';
+  const maxSales = limits?.maxSales ?? 'unlimited';
+  const maxInvoices = limits?.maxInvoices ?? 'unlimited';
+  const maxQuotations = limits?.maxQuotations ?? 'unlimited';
+
+  // Calculate Time Remaining
+  let isUnlimitedDuration = false;
+  let remainingDays = 0;
+  let remainingHours = 0;
+  let isExpired = false;
+  let durationBadgeText = '';
+
+  if (!effectiveExpiresAt || effectiveExpiresAt === 'unlimited' || effectiveExpiresAt === 'never') {
+    isUnlimitedDuration = true;
+    durationBadgeText = isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited (Lifetime)';
+  } else {
+    try {
+      const expDate = new Date(effectiveExpiresAt);
+      const diffMs = expDate.getTime() - Date.now();
+      if (diffMs <= 0) {
+        isExpired = true;
+        durationBadgeText = isKu ? 'بەسەرچووە' : 'Expired';
+      } else {
+        remainingDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        remainingHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        if (remainingDays > 0) {
+          durationBadgeText = isKu ? `${remainingDays} ڕۆژ ماوە` : `${remainingDays} days left`;
+        } else {
+          durationBadgeText = isKu ? `${remainingHours} کاتژمێر ماوە` : `${remainingHours}h left`;
+        }
+      }
+    } catch {
+      isUnlimitedDuration = true;
+      durationBadgeText = isKu ? 'بێ سنوور' : 'Unlimited';
+    }
   }
 
-  const planLabel = t(PLAN_LABEL_KEYS[plan] ?? PLAN_LABEL_KEYS.basic);
-  const isUnlimited = !Number.isFinite(limit);
-  const usedPct = isUnlimited ? 0 : limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  const limitLabel = isUnlimited
-    ? t('settings.upgradeScreen.limitUnlimited')
-    : t('settings.upgradeScreen.limitValue', { limit });
-  const usedLabel = isUnlimited
-    ? t('settings.upgradeScreen.usedLabelUnlimited', { used })
-    : t('settings.upgradeScreen.usedLabel', { used, limit });
+  const formatLimit = (val: number | string | undefined) => {
+    if (!val || val === 'unlimited') return isKu ? 'بێ سنوور' : 'Unlimited';
+    return Number(val).toLocaleString();
+  };
 
-  async function handleActivate() {
+  const formattedExpiryDate = effectiveExpiresAt && !isUnlimitedDuration
+    ? new Date(effectiveExpiresAt).toLocaleDateString(isKu ? 'ar-EG' : 'en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : isKu ? 'هەمیشەیی' : 'Lifetime';
+
+  const planName = upgradeReceipt?.planDuration
+    ? `${upgradeReceipt.planDuration}`
+    : isUnlimitedDuration
+    ? (isKu ? 'پلانی بێ سنوور (Lifetime Pro)' : 'Unlimited Lifetime Pro')
+    : (isKu ? 'پلانی بەشداریکردن' : 'Active Plan');
+
+  const handleActivate = async () => {
     if (!code.trim() || activating) return;
     setActivating(true);
     setResult(null);
     try {
-      const res = await activate(code);
+      const res = await activate(code.trim());
       if (res.status === 'activated') {
-        setResult({ type: 'success', message: t('settings.upgradeScreen.activated', { limit: res.limit }) });
+        setResult({
+          type: 'success',
+          message: isKu ? 'کۆدەکە بە سەرکەوتوویی کارا کرا!' : 'Code activated successfully!',
+        });
         setCode('');
-        await loadUsed();
+        await loadStats();
       } else if (res.status === 'already_activated') {
-        setResult({ type: 'error', message: t('settings.upgradeScreen.alreadyActivated') });
-      } else if (res.status === 'wrong_device') {
-        setResult({ type: 'error', message: t('settings.upgradeScreen.wrongDevice') });
+        setResult({
+          type: 'error',
+          message: isKu ? 'ئەم کۆدە پێشتر بەکارهێنراوە.' : 'This code has already been activated.',
+        });
       } else if (res.status === 'expired') {
         setResult({
           type: 'error',
-          message: res.expiresAt
-            ? t('settings.upgradeScreen.codeExpiredOn', { date: formatDateShort(res.expiresAt) })
-            : t('settings.upgradeScreen.codeExpired'),
+          message: isKu ? 'ئەم کۆدە بەسەرچووە.' : 'This activation code has expired.',
         });
-      } else if (res.status === 'no_upgrade') {
-        setResult({ type: 'error', message: t('settings.upgradeScreen.noUpgrade') });
       } else {
-        setResult({ type: 'error', message: t('settings.upgradeScreen.invalidCode') });
+        setResult({
+          type: 'error',
+          message: isKu ? 'کۆدی کاراکردن نادروستە.' : 'Invalid activation code.',
+        });
       }
     } catch {
-      setResult({ type: 'error', message: t('common.tryAgain') });
+      setResult({
+        type: 'error',
+        message: isKu ? 'هەڵەیەک ڕوویدا لە کاراکردندا.' : 'Failed to activate code.',
+      });
     } finally {
       setActivating(false);
     }
-  }
+  };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }}>
-      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-        <SettingsBackground />
-        <AppHeader title={t('settings.upgradeScreen.title')} showBack />
+    <View style={[styles.container, { backgroundColor: isDark ? '#0B111E' : '#F8FAFC' }]}>
+      <SettingsBackground />
+      <AppHeader
+        title={isKu ? 'پلانی بەشداریکردن و سنوورەکان' : 'Subscription & Limits'}
+        showBack
+      />
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
-          contentContainerStyle={styles.body}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {/* ── Current plan / usage ── */}
+          {/* Main Account & Time Left Card */}
           <LinearGradient
-            colors={[colors.primaryDark, colors.primary]}
-            style={styles.heroCard}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            colors={isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
+            style={[
+              styles.mainCard,
+              {
+                borderColor: isExpired
+                  ? 'rgba(239, 68, 68, 0.4)'
+                  : isDark ? 'rgba(212, 175, 55, 0.35)' : '#E2E8F0',
+              },
+            ]}
           >
-            <Text style={styles.heroPlan}>{planLabel}</Text>
-            <Text style={styles.heroLimit}>{limitLabel}</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${usedPct}%` }]} />
+            {/* Top row: Plan Title & Status Badge */}
+            <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={styles.planTitleBox}>
+                <View style={[styles.sparkleWrap, { backgroundColor: isExpired ? 'rgba(239,68,68,0.15)' : 'rgba(212, 175, 55, 0.15)' }]}>
+                  <Ionicons
+                    name={isExpired ? 'alert-circle' : 'ribbon'}
+                    size={22}
+                    color={isExpired ? '#EF4444' : '#D4AF37'}
+                  />
+                </View>
+                <View style={{ marginHorizontal: 10 }}>
+                  <Text style={[styles.planTitleText, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                    {planName}
+                  </Text>
+                  <Text style={styles.planSubText}>
+                    {user?.email || currentUserAccount?.email || (isKu ? 'ئەکاونتی تۆمارکراو' : 'Registered Account')}
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: isExpired
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : 'rgba(16, 185, 129, 0.15)',
+                    borderColor: isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isExpired ? '#EF4444' : '#10B981' },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: isExpired ? '#EF4444' : '#10B981' },
+                  ]}
+                >
+                  {isExpired ? (isKu ? 'بەسەرچووە' : 'Expired') : (isKu ? 'چالاکە' : 'Active')}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.heroUsed}>{usedLabel}</Text>
-            {expiresAt && (
-              <Text style={styles.heroExpiry}>
-                {t('settings.upgradeScreen.validUntil', { date: formatDateShort(expiresAt) })}
-              </Text>
-            )}
+
+            {/* Time Left Highlight Banner */}
+            <View
+              style={[
+                styles.timeRemainingBox,
+                {
+                  backgroundColor: isExpired
+                    ? 'rgba(239, 68, 68, 0.08)'
+                    : isDark ? 'rgba(212, 175, 55, 0.08)' : '#FEF9C3',
+                  borderColor: isExpired
+                    ? 'rgba(239, 68, 68, 0.2)'
+                    : isDark ? 'rgba(212, 175, 55, 0.25)' : '#FDE047',
+                },
+              ]}
+            >
+              <View style={[styles.timeRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Ionicons
+                  name={isUnlimitedDuration ? 'infinite' : 'hourglass-outline'}
+                  size={24}
+                  color={isExpired ? '#EF4444' : '#D4AF37'}
+                />
+                <View style={{ marginHorizontal: 12, flex: 1 }}>
+                  <Text style={styles.timeLabel}>
+                    {isKu ? 'کاتی ماوەی بەشداریکردن:' : 'Remaining Subscription Time:'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.timeValueText,
+                      { color: isExpired ? '#EF4444' : isDark ? '#F1F5F9' : '#0F172A' },
+                    ]}
+                  >
+                    {durationBadgeText}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.expiryMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.expiryMetaText}>
+                  {isKu ? 'کاتی بەسەرچوون:' : 'Expires On:'} {formattedExpiryDate}
+                </Text>
+                {upgradeReceipt?.upgradedAt && (
+                  <Text style={styles.expiryMetaText}>
+                    {isKu ? 'دەستپێک:' : 'Started:'}{' '}
+                    {new Date(upgradeReceipt.upgradedAt).toLocaleDateString('en-GB')}
+                  </Text>
+                )}
+              </View>
+            </View>
           </LinearGradient>
 
-          {/* ── Expired notice — shown once, after a time-limited license lapses ── */}
-          {expired && (
-            <View style={[styles.expiredBox, { flexDirection, backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-              <Ionicons name="time-outline" size={18} color={colors.error} />
-              <Text style={[styles.expiredText, { color: colors.error, textAlign }]}>
-                {t('settings.upgradeScreen.planExpiredNotice')}
-              </Text>
+          {/* Section: Usage Limits (سنوورەکانی بەکارهێنان) */}
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="speedometer-outline" size={18} color="#D4AF37" />
+            <Text style={[styles.sectionHeaderText, { color: isDark ? '#E2E8F0' : '#1E293B', marginHorizontal: 8 }]}>
+              {isKu ? 'سنوورەکانی بەکارهێنان (Usage Limits)' : 'Usage Limits'}
+            </Text>
+          </View>
+
+          <View style={[styles.limitsGrid, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+            {/* Limit Item: Products (کالاکان) */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                <Ionicons name="cube-outline" size={18} color="#3B82F6" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'ژمارەی کاڵاکان (تایتم)' : 'Total Products (Items)'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu
+                    ? `بەکارهێنراو: ${usedProducts.toLocaleString()} دانە`
+                    : `Currently used: ${usedProducts.toLocaleString()}`}
+                </Text>
+              </View>
+              <View style={styles.limitValueBadge}>
+                <Text style={styles.limitValueText}>{formatLimit(maxItems)}</Text>
+              </View>
             </View>
-          )}
 
-          {/* ── Device ID ── */}
-          <SettingsCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
-              {t('settings.upgradeScreen.deviceIdTitle')}
-            </Text>
-            <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
-              {t('settings.upgradeScreen.deviceIdHint')}
-            </Text>
-            <IdText selectable style={[styles.deviceIdText, { color: colors.black, backgroundColor: colors.gray50, lineHeight: undefined }]}>
-              {deviceId ?? '...'}
-            </IdText>
-          </SettingsCard>
+            <View style={styles.divider} />
 
-          {/* ── Activation ── */}
-          <SettingsCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: colors.black, textAlign }]}>
-              {t('settings.upgradeScreen.activateTitle')}
-            </Text>
-            <Text style={[styles.cardSub, { color: colors.gray400, textAlign }]}>
-              {t('settings.upgradeScreen.activateHint')}
-            </Text>
+            {/* Limit Item: Total Stock Quantity (زۆرترین بڕ) */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                <Ionicons name="layers-outline" size={18} color="#10B981" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'زۆرترین بڕی عەمبار (Quantity)' : 'Total Stock Quantity'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu
+                    ? `کۆی گشتی ناو مەخزەن: ${usedQuantity.toLocaleString()}`
+                    : `Total in warehouse: ${usedQuantity.toLocaleString()}`}
+                </Text>
+              </View>
+              <View style={styles.limitValueBadge}>
+                <Text style={styles.limitValueText}>{formatLimit(maxQuantity)}</Text>
+              </View>
+            </View>
 
-            <AppTextInput
-              label={t('settings.upgradeScreen.codeLabel')}
-              placeholder={t('settings.upgradeScreen.codePlaceholder')}
-              value={code}
-              onChangeText={(v) => { setCode(v); setResult(null); }}
-              autoCorrect={false}
-              autoComplete="off"
-              multiline
-              numberOfLines={3}
-              style={styles.codeInput}
-            />
+            <View style={styles.divider} />
 
-            {result && (
-              <MotiView
-                from={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'timing', duration: 220 }}
+            {/* Limit Item: Sales (فرۆشتن) */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Ionicons name="cart-outline" size={18} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'تۆمارکردنی فرۆشتن (Sales)' : 'Sales Transactions'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu ? 'سنووری ئەنجامدانی پسولەی فرۆش' : 'Allowed sales records'}
+                </Text>
+              </View>
+              <View style={styles.limitValueBadge}>
+                <Text style={styles.limitValueText}>{formatLimit(maxSales)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Limit Item: Printed Invoices (وەسڵی چاپ) */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+                <Ionicons name="print-outline" size={18} color="#8B5CF6" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'چاپکردنی وەسڵ (Invoices)' : 'Print Receipts / Invoices'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu ? 'وەسڵی حەراری 80mm و 58mm و A4' : 'Thermal & PDF receipt outputs'}
+                </Text>
+              </View>
+              <View style={styles.limitValueBadge}>
+                <Text style={styles.limitValueText}>{formatLimit(maxInvoices)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Limit Item: Quotations (عەرز و ئۆفەر) */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                <Ionicons name="document-text-outline" size={18} color="#EC4899" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'عەرز و ئۆفەری نرخ (Quotations)' : 'Quotations & Price Offers'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu ? 'دروستکردن و هاوبەشکردنی عەرزی نرخ' : 'Create & share price offers'}
+                </Text>
+              </View>
+              <View style={styles.limitValueBadge}>
+                <Text style={styles.limitValueText}>{formatLimit(maxQuotations)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Online Store status */}
+            <View style={styles.limitRow}>
+              <View style={[styles.limitIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                <Ionicons name="globe-outline" size={18} color="#10B981" />
+              </View>
+              <View style={{ flex: 1, marginHorizontal: 10 }}>
+                <Text style={[styles.limitName, { color: isDark ? '#F1F5F9' : '#1E293B' }]}>
+                  {isKu ? 'ستۆری ئۆنلاین (Online Store)' : 'Online Storefront'}
+                </Text>
+                <Text style={styles.limitSub}>
+                  {isKu ? 'بەستنەوە بە فرۆشگای ئۆنلاین' : 'Cloud storefront connection'}
+                </Text>
+              </View>
+              <View
                 style={[
-                  styles.resultBox,
+                  styles.statusPill,
                   {
-                    flexDirection,
-                    backgroundColor: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-                    borderColor:     result.type === 'success' ? '#A7F3D0' : '#FECACA',
+                    backgroundColor: isOnlineStoreEnabled
+                      ? 'rgba(16, 185, 129, 0.18)'
+                      : 'rgba(148, 163, 184, 0.18)',
                   },
                 ]}
               >
                 <Ionicons
-                  name={result.type === 'success' ? 'checkmark-circle' : 'close-circle'}
-                  size={18}
-                  color={result.type === 'success' ? colors.success : colors.error}
+                  name={isOnlineStoreEnabled ? 'checkmark-circle' : 'lock-closed'}
+                  size={14}
+                  color={isOnlineStoreEnabled ? '#10B981' : '#94A3B8'}
                 />
-                <Text style={[styles.resultText, { color: result.type === 'success' ? colors.success : colors.error, textAlign }]}>
-                  {result.message}
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: isOnlineStoreEnabled ? '#10B981' : '#94A3B8', marginStart: 4 },
+                  ]}
+                >
+                  {isOnlineStoreEnabled
+                    ? (isKu ? 'چالاککراوە' : 'Enabled')
+                    : (isKu ? 'ناچالاکە' : 'Disabled')}
                 </Text>
-              </MotiView>
-            )}
+              </View>
+            </View>
+          </View>
 
-            <View style={styles.activateBtnWrap}>
-              <PrimaryButton
-                label={t('settings.upgradeScreen.activateButton')}
-                onPress={handleActivate}
-                loading={activating}
-                disabled={!code.trim()}
+          {/* Activation Code Box (کۆدی کاراکردنی فەرمی) */}
+          <View style={[styles.activationCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+            <View style={[styles.activationHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Ionicons name="key-outline" size={18} color="#D4AF37" />
+              <Text style={[styles.activationTitle, { color: isDark ? '#FFFFFF' : '#0F172A', marginHorizontal: 8 }]}>
+                {isKu ? 'کاراکردن بە کۆد (Activation Code)' : 'Activate with License Key'}
+              </Text>
+            </View>
+            <Text style={styles.activationDesc}>
+              {isKu
+                ? 'ئەگەر کۆدی بەشداریکردنی فەرمیت هەیە، لێرەدا دەتوانیت داخڵی بکەیت بۆ چالاککردن:'
+                : 'If you have an official activation code, enter it below to activate your plan:'}
+            </Text>
+
+            <View style={styles.inputRow}>
+              <AppTextInput
+                value={code}
+                onChangeText={setCode}
+                placeholder={isKu ? 'کۆدی کاراکردن (وەک: FROSHIAR-XXXX)' : 'Activation code'}
+                placeholderTextColor={colors.gray400}
+                autoCapitalize="characters"
+                style={styles.inputField}
               />
             </View>
-          </SettingsCard>
 
-          {/* ── Support ── */}
-          <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
-            <Text style={[styles.infoText, { color: colors.gray600, textAlign }]}>
-              {t('settings.upgradeScreen.supportMessage')}
-            </Text>
+            {result && (
+              <View
+                style={[
+                  styles.resultBox,
+                  {
+                    backgroundColor: result.type === 'success'
+                      ? 'rgba(16, 185, 129, 0.12)'
+                      : 'rgba(239, 68, 68, 0.12)',
+                    borderColor: result.type === 'success' ? '#10B981' : '#EF4444',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={result.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
+                  size={18}
+                  color={result.type === 'success' ? '#10B981' : '#EF4444'}
+                />
+                <Text
+                  style={[
+                    styles.resultText,
+                    { color: result.type === 'success' ? '#10B981' : '#EF4444' },
+                  ]}
+                >
+                  {result.message}
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE}`)}
-              style={[styles.supportRow, { flexDirection }]}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
+              onPress={handleActivate}
+              disabled={activating || !code.trim()}
+              style={[
+                styles.activateButton,
+                {
+                  backgroundColor: !code.trim() || activating
+                    ? (isDark ? '#334155' : '#E2E8F0')
+                    : '#D4AF37',
+                },
+              ]}
             >
-              <Ionicons name="call" size={16} color={colors.primary} />
-              <LTRNumber style={[styles.supportPhone, { color: colors.primary }]}>
-                {SUPPORT_PHONE}
-              </LTRNumber>
+              {activating ? (
+                <ActivityIndicator size="small" color="#0F172A" />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="checkmark-done" size={18} color="#0F172A" />
+                  <Text style={styles.activateButtonText}>
+                    {isKu ? 'کاراکردنی پلان' : 'Activate Plan'}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
+          {/* iOS In-App Purchase Options (Toggleable button) */}
+          {Platform.OS === 'ios' && (
+            <View style={styles.appleSectionWrap}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowAppleIAP((prev) => !prev)}
+                style={[
+                  styles.appleToggleBtn,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                  <Ionicons name="logo-apple" size={18} color={isDark ? '#FFFFFF' : '#0F172A'} />
+                  <Text style={[styles.appleToggleText, { color: isDark ? '#FFFFFF' : '#0F172A', marginHorizontal: 8 }]}>
+                    {isKu ? 'نوێکردنەوە لە ڕێگەی Apple In-App Purchase' : 'Apple In-App Purchase Options'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showAppleIAP ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.gray400}
+                />
+              </TouchableOpacity>
+
+              {showAppleIAP && (
+                <View style={styles.applePaywallContainer}>
+                  <AppleSubscriptionPaywall group="pro" />
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={{ height: 40 }} />
         </ScrollView>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  body:      { padding: 16, paddingTop: 12 },
-
-  heroCard: {
-    borderRadius: 18,
-    padding: 24,
-    marginBottom: 16,
-    alignItems: 'center',
-    gap: 6,
-    overflow: 'hidden',
+  container: {
+    flex: 1,
   },
-  heroCardGlass: {
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  mainCard: {
     borderRadius: 20,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255,255,255,0.40)',
+    borderWidth: 1.5,
+    padding: 18,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  heroPlan: {
-    fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.8)',
-    textTransform: 'uppercase', letterSpacing: 0.8,
+  cardHeader: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  heroLimit: { fontSize: 30, fontWeight: '800', color: '#fff', marginTop: 2 },
-  progressTrack: {
-    width: '100%', height: 8, borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 10,
+  planTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#fff' },
-  heroUsed: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  heroExpiry: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
-
-  expiredBox: {
-    alignItems: 'center', gap: 8,
-    borderWidth: 1, borderRadius: 12,
-    paddingVertical: 10, paddingHorizontal: 12,
+  sparkleWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  planTitleText: {
+    fontSize: 18,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  planSubText: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+    marginTop: 2,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 6,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  timeRemainingBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+  },
+  timeRow: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+  },
+  timeValueText: {
+    fontSize: 20,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    marginTop: 2,
+  },
+  expiryMetaRow: {
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingTop: 8,
+    marginTop: 4,
+  },
+  expiryMetaText: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 15,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  limitsGrid: {
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 20,
+  },
+  limitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  limitIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  limitName: {
+    fontSize: 14,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  limitSub: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+    marginTop: 2,
+  },
+  limitValueBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.25)',
+  },
+  limitValueText: {
+    fontSize: 13,
+    color: '#D4AF37',
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 4,
+  },
+  activationCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 20,
+  },
+  activationHeader: {
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  activationTitle: {
+    fontSize: 15,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  activationDesc: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  inputRow: {
     marginBottom: 12,
   },
-  expiredText: { flex: 1, fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
-
-  card:      { marginBottom: 12 },
-  cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
-  cardSub:   { fontSize: 12, lineHeight: 17, marginBottom: 14 },
-
-  deviceIdText: {
-    fontSize: 15, fontWeight: '700', letterSpacing: 0.5,
-    borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14,
+  inputField: {
+    fontSize: 14,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+    borderRadius: 12,
   },
-
-  codeInput: { minHeight: 76, paddingTop: 12, textAlignVertical: 'top' },
-
+  activateButton: {
+    height: 46,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activateButtonText: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+    marginStart: 6,
+  },
   resultBox: {
-    alignItems: 'center', gap: 8,
-    borderWidth: 1, borderRadius: 12,
-    paddingVertical: 10, paddingHorizontal: 12,
-    marginTop: -2, marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
   },
-  resultText: { flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
-
-  activateBtnWrap: { marginTop: 14 },
-
-  infoBox: {
-    borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 4, gap: 10,
+  resultText: {
+    fontSize: 12.5,
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+    marginStart: 8,
+    flex: 1,
   },
-  infoText: { fontSize: 12.5, lineHeight: 18 },
-  supportRow: { alignItems: 'center', gap: 8 },
-  supportPhone: { fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
+  appleSectionWrap: {
+    marginTop: 10,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  appleToggleBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+  },
+  appleToggleText: {
+    fontSize: 13.5,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  applePaywallContainer: {
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
 });

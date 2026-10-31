@@ -32,6 +32,7 @@ import { Colors } from '@/constants/colors';
 import { useRTL } from '@/lib/rtl';
 import { AdminNotificationBanner } from '@/components/admin/AdminNotificationBanner';
 import { UsageLimitModal } from '@/components/ui/UsageLimitModal';
+import { AccountUpgradeReceiptModal } from '@/components/ui/AccountUpgradeReceiptModal';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -191,6 +192,7 @@ export default function RootLayout() {
           <AppStack />
           <AdminNotificationBanner />
           <UsageLimitModal />
+          <AccountUpgradeReceiptModal />
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

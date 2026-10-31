@@ -607,6 +607,7 @@ export function subscribeToAccountLimitsLive(
 
       const status = empData?.status || subData?.status || 'active';
       const expiresAt = empData?.expiresAt ?? subData?.expiresAt;
+      const upgradeReceipt = empData?.upgradeReceipt || subData?.upgradeReceipt;
 
       const merged: EmployeeAccount = {
         id: empData?.id || cleanId,
@@ -619,8 +620,9 @@ export function subscribeToAccountLimitsLive(
         onlineStore: empData?.onlineStore || subData?.onlineStore,
         permissions: empData?.permissions || ALL_ACTIVE_PERMISSIONS,
         createdAt: empData?.createdAt || subData?.startDate || new Date().toISOString(),
-        role: empData?.role || 'manager',
+        role: empData?.accountType === 'registered' || subData ? 'user' : (empData?.role || 'user'),
         accountType: empData?.accountType || 'registered',
+        upgradeReceipt,
       };
 
       onUpdate(merged);

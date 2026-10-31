@@ -110,6 +110,19 @@ export interface EmployeePermissions {
   settingsDeleteAccount: PermissionState;
 }
 
+export interface UpgradeReceipt {
+  receiptId: string;
+  upgradedAt: string;
+  customerName: string;
+  email: string;
+  planDuration: string;
+  startDate: string;
+  expiresAt?: string | null;
+  priceAmount?: string | null;
+  limits?: EmployeeUsageLimits;
+  storeEnabled?: boolean;
+}
+
 export interface EmployeeAccount {
   id: string;
   email: string;
@@ -135,6 +148,7 @@ export interface EmployeeAccount {
   accountType?: 'registered' | 'custom';
   role?: 'manager' | 'employee' | 'user';
   provider?: string;
+  upgradeReceipt?: UpgradeReceipt;
 }
 
 export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {
@@ -1334,7 +1348,27 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         ? new Date(Date.now() + formDuration * 24 * 60 * 60 * 1000).toISOString()
         : undefined;
 
-      const mgrEmail = formManagerEmail.trim().toLowerCase() || cleanEmail;
+      const mgrEmail = addModalMode === 'upgrade_registered' ? cleanEmail : (formManagerEmail.trim().toLowerCase() || cleanEmail);
+
+      const receiptId = `REC-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const planDurationLabel = formDuration === 'unlimited' || !expDate
+        ? (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited (Lifetime)')
+        : typeof formDuration === 'number'
+        ? (isKu ? `${formDuration} ڕۆژ` : `${formDuration} Days`)
+        : (isKu ? 'دیاریکراو' : 'Custom');
+
+      const upgradeReceiptData = {
+        receiptId,
+        upgradedAt: new Date().toISOString(),
+        customerName: formName.trim() || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        planDuration: planDurationLabel,
+        startDate: startDate,
+        expiresAt: expDate || null,
+        priceAmount: formPrice.trim() || null,
+        limits: updatedLimits,
+        storeEnabled: !!storeEnabled,
+      };
 
       // 1. Write to employee_accounts
       const newAccount: EmployeeAccount = {
@@ -1355,6 +1389,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
         role: 'user',
+        upgradeReceipt: upgradeReceiptData,
       };
 
       const docRef = doc(db, 'employee_accounts', docId);
@@ -1380,6 +1415,8 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             onlineStore: updatedStore || null,
             priceAmount: formPrice.trim() || null,
             limits: updatedLimits,
+            upgradeReceipt: upgradeReceiptData,
+            upgradedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },
           { merge: true }
@@ -2450,27 +2487,14 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                       />
                     </div>
 
-                    {/* Manager Email (Pre-filled with own email for Google Drive Sync) */}
-                    <div className="md:col-span-2">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                          {isKu ? 'ئیمەیڵی سەرپەرشتیار (بۆ بەستنەوەی گووگڵ درایڤ و کۆنترۆڵ)' : 'Supervising Manager Email (Drive Sync)'}
-                        </label>
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                          {isKu ? 'خۆکارانە ئیمەیڵی خۆیەتی بۆ درایڤی سەربەخۆ' : 'Defaults to own email for independent Drive'}
-                        </span>
-                      </div>
-                      <input
-                        type="email"
-                        placeholder="manager@gmail.com"
-                        value={formManagerEmail || formEmail}
-                        onChange={(e) => setFormManagerEmail(e.target.value)}
-                        className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition font-mono ${
-                          isDarkMode
-                            ? 'bg-[#0E1524] border-slate-700 text-slate-100 placeholder-slate-500 focus:border-amber-500'
-                            : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-100 shadow-2xs'
-                        }`}
-                      />
+                    {/* Individual Account Status Notice (No Manager/Employee Hierarchy) */}
+                    <div className="md:col-span-2 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span>
+                        {isKu
+                          ? 'ئەم بەرزکردنەوەیە بۆ ئەکاونتی تاکەکەسییە (خاوەن مارکێت)؛ نابێتە کارمەند و سەربەخۆیانە هەموو بەش و دەسەڵاتەکانی پێدەدرێت.'
+                          : 'This is an individual store owner upgrade; no staff/manager hierarchy is assigned and full access is granted independently.'}
+                      </span>
                     </div>
                   </div>
                 </div>
