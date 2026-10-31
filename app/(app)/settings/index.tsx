@@ -324,17 +324,6 @@ export default function SettingsScreen() {
               />
             </SettingSection>
 
-            {/* Plan & Limits */}
-            <SettingSection title={language === 'ku' ? 'پلانی بەشداریکردن' : 'Subscription Plan'}>
-              <SettingRow
-                icon="ribbon"
-                color="#D4AF37"
-                label={language === 'ku' ? 'پلانی بەشداریکردن و سنوورەکان' : 'Plan & Usage Limits'}
-                sub={language === 'ku' ? 'ماوەی بەشداریکردن و ڕادەی بەکارهێنان' : 'Subscription duration & usage limits'}
-                onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-              />
-            </SettingSection>
-
             {/* Data */}
             {!permBackup.isHidden && (
               <SettingSection title={t('settings.data')}>

@@ -428,13 +428,6 @@ export function SettingsGrid({
           sub={isKu ? 'هەڵگرتن و گەڕاندنەوەی داتا' : 'Backup & Restore Data'}
           onPress={() => router.push('/(app)/settings/data' as never)}
         />
-        <SettingsGridTile
-          icon="ribbon"
-          color="#D4AF37"
-          title={isKu ? 'پلانی بەشداریکردن' : 'Plan & Limits'}
-          sub={isKu ? 'ماوە و سنوورەکان' : 'Duration & Limits'}
-          onPress={() => router.push('/(app)/settings/plan-limits' as never)}
-        />
       </View>
     </View>
   );

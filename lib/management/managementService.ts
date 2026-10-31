@@ -607,13 +607,21 @@ export function subscribeToAccountLimitsLive(
 
       const status = empData?.status || subData?.status || 'active';
       const expiresAt = empData?.expiresAt ?? subData?.expiresAt;
-      const upgradeReceipt = empData?.upgradeReceipt || subData?.upgradeReceipt;
+      let upgradeReceipt = empData?.upgradeReceipt || subData?.upgradeReceipt;
+      if (upgradeReceipt && !upgradeReceipt.priceAmount) {
+        upgradeReceipt = {
+          ...upgradeReceipt,
+          priceAmount: empData?.priceAmount || subData?.priceAmount || null,
+        };
+      }
 
       const merged: EmployeeAccount = {
         id: empData?.id || cleanId,
         email: email.trim().toLowerCase(),
         displayName: empData?.displayName || subData?.customerName || email.split('@')[0],
         managerEmail: empData?.managerEmail || email.trim().toLowerCase(),
+        priceAmount: empData?.priceAmount || subData?.priceAmount || upgradeReceipt?.priceAmount,
+        startedAt: empData?.startedAt || subData?.startDate || upgradeReceipt?.startDate,
         status,
         expiresAt,
         limits,

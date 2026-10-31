@@ -79,17 +79,17 @@ export function AccountUpgradeReceiptModal() {
 
   if (!visible || !receipt) return null;
 
-  // Format date and time
-  const upgradedDateObj = receipt.upgradedAt ? new Date(receipt.upgradedAt) : new Date();
-  const formattedDate = upgradedDateObj.toLocaleDateString('en-GB', {
+  // Format Dates
+  const startDateObj = receipt.startDate
+    ? new Date(receipt.startDate)
+    : receipt.upgradedAt
+    ? new Date(receipt.upgradedAt)
+    : new Date();
+
+  const formattedStartDate = startDateObj.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-  const formattedTime = upgradedDateObj.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
   });
 
   const expiresDateStr = receipt.expiresAt
@@ -100,10 +100,20 @@ export function AccountUpgradeReceiptModal() {
       })
     : isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited (Lifetime)';
 
-  const formatLimitVal = (val: any) => {
-    if (!val || val === 'unlimited') return isKu ? 'بێ سنوور' : 'Unlimited';
-    return String(val);
-  };
+  const customerName =
+    receipt.customerName ||
+    currentUserAccount?.displayName ||
+    receipt.email?.split('@')[0] ||
+    '—';
+
+  const priceAmount =
+    receipt.priceAmount ||
+    currentUserAccount?.priceAmount ||
+    (isKu ? 'دیارینەکراو' : 'Custom');
+
+  const planDuration =
+    receipt.planDuration ||
+    (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited (Lifetime)');
 
   return (
     <Modal
@@ -111,7 +121,7 @@ export function AccountUpgradeReceiptModal() {
       visible={visible}
       animationType="fade"
       onRequestClose={() => {
-        // Non-dismissible by user — strict requirement!
+        // Non-dismissible by user during the 25 seconds as strictly required!
       }}
       statusBarTranslucent
       supportedOrientations={MODAL_SUPPORTED_ORIENTATIONS}
@@ -151,97 +161,100 @@ export function AccountUpgradeReceiptModal() {
               </View>
               <View style={{ alignItems: 'center', marginTop: 8 }}>
                 <Text style={styles.receiptTitle}>
-                  {isKu ? 'وەسڵی فەرمی بەرزکردنەوەی ئەکاونت' : 'Official Account Upgrade Receipt'}
+                  {isKu ? 'وەسڵی بەشداریکردن' : 'Subscription Receipt'}
                 </Text>
                 <Text style={styles.receiptSubtitle}>
                   {isKu
-                    ? 'پیرۆزە! ئەکاونتەکەت بە سەرکەوتوویی بەرزکرایەوە'
-                    : 'Congratulations! Your account plan is successfully upgraded'}
+                    ? 'پیرۆزە! پاکێجەکەت بە سەرکەوتوویی کارا کرا'
+                    : 'Congratulations! Your package is successfully activated'}
                 </Text>
+                <View style={styles.receiptIdBadge}>
+                  <Text style={styles.receiptIdText}>#{receipt.receiptId}</Text>
+                </View>
               </View>
             </View>
 
-            {/* Receipt Number & Date */}
-            <View style={styles.metaRow}>
-              <View style={styles.metaCol}>
-                <Text style={styles.metaLabel}>{isKu ? 'ژمارەی وەسڵ:' : 'Receipt No:'}</Text>
-                <Text style={styles.metaValue}>{receipt.receiptId}</Text>
+            {/* Simple Table (تەبلێ زۆر زۆر سادە و ڕێک) */}
+            <View style={styles.tableCard}>
+              {/* Row 1: Customer Name */}
+              <View style={styles.tableRow}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'ناوی کڕیار / مارکێت:' : 'Customer Name:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <Text style={styles.valStrong} numberOfLines={1}>{customerName}</Text>
+                </View>
               </View>
-              <View style={styles.metaDivider} />
-              <View style={styles.metaCol}>
-                <Text style={styles.metaLabel}>{isKu ? 'کات و ساتی بەرزکردنەوە:' : 'Date & Time:'}</Text>
-                <Text style={styles.metaValue}>{formattedDate} • {formattedTime}</Text>
+
+              <View style={styles.tableDivider} />
+
+              {/* Row 2: Account Email */}
+              <View style={[styles.tableRow, styles.tableRowAlt]}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'ئیمەیڵی فەرمی:' : 'Account Email:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <Text style={[styles.valText, { fontSize: 12.5 }]} numberOfLines={1}>{receipt.email}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tableDivider} />
+
+              {/* Row 3: Package Price (بڕی پارەی پاکێج) */}
+              <View style={styles.tableRow}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'بڕی پارەی پاکێج:' : 'Package Price:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <View style={styles.priceHighlightBadge}>
+                    <Text style={styles.priceHighlightText}>{priceAmount}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.tableDivider} />
+
+              {/* Row 4: Package Duration (ماوەی پاکێج) */}
+              <View style={[styles.tableRow, styles.tableRowAlt]}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'ماوەی پاکێج:' : 'Plan Duration:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <Text style={styles.valText}>{planDuration}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tableDivider} />
+
+              {/* Row 5: Start Date (کاتی بەشداریکردن) */}
+              <View style={styles.tableRow}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'کاتی بەشداریکردن:' : 'Start Date:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <Text style={styles.valText}>{formattedStartDate}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tableDivider} />
+
+              {/* Row 6: Expiry Date (کاتی کۆتاییهاتن) */}
+              <View style={[styles.tableRow, styles.tableRowAlt]}>
+                <View style={styles.colLabel}>
+                  <Text style={styles.labelTitle}>{isKu ? 'کاتی کۆتاییهاتن:' : 'Expiration Date:'}</Text>
+                </View>
+                <View style={styles.colValue}>
+                  <Text style={[styles.valStrong, { color: '#34D399' }]}>{expiresDateStr}</Text>
+                </View>
               </View>
             </View>
 
-            {/* User & Store Details */}
-            <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{isKu ? 'ناوی کڕیار / مارکێت:' : 'Client / Store:'}</Text>
-                <Text style={styles.infoValue} numberOfLines={1}>{receipt.customerName || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{isKu ? 'ئیمەیڵی فەرمی:' : 'Account Email:'}</Text>
-                <Text style={[styles.infoValue, { fontSize: 12.5 }]} numberOfLines={1}>{receipt.email}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{isKu ? 'ماوەی بەشداریکردن:' : 'Plan Duration:'}</Text>
-                <View style={styles.planBadge}>
-                  <Text style={styles.planBadgeText}>{receipt.planDuration || (isKu ? 'بێ سنوور' : 'Unlimited')}</Text>
-                </View>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{isKu ? 'کاتی بەسەرچوون:' : 'Expires At:'}</Text>
-                <Text style={[styles.infoValue, { color: '#34D399' }]}>{expiresDateStr}</Text>
-              </View>
-            </View>
-
-            {/* Usage Limits Section */}
-            {receipt.limits && (
-              <View style={styles.limitsCard}>
-                <View style={styles.limitsHeaderRow}>
-                  <Ionicons name="options-outline" size={16} color="#38BDF8" />
-                  <Text style={styles.limitsHeaderTitle}>
-                    {isKu ? 'سنوورەکانی بەکارهێنان (Usage Limits):' : 'Plan Usage Limits:'}
-                  </Text>
-                </View>
-                <View style={styles.limitsGrid}>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'کاڵا (ئایتم)' : 'Items'}</Text>
-                    <Text style={styles.limitTileValue}>{formatLimitVal(receipt.limits.maxItems)}</Text>
-                  </View>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'زۆرترین بڕ' : 'Max Qty'}</Text>
-                    <Text style={styles.limitTileValue}>{formatLimitVal(receipt.limits.maxQuantity)}</Text>
-                  </View>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'فرۆشتن' : 'Sales'}</Text>
-                    <Text style={styles.limitTileValue}>{formatLimitVal(receipt.limits.maxSales)}</Text>
-                  </View>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'وەسڵی چاپ' : 'Invoices'}</Text>
-                    <Text style={styles.limitTileValue}>{formatLimitVal(receipt.limits.maxInvoices)}</Text>
-                  </View>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'عەرز و ئۆفەر' : 'Quotations'}</Text>
-                    <Text style={styles.limitTileValue}>{formatLimitVal(receipt.limits.maxQuotations)}</Text>
-                  </View>
-                  <View style={styles.limitTile}>
-                    <Text style={styles.limitTileLabel}>{isKu ? 'ستۆری ئۆنلاین' : 'Online Store'}</Text>
-                    <Text style={[styles.limitTileValue, { color: '#34D399' }]}>
-                      {receipt.storeEnabled ? (isKu ? 'چالاککراوە' : 'Active') : (isKu ? 'سەرەکی' : 'Base')}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Verification Seal Footer */}
-            <View style={styles.footerNote}>
-              <Ionicons name="checkmark-done-circle" size={18} color="#D4AF37" />
-              <Text style={styles.footerNoteText}>
+            {/* Official Verification Footer Seal */}
+            <View style={styles.footerSeal}>
+              <Ionicons name="checkmark-done-circle" size={17} color="#D4AF37" />
+              <Text style={styles.footerSealText}>
                 {isKu
-                  ? 'سیستەمی فەرمی فرۆشیار (Froshiar) • بەستراوە بە سێرڤەری هەور'
+                  ? 'سیستەمی فەرمی فرۆشیار (Froshiar) • مۆڵەتی پشتڕاستکراوە'
                   : 'Froshiar POS Official License • Cloud Verified'}
               </Text>
             </View>
@@ -255,237 +268,187 @@ export function AccountUpgradeReceiptModal() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    backgroundColor: 'rgba(5, 10, 20, 0.88)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   containerCard: {
-    width: '100%',
-    maxWidth: Math.min(SCREEN_WIDTH - 28, 480),
+    width: Math.min(SCREEN_WIDTH - 24, 430),
     maxHeight: '90%',
     backgroundColor: '#0F172A',
-    borderColor: '#D4AF37',
+    borderRadius: 24,
     borderWidth: 1.5,
-    borderRadius: 22,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
     shadowRadius: 18,
-    elevation: 20,
+    elevation: 10,
   },
   screenshotBanner: {
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    backgroundColor: 'rgba(212, 175, 55, 0.16)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.3)',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   cameraIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.25)',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   screenshotBannerText: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    color: '#FBBF24',
+    color: '#FDE047',
+    fontSize: 13.5,
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-    textAlign: 'right',
   },
   screenshotBannerSub: {
+    color: '#CBD5E1',
     fontSize: 11,
-    color: '#E2E8F0',
     fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
-    textAlign: 'right',
     marginTop: 2,
   },
   timerStrip: {
-    backgroundColor: '#1E293B',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    backgroundColor: '#1E293B',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   timerPulseDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#34D399',
+    marginRight: 8,
   },
   timerText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
+    color: '#34D399',
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
   },
   scrollBody: {
     padding: 16,
     paddingBottom: 22,
-    gap: 14,
   },
   headerRow: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
+    marginBottom: 16,
   },
   logoBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    borderColor: '#D4AF37',
-    borderWidth: 1.5,
-    alignItems: 'center',
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(212, 175, 55, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   receiptTitle: {
     fontSize: 17,
-    fontWeight: '900',
     color: '#FFFFFF',
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-    textAlign: 'center',
   },
   receiptSubtitle: {
     fontSize: 12,
     color: '#94A3B8',
     fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
-    textAlign: 'center',
     marginTop: 3,
   },
-  metaRow: {
-    backgroundColor: '#131D31',
-    borderColor: '#203152',
+  receiptIdBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 8,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  receiptIdText: {
+    fontSize: 11,
+    color: '#D4AF37',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: '700',
+  },
+  tableCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  metaCol: {
-    alignItems: 'center',
-  },
-  metaDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#203152',
-  },
-  metaLabel: {
-    fontSize: 10.5,
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  metaValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#F1F5F9',
-  },
-  infoCard: {
-    backgroundColor: '#131D31',
-    borderColor: '#203152',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    gap: 10,
-  },
-  infoRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  infoLabel: {
+  tableRowAlt: {
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
+  tableDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  colLabel: {
+    flex: 1,
+  },
+  colValue: {
+    flex: 1.2,
+    alignItems: 'flex-end',
+  },
+  labelTitle: {
     fontSize: 12.5,
     color: '#94A3B8',
     fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
   },
-  infoValue: {
+  valText: {
     fontSize: 13,
-    fontWeight: '700',
+    color: '#F1F5F9',
+    fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+  },
+  valStrong: {
+    fontSize: 13.5,
     color: '#FFFFFF',
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
   },
-  planBadge: {
-    backgroundColor: 'rgba(212, 175, 55, 0.2)',
-    borderColor: '#D4AF37',
-    borderWidth: 1,
+  priceHighlightBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.16)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
   },
-  planBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#FBBF24',
+  priceHighlightText: {
+    fontSize: 13.5,
+    color: '#D4AF37',
     fontFamily: SETTINGS_KURDISH_FONT_BOLD,
   },
-  limitsCard: {
-    backgroundColor: '#131D31',
-    borderColor: '#203152',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    gap: 10,
-  },
-  limitsHeaderRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  limitsHeaderTitle: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#38BDF8',
-    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
-  },
-  limitsGrid: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  limitTile: {
-    flexBasis: '30%',
-    flexGrow: 1,
-    backgroundColor: '#172338',
-    borderColor: '#203152',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 8,
-    alignItems: 'center',
-  },
-  limitTileLabel: {
-    fontSize: 10.5,
-    color: '#94A3B8',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  limitTileValue: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  footerNote: {
-    flexDirection: 'row-reverse',
+  footerSeal: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 6,
     gap: 6,
-    paddingTop: 4,
   },
-  footerNoteText: {
+  footerSealText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#64748B',
     fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
   },
 });
