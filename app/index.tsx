@@ -65,17 +65,12 @@ export default function Index() {
       if (!isSetupComplete && isReconciling) return;
 
       if (!isSetupComplete) {
-        const defaultName =
-          user.displayName?.trim() ||
-          (user.email ? user.email.split('@')[0] : '') ||
-          'فرۆشیار';
-        useBusinessStore.getState().setBusiness({
-          name: defaultName,
-          type: 'General',
-          phone: '',
-          address: '',
-          logoUri: null,
-        });
+        const { useManagementStore } = require('@/store/managementStore');
+        const isEmployee = useManagementStore.getState().isEmployee;
+        if (!isEmployee) {
+          router.replace('/(onboarding)/setup' as never);
+          return;
+        }
       }
 
       router.replace('/(app)/dashboard');

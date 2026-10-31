@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
@@ -11,9 +11,11 @@ import { AuthInputContext, setAuthScreenActive } from '@/lib/autoEnglishDigits';
 
 export default function OnboardingLayout() {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
   const isSetupComplete = useBusinessStore((s) => s.isSetupComplete);
+  const isReconciling = useBusinessStore((s) => s.isReconciling);
   const pendingCloudConflict = useBusinessStore((s) => s.pendingCloudConflict);
   const authHydrated = useHasHydrated(useAuthStore);
   const onboardingHydrated = useHasHydrated(useOnboardingStore);
@@ -38,22 +40,22 @@ export default function OnboardingLayout() {
       if (!hasCompletedOnboarding) {
         useOnboardingStore.getState().completeOnboarding();
       }
-      if (!isSetupComplete) {
-        const defaultName =
-          user.displayName?.trim() ||
-          (user.email ? user.email.split('@')[0] : '') ||
-          'فرۆشیار';
-        useBusinessStore.getState().setBusiness({
-          name: defaultName,
-          type: 'General',
-          phone: '',
-          address: '',
-          logoUri: null,
-        });
+
+      if (!isSetupComplete && isReconciling) return;
+
+      const { useManagementStore } = require('@/store/managementStore');
+      const isEmployee = useManagementStore.getState().isEmployee;
+
+      if (!isSetupComplete && !isEmployee) {
+        if (pathname !== '/setup' && pathname !== '/(onboarding)/setup') {
+          router.replace('/(onboarding)/setup' as never);
+        }
+        return;
       }
+
       router.replace('/(app)/dashboard');
     }
-  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, pendingCloudConflict]);
+  }, [authHydrated, onboardingHydrated, businessHydrated, hasCompletedOnboarding, user, isSetupComplete, isReconciling, pendingCloudConflict, pathname]);
 
   return (
     <AuthInputContext.Provider value={true}>

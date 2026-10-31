@@ -25,6 +25,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useBusinessStore } from '@/store/businessStore';
 import { SIGNUP_AMICO_SVG } from '@/constants/onboardingIllustrations';
 import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch';
@@ -175,7 +176,12 @@ export default function SignUpScreen() {
       setAuthError(error);
     } else {
       useOnboardingStore.getState().completeOnboarding();
-      router.replace('/(app)/dashboard');
+      const isComplete = useBusinessStore.getState().isSetupComplete;
+      if (!isComplete) {
+        router.replace('/(onboarding)/setup' as never);
+      } else {
+        router.replace('/(app)/dashboard');
+      }
     }
   };
 
@@ -186,7 +192,12 @@ export default function SignUpScreen() {
       setAuthError(error);
     } else {
       useOnboardingStore.getState().completeOnboarding();
-      router.replace('/(app)/dashboard');
+      const isComplete = useBusinessStore.getState().isSetupComplete;
+      if (!isComplete) {
+        router.replace('/(onboarding)/setup' as never);
+      } else {
+        router.replace('/(app)/dashboard');
+      }
     }
   };
 

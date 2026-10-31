@@ -413,29 +413,16 @@ async function adoptSignedInUserInner(
         address: existingBiz.address || '',
         logoUri: existingBiz.logoPath || null,
       });
-    } else if (!currentBiz.isSetupComplete || !currentBiz.name) {
-      const derivedName =
-        user.displayName?.trim() ||
-        (user.email ? user.email.split('@')[0] : '') ||
-        'فرۆشیار';
-      const derivedPhone = user.phoneNumber || '';
-      const defaultBiz = {
-        name: derivedName,
-        type: 'General',
-        phone: derivedPhone,
-        address: '',
-        logoUri: null,
-      };
+    } else if (currentBiz.isSetupComplete && currentBiz.name) {
       await saveBusiness({
-        name: defaultBiz.name,
-        type: defaultBiz.type,
-        phone: defaultBiz.phone,
-        address: defaultBiz.address,
+        name: currentBiz.name,
+        type: currentBiz.type || 'General',
+        phone: currentBiz.phone || user.phoneNumber || '',
+        address: currentBiz.address || '',
       });
-      useBusinessStore.getState().setBusiness(defaultBiz);
     }
   } catch (err) {
-    console.warn('[Froshiar] Auto-populate business failed:', err);
+    console.warn('[Froshiar] Business profile check failed:', err);
   }
 
   // Let navigation proceed immediately — the (app)/index.tsx and (app)/_layout.tsx
@@ -520,7 +507,7 @@ async function adoptSignedInUserInner(
   // genuinely fresh device) is NOT a mismatch — that ambiguous case still falls
   // through to the local/cloud-data-exists decision tree and conflict screen below.
   if (business.ownerUserId && business.ownerUserId !== user.uid) {
-    const { wipeAllBusinessData, saveBusiness } = await import('@/lib/sqlite');
+    const { wipeAllBusinessData } = await import('@/lib/sqlite');
     await wipeAllBusinessData();
     business.clearBusiness();
     try {
@@ -528,25 +515,6 @@ async function adoptSignedInUserInner(
       await clearStoreApiKey();
     } catch {}
     if (!isCurrentAuthUser(user.uid)) return;
-
-    const derivedName =
-      user.displayName?.trim() ||
-      (user.email ? user.email.split('@')[0] : '') ||
-      'فرۆشیار';
-    const defaultBiz = {
-      name: derivedName,
-      type: 'General',
-      phone: user.phoneNumber || '',
-      address: '',
-      logoUri: null,
-    };
-    await saveBusiness({
-      name: defaultBiz.name,
-      type: defaultBiz.type,
-      phone: defaultBiz.phone,
-      address: defaultBiz.address,
-    });
-    useBusinessStore.getState().setBusiness(defaultBiz);
   }
 
   if (!isFirebaseAvailable) {

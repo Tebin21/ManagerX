@@ -111,7 +111,13 @@ export default function VerifyEmailScreen() {
     } else if (verified) {
       const { useOnboardingStore } = await import('@/store/onboardingStore');
       useOnboardingStore.getState().completeOnboarding();
-      router.replace('/(app)/dashboard');
+      const { useBusinessStore } = await import('@/store/businessStore');
+      const isComplete = useBusinessStore.getState().isSetupComplete;
+      if (!isComplete) {
+        router.replace('/(onboarding)/setup' as never);
+      } else {
+        router.replace('/(app)/dashboard');
+      }
     } else {
       setVerifyError(t('verifyEmail.errorInvalidCode'));
     }

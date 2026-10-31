@@ -19,6 +19,8 @@ export default function AppLayout() {
   const isDeletingAccount = useAuthStore((s) => s.isDeletingAccount);
   const authHydrated = useHasHydrated(useAuthStore);
   const pendingCloudConflict = useBusinessStore((s) => s.pendingCloudConflict);
+  const isSetupComplete = useBusinessStore((s) => s.isSetupComplete);
+  const isReconciling = useBusinessStore((s) => s.isReconciling);
 
   // Guards every screen under (app) — dashboard, inventory, sales, purchases,
   // reports, settings, and all other business modules. If the Google session
@@ -36,8 +38,13 @@ export default function AppLayout() {
       router.replace('/(onboarding)/login');
     } else if (pendingCloudConflict) {
       router.replace('/(onboarding)/cloud-data-conflict' as never);
+    } else if (!isSetupComplete && !isReconciling) {
+      const isEmployee = useManagementStore.getState().isEmployee;
+      if (!isEmployee) {
+        router.replace('/(onboarding)/setup' as never);
+      }
     }
-  }, [authHydrated, user, isDeletingAccount, pendingCloudConflict]);
+  }, [authHydrated, user, isDeletingAccount, pendingCloudConflict, isSetupComplete, isReconciling]);
 
   // Online Store auto-sync — starts the NetInfo/AppState listeners once and loads
   // the current store status so the dashboard card has data immediately.
