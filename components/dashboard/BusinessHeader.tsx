@@ -31,6 +31,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useRTL } from '@/lib/rtl';
 import { useLanguageStore } from '@/store/languageStore';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
+import * as FileSystem from 'expo-file-system/legacy';
 import { copyToPermanentStorage, resolveImageUri } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
@@ -81,7 +82,72 @@ function resolveType(type: string, isKurdish = false, isArabic = false): { emoji
  * - Self-heals with listeners on playToEnd, statusChange, playingChange, AppState, and heartbeat
  * - Auto-resumes via useFocusEffect when navigating back to the screen
  */
-function HeaderVideoInternal({ uri }: { uri: string }) {
+function useResolvedVideoUri(rawUri: string | null | undefined): string | null {
+  const [resolvedUri, setResolvedUri] = useState<string | null>(() => {
+    if (!rawUri || rawUri.startsWith('data:')) return null;
+    return rawUri;
+  });
+
+  useEffect(() => {
+    if (!rawUri?.trim()) {
+      setResolvedUri(null);
+      return;
+    }
+
+    if (!rawUri.startsWith('data:')) {
+      setResolvedUri(rawUri);
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function cacheVideoData() {
+      try {
+        const commaIdx = rawUri!.indexOf(',');
+        if (commaIdx === -1) return;
+        const meta = rawUri!.slice(0, commaIdx);
+        const base64Data = rawUri!.slice(commaIdx + 1);
+        const isWebm = meta.includes('webm');
+        const ext = isWebm ? 'webm' : 'mp4';
+
+        let hash = 0;
+        const sample = base64Data.slice(0, 120) + base64Data.length;
+        for (let i = 0; i < sample.length; i++) {
+          hash = (hash << 5) - hash + sample.charCodeAt(i);
+          hash |= 0;
+        }
+        const safeHash = Math.abs(hash).toString(36);
+        const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+        if (!dir) return;
+
+        const filePath = `${dir}banner_video_${safeHash}.${ext}`;
+        const info = await FileSystem.getInfoAsync(filePath);
+        if (!info.exists) {
+          await FileSystem.writeAsStringAsync(filePath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+
+        if (!isCancelled) {
+          setResolvedUri(filePath);
+        }
+      } catch (err) {
+        console.warn('Failed to cache video data URI:', err);
+      }
+    }
+
+    cacheVideoData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [rawUri]);
+
+  return resolvedUri;
+}
+
+function HeaderVideoInternal({ uri, onError }: { uri: string; onError?: () => void }) {
+  const [hasError, setHasError] = useState(false);
   const player = ExpoVideo!.useVideoPlayer(uri, (p: any) => {
     try {
       p.loop = true;
@@ -92,12 +158,14 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
         p.staysActiveInBackground = true;
       }
       p.play();
-    } catch {}
+    } catch {
+      onError?.();
+    }
   });
 
   // Continuous loop & auto-recovery engine
   useEffect(() => {
-    if (!player) return;
+    if (!player || hasError) return;
 
     const playSafe = () => {
       try {
@@ -133,9 +201,12 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
     });
 
     // Auto-play when ready
-    const subStatus = player.addListener?.('statusChange', ({ status }: any) => {
+    const subStatus = player.addListener?.('statusChange', ({ status, error }: any) => {
       if (status === 'readyToPlay') {
         playSafe();
+      } else if (status === 'error' || error) {
+        setHasError(true);
+        onError?.();
       }
     });
 
@@ -157,7 +228,7 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
     // Self-healing heartbeat: ensures continuous loop if paused or stalled
     const heartbeat = setInterval(() => {
       try {
-        if (player && !player.playing) {
+        if (player && !player.playing && !hasError) {
           playSafe();
         }
       } catch {}
@@ -171,12 +242,12 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
       appStateSub?.remove?.();
       clearInterval(heartbeat);
     };
-  }, [player]);
+  }, [player, hasError, onError]);
 
   // Resume playback whenever user navigates back to this screen from other screens
   useFocusEffect(
     useCallback(() => {
-      if (player) {
+      if (player && !hasError) {
         try {
           player.loop = true;
           player.muted = true;
@@ -184,8 +255,10 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
           player.play();
         } catch {}
       }
-    }, [player])
+    }, [player, hasError])
   );
+
+  if (hasError) return null;
 
   const VideoComponent = ExpoVideo!.VideoView;
 
@@ -200,11 +273,12 @@ function HeaderVideoInternal({ uri }: { uri: string }) {
   );
 }
 
-function HeaderVideo({ uri, previewKey }: { uri: string; previewKey?: string }) {
-  if (!uri?.trim() || !ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
+function HeaderVideo({ uri, previewKey, onError }: { uri: string; previewKey?: string; onError?: () => void }) {
+  const resolvedUri = useResolvedVideoUri(uri);
+  if (!resolvedUri || !ExpoVideo?.useVideoPlayer || !ExpoVideo?.VideoView) {
     return null;
   }
-  return <HeaderVideoInternal key={previewKey ?? uri} uri={uri} />;
+  return <HeaderVideoInternal key={previewKey ? `${previewKey}_${resolvedUri}` : resolvedUri} uri={resolvedUri} onError={onError} />;
 }
 
 function BusinessHeaderImpl() {
@@ -261,8 +335,15 @@ function BusinessHeaderImpl() {
   // Active media resolution (Local custom video takes user priority; otherwise remote video plays)
   const effectiveBannerVideo = bannerVideo || remoteBannerVideo;
   const activeVideo = showOnDashboard ? (bizVideo || remoteBannerVideo) : effectiveBannerVideo;
+  const [videoPlaybackError, setVideoPlaybackError] = useState(false);
+
+  useEffect(() => {
+    setVideoPlaybackError(false);
+  }, [activeVideo]);
+
   const canPlayVideo = Boolean(
     activeVideo &&
+    !videoPlaybackError &&
     activeVideo.trim().length > 0 &&
     ExpoVideo?.useVideoPlayer &&
     ExpoVideo?.VideoView
@@ -627,7 +708,11 @@ function BusinessHeaderImpl() {
           {/* Priority 1: Background Video (Plays on loop) */}
           {canPlayVideo ? (
             <View style={[StyleSheet.absoluteFillObject, { borderRadius: styles.pressableRoot.borderRadius, overflow: 'hidden' }]} pointerEvents="none">
-              <HeaderVideo previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`} uri={activeVideo!} />
+              <HeaderVideo
+                previewKey={`bg_${showOnDashboard ? 'biz' : 'banner'}_${activeVideo}`}
+                uri={activeVideo!}
+                onError={() => setVideoPlaybackError(true)}
+              />
               <LinearGradient
                 colors={
                   showOnDashboard

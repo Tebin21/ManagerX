@@ -599,13 +599,21 @@ export default function HeroBannerManagement({
               return;
             }
 
-            // Determine best supported MIME type
-            let mimeType = 'video/webm;codecs=vp8';
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
-            else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mimeType = 'video/webm;codecs=vp8';
-            else if (MediaRecorder.isTypeSupported('video/webm')) mimeType = 'video/webm';
-            else if (MediaRecorder.isTypeSupported('video/mp4')) mimeType = 'video/mp4';
-            else mimeType = '';
+            // Determine best supported MIME type (Prioritize MP4 for Apple iOS AVPlayer compatibility)
+            let mimeType = '';
+            if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) {
+              mimeType = 'video/mp4;codecs=avc1';
+            } else if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) {
+              mimeType = 'video/mp4;codecs=h264';
+            } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+              mimeType = 'video/mp4';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+              mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+              mimeType = 'video/webm;codecs=vp8';
+            } else if (MediaRecorder.isTypeSupported('video/webm')) {
+              mimeType = 'video/webm';
+            }
 
             const stream = (canvas as any).captureStream(24);
             const recorderOptions: MediaRecorderOptions = {
@@ -2707,6 +2715,22 @@ function DeviceVideoSection({
             </button>
           )}
         </div>
+      </div>
+
+      {/* iOS Compatibility Info */}
+      <div
+        className={`mt-2 flex items-start gap-2 p-2.5 rounded-xl text-[11px] leading-relaxed border ${
+          isDarkMode
+            ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}
+      >
+        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>
+          {isKurdish
+            ? 'تێبینی بۆ ئایفۆن (iOS): سیستەمی ئەپڵ تەنها فۆرماتی MP4/MOV دەخوێنێتەوە. بۆ گونجاندنی تەواو لەسەر مۆبایلەکان فایلی MP4 باربکە، یان وێبگەڕی Safari/مۆبایل بەکاربهێنە، یاخود بەستەری ڕاستەوخۆی .mp4 دابنێ.'
+            : 'Note for iPhone (iOS): Apple devices support MP4/MOV video format. For seamless iOS playback, upload an MP4 file, use Safari browser, or provide a direct .mp4 URL.'}
+        </span>
       </div>
     </div>
   );
