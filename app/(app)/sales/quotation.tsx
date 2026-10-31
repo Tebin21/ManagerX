@@ -43,6 +43,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useRTL } from '@/lib/rtl';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { shareQuotationInvoice } from '@/lib/generateInvoice';
 import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
 import {
@@ -70,6 +71,7 @@ export default function SalesQuotationScreen() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape, contentContainerStyle } = useResponsive();
+  const insets = useSafeAreaInsets();
   const isKuLanguage = useLanguageStore((s) => s.language === 'ku');
 
   const inventory = useInventoryStore();
@@ -721,18 +723,21 @@ export default function SalesQuotationScreen() {
       <View
         style={[
           styles.noticeBanner,
-          isTablet && { padding: 16, borderRadius: 12, gap: 12 },
-          { backgroundColor: '#FEF9C3', borderColor: '#F59E0B' },
+          isTablet && { padding: 16, borderRadius: 14, gap: 12 },
+          {
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF9C3',
+            borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#F59E0B',
+          },
         ]}
       >
-        <Ionicons name="information-circle-outline" size={isTablet ? 22 : 18} color="#D97706" />
+        <Ionicons name="information-circle" size={isTablet ? 22 : 19} color={isDark ? '#FBBF24' : '#D97706'} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: isTablet ? 14 : 12.5, fontWeight: '800', color: '#92400E', textAlign: isRTL ? 'right' : 'left' }}>
+          <Text style={{ fontSize: isTablet ? 14 : 12.5, fontWeight: '800', color: isDark ? '#FBBF24' : '#92400E', textAlign: isRTL ? 'right' : 'left', fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
             {isKuLanguage
               ? 'سەرنج: ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فرۆشتن نییە'
               : 'NOTE: THIS DOCUMENT IS A PRICE QUOTATION ONLY'}
           </Text>
-          <Text style={{ fontSize: isTablet ? 12 : 11, color: '#B45309', textAlign: isRTL ? 'right' : 'left', marginTop: 2 }}>
+          <Text style={{ fontSize: isTablet ? 12 : 11, color: isDark ? '#FDE68A' : '#B45309', textAlign: isRTL ? 'right' : 'left', marginTop: 3, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
             {isKuLanguage
               ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
               : 'All prices are offered for quotation purposes.'}
@@ -743,17 +748,41 @@ export default function SalesQuotationScreen() {
 
     // 1. Selected Products List
     const renderProductsCard = () => (
-      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
-        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
-          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
-            <Ionicons name="list-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+      <View
+        style={[
+          styles.card,
+          isTablet && { padding: 18, borderRadius: 16 },
+          {
+            backgroundColor: isDark ? colors.gray100 : colors.white,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+            borderWidth: 1,
+          },
+        ]}
+      >
+        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+            <View style={[styles.cardHeaderIconBox, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7' }]}>
+              <Ionicons name="list-outline" size={isTablet ? 20 : 16} color={colors.primary} />
+            </View>
             <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
               {isKuLanguage ? 'کاڵاکانی عەرز' : 'Quotation Items'} ({itemCount})
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setStep(1)} hitSlop={8}>
-            <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: colors.primary }}>
-              {isKuLanguage ? '+ زیادکردنی تر' : '+ Add More'}
+          <TouchableOpacity
+            onPress={() => setStep(1)}
+            hitSlop={8}
+            style={[
+              styles.addMoreBtn,
+              {
+                backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : '#FEF9C3',
+                borderColor: isDark ? 'rgba(212, 175, 55, 0.35)' : '#FDE68A',
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="add" size={14} color={colors.primary} />
+            <Text style={{ fontSize: isTablet ? 13 : 11.5, fontWeight: '700', color: colors.primary }}>
+              {isKuLanguage ? 'زیادکردنی تر' : 'Add More'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -763,10 +792,10 @@ export default function SalesQuotationScreen() {
             key={it.id}
             style={[
               styles.itemRowCard,
-              isTablet && { padding: 14, borderRadius: 10, gap: 10, marginBottom: 10 },
+              isTablet && { padding: 14, borderRadius: 12, marginBottom: 12 },
               {
-                backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : colors.gray200,
+                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                borderColor: isDark ? colors.gray200 : colors.gray200,
               },
             ]}
           >
@@ -776,7 +805,7 @@ export default function SalesQuotationScreen() {
                 style={[
                   styles.itemNumBadge,
                   isTablet && { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
-                  { backgroundColor: isDark ? colors.gray300 : colors.gray200 },
+                  { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : colors.gray200 },
                 ]}
               >
                 <Text style={{ fontSize: isTablet ? 13 : 11, fontWeight: '800', color: colors.primary }}>#{idx + 1}</Text>
@@ -787,12 +816,15 @@ export default function SalesQuotationScreen() {
                 </Text>
                 {it.itemId ? <IdText size="small" style={isTablet ? { fontSize: 13 } : undefined}>{it.itemId}</IdText> : null}
               </View>
-              <TouchableOpacity onPress={() => handleRemoveItem(it.productId)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={isTablet ? 21 : 17} color={colors.error} />
+              <TouchableOpacity onPress={() => handleRemoveItem(it.productId)} hitSlop={8} style={{ padding: 4 }}>
+                <Ionicons name="trash-outline" size={isTablet ? 21 : 18} color={colors.error} />
               </TouchableOpacity>
             </View>
 
-            {/* Row 2: Price, Quantity Stepper, Item Discount */}
+            {/* Subtle Divider */}
+            <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : colors.gray200, marginVertical: 6 }} />
+
+            {/* Row 2: Price, Quantity Stepper, Line Total */}
             <View style={[styles.itemControlsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               {/* Quantity Stepper */}
               <View style={[styles.stepperWrap, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -800,7 +832,7 @@ export default function SalesQuotationScreen() {
                   style={[
                     styles.stepBtn,
                     isTablet && { width: 36, height: 36, borderRadius: 8 },
-                    { backgroundColor: isDark ? colors.gray300 : colors.gray200 },
+                    { backgroundColor: isDark ? colors.gray200 : colors.gray200 },
                   ]}
                   onPress={() => handleDecreaseQty(it.productId)}
                 >
@@ -834,7 +866,7 @@ export default function SalesQuotationScreen() {
               </View>
 
               {/* Unit Price Input */}
-              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start', minWidth: isTablet ? 120 : 96 }}>
+              <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start', flex: 1, marginHorizontal: isTablet ? 12 : 8, minWidth: 90 }}>
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={{ fontSize: isTablet ? 12 : 10, color: it.unitPrice <= 0 ? colors.error : colors.gray400, fontWeight: it.unitPrice <= 0 ? '700' : 'normal' }}>
                     {isKuLanguage ? 'نرخی تاک:' : 'Unit Price:'}
@@ -851,7 +883,7 @@ export default function SalesQuotationScreen() {
                     isTablet && { minWidth: 120, height: 36, paddingHorizontal: 8 },
                     {
                       borderColor: it.unitPrice <= 0 ? colors.error : (isDark ? colors.gray300 : '#CBD5E1'),
-                      backgroundColor: isDark ? colors.gray300 : colors.white,
+                      backgroundColor: isDark ? colors.gray100 : colors.white,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
@@ -878,17 +910,27 @@ export default function SalesQuotationScreen() {
               {/* Line Total */}
               <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
                 <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray400 }}>{isKuLanguage ? 'کۆی کاڵا:' : 'Line Total:'}</Text>
-                <AmountText value={it.lineTotal} currency="IQD" variant="small" style={{ fontWeight: '800', color: colors.primary, fontSize: isTablet ? 16.5 : undefined }} />
+                <AmountText value={it.lineTotal} currency="IQD" variant="small" style={{ fontWeight: '800', color: colors.primary, fontSize: isTablet ? 16.5 : 13.5 }} />
               </View>
             </View>
           </View>
         ))}
-      </PremiumCard>
+      </View>
     );
 
     // 2. Global Discount Section & Financial Totals Preview
     const renderDiscountAndTotalsCard = () => (
-      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+      <View
+        style={[
+          styles.card,
+          isTablet && { padding: 18, borderRadius: 16 },
+          {
+            backgroundColor: isDark ? colors.gray100 : colors.white,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+            borderWidth: 1,
+          },
+        ]}
+      >
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={toggleDiscountExpanded}
@@ -898,12 +940,12 @@ export default function SalesQuotationScreen() {
               flexDirection: isRTL ? 'row-reverse' : 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: isDiscountExpanded ? 12 : 8,
+              marginBottom: isDiscountExpanded ? 12 : 4,
             },
           ]}
         >
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 10 : 8, flex: 1 }}>
-            <View style={[styles.discountHeaderIconWrap, isTablet && { width: 42, height: 42, borderRadius: 10 }, { backgroundColor: `${colors.primary}18` }]}>
+            <View style={[styles.discountHeaderIconWrap, isTablet && { width: 42, height: 42, borderRadius: 10 }, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7' }]}>
               <Ionicons name="pricetag-outline" size={isTablet ? 21 : 17} color={colors.primary} />
             </View>
             <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
@@ -927,8 +969,8 @@ export default function SalesQuotationScreen() {
                 {
                   backgroundColor:
                     globalDiscountType !== 'none' && globalDiscountValue > 0
-                      ? `${colors.primary}20`
-                      : (isDark ? colors.gray300 : colors.gray200),
+                      ? (isDark ? 'rgba(212, 175, 55, 0.22)' : '#FEF3C7')
+                      : (isDark ? colors.gray200 : colors.gray100),
                   borderColor:
                     globalDiscountType !== 'none' && globalDiscountValue > 0
                       ? colors.primary
@@ -956,11 +998,11 @@ export default function SalesQuotationScreen() {
               </Text>
             </View>
 
-            <View style={[styles.chevronWrap, isTablet && { width: 30, height: 30, borderRadius: 15 }, { backgroundColor: isDark ? colors.gray300 : colors.gray200 }]}>
+            <View style={[styles.chevronWrap, isTablet && { width: 30, height: 30, borderRadius: 15 }, { backgroundColor: isDark ? colors.gray200 : colors.gray200 }]}>
               <Ionicons
                 name={isDiscountExpanded ? 'chevron-up' : 'chevron-down'}
                 size={isTablet ? 18 : 16}
-                color={colors.gray600}
+                color={colors.gray500}
               />
             </View>
           </View>
@@ -968,7 +1010,7 @@ export default function SalesQuotationScreen() {
 
         {/* Expanded Discount Controls (Visible only when expanded) */}
         {isDiscountExpanded && (
-          <View style={[styles.discountControlsSection, { borderTopColor: colors.gray200 }]}>
+          <View style={[styles.discountControlsSection, { borderTopColor: isDark ? colors.gray200 : colors.gray200 }]}>
             {/* Type selector buttons */}
             <View style={[styles.discountButtonsRow, isTablet && { gap: 12 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               {(['none', 'percentage', 'amount'] as GlobalDiscountType[]).map((dType) => {
@@ -987,8 +1029,8 @@ export default function SalesQuotationScreen() {
                       styles.discountTypeBtn,
                       isTablet && { paddingVertical: 11, borderRadius: 10 },
                       {
-                        backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
-                        borderColor: active ? colors.primary : colors.gray300,
+                        backgroundColor: active ? colors.primary : (isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray100),
+                        borderColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray300),
                       },
                     ]}
                     onPress={() => {
@@ -996,7 +1038,7 @@ export default function SalesQuotationScreen() {
                       if (dType === 'none') setGlobalDiscountValue(0);
                     }}
                   >
-                    <Text style={[styles.discountTypeBtnText, isTablet && { fontSize: 14 }, { color: active ? '#FFFFFF' : colors.gray600 }]}>
+                    <Text style={[styles.discountTypeBtnText, isTablet && { fontSize: 14 }, { color: active ? '#FFFFFF' : (isDark ? colors.gray400 : colors.gray600) }]}>
                       {label}
                     </Text>
                   </TouchableOpacity>
@@ -1007,7 +1049,7 @@ export default function SalesQuotationScreen() {
             {/* Value Input */}
             {globalDiscountType !== 'none' && (
               <View style={{ marginTop: 10 }}>
-                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
                   {globalDiscountType === 'percentage'
                     ? (isKuLanguage ? 'ڕێژەی داشکاندن (%):' : 'Discount Percentage (%):')
                     : (isKuLanguage ? 'بڕی داشکاندن بە دینار:' : 'Discount Amount (IQD):')}
@@ -1017,8 +1059,8 @@ export default function SalesQuotationScreen() {
                     styles.input,
                     isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                     {
-                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                      borderColor: colors.gray300,
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray300,
                       color: colors.black,
                       textAlign: isRTL ? 'right' : 'left',
                       fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
@@ -1046,7 +1088,7 @@ export default function SalesQuotationScreen() {
                 isTablet && { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 10 },
                 {
                   backgroundColor: isDark ? colors.gray200 : colors.gray100,
-                  borderColor: colors.gray300,
+                  borderColor: isDark ? colors.gray300 : colors.gray300,
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
               ]}
@@ -1060,10 +1102,22 @@ export default function SalesQuotationScreen() {
         )}
 
         {/* Financial Totals Preview */}
-        <View style={[styles.summaryTotalsBox, isTablet && { padding: 16, borderRadius: 12, gap: 8 }, { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderTopColor: colors.primary }]}>
+        <View
+          style={[
+            styles.summaryTotalsBox,
+            isTablet && { padding: 16, borderRadius: 12, gap: 8 },
+            {
+              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+              borderColor: isDark ? colors.gray200 : colors.gray200,
+              borderWidth: 1,
+              borderTopWidth: 2,
+              borderTopColor: colors.primary,
+            },
+          ]}
+        >
           <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Text style={{ fontSize: isTablet ? 14 : 12.5, color: colors.gray500 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
-            <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.gray600, direction: 'ltr' }}>
+            <Text style={{ fontSize: isTablet ? 14 : 12.5, color: colors.gray400 }}>{isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}</Text>
+            <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
               {isUSD ? `$${fmtUSD(itemsSubtotalUSD)} USD` : `${fmtIQD(itemsSubtotal)} IQD`}
             </Text>
           </View>
@@ -1075,7 +1129,7 @@ export default function SalesQuotationScreen() {
               </Text>
             </View>
           )}
-          <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: isTablet ? 8 : 6, borderTopWidth: 1, borderTopColor: colors.gray300 }]}>
+          <View style={[styles.summaryRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4, paddingTop: isTablet ? 8 : 6, borderTopWidth: 1, borderTopColor: isDark ? colors.gray200 : colors.gray300 }]}>
             <Text style={{ fontSize: isTablet ? 17 : 14.5, fontWeight: '800', color: colors.black }}>{isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}</Text>
             <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
               <Text style={{ fontSize: isTablet ? 22 : 18, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
@@ -1088,22 +1142,34 @@ export default function SalesQuotationScreen() {
                   : `${fmtIQD(grandTotal)} IQD`}
               </Text>
               {currencyMode === 'both' && (
-                <Text style={{ fontSize: isTablet ? 14 : 12, fontWeight: '700', color: colors.success, direction: 'ltr', marginTop: 2 }}>
+                <Text style={{ fontSize: isTablet ? 14 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : colors.success, direction: 'ltr', marginTop: 2 }}>
                   {isUSD ? `≈ ${fmtIQD(grandTotal)} IQD` : `≈ $${fmtUSD(grandTotalUSD)} USD`}
                 </Text>
               )}
             </View>
           </View>
         </View>
-      </PremiumCard>
+      </View>
     );
 
     // 3. Company / Customer Details & Account Auto-Save
     const renderClientInfoCard = () => (
-      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
+      <View
+        style={[
+          styles.card,
+          isTablet && { padding: 18, borderRadius: 16 },
+          {
+            backgroundColor: isDark ? colors.gray100 : colors.white,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+            borderWidth: 1,
+          },
+        ]}
+      >
         <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
-            <Ionicons name="business-outline" size={isTablet ? 22 : 18} color={colors.primary} />
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+            <View style={[styles.cardHeaderIconBox, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7' }]}>
+              <Ionicons name="business-outline" size={isTablet ? 20 : 16} color={colors.primary} />
+            </View>
             <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
               {isKuLanguage ? 'زانیاری کۆمپانیا یان کڕیار' : 'Company / Client Info'}
             </Text>
@@ -1117,8 +1183,8 @@ export default function SalesQuotationScreen() {
               styles.directQuoteBtn,
               isTablet && { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 10 },
               {
-                backgroundColor: isDirectCustomer ? colors.primary : isDark ? colors.gray200 : '#FEF3C7',
-                borderColor: isDirectCustomer ? colors.primary : '#F59E0B',
+                backgroundColor: isDirectCustomer ? colors.primary : (isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7'),
+                borderColor: isDirectCustomer ? colors.primary : (isDark ? 'rgba(212, 175, 55, 0.4)' : '#F59E0B'),
                 flexDirection: isRTL ? 'row-reverse' : 'row',
               },
             ]}
@@ -1126,13 +1192,13 @@ export default function SalesQuotationScreen() {
             <Ionicons
               name={isDirectCustomer ? 'checkmark-circle' : 'flash'}
               size={isTablet ? 16 : 13}
-              color={isDirectCustomer ? '#FFFFFF' : '#D97706'}
+              color={isDirectCustomer ? '#FFFFFF' : (isDark ? '#FBBF24' : '#D97706')}
             />
             <Text
               style={[
                 styles.directQuoteBtnText,
                 isTablet && { fontSize: 13 },
-                { color: isDirectCustomer ? '#FFFFFF' : '#B45309' },
+                { color: isDirectCustomer ? '#FFFFFF' : (isDark ? '#FBBF24' : '#B45309') },
               ]}
             >
               {isDirectCustomer
@@ -1148,8 +1214,8 @@ export default function SalesQuotationScreen() {
               styles.directQuoteActiveCard,
               isTablet && { padding: 18, borderRadius: 14, gap: 14 },
               {
-                backgroundColor: isDark ? 'rgba(34,197,94,0.1)' : '#F0FDF4',
-                borderColor: isDark ? '#166534' : '#86EFAC',
+                backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#F0FDF4',
+                borderColor: isDark ? 'rgba(34, 197, 94, 0.35)' : '#86EFAC',
               },
             ]}
           >
@@ -1158,10 +1224,10 @@ export default function SalesQuotationScreen() {
                 <Ionicons name="flash" size={isTablet ? 22 : 18} color="#FFFFFF" />
               </View>
               <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-                <Text style={{ fontSize: isTablet ? 15.5 : 13.5, fontWeight: '800', color: '#15803D' }}>
+                <Text style={{ fontSize: isTablet ? 15.5 : 13.5, fontWeight: '800', color: isDark ? '#4ADE80' : '#15803D' }}>
                   {isKuLanguage ? 'عەرزی ڕاستەوخۆ چالاکە' : 'Direct Quotation Active'}
                 </Text>
-                <Text style={{ fontSize: isTablet ? 13 : 11.5, color: '#166534', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+                <Text style={{ fontSize: isTablet ? 13 : 11.5, color: isDark ? '#86EFAC' : '#166534', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
                   {isKuLanguage
                     ? 'پێویست بە پڕکردنەوەی هیچ زانیارییەک ناکات • ئەکاونتی کڕیاری ڕاستەوخۆ دیاری کراوە'
                     : 'No client info needed • Direct customer system account linked'}
@@ -1192,7 +1258,7 @@ export default function SalesQuotationScreen() {
           <>
             {/* Company Name with Autocomplete */}
             <View style={{ marginTop: 8 }}>
-              <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+              <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
                 {isKuLanguage ? 'ناوی کۆمپانیا / کڕیار:' : 'Company / Client Name:'}
               </Text>
               <TextInput
@@ -1202,9 +1268,9 @@ export default function SalesQuotationScreen() {
                   isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                   {
                     backgroundColor: nameError
-                      ? (isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2')
-                      : (isDark ? colors.gray200 : colors.gray50),
-                    borderColor: nameError ? '#EF4444' : selectedCustomerId ? '#22C55E' : colors.gray300,
+                      ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2')
+                      : (isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50),
+                    borderColor: nameError ? '#EF4444' : selectedCustomerId ? '#22C55E' : (isDark ? colors.gray200 : colors.gray300),
                     borderWidth: nameError ? 1.5 : 1,
                     color: colors.black,
                     textAlign: isRTL ? 'right' : 'left',
@@ -1239,7 +1305,7 @@ export default function SalesQuotationScreen() {
                   <Text
                     style={{
                       fontSize: isTablet ? 13 : 11.5,
-                      color: '#DC2626',
+                      color: '#EF4444',
                       fontWeight: '700',
                       textAlign: isRTL ? 'right' : 'left',
                     }}
@@ -1253,8 +1319,8 @@ export default function SalesQuotationScreen() {
 
               {/* Autocomplete Suggestions Dropdown */}
               {showSuggestions && suggestions.length > 0 && (
-                <View style={[styles.suggestionsBox, { backgroundColor: isDark ? colors.gray200 : colors.white, borderColor: colors.primary }]}>
-                  <View style={[styles.suggestionsHeader, { backgroundColor: isDark ? colors.gray300 : '#F8FAFC', borderBottomColor: isDark ? colors.gray200 : '#E2E8F0', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.suggestionsBox, { backgroundColor: isDark ? colors.gray100 : colors.white, borderColor: colors.primary }]}>
+                  <View style={[styles.suggestionsHeader, { backgroundColor: isDark ? colors.gray200 : '#F8FAFC', borderBottomColor: isDark ? colors.gray300 : '#E2E8F0', flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Ionicons name="sparkles" size={isTablet ? 15 : 13} color={colors.primary} />
                     <Text style={{ fontSize: isTablet ? 12.5 : 11, fontWeight: '700', color: colors.primary }}>
                       {isKuLanguage ? 'کۆمپانیا و کڕیارە تۆمارکراوەکان (بۆ عەرزی دووبارە):' : 'Saved Companies & Clients (For Repeat Quotes):'}
@@ -1263,16 +1329,16 @@ export default function SalesQuotationScreen() {
                   {suggestions.map((cust) => (
                     <TouchableOpacity
                       key={cust.id}
-                      style={[styles.suggestionItem, { borderBottomColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                      style={[styles.suggestionItem, { borderBottomColor: isDark ? colors.gray200 : '#E2E8F0', flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                       onPress={() => handleSelectCustomer(cust)}
                     >
                       <Ionicons name="business" size={isTablet ? 19 : 16} color={colors.primary} />
                       <View style={{ flex: 1, marginHorizontal: 8, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
                         <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.black }}>{cust.name}</Text>
-                        {cust.phone ? <Text style={{ fontSize: isTablet ? 13 : 11.5, color: colors.gray500 }}>{cust.phone}</Text> : null}
-                        {cust.address ? <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.gray400 }}>{cust.address}</Text> : null}
+                        {cust.phone ? <Text style={{ fontSize: isTablet ? 13 : 11.5, color: colors.gray400 }}>{cust.phone}</Text> : null}
+                        {cust.address ? <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.gray500 }}>{cust.address}</Text> : null}
                       </View>
-                      <View style={[styles.miniPill, { backgroundColor: colors.softBlue }]}>
+                      <View style={[styles.miniPill, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : colors.softBlue }]}>
                         <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.primary, fontWeight: '700' }}>
                           {isKuLanguage ? 'دیاریکردن' : 'Select'}
                         </Text>
@@ -1286,7 +1352,7 @@ export default function SalesQuotationScreen() {
             {/* Phone & Address Inputs */}
             <View style={[styles.twoInputsRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 10 }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
                   {isKuLanguage ? 'ژمارەی مۆبایل:' : 'Phone Number:'}
                 </Text>
                 <TextInput
@@ -1294,8 +1360,8 @@ export default function SalesQuotationScreen() {
                     styles.input,
                     isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                     {
-                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                      borderColor: colors.gray300,
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray300,
                       color: colors.black,
                       textAlign: isRTL ? 'right' : 'left',
                       fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
@@ -1315,7 +1381,7 @@ export default function SalesQuotationScreen() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
+                <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
                   {isKuLanguage ? 'ناونیشان:' : 'Address:'}
                 </Text>
                 <TextInput
@@ -1323,8 +1389,8 @@ export default function SalesQuotationScreen() {
                     styles.input,
                     isTablet && { fontSize: 16, paddingVertical: 12, paddingHorizontal: 14, minHeight: 48 },
                     {
-                      backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                      borderColor: colors.gray300,
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                      borderColor: isDark ? colors.gray200 : colors.gray300,
                       color: colors.black,
                       textAlign: isRTL ? 'right' : 'left',
                       fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
@@ -1340,146 +1406,165 @@ export default function SalesQuotationScreen() {
             </View>
           </>
         )}
-      </PremiumCard>
+      </View>
     );
 
     // 4. Quotation Terms & Notes with Edit Default Button
-    const renderTermsCard = () => (
-      <PremiumCard style={[styles.card, isTablet && { padding: 18, borderRadius: 16 }]}>
-        <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }]}>
-          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
-            <Ionicons name="document-text-outline" size={isTablet ? 22 : 18} color={colors.primary} />
-            <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
-              {isKuLanguage ? 'مەرج و تێبینییەکانی عەرز' : 'Quotation Terms & Notes'}
-            </Text>
-          </View>
+    const renderTermsCard = () => {
+      const isCustomDays = ![3, 7, 15, 30].includes(validityDays);
 
-          {/* Button to edit and persist default terms */}
-          <TouchableOpacity
-            style={[
-              styles.editDefaultBtn,
-              isTablet && { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8 },
-              {
-                backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : '#FEF9C3',
-                borderColor: colors.primary,
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              },
-            ]}
-            onPress={() => setEditDefaultNotesOpen(true)}
-          >
-            <Ionicons name="settings-outline" size={isTablet ? 15 : 13} color={colors.primary} />
-            <Text style={{ fontSize: isTablet ? 12.5 : 11, fontWeight: '700', color: colors.primary }}>
-              {isKuLanguage ? 'گۆڕینی تێبینی بنەڕەتی' : 'Edit Default'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Current Notes Input */}
-        <View style={{ marginTop: 8 }}>
-          <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
-            {isKuLanguage ? 'تێبینی بۆ ئەم عەرزە (پێشنیار دەکرێت بۆ کڕیار):' : 'Notes for this quote:'}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              isTablet && { minHeight: 84, fontSize: 15, lineHeight: 24, paddingVertical: 12, paddingHorizontal: 14 },
-              {
-                backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                borderColor: colors.gray300,
-                color: colors.black,
-                textAlign: isRTL ? 'right' : 'left',
-                minHeight: isTablet ? 84 : 64,
-                fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
-                fontWeight: 'normal',
-                lineHeight: isTablet ? 24 : 22,
-              },
-            ]}
-            multiline
-            value={notes}
-            onChangeText={setNotes}
-            placeholder={isKuLanguage ? 'مەرج و تێبینی بنووسە...' : 'Write terms...'}
-            placeholderTextColor={colors.gray400}
-          />
-        </View>
-
-        {/* Validity Days Selection */}
-        <View style={{ marginTop: 10 }}>
-          <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left' }]}>
-            {isKuLanguage ? 'ماوەی کارپێکردنی عەرزەکە:' : 'Validity Period:'}
-          </Text>
-          <View style={[styles.validityWrapper, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            {/* Preset Chips: 3, 7, 15, 30 */}
-            <View style={[styles.validityChipsGroup, isTablet && { gap: 8 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {[3, 7, 15, 30].map((days) => {
-                const active = validityDays === days;
-                return (
-                  <TouchableOpacity
-                    key={days}
-                    activeOpacity={0.75}
-                    style={[
-                      styles.validityChip,
-                      isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-                      {
-                        backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
-                        borderColor: active ? colors.primary : colors.gray300,
-                      },
-                    ]}
-                    onPress={() => {
-                      try {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      } catch {}
-                      setValidityDays(days);
-                    }}
-                  >
-                    <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: active ? '#FFFFFF' : colors.gray700 }}>
-                      {isKuLanguage ? `${days} ڕۆژ` : `${days} Days`}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+      return (
+        <View
+          style={[
+            styles.card,
+            isTablet && { padding: 18, borderRadius: 16 },
+            {
+              backgroundColor: isDark ? colors.gray100 : colors.white,
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 10 : 8 }}>
+              <View style={[styles.cardHeaderIconBox, { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7' }]}>
+                <Ionicons name="document-text-outline" size={isTablet ? 20 : 16} color={colors.primary} />
+              </View>
+              <Text style={[styles.cardTitle, isTablet && { fontSize: 16.5 }, { color: colors.black }]}>
+                {isKuLanguage ? 'مەرج و تێبینییەکانی عەرز' : 'Quotation Terms & Notes'}
+              </Text>
             </View>
 
-            {/* Direct Compact Number Input */}
-            <View
+            {/* Button to edit and persist default terms */}
+            <TouchableOpacity
               style={[
-                styles.validityDirectInputBox,
-                isTablet && { minWidth: 86, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10 },
+                styles.editDefaultBtn,
+                isTablet && { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8 },
                 {
-                  backgroundColor: isDark ? colors.gray200 : colors.gray50,
-                  borderColor: ![3, 7, 15, 30].includes(validityDays) && validityDays > 0 ? colors.primary : colors.gray300,
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF9C3',
+                  borderColor: colors.primary,
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                 },
               ]}
+              onPress={() => setEditDefaultNotesOpen(true)}
             >
-              <TextInput
+              <Ionicons name="settings-outline" size={isTablet ? 15 : 13} color={colors.primary} />
+              <Text style={{ fontSize: isTablet ? 12.5 : 11, fontWeight: '700', color: colors.primary }}>
+                {isKuLanguage ? 'گۆڕینی تێبینی بنەڕەتی' : 'Edit Default'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Current Notes Input */}
+          <View style={{ marginTop: 8 }}>
+            <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
+              {isKuLanguage ? 'تێبینی بۆ ئەم عەرزە (پێشنیار دەکرێت بۆ کڕیار):' : 'Notes for this quote:'}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                isTablet && { minHeight: 84, fontSize: 15, lineHeight: 24, paddingVertical: 12, paddingHorizontal: 14 },
+                {
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                  borderColor: isDark ? colors.gray200 : colors.gray300,
+                  color: colors.black,
+                  textAlign: isRTL ? 'right' : 'left',
+                  minHeight: isTablet ? 84 : 64,
+                  fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined,
+                  fontWeight: 'normal',
+                  lineHeight: isTablet ? 24 : 22,
+                },
+              ]}
+              multiline
+              value={notes}
+              onChangeText={setNotes}
+              placeholder={isKuLanguage ? 'مەرج و تێبینی بنووسە...' : 'Write terms...'}
+              placeholderTextColor={colors.gray400}
+            />
+          </View>
+
+          {/* Validity Days Selection */}
+          <View style={{ marginTop: 10 }}>
+            <Text style={[styles.inputLabel, isTablet && { fontSize: 13.5 }, { textAlign: isRTL ? 'right' : 'left', color: isDark ? colors.gray400 : '#64748B' }]}>
+              {isKuLanguage ? 'ماوەی کارپێکردنی عەرزەکە:' : 'Validity Period:'}
+            </Text>
+            <View style={[styles.validityWrapper, isTablet && { gap: 10 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {/* Preset Chips: 3, 7, 15, 30 */}
+              <View style={[styles.validityChipsGroup, isTablet && { gap: 8 }, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {[3, 7, 15, 30].map((days) => {
+                  const active = validityDays === days;
+                  return (
+                    <TouchableOpacity
+                      key={days}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.validityChip,
+                        isTablet && { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+                        {
+                          backgroundColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray100),
+                          borderColor: active ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                        },
+                      ]}
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        } catch {}
+                        setValidityDays(days);
+                      }}
+                    >
+                      <Text style={{ fontSize: isTablet ? 13.5 : 12, fontWeight: '700', color: active ? '#FFFFFF' : (isDark ? colors.gray400 : colors.gray700) }}>
+                        {isKuLanguage ? `${days} ڕۆژ` : `${days} Days`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Direct Compact Number Input (Only filled when custom days) */}
+              <View
                 style={[
-                  styles.validityDirectInput,
-                  isTablet && { fontSize: 15, minWidth: 34 },
+                  styles.validityDirectInputBox,
+                  isTablet && { minWidth: 90, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10 },
                   {
-                    color: colors.black,
-                    textAlign: 'center',
-                    fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
-                    fontWeight: 'normal',
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                    borderColor: isCustomDays && validityDays > 0 ? colors.primary : (isDark ? colors.gray200 : colors.gray300),
+                    borderWidth: isCustomDays && validityDays > 0 ? 1.5 : 1,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
                   },
                 ]}
-                keyboardType="number-pad"
-                value={validityDays > 0 ? String(validityDays) : ''}
-                onChangeText={(val) => {
-                  const clean = sanitizeNumericInput(val, 'number-pad');
-                  const num = parseInt(clean, 10) || 0;
-                  setValidityDays(num);
-                }}
-                placeholder="0"
-                placeholderTextColor={colors.gray400}
-              />
-              <Text style={{ fontSize: isTablet ? 13 : 11.5, fontWeight: '700', color: colors.gray600 }}>
-                {isKuLanguage ? 'ڕۆژ' : 'Days'}
-              </Text>
+              >
+                <TextInput
+                  style={[
+                    styles.validityDirectInput,
+                    isTablet && { fontSize: 15, minWidth: 36 },
+                    {
+                      color: isCustomDays && validityDays > 0 ? colors.primary : colors.black,
+                      textAlign: 'center',
+                      fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                      fontWeight: 'normal',
+                    },
+                  ]}
+                  keyboardType="number-pad"
+                  value={isCustomDays && validityDays > 0 ? String(validityDays) : ''}
+                  onChangeText={(val) => {
+                    const clean = sanitizeNumericInput(val, 'number-pad');
+                    const num = parseInt(clean, 10) || 0;
+                    setValidityDays(num);
+                  }}
+                  placeholder={isKuLanguage ? 'دیاریکراو' : 'Custom'}
+                  placeholderTextColor={colors.gray400}
+                />
+                {isCustomDays && validityDays > 0 ? (
+                  <Text style={{ fontSize: isTablet ? 13 : 11.5, fontWeight: '700', color: colors.primary }}>
+                    {isKuLanguage ? 'ڕۆژ' : 'Days'}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           </View>
         </View>
-      </PremiumCard>
-    );
+      );
+    };
 
     // 5. Currency Display Mode Selector Button
     const renderCurrencySelector = () => (
@@ -1492,7 +1577,8 @@ export default function SalesQuotationScreen() {
             isTablet && { paddingVertical: 15, paddingHorizontal: 16, borderRadius: 14 },
             {
               backgroundColor: isDark ? colors.gray100 : colors.white,
-              borderColor: showCurrencyOptions ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+              borderColor: showCurrencyOptions ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200),
+              borderWidth: 1,
               flexDirection: isRTL ? 'row-reverse' : 'row',
             },
           ]}
@@ -1502,7 +1588,7 @@ export default function SalesQuotationScreen() {
               style={[
                 styles.currencyTriggerIconBox,
                 isTablet && { width: 40, height: 40, borderRadius: 10 },
-                { backgroundColor: isDark ? hexToRgba(colors.primary, 0.18) : '#FEF3C7' },
+                { backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : '#FEF3C7' },
               ]}
             >
               <Ionicons name="cash-outline" size={isTablet ? 22 : 18} color={colors.primary} />
@@ -1520,7 +1606,7 @@ export default function SalesQuotationScreen() {
               >
                 {isKuLanguage ? 'شێوازی پیشاندانی دراو لە وەسڵدا:' : 'Receipt Currency Display:'}
               </Text>
-              <Text style={{ fontSize: isTablet ? 12.5 : 11, color: colors.gray500, marginTop: 1 }}>
+              <Text style={{ fontSize: isTablet ? 12.5 : 11, color: colors.gray400, marginTop: 1 }}>
                 {isKuLanguage ? 'دەست بنێ بۆ دیاریکردن یان گۆڕین' : 'Tap to select or change currency'}
               </Text>
             </View>
@@ -1533,7 +1619,7 @@ export default function SalesQuotationScreen() {
                 styles.currencyActiveBadge,
                 isTablet && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 9 },
                 {
-                  backgroundColor: isDark ? hexToRgba(colors.primary, 0.22) : '#FEF9C3',
+                  backgroundColor: isDark ? 'rgba(212, 175, 55, 0.2)' : '#FEF9C3',
                   borderColor: colors.primary,
                 },
               ]}
@@ -1559,7 +1645,7 @@ export default function SalesQuotationScreen() {
             <Ionicons
               name={showCurrencyOptions ? 'chevron-up' : 'chevron-down'}
               size={isTablet ? 18 : 16}
-              color={colors.gray500}
+              color={colors.gray400}
             />
           </View>
         </TouchableOpacity>
@@ -1576,6 +1662,7 @@ export default function SalesQuotationScreen() {
               {
                 backgroundColor: isDark ? colors.gray100 : colors.white,
                 borderColor: colors.primary,
+                borderWidth: 1.5,
               },
             ]}
           >
@@ -1594,8 +1681,8 @@ export default function SalesQuotationScreen() {
                       styles.currencyPillBtn,
                       isTablet && { paddingVertical: 12, paddingHorizontal: 12, borderRadius: 10 },
                       {
-                        backgroundColor: active ? colors.primary : isDark ? colors.gray200 : colors.gray50,
-                        borderColor: active ? colors.primary : (isDark ? colors.gray300 : colors.gray200),
+                        backgroundColor: active ? colors.primary : (isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50),
+                        borderColor: active ? colors.primary : (isDark ? colors.gray200 : colors.gray200),
                       },
                     ]}
                     onPress={() => {
@@ -1608,14 +1695,14 @@ export default function SalesQuotationScreen() {
                     <Ionicons
                       name={active ? 'checkmark-circle' : (m.icon as any)}
                       size={isTablet ? 17 : 14}
-                      color={active ? '#FFFFFF' : colors.gray600}
+                      color={active ? '#FFFFFF' : (isDark ? colors.gray400 : colors.gray600)}
                     />
                     <Text
                       style={[
                         styles.currencyPillText,
                         isTablet && { fontSize: 13 },
                         {
-                          color: active ? '#FFFFFF' : colors.gray700,
+                          color: active ? '#FFFFFF' : (isDark ? colors.gray400 : colors.gray700),
                           fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                         },
                       ]}
@@ -1633,7 +1720,7 @@ export default function SalesQuotationScreen() {
 
     // 6. Generate Button
     const renderGenerateButton = () => (
-      <View style={{ marginTop: isTablet ? 14 : 10, marginBottom: 40 }}>
+      <View style={{ marginTop: isTablet ? 14 : 10, marginBottom: Math.max(insets.bottom, 16) + 24 }}>
         <PrimaryButton
           label={isGenerating ? (isKuLanguage ? 'دروستکردنی وەسڵ...' : 'Generating...') : (isKuLanguage ? 'دروستکردن و بینینی وەسڵی عەرز' : 'Generate & Preview Quotation')}
           onPress={handleGenerateQuotation}
@@ -1777,14 +1864,24 @@ export default function SalesQuotationScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Main Invoice Card */}
-          <PremiumCard style={[styles.invoiceCard, isTablet && { padding: 22, borderRadius: 20 }]}>
+          <View
+            style={[
+              styles.invoiceCard,
+              isTablet && { padding: 22, borderRadius: 20 },
+              {
+                backgroundColor: isDark ? colors.gray100 : colors.white,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.gray200,
+                borderWidth: 1,
+              },
+            ]}
+          >
             {/* Top Badge & Number */}
             <View style={[styles.invoiceTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View
                 style={[
                   styles.invoiceDocBadge,
                   isTablet && { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
-                  { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', borderColor: colors.gray200, borderWidth: 1 },
+                  { backgroundColor: isDark ? colors.gray200 : '#F1F5F9', borderColor: isDark ? colors.gray300 : colors.gray200, borderWidth: 1 },
                 ]}
               >
                 <Ionicons name="document-text" size={isTablet ? 16 : 13} color={colors.primary} />
@@ -1807,16 +1904,20 @@ export default function SalesQuotationScreen() {
               style={[
                 styles.invoiceNoticeBox,
                 isTablet && { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, gap: 12 },
-                { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : colors.gray50,
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : colors.gray200,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
               ]}
             >
-              <Ionicons name="information-circle-outline" size={isTablet ? 20 : 16} color={colors.gray500} />
+              <Ionicons name="information-circle-outline" size={isTablet ? 20 : 16} color={isDark ? '#FBBF24' : colors.gray500} />
               <View style={{ flex: 1 }}>
                 <Text
                   style={{
                     fontSize: isTablet ? 13.5 : 11.5,
                     fontWeight: '700',
-                    color: colors.black,
+                    color: isDark ? '#FBBF24' : colors.black,
                     textAlign: isRTL ? 'right' : 'left',
                     fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                   }}
@@ -1825,7 +1926,7 @@ export default function SalesQuotationScreen() {
                     ? 'ئەم وەسڵە تەنها بۆ عەرزی نرخە و وەسڵی فەرمی فرۆشتن نییە'
                     : 'THIS DOCUMENT IS A PRICE QUOTATION ONLY AND NOT A SALES INVOICE'}
                 </Text>
-                <Text style={{ fontSize: isTablet ? 12 : 10.5, color: colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 1 }}>
+                <Text style={{ fontSize: isTablet ? 12 : 10.5, color: isDark ? '#FDE68A' : colors.gray500, textAlign: isRTL ? 'right' : 'left', marginTop: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                   {isKuLanguage
                     ? 'سەرجەم نرخەکان پێشنیارکراون بۆ شەریکە و کڕیار.'
                     : 'All prices are offered for quotation purposes.'}
@@ -1838,7 +1939,10 @@ export default function SalesQuotationScreen() {
               style={[
                 styles.invoiceClientBox,
                 isTablet && { padding: 16, borderRadius: 14, gap: 6 },
-                { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200 },
+                {
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                  borderColor: isDark ? colors.gray200 : colors.gray200,
+                },
               ]}
             >
               <View style={[styles.clientRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1888,12 +1992,12 @@ export default function SalesQuotationScreen() {
                       styles.validityBadge,
                       isTablet && { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
                       {
-                        backgroundColor: isDark ? colors.gray300 : '#FFFFFF',
-                        borderColor: colors.gray300,
+                        backgroundColor: isDark ? colors.gray200 : '#FFFFFF',
+                        borderColor: isDark ? colors.gray300 : colors.gray300,
                       },
                     ]}
                   >
-                    <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray500, marginBottom: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 12 : 10, color: colors.gray400, marginBottom: 1, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'ماوەی عەرز' : 'Validity'}
                     </Text>
                     <Text
@@ -1915,7 +2019,7 @@ export default function SalesQuotationScreen() {
             {/* Items Table */}
             <View style={{ marginTop: isTablet ? 18 : 14 }}>
               {/* Header Row */}
-              <View style={[styles.itemsHeaderRow, isTablet && { paddingBottom: 10, marginBottom: 6 }, { borderColor: colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.itemsHeaderRow, isTablet && { paddingBottom: 10, marginBottom: 6 }, { borderColor: isDark ? colors.gray200 : colors.gray200, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: isTablet ? 8 : 6 }}>
                   <Text style={{ fontSize: isTablet ? 14.5 : 12.5, fontWeight: '800', color: colors.black, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {isKuLanguage ? 'لیستی کاڵا پێشنیارکراوەکان' : 'Quoted Items'}
@@ -1936,14 +2040,14 @@ export default function SalesQuotationScreen() {
                     styles.invoiceItemRow,
                     isTablet && { paddingVertical: 14 },
                     {
-                      borderBottomColor: colors.gray100,
+                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.05)' : colors.gray100,
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                     },
                   ]}
                 >
                   {/* Distinct Number Chip */}
                   <View style={[styles.itemIndexPill, isTablet && { width: 28, height: 28, borderRadius: 14 }, { backgroundColor: isDark ? colors.gray200 : colors.gray100 }]}>
-                    <Text style={[styles.itemIndexText, isTablet && { fontSize: 13 }, { color: colors.gray500 }]}>{idx + 1}</Text>
+                    <Text style={[styles.itemIndexText, isTablet && { fontSize: 13 }, { color: colors.gray400 }]}>{idx + 1}</Text>
                   </View>
 
                   {/* Product Details */}
@@ -1952,7 +2056,7 @@ export default function SalesQuotationScreen() {
                       {it.productName}
                     </Text>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray500, direction: 'ltr' }}>
+                      <Text style={{ fontSize: isTablet ? 13 : 11, color: colors.gray400, direction: 'ltr' }}>
                         {it.quantity} × {formatRowPrice(it.unitPrice)}
                       </Text>
                       {it.discount > 0 && (
@@ -1977,12 +2081,16 @@ export default function SalesQuotationScreen() {
                 style={[
                   styles.invoiceNotesBox,
                   isTablet && { padding: 14, borderRadius: 10, marginTop: 16 },
-                  { backgroundColor: isDark ? colors.gray200 : colors.gray50, borderColor: colors.gray200, marginTop: 14 },
+                  {
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : colors.gray50,
+                    borderColor: isDark ? colors.gray200 : colors.gray200,
+                    marginTop: 14,
+                  },
                 ]}
               >
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Ionicons name="document-text-outline" size={isTablet ? 15 : 12} color={colors.gray500} />
-                  <Text style={{ fontSize: isTablet ? 13 : 11, fontWeight: '700', color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
+                  <Ionicons name="document-text-outline" size={isTablet ? 15 : 12} color={colors.primary} />
+                  <Text style={{ fontSize: isTablet ? 13 : 11, fontWeight: '700', color: colors.primary, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_BOLD : undefined }}>
                     {isKuLanguage ? 'تێبینی و مەرجەکان:' : 'Terms & Conditions:'}
                   </Text>
                 </View>
@@ -1993,11 +2101,11 @@ export default function SalesQuotationScreen() {
             ) : null}
 
             {/* Totals Section */}
-            <View style={[styles.invoiceTotalsBox, isTablet && { marginTop: 16, paddingTop: 14, gap: 8 }, { borderTopColor: colors.gray200, marginTop: 14 }]}>
+            <View style={[styles.invoiceTotalsBox, isTablet && { marginTop: 16, paddingTop: 14, gap: 8 }, { borderTopColor: isDark ? colors.gray200 : colors.gray200, marginTop: 14 }]}>
               {q.discountTotal > 0 && (
                 <>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.gray400, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'کۆی سەرەتایی:' : 'Subtotal:'}
                     </Text>
                     <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.black, direction: 'ltr' }}>
@@ -2005,10 +2113,10 @@ export default function SalesQuotationScreen() {
                     </Text>
                   </View>
                   <View style={[styles.invoiceTotRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.gray500, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
+                    <Text style={{ fontSize: isTablet ? 14.5 : 12.5, color: colors.error, fontFamily: isKuLanguage ? SETTINGS_KURDISH_FONT_REGULAR : undefined }}>
                       {isKuLanguage ? 'داشکاندن:' : 'Discount:'}
                     </Text>
-                    <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: isDark ? '#4ADE80' : '#15803D', direction: 'ltr' }}>
+                    <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '700', color: colors.error, direction: 'ltr' }}>
                       −{formatRowPrice(q.discountTotal)}
                     </Text>
                   </View>
@@ -2019,21 +2127,21 @@ export default function SalesQuotationScreen() {
                   {isKuLanguage ? 'کۆی گشتی:' : 'Grand Total:'}
                 </Text>
                 <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
-                  <Text style={{ fontSize: isTablet ? 24 : 17.5, fontWeight: '900', color: colors.black, direction: 'ltr' }}>
+                  <Text style={{ fontSize: isTablet ? 24 : 17.5, fontWeight: '900', color: colors.primary, direction: 'ltr' }}>
                     {grandTotalPrimary}
                   </Text>
                   {grandTotalSecondary ? (
-                    <Text style={{ fontSize: isTablet ? 15 : 12, fontWeight: '700', color: colors.gray500, direction: 'ltr', marginTop: 2 }}>
+                    <Text style={{ fontSize: isTablet ? 15 : 12, fontWeight: '700', color: isDark ? '#4ADE80' : colors.success, direction: 'ltr', marginTop: 2 }}>
                       {grandTotalSecondary}
                     </Text>
                   ) : null}
                 </View>
               </View>
             </View>
-          </PremiumCard>
+          </View>
 
           {/* Action Buttons */}
-          <View style={{ gap: isTablet ? 14 : 10, marginTop: isTablet ? 18 : 14, marginBottom: 40 }}>
+          <View style={{ gap: isTablet ? 14 : 10, marginTop: isTablet ? 18 : 14, marginBottom: Math.max(insets.bottom, 16) + 24 }}>
             <PrimaryButton
               label={isGenerating ? (isKuLanguage ? 'دروستکردنی PDF...' : 'Creating PDF...') : (isKuLanguage ? 'هاوبەشکردن و چاپکردنی PDF' : 'Share & Print PDF')}
               onPress={() => handleSharePDF(q)}
@@ -2065,12 +2173,16 @@ export default function SalesQuotationScreen() {
               style={[
                 styles.outlineBtn,
                 isTablet && { paddingVertical: 15, borderRadius: 12 },
-                { borderColor: colors.gray300, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                {
+                  backgroundColor: isDark ? colors.gray100 : colors.white,
+                  borderColor: isDark ? colors.gray200 : colors.gray300,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                },
               ]}
               onPress={handleResetForNewQuote}
             >
-              <Ionicons name="add-circle-outline" size={isTablet ? 20 : 17} color={colors.gray600} />
-              <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '600', color: colors.gray600 }}>
+              <Ionicons name="add-circle-outline" size={isTablet ? 20 : 17} color={colors.black} />
+              <Text style={{ fontSize: isTablet ? 15 : 13, fontWeight: '600', color: colors.black }}>
                 {isKuLanguage ? 'دروستکردنی عەرزی نوێ' : 'Create New Quote'}
               </Text>
             </TouchableOpacity>
@@ -2144,6 +2256,7 @@ const styles = StyleSheet.create({
   },
   step2Body: {
     padding: 14,
+    paddingTop: 18,
     gap: 12,
   },
   step2SingleCol: {
@@ -2169,6 +2282,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginTop: 4,
   },
   card: {
     padding: 14,
@@ -2177,6 +2291,21 @@ const styles = StyleSheet.create({
   cardHeader: {
     alignItems: 'center',
     marginBottom: 10,
+  },
+  cardHeaderIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addMoreBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 4,
   },
   cardTitle: {
     fontSize: 14,
