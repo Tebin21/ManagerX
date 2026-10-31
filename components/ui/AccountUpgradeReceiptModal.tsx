@@ -113,16 +113,13 @@ export function AccountUpgradeReceiptModal() {
 
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<'lang' | 'receipt'>('lang');
-  console.log('[AccountUpgradeReceiptModal] LIVE RENDER step:', step);
   const [selectedLang, setSelectedLang] = useState<ModalLang>(
     appLang === 'en' ? 'en' : 'ku'
   );
   const [countdown, setCountdown] = useState(25);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const receipt = currentUserAccount?.upgradeReceipt
-    ? { ...currentUserAccount.upgradeReceipt, receiptId: 'REC-UNSEEN-001' }
-    : null;
+  const receipt = currentUserAccount?.upgradeReceipt || null;
 
   useEffect(() => {
     if (!receipt || !receipt.receiptId) return;
@@ -277,50 +274,50 @@ export function AccountUpgradeReceiptModal() {
               <View style={styles.langOptionsList}>
                 {/* 1. Kurdish */}
                 <TouchableOpacity
-                  style={[styles.langOptionCard, selectedLang === 'ku' && styles.langOptionCardActive]}
+                  style={[styles.langOptionCard, isRtl && styles.rowRtl, selectedLang === 'ku' && styles.langOptionCardActive]}
                   onPress={() => handleSelectLanguage('ku')}
                   activeOpacity={0.82}
                 >
                   <View style={styles.langOptionIconCircle}>
                     <Text style={{ fontSize: 18 }}>☀️</Text>
                   </View>
-                  <View style={styles.langOptionTextBox}>
-                    <Text style={styles.langOptionTitleText}>کوردی (سۆرانی)</Text>
-                    <Text style={styles.langOptionSubText}>Kurdish Sorani</Text>
+                  <View style={[styles.langOptionTextBox, { alignItems: isRtl ? 'flex-end' : 'flex-start' }]}>
+                    <Text style={[styles.langOptionTitleText, { textAlign: isRtl ? 'right' : 'left' }]}>کوردی (سۆرانی)</Text>
+                    <Text style={[styles.langOptionSubText, { textAlign: isRtl ? 'right' : 'left' }]}>Kurdish Sorani</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+                  <Ionicons name={isRtl ? "chevron-back" : "chevron-forward"} size={18} color="#D4AF37" />
                 </TouchableOpacity>
 
                 {/* 2. Arabic */}
                 <TouchableOpacity
-                  style={[styles.langOptionCard, selectedLang === 'ar' && styles.langOptionCardActive]}
+                  style={[styles.langOptionCard, isRtl && styles.rowRtl, selectedLang === 'ar' && styles.langOptionCardActive]}
                   onPress={() => handleSelectLanguage('ar')}
                   activeOpacity={0.82}
                 >
                   <View style={styles.langOptionIconCircle}>
                     <Text style={{ fontSize: 18 }}>🌙</Text>
                   </View>
-                  <View style={styles.langOptionTextBox}>
-                    <Text style={styles.langOptionTitleText}>العربية</Text>
-                    <Text style={styles.langOptionSubText}>Arabic</Text>
+                  <View style={[styles.langOptionTextBox, { alignItems: isRtl ? 'flex-end' : 'flex-start' }]}>
+                    <Text style={[styles.langOptionTitleText, { textAlign: isRtl ? 'right' : 'left' }]}>العربية</Text>
+                    <Text style={[styles.langOptionSubText, { textAlign: isRtl ? 'right' : 'left' }]}>Arabic</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+                  <Ionicons name={isRtl ? "chevron-back" : "chevron-forward"} size={18} color="#D4AF37" />
                 </TouchableOpacity>
 
                 {/* 3. English */}
                 <TouchableOpacity
-                  style={[styles.langOptionCard, selectedLang === 'en' && styles.langOptionCardActive]}
+                  style={[styles.langOptionCard, isRtl && styles.rowRtl, selectedLang === 'en' && styles.langOptionCardActive]}
                   onPress={() => handleSelectLanguage('en')}
                   activeOpacity={0.82}
                 >
                   <View style={styles.langOptionIconCircle}>
                     <Text style={{ fontSize: 18 }}>🌐</Text>
                   </View>
-                  <View style={styles.langOptionTextBox}>
-                    <Text style={styles.langOptionTitleText}>English</Text>
-                    <Text style={styles.langOptionSubText}>ئینگلیزی</Text>
+                  <View style={[styles.langOptionTextBox, { alignItems: isRtl ? 'flex-end' : 'flex-start' }]}>
+                    <Text style={[styles.langOptionTitleText, { textAlign: isRtl ? 'right' : 'left' }]}>English</Text>
+                    <Text style={[styles.langOptionSubText, { textAlign: isRtl ? 'right' : 'left' }]}>ئینگلیزی</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+                  <Ionicons name={isRtl ? "chevron-back" : "chevron-forward"} size={18} color="#D4AF37" />
                 </TouchableOpacity>
               </View>
             </View>

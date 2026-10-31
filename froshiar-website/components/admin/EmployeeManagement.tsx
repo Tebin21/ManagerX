@@ -955,30 +955,73 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     const db = getClientFirestore();
     if (!db) return;
 
-    const currentStore = emp.onlineStore || {
-      enabled: false,
-      storeName: emp.displayName,
-      subdomain: getCleanDocId(emp.displayName),
-      status: 'suspended' as const,
+    const docId = getCleanDocId(emp.email) || emp.id;
+    const cleanEmail = (emp.email || '').trim().toLowerCase();
+    const finalStoreName = (emp.onlineStore?.storeName || emp.displayName || cleanEmail.split('@')[0] || 'store').trim();
+    const finalSubdomain = (emp.onlineStore?.subdomain || slugifyStoreName(finalStoreName) || docId || 'store').trim();
+    const nextStatus = (emp.onlineStore?.status === 'active') ? 'suspended' : 'active';
+    const isNowActive = nextStatus === 'active';
+
+    const storePayload = {
+      enabled: isNowActive,
+      storeName: finalStoreName,
+      subdomain: finalSubdomain,
+      status: nextStatus,
+      activatedAt: emp.onlineStore?.activatedAt || new Date().toISOString(),
     };
-    const nextStatus = currentStore.status === 'active' ? 'suspended' : 'active';
 
     try {
-      const docRef = doc(db, 'employee_accounts', getCleanDocId(emp.email) || emp.id);
+      const docRef = doc(db, 'employee_accounts', docId);
       await setDoc(
         docRef,
         {
-          onlineStore: {
-            ...currentStore,
-            enabled: true,
-            status: nextStatus,
-          },
+          onlineStore: stripUndefined(storePayload),
         },
         { merge: true }
       );
-    } catch (e) {
+
+      // Also mirror to user_subscriptions so app reflects the online store state
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          stripUndefined({
+            storefront_enabled: isNowActive,
+            onlineStoreActive: isNowActive,
+            onlineStore: storePayload,
+            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+
+        if (isNowActive) {
+          await setDoc(
+            doc(db, 'store_activations', docId),
+            stripUndefined({
+              email: cleanEmail,
+              enabled: true,
+              status: 'active',
+              storeName: finalStoreName,
+              subdomain: finalSubdomain,
+              activatedAt: new Date().toISOString(),
+            }),
+            { merge: true }
+          );
+        } else {
+          await setDoc(
+            doc(db, 'store_activations', docId),
+            {
+              enabled: false,
+              status: 'suspended',
+            },
+            { merge: true }
+          );
+        }
+      } catch (syncErr) {
+        console.warn('Sync to user_subscriptions/store_activations warning:', syncErr);
+      }
+    } catch (e: any) {
       console.error('Failed to toggle online store:', e);
-      alert(isKu ? 'هەڵەیەک ڕوویدا لە گۆڕینی ستۆری ئۆنلاین' : 'Failed to update store');
+      alert(isKu ? `هەڵەیەک ڕوویدا لە گۆڕینی ستۆری ئۆنلاین: ${e?.message || ''}` : `Failed to update store: ${e?.message || ''}`);
     }
   };
 
@@ -1039,10 +1082,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
-      const finalStoreName = storeName.trim() || formName.trim() || selectedEmployee.displayName;
-      const finalSubdomain = storeSubdomain.trim() || slugifyStoreName(finalStoreName) || getCleanDocId(selectedEmployee.displayName);
+      const finalStoreName = (storeName.trim() || formName.trim() || selectedEmployee.displayName || cleanEmail.split('@')[0] || 'store').trim();
+      const finalSubdomain = (storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId || 'store').trim();
 
-      const updatedStore: OnlineStoreConfig | undefined = storeEnabled
+      const updatedStore: OnlineStoreConfig | null = storeEnabled
         ? {
             enabled: true,
             storeName: finalStoreName,
@@ -1050,7 +1093,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             status: selectedEmployee.onlineStore?.status || 'active',
             activatedAt: selectedEmployee.onlineStore?.activatedAt || new Date().toISOString(),
           }
-        : undefined;
+        : null;
 
       const startDate = formStartedAt ? new Date(formStartedAt).toISOString() : selectedEmployee.startedAt || selectedEmployee.createdAt;
       const expDate = formExpiresAt ? new Date(formExpiresAt).toISOString() : undefined;
@@ -1060,13 +1103,13 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         email: cleanEmail,
         password: formPassword.trim() ? formPassword.trim() : (selectedEmployee.password || ''),
         managerEmail: formManagerEmail.trim().toLowerCase() || cleanEmail,
-        phone: formPhone.trim(),
+        phone: formPhone.trim() || null,
         priceAmount: formPrice.trim() || null,
         startedAt: startDate,
         expiresAt: expDate || null,
         durationDays: typeof formDuration === 'number' ? formDuration : null,
         limits: updatedLimits,
-        onlineStore: updatedStore || null,
+        onlineStore: updatedStore ? stripUndefined(updatedStore) : null,
       };
 
       await setDoc(docRef, stripUndefined(payload), { merge: true });
@@ -1086,7 +1129,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             expiresAt: expDate || null,
             storefront_enabled: storeEnabled,
             onlineStoreActive: storeEnabled,
-            onlineStore: updatedStore || null,
+            onlineStore: updatedStore ? stripUndefined(updatedStore) : null,
             priceAmount: formPrice.trim() || null,
             limits: updatedLimits,
             updatedAt: new Date().toISOString(),
@@ -1097,13 +1140,22 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         if (storeEnabled) {
           await setDoc(
             doc(db, 'store_activations', docId),
-            {
+            stripUndefined({
               email: cleanEmail,
               enabled: true,
               status: selectedEmployee.onlineStore?.status || 'active',
               storeName: finalStoreName,
               subdomain: finalSubdomain,
               activatedAt: new Date().toISOString(),
+            }),
+            { merge: true }
+          );
+        } else {
+          await setDoc(
+            doc(db, 'store_activations', docId),
+            {
+              enabled: false,
+              status: 'suspended',
             },
             { merge: true }
           );
@@ -1344,10 +1396,10 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         maxQuotations: unlimitedQuotations ? 'unlimited' : Number(formLimits.maxQuotations) || 5,
       };
 
-      const finalStoreName = storeName.trim() || formName.trim() || cleanEmail.split('@')[0];
-      const finalSubdomain = storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId;
+      const finalStoreName = (storeName.trim() || formName.trim() || cleanEmail.split('@')[0] || 'store').trim();
+      const finalSubdomain = (storeSubdomain.trim() || slugifyStoreName(finalStoreName) || docId || 'store').trim();
 
-      const updatedStore: OnlineStoreConfig | undefined = storeEnabled
+      const updatedStore: OnlineStoreConfig | null = storeEnabled
         ? {
             enabled: true,
             storeName: finalStoreName,
@@ -1355,7 +1407,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             status: 'active',
             activatedAt: new Date().toISOString(),
           }
-        : undefined;
+        : null;
 
       const startDate = formStartedAt ? new Date(formStartedAt).toISOString() : new Date().toISOString();
       const expDate = formExpiresAt

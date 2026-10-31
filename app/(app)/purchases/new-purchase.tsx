@@ -1210,9 +1210,26 @@ export default function NewPurchaseScreen() {
       {/* Quick Auto-Fill Suggestion Chips when typing product name */}
       {matchingPresets.length > 0 && (!boundProductIdentity || boundProductIdentity.name.trim().toLowerCase() !== productName.trim().toLowerCase()) && (
         <View style={styles.presetsSuggestionWrap}>
-          <View style={[styles.presetsHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[
+            styles.presetsHeaderRow,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              justifyContent: isRTL ? 'flex-start' : 'flex-start',
+            }
+          ]}>
             <Ionicons name="sparkles" size={13} color={colors.primary} />
-            <Text style={[styles.presetsHeaderText, { color: colors.primary }]}>
+            <Text
+              style={[
+                styles.presetsHeaderText,
+                {
+                  color: colors.primary,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                  flex: 1,
+                },
+                isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+              ]}
+            >
               {isKuLanguage
                 ? 'بەرهەمە پاشەکەوتکراوەکان (داگرە بۆ پڕکردنەوەی خۆکارانەی نرخ و زانیاری):'
                 : 'Saved items (tap to auto-fill details & prices):'}
@@ -1221,7 +1238,14 @@ export default function NewPurchaseScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.presetsScroll, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            contentContainerStyle={[
+              styles.presetsScroll,
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                minWidth: '100%',
+                justifyContent: isRTL ? 'flex-start' : 'flex-start',
+              },
+            ]}
           >
             {matchingPresets.map((preset) => (
               <TouchableOpacity
@@ -1247,11 +1271,15 @@ export default function NewPurchaseScreen() {
                     <Ionicons name="cube-outline" size={16} color={colors.primary} />
                   </View>
                 )}
-                <View style={{ gap: 2 }}>
+                <View style={{ gap: 2, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
                   <Text
                     style={[
                       styles.presetChipName,
-                      { color: colors.black },
+                      {
+                        color: colors.black,
+                        textAlign: isRTL ? 'right' : 'left',
+                        writingDirection: isRTL ? 'rtl' : 'ltr',
+                      },
                       isKuLanguage && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
@@ -1259,12 +1287,12 @@ export default function NewPurchaseScreen() {
                   </Text>
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4, alignItems: 'center' }}>
                     {Boolean(preset.itemId) && (
-                      <Text style={[styles.presetChipDesc, { color: colors.primary }]} numberOfLines={1}>
+                      <Text style={[styles.presetChipDesc, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
                         #{preset.itemId}
                       </Text>
                     )}
                     {Boolean(preset.buyPriceIQD && preset.buyPriceIQD > 0) && (
-                      <Text style={[styles.presetChipDesc, { color: colors.gray400 }]} numberOfLines={1}>
+                      <Text style={[styles.presetChipDesc, { color: colors.gray400, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
                         · {preset.buyPriceIQD?.toLocaleString()} IQD
                       </Text>
                     )}
@@ -1274,7 +1302,7 @@ export default function NewPurchaseScreen() {
                   name="checkmark-circle"
                   size={16}
                   color={colors.primary}
-                  style={{ marginStart: 4 }}
+                  style={{ marginHorizontal: 4 }}
                 />
               </TouchableOpacity>
             ))}
