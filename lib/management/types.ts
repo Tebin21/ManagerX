@@ -17,6 +17,31 @@ export interface OnlineStoreConfig {
   expiresAt?: string;
 }
 
+export interface DashboardWidgetPermissions {
+  kpiRevenue: PermissionState;       // Revenue, Net Profit, Profit Margin
+  kpiSales: PermissionState;         // Sales & Invoices count
+  kpiPurchases: PermissionState;     // Purchases count & bills
+  kpiDebts: PermissionState;         // Debts overview
+  kpiExpenses: PermissionState;      // Expenses & Discounts
+  kpiStockAlerts: PermissionState;   // Low stock & Expiring batches
+  activityFeed: PermissionState;     // Recent activities feed
+}
+
+export interface GranularSubPermissions {
+  allowedLanguages?: {
+    ku?: boolean;
+    ar?: boolean;
+    en?: boolean;
+  };
+  canChangeBaseCurrency?: boolean;
+  canChangeExchangeRate?: boolean;
+  canCustomizeSalesReceipt?: boolean;
+  canCustomizePurchaseReceipt?: boolean;
+  canCustomizeQuotationReceipt?: boolean;
+  canCustomizeDebtReceipt?: boolean;
+  activityScope?: 'own_only' | 'all';
+}
+
 export interface EmployeePermissions {
   // Modules
   sales: PermissionState;
@@ -43,6 +68,10 @@ export interface EmployeePermissions {
   settingsBackup: PermissionState;
   settingsReceiptCustomization?: PermissionState;
   settingsDeleteAccount: PermissionState;
+
+  // Deep drill-down & Dashboard permissions
+  dashboardWidgets?: DashboardWidgetPermissions;
+  subPermissions?: GranularSubPermissions;
 }
 
 export interface EmployeeAccount {
@@ -94,6 +123,26 @@ export const ALL_ACTIVE_PERMISSIONS: EmployeePermissions = {
   settingsBackup: 'active',
   settingsReceiptCustomization: 'active',
   settingsDeleteAccount: 'active',
+
+  dashboardWidgets: {
+    kpiRevenue: 'active',
+    kpiSales: 'active',
+    kpiPurchases: 'active',
+    kpiDebts: 'active',
+    kpiExpenses: 'active',
+    kpiStockAlerts: 'active',
+    activityFeed: 'active',
+  },
+  subPermissions: {
+    allowedLanguages: { ku: true, ar: true, en: true },
+    canChangeBaseCurrency: true,
+    canChangeExchangeRate: true,
+    canCustomizeSalesReceipt: true,
+    canCustomizePurchaseReceipt: true,
+    canCustomizeQuotationReceipt: true,
+    canCustomizeDebtReceipt: true,
+    activityScope: 'all',
+  },
 };
 
 export const DEFAULT_USAGE_LIMITS: EmployeeUsageLimits = {
@@ -135,5 +184,25 @@ export const DEFAULT_EMPLOYEE_PERMISSIONS: EmployeePermissions = {
   settingsBackup: 'hidden',
   settingsReceiptCustomization: 'disabled',
   settingsDeleteAccount: 'hidden',
+
+  dashboardWidgets: {
+    kpiRevenue: 'hidden',
+    kpiSales: 'active',
+    kpiPurchases: 'active',
+    kpiDebts: 'active',
+    kpiExpenses: 'disabled',
+    kpiStockAlerts: 'active',
+    activityFeed: 'active',
+  },
+  subPermissions: {
+    allowedLanguages: { ku: true, ar: true, en: true },
+    canChangeBaseCurrency: false,
+    canChangeExchangeRate: false,
+    canCustomizeSalesReceipt: false,
+    canCustomizePurchaseReceipt: false,
+    canCustomizeQuotationReceipt: false,
+    canCustomizeDebtReceipt: false,
+    activityScope: 'own_only',
+  },
 };
 

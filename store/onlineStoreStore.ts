@@ -25,6 +25,26 @@ import {
 } from '@/lib/onlineStore/storeInfo';
 import { useBusinessStore } from '@/store/businessStore';
 
+async function isCurrentUserRealEmployee(): Promise<boolean> {
+  try {
+    const { useManagementStore } = await import('@/store/managementStore');
+    const { isEmployee, currentEmployeeAccount } = useManagementStore.getState();
+    const { useAuthStore } = await import('@/store/authStore');
+    const user = useAuthStore.getState().user;
+    const { isAdminEmail } = await import('@/lib/adminNotificationService');
+    const isAdmin = isAdminEmail(user?.email);
+    return Boolean(
+      isEmployee &&
+      currentEmployeeAccount?.email &&
+      user?.email &&
+      currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
+      !isAdmin
+    );
+  } catch {
+    return false;
+  }
+}
+
 function buildStoreUrl(slug: string | null): string | null {
   // The displayed/copied/opened URL is always the public storefront domain — never the
   // API domain (which the device only ever talks to via fetch(), never opens a browser to).
@@ -210,6 +230,12 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   },
 
   enable: async () => {
+    // Employees are strictly restricted from enabling or disabling the storefront
+    if (await isCurrentUserRealEmployee()) {
+      if (__DEV__) console.warn('[onlineStore] Employees are strictly forbidden from enabling the online store.');
+      return { status: 'locked' };
+    }
+
     // Gate FIRST, before any local write — a locked user's `enabled` flag must never
     // flip to true, or the next background sync trigger (60s timer, app-foreground)
     // would try (and fail) against the backend anyway, leaving a confusing half-state.
@@ -260,6 +286,12 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   },
 
   disable: async () => {
+    // Employees are strictly restricted from disabling the storefront
+    if (await isCurrentUserRealEmployee()) {
+      if (__DEV__) console.warn('[onlineStore] Employees are strictly forbidden from disabling the online store.');
+      return;
+    }
+
     set({ isLoading: true });
     try {
       await setStoreEnabled(false);

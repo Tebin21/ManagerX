@@ -77,7 +77,7 @@ export function useEffectivePermission(key: keyof EmployeePermissions): {
     };
   }
 
-  const state: PermissionState = rawVal ?? 'active';
+  const state: PermissionState = (typeof rawVal === 'string' ? rawVal : 'active') as PermissionState;
   return {
     state,
     isHidden: state === 'hidden',

@@ -34,6 +34,7 @@ import { DashboardHeroSlider } from '@/components/dashboard/DashboardHeroSlider'
 import { DashboardMetricSquare } from '@/components/dashboard/DashboardMetricSquare';
 import { DashboardActivityFeed } from '@/components/dashboard/DashboardActivityFeed';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useManagementStore } from '@/store/managementStore';
 
 export default function DashboardViewScreen() {
   const { t } = useTranslation();
@@ -41,6 +42,33 @@ export default function DashboardViewScreen() {
   const { isRTL, textAlign, flexDirection } = useRTL();
   const { isTablet, isTabletLandscape } = useResponsive();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentPermissions = useManagementStore((s) => s.currentPermissions);
+  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
+  const widgets = currentPermissions?.dashboardWidgets;
+  const activityScope = currentPermissions?.subPermissions?.activityScope ?? 'all';
+
+  const showRevenue = !isEmployee || !widgets || widgets.kpiRevenue !== 'hidden';
+  const lockRevenue = Boolean(isEmployee && widgets && widgets.kpiRevenue === 'disabled');
+
+  const showSales = !isEmployee || !widgets || widgets.kpiSales !== 'hidden';
+  const lockSales = Boolean(isEmployee && widgets && widgets.kpiSales === 'disabled');
+
+  const showPurchases = !isEmployee || !widgets || widgets.kpiPurchases !== 'hidden';
+  const lockPurchases = Boolean(isEmployee && widgets && widgets.kpiPurchases === 'disabled');
+
+  const showExpenses = !isEmployee || !widgets || widgets.kpiExpenses !== 'hidden';
+  const lockExpenses = Boolean(isEmployee && widgets && widgets.kpiExpenses === 'disabled');
+
+  const showDebts = !isEmployee || !widgets || widgets.kpiDebts !== 'hidden';
+  const lockDebts = Boolean(isEmployee && widgets && widgets.kpiDebts === 'disabled');
+
+  const showStockAlerts = !isEmployee || !widgets || widgets.kpiStockAlerts !== 'hidden';
+  const lockStockAlerts = Boolean(isEmployee && widgets && widgets.kpiStockAlerts === 'disabled');
+
+  const showActivityFeed = !isEmployee || !widgets || widgets.activityFeed !== 'hidden';
+  const lockActivityFeed = Boolean(isEmployee && widgets && widgets.activityFeed === 'disabled');
 
   // Period filter state (defaults to 'today')
   const { period, bounds, periodSheetVisible, setPeriodSheetVisible, handlePeriodSelect } =
@@ -80,9 +108,13 @@ export default function DashboardViewScreen() {
       const fromStr = period === 'all' ? undefined : bounds.from.toISOString();
       const toStr = period === 'all' ? undefined : bounds.to.toISOString();
 
+      const filterEmail = (isEmployee && activityScope === 'own_only')
+        ? currentEmployeeAccount?.email?.toLowerCase()
+        : undefined;
+
       const [overviewData, recentActs] = await Promise.all([
         getDashboardOverviewStats(fromStr, toStr),
-        getDashboardRecentActivities(40, fromStr, toStr, isKurdish ? 'ku' : 'en'),
+        getDashboardRecentActivities(40, fromStr, toStr, isKurdish ? 'ku' : 'en', filterEmail),
       ]);
 
       setStats(overviewData);
@@ -93,7 +125,7 @@ export default function DashboardViewScreen() {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [period, bounds, isKurdish]);
+  }, [period, bounds, isKurdish, isEmployee, activityScope, currentEmployeeAccount?.email]);
 
   // Formatted period badge label for activity feed and PDF export
   const periodLabel = useMemo(() => {
@@ -296,218 +328,271 @@ export default function DashboardViewScreen() {
         ) : (
           <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             {/* 1. Total Revenue / داهات */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalRevenue')}
-              value={stats.totalRevenue}
-              isCurrency
-              icon="wallet"
-              color="#10B981"
-              subtitle={isKurdish ? 'داهات' : 'Revenue'}
-              delay={30}
-            />
+            {showRevenue && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalRevenue')}
+                value={stats.totalRevenue}
+                isCurrency
+                icon="wallet"
+                color="#10B981"
+                subtitle={isKurdish ? 'داهات' : 'Revenue'}
+                delay={30}
+                isLocked={lockRevenue}
+              />
+            )}
 
             {/* 2. Total Purchases Cost / کۆی بەهای کڕین */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalPurchasesCost')}
-              value={stats.totalPurchasesCost}
-              isCurrency
-              icon="bag-handle"
-              color="#8B5CF6"
-              subtitle={isKurdish ? 'کڕینەکان' : 'Purchases'}
-              delay={60}
-            />
+            {showPurchases && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalPurchasesCost')}
+                value={stats.totalPurchasesCost}
+                isCurrency
+                icon="bag-handle"
+                color="#8B5CF6"
+                subtitle={isKurdish ? 'کڕینەکان' : 'Purchases'}
+                delay={60}
+                isLocked={lockPurchases}
+              />
+            )}
 
             {/* 3. Total Expenses / کۆی مەسروفات و خەرجییەکان */}
-            <DashboardMetricSquare
-              title={isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
-              value={stats.totalExpenses}
-              isCurrency
-              icon="cash-outline"
-              color="#E11D48"
-              subtitle={isKurdish ? 'مەسروفات' : 'Expenses'}
-              delay={80}
-            />
+            {showExpenses && (
+              <DashboardMetricSquare
+                title={isKurdish ? 'کۆی مەسروفات' : 'Total Expenses'}
+                value={stats.totalExpenses}
+                isCurrency
+                icon="cash-outline"
+                color="#E11D48"
+                subtitle={isKurdish ? 'مەسروفات' : 'Expenses'}
+                delay={80}
+                isLocked={lockExpenses}
+              />
+            )}
 
             {/* 4. Expected Net Profit / کۆی قازانجی چاوەڕوانکراو */}
-            <DashboardMetricSquare
-              title={t('dashboard.expectedProfit')}
-              value={stats.expectedProfit}
-              isCurrency
-              icon="trending-up"
-              color={stats.expectedProfit >= 0 ? '#059669' : colors.error}
-              subtitle={
-                stats.expectedProfit >= 0
-                  ? isKurdish
-                    ? 'قازانج'
-                    : 'Profit'
-                  : isKurdish
-                  ? 'زەرەر'
-                  : 'Loss'
-              }
-              delay={100}
-            />
+            {showRevenue && (
+              <DashboardMetricSquare
+                title={t('dashboard.expectedProfit')}
+                value={stats.expectedProfit}
+                isCurrency
+                icon="trending-up"
+                color={stats.expectedProfit >= 0 ? '#059669' : colors.error}
+                subtitle={
+                  stats.expectedProfit >= 0
+                    ? isKurdish
+                      ? 'قازانج'
+                      : 'Profit'
+                    : isKurdish
+                    ? 'زەرەر'
+                    : 'Loss'
+                }
+                delay={100}
+                isLocked={lockRevenue}
+              />
+            )}
 
-            {/* 4. Total Sales / کۆی فرۆشتنەکان */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalSalesCount')}
-              value={stats.totalSales}
-              isCurrency
-              icon="receipt"
-              color="#06B6D4"
-              subtitle={isKurdish ? 'فرۆشراو' : 'Sales'}
-              delay={120}
-            />
+            {/* 5. Total Sales / کۆی فرۆشتنەکان */}
+            {showSales && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalSalesCount')}
+                value={stats.totalSales}
+                isCurrency
+                icon="receipt"
+                color="#06B6D4"
+                subtitle={isKurdish ? 'فرۆشراو' : 'Sales'}
+                delay={120}
+                isLocked={lockSales}
+              />
+            )}
 
-            {/* 5. Total Invoices / کۆی پسوولەکان (count) */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalInvoices')}
-              value={stats.totalInvoices}
-              icon="document-text"
-              color="#6366F1"
-              subtitle={isKurdish ? 'پسوولە' : 'Invoices'}
-              delay={150}
-            />
+            {/* 6. Total Invoices / کۆی پسوولەکان (count) */}
+            {showSales && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalInvoices')}
+                value={stats.totalInvoices}
+                icon="document-text"
+                color="#6366F1"
+                subtitle={isKurdish ? 'پسوولە' : 'Invoices'}
+                delay={150}
+                isLocked={lockSales}
+              />
+            )}
 
-            {/* 6. Total Customers / کۆی کڕیارەکان (count) */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalCustomers')}
-              value={stats.totalCustomers}
-              icon="people"
-              color="#F59E0B"
-              subtitle={isKurdish ? 'کڕیار' : 'Customers'}
-              delay={180}
-            />
+            {/* 7. Total Customers / کۆی کڕیارەکان (count) */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalCustomers')}
+                value={stats.totalCustomers}
+                icon="people"
+                color="#F59E0B"
+                subtitle={isKurdish ? 'کڕیار' : 'Customers'}
+                delay={180}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 7. Total Suppliers / کۆی دابینکەران (count) */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalSuppliers')}
-              value={stats.totalSuppliers}
-              icon="business"
-              color="#14B8A6"
-              subtitle={isKurdish ? 'دابینکەر' : 'Suppliers'}
-              delay={210}
-            />
+            {/* 8. Total Suppliers / کۆی دابینکەران (count) */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalSuppliers')}
+                value={stats.totalSuppliers}
+                icon="business"
+                color="#14B8A6"
+                subtitle={isKurdish ? 'دابینکەر' : 'Suppliers'}
+                delay={210}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 8. Total Products / کۆی کاڵاکان (count) */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalItems')}
-              value={stats.totalItems}
-              icon="cube"
-              color="#EC4899"
-              subtitle={isKurdish ? 'کاڵا' : 'Items'}
-              delay={240}
-            />
+            {/* 9. Total Products / کۆی کاڵاکان (count) */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalItems')}
+                value={stats.totalItems}
+                icon="cube"
+                color="#EC4899"
+                subtitle={isKurdish ? 'کاڵا' : 'Items'}
+                delay={240}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 9. Low Stock Alert / کەمیی کاڵا (count) */}
-            <DashboardMetricSquare
-              title={t('dashboard.lowStockAlert')}
-              value={stats.lowStockCount}
-              icon="alert-circle"
-              color="#EF4444"
-              isAlert={stats.lowStockCount > 0}
-              subtitle={
-                stats.lowStockCount > 0
-                  ? isKurdish
-                    ? 'ئاگاداری'
-                    : 'Low'
-                  : isKurdish
-                  ? 'باشە'
-                  : 'OK'
-              }
-              delay={270}
-            />
+            {/* 10. Low Stock Alert / کەمیی کاڵا (count) */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.lowStockAlert')}
+                value={stats.lowStockCount}
+                icon="alert-circle"
+                color="#EF4444"
+                isAlert={stats.lowStockCount > 0}
+                subtitle={
+                  stats.lowStockCount > 0
+                    ? isKurdish
+                      ? 'ئاگاداری'
+                      : 'Low'
+                    : isKurdish
+                    ? 'باشە'
+                    : 'OK'
+                }
+                delay={270}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 10. Total Batches / کۆی گشتی وەجبەکان */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalBatches')}
-              value={stats.totalBatchesCount}
-              icon="layers"
-              color="#6366F1"
-              subtitle={isKurdish ? 'وەجبە' : 'Batches'}
-              delay={290}
-            />
+            {/* 11. Total Batches / کۆی گشتی وەجبەکان */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalBatches')}
+                value={stats.totalBatchesCount}
+                icon="layers"
+                color="#6366F1"
+                subtitle={isKurdish ? 'وەجبە' : 'Batches'}
+                delay={290}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 11. In-Stock Batches / وەجبە بەردەستەکان لە کۆگا */}
-            <DashboardMetricSquare
-              title={t('dashboard.activeBatches')}
-              value={stats.activeBatchesCount}
-              icon="cube"
-              color="#10B981"
-              subtitle={
-                stats.expiringBatchesCount > 0
-                  ? isKurdish
-                    ? `${stats.expiringBatchesCount} نزیک بەسەرچوون`
-                    : `${stats.expiringBatchesCount} Expiring`
-                  : isKurdish
-                  ? 'لە کۆگادا'
-                  : 'In Stock'
-              }
-              isAlert={stats.expiringBatchesCount > 0}
-              delay={310}
-            />
+            {/* 12. In-Stock Batches / وەجبە بەردەستەکان لە کۆگا */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.activeBatches')}
+                value={stats.activeBatchesCount}
+                icon="cube"
+                color="#10B981"
+                subtitle={
+                  stats.expiringBatchesCount > 0
+                    ? isKurdish
+                      ? `${stats.expiringBatchesCount} نزیک بەسەرچوون`
+                      : `${stats.expiringBatchesCount} Expiring`
+                    : isKurdish
+                    ? 'لە کۆگادا'
+                    : 'In Stock'
+                }
+                isAlert={stats.expiringBatchesCount > 0}
+                delay={310}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 12. Sold-Out Batches / وەجبە تەواوبووەکان */}
-            <DashboardMetricSquare
-              title={t('dashboard.depletedBatches')}
-              value={stats.depletedBatchesCount}
-              icon="checkmark-done-circle"
-              color="#64748B"
-              subtitle={isKurdish ? 'فرۆشراو' : 'Sold Out'}
-              delay={330}
-            />
+            {/* 13. Sold-Out Batches / وەجبە تەواوبووەکان */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.depletedBatches')}
+                value={stats.depletedBatchesCount}
+                icon="checkmark-done-circle"
+                color="#64748B"
+                subtitle={isKurdish ? 'فرۆشراو' : 'Sold Out'}
+                delay={330}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 13. Multi-Batch Products / کاڵا فرە-وەجبەکان */}
-            <DashboardMetricSquare
-              title={t('dashboard.multiBatchItems')}
-              value={stats.multiBatchProductsCount}
-              icon="duplicate"
-              color="#F59E0B"
-              subtitle={isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
-              delay={350}
-            />
+            {/* 14. Multi-Batch Products / کاڵا فرە-وەجبەکان */}
+            {showStockAlerts && (
+              <DashboardMetricSquare
+                title={t('dashboard.multiBatchItems')}
+                value={stats.multiBatchProductsCount}
+                icon="duplicate"
+                color="#F59E0B"
+                subtitle={isKurdish ? 'فرە-وەجبە' : 'Multi-Batch'}
+                delay={350}
+                isLocked={lockStockAlerts}
+              />
+            )}
 
-            {/* 14. Customer Receivables / قەرزی لای کڕیاران */}
-            <DashboardMetricSquare
-              title={t('dashboard.customerDebts')}
-              value={stats.customerDebtTotal}
-              isCurrency
-              icon="arrow-down-circle"
-              color="#EA580C"
-              subtitle={isKurdish ? 'لای کڕیار' : 'Receivables'}
-              delay={370}
-            />
+            {/* 15. Customer Receivables / قەرزی لای کڕیاران */}
+            {showDebts && (
+              <DashboardMetricSquare
+                title={t('dashboard.customerDebts')}
+                value={stats.customerDebtTotal}
+                isCurrency
+                icon="arrow-down-circle"
+                color="#EA580C"
+                subtitle={isKurdish ? 'لای کڕیار' : 'Receivables'}
+                delay={370}
+                isLocked={lockDebts}
+              />
+            )}
 
-            {/* 15. Supplier Payables / قەرزی دابینکەران */}
-            <DashboardMetricSquare
-              title={t('dashboard.supplierDebts')}
-              value={stats.supplierDebtTotal}
-              isCurrency
-              icon="arrow-up-circle"
-              color="#DC2626"
-              subtitle={isKurdish ? 'قەرزی سەرشان' : 'Payables'}
-              delay={390}
-            />
+            {/* 16. Supplier Payables / قەرزی دابینکەران */}
+            {showDebts && (
+              <DashboardMetricSquare
+                title={t('dashboard.supplierDebts')}
+                value={stats.supplierDebtTotal}
+                isCurrency
+                icon="arrow-up-circle"
+                color="#DC2626"
+                subtitle={isKurdish ? 'قەرزی سەرشان' : 'Payables'}
+                delay={390}
+                isLocked={lockDebts}
+              />
+            )}
 
-            {/* 16. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
-            <DashboardMetricSquare
-              title={t('dashboard.totalDiscounts')}
-              value={stats.totalDiscount}
-              isCurrency
-              icon="pricetag"
-              color="#8B5CF6"
-              subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
-              delay={410}
-              isFullWidth
-            />
+            {/* 17. Total Discounts / کۆی داشکاندن - spans 100% full width to fill the row seamlessly */}
+            {showExpenses && (
+              <DashboardMetricSquare
+                title={t('dashboard.totalDiscounts')}
+                value={stats.totalDiscount}
+                isCurrency
+                icon="pricetag"
+                color="#8B5CF6"
+                subtitle={isKurdish ? 'داشکاندن' : 'Discounts'}
+                delay={410}
+                isFullWidth
+                isLocked={lockExpenses}
+              />
+            )}
           </View>
         )}
 
         {/* 4. Live Activity History Feed */}
-        <DashboardActivityFeed
-          activities={activities}
-          isLoading={isLoading && !refreshing}
-          periodLabel={periodLabel}
-        />
+        {showActivityFeed && (
+          <DashboardActivityFeed
+            activities={activities}
+            isLoading={isLoading && !refreshing}
+            periodLabel={periodLabel}
+          />
+        )}
       </ScrollView>
     </View>
   );

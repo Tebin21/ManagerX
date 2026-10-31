@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/settings/SettingsText';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { SettingsHeader as AppHeader } from '@/components/settings/SettingsHeade
 import { SettingsBackground } from '@/components/settings/SettingsBackground';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { useLanguageStore } from '@/store/languageStore';
+import { useManagementStore } from '@/store/managementStore';
 import { useRTL, RTL_SPACING } from '@/lib/rtl';
 
 type Lang = 'en' | 'ku' | 'ar';
@@ -29,6 +30,10 @@ export default function LanguageScreen() {
   const { language, setLanguage } = useLanguageStore();
   const { isRTL, flexDirection, textAlign, writingDirection } = useRTL();
 
+  const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentPermissions = useManagementStore((s) => s.currentPermissions);
+  const allowedLanguages = currentPermissions?.subPermissions?.allowedLanguages;
+
   React.useEffect(() => {
     if (queryLang && (queryLang === 'ar' || queryLang === 'ku' || queryLang === 'en') && queryLang !== language) {
       setLanguage(queryLang as Lang);
@@ -36,6 +41,17 @@ export default function LanguageScreen() {
   }, [queryLang, language, setLanguage]);
 
   function handleSelect(code: Lang) {
+    if (isEmployee && allowedLanguages && allowedLanguages[code] === false) {
+      Alert.alert(
+        language === 'ku' ? 'دەسەڵاتت نییە' : language === 'ar' ? 'غير مصرح' : 'Access Restricted',
+        language === 'ku'
+          ? 'ئەم زمانە لەلایەن بەڕێوەبەرەوە بۆ ئەم ئەکاونتە سنووردار کراوە.'
+          : language === 'ar'
+          ? 'هذه اللغة مقفلة من قبل المسؤول لهذا الحساب.'
+          : 'This language has been disabled by your manager.'
+      );
+      return;
+    }
     if (code === language) return;
     setLanguage(code);
   }
@@ -88,25 +104,38 @@ export default function LanguageScreen() {
           {LANGUAGES.map((lang, i) => {
             const isActive = language === lang.code;
             const isLast   = i === LANGUAGES.length - 1;
+            const isBlocked = isEmployee && allowedLanguages && allowedLanguages[lang.code] === false;
             return (
               <TouchableOpacity
                 key={lang.code}
                 onPress={() => handleSelect(lang.code)}
-                activeOpacity={0.7}
+                activeOpacity={isBlocked ? 0.9 : 0.7}
                 style={[
                   styles.row,
                   !isLast && { borderBottomWidth: 1, borderBottomColor: dividerColor },
                   { flexDirection, paddingVertical: isRTL ? RTL_SPACING.rowPadV + 2 : 14, gap: isRTL ? RTL_SPACING.gapLg : 12 },
+                  isBlocked && { opacity: 0.55 },
                 ]}
               >
                 <View style={styles.labelWrap}>
-                  <Text style={[styles.labelMain, { color: colors.black, textAlign, writingDirection }]}>{lang.label}</Text>
-                  <Text style={[styles.labelNative, { color: colors.gray400, marginTop: isRTL ? RTL_SPACING.title : 1, textAlign, writingDirection }]}>{lang.native}</Text>
+                  <View style={{ flexDirection, alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.labelMain, { color: colors.black, textAlign, writingDirection }]}>{lang.label}</Text>
+                    {isBlocked && (
+                      <Ionicons name="lock-closed" size={13} color="#EF4444" />
+                    )}
+                  </View>
+                  <Text style={[styles.labelNative, { color: colors.gray400, marginTop: isRTL ? RTL_SPACING.title : 1, textAlign, writingDirection }]}>
+                    {lang.native} {isBlocked ? (language === 'ku' ? '(ناچالاک کراوە)' : '(Locked)') : ''}
+                  </Text>
                 </View>
 
                 {isActive ? (
                   <View style={[styles.check, { backgroundColor: colors.primary }]}>
                     <Ionicons name="checkmark" size={14} color="#fff" />
+                  </View>
+                ) : isBlocked ? (
+                  <View style={[styles.checkEmpty, { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+                    <Ionicons name="lock-closed" size={12} color="#EF4444" />
                   </View>
                 ) : (
                   <View style={[styles.checkEmpty, { borderColor: isDark ? colors.gray300 : colors.gray200 }]} />

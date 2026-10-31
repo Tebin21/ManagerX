@@ -17,6 +17,7 @@ import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useAuthStore } from '@/store/authStore';
 import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
 import { OnlineStoreComingSoon } from '@/components/settings/OnlineStoreComingSoon';
 import { formatRelativeTime } from '@/utils/formatters';
@@ -58,13 +59,24 @@ export default function OnlineStoreScreen() {
   };
 
   const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = isAdminEmail(user?.email);
+
+  const isRealEmployee = Boolean(
+    isEmployee &&
+    currentEmployeeAccount?.email &&
+    user?.email &&
+    currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
+    !isAdmin
+  );
 
   const handleToggle = async () => {
-    if (isEmployee) {
+    if (isRealEmployee) {
       Alert.alert(
         t('common.error'),
         textAlign === 'right'
-          ? 'دەسەڵاتی ناچالاککردنی ستۆری ئۆنلاین تەنها لای بەڕێوەبەرە.'
+          ? 'دەسەڵاتی ناچالاککردن و چالاککردنی ستۆری ئۆنلاین تەنها لای بەڕێوەبەرە.'
           : 'Only managers can enable or disable the online store.'
       );
       return;
@@ -86,7 +98,6 @@ export default function OnlineStoreScreen() {
     }
   };
 
-  const user = useAuthStore((s) => s.user);
   const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
 
   // Gated: Show Coming Soon for users without an active Online Store subscription
@@ -206,7 +217,7 @@ export default function OnlineStoreScreen() {
             </TouchableOpacity>
           )}
 
-          {!isEmployee ? (
+          {!isRealEmployee ? (
             <View style={styles.toggleBtnWrap}>
               <PrimaryButton
                 label={enabled ? t('settings.onlineStoreScreen.disableStore') : t('settings.onlineStoreScreen.enableStore')}
@@ -220,8 +231,8 @@ export default function OnlineStoreScreen() {
               <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
               <Text style={{ fontSize: 12.5, color: colors.gray500, flex: 1, textAlign }}>
                 {textAlign === 'right'
-                  ? 'دەسەڵاتی ناچالاککردن یان سڕینەوەی وێبسایت تەنها لای بەڕێوەبەرە.'
-                  : 'Only managers can disable or delete the website.'}
+                  ? 'دەسەڵاتی ناچالاککردن و چالاککردنی وێبسایت تەنها لای بەڕێوەبەرە.'
+                  : 'Only managers can enable or disable the website.'}
               </Text>
             </View>
           )}
@@ -236,26 +247,28 @@ export default function OnlineStoreScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={() => router.push('/(app)/settings/online-store-info' as never)}
-          activeOpacity={0.8}
-        >
-          <SettingsCard style={{ marginBottom: 12, flexDirection, alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 2 }]}>
-                {t('settings.onlineStoreScreen.editStoreInfo')}
-              </Text>
-              <Text style={[styles.editInfoSub, { color: colors.gray400, textAlign }]}>
-                {t('settings.onlineStoreScreen.editStoreInfoSub')}
-              </Text>
-            </View>
-            <Ionicons
-              name={flexDirection === 'row-reverse' ? 'chevron-back' : 'chevron-forward'}
-              size={18}
-              color={colors.gray300}
-            />
-          </SettingsCard>
-        </TouchableOpacity>
+        {!isRealEmployee && (
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/settings/online-store-info' as never)}
+            activeOpacity={0.8}
+          >
+            <SettingsCard style={{ marginBottom: 12, flexDirection, alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.black, textAlign, marginBottom: 2 }]}>
+                  {t('settings.onlineStoreScreen.editStoreInfo')}
+                </Text>
+                <Text style={[styles.editInfoSub, { color: colors.gray400, textAlign }]}>
+                  {t('settings.onlineStoreScreen.editStoreInfoSub')}
+                </Text>
+              </View>
+              <Ionicons
+                name={flexDirection === 'row-reverse' ? 'chevron-back' : 'chevron-forward'}
+                size={18}
+                color={colors.gray300}
+              />
+            </SettingsCard>
+          </TouchableOpacity>
+        )}
 
         <View style={[styles.infoBox, { backgroundColor: colors.softBlue, borderColor: colors.lightBlue }]}>
           <Ionicons name="information-circle-outline" size={18} color={colors.primary} />

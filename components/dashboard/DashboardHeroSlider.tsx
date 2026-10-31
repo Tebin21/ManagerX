@@ -27,6 +27,8 @@ import { MODAL_SUPPORTED_ORIENTATIONS } from '@/constants/theme';
 import { copyToPermanentStorage } from '@/lib/imageStorage';
 import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useRemoteBannerConfig, getResponsiveDefaultBanner } from '@/lib/remoteBannerConfig';
 
 const DEFAULT_BANNER_IMAGE = require('@/assets/images/dashboard-hero-default.png');
 const CUSTOM_STORAGE_KEY = '@froshiar_dashboard_custom_banners_v2';
@@ -44,6 +46,8 @@ export function DashboardHeroSlider() {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
   const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const { isTablet, isTabletLandscape } = useResponsive();
+  const { config: remoteBannerConfig } = useRemoteBannerConfig();
 
   const [customImages, setCustomImages] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -54,16 +58,24 @@ export function DashboardHeroSlider() {
   const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width - 32);
 
-  // 1. Slides composition: Slot 1 is ALWAYS the permanent Froshiar default banner
+  const defaultBannerSource = useMemo(() => {
+    return getResponsiveDefaultBanner(remoteBannerConfig, {
+      isTablet,
+      isTabletLandscape,
+      fallbackSource: DEFAULT_BANNER_IMAGE,
+    });
+  }, [remoteBannerConfig, isTablet, isTabletLandscape]);
+
+  // 1. Slides composition: Slot 1 is ALWAYS the permanent Froshiar default banner (responsive)
   const slides = useMemo<BannerSlide[]>(() => {
     const list: BannerSlide[] = [
-      { id: 'default_banner_fixed', isDefault: true, source: DEFAULT_BANNER_IMAGE },
+      { id: 'default_banner_fixed', isDefault: true, source: defaultBannerSource },
     ];
     customImages.forEach((uri, idx) => {
       list.push({ id: `custom_${idx}_${uri}`, isDefault: false, source: { uri } });
     });
     return list;
-  }, [customImages]);
+  }, [customImages, defaultBannerSource]);
 
   // 2. Load custom images and hint dismissed status from AsyncStorage
   useEffect(() => {
@@ -280,7 +292,7 @@ export function DashboardHeroSlider() {
                 ]}
               >
                 <View style={styles.slotImageWrap}>
-                  <Image source={DEFAULT_BANNER_IMAGE} style={styles.slotPreview} />
+                  <Image source={defaultBannerSource} style={styles.slotPreview} />
                   <View style={styles.slotBadge}>
                     <Text style={[styles.slotBadgeText, { writingDirection: 'ltr' }]}>
                       {toEnglishDigits(1)}

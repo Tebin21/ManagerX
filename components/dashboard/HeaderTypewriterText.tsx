@@ -3,6 +3,7 @@ import { View, StyleSheet, Animated } from 'react-native';
 import { Text } from '@/components/ui/AppText';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useRemoteBannerConfig } from '@/lib/remoteBannerConfig';
 
 interface Props {
   isKurdish: boolean;
@@ -28,10 +29,22 @@ const PAUSE_BEFORE_NEXT = 500; // ms pause after erasing
 
 function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
   const { isTablet } = useResponsive();
-  const phrases = useMemo(
-    () => (isKurdish ? KURDISH_PHRASES : ENGLISH_PHRASES),
-    [isKurdish]
-  );
+  const { config } = useRemoteBannerConfig();
+
+  const phrases = useMemo(() => {
+    if (isKurdish) {
+      return config?.kurdishPhrases && config.kurdishPhrases.length > 0
+        ? config.kurdishPhrases
+        : KURDISH_PHRASES;
+    }
+    return config?.englishPhrases && config.englishPhrases.length > 0
+      ? config.englishPhrases
+      : ENGLISH_PHRASES;
+  }, [isKurdish, config?.kurdishPhrases, config?.englishPhrases]);
+
+  const activeTypingSpeed = config?.typingSpeed || TYPING_SPEED;
+  const activeDeletingSpeed = config?.deletingSpeed || DELETING_SPEED;
+  const activeHoldDuration = config?.holdDuration || HOLD_DURATION;
 
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
@@ -60,7 +73,8 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
 
   // Main typing engine
   useEffect(() => {
-    const currentPhrase = phrases[phraseIndex % phrases.length];
+    if (!phrases || phrases.length === 0) return;
+    const currentPhrase = phrases[phraseIndex % phrases.length] || '';
     let timer: ReturnType<typeof setTimeout>;
 
     if (!isDeleting) {
@@ -68,19 +82,19 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
       if (displayText.length < currentPhrase.length) {
         timer = setTimeout(() => {
           setDisplayText(currentPhrase.slice(0, displayText.length + 1));
-        }, TYPING_SPEED);
+        }, activeTypingSpeed);
       } else {
-        // FINISHED TYPING: Hold for 5 seconds (٥ سانیە)
+        // FINISHED TYPING: Hold for holdDuration
         timer = setTimeout(() => {
           setIsDeleting(true);
-        }, HOLD_DURATION);
+        }, activeHoldDuration);
       }
     } else {
       // DELETING BACKWARD
       if (displayText.length > 0) {
         timer = setTimeout(() => {
           setDisplayText(currentPhrase.slice(0, displayText.length - 1));
-        }, DELETING_SPEED);
+        }, activeDeletingSpeed);
       } else {
         // FINISHED ERASING: Short pause, then next phrase
         timer = setTimeout(() => {
@@ -91,14 +105,14 @@ function HeaderTypewriterTextImpl({ isKurdish, style }: Props) {
     }
 
     return () => clearTimeout(timer);
-  }, [displayText, isDeleting, phraseIndex, phrases]);
+  }, [displayText, isDeleting, phraseIndex, phrases, activeTypingSpeed, activeDeletingSpeed, activeHoldDuration]);
 
-  // Reset when language changes
+  // Reset when language or phrases change
   useEffect(() => {
     setDisplayText('');
     setIsDeleting(false);
     setPhraseIndex(0);
-  }, [isKurdish]);
+  }, [isKurdish, phrases]);
 
   return (
     <View style={[styles.container, style]}>

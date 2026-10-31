@@ -124,6 +124,15 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       purchaseId: ci.selectedBatch?.purchaseId ?? null,
     }));
 
+    const authUser = (await import('@/store/authStore')).useAuthStore.getState().user;
+    const mgmt = (await import('@/store/managementStore')).useManagementStore.getState();
+    const createdBy = mgmt.isEmployee
+      ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
+      : (authUser?.displayName || authUser?.email || 'بەڕێوەبەر');
+    const createdByEmail = mgmt.isEmployee
+      ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
+      : (authUser?.email?.toLowerCase() || '');
+
     const saleData = {
       invoiceNumber,
       customerId,
@@ -144,6 +153,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
       status: 'completed' as const,
       exchangeRateUsed,
       date: (cart.saleDate ?? new Date()).toISOString(),
+      createdBy,
+      createdByEmail,
     };
 
     const saleId = await insertSale(saleData, saleItems);

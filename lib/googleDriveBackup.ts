@@ -19,6 +19,7 @@ import {
 } from '@/lib/backup';
 import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useQuotationStore } from '@/store/quotationStore';
 
 const WEB_CLIENT_ID =
   '1097351210121-glmjp9ul4vfa45hhsvemnmmpajff8eh6.apps.googleusercontent.com';
@@ -370,6 +371,7 @@ export async function restoreBackupFromGoogleDrive(
   await Promise.all([
     useBusinessStore.persist.rehydrate(),
     useSettingsStore.persist.rehydrate(),
+    useQuotationStore.persist.rehydrate(),
   ]);
 
   // Clean up cache file

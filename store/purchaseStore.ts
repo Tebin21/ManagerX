@@ -87,6 +87,20 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       initialPaymentMethod: input.initialPaymentMethod ?? null,
       productionDate:  input.productionDate ?? null,
       expiryDate:      input.expiryDate ?? null,
+      createdBy: (() => {
+        const mgmt = require('@/store/managementStore').useManagementStore.getState();
+        const auth = require('@/store/authStore').useAuthStore.getState();
+        return mgmt.isEmployee
+          ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
+          : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+      })(),
+      createdByEmail: (() => {
+        const mgmt = require('@/store/managementStore').useManagementStore.getState();
+        const auth = require('@/store/authStore').useAuthStore.getState();
+        return mgmt.isEmployee
+          ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
+          : (auth.user?.email?.toLowerCase() || '');
+      })(),
     };
 
     // Validate supplier uniqueness before committing the purchase

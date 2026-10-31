@@ -13,6 +13,7 @@ import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { useOnlineStoreSubscriptionStore } from '@/store/onlineStoreSubscriptionStore';
 import { useAuthStore } from '@/store/authStore';
 import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import { CreateWebsiteCtaButton } from '@/components/dashboard/CreateWebsiteCtaButton';
 import { isOnlineStoreActivatedByAdmin } from '@/lib/onlineStore/storeActivationService';
 import { OnlineStoreLockedCard } from '@/components/dashboard/OnlineStoreLockedCard';
@@ -33,7 +34,18 @@ function OnlineStoreCardImpl() {
   const [isAdminActivated, setIsAdminActivated] = useState<boolean | null>(null);
 
   const isEmployee = useManagementStore((s) => s.isEmployee);
+  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
   const currentPermissions = useManagementStore((s) => s.currentPermissions);
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = isAdminEmail(user?.email);
+
+  const isRealEmployee = Boolean(
+    isEmployee &&
+    currentEmployeeAccount?.email &&
+    user?.email &&
+    currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
+    !isAdmin
+  );
 
   const {
     enabled, storeUrl, lastSyncAt, pendingCount, isLoading, isSyncingNow,
@@ -60,8 +72,6 @@ function OnlineStoreCardImpl() {
     }, [])
   );
 
-  const user = useAuthStore((s) => s.user);
-
   // Hidden entirely if employee permissions have onlineStore === 'hidden'
   if (isEmployee && currentPermissions?.onlineStore === 'hidden') {
     return null;
@@ -74,6 +84,15 @@ function OnlineStoreCardImpl() {
   }
 
   const handleToggle = async () => {
+    if (isRealEmployee) {
+      Alert.alert(
+        t('common.error'),
+        isRTL
+          ? 'دەسەڵاتی ناچالاککردن و چالاککردنی وێبسایت تەنها لای بەڕێوەبەرە.'
+          : 'Only managers can enable or disable the online store.'
+      );
+      return;
+    }
     if (enabled) {
       disable();
       return;
@@ -210,7 +229,7 @@ function OnlineStoreCardImpl() {
       </View>
 
       {/* Action — Only Manager/Admin can disable or enable the store. Strictly restricted for employees */}
-      {!isEmployee ? (
+      {!isRealEmployee ? (
         <TouchableOpacity
           onPress={handleToggle}
           disabled={isLoading}

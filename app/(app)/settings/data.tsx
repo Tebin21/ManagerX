@@ -51,6 +51,9 @@ import { useBusinessStore }  from '@/store/businessStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import { useSettingsStore }  from '@/store/settingsStore';
 import { useLanguageStore }  from '@/store/languageStore';
+import { useQuotationStore } from '@/store/quotationStore';
+import { useManagementStore } from '@/store/managementStore';
+import { isAdminEmail } from '@/lib/adminNotificationService';
 import {
   getGoogleDriveConfig,
   connectGoogleDrive,
@@ -73,7 +76,19 @@ export default function DataScreen() {
   const { isRTL, flexDirection } = useRTL();
   const router             = useRouter();
   const signOut            = useAuthStore((s) => s.signOut);
+  const user               = useAuthStore((s) => s.user);
   const isKuLanguage       = useLanguageStore((s) => s.language === 'ku');
+  const isEmployee         = useManagementStore((s) => s.isEmployee);
+  const currentEmployeeAccount = useManagementStore((s) => s.currentEmployeeAccount);
+  const isAdmin            = isAdminEmail(user?.email);
+
+  const isRealEmployee = Boolean(
+    isEmployee &&
+    currentEmployeeAccount?.email &&
+    user?.email &&
+    currentEmployeeAccount.email.trim().toLowerCase() === user.email.trim().toLowerCase() &&
+    !isAdmin
+  );
 
   const [backing,          setBacking]          = useState(false);
   const [restoring,        setRestoring]        = useState(false);
@@ -362,6 +377,7 @@ export default function DataScreen() {
       await Promise.all([
         useBusinessStore.persist.rehydrate(),
         useSettingsStore.persist.rehydrate(),
+        useQuotationStore.persist.rehydrate(),
       ]);
 
       setPendingBackup(null);
@@ -460,7 +476,8 @@ export default function DataScreen() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
 
-        {/* ── Google Drive Personal Cloud Backup ─────────────────────── */}
+        {/* ── Google Drive Personal Cloud Backup (Managers / Owners Only) ── */}
+        {!isRealEmployee && (
         <SettingSection title={t('settings.dataScreen.googleDriveSection')}>
           <View
             style={[
@@ -619,6 +636,7 @@ export default function DataScreen() {
             </>
           )}
         </SettingSection>
+        )}
 
         {/* ── Backup & Restore ─────────────────────────────────────────── */}
         <SettingSection title={t('settings.dataScreen.backupRestore')}>
@@ -634,13 +652,15 @@ export default function DataScreen() {
                 : undefined
             }
           />
-          <SettingRow
-            icon="cloud-download"
-            label={t('settings.dataScreen.restoreBackup')}
-            sub={restoreSub}
-            onPress={handlePickRestore}
-            disabled={backing || restoring}
-          />
+          {!isRealEmployee && (
+            <SettingRow
+              icon="cloud-download"
+              label={t('settings.dataScreen.restoreBackup')}
+              sub={restoreSub}
+              onPress={handlePickRestore}
+              disabled={backing || restoring}
+            />
+          )}
         </SettingSection>
 
         {/* ── Database ─────────────────────────────────────────────────── */}
@@ -652,19 +672,21 @@ export default function DataScreen() {
             chevron={false}
             onPress={loadDbStats}
           />
-          <SettingRow
-            icon="trash"
-            label={t('settings.dataScreen.resetApp')}
-            sub={t('settings.dataScreen.resetAppSub')}
-            destructive
-            disabled={resetting}
-            rightElement={
-              resetting
-                ? <ActivityIndicator size="small" color={colors.error} />
-                : undefined
-            }
-            onPress={handleResetApp}
-          />
+          {!isRealEmployee && (
+            <SettingRow
+              icon="trash"
+              label={t('settings.dataScreen.resetApp')}
+              sub={t('settings.dataScreen.resetAppSub')}
+              destructive
+              disabled={resetting}
+              rightElement={
+                resetting
+                  ? <ActivityIndicator size="small" color={colors.error} />
+                  : undefined
+              }
+              onPress={handleResetApp}
+            />
+          )}
         </SettingSection>
 
         {/* ── Sync ─────────────────────────────────────────────────────── */}

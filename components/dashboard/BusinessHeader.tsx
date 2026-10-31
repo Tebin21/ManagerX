@@ -36,6 +36,7 @@ import { ensureGalleryAccess } from '@/lib/mediaAccess';
 import { toEnglishDigits } from '@/utils/formatters';
 import { HeaderTypewriterText } from '@/components/dashboard/HeaderTypewriterText';
 import { hexToRgba } from '@/lib/colorUtils';
+import { useRemoteBannerConfig, getResponsiveDefaultBanner } from '@/lib/remoteBannerConfig';
 
 let ExpoVideo: {
   useVideoPlayer: (uri: string, setup?: (player: any) => void) => any;
@@ -211,6 +212,14 @@ function BusinessHeaderImpl() {
   const isKurdish = lang === 'ku';
   const isArabic = lang === 'ar';
 
+  // Remote dynamic banner configuration from Admin Website
+  const { config: remoteBannerConfig, initSubscription: initBannerSub } = useRemoteBannerConfig();
+
+  useEffect(() => {
+    const unsub = initBannerSub();
+    return () => unsub();
+  }, [initBannerSub]);
+
   // Video backgrounds
   const [bannerVideo, setBannerVideo] = useState<string | null>(null);
   const [bizVideo, setBizVideo] = useState<string | null>(null);
@@ -241,9 +250,18 @@ function BusinessHeaderImpl() {
     ExpoVideo?.VideoView
   );
 
+  // 0. Compute responsive default banner (Mobile vs iPad vs Large Screen)
+  const defaultBannerSource = useMemo(() => {
+    return getResponsiveDefaultBanner(remoteBannerConfig, {
+      isTablet,
+      isTabletLandscape,
+      fallbackSource: DEFAULT_BANNER_IMAGE,
+    });
+  }, [remoteBannerConfig, isTablet, isTabletLandscape]);
+
   // 1. Banner Slides Composition:
-  // If user uploaded custom banner images, slide between them.
-  // Otherwise, fallback to the default Froshiar hero image.
+  // If user uploaded custom banner images, slide between them (personal customization).
+  // Otherwise, fallback to the remotely configured responsive default banner.
   const bannerSlides = useMemo<BannerSlide[]>(() => {
     if (customBannerImages.length > 0) {
       return customBannerImages.map((uri, idx) => ({
@@ -251,8 +269,8 @@ function BusinessHeaderImpl() {
         source: { uri },
       }));
     }
-    return [{ id: 'froshiar_default', source: DEFAULT_BANNER_IMAGE }];
-  }, [customBannerImages]);
+    return [{ id: 'froshiar_default', source: defaultBannerSource }];
+  }, [customBannerImages, defaultBannerSource]);
 
   // 2. Business Card Slides Composition:
   // By default clean & simple (empty = gradient only), or user's custom images.

@@ -58,5 +58,10 @@ service cloud.firestore {
     match /manager_drive_links/{linkId} {
       allow read, write: if true;
     }
+
+    // App-wide configuration (Hero banner, announcements, typewriter phrases)
+    match /app_config/{configId} {
+      allow read, write: if true;
+    }
   }
 }

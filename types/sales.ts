@@ -110,6 +110,8 @@ export interface Sale {
   date: string;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | null;
+  createdByEmail?: string | null;
   items?: SaleItem[];
   printCount?: number;
   viewCount?: number;

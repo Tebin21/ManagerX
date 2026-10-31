@@ -113,7 +113,7 @@ function normalizeMediaUri(uri: unknown): string | null {
 /**
  * Resolves a portable relative media path back to an absolute file URI on the current device.
  */
-function resolveMediaUri(relOrAbs: unknown, baseDocDir: string | null): string | null {
+function resolveMediaUri(relOrAbs: unknown, baseDocDir: string | null | undefined): string | null {
   if (typeof relOrAbs !== 'string' || !relOrAbs.trim()) return null;
   const trimmed = relOrAbs.trim();
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
@@ -365,10 +365,14 @@ export async function exportBackup(): Promise<string> {
       }),
       quotations: storedQuotationsRaw || '',
       dashboardBanners: JSON.stringify({
-        banners: bannersRaw ? JSON.parse(bannersRaw) : null,
-        bizBanners: bizBannersRaw ? JSON.parse(bizBannersRaw) : null,
-        bannerVideo: bannerVideoRaw,
-        bizVideo: bizVideoRaw,
+        banners: bannersRaw
+          ? (JSON.parse(bannersRaw) as (string | null)[]).map((b) => normalizeMediaUri(b))
+          : null,
+        bizBanners: bizBannersRaw
+          ? (JSON.parse(bizBannersRaw) as (string | null)[]).map((b) => normalizeMediaUri(b))
+          : null,
+        bannerVideo: normalizeMediaUri(bannerVideoRaw),
+        bizVideo: normalizeMediaUri(bizVideoRaw),
       }),
     },
     media: mediaFiles,
@@ -997,7 +1001,8 @@ async function mergeProducts(
   rows: Record<string, unknown>[],
   purchasesRemap: RemapMap,
   productsRemap: RemapMap,
-  warnings: string[]
+  warnings: string[],
+  baseDocDir?: string | null
 ): Promise<RestoreTableCounts> {
   const counts: RestoreTableCounts = { inserted: 0, updated: 0, skipped: 0 };
   if (rows.length === 0) return counts;
@@ -1019,6 +1024,10 @@ async function mergeProducts(
     // purchase if the referenced purchase wasn't part of this backup.
     if (row.purchase_id != null) {
       row.purchase_id = purchasesRemap.get(row.purchase_id as number) ?? null;
+    }
+
+    if (row.image_uri && baseDocDir) {
+      row.image_uri = resolveMediaUri(row.image_uri, baseDocDir);
     }
 
     const uuid = row.uuid as string | undefined;
@@ -1094,22 +1103,31 @@ async function mergeCategories(db: SQLite.SQLiteDatabase, rows: Record<string, u
 }
 
 // businesses is a fixed-id (id=1) singleton, never row-matched. Field-level merge:
-// a backup only fills in fields the local device hasn't set yet (fresh install /
-// restore onto a brand-new device); an already-configured business's name/phone/
-// address is never silently overwritten by an older backup. logo_path is never
-// touched — it's not in the backup at all. Returns whether this was a fresh device
-// (no local business name yet), used by the AsyncStorage settings merge below.
-async function mergeBusinessSingleton(db: SQLite.SQLiteDatabase, rows: Record<string, unknown>[]): Promise<boolean> {
+// a backup fills in missing fields and resolves the portable logo path.
+async function mergeBusinessSingleton(
+  db: SQLite.SQLiteDatabase,
+  rows: Record<string, unknown>[],
+  baseDocDir?: string | null
+): Promise<boolean> {
   const backupRow = rows[0];
   const local = await db.getFirstAsync<Record<string, unknown>>('SELECT * FROM businesses WHERE id = 1');
   const isFresh = !local || !local.name;
 
   if (!backupRow) return isFresh;
 
+  const resolvedLogoPath = resolveMediaUri(backupRow.logo_path, baseDocDir);
+
   if (!local) {
     await db.runAsync(
-      'INSERT INTO businesses (id, name, type, phone, address, uuid) VALUES (1, ?, ?, ?, ?, ?)',
-      [backupRow.name ?? '', backupRow.type ?? '', backupRow.phone ?? '', backupRow.address ?? '', await newUuid()] as SQLite.SQLiteBindParams
+      'INSERT INTO businesses (id, name, type, phone, address, logo_path, uuid) VALUES (1, ?, ?, ?, ?, ?, ?)',
+      [
+        backupRow.name ?? '',
+        backupRow.type ?? '',
+        backupRow.phone ?? '',
+        backupRow.address ?? '',
+        resolvedLogoPath,
+        await newUuid(),
+      ] as SQLite.SQLiteBindParams
     );
     return true;
   }
@@ -1125,6 +1143,14 @@ async function mergeBusinessSingleton(db: SQLite.SQLiteDatabase, rows: Record<st
       values.push(backupVal);
     }
   }
+
+  // Restore logo if local is missing one
+  const localLogo = local.logo_path as string | null;
+  if ((!localLogo || !localLogo.trim()) && resolvedLogoPath) {
+    fields.push('logo_path = ?');
+    values.push(resolvedLogoPath);
+  }
+
   if (fields.length > 0) {
     await db.runAsync(`UPDATE businesses SET ${fields.join(', ')} WHERE id = 1`, values as SQLite.SQLiteBindParams);
   }
@@ -1178,9 +1204,9 @@ async function mergeSettingsKV(db: SQLite.SQLiteDatabase, rows: Record<string, u
 // existing envelope, leaving every other field (isDarkMode, accentColor,
 // isSetupComplete, logoUri, ownerUserId, ...) exactly as it was — those were
 // never part of the backup and must never be touched by a restore.
-async function mergeBusinessStore(backupBusinessRaw: string | undefined): Promise<void> {
+async function mergeBusinessStore(backupBusinessRaw: string | undefined, baseDocDir?: string | null): Promise<void> {
   if (!backupBusinessRaw) return;
-  let backupFields: { name?: string; phone?: string; address?: string };
+  let backupFields: { name?: string; phone?: string; address?: string; logoUri?: string | null };
   try {
     backupFields = JSON.parse(backupBusinessRaw);
   } catch {
@@ -1197,17 +1223,23 @@ async function mergeBusinessStore(backupBusinessRaw: string | undefined): Promis
     if (localEmpty && backupFields[field]) state[field] = backupFields[field];
   }
 
+  if (backupFields.logoUri) {
+    const resolved = resolveMediaUri(backupFields.logoUri, baseDocDir);
+    if (resolved && (!state.logoUri || typeof state.logoUri !== 'string')) {
+      state.logoUri = resolved;
+      try {
+        const { useBusinessStore } = await import('@/store/businessStore');
+        useBusinessStore.getState().updateLogo(resolved);
+      } catch {}
+    }
+  }
+
   await AsyncStorage.setItem('@froshiar_business', JSON.stringify({ state, version: envelope.version }));
 }
 
 async function mergeSettingsStore(backupSettingsRaw: string | undefined, isFreshDevice: boolean): Promise<void> {
   if (!backupSettingsRaw) return;
-  let backupFields: {
-    exchangeRate?: number;
-    rateUpdatedAt?: string | null;
-    globalLowStockEnabled?: boolean;
-    globalLowStockThreshold?: number;
-  };
+  let backupFields: Record<string, any>;
   try {
     backupFields = JSON.parse(backupSettingsRaw);
   } catch {
@@ -1226,15 +1258,140 @@ async function mergeSettingsStore(backupSettingsRaw: string | undefined, isFresh
     state.rateUpdatedAt = backupFields.rateUpdatedAt;
   }
 
-  // No timestamp exists for these two fields — only adopt the backup's values
-  // on a genuinely fresh device, never silently overwrite an already-configured
-  // device's alert settings.
-  if (isFreshDevice) {
-    if (backupFields.globalLowStockEnabled !== undefined) state.globalLowStockEnabled = backupFields.globalLowStockEnabled;
-    if (backupFields.globalLowStockThreshold !== undefined) state.globalLowStockThreshold = backupFields.globalLowStockThreshold;
+  const prefFields = [
+    'baseCurrency',
+    'globalLowStockEnabled',
+    'globalLowStockThreshold',
+    'salesPaperSizePreference',
+    'purchasePaperSizePreference',
+    'inventoryPaperSizePreference',
+    'debtPaperSizePreference',
+    'thermalReceiptWidthPreference',
+    'thermalReceiptSettings',
+    'salesReceiptSettings',
+    'purchaseReceiptSettings',
+    'quotationReceiptSettings',
+    'debtReceiptSettings',
+    'inventoryReceiptSettings',
+    'invoiceAboutPolicy',
+    'expiryTrackingEnabled',
+    'expiryAlertDays',
+    'purchasePaymentStatusPreference',
+    'purchaseReceiptCurrencyPreference',
+    'saleCheckoutModePreference',
+    'purchaseCheckoutModePreference',
+  ] as const;
+
+  for (const field of prefFields) {
+    if (backupFields[field] !== undefined) {
+      if (isFreshDevice || state[field] === undefined || state[field] === null) {
+        state[field] = backupFields[field];
+      }
+    }
   }
 
   await AsyncStorage.setItem('@froshiar_settings', JSON.stringify({ state, version: envelope.version }));
+
+  try {
+    const { useSettingsStore } = await import('@/store/settingsStore');
+    useSettingsStore.setState((prev) => ({
+      ...prev,
+      ...state,
+    }));
+  } catch (err) {
+    console.warn('[Restore] Failed to rehydrate useSettingsStore:', err);
+  }
+}
+
+async function mergeQuotationsStore(backupQuotationsRaw: string | undefined): Promise<void> {
+  if (!backupQuotationsRaw) return;
+  try {
+    let backupState: { quotations?: any[]; defaultNotes?: string; currencyMode?: string };
+    try {
+      const parsed = JSON.parse(backupQuotationsRaw);
+      backupState = parsed?.state ?? parsed;
+    } catch {
+      return;
+    }
+
+    if (!backupState || !Array.isArray(backupState.quotations)) return;
+
+    const currentRaw = await AsyncStorage.getItem('froshiar-quotations-storage');
+    const envelope = parseEnvelope(currentRaw);
+    const localQuotations = Array.isArray(envelope.state?.quotations) ? [...(envelope.state.quotations as any[])] : [];
+
+    const localMap = new Map(localQuotations.map((q: any) => [q.id, q]));
+    for (const incoming of backupState.quotations) {
+      if (!incoming || !incoming.id) continue;
+      const existing = localMap.get(incoming.id);
+      if (!existing) {
+        localQuotations.push(incoming);
+        localMap.set(incoming.id, incoming);
+      } else {
+        const incomingDate = incoming.updatedAt || incoming.createdAt || '';
+        const existingDate = existing.updatedAt || existing.createdAt || '';
+        if (incomingDate > existingDate) {
+          Object.assign(existing, incoming);
+        }
+      }
+    }
+
+    const defaultNotesStr = typeof envelope.state?.defaultNotes === 'string'
+      ? envelope.state.defaultNotes
+      : (typeof backupState.defaultNotes === 'string' ? backupState.defaultNotes : 'نرخەکان بەپێی گۆڕانکارییەکانی بازاڕ بۆ ماوەی ٧ ڕۆژ کاریان پێدەکرێت.');
+    const currencyModeVal = (['both', 'iqd', 'usd'].includes(envelope.state?.currencyMode as string)
+      ? envelope.state.currencyMode
+      : (['both', 'iqd', 'usd'].includes(backupState.currencyMode as string) ? backupState.currencyMode : 'both')) as any;
+
+    const mergedState = {
+      ...envelope.state,
+      quotations: localQuotations,
+      defaultNotes: defaultNotesStr,
+      currencyMode: currencyModeVal,
+    };
+
+    await AsyncStorage.setItem('froshiar-quotations-storage', JSON.stringify({ state: mergedState, version: envelope.version }));
+
+    try {
+      const { useQuotationStore } = await import('@/store/quotationStore');
+      useQuotationStore.setState({
+        quotations: localQuotations,
+        defaultNotes: defaultNotesStr,
+        currencyMode: currencyModeVal,
+      });
+    } catch (err) {
+      console.warn('[Restore] Failed to rehydrate useQuotationStore:', err);
+    }
+  } catch (err) {
+    console.warn('[Restore] mergeQuotationsStore error:', err);
+  }
+}
+
+async function mergeDashboardBanners(backupBannersRaw: string | undefined, baseDocDir: string | null | undefined): Promise<void> {
+  if (!backupBannersRaw) return;
+  try {
+    const data = JSON.parse(backupBannersRaw);
+    if (!data || typeof data !== 'object') return;
+
+    if (Array.isArray(data.banners)) {
+      const resolved = data.banners.map((item: any) => resolveMediaUri(item, baseDocDir));
+      await AsyncStorage.setItem('@froshiar_dashboard_custom_banners_v2', JSON.stringify(resolved));
+    }
+    if (Array.isArray(data.bizBanners)) {
+      const resolved = data.bizBanners.map((item: any) => resolveMediaUri(item, baseDocDir));
+      await AsyncStorage.setItem('@froshiar_business_card_custom_banners_v2', JSON.stringify(resolved));
+    }
+    if (data.bannerVideo) {
+      const resolved = resolveMediaUri(data.bannerVideo, baseDocDir);
+      if (resolved) await AsyncStorage.setItem('@froshiar_dashboard_banner_video_v1', resolved);
+    }
+    if (data.bizVideo) {
+      const resolved = resolveMediaUri(data.bizVideo, baseDocDir);
+      if (resolved) await AsyncStorage.setItem('@froshiar_business_card_video_v1', resolved);
+    }
+  } catch (err) {
+    console.warn('[Restore] mergeDashboardBanners error:', err);
+  }
 }
 
 function parseEnvelope(raw: string | null): { state: Record<string, unknown>; version: number } {

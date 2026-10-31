@@ -765,6 +765,15 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     // Standardize purchase numbers to F-00000 format (e.g. F-00001) if legacy numeric without prefix
     `UPDATE purchases SET purchase_number = 'F-' || substr('00000' || purchase_number, -5) WHERE purchase_number NOT LIKE 'F-%' AND purchase_number GLOB '[0-9]*'`,
     `UPDATE purchase_debts SET purchase_number = 'F-' || substr('00000' || purchase_number, -5) WHERE purchase_number NOT LIKE 'F-%' AND purchase_number GLOB '[0-9]*'`,
+    // Employee creator tracking for granular activity scoping
+    `ALTER TABLE sales ADD COLUMN created_by TEXT`,
+    `ALTER TABLE sales ADD COLUMN created_by_email TEXT`,
+    `ALTER TABLE purchases ADD COLUMN created_by TEXT`,
+    `ALTER TABLE purchases ADD COLUMN created_by_email TEXT`,
+    `ALTER TABLE debt_payments ADD COLUMN created_by TEXT`,
+    `ALTER TABLE debt_payments ADD COLUMN created_by_email TEXT`,
+    `ALTER TABLE expenses ADD COLUMN created_by TEXT`,
+    `ALTER TABLE expenses ADD COLUMN created_by_email TEXT`,
     // Standardize sales invoice numbers to 5-digit F-00000 format
     `UPDATE OR IGNORE sales SET invoice_number = 'F-' || substr(invoice_number, 4) WHERE invoice_number LIKE 'F-00000%' AND length(invoice_number) = 8`,
     `UPDATE sales SET invoice_number = 'F-' || substr('00000' || invoice_number, -5) WHERE invoice_number NOT LIKE 'F-%' AND invoice_number GLOB '[0-9]*'`,
@@ -2843,12 +2852,26 @@ export async function addPaymentToDebt(
       [clamped, clamped, debt.sale_id]
     );
 
+    let createdBy: string | null = null;
+    let createdByEmail: string | null = null;
+    try {
+      const mgmt = require('@/store/managementStore').useManagementStore.getState();
+      const auth = require('@/store/authStore').useAuthStore.getState();
+      createdBy = mgmt.isEmployee
+        ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
+        : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+      createdByEmail = mgmt.isEmployee
+        ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
+        : (auth.user?.email?.toLowerCase() || '');
+    } catch {}
+
     const insertRes = await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
-         event_type, customer_id, reference_number, original_amount, payment_method
-       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?)`,
-      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod]
+         event_type, customer_id, reference_number, original_amount, payment_method,
+         created_by, created_by_email
+       ) VALUES (?, 'sales', ?, ?, ?, ?, 'payment', ?, ?, ?, ?, ?, ?)`,
+      [debtId, clamped, newRemaining, ts, await newUuid(), sale?.customer_id ?? null, sale?.invoice_number ?? null, debt.original_amount, paymentMethod, createdBy, createdByEmail]
     );
 
     const paymentId = insertRes.lastInsertRowId;
@@ -3254,8 +3277,8 @@ export async function insertSale(
         customer_address, warranty, notes, payment_method,
         subtotal, discount_total, global_discount_type, global_discount,
         grand_total, paid_amount, remaining_debt, status, exchange_rate, date, created_at, uuid,
-        initial_payment_method
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        initial_payment_method, created_by, created_by_email
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         saleData.invoiceNumber,
         saleData.customerId ?? null,
@@ -3278,6 +3301,8 @@ export async function insertSale(
         saleData.date ?? new Date().toISOString(),
         await newUuid(),
         saleData.initialPaymentMethod ?? null,
+        saleData.createdBy ?? null,
+        saleData.createdByEmail ?? null,
       ]
     );
 
@@ -3991,8 +4016,9 @@ export async function insertPurchase(
       buy_price_iqd, buy_price_usd, sell_price_iqd, sell_price_usd,
       total_iqd, profit_iqd, exchange_rate, id_type, item_ids,
       warranty, description, notes, payment_status, uuid,
-      production_date, expiry_date, initial_payment_method
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      production_date, expiry_date, initial_payment_method,
+      created_by, created_by_email
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.purchaseNumber,
       data.date,
@@ -4020,6 +4046,8 @@ export async function insertPurchase(
       data.productionDate ?? null,
       data.expiryDate ?? null,
       data.initialPaymentMethod ?? null,
+      data.createdBy ?? null,
+      data.createdByEmail ?? null,
     ]
   );
   return result.lastInsertRowId;
@@ -4772,12 +4800,26 @@ export async function addPaymentToPurchaseDebt(
       [clamped, newRemaining, newRemaining, ts, id]
     );
 
+    let createdBy: string | null = null;
+    let createdByEmail: string | null = null;
+    try {
+      const mgmt = require('@/store/managementStore').useManagementStore.getState();
+      const auth = require('@/store/authStore').useAuthStore.getState();
+      createdBy = mgmt.isEmployee
+        ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
+        : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+      createdByEmail = mgmt.isEmployee
+        ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
+        : (auth.user?.email?.toLowerCase() || '');
+    } catch {}
+
     const insertRes = await database.runAsync(
       `INSERT INTO debt_payments (
          debt_id, debt_type, amount, remaining_after, created_at, uuid,
-         event_type, supplier_name, reference_number, original_amount, payment_method
-       ) VALUES (?, 'purchase', ?, ?, ?, ?, 'payment', ?, ?, ?, ?)`,
-      [id, clamped, newRemaining, ts, await newUuid(), debt.supplier_name, debt.purchase_number, debt.original_amount, paymentMethod]
+         event_type, supplier_name, reference_number, original_amount, payment_method,
+         created_by, created_by_email
+       ) VALUES (?, 'purchase', ?, ?, ?, ?, 'payment', ?, ?, ?, ?, ?, ?)`,
+      [id, clamped, newRemaining, ts, await newUuid(), debt.supplier_name, debt.purchase_number, debt.original_amount, paymentMethod, createdBy, createdByEmail]
     );
 
     if (newRemaining <= 0 && debt.purchase_id != null) {
@@ -6432,26 +6474,44 @@ export async function getDashboardRecentActivities(
   from?: string,
   to?: string,
   language: 'ku' | 'en' = 'ku',
+  filterUserEmail?: string,
 ): Promise<DashboardActivityItem[]> {
   const database = await getDatabase();
 
   const hasRange = Boolean(from && to);
+  const normalizedEmail = filterUserEmail ? filterUserEmail.trim().toLowerCase() : undefined;
 
-  const saleWhere = hasRange
+  let saleWhere = hasRange
     ? `WHERE status != 'cancelled' AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE status != 'cancelled'`;
+  if (normalizedEmail) {
+    saleWhere += ` AND (lower(COALESCE(created_by_email, '')) = ? OR notes LIKE '%' || ? || '%')`;
+  }
 
-  const purchaseWhere = hasRange
+  let purchaseWhere = hasRange
     ? `WHERE archived_at IS NULL AND datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
     : `WHERE archived_at IS NULL`;
+  if (normalizedEmail) {
+    purchaseWhere += ` AND (lower(COALESCE(created_by_email, '')) = ? OR notes LIKE '%' || ? || '%')`;
+  }
 
-  const debtWhere = hasRange
+  let debtWhere = hasRange
     ? `WHERE datetime(dp.created_at) >= datetime(?) AND datetime(dp.created_at) <= datetime(?)`
     : '';
+  if (normalizedEmail) {
+    debtWhere = debtWhere
+      ? `${debtWhere} AND (lower(COALESCE(dp.created_by_email, '')) = ? OR dp.note LIKE '%' || ? || '%')`
+      : `WHERE (lower(COALESCE(dp.created_by_email, '')) = ? OR dp.note LIKE '%' || ? || '%')`;
+  }
 
-  const expWhere = hasRange
+  let expWhere = hasRange
     ? `WHERE (datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)) OR (date >= ? AND date <= ?)`
     : '';
+  if (normalizedEmail) {
+    expWhere = expWhere
+      ? `${expWhere} AND (lower(COALESCE(created_by_email, '')) = ? OR note LIKE '%' || ? || '%')`
+      : `WHERE (lower(COALESCE(created_by_email, '')) = ? OR note LIKE '%' || ? || '%')`;
+  }
 
   const custWhere = hasRange
     ? `WHERE datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)`
@@ -6464,12 +6524,24 @@ export async function getDashboardRecentActivities(
   const subLimit = hasRange ? Math.max(limit, 40) : 15;
   const partnerLimit = hasRange ? subLimit : 8;
 
-  const saleParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
-  const purchaseParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
-  const debtParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, subLimit] : [subLimit];
+  const saleParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  if (normalizedEmail) saleParams.push(normalizedEmail, normalizedEmail);
+  saleParams.push(subLimit);
+
+  const purchaseParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  if (normalizedEmail) purchaseParams.push(normalizedEmail, normalizedEmail);
+  purchaseParams.push(subLimit);
+
+  const debtParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!] : [];
+  if (normalizedEmail) debtParams.push(normalizedEmail, normalizedEmail);
+  debtParams.push(subLimit);
+
   const expParams: SQLite.SQLiteBindValue[] = hasRange
-    ? [from!, to!, from!.slice(0, 10), to!.slice(0, 10), subLimit]
-    : [subLimit];
+    ? [from!, to!, from!.slice(0, 10), to!.slice(0, 10)]
+    : [];
+  if (normalizedEmail) expParams.push(normalizedEmail, normalizedEmail);
+  expParams.push(subLimit);
+
   const custParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, partnerLimit] : [partnerLimit];
   const supParams: SQLite.SQLiteBindValue[] = hasRange ? [from!, to!, partnerLimit] : [partnerLimit];
 
@@ -6655,4 +6727,12 @@ export async function getDashboardRecentActivities(
   items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return items.slice(0, limit);
+}
+
+export async function getEmployeeActivities(
+  employeeEmail: string,
+  limit: number = 60,
+  language: 'ku' | 'en' = 'ku'
+): Promise<DashboardActivityItem[]> {
+  return getDashboardRecentActivities(limit, undefined, undefined, language, employeeEmail);
 }

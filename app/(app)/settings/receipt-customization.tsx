@@ -103,7 +103,14 @@ export default function ReceiptCustomizationScreen() {
   );
 
   // Normal users & managers have 100% full control. Employees are restricted unless granted permission by manager.
-  const canEdit = !isRealEmployee || Boolean(currentPermissions?.canEditReceiptCustomization);
+  const sub = currentPermissions?.subPermissions;
+  const tabAllowed = !isRealEmployee || (
+    activeTab === 'sales' ? (sub?.canCustomizeSalesReceipt ?? true) :
+      activeTab === 'purchases' ? (sub?.canCustomizePurchaseReceipt ?? true) :
+        activeTab === 'quotation' ? (sub?.canCustomizeQuotationReceipt ?? true) :
+          activeTab === 'debts' ? (sub?.canCustomizeDebtReceipt ?? true) : true
+  );
+  const canEdit = (!isRealEmployee || Boolean(currentPermissions?.canEditReceiptCustomization)) && tabAllowed;
   const isLockedForEmployee = isRealEmployee && !canEdit;
 
   // Store bindings
@@ -166,13 +173,13 @@ export default function ReceiptCustomizationScreen() {
         isAr
           ? 'تم قفل تخصيص أحجام الورق من قبل المدير لحسابك.'
           : isKurdish
-          ? 'دەسەڵاتی گۆڕینی قەبارەی وەسڵ لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە.'
-          : 'Paper size modification is locked by your supervising manager.'
+            ? 'دەسەڵاتی گۆڕینی قەبارەی وەسڵ لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە.'
+            : 'Paper size modification is locked by your supervising manager.'
       );
       return;
     }
     if (activeTab === 'quotation') return; // Quotation is strictly A4
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { }); } catch { }
     if (activeTab === 'sales') setSalesPaperSize(size);
     else if (activeTab === 'purchases') setPurchasePaperSize(size);
     else if (activeTab === 'inventory') setInventoryPaperSize(size);
@@ -180,7 +187,7 @@ export default function ReceiptCustomizationScreen() {
   };
 
   const handleSwitchTab = (tab: ModuleTab) => {
-    try { Haptics.selectionAsync().catch(() => {}); } catch {}
+    try { Haptics.selectionAsync().catch(() => { }); } catch { }
     setActiveTab(tab);
   };
 
@@ -189,12 +196,12 @@ export default function ReceiptCustomizationScreen() {
     const tabName = activeTab === 'sales'
       ? (isAr ? 'المبيعات' : isKurdish ? 'فرۆشتن' : 'Sales')
       : activeTab === 'purchases'
-      ? (isAr ? 'المشتريات' : isKurdish ? 'کڕین' : 'Purchases')
-      : activeTab === 'quotation'
-      ? (isAr ? 'عروض الأسعار' : isKurdish ? 'عەرز' : 'Quotations')
-      : activeTab === 'inventory'
-      ? (isAr ? 'المخزن' : isKurdish ? 'کۆگا' : 'Inventory')
-      : (isAr ? 'الديون' : isKurdish ? 'قەرز' : 'Debts');
+        ? (isAr ? 'المشتريات' : isKurdish ? 'کڕین' : 'Purchases')
+        : activeTab === 'quotation'
+          ? (isAr ? 'عروض الأسعار' : isKurdish ? 'عەرز' : 'Quotations')
+          : activeTab === 'inventory'
+            ? (isAr ? 'المخزن' : isKurdish ? 'کۆگا' : 'Inventory')
+            : (isAr ? 'الديون' : isKurdish ? 'قەرز' : 'Debts');
 
     Alert.alert(
       isAr ? 'استعادة الإعدادات الافتراضية' : isKurdish ? 'گەڕاندنەوەی سەرەتایی' : 'Reset to Defaults',
@@ -207,7 +214,7 @@ export default function ReceiptCustomizationScreen() {
           text: isAr ? 'نعم، استعادة' : isKurdish ? 'بەڵێ، بگەڕێنەوە' : 'Reset',
           style: 'destructive',
           onPress: () => {
-            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); } catch {}
+            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { }); } catch { }
             if (activeTab === 'sales') resetSalesSettings();
             else if (activeTab === 'purchases') resetPurchaseSettings();
             else if (activeTab === 'quotation') resetQuotationSettings();
@@ -303,8 +310,8 @@ export default function ReceiptCustomizationScreen() {
     notes: isAr
       ? 'تم فحص البضائع بالكامل واستلامها وإدخالها إلى المخزن الرئيسي.'
       : isKurdish
-      ? 'کاڵاکان بە تەواوی وەرگیراون و داخڵی مەخزەنی سەرەکی کراون.'
-      : 'All goods inspected, verified, and received into warehouse.',
+        ? 'کاڵاکان بە تەواوی وەرگیراون و داخڵی مەخزەنی سەرەکی کراون.'
+        : 'All goods inspected, verified, and received into warehouse.',
     items: [
       { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', description: isAr ? 'مشروب غازي مثلج' : isKurdish ? 'خواردنەوەی گازی سارد' : 'Original chilled can', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 2, buyPrice: 500, total: 1000 },
       { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', description: isAr ? 'وجبة خفيفة بنكهة الجبنة' : isKurdish ? 'بە تامی پەنیری ناچۆ' : 'Nacho cheese flavored', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 1, buyPrice: 1500, total: 1500 },
@@ -327,8 +334,8 @@ export default function ReceiptCustomizationScreen() {
     notes: isAr
       ? '1. شروط الدفع: 50% مقدماً عند الاتفاق.\n2. التسليم: خلال 3 أيام عمل.'
       : isKurdish
-      ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
-      : '1. Payment terms: 50% advance upon contract signing.\n2. Delivery timeline: Within 3 business days.',
+        ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
+        : '1. Payment terms: 50% advance upon contract signing.\n2. Delivery timeline: Within 3 business days.',
     subtotal: '3,125,000 IQD',
     discount: '50,000 IQD',
     grandTotalIQD: '3,075,000 IQD',
@@ -354,8 +361,8 @@ export default function ReceiptCustomizationScreen() {
     notes: isAr
       ? 'تم إجراء الجرد الكامل للمخزن الرئيسي وهو متطابق مع النظام الإلكتروني.'
       : isKurdish
-      ? 'سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە.'
-      : 'Complete warehouse audit completed and reconciled with electronic inventory system.',
+        ? 'سەرژمێری تەواوی کۆگای سەرەکی ئەنجامدرا و لەگەڵ سیستەمی ئەلیکترۆنی یەکانگیرە.'
+        : 'Complete warehouse audit completed and reconciled with electronic inventory system.',
     items: [
       { id: 1, name: isAr ? 'كولا علبة 330 مل' : isKurdish ? 'کۆلا قتوو ٣٣٠مل' : 'Coca-Cola Can 330ml', itemId: 'COL-330', category: isAr ? 'المشروبات' : isKurdish ? 'خواردنەوەکان' : 'Beverages', qty: 48, buyPrice: 400, sellPrice: 500, totalValue: '19,200', supplier: isAr ? 'مورد أربيل' : isKurdish ? 'دابینکەری هەولێر' : 'Erbil Supplier Co.', status: 'available' },
       { id: 2, name: isAr ? 'شيبس دوريتوس كبير' : isKurdish ? 'چپس دوریتۆس گەورە' : 'Doritos Chips Large', itemId: 'DOR-BIG', category: isAr ? 'الوجبات الخفيفة' : isKurdish ? 'سووکەژەم' : 'Snacks', qty: 24, buyPrice: 1100, sellPrice: 1500, totalValue: '26,400', supplier: isAr ? 'شركة الاستيراد العامة' : isKurdish ? 'کۆمپانیای هاوردە' : 'Import Trade LLC', status: 'available' },
@@ -526,8 +533,8 @@ export default function ReceiptCustomizationScreen() {
           isAr
             ? 'تم قفل تعديل خيارات الفواتير من قبل المدير لحسابك.'
             : isKurdish
-            ? 'دەسەڵاتی دەستکاریکردنی ئەم بڕگەیە لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە.'
-            : 'Editing receipt fields is locked by your supervising manager.'
+              ? 'دەسەڵاتی دەستکاریکردنی ئەم بڕگەیە لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە.'
+              : 'Editing receipt fields is locked by your supervising manager.'
         );
         return;
       }
@@ -631,8 +638,8 @@ export default function ReceiptCustomizationScreen() {
       return isAr
         ? '1. شروط الدفع: 50% مقدماً عند الاتفاق.\n2. التسليم: خلال 3 أيام عمل.'
         : isKurdish
-        ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
-        : '1. Payment: 50% advance upon agreement.\n2. Delivery: within 3 working days.';
+          ? '١. مەرجی پارەدان: ٥٠٪ پێشەکی لە کاتی ڕێککەوتن.\n٢. گەیاندن: لە ماوەی ٣ ڕۆژی کارکردندا.'
+          : '1. Payment: 50% advance upon agreement.\n2. Delivery: within 3 working days.';
     }
     return note;
   };
@@ -951,8 +958,8 @@ export default function ReceiptCustomizationScreen() {
             {isAr
               ? 'تم استلام كافة المواد وفقاً لفاتورة المورد الرسمية وتم إدخالها إلى نظام المخزن.'
               : isKurdish
-              ? 'سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون.'
-              : 'Goods received according to supplier official invoice and registered in warehouse.'}
+                ? 'سەرجەم کاڵاکان بەپێی فاکتوورەی فەرمی دابینکەر وەرگیراون و داخڵی سیستەمی کۆگا کراون.'
+                : 'Goods received according to supplier official invoice and registered in warehouse.'}
           </Text>
         </View>
       )}
@@ -1079,8 +1086,8 @@ export default function ReceiptCustomizationScreen() {
           {isAr
             ? 'عرض سعر رسمي • مقدم حسب طلبكم الكريم للمدة المحددة'
             : isKurdish
-            ? 'عەرزی نرخی فەرمی • پێشکەشکراوە بە پێی داواکاری بەڕێزتان بۆ ماوەی دیاریکراو'
-            : 'Official Price Proposal • Submitted according to client request for specified validity'}
+              ? 'عەرزی نرخی فەرمی • پێشکەشکراوە بە پێی داواکاری بەڕێزتان بۆ ماوەی دیاریکراو'
+              : 'Official Price Proposal • Submitted according to client request for specified validity'}
         </Text>
       </View>
 
@@ -1164,8 +1171,8 @@ export default function ReceiptCustomizationScreen() {
             {isAr
               ? 'كافة المواد أصلية وتتمتع بضمان لمدة سنة واحدة من تاريخ التركيب والتنفيذ.'
               : isKurdish
-              ? 'سەرجەم کەرەستەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە.'
-              : 'All products are authentic with 1-year warranty from date of installation.'}
+                ? 'سەرجەم کەرەستەکان ئەسڵین و گرەنتی یەک ساڵ کارکردنیان لەگەڵدایە لە بەرواری جێبەجێکردنەوە.'
+                : 'All products are authentic with 1-year warranty from date of installation.'}
           </Text>
         </View>
       )}
@@ -1553,8 +1560,8 @@ export default function ReceiptCustomizationScreen() {
               {isAr
                 ? 'يتعهد الزبون بسداد الرصيد المتبقي وفق الجداول المتفق عليها رسمياً.'
                 : isKurdish
-                ? 'کڕیار بەڵێن دەدات باڵانسی ماوە لە کاتی دیاریکراودا بگەڕێنێتەوە بەپێی ڕێککەوتن.'
-                : 'Debtor agrees to settle the remaining balance on or before the due date.'}
+                  ? 'کڕیار بەڵێن دەدات باڵانسی ماوە لە کاتی دیاریکراودا بگەڕێنێتەوە بەپێی ڕێککەوتن.'
+                  : 'Debtor agrees to settle the remaining balance on or before the due date.'}
             </Text>
             <View style={styles.a4NotesDivider} />
             <Text style={styles.a4NotesWarrantyTitle}>{isAr ? 'الملاحظات:' : isKurdish ? 'تێبینیەکان:' : 'Notes:'}</Text>
@@ -1736,8 +1743,8 @@ export default function ReceiptCustomizationScreen() {
                 {isAr
                   ? 'إعدادات الفواتير مقفلة من قبل الإدارة'
                   : isKurdish
-                  ? 'شێوازی پسوولە لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە'
-                  : 'Receipt Customization Locked by Management'}
+                    ? 'شێوازی پسوولە لەلایەن بەڕێوەبەرەکەتەوە قفڵ کراوە'
+                    : 'Receipt Customization Locked by Management'}
               </Text>
               <Text
                 style={[
@@ -1749,8 +1756,8 @@ export default function ReceiptCustomizationScreen() {
                 {isAr
                   ? 'يمكنك معاينة الفواتير للتحقق من الشكل النهائي، بينما يتم التحكم في أحجام الأوراق والبيانات من حساب المدير فقط.'
                   : isKurdish
-                  ? 'تەنها دەتوانیت پێشبینی وەسڵەکان ببینی، کۆنترۆڵکردنی قەبارەکان و داتاکانی سەر پسوولە تەنها لە دەسەڵاتی بەڕێوەبەرەکەتە.'
-                  : 'You have read-only preview access. Paper sizes and printed fields are strictly controlled by your supervising manager.'}
+                    ? 'تەنها دەتوانیت پێشبینی وەسڵەکان ببینی، کۆنترۆڵکردنی قەبارەکان و داتاکانی سەر پسوولە تەنها لە دەسەڵاتی بەڕێوەبەرەکەتە.'
+                    : 'You have read-only preview access. Paper sizes and printed fields are strictly controlled by your supervising manager.'}
               </Text>
             </View>
           </View>
@@ -1782,8 +1789,8 @@ export default function ReceiptCustomizationScreen() {
                 {isAr
                   ? 'قسم عروض الأسعار (Quotation) يُطبع رسمياً فقط على ورق A4 القياسي وليس للطابعات الحرارية.'
                   : isKurdish
-                  ? 'بەشی عەرز و ئۆفەر (Quotation) بە شێوازی فەرمی تەنها لەسەر پەڕەی A4 چاپ دەکرێت و بۆ پرینتەری حەراری نییە.'
-                  : 'Quotations and price proposals are designed exclusively for standard official A4 paper format.'}
+                    ? 'بەشی عەرز و ئۆفەر (Quotation) بە شێوازی فەرمی تەنها لەسەر پەڕەی A4 چاپ دەکرێت و بۆ پرینتەری حەراری نییە.'
+                    : 'Quotations and price proposals are designed exclusively for standard official A4 paper format.'}
               </Text>
             </View>
           ) : (
@@ -1896,12 +1903,12 @@ export default function ReceiptCustomizationScreen() {
               activeTab === 'sales'
                 ? renderSalesA4Preview()
                 : activeTab === 'purchases'
-                ? renderPurchasesA4Preview()
-                : activeTab === 'quotation'
-                ? renderQuotationA4Preview()
-                : activeTab === 'inventory'
-                ? renderInventoryA4Preview()
-                : renderDebtsA4Preview()
+                  ? renderPurchasesA4Preview()
+                  : activeTab === 'quotation'
+                    ? renderQuotationA4Preview()
+                    : activeTab === 'inventory'
+                      ? renderInventoryA4Preview()
+                      : renderDebtsA4Preview()
             ) : (
               /* ── THERMAL RECEIPT ROLL PREVIEW (58mm, 80mm, 110mm) ── */
               <View style={[styles.receiptPaper, { width: previewCardWidth }]}>
@@ -1922,19 +1929,19 @@ export default function ReceiptCustomizationScreen() {
                     (activeTab === 'purchases' && purchaseSettings.showBusinessAddress) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
                     (activeTab === 'debts' && debtSettings.showBusinessAddress)) && (
-                    <Text style={styles.receiptContact}>
-                      {displayBizAddress}
-                    </Text>
-                  )}
+                      <Text style={styles.receiptContact}>
+                        {displayBizAddress}
+                      </Text>
+                    )}
 
                   {((activeTab === 'sales' && salesSettings.showBusinessPhone) ||
                     (activeTab === 'purchases' && purchaseSettings.showBusinessPhone) ||
                     (activeTab === 'inventory' && inventorySettings.showBusinessHeader) ||
                     (activeTab === 'debts' && debtSettings.showBusinessPhone)) && (
-                    <Text style={styles.receiptContact}>
-                      {business.phone || '0770 000 0000'}
-                    </Text>
-                  )}
+                      <Text style={styles.receiptContact}>
+                        {business.phone || '0770 000 0000'}
+                      </Text>
+                    )}
                 </View>
 
                 <View style={styles.dashedDivider} />
@@ -1944,47 +1951,47 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showInvoiceNumber) ||
                     (activeTab === 'purchases' && purchaseSettings.showInvoiceNumber) ||
                     (activeTab === 'debts' && debtSettings.showInvoiceNumber)) && (
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>
-                        {activeTab === 'debts'
-                          ? (isAr ? 'رقم السند:' : isKurdish ? 'ژمارەی پسوولە:' : 'Slip #:')
-                          : (isAr ? 'رقم الفاتورة:' : isKurdish ? 'پسوولە:' : 'Receipt #:')}
-                      </Text>
-                      <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
-                        {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
-                      </Text>
-                    </View>
-                  )}
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>
+                          {activeTab === 'debts'
+                            ? (isAr ? 'رقم السند:' : isKurdish ? 'ژمارەی پسوولە:' : 'Slip #:')
+                            : (isAr ? 'رقم الفاتورة:' : isKurdish ? 'پسوولە:' : 'Receipt #:')}
+                        </Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                          {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                        </Text>
+                      </View>
+                    )}
 
                   {((activeTab === 'sales' && salesSettings.showDate) ||
                     (activeTab === 'purchases' && purchaseSettings.showDate) ||
                     (activeTab === 'inventory' && inventorySettings.showDate) ||
                     (activeTab === 'debts' && debtSettings.showDate)) && (
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
-                      <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
-                    </View>
-                  )}
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                        <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
+                      </View>
+                    )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerName) ||
                     (activeTab === 'debts' && debtSettings.showCustomerName)) && (
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>
-                        {activeTab === 'debts'
-                          ? (isAr ? 'المدين:' : isKurdish ? 'قەرزدار:' : 'Debtor:')
-                          : (isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Customer:')}
-                      </Text>
-                      <Text style={styles.receiptValue}>{mockSale.customerName}</Text>
-                    </View>
-                  )}
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>
+                          {activeTab === 'debts'
+                            ? (isAr ? 'المدين:' : isKurdish ? 'قەرزدار:' : 'Debtor:')
+                            : (isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Customer:')}
+                        </Text>
+                        <Text style={styles.receiptValue}>{mockSale.customerName}</Text>
+                      </View>
+                    )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerPhone) ||
                     (activeTab === 'debts' && debtSettings.showCustomerPhone)) && (
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}</Text>
-                      <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
-                    </View>
-                  )}
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}</Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
+                      </View>
+                    )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
                     <View style={styles.receiptRow}>
@@ -2169,13 +2176,13 @@ export default function ReceiptCustomizationScreen() {
                 {/* Notes & Policy */}
                 {((activeTab === 'sales' && salesSettings.showNotes) ||
                   (activeTab === 'debts' && debtSettings.showNotes)) && (
-                  <View style={styles.receiptNotesBox}>
-                    <Text style={styles.receiptNotesTitle}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
-                    <Text style={styles.receiptNotesText}>
-                      {activeTab === 'debts' ? getDebtFooterNote() : mockSale.notes}
-                    </Text>
-                  </View>
-                )}
+                    <View style={styles.receiptNotesBox}>
+                      <Text style={styles.receiptNotesTitle}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
+                      <Text style={styles.receiptNotesText}>
+                        {activeTab === 'debts' ? getDebtFooterNote() : mockSale.notes}
+                      </Text>
+                    </View>
+                  )}
 
                 {/* Signature Line for Debts on Thermal */}
                 {activeTab === 'debts' && debtSettings.showSignature && (
@@ -2216,23 +2223,23 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showFooterBarcode) ||
                     (activeTab === 'purchases' && purchaseSettings.showFooterBarcode) ||
                     (activeTab === 'debts' && debtSettings.showFooterBarcode)) && (
-                    <View style={styles.barcodeBox}>
-                      <View style={styles.barcodeMockLines}>
-                        {Array.from({ length: 34 }).map((_, i) => (
-                          <View
-                            key={i}
-                            style={[
-                              styles.barcodeBar,
-                              { width: (i % 3 === 0 ? 3 : i % 2 === 0 ? 1.5 : 2), height: 32 },
-                            ]}
-                          />
-                        ))}
+                      <View style={styles.barcodeBox}>
+                        <View style={styles.barcodeMockLines}>
+                          {Array.from({ length: 34 }).map((_, i) => (
+                            <View
+                              key={i}
+                              style={[
+                                styles.barcodeBar,
+                                { width: (i % 3 === 0 ? 3 : i % 2 === 0 ? 1.5 : 2), height: 32 },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                        <Text style={styles.barcodeCode}>
+                          {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                        </Text>
                       </View>
-                      <Text style={styles.barcodeCode}>
-                        {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
-                      </Text>
-                    </View>
-                  )}
+                    )}
 
                   <Text style={styles.receiptBrandCredit}>Froshiar POS • www.froshiar.store</Text>
                 </View>
@@ -2804,8 +2811,8 @@ export default function ReceiptCustomizationScreen() {
             {isAr
               ? 'يظهر هذا النص في أسفل كافة الإيصالات والمطبوعات للشكر أو توضيح شروط المحل.'
               : isKurdish
-              ? 'ئەم دەقە لە کۆتایی هەموو وەسڵ و چاپەکاندا پیشان دەدرێت بۆ سوپاسگوزاری یان مەرجی فرۆشگا.'
-              : 'This note is printed at the bottom of the receipt/invoice.'}
+                ? 'ئەم دەقە لە کۆتایی هەموو وەسڵ و چاپەکاندا پیشان دەدرێت بۆ سوپاسگوزاری یان مەرجی فرۆشگا.'
+                : 'This note is printed at the bottom of the receipt/invoice.'}
           </Text>
 
           <TextInput
@@ -2825,12 +2832,12 @@ export default function ReceiptCustomizationScreen() {
               activeTab === 'sales'
                 ? salesSettings.customFooterNote
                 : activeTab === 'purchases'
-                ? purchaseSettings.customFooterNote
-                : activeTab === 'quotation'
-                ? quotationSettings.customFooterNote
-                : activeTab === 'inventory'
-                ? inventorySettings.customFooterNote
-                : debtSettings.customFooterNote
+                  ? purchaseSettings.customFooterNote
+                  : activeTab === 'quotation'
+                    ? quotationSettings.customFooterNote
+                    : activeTab === 'inventory'
+                      ? inventorySettings.customFooterNote
+                      : debtSettings.customFooterNote
             }
             editable={!isLockedForEmployee}
             onChangeText={(txt) => {
@@ -2871,8 +2878,8 @@ export default function ReceiptCustomizationScreen() {
               {isPrintingTest
                 ? (isAr ? 'جارٍ الطباعة...' : isKurdish ? 'چاپ دەکرێت...' : 'Printing...')
                 : isKurdish
-                ? `چاپی تاقیکاری (${activePaperSize})`
-                : `Test Print (${activePaperSize})`}
+                  ? `چاپی تاقیکاری (${activePaperSize})`
+                  : `Test Print (${activePaperSize})`}
             </Text>
           </TouchableOpacity>
 

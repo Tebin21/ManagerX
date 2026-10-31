@@ -34,6 +34,8 @@ export interface Purchase {
   itemDescription?: string | null;
   productionDate?: string | null;
   expiryDate?: string | null;
+  createdBy?: string | null;
+  createdByEmail?: string | null;
   createdAt: string;
   updatedAt: string;
   printCount?: number;

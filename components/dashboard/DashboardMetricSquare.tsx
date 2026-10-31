@@ -22,6 +22,7 @@ interface Props {
   delay?: number;
   containerStyle?: StyleProp<ViewStyle>;
   isFullWidth?: boolean;
+  isLocked?: boolean;
 }
 
 export function DashboardMetricSquare({
@@ -35,6 +36,7 @@ export function DashboardMetricSquare({
   delay = 0,
   containerStyle,
   isFullWidth = false,
+  isLocked = false,
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
@@ -145,7 +147,12 @@ export function DashboardMetricSquare({
 
             {/* End side: Large Value */}
             <View style={[styles.valueRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
-              {isCurrency ? (
+              {isLocked ? (
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="lock-closed" size={16} color="#F59E0B" />
+                  <Text style={{ color: colors.gray400, fontSize: 16, fontWeight: '700' }}>••••••</Text>
+                </View>
+              ) : isCurrency ? (
                 <AmountText
                   value={Math.abs(value)}
                   style={[
@@ -265,7 +272,12 @@ export function DashboardMetricSquare({
 
         {/* Big Number / Value */}
         <View style={[styles.valueRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
-          {isCurrency ? (
+          {isLocked ? (
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+              <Ionicons name="lock-closed" size={15} color="#F59E0B" />
+              <Text style={{ color: colors.gray400, fontSize: 16, fontWeight: '700' }}>••••••</Text>
+            </View>
+          ) : isCurrency ? (
             <AmountText
               value={Math.abs(value)}
               style={[
