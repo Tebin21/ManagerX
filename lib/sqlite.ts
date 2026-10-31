@@ -930,6 +930,29 @@ export async function loadSetting(key: string): Promise<string | null> {
   return row?.value ?? null;
 }
 
+export async function getDatabaseOwner(): Promise<string | null> {
+  try {
+    const { getItemWithLegacyFallback } = await import('./migratedStorage');
+    const raw = await getItemWithLegacyFallback('@froshiar_database_owner_uid');
+    if (raw) return raw;
+  } catch {}
+  return loadSetting('database_owner_uid');
+}
+
+export async function setDatabaseOwner(uid: string | null): Promise<void> {
+  try {
+    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
+    if (uid) {
+      await AsyncStorage.setItem('@froshiar_database_owner_uid', uid);
+    } else {
+      await AsyncStorage.removeItem('@froshiar_database_owner_uid');
+    }
+  } catch {}
+  if (uid) {
+    await saveSetting('database_owner_uid', uid);
+  }
+}
+
 // ─── Invoice Counter ──────────────────────────────────────────────────────────
 
 function formatSequenceNumber(n: number): string {

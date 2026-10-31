@@ -100,20 +100,37 @@ export function IraqFlagIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+export type SupportedLanguage = 'ku' | 'ar' | 'en';
+
 interface Props {
-  value: boolean; // true = Kurdish (Ku flag), false = English (UK flag)
-  onToggle: (val: boolean) => void;
+  language?: SupportedLanguage;
+  onChangeLanguage?: (lang: SupportedLanguage) => void;
+  value?: boolean; // Backward compatibility: true = ku, false = en
+  onToggle?: (val: boolean) => void;
   disabled?: boolean;
   isDark?: boolean;
 }
 
-const TRACK_WIDTH = 66;
+const TRACK_WIDTH = 98;
 const TRACK_HEIGHT = 34;
 const TRACK_PADDING = 3;
 const THUMB_SIZE = 28;
-const TRAVEL_DISTANCE = TRACK_WIDTH - THUMB_SIZE - TRACK_PADDING * 2; // 32px
+const STEP_DISTANCE = 32; // 0 for en, 32 for ar, 64 for ku
 
-export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark: isDarkProp }: Props) {
+function getLanguageIndex(lang: SupportedLanguage): number {
+  if (lang === 'en') return 0;
+  if (lang === 'ar') return 1;
+  return 2; // 'ku'
+}
+
+export function LanguageToggleSwitch({
+  language,
+  onChangeLanguage,
+  value,
+  onToggle,
+  disabled = false,
+  isDark: isDarkProp,
+}: Props) {
   let appThemeDark = true;
   try {
     const theme = useAppTheme();
@@ -123,51 +140,48 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark
   }
   const isDark = isDarkProp !== undefined ? isDarkProp : appThemeDark;
 
-  const progress = useSharedValue(value ? 1 : 0);
+  // Determine current active language (supporting 3-way language or legacy boolean value)
+  const currentLang: SupportedLanguage = language !== undefined
+    ? language
+    : value !== undefined
+    ? (value ? 'ku' : 'en')
+    : 'ku';
+
+  const targetIndex = getLanguageIndex(currentLang);
+  const progress = useSharedValue(targetIndex);
 
   useEffect(() => {
-    progress.value = withSpring(value ? 1 : 0, {
+    progress.value = withSpring(targetIndex, {
       damping: 18,
-      stiffness: 200,
+      stiffness: 210,
       mass: 0.8,
     });
-  }, [value]);
+  }, [targetIndex]);
 
-  const handlePress = () => {
+  const selectLanguage = (lang: SupportedLanguage) => {
     if (disabled) return;
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    } catch {
-      // Haptics fallback
-    }
-    onToggle(!value);
+    } catch {}
+    onChangeLanguage?.(lang);
+    onToggle?.(lang === 'ku');
   };
 
-  // Kurdish Track fade
-  const kurdTrackStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  // English Track fade
-  const engTrackStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  // Thumb sliding & slight rotation
+  // Thumb sliding & subtle tilt during animation
   const thumbAnimatedStyle = useAnimatedStyle(() => {
     const translateX = interpolate(
       progress.value,
-      [0, 1],
-      [0, TRAVEL_DISTANCE],
+      [0, 1, 2],
+      [0, STEP_DISTANCE, STEP_DISTANCE * 2],
       Extrapolation.CLAMP
     );
-    const rotate = `${interpolate(progress.value, [0, 1], [0, 360], Extrapolation.CLAMP)}deg`;
+    const rotate = `${interpolate(progress.value, [0, 1, 2], [-8, 0, 8], Extrapolation.CLAMP)}deg`;
     return {
       transform: [{ translateX }, { rotate }],
     };
   });
 
-  // UK Flag opacity inside thumb
+  // Flag opacity and scaling inside the sliding thumb
   const ukIconStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 0.45, 1], [1, 0, 0], Extrapolation.CLAMP),
     transform: [
@@ -177,12 +191,30 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark
     ],
   }));
 
-  // Kurdistan Flag opacity inside thumb
-  const kurdIconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.55, 1], [0, 0, 1], Extrapolation.CLAMP),
+  const iraqIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      progress.value,
+      [0, 0.5, 1, 1.5, 2],
+      [0, 0.5, 1, 0.5, 0],
+      Extrapolation.CLAMP
+    ),
     transform: [
       {
-        scale: interpolate(progress.value, [0, 0.5, 1], [0, 0.5, 1], Extrapolation.CLAMP),
+        scale: interpolate(
+          progress.value,
+          [0, 0.5, 1, 1.5, 2],
+          [0, 0.5, 1, 0.5, 0],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+  }));
+
+  const kurdIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [1, 1.55, 2], [0, 0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        scale: interpolate(progress.value, [1, 1.5, 2], [0, 0.5, 1], Extrapolation.CLAMP),
       },
     ],
   }));
@@ -191,15 +223,7 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark
   const lightGradients: [string, string] = ['#FFFFFF', '#F1F5F9'];
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.88}
-      onPress={handlePress}
-      disabled={disabled}
-      style={styles.switchWrapper}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
-      accessibilityLabel={value ? 'Switch to English' : 'گۆڕین بۆ کوردی'}
-    >
+    <View style={styles.switchWrapper}>
       <View
         style={[
           styles.trackContainer,
@@ -211,57 +235,87 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark
           },
         ]}
       >
-        {/* Kurdish Active Background Layer (Inactive UK flag on left) */}
-        <Animated.View style={[StyleSheet.absoluteFill, kurdTrackStyle]}>
-          <LinearGradient
-            colors={isDark ? darkGradients : lightGradients}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.trackGradient}
-          >
-            {/* Inactive UK Flag on the left */}
-            <View style={styles.inactiveLeftWrap}>
-              <UKFlagIcon size={16} />
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        <LinearGradient
+          colors={isDark ? darkGradients : lightGradients}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.trackGradient}
+        >
+          {/* 3 Clickable Slots with Inactive Flag Badges */}
+          <View style={styles.slotsRow}>
+            {/* Slot 0: English (Left) */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              disabled={disabled}
+              onPress={() => selectLanguage('en')}
+              style={styles.slotTouch}
+              accessibilityLabel="English"
+              accessibilityRole="button"
+            >
+              <View style={styles.inactiveIconWrap}>
+                <UKFlagIcon size={16} />
+              </View>
+            </TouchableOpacity>
 
-        {/* English Active Background Layer (Inactive Kurdistan flag on right) */}
-        <Animated.View style={[StyleSheet.absoluteFill, engTrackStyle]}>
-          <LinearGradient
-            colors={isDark ? darkGradients : lightGradients}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.trackGradient}
-          >
-            {/* Inactive Kurdistan Flag on the right */}
-            <View style={styles.inactiveRightWrap}>
-              <KurdistanFlagIcon size={16} />
-            </View>
-          </LinearGradient>
-        </Animated.View>
+            {/* Slot 1: Arabic (Center) */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              disabled={disabled}
+              onPress={() => selectLanguage('ar')}
+              style={styles.slotTouch}
+              accessibilityLabel="العربية"
+              accessibilityRole="button"
+            >
+              <View style={styles.inactiveIconWrap}>
+                <IraqFlagIcon size={16} />
+              </View>
+            </TouchableOpacity>
 
-        {/* Animated Thumb Sphere */}
+            {/* Slot 2: Kurdish (Right) */}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              disabled={disabled}
+              onPress={() => selectLanguage('ku')}
+              style={styles.slotTouch}
+              accessibilityLabel="کوردی"
+              accessibilityRole="button"
+            >
+              <View style={styles.inactiveIconWrap}>
+                <KurdistanFlagIcon size={16} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {/* Animated Golden Sliding Thumb */}
         <Animated.View
+          pointerEvents="none"
           style={[
             styles.thumb,
             {
               backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
               borderColor: '#D4AF37',
               shadowColor: isDark ? '#D4AF37' : '#000000',
-              shadowOpacity: isDark ? 0.35 : 0.15,
+              shadowOpacity: isDark ? 0.4 : 0.18,
             },
             thumbAnimatedStyle,
           ]}
         >
-          {/* UK Flag View inside Thumb */}
+          {/* Active UK Flag */}
           <Animated.View style={[styles.iconContainer, ukIconStyle]}>
             <View style={styles.thumbInner}>
               <UKFlagIcon size={24} />
             </View>
           </Animated.View>
 
-          {/* Kurdistan Flag View inside Thumb */}
+          {/* Active Iraq Flag */}
+          <Animated.View style={[styles.iconContainer, iraqIconStyle]}>
+            <View style={styles.thumbInner}>
+              <IraqFlagIcon size={24} />
+            </View>
+          </Animated.View>
+
+          {/* Active Kurdistan Flag */}
           <Animated.View style={[styles.iconContainer, kurdIconStyle]}>
             <View style={styles.thumbInner}>
               <KurdistanFlagIcon size={24} />
@@ -269,7 +323,7 @@ export function LanguageToggleSwitch({ value, onToggle, disabled = false, isDark
           </Animated.View>
         </Animated.View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -294,25 +348,25 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: TRACK_HEIGHT / 2,
     justifyContent: 'center',
-    position: 'relative',
   },
-  inactiveLeftWrap: {
-    position: 'absolute',
-    left: 7,
-    top: 0,
-    bottom: 0,
+  slotsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 1,
+  },
+  slotTouch: {
+    width: (TRACK_WIDTH - 2) / 3,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.45,
+    zIndex: 1,
   },
-  inactiveRightWrap: {
-    position: 'absolute',
-    right: 7,
-    top: 0,
-    bottom: 0,
+  inactiveIconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.45,
+    opacity: 0.42,
   },
   thumb: {
     width: THUMB_SIZE,
@@ -321,11 +375,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: TRACK_PADDING,
     top: TRACK_PADDING - 0.5,
-    borderWidth: 1.5,
+    borderWidth: 1.8,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3.5,
-    elevation: 4,
+    elevation: 5,
     overflow: 'hidden',
+    zIndex: 2,
   },
   iconContainer: {
     ...StyleSheet.absoluteFillObject,

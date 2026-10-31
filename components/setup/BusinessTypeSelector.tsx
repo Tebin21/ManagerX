@@ -32,7 +32,9 @@ export function BusinessTypeSelector({
 }: Props) {
   const { colors, isDark } = useAppTheme();
   const { isRTL, textAlign } = useRTL();
-  const isKurdish = useLanguageStore((s) => s.language === 'ku');
+  const language = useLanguageStore((s) => s.language);
+  const isKurdish = language === 'ku';
+  const isArabic = language === 'ar';
   const { t } = useTranslation();
   const { isTablet, isTabletLandscape } = useResponsive();
   const scrollRef = useRef<ScrollView>(null);
@@ -42,8 +44,9 @@ export function BusinessTypeSelector({
     initialScrollDone.current = false;
   }, [isRTL]);
 
-  const getLabel = (bt: { id: string; label: string; labelKu?: string }) => {
+  const getLabel = (bt: { id: string; label: string; labelKu?: string; labelAr?: string }) => {
     if (isKurdish) return bt.labelKu ?? bt.label;
+    if (isArabic) return bt.labelAr ?? bt.label;
     return bt.label;
   };
 
@@ -137,7 +140,7 @@ export function BusinessTypeSelector({
               {
                 color: isActive ? (isDark ? colors.primary : colors.black) : colors.gray600,
                 textAlign: 'center',
-                fontFamily: isKurdish
+                fontFamily: (isKurdish || isArabic)
                   ? isActive
                     ? SETTINGS_KURDISH_FONT_BOLD
                     : SETTINGS_KURDISH_FONT

@@ -42,7 +42,7 @@ const GOOGLE_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22">
   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
 </svg>`;
 
-// Localized strings for Kurdish and English
+// Localized strings for Kurdish, Arabic, and English
 const SIGNUP_STRINGS = {
   ku: {
     illustrationTitle: 'بەخێربێیت بۆ فرۆشیار',
@@ -66,6 +66,29 @@ const SIGNUP_STRINGS = {
     passwordRequired: 'تکایە وشەی نهێنی بنووسە',
     passwordTooShort: 'وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت',
     passwordsDontMatch: 'وشە نهێنییەکان وەک یەک نین، تکایە دڵنیابەرەوە',
+  },
+  ar: {
+    illustrationTitle: 'مرحباً بك في فروشيار',
+    illustrationSub: 'أنشئ حساباً جديداً وتحكم بشكل كامل في مبيعاتك ونشاطك التجاري',
+    mobileSub: 'سجّل الآن لمزامنة بياناتك عبر جميع أجهزتك',
+    welcomeTitle: 'إنشاء حساب',
+    welcomeSub: 'املأ بياناتك لإنشاء حساب جديد',
+    namePlaceholder: 'الاسم الكامل',
+    emailPlaceholder: 'البريد الإلكتروني',
+    passwordPlaceholder: 'كلمة المرور (٦ أحرف على الأقل)',
+    confirmPasswordPlaceholder: 'تأكيد كلمة المرور',
+    signUpBtn: 'إنشاء الحساب',
+    googleBtn: 'المتابعة باستخدام Google',
+    or: 'أو',
+    haveAccount: 'لديك حساب بالفعل؟',
+    loginLink: 'تسجيل الدخول',
+    devBypass: 'لوحة التحكم ⚡',
+    nameRequired: 'يرجى كتابة اسمك الكامل',
+    emailRequired: 'يرجى كتابة البريد الإلكتروني',
+    emailInvalid: 'يرجى كتابة بريد إلكتروني صحيح (مثال: name@example.com)',
+    passwordRequired: 'يرجى كتابة كلمة المرور',
+    passwordTooShort: 'كلمة المرور يجب أن لا تقل عن ٦ أحرف',
+    passwordsDontMatch: 'كلمتا المرور غير متطابقتين، يرجى التأكد',
   },
   en: {
     illustrationTitle: 'Welcome to Froshiar',
@@ -115,7 +138,7 @@ export default function SignUpScreen() {
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;
 
-  const curLang = language === 'en' ? 'en' : 'ku';
+  const curLang: 'ku' | 'en' | 'ar' = language === 'en' ? 'en' : language === 'ar' ? 'ar' : 'ku';
   const strings = SIGNUP_STRINGS[curLang];
 
   const handleToggleTheme = () => {
@@ -272,11 +295,11 @@ export default function SignUpScreen() {
 
       {/* Settings side: Language picker + Dark mode toggle */}
       <View style={[styles.controlsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Language Toggle Switch (On/Off Style) */}
+        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
         <LanguageToggleSwitch
-          value={curLang === 'ku'}
+          language={curLang}
           isDark={isDark}
-          onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+          onChangeLanguage={(newLang) => setLanguage(newLang)}
         />
 
         {/* Dark / Light Mode Toggle Button */}

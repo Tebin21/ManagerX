@@ -84,9 +84,7 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await signOut();
-    setLanguage('en');
-    setDarkMode(false);
-    setAccentColor(null);
+    // Keep user's chosen language intact so login/setup renders in their preferred language
     // Replace the entire stack — user cannot navigate back into the app
     router.replace('/(onboarding)/login' as never);
   };

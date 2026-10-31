@@ -31,13 +31,89 @@ import { useOnboardingStore } from '@/store/onboardingStore';
 import { hexToRgba } from '@/lib/colorUtils';
 import { SETTINGS_KURDISH_FONT_BOLD } from '@/lib/settingsFont';
 
+// Localized strings for Kurdish, Arabic, and English
+const SETUP_STRINGS = {
+  ku: {
+    title: 'پڕۆفایلی بازرگانی',
+    requiredAlert: 'تکایە ناوی بازرگانی بنووسە',
+    saveError: 'هەڵەیەک ڕوویدا لە کاتی پاشەکەوتکردن',
+    signOutTitle: 'چوونەدەرەوە',
+    signOutConfirm: 'ئایا دڵنیایت لە چوونەدەرەوە لەم ئەکاونتە؟',
+    cancel: 'پاشگەزبوونەوە',
+    signOutBtn: 'بەڵێ، چوونەدەرەوە',
+    logoHint: 'کلیک بکە بۆ گۆڕینی لۆگۆی بازرگانیەکەت',
+    businessInfoTitle: 'زانیاری بازرگانی',
+    businessInfoSub: 'زانیاری و ناسنامەی سەرەکی فرۆشگاکەت بۆ سەر پسوولە و ئەپ',
+    nameLabel: 'ناوی بازرگانی *',
+    namePlaceholder: 'ناوی مارکێت / فرۆشگاکەت بنووسە',
+    phoneLabel: 'ژمارەی تەلەفۆن',
+    phonePlaceholder: 'بۆ نموونە: 4567 123 0770',
+    addressLabel: 'ناونیشان',
+    addressPlaceholder: 'بۆ نموونە: سلێمانی، کانی با',
+    dashCardTitle: 'پیشاندانی کارتی بازرگانی لە داشبۆرد',
+    dashCardSub: 'کارتی ناو و ناسنامەی فرۆشگاکەت لە سەرەوەی داشبۆرد دەردەکەوێت',
+    dashSwitchLabel: 'پیشاندانی بانەری بازرگانی',
+    dashSwitchSub: 'لە بەشی سەرەوەی داشبۆرد پشان دەدرێت',
+    saveBtn: 'پاشەکەوتکردن و دەستپێکردن',
+  },
+  ar: {
+    title: 'الملف التجاري',
+    requiredAlert: 'يرجى كتابة الاسم التجاري',
+    saveError: 'حدث خطأ أثناء حفظ الملف التجاري',
+    signOutTitle: 'تسجيل الخروج',
+    signOutConfirm: 'هل أنت متأكد من تسجيل الخروج من هذا الحساب؟',
+    cancel: 'إلغاء',
+    signOutBtn: 'نعم، تسجيل الخروج',
+    logoHint: 'انقر لتغيير شعار نشاطك التجاري',
+    businessInfoTitle: 'المعلومات التجارية',
+    businessInfoSub: 'معلومات وهوية متجرك للفواتير والتطبيق',
+    nameLabel: 'الاسم التجاري *',
+    namePlaceholder: 'اكتب اسم متجرك / مشروعك',
+    phoneLabel: 'رقم الهاتف',
+    phonePlaceholder: 'مثال: 0770 123 4567',
+    addressLabel: 'العنوان',
+    addressPlaceholder: 'مثال: بغداد، المنصور',
+    dashCardTitle: 'عرض بطاقة النشاط التجاري في لوحة التحكم',
+    dashCardSub: 'تظهر بطاقة اسم وهوية متجرك أعلى لوحة التحكم',
+    dashSwitchLabel: 'عرض لافتة النشاط التجاري',
+    dashSwitchSub: 'يتم عرضه في الجزء العلوي من لوحة التحكم',
+    saveBtn: 'حفظ والبدء',
+  },
+  en: {
+    title: 'Business Profile',
+    requiredAlert: 'Business name is required',
+    saveError: 'Failed to save business profile',
+    signOutTitle: 'Sign Out',
+    signOutConfirm: 'Are you sure you want to sign out?',
+    cancel: 'Cancel',
+    signOutBtn: 'Sign Out',
+    logoHint: 'Click to change your business logo',
+    businessInfoTitle: 'Business Information',
+    businessInfoSub: 'Store information & identity for invoices and app',
+    nameLabel: 'Business Name *',
+    namePlaceholder: 'Enter your store name',
+    phoneLabel: 'Phone Number',
+    phonePlaceholder: 'e.g. 0770 123 4567',
+    addressLabel: 'Address',
+    addressPlaceholder: 'e.g. Sulaymaniyah, Main St',
+    dashCardTitle: 'Business Card on Dashboard',
+    dashCardSub: 'Shows your store identity banner at top of dashboard',
+    dashSwitchLabel: 'Show business banner',
+    dashSwitchSub: 'Displayed at the top of the dashboard',
+    saveBtn: 'Save and Get Started',
+  },
+};
+
 export default function SetupScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isRTL, textAlign } = useRTL();
   const { colors, isDark } = useAppTheme();
   const { isTablet, isTabletLandscape } = useResponsive();
-  const isKu = useLanguageStore((s) => s.language === 'ku');
+  const language = useLanguageStore((s) => s.language) || 'ku';
+  const curLang: 'ku' | 'ar' | 'en' = language === 'en' ? 'en' : language === 'ar' ? 'ar' : 'ku';
+  const str = SETUP_STRINGS[curLang];
+  const isRTLText = curLang === 'ku' || curLang === 'ar';
 
   const business = useBusiness();
   const user = useAuthStore((s) => s.user);
@@ -62,7 +138,7 @@ export default function SetupScreen() {
     if (!name.trim()) {
       Alert.alert(
         t('common.required'),
-        isKu ? 'تکایە ناوی بازرگانی بنووسە' : 'Business name is required'
+        str.requiredAlert
       );
       return;
     }
@@ -101,7 +177,7 @@ export default function SetupScreen() {
     } catch {
       Alert.alert(
         t('common.error'),
-        isKu ? 'هەڵەیەک ڕوویدا لە کاتی پاشەکەوتکردن' : 'Failed to save business profile'
+        str.saveError
       );
     } finally {
       setSaving(false);
@@ -110,12 +186,12 @@ export default function SetupScreen() {
 
   const handleSignOut = () => {
     Alert.alert(
-      isKu ? 'چوونەدەرەوە' : 'Sign Out',
-      isKu ? 'ئایا دڵنیایت لە چوونەدەرەوە لەم ئەکاونتە؟' : 'Are you sure you want to sign out?',
+      str.signOutTitle,
+      str.signOutConfirm,
       [
-        { text: isKu ? 'پاشگەزبوونەوە' : 'Cancel', style: 'cancel' },
+        { text: str.cancel, style: 'cancel' },
         {
-          text: isKu ? 'بەڵێ، چوونەدەرەوە' : 'Sign Out',
+          text: str.signOutBtn,
           style: 'destructive',
           onPress: async () => {
             await useAuthStore.getState().signOut();
@@ -129,7 +205,7 @@ export default function SetupScreen() {
   const tabletInputLabel = isTablet
     ? {
         fontSize: isTabletLandscape ? 17 : 16,
-        fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+        fontFamily: isRTLText ? SETTINGS_KURDISH_FONT_BOLD : undefined,
         marginBottom: 8,
         color: isDark ? colors.gray300 : '#334155',
       }
@@ -144,7 +220,7 @@ export default function SetupScreen() {
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <SettingsBackground />
         <AppHeader
-          title={isKu ? 'پڕۆفایلی بازرگانی' : 'Business Profile'}
+          title={str.title}
           showBack={true}
           onBack={handleSignOut}
         />
@@ -176,11 +252,11 @@ export default function SetupScreen() {
                   color: isDark ? colors.gray400 : '#64748B',
                   fontSize: isTablet ? 15 : 12,
                   marginTop: isTablet ? 12 : 8,
-                  fontFamily: isKu ? SETTINGS_KURDISH_FONT_BOLD : undefined,
+                  fontFamily: isRTLText ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                 },
               ]}
             >
-              {isKu ? 'کلیک بکە بۆ گۆڕینی لۆگۆی بازرگانیەکەت' : 'Click to change your business logo'}
+              {str.logoHint}
             </Text>
           </View>
 
@@ -218,12 +294,12 @@ export default function SetupScreen() {
                     styles.sectionTitle,
                     isTablet && {
                       fontSize: isTabletLandscape ? 21 : 19,
-                      fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                      fontFamily: isRTLText ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                     },
                     { textAlign, color: colors.black },
                   ]}
                 >
-                  {isKu ? 'زانیاری بازرگانی' : 'Business Information'}
+                  {str.businessInfoTitle}
                 </Text>
                 <Text
                   style={[
@@ -232,9 +308,7 @@ export default function SetupScreen() {
                     { textAlign, color: colors.gray400 },
                   ]}
                 >
-                  {isKu
-                    ? 'زانیاری و ناسنامەی سەرەکی فرۆشگاکەت بۆ سەر پسوولە و ئەپ'
-                    : 'Store information & identity for invoices and app'}
+                  {str.businessInfoSub}
                 </Text>
               </View>
             </View>
@@ -255,8 +329,8 @@ export default function SetupScreen() {
                 <View style={[styles.twoColRow, { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 16 }]}>
                   <View style={{ flex: 1 }}>
                     <AppTextInput
-                      label={isKu ? 'ناوی بازرگانی *' : 'Business Name *'}
-                      placeholder={isKu ? 'ناوی مارکێت / فرۆشگاکەت بنووسە' : 'Enter your store name'}
+                      label={str.nameLabel}
+                      placeholder={str.namePlaceholder}
                       value={name}
                       onChangeText={setName}
                       labelStyle={tabletInputLabel}
@@ -264,8 +338,8 @@ export default function SetupScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <AppTextInput
-                      label={isKu ? 'ژمارەی تەلەفۆن' : 'Phone Number'}
-                      placeholder={isKu ? 'بۆ نموونە: 4567 123 0770' : 'e.g. 0770 123 4567'}
+                      label={str.phoneLabel}
+                      placeholder={str.phonePlaceholder}
                       value={phone}
                       onChangeText={setPhone}
                       keyboardType="phone-pad"
@@ -275,8 +349,8 @@ export default function SetupScreen() {
                 </View>
 
                 <AppTextInput
-                  label={isKu ? 'ناونیشان' : 'Address'}
-                  placeholder={isKu ? 'بۆ نموونە: سلێمانی، کانی با' : 'e.g. Sulaymaniyah, Main St'}
+                  label={str.addressLabel}
+                  placeholder={str.addressPlaceholder}
                   value={address}
                   onChangeText={setAddress}
                   labelStyle={tabletInputLabel}
@@ -291,21 +365,21 @@ export default function SetupScreen() {
             ) : (
               <>
                 <AppTextInput
-                  label={isKu ? 'ناوی بازرگانی *' : 'Business Name *'}
-                  placeholder={isKu ? 'ناوی مارکێت / فرۆشگاکەت بنووسە' : 'Enter your store name'}
+                  label={str.nameLabel}
+                  placeholder={str.namePlaceholder}
                   value={name}
                   onChangeText={setName}
                 />
                 <AppTextInput
-                  label={isKu ? 'ژمارەی تەلەفۆن' : 'Phone Number'}
-                  placeholder={isKu ? 'بۆ نموونە: 4567 123 0770' : 'e.g. 0770 123 4567'}
+                  label={str.phoneLabel}
+                  placeholder={str.phonePlaceholder}
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
                 />
                 <AppTextInput
-                  label={isKu ? 'ناونیشان' : 'Address'}
-                  placeholder={isKu ? 'بۆ نموونە: سلێمانی، کانی با' : 'e.g. Sulaymaniyah, Main St'}
+                  label={str.addressLabel}
+                  placeholder={str.addressPlaceholder}
                   value={address}
                   onChangeText={setAddress}
                 />
@@ -350,12 +424,12 @@ export default function SetupScreen() {
                     styles.sectionTitle,
                     isTablet && {
                       fontSize: isTabletLandscape ? 21 : 19,
-                      fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+                      fontFamily: isRTLText ? SETTINGS_KURDISH_FONT_BOLD : undefined,
                     },
                     { textAlign, color: colors.black },
                   ]}
                 >
-                  {isKu ? 'پیشاندانی کارتی بازرگانی لە داشبۆرد' : 'Business Card on Dashboard'}
+                  {str.dashCardTitle}
                 </Text>
                 <Text
                   style={[
@@ -364,9 +438,7 @@ export default function SetupScreen() {
                     { textAlign, color: colors.gray400 },
                   ]}
                 >
-                  {isKu
-                    ? 'کارتی ناو و ناسنامەی فرۆشگاکەت لە سەرەوەی داشبۆرد دەردەکەوێت'
-                    : 'Shows your store identity banner at top of dashboard'}
+                  {str.dashCardSub}
                 </Text>
               </View>
             </View>
@@ -383,8 +455,8 @@ export default function SetupScreen() {
 
             <SettingSwitch
               icon={showOnDashboard ? 'eye-outline' : 'eye-off-outline'}
-              label={isKu ? 'پیشاندانی بانەری بازرگانی' : 'Show business banner'}
-              sub={isKu ? 'لە بەشی سەرەوەی داشبۆرد پشان دەدرێت' : 'Displayed at the top of the dashboard'}
+              label={str.dashSwitchLabel}
+              sub={str.dashSwitchSub}
               value={showOnDashboard}
               onToggle={(val) => {
                 setShowOnDashboard(val);
@@ -395,7 +467,7 @@ export default function SetupScreen() {
 
           {/* 4. Large Save & Enter Action Button */}
           <PrimaryButton
-            label={isKu ? 'پاشەکەوتکردن و دەستپێکردن' : 'Save and Get Started'}
+            label={str.saveBtn}
             onPress={handleSave}
             loading={saving}
           />

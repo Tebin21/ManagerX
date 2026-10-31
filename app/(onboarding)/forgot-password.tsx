@@ -30,7 +30,7 @@ import { LanguageToggleSwitch } from '@/components/settings/LanguageToggleSwitch
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { EMAIL_RE } from '@/lib/validation';
 
-// Localized strings for Kurdish and English
+// Localized strings for Kurdish, Arabic, and English
 const FORGOT_STRINGS = {
   ku: {
     illustrationTitle: 'وشەی نهێنیت لەبیرکردووە؟',
@@ -45,6 +45,20 @@ const FORGOT_STRINGS = {
     validationEmailRequired: 'تکایە ئیمەیڵەکەت بنووسە',
     validationEmailInvalid: 'تکایە ئیمەیڵێکی دروست بنووسە (نموونە: name@domain.com)',
     infoHint: 'کۆدێکی ٦ ژمارەیی دەنێردرێت بۆ ئیمەیڵەکەت بۆ نوێکردنەوەی وشەی نهێنی.',
+  },
+  ar: {
+    illustrationTitle: 'هل نسيت كلمة المرور؟',
+    illustrationSub: 'لا تقلق! أدخل بريدك الإلكتروني لاستلام رمز التحقق وإعادة تعيين كلمة المرور',
+    mobileSub: 'أدخل بريدك الإلكتروني لاستلام رمز إعادة التعيين',
+    welcomeTitle: 'استعادة كلمة المرور',
+    welcomeSub: 'يرجى إدخال بريدك الإلكتروني المسجل أدناه',
+    emailPlaceholder: 'أدخل البريد الإلكتروني المسجل',
+    sendBtn: 'إرسال رمز التحقق',
+    backToLogin: 'العودة لتسجيل الدخول',
+    devBypass: 'لوحة التحكم ⚡',
+    validationEmailRequired: 'يرجى إدخال البريد الإلكتروني',
+    validationEmailInvalid: 'يرجى إدخال بريد إلكتروني صحيح (مثال: name@domain.com)',
+    infoHint: 'سيتم إرسال رمز تحقق مكوّن من ٦ أرقام إلى بريدك الإلكتروني لإعادة تعيين كلمة المرور.',
   },
   en: {
     illustrationTitle: 'Forgot Your Password?',
@@ -81,7 +95,7 @@ export default function ForgotPasswordScreen() {
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;
 
-  const curLang = language === 'en' ? 'en' : 'ku';
+  const curLang: 'ku' | 'en' | 'ar' = language === 'en' ? 'en' : language === 'ar' ? 'ar' : 'ku';
   const strings = FORGOT_STRINGS[curLang];
 
   const handleToggleTheme = () => {
@@ -190,11 +204,11 @@ export default function ForgotPasswordScreen() {
 
       {/* Settings side: Language picker + Dark mode toggle */}
       <View style={[styles.controlsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Language Toggle Switch (On/Off Style) */}
+        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
         <LanguageToggleSwitch
-          value={curLang === 'ku'}
+          language={curLang}
           isDark={isDark}
-          onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+          onChangeLanguage={(newLang) => setLanguage(newLang)}
         />
 
         {/* Dark / Light Mode Toggle Button */}

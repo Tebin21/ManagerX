@@ -387,50 +387,121 @@ async function adoptSignedInUserInner(
   set: (state: Partial<AuthState>) => void,
   auto: boolean = false
 ) {
-  const { initializeDatabase } = await import('@/lib/sqlite');
+  const {
+    initializeDatabase,
+    wipeAllBusinessData,
+    getDatabaseOwner,
+    setDatabaseOwner,
+    loadBusiness,
+    localBusinessDataExists,
+  } = await import('@/lib/sqlite');
   await initializeDatabase();
 
   const { useBusinessStore } = await import('@/store/businessStore');
   const business = useBusinessStore.getState();
 
-  // 1. Mark onboarding as completed immediately
+  // 1. Account Isolation Guard:
+  // Check who owns the local database on this device.
+  const registeredDbOwner = await getDatabaseOwner();
+  const currentOwner = business.ownerUserId || registeredDbOwner;
+
+  if (currentOwner && currentOwner.toLowerCase() !== user.uid.toLowerCase()) {
+    // This device contains local SQLite data from a different user!
+    // Wipe all SQLite business data, clear business store & online store keys so no data leaks.
+    if (__DEV__) {
+      console.log(`[Froshiar] Account switch detected: current owner ${currentOwner} !== signing-in user ${user.uid}. Wiping local data.`);
+    }
+    await wipeAllBusinessData();
+    useBusinessStore.getState().clearBusiness();
+    try {
+      const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+      await clearStoreApiKey();
+    } catch {}
+    try {
+      const { useCartStore } = await import('@/store/cartStore');
+      useCartStore.getState().clearCart();
+    } catch {}
+  }
+
+  // Stamp this device's local database owner to the signing-in user
+  await setDatabaseOwner(user.uid);
+  useBusinessStore.getState().setOwnerUserId(user.uid);
+
+  // 2. Mark onboarding as completed so we don't show the 3-step welcome slider
   try {
     const { useOnboardingStore } = await import('@/store/onboardingStore');
     useOnboardingStore.getState().completeOnboarding();
   } catch {}
 
-  // 2. Ensure business profile is loaded from SQLite or auto-populated from user
-  try {
-    const { loadBusiness, saveBusiness } = await import('@/lib/sqlite');
-    const existingBiz = await loadBusiness();
-    const currentBiz = useBusinessStore.getState();
+  // 3. Resolve Cloud vs Local Data for this user
+  if (isFirebaseAvailable) {
+    const {
+      cloudBusinessDataExists,
+      pushFullLocalSnapshot,
+      restoreFromCloudBulk,
+      startCloudSync,
+    } = await import('@/lib/cloudSync');
 
-    if (existingBiz && existingBiz.name) {
+    const [localHasData, cloudHasData] = await Promise.all([
+      localBusinessDataExists(),
+      cloudBusinessDataExists(user.uid),
+    ]);
+
+    if (!isCurrentAuthUser(user.uid)) return;
+
+    if (!localHasData && cloudHasData) {
+      // User has existing store data in Cloud Firestore: restore it!
+      try {
+        await restoreFromCloudBulk(user.uid);
+      } catch (e) {
+        console.error('[Froshiar] Cloud restore failed:', e);
+      }
+      if (!isCurrentAuthUser(user.uid)) return;
+    } else if (localHasData && !cloudHasData) {
+      // Local has data from this user but Cloud is empty: push initial snapshot
+      try {
+        await pushFullLocalSnapshot(user.uid);
+      } catch (e) {
+        console.error('[Froshiar] Initial cloud push failed:', e);
+      }
+      if (!isCurrentAuthUser(user.uid)) return;
+    } else if (localHasData && cloudHasData) {
+      if (currentOwner && currentOwner.toLowerCase() !== user.uid.toLowerCase()) {
+        // Can't auto-merge if conflicting
+        useBusinessStore.getState().setPendingCloudConflict(user.uid);
+      }
+    }
+
+    if (!auto) {
+      startCloudSync(user.uid, { auto });
+    }
+  }
+
+  // 4. Load business profile from SQLite (after any restore or wipe)
+  try {
+    const existingBiz = await loadBusiness();
+    if (existingBiz && existingBiz.name && existingBiz.name.trim()) {
       useBusinessStore.getState().setBusiness({
-        name: existingBiz.name,
+        name: existingBiz.name.trim(),
         type: existingBiz.type || 'General',
         phone: existingBiz.phone || user.phoneNumber || '',
         address: existingBiz.address || '',
         logoUri: existingBiz.logoPath || null,
       });
-    } else if (currentBiz.isSetupComplete && currentBiz.name) {
-      await saveBusiness({
-        name: currentBiz.name,
-        type: currentBiz.type || 'General',
-        phone: currentBiz.phone || user.phoneNumber || '',
-        address: currentBiz.address || '',
-      });
+    } else {
+      // Brand new account with no business profile yet:
+      // Keep isSetupComplete = false so the user is routed to the Business Profile Setup screen!
+      useBusinessStore.getState().clearBusiness();
+      useBusinessStore.getState().setOwnerUserId(user.uid);
     }
   } catch (err) {
-    console.warn('[Froshiar] Business profile check failed:', err);
+    console.warn('[Froshiar] Business profile load failed:', err);
   }
 
-  // Let navigation proceed immediately — the (app)/index.tsx and (app)/_layout.tsx
-  // guards route on `pendingCloudConflict`, not on this function having fully
-  // resolved, so it's safe to set `user` before the async decision below finishes.
+  // 5. Let navigation proceed
   set({ user: firebaseUserToAppUser(user), isLoading: false });
 
-  // Track user login in telemetry (anonymized metadata only, never passwords)
+  // 6. Track user login in telemetry (anonymized metadata only, never passwords)
   const providerData = user.providerData?.[0]?.providerId || '';
   const provider =
     providerData.includes('google') ? 'google' :
@@ -450,111 +521,11 @@ async function adoptSignedInUserInner(
     )
     .catch(() => {});
 
-  // Initialize and refresh StoreKit IAP entitlements for the signed-in user
+  // 7. Initialize StoreKit IAP entitlements
   try {
     const { useIapStore } = await import('@/store/iapStore');
     void useIapStore.getState().initialize(user.uid);
   } catch {}
-
-  // Diagnostic isolation (see .claude/plans cold-start SIGSEGV report): a TestFlight
-  // crash log shows a live Firestore gRPC thread and a TurboModule NSException-to-
-  // JSError conversion crashing the Hermes JS thread during cold start, even with
-  // cloud-sync's own AUTO_START_ENABLED flag off — because that flag only gates
-  // startCloudSync() below, not the cloudBusinessDataExists() Firestore read (or the
-  // ownerUserId branch's startCloudSync call) that runs before it on every cold start
-  // for an already-signed-in device. While isolating, a resumed session (auto=true)
-  // skips this entire block and leaves the user signed in locally only — all cloud
-  // work becomes reachable only from an explicit sign-in/sign-up or the manual
-  // Settings > Cloud Sync screen. Remove once the crash is confirmed/fixed.
-  if (auto) return;
-
-  if (business.ownerUserId === user.uid) {
-    const { startCloudSync } = await import('@/lib/cloudSync');
-    if (!isFirebaseAvailable) {
-      if (!isCurrentAuthUser(user.uid)) return;
-      startCloudSync(user.uid, { auto });
-      return;
-    }
-
-    // Same account as last time on this device — ordinarily there's nothing to
-    // restore, since logout never wipes local data. But this flag alone was being
-    // trusted with no re-check, so a device that ended up with empty local data
-    // (e.g. a previous sync never completed and something else cleared storage)
-    // had no path back to its cloud data. Mirror the fresh-device decision tree
-    // below: only restore if local is actually empty and the cloud actually has
-    // something, so a legitimate unsynced local copy is never overwritten.
-    const { localBusinessDataExists } = await import('@/lib/sqlite');
-    const { cloudBusinessDataExists, restoreFromCloudBulk } = await import('@/lib/cloudSync');
-    const localHasData = await localBusinessDataExists();
-    if (!isCurrentAuthUser(user.uid)) return;
-    if (!localHasData) {
-      const cloudHasData = await cloudBusinessDataExists(user.uid);
-      if (!isCurrentAuthUser(user.uid)) return;
-      if (cloudHasData) {
-        try { await restoreFromCloudBulk(user.uid); } catch (e) { console.error('[Froshiar] Cloud restore failed:', e); }
-        if (!isCurrentAuthUser(user.uid)) return;
-      }
-    }
-    startCloudSync(user.uid, { auto });
-    return;
-  }
-
-  // This device's local SQLite data is known (via ownerUserId) to belong to a
-  // different account than the one now signing in. Never let a second account
-  // inherit — or, via pushFullLocalSnapshot below, upload — a previous account's
-  // business data: wipe it up front, before deciding how to seed the newly
-  // signed-in account. A null ownerUserId (data predates this tracking, or a
-  // genuinely fresh device) is NOT a mismatch — that ambiguous case still falls
-  // through to the local/cloud-data-exists decision tree and conflict screen below.
-  if (business.ownerUserId && business.ownerUserId !== user.uid) {
-    const { wipeAllBusinessData } = await import('@/lib/sqlite');
-    await wipeAllBusinessData();
-    business.clearBusiness();
-    try {
-      const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
-      await clearStoreApiKey();
-    } catch {}
-    if (!isCurrentAuthUser(user.uid)) return;
-  }
-
-  if (!isFirebaseAvailable) {
-    useBusinessStore.getState().setOwnerUserId(user.uid);
-    return;
-  }
-
-  const { localBusinessDataExists } = await import('@/lib/sqlite');
-  const { cloudBusinessDataExists, pushFullLocalSnapshot, restoreFromCloudBulk, startCloudSync } = await import('@/lib/cloudSync');
-
-  const [localHasData, cloudHasData] = await Promise.all([
-    localBusinessDataExists(),
-    cloudBusinessDataExists(user.uid),
-  ]);
-
-  if (!isCurrentAuthUser(user.uid)) return;
-
-  if (!localHasData) {
-    if (cloudHasData) {
-      try { await restoreFromCloudBulk(user.uid); } catch (e) { console.error('[Froshiar] Cloud restore failed:', e); }
-    }
-    if (!isCurrentAuthUser(user.uid)) return;
-    useBusinessStore.getState().setOwnerUserId(user.uid);
-    startCloudSync(user.uid, { auto });
-    return;
-  }
-
-  if (!cloudHasData) {
-    useBusinessStore.getState().setOwnerUserId(user.uid);
-    try { await pushFullLocalSnapshot(user.uid); } catch (e) { console.error('[Froshiar] Initial cloud push failed:', e); }
-    if (!isCurrentAuthUser(user.uid)) return;
-    startCloudSync(user.uid, { auto });
-    return;
-  }
-
-  // Both sides have data — can't safely auto-merge. Block entry until the user
-  // picks merge / keep-local / keep-cloud on the conflict screen; ownerUserId is
-  // deliberately NOT set yet, so a killed app before the user decides re-enters
-  // this same branch on next launch instead of silently picking a side.
-  useBusinessStore.getState().setPendingCloudConflict(user.uid);
 }
 
 let coldStartReconcileRequested = false;
@@ -1096,6 +1067,14 @@ export const useAuthStore = create<AuthState>()(
           useSettingsStore.getState().setExpiryTermsAccepted(false);
           useModuleStore.getState().setModuleEnabled('expiry', false);
           await saveSetting('expiry_tracking_enabled', '0');
+        } catch {}
+        try {
+          const { useCartStore } = await import('@/store/cartStore');
+          useCartStore.getState().clearCart();
+        } catch {}
+        try {
+          const { useBusinessStore } = await import('@/store/businessStore');
+          useBusinessStore.getState().clearBusiness();
         } catch {}
         set({ user: null });
       },

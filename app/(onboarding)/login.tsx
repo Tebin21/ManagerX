@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -41,7 +41,7 @@ const GOOGLE_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22">
   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
 </svg>`;
 
-// Localized strings for Kurdish and English
+// Localized strings for Kurdish, Arabic, and English
 const LOGIN_STRINGS = {
   ku: {
     illustrationTitle: 'سیستەمی بەڕێوەبردنی فرۆشیار',
@@ -59,6 +59,23 @@ const LOGIN_STRINGS = {
     signUpLink: 'خۆت تۆمار بکە',
     devBypass: 'داشبۆرد ⚡',
     validationError: 'تکایە ئیمەیڵ و وشەی نهێنی بنووسە',
+  },
+  ar: {
+    illustrationTitle: 'نظام إدارة فروشيار',
+    illustrationSub: 'أقوى وأحدث نظام متطور لإدارة المبيعات ونقاط البيع والمخزون',
+    mobileSub: 'أدر مبيعاتك ومشترياتك ومخزونك بكل سهولة',
+    welcomeTitle: 'مرحباً بعودتك',
+    welcomeSub: 'سجّل الدخول للوصول إلى حسابك',
+    usernamePlaceholder: 'اسم المستخدم أو البريد الإلكتروني',
+    passwordPlaceholder: 'كلمة المرور',
+    forgotPassword: 'هل نسيت كلمة المرور؟',
+    loginBtn: 'تسجيل الدخول',
+    googleBtn: 'المتابعة باستخدام Google',
+    or: 'أو',
+    noAccount: 'ليس لديك حساب؟',
+    signUpLink: 'إنشاء حساب جديد',
+    devBypass: 'لوحة التحكم ⚡',
+    validationError: 'يرجى إدخال البريد الإلكتروني وكلمة المرور',
   },
   en: {
     illustrationTitle: 'Froshiar Management System',
@@ -99,7 +116,7 @@ export default function LoginScreen() {
   // Large screen vs phone breakpoint
   const isLargeScreen = isTablet || width >= 720;
 
-  const curLang = language === 'en' ? 'en' : 'ku';
+  const curLang: 'ku' | 'en' | 'ar' = language === 'en' ? 'en' : language === 'ar' ? 'ar' : 'ku';
   const strings = LOGIN_STRINGS[curLang];
 
   const handleToggleTheme = () => {
@@ -299,11 +316,11 @@ export default function LoginScreen() {
 
       {/* Settings side: Language switch + Dark mode toggle (Left side in Kurdish RTL) */}
       <View style={[styles.controlsGroup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        {/* Language Toggle Switch (On/Off Style) */}
+        {/* Language Toggle Switch (3-Way: EN | AR | KU) */}
         <LanguageToggleSwitch
-          value={curLang === 'ku'}
+          language={curLang}
           isDark={isDark}
-          onToggle={(isKu) => setLanguage(isKu ? 'ku' : 'en')}
+          onChangeLanguage={(newLang) => setLanguage(newLang)}
         />
 
         {/* Dark / Light Mode Toggle Button */}
