@@ -1951,10 +1951,12 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showInvoiceNumber) ||
                     (activeTab === 'purchases' && purchaseSettings.showInvoiceNumber) ||
                     (activeTab === 'debts' && debtSettings.showInvoiceNumber)) && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>
+                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                           {activeTab === 'debts'
                             ? (isAr ? 'رقم السند:' : isKurdish ? 'ژمارەی پسوولە:' : 'Slip #:')
+                            : activeTab === 'purchases'
+                            ? (isAr ? 'رقم وصل الشراء:' : isKurdish ? 'وەسڵی کڕین:' : 'Bill #:')
                             : (isAr ? 'رقم الفاتورة:' : isKurdish ? 'پسوولە:' : 'Receipt #:')}
                         </Text>
                         <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
@@ -1967,36 +1969,57 @@ export default function ReceiptCustomizationScreen() {
                     (activeTab === 'purchases' && purchaseSettings.showDate) ||
                     (activeTab === 'inventory' && inventorySettings.showDate) ||
                     (activeTab === 'debts' && debtSettings.showDate)) && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}</Text>
+                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}
+                        </Text>
                         <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerName) ||
                     (activeTab === 'debts' && debtSettings.showCustomerName)) && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>
+                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
                           {activeTab === 'debts'
                             ? (isAr ? 'المدين:' : isKurdish ? 'قەرزدار:' : 'Debtor:')
                             : (isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Customer:')}
                         </Text>
-                        <Text style={styles.receiptValue}>{mockSale.customerName}</Text>
+                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {mockSale.customerName}
+                        </Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerPhone) ||
                     (activeTab === 'debts' && debtSettings.showCustomerPhone)) && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}</Text>
+                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}
+                        </Text>
                         <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
                       </View>
                     )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isAr ? 'المورد:' : isKurdish ? 'دابینکەر:' : 'Supplier:'}</Text>
-                      <Text style={styles.receiptValue}>{mockPurchase.supplierName}</Text>
+                    <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? 'المورد:' : isKurdish ? 'دابینکەر:' : 'Supplier:'}
+                      </Text>
+                      <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {mockPurchase.supplierName}
+                      </Text>
+                    </View>
+                  )}
+
+                  {activeTab === 'purchases' && purchaseSettings.showSupplierPhone && (
+                    <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}
+                      </Text>
+                      <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                        {mockPurchase.supplierPhone}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -2008,178 +2031,218 @@ export default function ReceiptCustomizationScreen() {
                   /* Thermal Debt Account Voucher Layout */
                   <View style={{ paddingVertical: 4 }}>
                     {debtSettings.showTotalDebt && (
-                      <View style={[styles.receiptRow, { marginVertical: 3 }]}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'إجمالي الدين:' : isKurdish ? 'کۆی قەرز:' : 'Total Debt:'}</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginVertical: 3 }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'إجمالي الدين:' : isKurdish ? 'کۆی قەرز:' : 'Total Debt:'}</Text>
                         <Text style={[styles.receiptValue, { fontWeight: '700' }]}>500,000 IQD</Text>
                       </View>
                     )}
                     {debtSettings.showPaidAmount && (
-                      <View style={[styles.receiptRow, { marginVertical: 3 }]}>
-                        <Text style={[styles.receiptLabel, { color: '#16A34A' }]}>{isAr ? 'المبلغ المسدد:' : isKurdish ? 'بڕی دراو / واصل:' : 'Paid Amount:'}</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginVertical: 3 }]}>
+                        <Text style={[styles.receiptLabel, { color: '#16A34A' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'المبلغ المسدد:' : isKurdish ? 'بڕی دراو / واصل:' : 'Paid Amount:'}</Text>
                         <Text style={[styles.receiptValue, { fontWeight: '700', color: '#16A34A' }]}>− 200,000 IQD</Text>
                       </View>
                     )}
                     {debtSettings.showRemainingDebt && (
-                      <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { marginTop: 6, paddingTop: 6 }]}>
-                        <Text style={styles.receiptGrandTotalLabel}>{isAr ? 'الرصيد المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+                      <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 6, paddingTop: 6 }]}>
+                        <Text style={[styles.receiptGrandTotalLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>{isAr ? 'الرصيد المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
                         <Text style={styles.receiptGrandTotalAmount}>300,000 IQD</Text>
                       </View>
                     )}
                     {debtSettings.showPaymentMethod && (
-                      <View style={[styles.receiptRow, { marginTop: 4 }]}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'شێوازی پارەدان:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
-                        <Text style={styles.receiptValue}>{isAr ? 'نقداً (Cash)' : isKurdish ? 'نەختینە (کاش)' : 'Cash'}</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 4 }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
+                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'نقداً (Cash)' : isKurdish ? 'نەختینە (کاش)' : 'Cash'}</Text>
                       </View>
                     )}
                   </View>
                 ) : activePaperSize === '58mm' ? (
                   /* 58mm 2-line layout */
                   <View style={styles.items58}>
-                    {(mockSale.items ?? []).map((item, idx) => (
-                      <View key={item.id} style={styles.item58Block}>
-                        <View style={styles.item58Top}>
-                          <Text style={styles.item58Name} numberOfLines={1}>
-                            {idx + 1}. {item.productName}
-                          </Text>
-                          {salesSettings.showItemBarcode && item.itemId && (
-                            <Text style={styles.item58Id}>#{item.itemId}</Text>
-                          )}
-                        </View>
-                        <View style={styles.item58Bottom}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                            {salesSettings.showQty && (
-                              <Text style={styles.item58QtyPrice}>{item.quantity} × </Text>
-                            )}
-                            {salesSettings.showItemPrice && (
-                              salesSettings.showDiscount && item.discount > 0 ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                  <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10 }]}>
-                                    {item.sellingPrice}
-                                  </Text>
-                                  <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000' }]}>
-                                    {item.sellingPrice - item.discount}
-                                  </Text>
-                                </View>
-                              ) : (
-                                <Text style={styles.item58QtyPrice}>{item.sellingPrice}</Text>
-                              )
+                    {(activeTab === 'purchases' ? mockPurchase.items : mockSale.items ?? []).map((item: any, idx: number) => {
+                      const itemPrice = activeTab === 'purchases' ? item.costPrice : item.sellingPrice;
+                      const hasDiscount = activeTab === 'sales' && salesSettings.showDiscount && (item.discount || 0) > 0;
+                      return (
+                        <View key={item.id} style={styles.item58Block}>
+                          <View style={[styles.item58Top, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                              <Text style={[styles.item58Id, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{idx + 1}.</Text>
+                              <Text style={[styles.item58Name, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                                {item.productName}
+                              </Text>
+                            </View>
+                            {((activeTab === 'sales' && salesSettings.showItemBarcode) || (activeTab === 'purchases' && purchaseSettings.showItemBarcode)) && (item.itemId || item.barcode) && (
+                              <Text style={styles.item58Id}>#{item.itemId || item.barcode}</Text>
                             )}
                           </View>
-                          <Text style={styles.item58Total}>{item.lineTotal} IQD</Text>
+                          <View style={[styles.item58Bottom, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                              {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                                <Text style={styles.item58QtyPrice}>{item.quantity} × </Text>
+                              )}
+                              {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                                hasDiscount ? (
+                                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 }}>
+                                    <Text style={[styles.item58QtyPrice, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10 }]}>
+                                      {itemPrice}
+                                    </Text>
+                                    <Text style={[styles.item58QtyPrice, { fontWeight: '700', color: '#000000' }]}>
+                                      {itemPrice - item.discount}
+                                    </Text>
+                                  </View>
+                                ) : (
+                                  <Text style={styles.item58QtyPrice}>{itemPrice}</Text>
+                                )
+                              )}
+                            </View>
+                            <Text style={styles.item58Total}>{item.lineTotal} IQD</Text>
+                          </View>
                         </View>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 ) : (
                   /* 80mm & 110mm columnar layout */
                   <View style={styles.tableWrap}>
-                    <View style={styles.tableHeaderRow}>
-                      <Text style={[styles.colHeader, { flex: 2 }]}>
+                    <View style={[styles.tableHeaderRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.colHeader, { flex: 2, textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {isAr ? 'المادة' : isKurdish ? 'کاڵا' : 'Item'}
                       </Text>
-                      {salesSettings.showQty && (
-                        <Text style={[styles.colHeader, styles.colCenter, { flex: 0.8 }]}>
+                      {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                        <Text style={[styles.colHeader, styles.colCenter, { flex: 0.8 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                           {isAr ? 'العدد' : isKurdish ? 'عەدەد' : 'Qty'}
                         </Text>
                       )}
-                      {salesSettings.showItemPrice && (
-                        <Text style={[styles.colHeader, styles.colRight, { flex: 1.3 }]}>
-                          {isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price'}
+                      {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                        <Text style={[styles.colHeader, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                          {activeTab === 'purchases'
+                            ? (isAr ? 'التكلفة' : isKurdish ? 'تێچوو' : 'Cost')
+                            : (isAr ? 'السعر' : isKurdish ? 'نرخ' : 'Price')}
                         </Text>
                       )}
-                      <Text style={[styles.colHeader, styles.colRight, { flex: 1.3 }]}>
+                      <Text style={[styles.colHeader, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3 }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {isAr ? 'المجموع الكلي' : isKurdish ? 'کۆی گشتی' : 'Total'}
                       </Text>
                     </View>
 
-                    {(mockSale.items ?? []).map((item, idx) => (
-                      <View key={item.id} style={styles.tableRow}>
-                        <View style={{ flex: 2 }}>
-                          <Text style={styles.tableItemName} numberOfLines={2}>
-                            {idx + 1}. {item.productName}
-                          </Text>
-                          {salesSettings.showItemBarcode && item.itemId && (
-                            <Text style={styles.tableItemId}>#{item.itemId}</Text>
-                          )}
-                        </View>
-                        {salesSettings.showQty && (
-                          <Text style={[styles.tableItemCell, styles.colCenter, { flex: 0.8 }]}>
-                            {item.quantity}
-                          </Text>
-                        )}
-                        {salesSettings.showItemPrice && (
-                          <View style={{ flex: 1.3, justifyContent: 'center', alignItems: 'flex-end' }}>
-                            {salesSettings.showDiscount && item.discount > 0 ? (
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                                <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5 }]}>
-                                  {item.sellingPrice}
-                                </Text>
-                                <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000' }]}>
-                                  {item.sellingPrice - item.discount}
-                                </Text>
-                              </View>
-                            ) : (
-                              <Text style={[styles.tableItemCell, styles.colRight]}>
-                                {item.sellingPrice}
+                    {(activeTab === 'purchases' ? mockPurchase.items : mockSale.items ?? []).map((item: any, idx: number) => {
+                      const itemPrice = activeTab === 'purchases' ? item.costPrice : item.sellingPrice;
+                      const hasDiscount = activeTab === 'sales' && salesSettings.showDiscount && (item.discount || 0) > 0;
+                      return (
+                        <View key={item.id} style={[styles.tableRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                          <View style={{ flex: 2 }}>
+                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                              <Text style={[styles.tableItemCell, { fontSize: 9.5, color: '#666' }]}>{idx + 1}.</Text>
+                              <Text style={[styles.tableItemName, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={2}>
+                                {item.productName}
                               </Text>
+                            </View>
+                            {((activeTab === 'sales' && salesSettings.showItemBarcode) || (activeTab === 'purchases' && purchaseSettings.showItemBarcode)) && (item.itemId || item.barcode) && (
+                              <Text style={[styles.tableItemId, { textAlign: isRTL ? 'right' : 'left' }]}>#{item.itemId || item.barcode}</Text>
                             )}
                           </View>
-                        )}
-                        <Text style={[styles.tableItemCell, styles.colRight, { flex: 1.3, fontWeight: '700' }]}>
-                          {item.lineTotal}
-                        </Text>
-                      </View>
-                    ))}
+                          {((activeTab === 'sales' && salesSettings.showQty) || (activeTab === 'purchases' && purchaseSettings.showQty)) && (
+                            <Text style={[styles.tableItemCell, styles.colCenter, { flex: 0.8 }]}>
+                              {item.quantity}
+                            </Text>
+                          )}
+                          {((activeTab === 'sales' && salesSettings.showItemPrice) || (activeTab === 'purchases' && purchaseSettings.showBuyPrice)) && (
+                            <View style={{ flex: 1.3, justifyContent: 'center', alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                              {hasDiscount ? (
+                                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: isRTL ? 'flex-start' : 'flex-end', gap: 3 }}>
+                                  <Text style={[styles.tableItemCell, { textDecorationLine: 'line-through', color: '#777777', fontSize: 10.5 }]}>
+                                    {itemPrice}
+                                  </Text>
+                                  <Text style={[styles.tableItemCell, { fontWeight: '800', color: '#000000' }]}>
+                                    {itemPrice - item.discount}
+                                  </Text>
+                                </View>
+                              ) : (
+                                <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight]}>
+                                  {itemPrice}
+                                </Text>
+                              )}
+                            </View>
+                          )}
+                          <Text style={[styles.tableItemCell, isRTL ? styles.colLeft : styles.colRight, { flex: 1.3, fontWeight: '700' }]}>
+                            {item.lineTotal}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
 
                 <View style={styles.dashedDivider} />
 
-                {/* Financial Totals (Sales only) */}
-                {activeTab !== 'debts' && (
+                {/* Financial Totals (Sales & Purchases) */}
+                {activeTab === 'purchases' ? (
                   <View style={styles.receiptTotals}>
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
+                    <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptGrandTotalLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
+                        {isAr ? 'إجمالي تكلفة الشراء:' : isKurdish ? 'کۆی گشتی کڕین:' : 'Total Cost:'}
+                      </Text>
+                      <Text style={styles.receiptGrandTotalAmount}>3,200,000 IQD</Text>
+                    </View>
+
+                    {purchaseSettings.showRemainingDebt && (
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+                        <Text style={styles.receiptValue}>0 IQD</Text>
+                      </View>
+                    )}
+
+                    {purchaseSettings.showPaymentMethod && (
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
+                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'نقداً (Cash)' : isKurdish ? 'نەختینە (کاش)' : 'Cash'}</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : activeTab === 'sales' ? (
+                  <View style={styles.receiptTotals}>
+                    <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'مجموع المواد:' : isKurdish ? 'کۆی کاڵاکان:' : 'Subtotal:'}</Text>
                       <Text style={styles.receiptValue}>4,750 IQD</Text>
                     </View>
 
                     {salesSettings.showDiscount && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الخصم:' : isKurdish ? 'داشکاندن:' : 'Discount:'}</Text>
                         <Text style={styles.receiptValue}>− 750 IQD</Text>
                       </View>
                     )}
 
-                    <View style={[styles.receiptRow, styles.receiptGrandTotalRow]}>
-                      <Text style={styles.receiptGrandTotalLabel}>
+                    <View style={[styles.receiptRow, styles.receiptGrandTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.receiptGrandTotalLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
                         {isAr ? 'المجموع الكلي:' : isKurdish ? 'کۆی گشتی:' : 'Total:'}
                       </Text>
                       <Text style={styles.receiptGrandTotalAmount}>4,000 IQD</Text>
                     </View>
 
                     {salesSettings.showPaymentMethod && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
-                        <Text style={styles.receiptValue}>Cash</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'طريقة الدفع:' : isKurdish ? 'شێوازی پارەدان:' : 'Payment:'}</Text>
+                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>Cash</Text>
                       </View>
                     )}
 
                     {salesSettings.showRemainingDebt && (
-                      <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
+                      <View style={[styles.receiptRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{isAr ? 'الدين المتبقي:' : isKurdish ? 'قەرزی ماوە:' : 'Remaining:'}</Text>
                         <Text style={styles.receiptValue}>0 IQD</Text>
                       </View>
                     )}
                   </View>
-                )}
+                ) : null}
 
                 {/* Notes & Policy */}
                 {((activeTab === 'sales' && salesSettings.showNotes) ||
+                  (activeTab === 'purchases' && purchaseSettings.showNotes) ||
                   (activeTab === 'debts' && debtSettings.showNotes)) && (
                     <View style={styles.receiptNotesBox}>
-                      <Text style={styles.receiptNotesTitle}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
-                      <Text style={styles.receiptNotesText}>
-                        {activeTab === 'debts' ? getDebtFooterNote() : mockSale.notes}
+                      <Text style={[styles.receiptNotesTitle, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>{isAr ? 'الملاحظات والسياسة:' : isKurdish ? 'تێبینی و سیاسەت:' : 'Notes & Policy:'}</Text>
+                      <Text style={[styles.receiptNotesText, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                        {activeTab === 'debts' ? getDebtFooterNote() : activeTab === 'purchases' ? mockPurchase.notes : mockSale.notes}
                       </Text>
                     </View>
                   )}
@@ -3613,6 +3676,11 @@ const styles = StyleSheet.create({
   receiptMeta: {
     gap: 3,
   },
+  receiptMetaRow: {
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: 1.5,
+  },
   receiptRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -3686,6 +3754,9 @@ const styles = StyleSheet.create({
   },
   colRight: {
     textAlign: 'right',
+  },
+  colLeft: {
+    textAlign: 'left',
   },
   tableRow: {
     flexDirection: 'row',

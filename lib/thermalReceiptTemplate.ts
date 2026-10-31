@@ -170,21 +170,21 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     }
     .info-row {
       display: flex;
-      flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 2px;
+      flex-direction: row;
+      justify-content: flex-start;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2.5px;
       font-size: ${baseFontSizePx - 0.5}px;
     }
     .info-label {
       color: #333333;
-      font-weight: 600;
+      font-weight: 700;
       white-space: nowrap;
     }
     .info-value {
       color: #000000;
       font-weight: 700;
-      text-align: ${isKurdish ? 'left' : 'right'};
       word-break: break-word;
     }
 
@@ -235,22 +235,22 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     }
 
     /* ── 58mm 2-line layout ── */
-    .row-58 {
+    .row-58, .item-block-58 {
       margin-bottom: 4px;
       padding-bottom: 3px;
       border-bottom: 1px dotted #cccccc;
     }
-    .row-58:last-child {
+    .row-58:last-child, .item-block-58:last-child {
       border-bottom: none;
     }
-    .row-58-top {
+    .row-58-top, .item-title-58 {
       font-weight: 700;
       word-break: break-word;
       margin-bottom: 2px;
     }
-    .row-58-bottom {
+    .row-58-bottom, .item-meta-row-58 {
       display: flex;
-      flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+      flex-direction: row;
       justify-content: space-between;
       align-items: center;
       font-size: ${baseFontSizePx - 0.5}px;
@@ -262,19 +262,19 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
     }
     .total-row {
       display: flex;
-      flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+      flex-direction: row;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 3px;
       font-size: ${baseFontSizePx}px;
     }
-    .grand-total-box {
+    .grand-total-box, .grand-total-row {
       border-top: 2px solid #000000;
       border-bottom: 2px solid #000000;
       padding: 6px 2px;
       margin: 6px 0;
       display: flex;
-      flex-direction: ${isKurdish ? 'row-reverse' : 'row'};
+      flex-direction: row;
       justify-content: space-between;
       align-items: center;
     }
@@ -282,7 +282,7 @@ function buildThermalCSS(width: ThermalReceiptWidth, isKurdish: boolean): string
       font-size: ${titleFontSizePx - 1}px;
       font-weight: 800;
     }
-    .grand-total-amount {
+    .grand-total-amount, .grand-total-value {
       font-size: ${titleFontSizePx}px;
       font-weight: 900;
       white-space: nowrap !important;
