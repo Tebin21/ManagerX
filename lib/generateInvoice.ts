@@ -391,7 +391,8 @@ export async function sharePurchaseInvoice(
   purchaseItems: PurchaseItemRow[],
   business: BusinessInfo,
   currencyMode: ReceiptCurrencyMode = 'iqd',
-  purchaseDebt?: PurchaseDebt | null
+  purchaseDebt?: PurchaseDebt | null,
+  paperSize: ReceiptPaperSize = 'A4'
 ): Promise<void> {
   const { checkInvoicePrintLimit, recordInvoicePrint } = await import('@/lib/usageLimits');
   const printCheck = await checkInvoicePrintLimit();
@@ -413,11 +414,34 @@ export async function sharePurchaseInvoice(
       }
     }
     const biz = await withResolvedLogo(business);
-    const html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
-    const fileName = buildFroshiarPdfFileName(purchase.purchaseNumber, 'Purchase');
+    let html: string;
+    let fileName: string;
+    if (paperSize === 'A4') {
+      html = buildPurchaseInvoiceHTML(purchase, purchaseItems, biz, getDir(), currencyMode, resolvedDebt);
+      fileName = buildFroshiarPdfFileName(purchase.purchaseNumber, 'Purchase');
+    } else {
+      const { buildThermalPurchaseReceiptHTML } = await import('./thermalReceiptTemplate');
+      const thermalItems = purchaseItems.map((item, idx) => ({
+        id: idx + 1,
+        productName: item.productName,
+        quantity: item.quantity,
+        buyPrice: item.buyPriceIQD ?? 0,
+        lineTotal: item.lineTotalIQD ?? ((item.buyPriceIQD ?? 0) * item.quantity),
+        itemId: Array.isArray(item.itemIds) && item.itemIds.length > 0 ? item.itemIds.join(', ') : undefined,
+      }));
+      html = buildThermalPurchaseReceiptHTML(
+        purchase,
+        thermalItems,
+        biz,
+        paperSize as ThermalReceiptWidth,
+        undefined,
+        currencyMode
+      );
+      fileName = buildFroshiarPdfFileName(`${purchase.purchaseNumber}-${paperSize}`, 'PurchaseThermal');
+    }
     await generateAndShare(
       html,
-      `Purchase Invoice ${purchase.purchaseNumber}`,
+      `Purchase Invoice ${purchase.purchaseNumber} (${paperSize})`,
       'Could not generate purchase invoice PDF. Please try again.',
       fileName
     );

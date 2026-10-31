@@ -425,7 +425,7 @@ export function buildThermalReceiptHTML(
       return `
         <div class="row-58">
           <div class="row-58-top">
-            ${i + 1}. ${escHtml(item.productName)}
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
             ${barcodeTag}
           </div>
           <div class="row-58-bottom">
@@ -459,7 +459,7 @@ export function buildThermalReceiptHTML(
       return `
         <tr>
           <td class="item-name-cell">
-            ${i + 1}. ${escHtml(item.productName)}
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
             ${barcodeTag}
             ${discountTag}
           </td>
@@ -725,8 +725,8 @@ export function buildThermalPurchaseReceiptHTML(
       return `
         <div class="item-block-58">
           <div class="item-title-58">
-            <span class="item-index-58">${i + 1}.</span>
-            <span class="item-name-58">${escHtml(item.productName)}</span>
+            <span class="item-index-58" dir="ltr" style="display:inline-block;margin-inline-end:3px;">${i + 1}.</span>
+            <span class="item-name-58"><bdi>${escHtml(item.productName)}</bdi></span>
             ${idTag}
           </div>
           <div class="item-meta-row-58">
@@ -752,8 +752,8 @@ export function buildThermalPurchaseReceiptHTML(
       return `
         <tr>
           <td class="item-name-cell">
-            <span class="item-index-inline">${i + 1}.</span>
-            ${escHtml(item.productName)}
+            <span class="item-index-inline" dir="ltr" style="display:inline-block;margin-inline-end:3px;">${i + 1}.</span>
+            <bdi>${escHtml(item.productName)}</bdi>
             ${idTag}
           </td>
           ${settings.showQty ? `<td class="center-col" style="width:${qtyColWidth};">${item.quantity}</td>` : ''}
@@ -1056,7 +1056,7 @@ export function buildThermalQuotationReceiptHTML(
       return `
         <div class="row-58">
           <div class="row-58-top">
-            ${i + 1}. ${escHtml(item.productName)}
+            <span dir="ltr" style="display:inline-block;font-weight:700;margin-inline-end:3px;">${i + 1}.</span><bdi>${escHtml(item.productName)}</bdi>
             ${barcodeTag}
           </div>
           <div class="row-58-bottom">

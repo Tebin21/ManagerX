@@ -1951,16 +1951,18 @@ export default function ReceiptCustomizationScreen() {
                   {((activeTab === 'sales' && salesSettings.showInvoiceNumber) ||
                     (activeTab === 'purchases' && purchaseSettings.showInvoiceNumber) ||
                     (activeTab === 'debts' && debtSettings.showInvoiceNumber)) && (
-                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                          {activeTab === 'debts'
-                            ? (isAr ? 'رقم السند:' : isKurdish ? 'ژمارەی پسوولە:' : 'Slip #:')
-                            : activeTab === 'purchases'
-                            ? (isAr ? 'رقم وصل الشراء:' : isKurdish ? 'وەسڵی کڕین:' : 'Bill #:')
-                            : (isAr ? 'رقم الفاتورة:' : isKurdish ? 'پسوولە:' : 'Receipt #:')}
-                        </Text>
-                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
-                          {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                      <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                        <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                          <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT_BOLD } : { fontWeight: '700' }}>
+                            {activeTab === 'debts'
+                              ? (isAr ? 'رقم السند: ' : isKurdish ? 'ژمارەی پسوولە: ' : 'Slip #: ')
+                              : activeTab === 'purchases'
+                              ? (isAr ? 'رقم وصل الشراء: ' : isKurdish ? 'وەسڵی کڕین: ' : 'Bill #: ')
+                              : (isAr ? 'رقم الفاتورة: ' : isKurdish ? 'پسوولە: ' : 'Receipt #: ')}
+                          </Text>
+                          <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                            {activeTab === 'sales' ? '#F-00124' : activeTab === 'purchases' ? '#P-00892' : '#D-00412'}
+                          </Text>
                         </Text>
                       </View>
                     )}
@@ -1969,56 +1971,66 @@ export default function ReceiptCustomizationScreen() {
                     (activeTab === 'purchases' && purchaseSettings.showDate) ||
                     (activeTab === 'inventory' && inventorySettings.showDate) ||
                     (activeTab === 'debts' && debtSettings.showDate)) && (
-                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {isAr ? 'التاريخ:' : isKurdish ? 'بەروار:' : 'Date:'}
+                      <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                        <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                          <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                            {isAr ? 'التاريخ: ' : isKurdish ? 'بەروار: ' : 'Date: '}
+                          </Text>
+                          <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
                         </Text>
-                        <Text style={styles.receiptValue}>2026/10/29 - 02:45 PM</Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerName) ||
                     (activeTab === 'debts' && debtSettings.showCustomerName)) && (
-                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {activeTab === 'debts'
-                            ? (isAr ? 'المدين:' : isKurdish ? 'قەرزدار:' : 'Debtor:')
-                            : (isAr ? 'الزبون:' : isKurdish ? 'کڕیار:' : 'Customer:')}
-                        </Text>
-                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {mockSale.customerName}
+                      <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                        <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                          <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                            {activeTab === 'debts'
+                              ? (isAr ? 'المدين: ' : isKurdish ? 'قەرزدار: ' : 'Debtor: ')
+                              : (isAr ? 'الزبون: ' : isKurdish ? 'کڕیار: ' : 'Customer: ')}
+                          </Text>
+                          <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                            {mockSale.customerName}
+                          </Text>
                         </Text>
                       </View>
                     )}
 
                   {((activeTab === 'sales' && salesSettings.showCustomerPhone) ||
                     (activeTab === 'debts' && debtSettings.showCustomerPhone)) && (
-                      <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                        <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                          {isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}
+                      <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                        <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                          <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                            {isAr ? 'الهاتف: ' : isKurdish ? 'مۆبایل: ' : 'Phone: '}
+                          </Text>
+                          <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
                         </Text>
-                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>0750 123 4567</Text>
                       </View>
                     )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierName && (
-                    <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isAr ? 'المورد:' : isKurdish ? 'دابینکەر:' : 'Supplier:'}
-                      </Text>
-                      <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {mockPurchase.supplierName}
+                    <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                      <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                        <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                          {isAr ? 'المورد: ' : isKurdish ? 'دابینکەر: ' : 'Supplier: '}
+                        </Text>
+                        <Text style={[styles.receiptValue, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
+                          {mockPurchase.supplierName}
+                        </Text>
                       </Text>
                     </View>
                   )}
 
                   {activeTab === 'purchases' && purchaseSettings.showSupplierPhone && (
-                    <View style={[styles.receiptMetaRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                      <Text style={[styles.receiptLabel, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>
-                        {isAr ? 'الهاتف:' : isKurdish ? 'مۆبایل:' : 'Phone:'}
-                      </Text>
-                      <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
-                        {mockPurchase.supplierPhone}
+                    <View style={[styles.receiptMetaRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
+                      <Text style={[styles.receiptLabel, { textAlign: isRTL ? 'right' : 'left' }]}>
+                        <Text style={isKuOrAr ? { fontFamily: SETTINGS_KURDISH_FONT } : {}}>
+                          {isAr ? 'الهاتف: ' : isKurdish ? 'مۆبایل: ' : 'Phone: '}
+                        </Text>
+                        <Text style={[styles.receiptValue, { fontWeight: '700' }]}>
+                          {mockPurchase.supplierPhone}
+                        </Text>
                       </Text>
                     </View>
                   )}
@@ -2064,9 +2076,9 @@ export default function ReceiptCustomizationScreen() {
                       return (
                         <View key={item.id} style={styles.item58Block}>
                           <View style={[styles.item58Top, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                              <Text style={[styles.item58Id, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT }]}>{idx + 1}.</Text>
+                            <View style={{ flex: 1 }}>
                               <Text style={[styles.item58Name, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                                <Text style={{ fontSize: 10, color: '#666', fontFamily: 'Inter_700Bold' }}>{idx + 1}. </Text>
                                 {item.productName}
                               </Text>
                             </View>
@@ -2130,12 +2142,10 @@ export default function ReceiptCustomizationScreen() {
                       return (
                         <View key={item.id} style={[styles.tableRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                           <View style={{ flex: 2 }}>
-                            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
-                              <Text style={[styles.tableItemCell, { fontSize: 9.5, color: '#666' }]}>{idx + 1}.</Text>
-                              <Text style={[styles.tableItemName, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={2}>
-                                {item.productName}
-                              </Text>
-                            </View>
+                            <Text style={[styles.tableItemName, { textAlign: isRTL ? 'right' : 'left' }, isKuOrAr && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]} numberOfLines={2}>
+                              <Text style={{ fontSize: 9.5, color: '#666', fontFamily: 'Inter_700Bold' }}>{idx + 1}. </Text>
+                              {item.productName}
+                            </Text>
                             {((activeTab === 'sales' && salesSettings.showItemBarcode) || (activeTab === 'purchases' && purchaseSettings.showItemBarcode)) && (item.itemId || item.barcode) && (
                               <Text style={[styles.tableItemId, { textAlign: isRTL ? 'right' : 'left' }]}>#{item.itemId || item.barcode}</Text>
                             )}
@@ -3677,8 +3687,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   receiptMetaRow: {
-    alignItems: 'center',
-    gap: 6,
+    width: '100%',
     marginVertical: 1.5,
   },
   receiptRow: {

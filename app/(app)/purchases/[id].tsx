@@ -24,7 +24,9 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useManagementStore } from '@/store/managementStore';
 import { useAppTheme } from '@/contexts/ThemeContext';
 import { getPurchaseById, getPurchaseItemsByPurchaseId, getPurchaseDebtByPurchaseId, incrementPurchaseViewCount, incrementPurchasePrintCount } from '@/lib/sqlite';
-import { sharePurchaseInvoice } from '@/lib/generateInvoice';
+import { sharePurchaseInvoice, directPrintPurchaseInvoice } from '@/lib/generateInvoice';
+import { PrintFormatPickerModal } from '@/components/shared/PrintFormatPickerModal';
+import type { ReceiptPaperSize } from '@/store/settingsStore';
 import { Theme } from '@/constants/theme';
 import { Typography } from '@/constants/typography';
 import type { Purchase } from '@/types/purchases';
@@ -79,6 +81,8 @@ export default function PurchaseDetailScreen() {
   const [purchaseDebt, setPurchaseDebt] = useState<PurchaseDebt | null>(null);
   const [isLoading, setIsLoading]     = useState(true);
   const [isSharing, setIsSharing]     = useState(false);
+  const [isPrinting, setIsPrinting]   = useState(false);
+  const [formatPickerVisible, setFormatPickerVisible] = useState(false);
   const [isDeleting, setIsDeleting]   = useState(false);
   const autoShareTriggeredRef         = useRef(false);
 
@@ -120,7 +124,7 @@ export default function PurchaseDetailScreen() {
     }
   }
 
-  async function handleShare() {
+  async function handleShare(paperSize: ReceiptPaperSize = '80mm') {
     if (!purchase) return;
     const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
     const printCheck = await checkInvoicePrintLimit();
@@ -137,14 +141,65 @@ export default function PurchaseDetailScreen() {
         ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
         : null;
 
-      await sharePurchaseInvoice(purchase, purchaseItems, {
-        name: business.name, phone: business.phone,
-        address: business.address, logoUri: business.logoUri,
-      }, receiptCurrency, currentDebt);
+      await sharePurchaseInvoice(
+        purchase,
+        purchaseItems,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        receiptCurrency,
+        currentDebt,
+        paperSize
+      );
     } catch (err) {
       console.error('[PDF] handleShare unexpected error:', err);
       Alert.alert(t('common.error'), t('common.tryAgain'));
-    } finally { setIsSharing(false); }
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleConfirmPrintFormat(paperSize: ReceiptPaperSize) {
+    if (!purchase || isPrinting) return;
+    const { checkInvoicePrintLimit } = await import('@/lib/usageLimits');
+    const printCheck = await checkInvoicePrintLimit();
+    if (!printCheck.allowed) {
+      const { showUsageLimitModal } = await import('@/store/usageLimitModalStore');
+      showUsageLimitModal();
+      return;
+    }
+    setIsPrinting(true);
+    useSettingsStore.getState().setPurchasePaperSizePreference(paperSize);
+    incrementPurchasePrintCount(purchase.id).catch(() => {});
+    setPurchase((prev) => (prev ? { ...prev, printCount: (prev.printCount || 0) + 1 } : null));
+    try {
+      const currentDebt = purchase.paymentStatus === 'debt'
+        ? (purchaseDebt ?? await getPurchaseDebtByPurchaseId(purchase.id))
+        : null;
+
+      await directPrintPurchaseInvoice(
+        purchase,
+        purchaseItems,
+        {
+          name: business.name,
+          phone: business.phone,
+          address: business.address,
+          logoUri: business.logoUri,
+        },
+        receiptCurrency,
+        currentDebt,
+        paperSize
+      );
+    } catch (err) {
+      console.error('[Print] handleConfirmPrintFormat unexpected error:', err);
+      Alert.alert(t('common.error'), t('common.tryAgain'));
+    } finally {
+      setIsPrinting(false);
+      setFormatPickerVisible(false);
+    }
   }
 
   function confirmDelete() {
@@ -444,17 +499,22 @@ export default function PurchaseDetailScreen() {
 
       {/* Actions */}
       <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 220 }} style={styles.actionsWrap}>
-        {isNew === '1' ? (
-          <>
-            <PrimaryButton
-              label={isSharing ? t('purchases.preparingPdf') : t('purchases.shareInvoice')}
-              onPress={handleShare}
-              loading={isSharing}
-              disabled={isSharing || isDeleting}
-            />
-            <View style={styles.gap} />
-          </>
-        ) : (
+        <PrimaryButton
+          label={isPrinting ? (isRTL ? 'خەریکی چاپکردنە...' : 'Printing...') : (isRTL ? 'چاپکردنی وەسڵ 🖨️' : 'Print Invoice 🖨️')}
+          onPress={() => setFormatPickerVisible(true)}
+          loading={isPrinting}
+          disabled={isPrinting || isSharing || isDeleting}
+        />
+        <View style={styles.gap} />
+        <PrimaryButton
+          label={isSharing ? t('purchases.preparingPdf') : (isRTL ? 'هاوبەشکردنی پسوولە (PDF)' : 'Share Invoice PDF')}
+          onPress={() => handleShare(useSettingsStore.getState().purchasePaperSizePreference || '80mm')}
+          loading={isSharing}
+          disabled={isPrinting || isSharing || isDeleting}
+          variant="outline"
+        />
+        <View style={styles.gap} />
+        {isNew !== '1' && (
           <>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -477,8 +537,8 @@ export default function PurchaseDetailScreen() {
                 </Text>
                 <Text style={[styles.invoicesBannerSub, { color: colors.gray500, textAlign: isRTL ? 'right' : 'left' }]}>
                   {isRTL
-                    ? 'بۆ چاپکردن یان بینینی وەسڵەکە، کلیک لێرە بکە بۆ چوونە بەشی پسوڵەکان.'
-                    : 'To print or view this invoice, tap here to open Invoices Hub.'}
+                    ? 'بۆ چاپکردن یان بینینی وەسڵەکە لە خشتەی پسوڵەکان، کلیک لێرە بکە.'
+                    : 'To print or view this invoice in Invoices Hub, tap here.'}
                 </Text>
               </View>
               <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={colors.primary} />
@@ -491,7 +551,7 @@ export default function PurchaseDetailScreen() {
             label={isDeleting ? t('purchases.deleting') : t('purchases.deletePurchase')}
             onPress={confirmDelete}
             loading={isDeleting}
-            disabled={isDeleting || isSharing}
+            disabled={isDeleting || isSharing || isPrinting}
             variant="outline"
           />
         )}
@@ -509,13 +569,16 @@ export default function PurchaseDetailScreen() {
               icon="create-outline"
               onPress={() => router.push(`/(app)/purchases/edit/${id}` as never)}
             />
-            {isNew === '1' && (
-              <HeaderActionButton
-                icon="share-outline"
-                onPress={handleShare}
-                disabled={isSharing}
-              />
-            )}
+            <HeaderActionButton
+              icon="print-outline"
+              onPress={() => setFormatPickerVisible(true)}
+              disabled={isPrinting || isSharing}
+            />
+            <HeaderActionButton
+              icon="share-outline"
+              onPress={() => handleShare(useSettingsStore.getState().purchasePaperSizePreference || '80mm')}
+              disabled={isPrinting || isSharing}
+            />
           </View>
         }
       />
@@ -540,6 +603,19 @@ export default function PurchaseDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      <PrintFormatPickerModal
+        visible={formatPickerVisible}
+        onClose={() => {
+          if (!isPrinting) setFormatPickerVisible(false);
+        }}
+        onConfirm={handleConfirmPrintFormat}
+        isPrinting={isPrinting}
+        initialPaperSize={useSettingsStore.getState().purchasePaperSizePreference || '80mm'}
+        title={isRTL ? 'قەبارەی چاپی وەسڵی کڕین' : 'Purchase Invoice Paper Size'}
+        invoiceNumber={purchase.purchaseNumber}
+        partyName={purchase.supplierName || (isRTL ? 'کڕینی ڕاستەوخۆ' : 'Direct Supplier')}
+      />
     </View>
   );
 }

@@ -105,17 +105,6 @@ export function PurchasePaymentOptionsAccordion({
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {}
-    if (targetMode === 'empty1' || targetMode === 'empty2') {
-      Alert.alert(
-        isArabic ? 'خانة فارغة' : isKurdish ? 'بەشی بەتاڵ' : 'Empty Slot',
-        isArabic
-          ? 'هذا الزر فارغ حالياً وسيتم تخصيصه في تحديث قادم.'
-          : isKurdish
-          ? 'ئەم بەتنە لە ئێستادا بەتاڵە و لە نوێکردنەوەی داهاتوودا دیاری دەکرێت.'
-          : 'This button is currently empty and will be configured in a future update.'
-      );
-      return;
-    }
     onSelectCheckoutMode(targetMode);
     // Stays open intentionally — user must collapse it when desired
   };
@@ -126,6 +115,8 @@ export function PurchasePaymentOptionsAccordion({
     subtitle: string;
     icon: keyof typeof Ionicons.glyphMap;
     isEmpty?: boolean;
+    fullWidth?: boolean;
+    badge?: string;
   }> = [
     {
       id: 'normal',
@@ -135,23 +126,31 @@ export function PurchasePaymentOptionsAccordion({
     },
     {
       id: 'print',
-      title: isArabic ? 'طباعة' : isKurdish ? 'پرینت' : 'Print',
+      title: isArabic ? 'طباعة A4' : isKurdish ? 'پرینت A4' : 'A4 Print',
       subtitle: isArabic ? 'طباعة وحفظ' : isKurdish ? 'چاپ و گەڕانەوە' : 'Print & Return',
-      icon: 'print-outline',
+      icon: 'document-text-outline',
     },
     {
-      id: 'empty1',
-      title: isArabic ? 'فارغ 1' : isKurdish ? 'بەتاڵ ١' : 'Empty 1',
-      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
-      icon: 'ellipsis-horizontal-circle-outline',
-      isEmpty: true,
+      id: 'print58',
+      title: '58mm',
+      subtitle: isArabic ? '5.8 سم • إيصال صغير' : isKurdish ? '5.8 cm • وەصڵی بچووک' : '5.8 cm Thermal',
+      icon: 'receipt-outline',
+      badge: '5.8 cm',
     },
     {
-      id: 'empty2',
-      title: isArabic ? 'فارغ 2' : isKurdish ? 'بەتاڵ ٢' : 'Empty 2',
-      subtitle: isArabic ? 'فارغ' : isKurdish ? 'خاڵی' : 'Empty',
-      icon: 'ellipsis-horizontal-circle-outline',
-      isEmpty: true,
+      id: 'print80',
+      title: '80mm',
+      subtitle: isArabic ? '8.0 سم • قياسي' : isKurdish ? '8.0 cm • ستاندارد' : '8.0 cm Standard',
+      icon: 'receipt-outline',
+      badge: '8.0 cm',
+    },
+    {
+      id: 'print110',
+      title: '110mm',
+      subtitle: isArabic ? '11.0 سم • إيصال عريض' : isKurdish ? '11.0 cm • وەصڵی پان' : '11.0 cm Wide Thermal',
+      icon: 'receipt-outline',
+      fullWidth: true,
+      badge: '11.0 cm',
     },
   ];
 
@@ -291,7 +290,7 @@ export function PurchasePaymentOptionsAccordion({
             ]}
           >
             <Ionicons
-              name={checkoutMode === 'print' ? 'print-outline' : 'flash-outline'}
+              name={checkoutMode.startsWith('print') ? 'print-outline' : 'flash-outline'}
               size={11}
               color={colors.primary}
             />
@@ -302,7 +301,15 @@ export function PurchasePaymentOptionsAccordion({
                 (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
               ]}
             >
-              {checkoutMode === 'print' ? (isArabic ? 'طباعة' : isKurdish ? 'پرینت' : 'Print') : (isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal')}
+              {checkoutMode === 'print'
+                ? (isArabic ? 'طباعة A4' : isKurdish ? 'پرینت A4' : 'A4 Print')
+                : checkoutMode === 'print58'
+                ? '58mm'
+                : checkoutMode === 'print80'
+                ? '80mm'
+                : checkoutMode === 'print110'
+                ? '110mm'
+                : (isArabic ? 'عادي' : isKurdish ? 'ئاسایی' : 'Normal')}
             </Text>
           </View>
 
@@ -813,6 +820,7 @@ export function PurchasePaymentOptionsAccordion({
             {checkoutOptions.map((opt) => {
               const isSelected = checkoutMode === opt.id;
               const isSlotEmpty = Boolean(opt.isEmpty);
+              const isFullWidth = Boolean(opt.fullWidth);
 
               return (
                 <TouchableOpacity
@@ -821,6 +829,7 @@ export function PurchasePaymentOptionsAccordion({
                   onPress={() => handleCheckoutModePress(opt.id)}
                   style={[
                     styles.modeCard,
+                    isFullWidth && styles.modeCardFullWidth,
                     {
                       backgroundColor: isSelected
                         ? colors.primary + (isDark ? '22' : '14')
@@ -861,19 +870,42 @@ export function PurchasePaymentOptionsAccordion({
                     </View>
 
                     <View style={styles.textCol}>
-                      <Text
-                        style={[
-                          styles.modeCardTitle,
-                          {
-                            color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
-                            textAlign,
-                          },
-                          (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {opt.title}
-                      </Text>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={[
+                            styles.modeCardTitle,
+                            {
+                              color: isSelected ? colors.primary : (isSlotEmpty ? colors.gray400 : colors.black),
+                              textAlign,
+                            },
+                            (isKurdish || isArabic) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD, fontWeight: 'normal' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {opt.title}
+                        </Text>
+                        {opt.badge ? (
+                          <View
+                            style={[
+                              styles.dimBadge,
+                              {
+                                backgroundColor: isSelected
+                                  ? colors.primary + '25'
+                                  : (isDark ? 'rgba(255,255,255,0.08)' : colors.gray200),
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dimBadgeText,
+                                { color: isSelected ? colors.primary : colors.gray500 },
+                              ]}
+                            >
+                              {opt.badge}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text
                         style={[
                           styles.modeCardSubtitle,
@@ -1126,6 +1158,18 @@ const styles = StyleSheet.create({
     minHeight: 58,
     justifyContent: 'center',
     position: 'relative',
+  },
+  modeCardFullWidth: {
+    width: '100%',
+  },
+  dimBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+  },
+  dimBadgeText: {
+    fontSize: 9.5,
+    fontFamily: 'Inter_600SemiBold',
   },
   checkBadge: {
     position: 'absolute',

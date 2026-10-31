@@ -1048,7 +1048,12 @@ export default function NewPurchaseScreen() {
         col3ScrollRef.current?.scrollTo({ y: 0, animated: true });
       };
 
-      if (checkoutMode === 'print') {
+      if (
+        checkoutMode === 'print' ||
+        checkoutMode === 'print58' ||
+        checkoutMode === 'print80' ||
+        checkoutMode === 'print110'
+      ) {
         const business = useBusinessStore.getState();
         const { directPrintPurchaseInvoice } = await import('@/lib/generateInvoice');
         const purchaseItems = [{
@@ -1060,6 +1065,14 @@ export default function NewPurchaseScreen() {
           idType: purchase.idType,
           itemIds: finalItemIds,
         }];
+        const paperSize =
+          checkoutMode === 'print58'
+            ? '58mm'
+            : checkoutMode === 'print80'
+            ? '80mm'
+            : checkoutMode === 'print110'
+            ? '110mm'
+            : 'A4';
         directPrintPurchaseInvoice(
           purchase,
           purchaseItems,
@@ -1069,7 +1082,9 @@ export default function NewPurchaseScreen() {
             address: business.address || '',
             logoUri: business.logoUri ?? null,
           },
-          receiptCurrency
+          receiptCurrency,
+          undefined,
+          paperSize
         ).catch((printErr) => {
           console.error('[Purchase] Print error:', printErr);
         });
@@ -2909,7 +2924,13 @@ export default function NewPurchaseScreen() {
             isSubmitting
               ? t('purchases.saving')
               : checkoutMode === 'print'
-              ? (isArLanguage ? 'حفظ وطباعة 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت 🖨️' : 'Save & Print 🖨️')
+              ? (isArLanguage ? 'حفظ وطباعة A4 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت A4 🖨️' : 'Save & Print A4 🖨️')
+              : checkoutMode === 'print58'
+              ? (isArLanguage ? 'حفظ وطباعة 58mm 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت 58mm 🖨️' : 'Save & Print 58mm 🖨️')
+              : checkoutMode === 'print80'
+              ? (isArLanguage ? 'حفظ وطباعة 80mm 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت 80mm 🖨️' : 'Save & Print 80mm 🖨️')
+              : checkoutMode === 'print110'
+              ? (isArLanguage ? 'حفظ وطباعة 110mm 🖨️' : isKuLanguage ? 'تۆمارکردن و پرینت 110mm 🖨️' : 'Save & Print 110mm 🖨️')
               : (isArLanguage ? 'حفظ الشراء (عادي) ✓' : isKuLanguage ? 'تۆمارکردنی کڕین (ئاسایی) ✓' : 'Save Purchase (Normal) ✓')
           }
           onPress={handleSave}
