@@ -349,18 +349,19 @@ export function PrintFormatPickerModal({
               disabled={isPrinting}
               style={[
                 styles.printBtn,
-                { backgroundColor: colors.primary },
+                { backgroundColor: '#2563EB' },
                 isPrinting && { opacity: 0.7 },
               ]}
             >
               {isPrinting ? (
-                <ActivityIndicator size="small" color="#0F172A" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name="print" size={19} color="#0F172A" />
+                  <Ionicons name="print" size={19} color="#FFFFFF" />
                   <Text
                     style={[
                       styles.printBtnText,
+                      { color: '#FFFFFF' },
                       isKu && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                     ]}
                   >
@@ -377,15 +378,15 @@ export function PrintFormatPickerModal({
               style={[
                 styles.cancelBtn,
                 {
-                  borderColor: colors.gray300,
-                  backgroundColor: isDark ? colors.gray200 : '#F8FAFC',
+                  borderColor: isDark ? '#2B3D63' : colors.gray300,
+                  backgroundColor: isDark ? '#203152' : '#F8FAFC',
                 },
               ]}
             >
               <Text
                 style={[
                   styles.cancelBtnText,
-                  { color: colors.gray500 },
+                  { color: isDark ? '#CBD5E1' : colors.gray500 },
                   isKu && { fontFamily: SETTINGS_KURDISH_FONT },
                 ]}
               >
