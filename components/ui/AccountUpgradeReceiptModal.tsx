@@ -6,6 +6,7 @@ import {
   Platform,
   Dimensions,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from '@/components/ui/AppText';
@@ -60,9 +61,11 @@ export function AccountUpgradeReceiptModal() {
     timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          AsyncStorage.setItem(`@seen_upgrade_receipt_${receipt.receiptId}`, 'true').catch(() => {});
-          setVisible(false);
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          // Do NOT auto-dismiss! The user requested they must explicitly press the button
           return 0;
         }
         return prev - 1;
@@ -76,6 +79,19 @@ export function AccountUpgradeReceiptModal() {
       }
     };
   }, [visible, receipt?.receiptId]);
+
+  const handleDismiss = async () => {
+    if (countdown > 0) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      if (receipt?.receiptId) {
+        await AsyncStorage.setItem(`@seen_upgrade_receipt_${receipt.receiptId}`, 'true');
+      }
+    } catch (err) {
+      console.warn('[UpgradeReceiptModal] Save seen error:', err);
+    }
+    setVisible(false);
+  };
 
   if (!visible || !receipt) return null;
 
@@ -143,13 +159,17 @@ export function AccountUpgradeReceiptModal() {
             </View>
           </View>
 
-          {/* Countdown Timer Strip */}
-          <View style={styles.timerStrip}>
-            <View style={styles.timerPulseDot} />
-            <Text style={styles.timerText}>
-              {isKu
-                ? `داخرانی خۆکارانە لە ماوەی: ${countdown} چرکە`
-                : `Auto-dismissing in: ${countdown}s`}
+          {/* Countdown / Status Strip */}
+          <View style={[styles.timerStrip, countdown === 0 && styles.timerStripReady]}>
+            <View style={[styles.timerPulseDot, countdown === 0 && styles.timerPulseDotReady]} />
+            <Text style={[styles.timerText, countdown === 0 && styles.timerTextReady]}>
+              {countdown > 0
+                ? (isKu
+                    ? `دوگمەی تێگەیشتم چالاک دەبێت دوای: ${countdown} چرکە`
+                    : `Dismiss button unlocks in: ${countdown}s`)
+                : (isKu
+                    ? 'کاتی ٢٥ چرکە تەواو بوو • تکایە دوگمەی خوارەوە دابگرە'
+                    : 'Time completed • Please press the button below')}
             </Text>
           </View>
 
@@ -259,6 +279,31 @@ export function AccountUpgradeReceiptModal() {
               </Text>
             </View>
           </ScrollView>
+
+          {/* Pinned Bottom Action Button (تێگەیشتم و تەواو) */}
+          <View style={styles.bottomActionContainer}>
+            {countdown > 0 ? (
+              <View style={[styles.dismissBtn, styles.dismissBtnDisabled]}>
+                <Ionicons name="time-outline" size={20} color="#94A3B8" />
+                <Text style={styles.dismissBtnTextDisabled}>
+                  {isKu
+                    ? `تێگەیشتم و تەواو (${countdown} چرکە)`
+                    : `I Understand & Complete (${countdown}s)`}
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.dismissBtn, styles.dismissBtnActive]}
+                onPress={handleDismiss}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle" size={22} color="#0F172A" />
+                <Text style={styles.dismissBtnTextActive}>
+                  {isKu ? 'تێگەیشتم و تەواو' : 'I Understand & Complete'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     </Modal>
@@ -450,5 +495,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     fontFamily: SETTINGS_KURDISH_FONT_REGULAR,
+  },
+  timerStripReady: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderBottomColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  timerPulseDotReady: {
+    backgroundColor: '#22C55E',
+  },
+  timerTextReady: {
+    color: '#4ADE80',
+  },
+  bottomActionContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 16,
+    backgroundColor: '#0F172A',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(212, 175, 55, 0.25)',
+  },
+  dismissBtn: {
+    height: 50,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  dismissBtnDisabled: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dismissBtnActive: {
+    backgroundColor: '#D4AF37',
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  dismissBtnTextDisabled: {
+    color: '#94A3B8',
+    fontSize: 14.5,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
+  },
+  dismissBtnTextActive: {
+    color: '#0F172A',
+    fontSize: 15.5,
+    fontFamily: SETTINGS_KURDISH_FONT_BOLD,
   },
 });
