@@ -2,13 +2,16 @@
 <html lang="ku" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=/ckb/admin">
-  <title>Froshiar Admin Panel</title>
+  <title>Froshiar</title>
   <script>
-    window.location.replace('/ckb/admin');
+    if (window.location.hostname.includes('web.app') || window.location.hostname.includes('firebaseapp.com') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      window.location.replace('/ckb/admin');
+    } else {
+      window.location.replace('/');
+    }
   </script>
 </head>
 <body style="background:#0F172A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-  <p>چاوەڕوان بە... دەچیتە ناو پانێڵی ئەدمین</p>
+  <p>چاوەڕوان بە...</p>
 </body>
 </html>

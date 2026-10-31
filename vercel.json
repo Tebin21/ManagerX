@@ -1,0 +1,49 @@
+{
+  "redirects": [
+    {
+      "source": "/ckb/admin/:path*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/ckb/admin",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/en/admin/:path*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/en/admin",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/admin",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/ckb/admin.html",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/en/admin.html",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/admin.html",
+      "destination": "/",
+      "permanent": false
+    }
+  ]
+}

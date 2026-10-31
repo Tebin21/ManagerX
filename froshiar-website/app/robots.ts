@@ -8,6 +8,14 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: [
+        "/admin",
+        "/admin/",
+        "/ckb/admin",
+        "/ckb/admin/",
+        "/en/admin",
+        "/en/admin/",
+      ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

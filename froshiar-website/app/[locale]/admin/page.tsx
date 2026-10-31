@@ -269,6 +269,30 @@ const DICTIONARY = {
 };
 
 export default function AdminDashboardPage() {
+  // ─── Domain Restriction Guard ──────────────────────────────────────────────
+  // The Admin Panel is exclusively hosted on Firebase: https://managerx-bac3a.web.app/ckb/admin
+  // Access from froshiar.store or vercel.app is blocked and redirected to homepage.
+  const [isBlockedDomain, setIsBlockedDomain] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname.toLowerCase();
+      return h.includes('froshiar.store') || h.includes('vercel.app');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname.toLowerCase();
+      if (h.includes('froshiar.store') || h.includes('vercel.app')) {
+        setIsBlockedDomain(true);
+        window.location.replace('/');
+      }
+    }
+  }, []);
+
+  if (isBlockedDomain) {
+    return null;
+  }
   // ─── Theme & Localization ──────────────────────────────────────────────────
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [language, setLanguage] = useState<'ku' | 'en'>('ku');
