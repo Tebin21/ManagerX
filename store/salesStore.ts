@@ -128,7 +128,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const mgmt = (await import('@/store/managementStore')).useManagementStore.getState();
     const createdBy = mgmt.isEmployee
       ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
-      : (authUser?.displayName || authUser?.email || 'بەڕێوەبەر');
+      : (authUser?.displayName || authUser?.email || 'فرۆشیار');
     const createdByEmail = mgmt.isEmployee
       ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
       : (authUser?.email?.toLowerCase() || '');

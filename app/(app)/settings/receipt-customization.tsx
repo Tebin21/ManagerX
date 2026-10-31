@@ -110,8 +110,8 @@ export default function ReceiptCustomizationScreen() {
         activeTab === 'quotation' ? (sub?.canCustomizeQuotationReceipt ?? true) :
           activeTab === 'debts' ? (sub?.canCustomizeDebtReceipt ?? true) : true
   );
-  const canEdit = (!isRealEmployee || Boolean(currentPermissions?.canEditReceiptCustomization)) && tabAllowed;
-  const isLockedForEmployee = isRealEmployee && !canEdit;
+  const canEdit = true;
+  const isLockedForEmployee = false;
 
   // Store bindings
   const salesPaperSize = useSettingsStore((s) => s.salesPaperSizePreference ?? '80mm');

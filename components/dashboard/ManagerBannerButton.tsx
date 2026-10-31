@@ -148,7 +148,7 @@ export function ManagerBannerButton({
                 ]}
               >
                 {!hasEmployees
-                  ? (isAr ? 'مدير' : isKu ? 'بەڕێوەبەر' : 'Manager')
+                  ? (isAr ? 'حساب عادي' : isKu ? 'ئەکاونتی ئاسایی' : 'Standard Account')
                   : isSuspended
                   ? (isAr ? 'معلق' : isKu ? 'ڕاگیراو' : 'Suspended')
                   : (isAr ? 'نشط' : isKu ? 'چالاک' : 'Active')}

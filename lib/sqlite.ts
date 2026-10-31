@@ -2882,7 +2882,7 @@ export async function addPaymentToDebt(
       const auth = require('@/store/authStore').useAuthStore.getState();
       createdBy = mgmt.isEmployee
         ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
-        : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+        : (auth.user?.displayName || auth.user?.email || 'فرۆشیار');
       createdByEmail = mgmt.isEmployee
         ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
         : (auth.user?.email?.toLowerCase() || '');
@@ -4830,7 +4830,7 @@ export async function addPaymentToPurchaseDebt(
       const auth = require('@/store/authStore').useAuthStore.getState();
       createdBy = mgmt.isEmployee
         ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
-        : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+        : (auth.user?.displayName || auth.user?.email || 'فرۆشیار');
       createdByEmail = mgmt.isEmployee
         ? (mgmt.currentEmployeeAccount?.email?.toLowerCase() || '')
         : (auth.user?.email?.toLowerCase() || '');

@@ -92,7 +92,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
         const auth = require('@/store/authStore').useAuthStore.getState();
         return mgmt.isEmployee
           ? (mgmt.currentEmployeeAccount?.displayName || mgmt.currentEmployeeAccount?.email || 'کارمەند')
-          : (auth.user?.displayName || auth.user?.email || 'بەڕێوەبەر');
+          : (auth.user?.displayName || auth.user?.email || 'فرۆشیار');
       })(),
       createdByEmail: (() => {
         const mgmt = require('@/store/managementStore').useManagementStore.getState();

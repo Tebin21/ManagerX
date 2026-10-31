@@ -41,17 +41,6 @@ export default function LanguageScreen() {
   }, [queryLang, language, setLanguage]);
 
   function handleSelect(code: Lang) {
-    if (isEmployee && allowedLanguages && allowedLanguages[code] === false) {
-      Alert.alert(
-        language === 'ku' ? 'دەسەڵاتت نییە' : language === 'ar' ? 'غير مصرح' : 'Access Restricted',
-        language === 'ku'
-          ? 'ئەم زمانە لەلایەن بەڕێوەبەرەوە بۆ ئەم ئەکاونتە سنووردار کراوە.'
-          : language === 'ar'
-          ? 'هذه اللغة مقفلة من قبل المسؤول لهذا الحساب.'
-          : 'This language has been disabled by your manager.'
-      );
-      return;
-    }
     if (code === language) return;
     setLanguage(code);
   }

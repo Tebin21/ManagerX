@@ -94,11 +94,7 @@ export default function AppLayout() {
     // Manager Live Listener (detects if user manages any employee accounts)
     // Strictly forbidden for employee accounts — employees never manage staff
     let unsubManager: (() => void) | undefined;
-    let unsubAdmin: (() => void) | undefined;
     if (user?.email && !isRealEmployee) {
-      if (isAdminEmail(user.email)) {
-        unsubAdmin = initSuperAdminSubscription();
-      }
       unsubManager = initManagerSubscription(user.email);
     }
 
@@ -106,7 +102,6 @@ export default function AppLayout() {
       unsubCurrentUser?.();
       unsubEmployee?.();
       unsubManager?.();
-      unsubAdmin?.();
     };
   }, [user]);
 

@@ -84,15 +84,6 @@ function OnlineStoreCardImpl() {
   }
 
   const handleToggle = async () => {
-    if (isRealEmployee) {
-      Alert.alert(
-        t('common.error'),
-        isRTL
-          ? 'دەسەڵاتی ناچالاککردن و چالاککردنی وێبسایت تەنها لای بەڕێوەبەرە.'
-          : 'Only managers can enable or disable the online store.'
-      );
-      return;
-    }
     if (enabled) {
       disable();
       return;
@@ -228,40 +219,29 @@ function OnlineStoreCardImpl() {
         </View>
       </View>
 
-      {/* Action — Only Manager/Admin can disable or enable the store. Strictly restricted for employees */}
-      {!isRealEmployee ? (
-        <TouchableOpacity
-          onPress={handleToggle}
-          disabled={isLoading}
-          activeOpacity={0.85}
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: enabled ? colors.gray100 : colors.primary,
-              height: isTabletLandscape ? 62 : isTablet ? 56 : Theme.button.height,
-              borderRadius: isTablet ? 16 : Theme.button.borderRadius,
-            },
-            !enabled && Theme.shadow.button,
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={enabled ? colors.gray500 : colors.white} size="small" />
-          ) : (
-            <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white, fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 15 }]}>
-              {enabled ? t('dashboard.onlineStore.disableStore') : t('dashboard.onlineStore.enableStore')}
-            </Text>
-          )}
-        </TouchableOpacity>
-      ) : (
-        <View style={[styles.employeeNoticeRow, { flexDirection }]}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
-          <Text style={[styles.employeeNoticeText, { color: colors.gray500, textAlign }]}>
-            {isRTL
-              ? 'دەسەڵاتی ناچالاککردن یان سڕینەوەی وێبسایت تەنها لای بەڕێوەبەرە.'
-              : 'Only managers can disable or delete the website.'}
+      {/* Action Button */}
+      <TouchableOpacity
+        onPress={handleToggle}
+        disabled={isLoading}
+        activeOpacity={0.85}
+        style={[
+          styles.actionBtn,
+          {
+            backgroundColor: enabled ? colors.gray100 : colors.primary,
+            height: isTabletLandscape ? 62 : isTablet ? 56 : Theme.button.height,
+            borderRadius: isTablet ? 16 : Theme.button.borderRadius,
+          },
+          !enabled && Theme.shadow.button,
+        ]}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={enabled ? colors.gray500 : colors.white} size="small" />
+        ) : (
+          <Text style={[styles.actionText, { color: enabled ? colors.gray600 : colors.white, fontSize: isTabletLandscape ? 18 : isTablet ? 16.5 : 15 }]}>
+            {enabled ? t('dashboard.onlineStore.disableStore') : t('dashboard.onlineStore.enableStore')}
           </Text>
-        </View>
-      )}
+        )}
+      </TouchableOpacity>
 
       <InfoModal
         visible={infoVisible}

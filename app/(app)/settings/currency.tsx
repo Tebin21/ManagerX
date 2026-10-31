@@ -68,15 +68,6 @@ export default function CurrencyScreen() {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   async function handleSave() {
-    if (!canChangeExchangeRate) {
-      Alert.alert(
-        isKuLanguage ? 'دەسەڵاتت نییە' : 'Access Restricted',
-        isKuLanguage
-          ? 'دەستکاریکردنی نرخی ئاڵوگۆڕی دراو لەلایەن بەڕێوەبەرەوە سنووردار کراوە.'
-          : 'Changing exchange rates has been disabled by your manager.'
-      );
-      return;
-    }
     const parsed = parseFloat(toEnglishDigits(input).replace(/,/g, ''));
     if (isNaN(parsed) || parsed < 10000 || parsed > 9999900) {
       Alert.alert(t('common.error'), t('settings.currencyScreen.invalidRate'));
@@ -100,15 +91,6 @@ export default function CurrencyScreen() {
   }
 
   const handleToggleRequest = (target: BaseCurrency) => {
-    if (!canChangeBaseCurrency) {
-      Alert.alert(
-        isKuLanguage ? 'دەسەڵاتت نییە' : 'Access Restricted',
-        isKuLanguage
-          ? 'گۆڕینی دراوی بنچینە لەلایەن بەڕێوەبەرەوە بۆ ئەم ئەکاونتە سنووردار کراوە.'
-          : 'Changing base currency has been disabled by your manager.'
-      );
-      return;
-    }
     setPendingCurrency(target);
     setShowConfirmModal(true);
   };
