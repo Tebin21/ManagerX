@@ -133,7 +133,7 @@ export interface EmployeeAccount {
   deviceName?: string;
   permissions: EmployeePermissions;
   accountType?: 'registered' | 'custom';
-  role?: 'manager' | 'employee';
+  role?: 'manager' | 'employee' | 'user';
   provider?: string;
 }
 
@@ -1354,7 +1354,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         permissions: addModalMode === 'upgrade_registered' ? ALL_ACTIVE_PERMISSIONS : DEFAULT_PERMISSIONS,
         createdAt: new Date().toISOString(),
         accountType: addModalMode === 'upgrade_registered' ? 'registered' : 'custom',
-        role: addModalMode === 'upgrade_registered' ? 'manager' : 'employee',
+        role: 'user',
       };
 
       const docRef = doc(db, 'employee_accounts', docId);

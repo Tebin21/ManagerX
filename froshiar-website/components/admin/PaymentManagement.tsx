@@ -557,7 +557,7 @@ export default function PaymentManagement({
             email: cleanEmail,
             displayName: customerName.trim() || cleanEmail.split('@')[0],
             status: 'active',
-            role: 'manager',
+            role: 'user',
             accountType: 'registered',
             expiresAt: expiresAtIso,
             limits: {

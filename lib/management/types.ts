@@ -95,7 +95,7 @@ export interface EmployeeAccount {
   lastLogoutAt?: string;
   deviceModel?: string;
   deviceName?: string;
-  role?: 'manager' | 'employee';
+  role?: 'manager' | 'employee' | 'user';
   accountType?: 'registered' | 'custom';
   permissions: EmployeePermissions;
 }
