@@ -55,3 +55,4 @@ export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
     </header>
   );
 }
+

@@ -54,8 +54,19 @@ export function StorefrontView({ store, slug }: Props) {
     });
   }, [store, query, selectedCategory]);
 
+  const isRTL = useMemo(() => {
+    const sample = `${store.businessName} ${store.info.description || ''} ${store.info.address || ''}`;
+    return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(sample);
+  }, [store]);
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900" style={brandStyle}>
+    <div
+      dir={isRTL ? 'rtl' : 'ltr'}
+      className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${
+        isRTL ? 'font-kurdish' : 'font-sans'
+      }`}
+      style={brandStyle}
+    >
       {/* 1. Top Sticky Navigation Bar with Theme Switcher & Store Name */}
       <StoreNavbar
         businessName={store.businessName}

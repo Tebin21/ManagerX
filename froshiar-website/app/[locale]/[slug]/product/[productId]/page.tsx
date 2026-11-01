@@ -64,8 +64,18 @@ export default async function ProductDetailsPage({
       )}`
     : null;
 
+  const isRTL = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
+    `${store.businessName} ${product.name} ${product.description || ''} ${product.websiteDescription || ''}`
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900" style={brandStyle}>
+    <div
+      dir={isRTL ? 'rtl' : 'ltr'}
+      className={`min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${
+        isRTL ? 'font-kurdish' : 'font-sans'
+      }`}
+      style={brandStyle}
+    >
       <StoreNavbar
         businessName={store.businessName}
         logoUrl={store.info.logoUrl}
