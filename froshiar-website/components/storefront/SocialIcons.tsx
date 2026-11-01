@@ -58,7 +58,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   if (cleanWhatsapp) {
     activeItems.push({
       key: 'whatsapp',
-      label: 'WhatsApp',
+      label: 'واتسئەپ (WhatsApp)',
       href: buildWhatsAppUrl(cleanWhatsapp),
       badgeClass:
         'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600',
@@ -70,7 +70,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   if (cleanInstagram) {
     activeItems.push({
       key: 'instagram',
-      label: 'Instagram',
+      label: 'ئینستاگرام (Instagram)',
       href: cleanInstagram,
       badgeClass:
         'border-pink-500/30 bg-pink-500/10 text-pink-600 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 hover:text-white dark:bg-pink-950/40 dark:text-pink-400',
@@ -82,7 +82,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   if (cleanTikTok) {
     activeItems.push({
       key: 'tiktok',
-      label: 'TikTok',
+      label: 'تیکتۆک (TikTok)',
       href: cleanTikTok,
       badgeClass:
         'border-slate-300 bg-slate-100 text-slate-800 hover:bg-black hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-black',
@@ -94,7 +94,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   if (cleanFacebook) {
     activeItems.push({
       key: 'facebook',
-      label: 'Facebook',
+      label: 'فەیسبووک (Facebook)',
       href: cleanFacebook,
       badgeClass:
         'border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white dark:bg-blue-950/40 dark:text-blue-400',
@@ -108,20 +108,27 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   }
 
   return (
-    <div className="mx-auto mt-4 flex max-w-5xl flex-wrap items-center justify-center gap-2.5 px-4 sm:gap-3">
-      {activeItems.map(({ key, label, href, badgeClass, Icon }) => (
-        <a
-          key={key}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={label}
-          className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:text-sm ${badgeClass}`}
-        >
-          <Icon size={16} />
-          <span>{label}</span>
-        </a>
-      ))}
+    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/90 p-3 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/90 sm:p-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          تۆڕە کۆمەڵایەتییەکان:
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {activeItems.map(({ key, label, href, badgeClass, Icon }) => (
+            <a
+              key={key}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={label}
+              className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:text-sm ${badgeClass}`}
+            >
+              <Icon size={15} />
+              <span>{label}</span>
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

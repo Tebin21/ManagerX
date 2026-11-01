@@ -6,7 +6,7 @@ import { fetchStorefront, type StoreProduct } from '@/lib/storefront/storeApi';
 import { DEMO_STORE } from '@/lib/storefront/demoStore';
 import { getBrandCssVars } from '@/lib/storefront/theme';
 import { formatIQD } from '@/lib/storefront/format';
-import { StoreNavbar } from '@/components/storefront/StoreNavbar';
+import { StoreContactBanner } from '@/components/storefront/StoreContactBanner';
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter';
 
 export const dynamic = 'force-dynamic';
@@ -76,12 +76,6 @@ export default async function ProductDetailsPage({
       }`}
       style={brandStyle}
     >
-      <StoreNavbar
-        businessName={store.businessName}
-        logoUrl={store.info.logoUrl}
-        slug={clean}
-      />
-
       <main className="mx-auto max-w-4xl px-4 py-8 flex-1 w-full">
         <Link
           href={`/${clean}`}
@@ -164,6 +158,8 @@ export default async function ProductDetailsPage({
           </div>
         </div>
       </main>
+
+      <StoreContactBanner info={store.info} />
 
       <StorefrontFooter />
     </div>

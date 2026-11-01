@@ -4,9 +4,8 @@ import { useMemo, useState } from 'react';
 import type { StoreResponse } from '@/lib/storefront/storeApi';
 import { getBrandCssVars } from '@/lib/storefront/theme';
 import { ProductCard } from './ProductCard';
-import { StoreNavbar } from './StoreNavbar';
 import { StoreHeader } from './StoreHeader';
-import { SocialIcons } from './SocialIcons';
+import { StoreContactBanner } from './StoreContactBanner';
 import { SearchBar } from './SearchBar';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { StorefrontFooter } from './StorefrontFooter';
@@ -67,25 +66,10 @@ export function StorefrontView({ store, slug }: Props) {
       }`}
       style={brandStyle}
     >
-      {/* 1. Top Sticky Navigation Bar with Theme Switcher & Store Name */}
-      <StoreNavbar
-        businessName={store.businessName}
-        logoUrl={store.info.logoUrl}
-        slug={slug}
-      />
-
-      {/* 2. Main Store Header Card (Froshiar Dashboard Aesthetic) */}
+      {/* 1. Main Cover Banner + Store Name & Description Below + Small Social Media Banner */}
       <StoreHeader businessName={store.businessName} info={store.info} />
 
-      {/* 3. Social Media Links Under Banner (Strictly shown only if links are configured) */}
-      <SocialIcons
-        facebookUrl={store.info.facebookUrl}
-        instagramUrl={store.info.instagramUrl}
-        tiktokUrl={store.info.tiktokUrl}
-        whatsappNumber={store.info.whatsappNumber}
-      />
-
-      {/* 4. Product Catalog & Search */}
+      {/* 2. Product Catalog & Search */}
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
         {!store.enabled ? (
           <div className="mx-auto my-12 max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-slate-800">
@@ -110,7 +94,7 @@ export function StorefrontView({ store, slug }: Props) {
             </p>
             {store.info.phone || store.info.whatsappNumber ? (
               <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                بۆ پەیوەندیکردن، دەتوانیت پەیوەندی بە ژمارەی فڕۆشگاکە بکەیت لە سەرەوە.
+                بۆ پەیوەندیکردن، دەتوانیت پەیوەندی بە ژمارەی فڕۆشگاکە بکەیت لە خوارەوە.
               </p>
             ) : null}
           </div>
@@ -118,7 +102,7 @@ export function StorefrontView({ store, slug }: Props) {
           <CenteredMessage>هیچ کاڵایەک لەم فڕۆشگایە دانەنراوە.</CenteredMessage>
         ) : (
           <>
-            <div className="sticky top-14 z-20 mb-6 bg-slate-50/95 py-3 backdrop-blur-sm dark:bg-slate-900/95">
+            <div className="sticky top-0 z-20 mb-6 bg-slate-50/95 py-3 backdrop-blur-sm dark:bg-slate-900/95">
               <SearchBar value={query} onChange={setQuery} />
               {categories.length > 1 && (
                 <div className="mt-3">
@@ -144,6 +128,10 @@ export function StorefrontView({ store, slug }: Props) {
         )}
       </main>
 
+      {/* 3. Bottom Centered Contact & Address Banner */}
+      <StoreContactBanner info={store.info} />
+
+      {/* 4. Footer */}
       <StorefrontFooter />
     </div>
   );
