@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Search, X } from 'lucide-react';
 import type { StoreInfo } from '@/lib/storefront/storeApi';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { SocialIcons } from './SocialIcons';
@@ -8,9 +9,20 @@ import { SocialIcons } from './SocialIcons';
 interface Props {
   businessName: string;
   info: StoreInfo;
+  isSearchOpen?: boolean;
+  onToggleSearch?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (val: string) => void;
 }
 
-export function StoreHeader({ businessName, info }: Props) {
+export function StoreHeader({
+  businessName,
+  info,
+  isSearchOpen,
+  onToggleSearch,
+  searchQuery = '',
+  onSearchChange,
+}: Props) {
   // Check whether store name is Kurdish / Arabic script
   const isKurdish = useMemo(() => {
     return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(businessName);
@@ -42,16 +54,13 @@ export function StoreHeader({ businessName, info }: Props) {
         </div>
       </div>
 
-      {/* 2. Store Name & Description Below Banner (Aligned Right for Kurdish, Left for English) */}
+      {/* 2. Store Name & Actions on the Exact Same Row */}
       <div className="mx-auto mt-5 w-full max-w-5xl px-4 sm:mt-6">
-        <div
-          className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
-            isKurdish ? 'text-right' : 'text-left'
-          }`}
-        >
-          <div className="flex-1">
+        <div className="flex items-start justify-between gap-3">
+          {/* Store Name & Description (Right side in RTL, Left side in LTR) */}
+          <div className={`flex-1 min-w-0 ${isKurdish ? 'text-right' : 'text-left'}`}>
             <h1
-              className={`text-2xl font-black tracking-tight text-slate-900 sm:text-3xl md:text-4xl dark:text-white ${
+              className={`text-2xl font-black tracking-tight text-slate-900 sm:text-3xl md:text-4xl dark:text-white leading-tight ${
                 isKurdish ? 'font-kurdish' : 'font-sans'
               }`}
             >
@@ -59,7 +68,7 @@ export function StoreHeader({ businessName, info }: Props) {
             </h1>
             {info.description && (
               <p
-                className={`mt-2 text-sm font-medium leading-relaxed text-slate-600 sm:text-base dark:text-slate-300 ${
+                className={`mt-1.5 text-sm font-medium leading-relaxed text-slate-600 sm:text-base dark:text-slate-300 ${
                   isKurdish ? 'font-kurdish' : 'font-sans'
                 }`}
               >
@@ -68,13 +77,59 @@ export function StoreHeader({ businessName, info }: Props) {
             )}
           </div>
 
-          {/* Theme Switcher Button */}
-          <div className="self-end sm:self-center">
+          {/* Action Buttons: Search Toggle + Dark/Light Theme Toggle (Aligned right level with store title) */}
+          <div className="flex items-center gap-2 shrink-0 pt-1">
+            {/* Search Icon Button */}
+            <button
+              type="button"
+              onClick={onToggleSearch}
+              aria-label="گەڕان"
+              title="گەڕان بۆ کاڵاکان"
+              className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all cursor-pointer ${
+                isSearchOpen
+                  ? 'border-[var(--brand-500,#D4AF37)] bg-[var(--brand-500,#D4AF37)] text-slate-950 shadow-xs'
+                  : 'border-slate-200/90 bg-slate-100/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white'
+              }`}
+            >
+              <Search size={15} />
+            </button>
+
+            {/* Theme Toggle (Moon / Sun) */}
             <ThemeToggle />
           </div>
         </div>
 
-        {/* 3. Small Banner for Social Media Icons */}
+        {/* 3. Downward Expandable Search Bar */}
+        {isSearchOpen && (
+          <div className="mt-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="relative">
+              <Search
+                size={16}
+                className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 rtl:right-3.5 rtl:left-auto ltr:left-3.5 ltr:right-auto"
+              />
+              <input
+                type="search"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                placeholder="گەڕان بۆ کاڵاکان..."
+                className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 px-10 text-sm text-slate-800 shadow-sm transition focus:border-[var(--brand-500,#D4AF37)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500,#D4AF37)]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange?.('')}
+                  aria-label="سڕینەوەی گەڕان"
+                  className="absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rtl:left-3 rtl:right-auto ltr:right-3 ltr:left-auto cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Small Banner for Social Media Icons */}
         <SocialIcons
           facebookUrl={info.facebookUrl}
           instagramUrl={info.instagramUrl}

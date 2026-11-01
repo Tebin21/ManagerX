@@ -62,3 +62,4 @@ export function StoreContactBanner({ info }: Props) {
     </div>
   );
 }
+

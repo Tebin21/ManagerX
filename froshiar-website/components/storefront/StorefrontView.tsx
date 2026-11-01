@@ -6,7 +6,6 @@ import { getBrandCssVars } from '@/lib/storefront/theme';
 import { ProductCard } from './ProductCard';
 import { StoreHeader } from './StoreHeader';
 import { StoreContactBanner } from './StoreContactBanner';
-import { SearchBar } from './SearchBar';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { StorefrontFooter } from './StorefrontFooter';
 
@@ -25,6 +24,7 @@ interface Props {
 
 export function StorefrontView({ store, slug }: Props) {
   const [query, setQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const brandStyle = useMemo(() => getBrandCssVars(store.info.themeColor), [store.info.themeColor]);
@@ -66,11 +66,18 @@ export function StorefrontView({ store, slug }: Props) {
       }`}
       style={brandStyle}
     >
-      {/* 1. Main Cover Banner + Store Name & Description Below + Small Social Media Banner */}
-      <StoreHeader businessName={store.businessName} info={store.info} />
+      {/* 1. Main Cover Banner + Store Name & Actions (Aligned directly with Store Name) + Expandable Search + Compact Social Banner */}
+      <StoreHeader
+        businessName={store.businessName}
+        info={store.info}
+        isSearchOpen={isSearchOpen}
+        onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
+        searchQuery={query}
+        onSearchChange={setQuery}
+      />
 
-      {/* 2. Product Catalog & Search */}
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
+      {/* 2. Product Catalog */}
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
         {!store.enabled ? (
           <div className="mx-auto my-12 max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-slate-800">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 ring-8 ring-amber-50/50 dark:bg-amber-950 dark:ring-amber-900/30">
@@ -102,18 +109,15 @@ export function StorefrontView({ store, slug }: Props) {
           <CenteredMessage>هیچ کاڵایەک لەم فڕۆشگایە دانەنراوە.</CenteredMessage>
         ) : (
           <>
-            <div className="sticky top-0 z-20 mb-6 bg-slate-50/95 py-3 backdrop-blur-sm dark:bg-slate-900/95">
-              <SearchBar value={query} onChange={setQuery} />
-              {categories.length > 1 && (
-                <div className="mt-3">
-                  <CategoryFilterBar
-                    categories={categories}
-                    selected={selectedCategory}
-                    onSelect={setSelectedCategory}
-                  />
-                </div>
-              )}
-            </div>
+            {categories.length > 1 && (
+              <div className="sticky top-0 z-20 mb-6 bg-slate-50/95 py-2.5 backdrop-blur-sm dark:bg-slate-900/95">
+                <CategoryFilterBar
+                  categories={categories}
+                  selected={selectedCategory}
+                  onSelect={setSelectedCategory}
+                />
+              </div>
+            )}
 
             {filteredProducts.length === 0 ? (
               <CenteredMessage>هیچ کاڵایەک نەدۆزرایەوە کە لەگەڵ گەڕانەکەت بگونجێت.</CenteredMessage>
