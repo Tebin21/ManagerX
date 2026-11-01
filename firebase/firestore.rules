@@ -40,6 +40,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Online store activations, subdomains and standalone storefronts
+    match /store_activations/{storeId} {
+      allow read, write: if true;
+    }
+
     // Payment requests & user email-based subscriptions
     match /payment_requests/{reqId} {
       allow read, write: if true;
