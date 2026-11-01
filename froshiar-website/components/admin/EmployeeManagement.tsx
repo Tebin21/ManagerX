@@ -51,6 +51,13 @@ import {
   UserCheck,
   BadgeCheck,
   Wand2,
+  Coins,
+  Wallet,
+  Building2,
+  FileText,
+  ChevronUp,
+  TrendingUp,
+  ArrowUpRight,
 } from 'lucide-react';
 import { getClientFirestore } from '@/lib/firebase';
 import {
@@ -659,6 +666,20 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   } | null>(null);
   const previousPasswordsRef = useRef<Map<string, string>>(new Map());
 
+  // ── Accounting (حسابات و داهات) Section State ──
+  const [adminSection, setAdminSection] = useState<'accounts' | 'financials'>('accounts');
+  const [financialSearch, setFinancialSearch] = useState('');
+  const [financialFilter, setFinancialFilter] = useState<'all' | 'paid' | 'managers' | 'custom'>('all');
+  const [expandedManagerEmails, setExpandedManagerEmails] = useState<Set<string>>(new Set());
+
+  // Quick Price Edit Modal State
+  const [quickPriceEmployee, setQuickPriceEmployee] = useState<EmployeeAccount | null>(null);
+  const [quickPriceValue, setQuickPriceValue] = useState('');
+  const [savingQuickPrice, setSavingQuickPrice] = useState(false);
+
+  // Official Receipt Preview Modal State
+  const [viewingReceiptEmployee, setViewingReceiptEmployee] = useState<EmployeeAccount | null>(null);
+
   // Live Subscription
   useEffect(() => {
     setLoading(true);
@@ -882,6 +903,160 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     const expiredCount = employees.filter((e) => isAccountExpired(e)).length;
     return { total, active, suspended, expiredCount };
   }, [employees]);
+
+  // ── Accounting & Financial Aggregations ──
+  const managerEmployeesMap = useMemo(() => {
+    const map = new Map<string, EmployeeAccount[]>();
+    employees.forEach((emp) => {
+      const mgr = (emp.managerEmail || '').trim().toLowerCase();
+      const myEmail = (emp.email || '').trim().toLowerCase();
+      if (mgr && mgr !== myEmail) {
+        const list = map.get(mgr) || [];
+        list.push(emp);
+        map.set(mgr, list);
+      }
+    });
+    return map;
+  }, [employees]);
+
+  const financialStats = useMemo(() => {
+    let totalUsd = 0;
+    let totalIqd = 0;
+    let paidCount = 0;
+    let managersCount = 0;
+    let upgradedCount = 0;
+
+    employees.forEach((emp) => {
+      const isUpgraded =
+        emp.accountType === 'registered' ||
+        emp.role === 'manager' ||
+        Boolean(emp.upgradeReceipt) ||
+        Boolean(emp.priceAmount && emp.priceAmount.trim());
+
+      if (isUpgraded) {
+        upgradedCount++;
+      }
+
+      const myEmail = (emp.email || '').trim().toLowerCase();
+      const isManager = managerEmployeesMap.has(myEmail) || emp.role === 'manager';
+      if (isManager) {
+        managersCount++;
+      }
+
+      const price = (emp.priceAmount || '').trim();
+      if (price) {
+        paidCount++;
+        // Check currency and parse numeric value
+        const isUsd =
+          price.includes('$') ||
+          /usd/i.test(price) ||
+          (!price.includes('IQD') && !price.includes('دینار') && (parseFloat(price.replace(/[^0-9.]/g, '')) || 0) <= 500);
+        const numericVal = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
+        if (numericVal > 0) {
+          if (isUsd) {
+            totalUsd += numericVal;
+          } else {
+            totalIqd += numericVal;
+          }
+        }
+      }
+    });
+
+    return {
+      totalUsd,
+      totalIqd,
+      paidCount,
+      managersCount,
+      upgradedCount,
+      totalAccounts: employees.length,
+    };
+  }, [employees, managerEmployeesMap]);
+
+  const financialAccounts = useMemo(() => {
+    return employees.filter((emp) => {
+      const myEmail = (emp.email || '').trim().toLowerCase();
+      const name = (emp.displayName || '').toLowerCase();
+      const phone = (emp.phone || '').toLowerCase();
+      const price = (emp.priceAmount || '').toLowerCase();
+      const receiptId = (emp.upgradeReceipt?.receiptId || '').toLowerCase();
+      const q = financialSearch.trim().toLowerCase();
+
+      const matchesSearch =
+        !q ||
+        myEmail.includes(q) ||
+        name.includes(q) ||
+        phone.includes(q) ||
+        price.includes(q) ||
+        receiptId.includes(q);
+
+      if (!matchesSearch) return false;
+
+      if (financialFilter === 'paid') {
+        return Boolean(emp.priceAmount && emp.priceAmount.trim());
+      }
+      if (financialFilter === 'managers') {
+        return managerEmployeesMap.has(myEmail) || emp.role === 'manager';
+      }
+      if (financialFilter === 'custom') {
+        return emp.accountType === 'custom' || Boolean(emp.password);
+      }
+      return true;
+    });
+  }, [employees, financialSearch, financialFilter, managerEmployeesMap]);
+
+  const toggleManagerExpand = (email: string) => {
+    const clean = email.trim().toLowerCase();
+    setExpandedManagerEmails((prev) => {
+      const next = new Set(prev);
+      if (next.has(clean)) {
+        next.delete(clean);
+      } else {
+        next.add(clean);
+      }
+      return next;
+    });
+  };
+
+  const handleOpenQuickPrice = (emp: EmployeeAccount) => {
+    setQuickPriceEmployee(emp);
+    setQuickPriceValue(emp.priceAmount || '');
+  };
+
+  const handleSaveQuickPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickPriceEmployee) return;
+    const db = getClientFirestore();
+    if (!db) return;
+
+    setSavingQuickPrice(true);
+    const docId = getCleanDocId(quickPriceEmployee.email) || quickPriceEmployee.id;
+    const cleanPrice = quickPriceValue.trim() || null;
+
+    try {
+      await setDoc(
+        doc(db, 'employee_accounts', docId),
+        { priceAmount: cleanPrice },
+        { merge: true }
+      );
+
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          { priceAmount: cleanPrice, updatedAt: new Date().toISOString() },
+          { merge: true }
+        );
+      } catch (sErr) {
+        console.warn('Subscription price sync warning:', sErr);
+      }
+
+      setQuickPriceEmployee(null);
+    } catch (err: any) {
+      console.error('Failed to update price:', err);
+      alert(isKu ? 'هەڵەیەک ڕوویدا لە پاشەکەوتکردنی نرخ' : 'Failed to save price');
+    } finally {
+      setSavingQuickPrice(false);
+    }
+  };
 
   // Toggle Employee Status
   const handleToggleStatus = async (emp: EmployeeAccount) => {
@@ -1657,7 +1832,495 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         </div>
       </div>
 
-      {/* ── KPI Stat Cards ── */}
+      {/* ── Section View Switcher: 1. ئەکاونتەکان و دەسەڵاتەکان | 2. حسابات و داهات ── */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/40 dark:bg-slate-950/60 border border-slate-800/80 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => setAdminSection('accounts')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            adminSection === 'accounts'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 border border-purple-400/40'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>{isKu ? 'ئەکاونتەکان و دەسەڵاتەکان (RBAC)' : 'Accounts & Permissions'}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20 font-mono font-bold">
+            {employees.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminSection('financials')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            adminSection === 'financials'
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/30 border border-amber-300/50'
+              : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800/50'
+          }`}
+        >
+          <DollarSign className="w-4 h-4 text-inherit" />
+          <span>{isKu ? 'حسابات و داهاتی بەشداریکردن' : 'Financial Accounting & Revenue'}</span>
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-mono font-black bg-slate-950/20 text-inherit border border-current/20">
+            {financialStats.totalUsd > 0
+              ? `$${financialStats.totalUsd.toLocaleString()}`
+              : `${financialStats.totalIqd.toLocaleString()} IQD`}
+          </span>
+        </button>
+      </div>
+
+      {adminSection === 'financials' ? (
+        /* ═════════════════════════════════════════════════════════════════════ */
+        /* ── FINANCIAL ACCOUNTING & REVENUE PORTAL (بەشی حسابات و داهات) ──    */
+        /* ═════════════════════════════════════════════════════════════════════ */
+        <div className="space-y-5 animate-in fade-in duration-300">
+          {/* Top Financial KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            {/* KPI 1: Total Revenue (کۆی گشتی داهات) */}
+            <div
+              className={`p-5 rounded-3xl border relative overflow-hidden transition-all shadow-lg ${
+                isDarkMode
+                  ? 'bg-gradient-to-br from-[#1E2538] via-[#161D2E] to-[#121826] border-[#D4AF37]/50 shadow-[#D4AF37]/10'
+                  : 'bg-gradient-to-br from-[#FFFDF5] via-[#FFF9E6] to-[#FFF4D0] border-[#D4AF37] shadow-amber-500/10'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-[#D4AF37]' : 'text-amber-800'}`}>
+                  {isKu ? '💰 کۆی گشتی داهات' : '💰 Total Revenue'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-sm">
+                  <Coins className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  {financialStats.totalUsd > 0 && `$${financialStats.totalUsd.toLocaleString()}`}
+                  {financialStats.totalUsd > 0 && financialStats.totalIqd > 0 && ' + '}
+                  {financialStats.totalIqd > 0 && `${financialStats.totalIqd.toLocaleString()} IQD`}
+                  {financialStats.totalUsd === 0 && financialStats.totalIqd === 0 && '$0'}
+                </span>
+              </div>
+              <div className={`text-xs mt-2 font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {financialStats.paidCount} {isKu ? 'ئەکاونت پارەی بەشداریکردنیان داوە' : 'Paid Accounts'}
+                </span>
+              </div>
+            </div>
+
+            {/* KPI 2: Upgraded Accounts (ئەکاونتە بەرزکراوەکان) */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'ئەکاونتە بەرزکراوەکان' : 'Upgraded Accounts'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-500 border border-amber-500/30 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+              </div>
+              <div className={`mt-3 text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {financialStats.upgradedCount}
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {stats.active} {isKu ? 'چالاک' : 'Active'} • {stats.expiredCount} {isKu ? 'بەسەرچوو' : 'Expired'}
+              </div>
+            </div>
+
+            {/* KPI 3: Managers & Teams (بەڕێوەبەر و تیمەکان) */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'بەڕێوەبەر و تیمەکان' : 'Managers & Teams'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                  <Crown className="w-5 h-5" />
+                </div>
+              </div>
+              <div className={`mt-3 text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {financialStats.managersCount}
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {isKu ? 'خاوەن کارمەندی بەستراوە' : 'Supervising accounts with staff'}
+              </div>
+            </div>
+
+            {/* KPI 4: Direct / Custom Accounts (ئەکاونتی تاکەکەسی و تایبەت) */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'ئەکاونتی سەربەخۆ / تایبەت' : 'Direct / Custom Accounts'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+              </div>
+              <div className={`mt-3 text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {Math.max(0, financialStats.totalAccounts - financialStats.managersCount)}
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {isKu ? 'تۆمارکراوی پاسۆرد یان گووگڵ' : 'Independent single store users'}
+              </div>
+            </div>
+          </div>
+
+          {/* Financial Filter & Search Bar */}
+          <div
+            className={`p-4 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-3 ${
+              isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            {/* Search Input */}
+            <div className="relative w-full md:w-96">
+              <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder={isKu ? 'گەڕان بەپێی ناو، ئیمەیڵ، ژمارەی تەلەفۆن، یان نرخی پارەدان...' : 'Search by name, email, phone, or price...'}
+                value={financialSearch}
+                onChange={(e) => setFinancialSearch(e.target.value)}
+                className={`w-full ps-10 pe-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition ${
+                  isDarkMode
+                    ? 'bg-[#0E1524] border-slate-700 text-slate-100 focus:border-amber-500'
+                    : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                }`}
+              />
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+              <button
+                type="button"
+                onClick={() => setFinancialFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  financialFilter === 'all'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900'
+                }`}
+              >
+                {isKu ? 'هەموو تۆمارەکان' : 'All'} ({employees.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFinancialFilter('paid')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  financialFilter === 'paid'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900'
+                }`}
+              >
+                💰 {isKu ? 'تەنها پارەدراوەکان' : 'Paid Only'} ({financialStats.paidCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFinancialFilter('managers')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  financialFilter === 'managers'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900'
+                }`}
+              >
+                👑 {isKu ? 'بەڕێوەبەر و تیم' : 'Managers & Teams'} ({financialStats.managersCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFinancialFilter('custom')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  financialFilter === 'custom'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900'
+                }`}
+              >
+                🔑 {isKu ? 'ئەکاونتی تایبەت' : 'Custom'}
+              </button>
+            </div>
+          </div>
+
+          {/* Financial Records List */}
+          {financialAccounts.length === 0 ? (
+            <div
+              className={`p-12 text-center rounded-3xl border ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500 shadow-sm'
+              }`}
+            >
+              <DollarSign className="w-12 h-12 text-amber-500/50 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-200 mb-1">
+                {isKu ? 'هیچ تۆمارێکی دارایی نەدۆزرایەوە' : 'No financial records match your filter'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {isKu ? 'تکایە فلتەر یان وشەی گەڕانەکەت بگۆڕە' : 'Try clearing your search or filters.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {financialAccounts.map((emp) => {
+                const myEmail = (emp.email || '').trim().toLowerCase();
+                const teamEmployees = managerEmployeesMap.get(myEmail) || [];
+                const hasTeam = teamEmployees.length > 0;
+                const isExpanded = expandedManagerEmails.has(myEmail);
+                const expired = isAccountExpired(emp);
+                const hasReceipt = Boolean(emp.upgradeReceipt);
+
+                return (
+                  <div
+                    key={emp.id}
+                    className={`rounded-2xl border transition-all overflow-hidden ${
+                      isDarkMode
+                        ? 'bg-[#141C2E] border-slate-800 hover:border-slate-700'
+                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
+                    }`}
+                  >
+                    {/* Main Row */}
+                    <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Left: User Identity & Badges */}
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shrink-0 shadow-md ${
+                            hasTeam
+                              ? 'bg-gradient-to-tr from-amber-600 to-amber-500 text-slate-950 font-black'
+                              : emp.accountType === 'registered'
+                              ? 'bg-gradient-to-tr from-purple-600 to-indigo-600'
+                              : 'bg-gradient-to-tr from-blue-600 to-cyan-600'
+                          }`}
+                        >
+                          {hasTeam ? '👑' : (emp.displayName ? emp.displayName.charAt(0).toUpperCase() : 'U')}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className={`text-base font-extrabold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                              {emp.displayName || emp.email.split('@')[0]}
+                            </h3>
+
+                            {/* Status badge */}
+                            <span
+                              className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 border ${
+                                emp.status === 'suspended'
+                                  ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                  : expired
+                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                  : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                emp.status === 'suspended' ? 'bg-rose-500' : expired ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'
+                              }`} />
+                              {emp.status === 'suspended' ? (isKu ? 'ڕاگیراو' : 'Suspended') : expired ? (isKu ? 'بەسەرچوو' : 'Expired') : (isKu ? 'چالاک' : 'Active')}
+                            </span>
+
+                            {/* Role badge */}
+                            {hasTeam ? (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-[#D4AF37] border border-amber-500/40 flex items-center gap-1">
+                                <Crown className="w-3 h-3 text-amber-500" />
+                                <span>{isKu ? `بەڕێوەبەر (${teamEmployees.length} کارمەند)` : `Manager (${teamEmployees.length} Staff)`}</span>
+                              </span>
+                            ) : emp.accountType === 'registered' ? (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-purple-400" />
+                                <span>{isKu ? 'ئەکاونتی فەرمی (گووگڵ/ئەپڵ)' : 'Registered User'}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center gap-1">
+                                <KeyRound className="w-3 h-3 text-blue-400" />
+                                <span>{isKu ? 'ئەکاونتی تایبەت (پاسۆرد)' : 'Custom Account'}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Email & Phone */}
+                          <div className="flex items-center gap-2.5 mt-1 flex-wrap text-xs text-slate-400">
+                            <span className="font-mono">{emp.email}</span>
+                            {emp.phone && (
+                              <button
+                                type="button"
+                                onClick={() => handleSendWhatsApp(emp)}
+                                className="text-emerald-400 font-mono font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                <span>{emp.phone}</span>
+                              </button>
+                            )}
+                            {emp.upgradeReceipt?.receiptId && (
+                              <span className="font-mono text-[11px] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/25">
+                                #{emp.upgradeReceipt.receiptId}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Paid Price & Quick Financial Actions */}
+                      <div className="flex items-center gap-3 flex-wrap justify-between lg:justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-800">
+                        {/* Price Badge */}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`px-3.5 py-2 rounded-xl border flex items-center gap-2 ${
+                              emp.priceAmount && emp.priceAmount.trim()
+                                ? 'bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-amber-500/40 text-[#D4AF37]'
+                                : isDarkMode
+                                ? 'bg-slate-800/60 border-slate-700 text-slate-400'
+                                : 'bg-slate-100 border-slate-300 text-slate-600'
+                            }`}
+                          >
+                            <DollarSign className="w-4 h-4 text-amber-500" />
+                            <div className="text-start">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                {isKu ? 'بڕی پارەی دراو' : 'Paid Fee'}
+                              </div>
+                              <div className="text-sm font-black font-mono">
+                                {emp.priceAmount && emp.priceAmount.trim() ? emp.priceAmount : (isKu ? 'دیارینەکراو' : 'Not set')}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Quick Price Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQuickPrice(emp)}
+                            className="p-2.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/15 text-amber-400 transition cursor-pointer"
+                            title={isKu ? 'دەستکاری نرخ' : 'Edit Fee'}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Dates Info */}
+                        <div className="text-xs space-y-0.5 min-w-[130px] hidden sm:block">
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>{isKu ? 'دەستپێک:' : 'Start:'} {formatDate(emp.startedAt || emp.createdAt)}</span>
+                          </div>
+                          <div className={`font-bold flex items-center gap-1 ${expired ? 'text-amber-400' : 'text-slate-300'}`}>
+                            <Calendar className="w-3 h-3 text-slate-500" />
+                            <span>{isKu ? 'کۆتایی:' : 'End:'} {emp.expiresAt ? formatDate(emp.expiresAt) : (isKu ? 'بێ سنوور' : 'Unlimited')}</span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                          {/* WhatsApp Reminder */}
+                          <button
+                            type="button"
+                            onClick={() => handleSendWhatsApp(emp)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer"
+                            title={isKu ? 'ناردنی زانیاری بە واتسئەپ' : 'WhatsApp Receipt'}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">{isKu ? 'واتسئەپ' : 'WhatsApp'}</span>
+                          </button>
+
+                          {/* View Official Receipt */}
+                          {hasReceipt && (
+                            <button
+                              type="button"
+                              onClick={() => setViewingReceiptEmployee(emp)}
+                              className="px-3 py-2 rounded-xl text-xs font-bold bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/30 transition flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span className="hidden xl:inline">{isKu ? 'وەصڵ' : 'Receipt'}</span>
+                            </button>
+                          )}
+
+                          {/* Renew Subscription */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRenew(emp)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{isKu ? 'نوێکردنەوە' : 'Renew'}</span>
+                          </button>
+
+                          {/* Toggle Team Expand if Manager */}
+                          {hasTeam && (
+                            <button
+                              type="button"
+                              onClick={() => toggleManagerExpand(emp.email)}
+                              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                              title={isExpanded ? (isKu ? 'داخستنی تیم' : 'Collapse') : (isKu ? 'پیشاندانی تیم' : 'Expand team')}
+                            >
+                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expandable Team List for Managers */}
+                    {hasTeam && isExpanded && (
+                      <div className="bg-slate-950/60 p-4 border-t border-slate-800/80 animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            <span>{isKu ? `تیمی ئەم بەڕێوەبەرە (${teamEmployees.length} کارمەند):` : `Supervised Team (${teamEmployees.length} Employees):`}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {isKu ? 'هەموو ئەم کارمەندانە لەسەر لایسێنس و ژمێریاری ئەم بەڕێوەبەرەن' : 'Linked under this manager account'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {teamEmployees.map((staff) => (
+                            <div
+                              key={staff.id}
+                              className="p-3 rounded-xl bg-[#141C2E] border border-slate-800 flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-white truncate">
+                                  {staff.displayName}
+                                </div>
+                                <div className="text-[11px] font-mono text-slate-400 truncate">
+                                  {staff.email}
+                                </div>
+                                {staff.phone && (
+                                  <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                                    {staff.phone}
+                                  </div>
+                                )}
+                              </div>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded font-bold shrink-0 ${
+                                  staff.status === 'active' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                }`}
+                              >
+                                {staff.status === 'active' ? (isKu ? 'چالاک' : 'Active') : (isKu ? 'ڕاگیراو' : 'Suspended')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Standard Accounts & RBAC View ── */
+        <>
+          {/* ── KPI Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Accounts */}
         <div
@@ -2251,6 +2914,189 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
           })}
         </div>
       )}
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL: QUICK PRICE UPDATE (دەستکاری خێرای نرخی بەشداریکردن) ──   */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {quickPriceEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-3xl border shadow-2xl p-6 space-y-4 ${
+              isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black">
+                    {isKu ? 'دەستکاری نرخی بەشداریکردن' : 'Edit Subscription Price'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {quickPriceEmployee.displayName} ({quickPriceEmployee.email})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPriceEmployee(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickPrice} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold mb-1.5 text-slate-300">
+                  {isKu ? 'بڕی پارەی دیاریکراو (دینار یان دۆلار)' : 'Fee Amount (USD or IQD)'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={isKu ? 'نموونە: 25,000 IQD یان $25' : 'e.g. $50'}
+                  value={quickPriceValue}
+                  onChange={(e) => setQuickPriceValue(e.target.value)}
+                  autoFocus
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-mono font-bold bg-[#10182B] border border-slate-700 text-slate-100 outline-none focus:border-amber-500"
+                />
+
+                {/* Preset Chips */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {['$25', '$50', '$100', '25,000 IQD', '50,000 IQD', '100,000 IQD', 'بێ بەرامبەر (Free)'].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setQuickPriceValue(chip)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-mono font-bold border transition cursor-pointer ${
+                        quickPriceValue === chip
+                          ? 'bg-amber-500 text-slate-950 border-amber-400'
+                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-amber-500/50'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickPriceEmployee(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  {isKu ? 'داخستن' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingQuickPrice}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-md transition cursor-pointer disabled:opacity-50"
+                >
+                  {savingQuickPrice ? (isKu ? 'پاشەکەوت دەکرێت...' : 'Saving...') : (isKu ? 'خەزنکردن' : 'Save')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL: OFFICIAL RECEIPT PREVIEW (بینینی وەسڵی فەرمی) ──          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {viewingReceiptEmployee && viewingReceiptEmployee.upgradeReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-3xl border border-[#D4AF37]/50 shadow-2xl p-6 space-y-4 ${
+              isDarkMode ? 'bg-[#0F172A] text-slate-100 shadow-[#D4AF37]/10' : 'bg-white text-slate-900 shadow-2xl'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center font-bold">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {isKu ? 'وەسڵی فەرمیی بەشداریکردن' : 'Official Subscription Receipt'}
+                  </h3>
+                  <span className="font-mono text-xs text-[#D4AF37] font-bold">
+                    #{viewingReceiptEmployee.upgradeReceipt.receiptId}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingReceiptEmployee(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Receipt Table */}
+            <div className="rounded-2xl border border-slate-800 bg-[#141C2E] p-4 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{isKu ? 'ناوی کڕیار / مارکێت:' : 'Customer Name:'}</span>
+                <span className="font-bold text-white">{viewingReceiptEmployee.displayName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{isKu ? 'ئیمەیڵی فەرمی:' : 'Email:'}</span>
+                <span className="font-mono text-slate-300">{viewingReceiptEmployee.email}</span>
+              </div>
+              {viewingReceiptEmployee.phone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">{isKu ? 'ژمارەی مۆبایل:' : 'Phone:'}</span>
+                  <span className="font-mono text-slate-300">{viewingReceiptEmployee.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <span className="text-slate-400">{isKu ? 'بڕی پارەی پاکێج:' : 'Package Price:'}</span>
+                <span className="font-mono font-black text-sm text-[#D4AF37] bg-[#D4AF37]/15 px-2.5 py-0.5 rounded-lg border border-[#D4AF37]/30">
+                  {viewingReceiptEmployee.priceAmount || viewingReceiptEmployee.upgradeReceipt.priceAmount || (isKu ? 'دیارینەکراو' : '—')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{isKu ? 'ماوەی پاکێج:' : 'Duration:'}</span>
+                <span className="font-bold text-slate-200">
+                  {viewingReceiptEmployee.upgradeReceipt.planDuration || (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{isKu ? 'کاتی بەشداریکردن:' : 'Start Date:'}</span>
+                <span className="font-mono text-slate-300">{formatDate(viewingReceiptEmployee.startedAt || viewingReceiptEmployee.createdAt)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{isKu ? 'کاتی کۆتاییهاتن:' : 'Expires At:'}</span>
+                <span className="font-mono font-bold text-emerald-400">
+                  {viewingReceiptEmployee.expiresAt ? formatDate(viewingReceiptEmployee.expiresAt) : (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Lifetime')}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => handleSendWhatsApp(viewingReceiptEmployee)}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{isKu ? 'ناردن بە واتسئەپ' : 'Send via WhatsApp'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingReceiptEmployee(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
+              >
+                {isKu ? 'داخستن' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* ── MODAL 1: ADD NEW ACCOUNT ──                                      */}
@@ -2724,6 +3570,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                         isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
                       }`}
                     />
+                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                      {['$25', '$50', '$100', '25,000 IQD', '50,000 IQD', '100,000 IQD'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setFormPrice(preset)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition border cursor-pointer ${
+                            formPrice === preset
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                              : isDarkMode
+                              ? 'bg-slate-800 text-slate-300 border-slate-700 hover:border-amber-500/50'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-amber-500/50'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Start Date Trigger */}
@@ -3402,6 +4266,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                         isDarkMode ? 'bg-[#10182B] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-2xs'
                       }`}
                     />
+                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                      {['$25', '$50', '$100', '25,000 IQD', '50,000 IQD', '100,000 IQD'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setFormPrice(preset)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition border cursor-pointer ${
+                            formPrice === preset
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                              : isDarkMode
+                              ? 'bg-slate-800 text-slate-300 border-slate-700 hover:border-amber-500/50'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-amber-500/50'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Start Date Trigger */}
@@ -3998,6 +4880,24 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                     isDarkMode ? 'bg-[#0E1524] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900 shadow-2xs'
                   }`}
                 />
+                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                  {['$25', '$50', '$100', '25,000 IQD', '50,000 IQD', '100,000 IQD'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setRenewPrice(preset)}
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition border cursor-pointer ${
+                        renewPrice === preset
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                          : isDarkMode
+                          ? 'bg-slate-800 text-slate-300 border-slate-700 hover:border-amber-500/50'
+                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-amber-500/50'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Submit Buttons */}

@@ -39,7 +39,6 @@ import {
   Sparkles,
   Image as ImageIcon,
 } from 'lucide-react';
-import PaymentManagement from '@/components/admin/PaymentManagement';
 import EmployeeManagement from '@/components/admin/EmployeeManagement';
 import HeroBannerManagement from '@/components/admin/HeroBannerManagement';
 import { getClientFirestore } from '@/lib/firebase';
@@ -304,7 +303,7 @@ export default function AdminDashboardPage() {
   const [authError, setAuthError] = useState(false);
 
   // ─── Dashboard Navigation & Filters ───────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'licenses' | 'management' | 'heroBanner'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'management' | 'heroBanner'>('users');
   const [licensesCount, setLicensesCount] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'year' | 'custom'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -979,7 +978,7 @@ export default function AdminDashboardPage() {
               setIsDrawerOpen(false);
             }}
             className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
-              activeTab !== 'licenses' && activeTab !== 'management' && activeTab !== 'heroBanner'
+              activeTab !== 'management' && activeTab !== 'heroBanner'
                 ? isDarkMode
                   ? 'bg-[#1C2438] border-blue-500/50 text-white shadow-md'
                   : 'bg-blue-50 border-blue-400 text-blue-950 shadow-sm'
@@ -991,7 +990,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-3.5 min-w-0">
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                  activeTab !== 'licenses' && activeTab !== 'management' && activeTab !== 'heroBanner'
+                  activeTab !== 'management' && activeTab !== 'heroBanner'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : isDarkMode
                     ? 'bg-slate-800 text-slate-400'
@@ -1016,46 +1015,7 @@ export default function AdminDashboardPage() {
             )}
           </button>
 
-          {/* Button 2: Payment (پەیمێنت) */}
-          <button
-            onClick={() => {
-              setActiveTab('licenses');
-              setIsDrawerOpen(false);
-            }}
-            className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
-              activeTab === 'licenses'
-                ? isDarkMode
-                  ? 'bg-[#1F2739] border-[#D4AF37] text-white shadow-md shadow-[#D4AF37]/10'
-                  : 'bg-[#FDF9ED] border-[#D4AF37] text-slate-900 shadow-sm'
-                : isDarkMode
-                ? 'bg-[#141C2E] border-slate-800 text-slate-300 hover:border-[#D4AF37]/40'
-                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-[#D4AF37]/50'
-            }`}
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#B8860B] flex items-center justify-center text-slate-950 font-bold shadow-md shadow-[#D4AF37]/20 shrink-0">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-inherit truncate flex items-center gap-2">
-                  <span>{isKu ? 'پەیمێنت' : 'Payment'}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-extrabold border border-[#D4AF37]/30">
-                    Live
-                  </span>
-                </div>
-                <div className="text-xs text-slate-400 truncate">
-                  {isKu ? 'بەڕێوەبردنی پارەدان و لایسێنس' : 'Manage payments & licenses'}
-                </div>
-              </div>
-            </div>
-            {isKu ? (
-              <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
-            ) : (
-              <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-            )}
-          </button>
-
-          {/* Button 3: Management (مەنجمێنت) */}
+          {/* Button 2: Management (مەنجمێنت و حسابات) */}
           <button
             onClick={() => {
               setActiveTab('management');
@@ -1154,20 +1114,9 @@ export default function AdminDashboardPage() {
 
       {/* ── Main Content Area ── */}
       <main className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {activeTab === 'licenses' ? (
+        {activeTab === 'management' ? (
           /* ═══════════════════════════════════════════════════════════════════ */
-          /* ── DEDICATED FULL-SCREEN LICENSE & SUBSCRIPTION PORTAL ──           */
-          /* ═══════════════════════════════════════════════════════════════════ */
-          <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
-            {/* FULL SCREEN PAYMENT & SUBSCRIPTION COMPONENT */}
-            <PaymentManagement
-              isDarkMode={isDarkMode}
-              language={language}
-            />
-          </div>
-        ) : activeTab === 'management' ? (
-          /* ═══════════════════════════════════════════════════════════════════ */
-          /* ── EMPLOYEE & RBAC MANAGEMENT PORTAL ──                             */
+          /* ── EMPLOYEE, RBAC & ACCOUNTING (حسابات) PORTAL ──                 */
           /* ═══════════════════════════════════════════════════════════════════ */
           <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
             <EmployeeManagement
