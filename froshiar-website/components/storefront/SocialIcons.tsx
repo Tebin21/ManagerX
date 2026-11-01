@@ -61,7 +61,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
       label: 'واتسئەپ (WhatsApp)',
       href: buildWhatsAppUrl(cleanWhatsapp),
       badgeClass:
-        'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-600',
+        'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white',
       Icon: WhatsAppIcon,
     });
   }
@@ -73,7 +73,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
       label: 'ئینستاگرام (Instagram)',
       href: cleanInstagram,
       badgeClass:
-        'border-pink-500/30 bg-pink-500/10 text-pink-600 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 hover:text-white dark:bg-pink-950/40 dark:text-pink-400',
+        'border-pink-500/30 bg-pink-500/10 text-pink-600 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 hover:text-white dark:border-pink-500/40 dark:bg-pink-500/20 dark:text-pink-400',
       Icon: InstagramIcon,
     });
   }
@@ -85,7 +85,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
       label: 'تیکتۆک (TikTok)',
       href: cleanTikTok,
       badgeClass:
-        'border-slate-300 bg-slate-100 text-slate-800 hover:bg-black hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-black',
+        'border-slate-300 bg-slate-100 text-slate-800 hover:bg-black hover:text-white dark:border-slate-700 dark:bg-white/[0.08] dark:text-slate-200 dark:hover:bg-white dark:hover:text-black',
       Icon: TikTokIcon,
     });
   }
@@ -97,7 +97,7 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
       label: 'فەیسبووک (Facebook)',
       href: cleanFacebook,
       badgeClass:
-        'border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white dark:bg-blue-950/40 dark:text-blue-400',
+        'border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white',
       Icon: FacebookIcon,
     });
   }
@@ -108,27 +108,20 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
   }
 
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/90 p-3 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/90 sm:p-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-          تۆڕە کۆمەڵایەتییەکان:
-        </span>
-        <div className="flex flex-wrap items-center gap-2">
-          {activeItems.map(({ key, label, href, badgeClass, Icon }) => (
-            <a
-              key={key}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={label}
-              className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:text-sm ${badgeClass}`}
-            >
-              <Icon size={15} />
-              <span>{label}</span>
-            </a>
-          ))}
-        </div>
-      </div>
+    <div className="flex items-center gap-1.5 flex-wrap justify-center">
+      {activeItems.map(({ key, label, href, badgeClass, Icon }) => (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={label}
+          title={label}
+          className={`flex h-8 w-8 items-center justify-center rounded-full border shadow-xs transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${badgeClass}`}
+        >
+          <Icon size={15} />
+        </a>
+      ))}
     </div>
   );
 }

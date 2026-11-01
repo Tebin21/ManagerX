@@ -77,25 +77,35 @@ export function StoreHeader({
             )}
           </div>
 
-          {/* Action Buttons: Search Toggle + Dark/Light Theme Toggle (Aligned right level with store title) */}
-          <div className="flex items-center gap-2 shrink-0 pt-1">
-            {/* Search Icon Button */}
-            <button
-              type="button"
-              onClick={onToggleSearch}
-              aria-label="گەڕان"
-              title="گەڕان بۆ کاڵاکان"
-              className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all cursor-pointer ${
-                isSearchOpen
-                  ? 'border-[var(--brand-500,#D4AF37)] bg-[var(--brand-500,#D4AF37)] text-slate-950 shadow-xs'
-                  : 'border-slate-200/90 bg-slate-100/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white'
-              }`}
-            >
-              <Search size={15} />
-            </button>
+          {/* Action Buttons: Search Toggle + Dark/Light Theme Toggle + Social Icons directly underneath */}
+          <div className="flex flex-col items-center gap-2 shrink-0 pt-1">
+            <div className="flex items-center gap-2">
+              {/* Search Icon Button */}
+              <button
+                type="button"
+                onClick={onToggleSearch}
+                aria-label="گەڕان"
+                title="گەڕان بۆ کاڵاکان"
+                className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all cursor-pointer ${
+                  isSearchOpen
+                    ? 'border-[var(--brand-500,#D4AF37)] bg-[var(--brand-500,#D4AF37)] text-slate-950 shadow-xs'
+                    : 'border-slate-200/90 bg-slate-100/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white'
+                }`}
+              >
+                <Search size={15} />
+              </button>
 
-            {/* Theme Toggle (Moon / Sun) */}
-            <ThemeToggle />
+              {/* Theme Toggle (Moon / Sun) */}
+              <ThemeToggle />
+            </div>
+
+            {/* Social media icons directly one row underneath moon & search */}
+            <SocialIcons
+              facebookUrl={info.facebookUrl}
+              instagramUrl={info.instagramUrl}
+              tiktokUrl={info.tiktokUrl}
+              whatsappNumber={info.whatsappNumber}
+            />
           </div>
         </div>
 
@@ -128,14 +138,6 @@ export function StoreHeader({
             </div>
           </div>
         )}
-
-        {/* 4. Small Banner for Social Media Icons */}
-        <SocialIcons
-          facebookUrl={info.facebookUrl}
-          instagramUrl={info.instagramUrl}
-          tiktokUrl={info.tiktokUrl}
-          whatsappNumber={info.whatsappNumber}
-        />
       </div>
     </div>
   );
