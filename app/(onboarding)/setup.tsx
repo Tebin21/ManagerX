@@ -165,6 +165,7 @@ export default function SetupScreen() {
               email: user.email,
               phone: phone.trim() || undefined,
               displayName: user.displayName,
+              photoUrl: (user as any).photoURL || (user as any).photoUrl || null,
               businessName: name.trim(),
               provider: 'setup',
             })

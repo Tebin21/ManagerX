@@ -16,11 +16,12 @@ const LAST_INSTALL_PING_KEY = '@froshiar_telemetry_last_install_ping';
 const LAST_LOGIN_PING_KEY = '@froshiar_telemetry_last_login_ping';
 const PING_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes cooldown for heartbeat
 
-interface UserPayload {
+export interface UserPayload {
   userId: string;
   email?: string | null;
   phone?: string | null;
   displayName?: string | null;
+  photoUrl?: string | null;
   businessName?: string | null;
   provider?: string | null;
 }
@@ -128,6 +129,7 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
         email: user.email ?? prevData?.email ?? null,
         phone: user.phone ?? prevData?.phone ?? null,
         display_name: user.displayName ?? prevData?.display_name ?? null,
+        photo_url: user.photoUrl ?? prevData?.photo_url ?? null,
         business_name: user.businessName ?? prevData?.business_name ?? null,
         provider: user.provider ?? prevData?.provider ?? 'password',
         device_id: deviceId,
@@ -140,6 +142,17 @@ export async function trackUserLogin(user: UserPayload): Promise<void> {
       },
       { merge: true }
     );
+
+    // If an orphaned doc keyed by email exists, clean it up so it never duplicates
+    if (user.email) {
+      try {
+        const emailDocId = user.email.toLowerCase().trim().replace(/[^a-z0-9_]/gi, '_');
+        if (emailDocId !== user.userId) {
+          const { deleteDoc } = await import('@/lib/firebase');
+          await deleteDoc(doc(firestore, 'app_telemetry_users', emailDocId)).catch(() => {});
+        }
+      } catch {}
+    }
 
     // Record event
     try {

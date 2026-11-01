@@ -62,7 +62,7 @@ export function StorefrontView({ store, slug }: Props) {
   }, [store]);
 
   return (
-    <CartProvider storeSlug={slug || 'demo'}>
+    <CartProvider storeSlug={slug || 'demo'} products={store.products}>
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
         className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${isRTL ? 'font-kurdish' : 'font-sans'

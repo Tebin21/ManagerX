@@ -68,13 +68,17 @@ interface UserRecord {
   email: string | null;
   phone: string | null;
   display_name: string | null;
+  photo_url?: string | null;
+  avatar_url?: string | null;
+  photoURL?: string | null;
+  picture?: string | null;
   business_name: string | null;
   device_id: string | null;
   platform: string;
   provider?: string | null;
   app_version: string;
   created_at: string;
-  last_login_at: string;
+  last_login_at: string | null;
   login_count: number;
 }
 
@@ -440,7 +444,7 @@ export default function AdminDashboardPage() {
 
       if (usersSnap && !usersSnap.empty) {
         hasFirebaseData = true;
-        const uList: any[] = [];
+        const usersByEmail = new Map<string, UserRecord>();
         let activeToday = 0;
         let active7Days = 0;
         const now = Date.now();
@@ -449,8 +453,70 @@ export default function AdminDashboardPage() {
 
         usersSnap.forEach((doc) => {
           const d = doc.data() as any;
-          uList.push({ id: doc.id, ...d });
-          const lastLogin = d.last_login_at ? new Date(d.last_login_at).getTime() : 0;
+          const email = (d.email || '').trim().toLowerCase();
+          const key = email || d.user_id || doc.id;
+
+          const rawLastLogin = d.last_login_at || d.updated_at || null;
+          const loginTime = rawLastLogin ? new Date(rawLastLogin).getTime() : 0;
+          const isValidLogin = !isNaN(loginTime) && loginTime > 0;
+
+          if (!usersByEmail.has(key)) {
+            usersByEmail.set(key, {
+              id: doc.id,
+              ...d,
+              email: d.email || null,
+              display_name: d.display_name || null,
+              photo_url: d.photo_url || d.photoURL || d.avatar_url || d.picture || null,
+              phone: d.phone || null,
+              business_name: d.business_name || null,
+              provider: d.provider || null,
+              last_login_at: isValidLogin ? new Date(loginTime).toISOString() : null,
+              login_count: Number(d.login_count) || 1,
+            });
+          } else {
+            const existing = usersByEmail.get(key)!;
+            const existingLoginTime = existing.last_login_at ? new Date(existing.last_login_at).getTime() : 0;
+
+            let mergedLastLogin = existing.last_login_at;
+            if (isValidLogin && (!existingLoginTime || loginTime > existingLoginTime)) {
+              mergedLastLogin = new Date(loginTime).toISOString();
+            }
+
+            const displayName = d.display_name?.trim() || existing.display_name;
+            const photoUrl = d.photo_url || d.photoURL || d.avatar_url || d.picture || existing.photo_url;
+            const phone = d.phone?.trim() || existing.phone;
+            const businessName = d.business_name?.trim() || existing.business_name;
+            const provider =
+              d.provider && d.provider !== 'password'
+                ? d.provider
+                : existing.provider || d.provider;
+
+            usersByEmail.set(key, {
+              ...existing,
+              ...d,
+              id: existing.id.length > doc.id.length ? existing.id : doc.id,
+              display_name: displayName,
+              photo_url: photoUrl,
+              phone: phone,
+              business_name: businessName,
+              provider: provider,
+              last_login_at: mergedLastLogin,
+              login_count: Math.max(Number(existing.login_count) || 1, Number(d.login_count) || 1),
+            });
+          }
+        });
+
+        const uList = Array.from(usersByEmail.values());
+
+        // Sort by last login (most recent first)
+        uList.sort((a, b) => {
+          const timeA = a.last_login_at ? new Date(a.last_login_at).getTime() : 0;
+          const timeB = b.last_login_at ? new Date(b.last_login_at).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        uList.forEach((u) => {
+          const lastLogin = u.last_login_at ? new Date(u.last_login_at).getTime() : 0;
           if (now - lastLogin < oneDay) activeToday++;
           if (now - lastLogin < sevenDays) active7Days++;
         });
@@ -470,7 +536,7 @@ export default function AdminDashboardPage() {
         setUsers(uList);
         setStats((prev) => ({
           ...(prev || defaultStats),
-          totalUsers: usersSnap.size,
+          totalUsers: uList.length,
           activeUsersToday: activeToday,
           activeUsers7Days: active7Days,
         }));
@@ -1525,8 +1591,21 @@ export default function AdminDashboardPage() {
                     >
                       {/* User Info */}
                       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] font-bold text-xs sm:text-sm shrink-0">
-                          {u.display_name?.charAt(0) || u.email?.charAt(0).toUpperCase() || 'U'}
+                        {/* Avatar / Profile Picture */}
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-[#D4AF37]/20 to-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] font-bold text-xs sm:text-sm shrink-0 overflow-hidden border border-[#D4AF37]/30 shadow-2xs">
+                          {u.photo_url || (u as any).avatar_url || (u as any).photoURL || (u as any).picture ? (
+                            <img
+                              src={u.photo_url || (u as any).avatar_url || (u as any).photoURL || (u as any).picture}
+                              alt={u.display_name || u.email || 'User'}
+                              className="w-full h-full object-cover rounded-xl"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <span>{u.display_name?.charAt(0) || u.email?.charAt(0).toUpperCase() || 'U'}</span>
+                          )}
                         </div>
                         <div className="text-start min-w-0">
                           <div className="text-xs sm:text-sm font-bold text-inherit flex items-center gap-1.5 sm:gap-2">
@@ -1584,10 +1663,19 @@ export default function AdminDashboardPage() {
                       <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 text-start pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/40 dark:border-slate-800/60 shrink-0">
                         <div className="text-start">
                           <div className="text-[11px] sm:text-xs font-semibold text-emerald-500">
-                            {t.lastLogin} {new Date(u.last_login_at).toLocaleDateString()}
+                            {t.lastLogin}{' '}
+                            {u.last_login_at && !isNaN(new Date(u.last_login_at).getTime())
+                              ? new Date(u.last_login_at).toLocaleDateString()
+                              : u.created_at && !isNaN(new Date(u.created_at).getTime())
+                              ? new Date(u.created_at).toLocaleDateString()
+                              : '—'}
                           </div>
                           <div className="text-[10px] text-slate-400 font-mono">
-                            {new Date(u.last_login_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            {u.last_login_at && !isNaN(new Date(u.last_login_at).getTime())
+                              ? new Date(u.last_login_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : u.created_at && !isNaN(new Date(u.created_at).getTime())
+                              ? new Date(u.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : '—'}
                           </div>
                         </div>
 

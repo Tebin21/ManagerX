@@ -515,6 +515,7 @@ async function adoptSignedInUserInner(
         email: user.email,
         phone: user.phoneNumber,
         displayName: user.displayName,
+        photoUrl: user.photoURL,
         businessName: useBusinessStore.getState().name || business.name,
         provider,
       })
