@@ -36,22 +36,6 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-function SnapchatIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12.002 2C8.618 2 6.46 3.948 6.46 6.81c0 1.08.384 2.148.625 2.76.082.207.124.31-.02.433-.147.126-.402.138-.636.143-.332.007-.76.016-1.042.316-.273.29-.27.674-.012.984.343.413 1.01.625 1.706.784.093.022.18.041.22.148.05.132-.016.29-.082.443-.133.313-.362.85-.362 1.341 0 .285.08.57.25.795.348.463 1.033.454 1.549.448.33-.005.626-.008.825.137.28.204.383.693.447 1.002.1.482.25 1.198.81 1.442.26.113.56.165.87.165.41 0 .84-.09 1.25-.26.6-.25 1.05-.25 1.63 0 .4.17.84.26 1.25.26.31 0 .61-.052.87-.165.56-.244.71-.96.81-1.442.064-.309.167-.798.447-1.002.199-.145.495-.142.825-.137.516.006 1.2.015 1.549-.448.17-.225.25-.51.25-.795 0-.491-.229-1.028-.362-1.341-.066-.153-.132-.311-.082-.443.04-.107.127-.126.22-.148.696-.159 1.363-.371 1.706-.784.258-.31.261-.694-.012-.984-.282-.3-.71-.309-1.042-.316-.234-.005-.489-.017-.636-.143-.144-.123-.102-.226-.02-.433.241-.612.625-1.68.625-2.76C17.544 3.948 15.386 2 12.002 2z" />
-    </svg>
-  );
-}
-
-function TelegramIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
-    </svg>
-  );
-}
-
 interface Props {
   facebookUrl?: string;
   instagramUrl?: string;
@@ -70,8 +54,6 @@ export function SocialIcons({
   instagramUrl,
   tiktokUrl,
   whatsappNumber,
-  telegramUrl,
-  snapchatUrl,
 }: Props) {
   const [activeUnavailable, setActiveUnavailable] = useState<string | null>(null);
 
@@ -79,9 +61,8 @@ export function SocialIcons({
   const cleanInstagram = (instagramUrl || '').trim();
   const cleanTikTok = (tiktokUrl || '').trim();
   const cleanFacebook = (facebookUrl || '').trim();
-  const cleanSnapchat = (snapchatUrl || '').trim();
-  const cleanTelegram = (telegramUrl || '').trim();
 
+  // Keep strictly the 4 authentic platforms: WhatsApp, Instagram, TikTok, Facebook
   const items = [
     {
       key: 'whatsapp',
@@ -118,24 +99,6 @@ export function SocialIcons({
       activeClass:
         'border-blue-500/40 bg-blue-500/15 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white',
       Icon: FacebookIcon,
-    },
-    {
-      key: 'snapchat',
-      name: 'سناپچات',
-      href: cleanSnapchat || undefined,
-      isAvailable: Boolean(cleanSnapchat),
-      activeClass:
-        'border-amber-400/50 bg-amber-300/20 text-amber-600 hover:bg-[#FFFC00] hover:text-slate-900 hover:border-amber-400 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300 dark:hover:bg-[#FFFC00] dark:hover:text-slate-950',
-      Icon: SnapchatIcon,
-    },
-    {
-      key: 'telegram',
-      name: 'تێلیگرام',
-      href: cleanTelegram || undefined,
-      isAvailable: Boolean(cleanTelegram),
-      activeClass:
-        'border-sky-500/40 bg-sky-500/15 text-sky-500 hover:bg-sky-500 hover:text-white hover:border-sky-500 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-400 dark:hover:bg-sky-500 dark:hover:text-white',
-      Icon: TelegramIcon,
     },
   ];
 

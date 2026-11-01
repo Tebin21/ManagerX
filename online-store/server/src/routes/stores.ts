@@ -151,6 +151,7 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
       description: p.description ?? null,
       websiteDescription: p.websiteDescription ?? null,
       price: p.price,
+      quantity: p.quantity ?? 999,
       imageUrl: p.imageUrl,
     }));
 

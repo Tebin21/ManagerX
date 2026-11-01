@@ -52,8 +52,6 @@ export function StoreContactBanner({ info }: Props) {
         instagramUrl={info.instagramUrl}
         tiktokUrl={info.tiktokUrl}
         whatsappNumber={info.whatsappNumber}
-        telegramUrl={info.telegramUrl}
-        snapchatUrl={info.snapchatUrl}
       />
     </div>
   );

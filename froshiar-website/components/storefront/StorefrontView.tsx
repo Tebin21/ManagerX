@@ -10,6 +10,7 @@ import { CategoryFilterBar } from './CategoryFilterBar';
 import { StorefrontFooter } from './StorefrontFooter';
 import { CartProvider } from './CartContext';
 import { CartDrawer } from './CartDrawer';
+import { FloatingCartBar } from './FloatingCartBar';
 
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
@@ -141,7 +142,10 @@ export function StorefrontView({ store, slug }: Props) {
         {/* 4. Footer */}
         <StorefrontFooter isRTL={isRTL} />
 
-        {/* 5. Slide-over Shopping Cart Drawer */}
+        {/* 5. Sticky Floating Bottom Cart Bar (Appears when items are selected) */}
+        <FloatingCartBar isRTL={isRTL} />
+
+        {/* 6. Slide-over Shopping Cart Drawer */}
         <CartDrawer businessName={store.businessName} info={store.info} />
       </div>
     </CartProvider>

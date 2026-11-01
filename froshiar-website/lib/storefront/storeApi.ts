@@ -7,6 +7,7 @@ export interface StoreProduct {
   description: string | null;
   websiteDescription: string | null;
   price: number;
+  quantity?: number;
   imageUrl: string | null;
 }
 

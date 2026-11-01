@@ -10,6 +10,7 @@ import { StoreContactBanner } from '@/components/storefront/StoreContactBanner';
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter';
 import { CartProvider } from '@/components/storefront/CartContext';
 import { CartDrawer } from '@/components/storefront/CartDrawer';
+import { FloatingCartBar } from '@/components/storefront/FloatingCartBar';
 import { ProductAddToCart } from '@/components/storefront/ProductAddToCart';
 import { ProductHeaderBar } from '@/components/storefront/ProductHeaderBar';
 
@@ -173,6 +174,8 @@ export default async function ProductDetailsPage({
         <StoreContactBanner info={store.info} />
 
         <StorefrontFooter isRTL={isRTL} />
+
+        <FloatingCartBar isRTL={isRTL} />
 
         <CartDrawer businessName={store.businessName} info={store.info} />
       </div>

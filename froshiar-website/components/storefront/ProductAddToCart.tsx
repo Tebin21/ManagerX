@@ -10,15 +10,31 @@ interface Props {
 }
 
 export function ProductAddToCart({ product }: Props) {
-  const { addItem, openCart } = useCart();
+  const { addItem, openCart, showToast } = useCart();
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
+  const stockLimit = product.quantity !== undefined ? product.quantity : 9999;
+
+  const handleMinus = () => {
+    setQty((prev) => Math.max(1, prev - 1));
+  };
+
+  const handlePlus = () => {
+    if (qty + 1 > stockLimit) {
+      showToast(`تەنها تا ${stockLimit} دانە دەتوانیت داوا بکەیت، لە کۆگادا نەماوە`);
+      return;
+    }
+    setQty((prev) => prev + 1);
+  };
+
   const handleAdd = () => {
-    addItem(product, qty);
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 1500);
-    openCart();
+    const success = addItem(product, qty);
+    if (success) {
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 1500);
+      openCart();
+    }
   };
 
   return (
@@ -27,7 +43,7 @@ export function ProductAddToCart({ product }: Props) {
       <div className="flex items-center justify-between sm:justify-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 dark:border-slate-700 dark:bg-slate-800">
         <button
           type="button"
-          onClick={() => setQty((prev) => Math.max(1, prev - 1))}
+          onClick={handleMinus}
           aria-label="کەمکردنەوە"
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition cursor-pointer"
         >
@@ -43,7 +59,7 @@ export function ProductAddToCart({ product }: Props) {
 
         <button
           type="button"
-          onClick={() => setQty((prev) => prev + 1)}
+          onClick={handlePlus}
           aria-label="زیادکردن"
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition cursor-pointer"
         >
@@ -72,4 +88,3 @@ export function ProductAddToCart({ product }: Props) {
     </div>
   );
 }
-

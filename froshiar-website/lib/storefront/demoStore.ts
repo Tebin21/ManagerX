@@ -21,6 +21,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'کوالیتی دەنگی بەرز، بەرگەی باتری بۆ ماوەی درێژ',
       websiteDescription: 'Crisp sound, all-day battery',
       price: 145000,
+      quantity: 3,
       imageUrl: '/demo/product-01.jpg',
     },
     {
@@ -30,6 +31,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'پلەی گەرمی سارد بۆ ٢٤ کاتژمێر دەپارێزێت',
       websiteDescription: 'Keeps drinks cold 24h',
       price: 25000,
+      quantity: 5,
       imageUrl: '/demo/product-02.jpg',
     },
     {
@@ -39,6 +41,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'چەرمی سروشتی دەستکرد',
       websiteDescription: 'Slim, handstitched leather',
       price: 35000,
+      quantity: 4,
       imageUrl: '/demo/product-03.jpg',
     },
     {
@@ -48,6 +51,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'بارگاویکردنەوەی خێرا بۆ هەموو مۆبایلەکان',
       websiteDescription: 'Fast charging, dual USB-C',
       price: 45000,
+      quantity: 2,
       imageUrl: '/demo/product-04.jpg',
     },
     {
@@ -57,6 +61,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'کەوچک و پیاڵەی گەرمیی تایبەت',
       websiteDescription: 'Matte glaze, dishwasher-safe',
       price: 12000,
+      quantity: 6,
       imageUrl: '/demo/product-05.jpg',
     },
     {
@@ -66,6 +71,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'پارێزگاری لە چاو دژی تیشکی خۆر',
       websiteDescription: 'UV400 protection, lightweight frame',
       price: 55000,
+      quantity: 4,
       imageUrl: '/demo/product-06.jpg',
     },
     {
@@ -75,6 +81,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'کیبۆردی تایبەت بۆ یاری و کارکردن',
       websiteDescription: 'Red switches, per-key RGB',
       price: 85000,
+      quantity: 3,
       imageUrl: '/demo/product-07.jpg',
     },
     {
@@ -84,6 +91,7 @@ export const DEMO_STORE: StoreResponse = {
       description: 'جانتا بۆ کۆمپیوتەر و پێداویستی ڕۆژانە',
       websiteDescription: 'Water-resistant, fits 15" laptop',
       price: 65000,
+      quantity: 5,
       imageUrl: '/demo/product-08.jpg',
     },
   ],
