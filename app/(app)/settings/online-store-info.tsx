@@ -92,30 +92,12 @@ export default function OnlineStoreInfoScreen() {
     }
   }
 
-  const user = useAuthStore((s) => s.user);
-  const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
-
   // Gated: Show Coming Soon for users without an active Online Store subscription
-  if (!hasActiveSubscription && !isDemoUser) {
+  if (!hasActiveSubscription) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
         <OnlineStoreComingSoon />
-      </View>
-    );
-  }
-
-  // Defense-in-depth — this screen is normally unreachable when locked (the entry
-  // point in online-store.tsx already hides itself), but render the read-only locked
-  // view too in case the subscription lapses while this screen is already open.
-  if (!hasActiveSubscription && !isDemoUser) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-        <AppHeader title={t('settings.onlineStoreInfoScreen.title')} showBack />
-        <ScrollView contentContainerStyle={[styles.body, isTablet && contentContainerStyle]} showsVerticalScrollIndicator={false}>
-          <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
-          <View style={{ height: 32 }} />
-        </ScrollView>
       </View>
     );
   }

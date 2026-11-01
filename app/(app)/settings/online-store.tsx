@@ -78,29 +78,12 @@ export default function OnlineStoreScreen() {
     }
   };
 
-  const isDemoUser = user?.email?.toLowerCase().trim() === 'demo@froshiar.store';
-
   // Gated: Show Coming Soon for users without an active Online Store subscription
-  if (!hasActiveSubscription && !isDemoUser) {
+  if (!hasActiveSubscription) {
     return (
       <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
         <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
         <OnlineStoreComingSoon />
-      </View>
-    );
-  }
-
-  // Read-only/locked entirely when there's no active subscription — no enable/sync/
-  // edit controls rendered at all, satisfying "store settings must be read-only".
-  if (!hasActiveSubscription && !isDemoUser) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.gray50 }]}>
-        <SettingsBackground />
-        <AppHeader title={t('settings.onlineStoreScreen.title')} showBack />
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-          <OnlineStoreLockedCard expired={subscriptionExpired} legacy={isLegacyActiveStore} />
-          <View style={{ height: 40 }} />
-        </ScrollView>
       </View>
     );
   }

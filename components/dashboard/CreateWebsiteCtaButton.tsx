@@ -276,6 +276,38 @@ export function CreateWebsiteCtaButton({ style }: Props) {
               </Text>
             </View>
 
+            {/* View Demo Website Button */}
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                Linking.openURL('https://froshiar.store/demo').catch(() => {});
+              }}
+              activeOpacity={0.85}
+              style={[
+                styles.demoBtn,
+                {
+                  backgroundColor: primaryAccent,
+                  flexDirection,
+                },
+              ]}
+            >
+              <Ionicons name="globe-outline" size={18} color="#0F172A" />
+              <Text
+                style={[
+                  styles.demoBtnText,
+                  { color: '#0F172A' },
+                  (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
+                ]}
+              >
+                {isAr ? 'مشاهدة النسخة التجريبية للموقع' : isKu ? 'بینینی دیمۆی وێبسایتەکە' : 'View Demo Website'}
+              </Text>
+              <Ionicons
+                name={isRTL ? 'arrow-back' : 'arrow-forward'}
+                size={16}
+                color="#0F172A"
+              />
+            </TouchableOpacity>
+
             {/* Features List */}
             <View style={styles.featuresList}>
               {/* Feature 1 */}
@@ -652,6 +684,26 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '700',
     flex: 1,
+  },
+  demoBtn: {
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  demoBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   phoneDisplay: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',

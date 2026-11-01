@@ -105,26 +105,10 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
     }
   } catch {}
 
-  // Dedicated demo account preview entitlement (strictly demo@froshiar.store)
   try {
     await waitForAuthHydration();
     const { useAuthStore } = await import('@/store/authStore');
     const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
-    if (__DEV__) console.warn('[onlineStoreSubscription] auth email:', email, 'hydrated:', useAuthStore.persist?.hasHydrated?.());
-    if (email === 'demo@froshiar.store') {
-      const demoInfo: SubscriptionInfo = {
-        plan: 'lifetime',
-        deviceId,
-        subscriptionCode: 'DEMO-STORE-PREVIEW',
-        activatedAt: '2026-01-01T00:00:00.000Z',
-        expiresAt: null,
-        isActive: true,
-        expired: false,
-      };
-      cachedInfo = demoInfo;
-      cachedAt = Date.now();
-      return demoInfo;
-    }
 
     // Check Admin Portal Online Store Activation (real-time toggle from admin panel)
     try {
@@ -148,24 +132,25 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
       if (__DEV__) console.warn('[onlineStoreSubscription] admin check error:', err);
     }
 
-    // Check Cloud user subscription in Firebase Firestore (approved by admin)
+    // Check store_activations in Firebase Firestore (specifically activated by admin)
     if (email) {
       try {
+        const { parseStoreActiveFromData } = await import('@/lib/onlineStore/storeActivationService');
         const { getFirebaseFirestore, doc, getDoc } = await import('@/lib/firebase');
         const db = getFirebaseFirestore();
         const subDocId = email.replace(/[^a-z0-9_]/gi, '_');
-        const snap = await getDoc(doc(db, 'user_subscriptions', subDocId));
+        const snap = await getDoc(doc(db, 'store_activations', subDocId));
         if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
           const data = snap.data();
-          if (data && data.status === 'active') {
+          if (parseStoreActiveFromData(data)) {
             const isLifetime = data.planId === 'lifetime' || !data.expiresAt;
             const isNotExpired = isLifetime || new Date(data.expiresAt).getTime() > Date.now();
             if (isNotExpired) {
               const cloudInfo: SubscriptionInfo = {
-                plan: (data.planId as SubscriptionPlan) ?? '12m',
+                plan: (data.planId as SubscriptionPlan) ?? 'lifetime',
                 deviceId,
-                subscriptionCode: `CLOUD-${(data.planId || 'ACTIVE').toUpperCase()}`,
-                activatedAt: data.startDate || new Date().toISOString(),
+                subscriptionCode: `ADMIN-${(data.subdomain || 'ACTIVE').toUpperCase()}`,
+                activatedAt: data.activatedAt || data.startDate || new Date().toISOString(),
                 expiresAt: data.expiresAt || null,
                 isActive: true,
                 expired: false,
@@ -283,10 +268,6 @@ export async function getOnlineStoreSubscriptionHeaders(): Promise<{ code: strin
     await waitForAuthHydration();
     const { useAuthStore } = await import('@/store/authStore');
     const email = useAuthStore.getState().user?.email?.toLowerCase().trim();
-    if (email === 'demo@froshiar.store') {
-      if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders: DEMO-STORE-PREVIEW attached');
-      return { code: 'DEMO-STORE-PREVIEW', deviceId };
-    }
     const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
     const adminActive = await isOnlineStoreActivatedByAdmin();
     if (adminActive) {

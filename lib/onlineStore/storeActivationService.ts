@@ -13,16 +13,41 @@ export function invalidateStoreActivationCache(): void {
 
 export function parseStoreActiveFromData(data: any): boolean {
   if (!data) return false;
+  // If explicitly suspended or disabled
   if (data?.onlineStore?.status === 'suspended' || data?.onlineStore?.enabled === false) {
     return false;
   }
-  return Boolean(
-    (data?.onlineStore?.enabled && data?.onlineStore?.status === 'active') ||
-    data?.onlineStoreActive === true ||
-    data?.storefront_enabled === true ||
-    data?.onlineStore?.status === 'active' ||
-    (data?.enabled === true && data?.status === 'active')
-  );
+  if (data?.enabled === false || data?.status === 'suspended') {
+    return false;
+  }
+
+  // 1. Check nested onlineStore object (used in employee_accounts & user_subscriptions when admin activates)
+  if (
+    data?.onlineStore?.enabled === true &&
+    data?.onlineStore?.status === 'active' &&
+    Boolean(data?.onlineStore?.subdomain)
+  ) {
+    return true;
+  }
+
+  // 2. Check store_activations collection doc (has top-level enabled: true, status: 'active', AND subdomain)
+  if (
+    data?.enabled === true &&
+    data?.status === 'active' &&
+    Boolean(data?.subdomain)
+  ) {
+    return true;
+  }
+
+  // 3. Fallback: only if storefront_enabled or onlineStoreActive is explicitly true AND subdomain exists
+  if (
+    (data?.storefront_enabled === true || data?.onlineStoreActive === true) &&
+    Boolean(data?.onlineStore?.subdomain || data?.subdomain)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promise<boolean> {
@@ -48,13 +73,6 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
     isStoreActiveCache = false;
     lastCheckTime = now;
     return false;
-  }
-
-  // Demo user preview exception if specifically demo@froshiar.store
-  if (email === 'demo@froshiar.store') {
-    isStoreActiveCache = true;
-    lastCheckTime = now;
-    return true;
   }
 
   try {
@@ -228,6 +246,9 @@ export function startStoreActivationRealtimeListener(): () => void {
       unsubStoreActivation = onSnapshot(doc(db, 'store_activations', docId), () => {
         handleSnapshotChange().catch(() => {});
       }, () => {});
+
+      // Immediate initial reconciliation on setup
+      handleSnapshotChange().catch(() => {});
     } catch (err) {
       console.warn('[storeActivationService] Realtime listener setup error:', err);
     }
