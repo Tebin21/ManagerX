@@ -41,7 +41,7 @@ export function StoreHeader({
             <img
               src={info.logoUrl}
               alt={businessName}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-center"
             />
           ) : (
             <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--brand-700,#1e3a8a)] via-[var(--brand-600,#2563eb)] to-slate-950">

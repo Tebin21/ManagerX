@@ -7,6 +7,7 @@ export const DEMO_STORE: StoreResponse = {
     description: 'فڕۆشگایەکی تاقیکاری فەرمی فرۆشیار کە پیشانی دەدات فڕۆشگای ئۆنلاینی تۆ چۆن دەردەکەوێت.',
     phone: '07708229696',
     address: 'Erbil, Kurdistan Region, Iraq',
+    logoUrl: '/demo/banner.png',
     instagramUrl: 'https://www.instagram.com/froshiar.krd/?hl=am-et',
     whatsappNumber: '9647708229696',
     themeColor: '#D4AF37',
