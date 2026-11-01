@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, ShoppingBag } from 'lucide-react';
 import type { StoreInfo } from '@/lib/storefront/storeApi';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { useCart } from './CartContext';
 
 interface Props {
   businessName: string;
@@ -26,6 +27,8 @@ export function StoreHeader({
   const isKurdish = useMemo(() => {
     return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(businessName);
   }, [businessName]);
+
+  const { totalCount, openCart } = useCart();
 
   return (
     <div className="w-full">
@@ -76,8 +79,24 @@ export function StoreHeader({
             )}
           </div>
 
-          {/* Action Buttons: Search Toggle + Dark/Light Theme Toggle */}
+          {/* Action Buttons: Shopping Cart + Search Toggle + Dark/Light Theme Toggle */}
           <div className="flex items-center gap-2 shrink-0 pt-1">
+            {/* Shopping Cart Button with Dynamic Badge */}
+            <button
+              type="button"
+              onClick={openCart}
+              aria-label="سەبەتەی کڕین"
+              title="سەبەتەی کڕین"
+              className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/90 bg-slate-100/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white transition-all cursor-pointer"
+            >
+              <ShoppingBag size={15} />
+              {totalCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[var(--brand-500,#D4AF37)] text-[10px] font-black text-slate-950 shadow-sm animate-in zoom-in-75">
+                  {totalCount}
+                </span>
+              )}
+            </button>
+
             {/* Search Icon Button */}
             <button
               type="button"
