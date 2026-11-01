@@ -33,6 +33,7 @@ import { useRTL } from '@/lib/rtl';
 import { AdminNotificationBanner } from '@/components/admin/AdminNotificationBanner';
 import { UsageLimitModal } from '@/components/ui/UsageLimitModal';
 import { AccountUpgradeReceiptModal } from '@/components/ui/AccountUpgradeReceiptModal';
+import { SplashScreenOverlay } from '@/components/splash/SplashScreenOverlay';
 
 if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -84,20 +85,20 @@ function AppStack() {
         <Stack.Screen
           name="index"
           options={{
-            animation: 'none',
+            animation: 'fade',
             contentStyle: { backgroundColor: '#000000' },
           }}
         />
         <Stack.Screen
           name="(app)"
           options={{
-            animation: 'none',
+            animation: 'fade',
           }}
         />
         <Stack.Screen
           name="(onboarding)"
           options={{
-            animation: 'none',
+            animation: 'fade',
           }}
         />
       </Stack>
@@ -165,10 +166,14 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && Platform.OS !== 'web') {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded, fontError]);
+    // Safety fallback: if anything prevents the overlay from mounting within 3.5s, drop native splash
+    const timer = setTimeout(() => {
+      if (Platform.OS !== 'web') {
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const accentColor = useSettingsStore((s) => s.accentColor);
   const loadingBg = accentColor
@@ -197,6 +202,7 @@ export default function RootLayout() {
           <AdminNotificationBanner />
           <UsageLimitModal />
           <AccountUpgradeReceiptModal />
+          <SplashScreenOverlay />
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
