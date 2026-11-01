@@ -23,10 +23,12 @@ export function StoreHeader({
   searchQuery = '',
   onSearchChange,
 }: Props) {
-  // Check whether store name is Kurdish / Arabic script
+  // Check whether store name or description contains Kurdish / Arabic script
   const isKurdish = useMemo(() => {
-    return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(businessName);
-  }, [businessName]);
+    return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(
+      `${businessName} ${info.description || ''}`
+    );
+  }, [businessName, info.description]);
 
   const { totalCount, openCart } = useCart();
 
@@ -62,17 +64,13 @@ export function StoreHeader({
           {/* Store Name & Description (Right side in RTL, Left side in LTR) */}
           <div className={`flex-1 min-w-0 ${isKurdish ? 'text-right' : 'text-left'}`}>
             <h1
-              className={`text-2xl font-black tracking-tight text-slate-900 sm:text-3xl md:text-4xl dark:text-white leading-tight ${
-                isKurdish ? 'font-kurdish' : 'font-sans'
-              }`}
+              className={`text-2xl font-black tracking-tight text-slate-900 sm:text-3xl md:text-4xl dark:text-white leading-tight font-kurdish`}
             >
               {businessName}
             </h1>
             {info.description && (
               <p
-                className={`mt-1.5 text-sm font-medium leading-relaxed text-slate-600 sm:text-base dark:text-slate-300 ${
-                  isKurdish ? 'font-kurdish' : 'font-sans'
-                }`}
+                className={`mt-1.5 text-sm font-medium leading-relaxed text-slate-600 sm:text-base dark:text-slate-300 font-kurdish`}
               >
                 {info.description}
               </p>

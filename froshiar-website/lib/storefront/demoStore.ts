@@ -1,17 +1,15 @@
 import type { StoreResponse } from './storeApi';
 
 export const DEMO_STORE: StoreResponse = {
-  businessName: 'Froshiar Demo Store',
+  businessName: 'ئەم وێبسایتە بۆ تێستە',
   enabled: true,
   info: {
     description: 'فڕۆشگایەکی تاقیکاری فەرمی فرۆشیار کە پیشانی دەدات فڕۆشگای ئۆنلاینی تۆ چۆن دەردەکەوێت.',
-    phone: '0770 234 5678',
+    phone: '07708229696',
     address: 'Erbil, Kurdistan Region, Iraq',
-    facebookUrl: 'https://facebook.com/froshiar',
-    instagramUrl: 'https://instagram.com/froshiar',
-    tiktokUrl: 'https://tiktok.com/@froshiar',
-    whatsappNumber: '9647702345678',
-    themeColor: '#2563eb',
+    instagramUrl: 'https://www.instagram.com/froshiar.krd/?hl=am-et',
+    whatsappNumber: '9647708229696',
+    themeColor: '#D4AF37',
   },
   products: [
     {

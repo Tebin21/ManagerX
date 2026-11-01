@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 function FacebookIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -55,8 +53,6 @@ export function SocialIcons({
   tiktokUrl,
   whatsappNumber,
 }: Props) {
-  const [activeUnavailable, setActiveUnavailable] = useState<string | null>(null);
-
   const cleanWhatsapp = (whatsappNumber || '').trim();
   const cleanInstagram = (instagramUrl || '').trim();
   const cleanTikTok = (tiktokUrl || '').trim();
@@ -102,55 +98,25 @@ export function SocialIcons({
     },
   ];
 
-  const handleUnavailableClick = (key: string) => {
-    setActiveUnavailable(key);
-    setTimeout(() => {
-      setActiveUnavailable((curr) => (curr === key ? null : curr));
-    }, 2500);
-  };
+  const availableItems = items.filter((item) => item.isAvailable && item.href);
+
+  if (availableItems.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-      {items.map((item) => {
-        if (item.isAvailable && item.href) {
-          return (
-            <a
-              key={item.key}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={item.name}
-              title={item.name}
-              className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border shadow-xs transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${item.activeClass}`}
-            >
-              <item.Icon size={18} />
-            </a>
-          );
-        }
-
-        const isBadgeOpen = activeUnavailable === item.key;
-
-        return (
-          <div key={item.key} className="relative">
-            <button
-              type="button"
-              onClick={() => handleUnavailableClick(item.key)}
-              aria-label={`${item.name} (بەردەست نییە)`}
-              title={`${item.name} (بەردەست نییە)`}
-              className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-slate-200/70 bg-slate-100/60 text-slate-400 shadow-2xs backdrop-blur-sm transition-all duration-200 hover:border-amber-400/50 hover:text-amber-500 hover:scale-105 active:scale-95 cursor-pointer dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-500 dark:hover:border-amber-400/50 dark:hover:text-amber-400"
-            >
-              <item.Icon size={18} />
-            </button>
-
-            {/* Popup Tooltip: بەردەست نییە */}
-            {isBadgeOpen && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-lg bg-slate-900/95 px-2.5 py-1 text-[11px] font-bold text-white shadow-xl ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-150 dark:bg-slate-800 dark:text-amber-300">
-                بەردەست نییە
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {availableItems.map((item) => (
+        <a
+          key={item.key}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={item.name}
+          title={item.name}
+          className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full border shadow-xs transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${item.activeClass}`}
+        >
+          <item.Icon size={18} />
+        </a>
+      ))}
     </div>
   );
 }

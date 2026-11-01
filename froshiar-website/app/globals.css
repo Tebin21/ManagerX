@@ -48,7 +48,7 @@
   --color-gray-600: #475569;
   --color-gray-700: #334155;
 
-  --font-sans: "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  --font-sans: var(--font-bahij), "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
   --font-kurdish: var(--font-bahij), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-helvetica: "Helvetica Neue", Helvetica, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
 }
@@ -56,7 +56,7 @@
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-family: "Helvetica Neue", Helvetica, Arial, var(--font-bahij), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-bahij), "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
   transition:
     background-color 0.3s ease,
@@ -82,11 +82,9 @@ html[lang="ckb"] select,
 html[lang="ckb"] textarea,
 html[lang="ckb"] optgroup,
 [dir="rtl"],
-[dir="rtl"] body,
-[dir="rtl"] input,
-[dir="rtl"] button,
-[dir="rtl"] select,
-[dir="rtl"] textarea {
+[dir="rtl"] *,
+.font-kurdish,
+.font-kurdish * {
   font-family: var(--font-bahij), "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 

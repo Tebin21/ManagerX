@@ -77,9 +77,7 @@ export default async function ProductDetailsPage({
     <CartProvider storeSlug={clean} products={store.products}>
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${
-          isRTL ? 'font-kurdish' : 'font-sans'
-        }`}
+        className="min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 font-kurdish"
         style={brandStyle}
       >
         <main className="mx-auto max-w-4xl px-4 py-8 flex-1 w-full">

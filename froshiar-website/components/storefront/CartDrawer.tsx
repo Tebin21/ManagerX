@@ -228,7 +228,7 @@ export function CartDrawer({ businessName, info }: Props) {
                 </div>
 
                 {/* Customer Information (Optional fields for order delivery) */}
-                <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-850 space-y-3">
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-800/60 space-y-3">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     زانیاری کڕیار بۆ پەیوەندی و گەیاندن (ئارەزوومەندانە):
                   </p>
@@ -244,7 +244,7 @@ export function CartDrawer({ businessName, info }: Props) {
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         placeholder="ناوی بەڕێزت..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 px-8 text-xs text-slate-800 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                        className="w-full rounded-xl border border-slate-200/90 bg-white py-2.5 px-8 text-xs text-slate-800 placeholder-slate-400 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-[var(--brand-500,#D4AF37)] dark:focus:bg-slate-900"
                       />
                     </div>
 
@@ -258,7 +258,7 @@ export function CartDrawer({ businessName, info }: Props) {
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="ژمارەی مۆبایل..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 px-8 text-xs text-slate-800 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:bg-slate-800 font-sans"
+                        className="w-full rounded-xl border border-slate-200/90 bg-white py-2.5 px-8 text-xs text-slate-800 placeholder-slate-400 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-[var(--brand-500,#D4AF37)] dark:focus:bg-slate-900 font-sans"
                       />
                     </div>
 
@@ -272,7 +272,7 @@ export function CartDrawer({ businessName, info }: Props) {
                         value={customerAddress}
                         onChange={(e) => setCustomerAddress(e.target.value)}
                         placeholder="ناونیشان یان تێبینی تایبەت..."
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 px-8 text-xs text-slate-800 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                        className="w-full rounded-xl border border-slate-200/90 bg-white py-2.5 px-8 text-xs text-slate-800 placeholder-slate-400 transition focus:border-[var(--brand-500,#D4AF37)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--brand-500,#D4AF37)] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-[var(--brand-500,#D4AF37)] dark:focus:bg-slate-900"
                       />
                     </div>
                   </div>
@@ -282,7 +282,7 @@ export function CartDrawer({ businessName, info }: Props) {
                   <button
                     type="button"
                     onClick={clearCart}
-                    className="text-xs text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                    className="text-xs font-semibold text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 transition cursor-pointer"
                   >
                     سڕینەوەی هەمووی
                   </button>
