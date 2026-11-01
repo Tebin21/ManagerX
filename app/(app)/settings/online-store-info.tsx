@@ -37,6 +37,24 @@ function toInternationalIraqiPhone(input: string): string {
   return '964' + digits;                              // bare local number, no leading 0
 }
 
+function normalizeSocialLink(raw: string, platform?: 'facebook' | 'instagram' | 'tiktok'): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (/^https?:\/\//i.test(t)) return t;
+  if (t.startsWith('@')) {
+    const handle = t.slice(1);
+    if (platform === 'facebook') return `https://facebook.com/${handle}`;
+    if (platform === 'instagram') return `https://instagram.com/${handle}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${handle}`;
+  }
+  if (!t.includes('.') && !t.includes('/') && platform) {
+    if (platform === 'facebook') return `https://facebook.com/${t}`;
+    if (platform === 'instagram') return `https://instagram.com/${t}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${t}`;
+  }
+  return `https://${t.replace(/^\/+/, '')}`;
+}
+
 export default function OnlineStoreInfoScreen() {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -78,9 +96,9 @@ export default function OnlineStoreInfoScreen() {
     try {
       await saveStoreInfo({
         description: description.trim(),
-        facebookUrl: facebookUrl.trim(),
-        instagramUrl: instagramUrl.trim(),
-        tiktokUrl: tiktokUrl.trim(),
+        facebookUrl: normalizeSocialLink(facebookUrl, 'facebook'),
+        instagramUrl: normalizeSocialLink(instagramUrl, 'instagram'),
+        tiktokUrl: normalizeSocialLink(tiktokUrl, 'tiktok'),
         whatsappNumber: toInternationalIraqiPhone(whatsappNumber.trim()),
       });
       if (Platform.OS === 'android') {

@@ -60,13 +60,55 @@ interface Props {
   whatsappNumber?: string;
 }
 
-// Strips every non-digit character so "+964 770 123 4567" and
-// "964-770-123-4567" both resolve the same way. Does NOT invent a missing
-// country code -- that's a data-entry concern the settings screen's
-// placeholder now warns against, not something this helper can fix after
-// the fact.
+function formatSocialUrl(
+  url: string | undefined,
+  platform?: 'facebook' | 'instagram' | 'tiktok'
+): string | null {
+  if (!url) return null;
+  let clean = url.trim();
+  if (!clean) return null;
+
+  // If already starts with http:// or https://, use as is
+  if (/^https?:\/\//i.test(clean)) {
+    return clean;
+  }
+
+  // Handle @handle or bare handle (no dot and no slash)
+  if (clean.startsWith('@')) {
+    const handle = clean.slice(1);
+    if (platform === 'facebook') return `https://facebook.com/${handle}`;
+    if (platform === 'instagram') return `https://instagram.com/${handle}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${handle}`;
+  }
+
+  if (!clean.includes('.') && !clean.includes('/') && platform) {
+    if (platform === 'facebook') return `https://facebook.com/${clean}`;
+    if (platform === 'instagram') return `https://instagram.com/${clean}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${clean}`;
+  }
+
+  // Strip leading slashes
+  clean = clean.replace(/^\/+/, '');
+
+  // Prepend https:// so the browser treats it as an external absolute URL
+  return `https://${clean}`;
+}
+
 function buildWhatsAppUrl(whatsappNumber: string): string {
-  return `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
+  const clean = whatsappNumber.trim();
+  if (!clean) return '';
+  if (/^https?:\/\//i.test(clean)) return clean;
+  if (clean.includes('wa.me/')) return `https://${clean.replace(/^\/+/, '')}`;
+
+  const digits = clean.replace(/\D/g, '');
+  if (!digits) return '';
+  let phone = digits;
+  if (phone.startsWith('07')) {
+    phone = '964' + phone.substring(1);
+  } else if (phone.startsWith('7') && phone.length === 10) {
+    phone = '964' + phone;
+  }
+  return `https://wa.me/${phone}`;
 }
 
 export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumber }: Props) {
@@ -74,9 +116,9 @@ export function SocialIcons({ facebookUrl, instagramUrl, tiktokUrl, whatsappNumb
 
   function hrefFor(key: IconKey): string | null {
     switch (key) {
-      case 'facebook':  return facebookUrl?.trim() || null;
-      case 'instagram': return instagramUrl?.trim() || null;
-      case 'tiktok':    return tiktokUrl?.trim() || null;
+      case 'facebook':  return formatSocialUrl(facebookUrl, 'facebook');
+      case 'instagram': return formatSocialUrl(instagramUrl, 'instagram');
+      case 'tiktok':    return formatSocialUrl(tiktokUrl, 'tiktok');
       case 'whatsapp':  return whatsappNumber?.trim() ? buildWhatsAppUrl(whatsappNumber.trim()) : null;
     }
   }

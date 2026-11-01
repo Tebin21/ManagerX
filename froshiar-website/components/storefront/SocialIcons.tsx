@@ -43,8 +43,56 @@ interface Props {
   snapchatUrl?: string;
 }
 
+function formatSocialUrl(
+  url: string | undefined,
+  platform?: 'facebook' | 'instagram' | 'tiktok'
+): string | undefined {
+  if (!url) return undefined;
+  let clean = url.trim();
+  if (!clean) return undefined;
+
+  // If already starts with http:// or https://, use as is
+  if (/^https?:\/\//i.test(clean)) {
+    return clean;
+  }
+
+  // Handle @handle or bare handle (no dot and no slash)
+  if (clean.startsWith('@')) {
+    const handle = clean.slice(1);
+    if (platform === 'facebook') return `https://facebook.com/${handle}`;
+    if (platform === 'instagram') return `https://instagram.com/${handle}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${handle}`;
+  }
+
+  if (!clean.includes('.') && !clean.includes('/') && platform) {
+    if (platform === 'facebook') return `https://facebook.com/${clean}`;
+    if (platform === 'instagram') return `https://instagram.com/${clean}`;
+    if (platform === 'tiktok') return `https://tiktok.com/@${clean}`;
+  }
+
+  // Strip leading slashes
+  clean = clean.replace(/^\/+/, '');
+
+  // Prepend https:// so the browser treats it as an external absolute URL
+  return `https://${clean}`;
+}
+
 function buildWhatsAppUrl(whatsappNumber: string): string {
-  return `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
+  const clean = whatsappNumber.trim();
+  if (!clean) return '';
+  if (/^https?:\/\//i.test(clean)) return clean;
+  if (clean.includes('wa.me/')) return `https://${clean.replace(/^\/+/, '')}`;
+
+  const digits = clean.replace(/\D/g, '');
+  if (!digits) return '';
+  let phone = digits;
+  // Convert Iraqi local phone: 0770xxxxxxx -> 964770xxxxxxx
+  if (phone.startsWith('07')) {
+    phone = '964' + phone.substring(1);
+  } else if (phone.startsWith('7') && phone.length === 10) {
+    phone = '964' + phone;
+  }
+  return `https://wa.me/${phone}`;
 }
 
 export function SocialIcons({
@@ -53,18 +101,18 @@ export function SocialIcons({
   tiktokUrl,
   whatsappNumber,
 }: Props) {
-  const cleanWhatsapp = (whatsappNumber || '').trim();
-  const cleanInstagram = (instagramUrl || '').trim();
-  const cleanTikTok = (tiktokUrl || '').trim();
-  const cleanFacebook = (facebookUrl || '').trim();
+  const formattedWhatsapp = whatsappNumber?.trim() ? buildWhatsAppUrl(whatsappNumber) : undefined;
+  const formattedInstagram = formatSocialUrl(instagramUrl, 'instagram');
+  const formattedTikTok = formatSocialUrl(tiktokUrl, 'tiktok');
+  const formattedFacebook = formatSocialUrl(facebookUrl, 'facebook');
 
   // Keep strictly the 4 authentic platforms: WhatsApp, Instagram, TikTok, Facebook
   const items = [
     {
       key: 'whatsapp',
       name: 'واتسئەپ',
-      href: cleanWhatsapp ? buildWhatsAppUrl(cleanWhatsapp) : undefined,
-      isAvailable: Boolean(cleanWhatsapp),
+      href: formattedWhatsapp,
+      isAvailable: Boolean(formattedWhatsapp),
       activeClass:
         'border-emerald-500/40 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500 dark:hover:text-white',
       Icon: WhatsAppIcon,
@@ -72,8 +120,8 @@ export function SocialIcons({
     {
       key: 'instagram',
       name: 'ئینستاگرام',
-      href: cleanInstagram || undefined,
-      isAvailable: Boolean(cleanInstagram),
+      href: formattedInstagram,
+      isAvailable: Boolean(formattedInstagram),
       activeClass:
         'border-pink-500/40 bg-pink-500/15 text-pink-600 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-500 hover:to-purple-500 hover:text-white hover:border-transparent dark:border-pink-500/40 dark:bg-pink-500/20 dark:text-pink-400',
       Icon: InstagramIcon,
@@ -81,8 +129,8 @@ export function SocialIcons({
     {
       key: 'tiktok',
       name: 'تیکتۆک',
-      href: cleanTikTok || undefined,
-      isAvailable: Boolean(cleanTikTok),
+      href: formattedTikTok,
+      isAvailable: Boolean(formattedTikTok),
       activeClass:
         'border-slate-300 bg-slate-100 text-slate-800 hover:bg-black hover:text-white hover:border-black dark:border-slate-700 dark:bg-white/[0.08] dark:text-slate-200 dark:hover:bg-white dark:hover:text-black',
       Icon: TikTokIcon,
@@ -90,8 +138,8 @@ export function SocialIcons({
     {
       key: 'facebook',
       name: 'فەیسبووک',
-      href: cleanFacebook || undefined,
-      isAvailable: Boolean(cleanFacebook),
+      href: formattedFacebook,
+      isAvailable: Boolean(formattedFacebook),
       activeClass:
         'border-blue-500/40 bg-blue-500/15 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white',
       Icon: FacebookIcon,
