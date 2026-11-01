@@ -165,7 +165,14 @@ let isSyncing = false;
 export async function processQueue(
   onProgress?: (done: number, total: number) => void
 ): Promise<void> {
-  if (isSyncing) return;
+  if (isSyncing) {
+    let waitCount = 0;
+    while (isSyncing && waitCount < 30) {
+      await new Promise((r) => setTimeout(r, 200));
+      waitCount++;
+    }
+    if (isSyncing) return;
+  }
   isSyncing = true;
   try {
     const enabled = await getStoreEnabled();

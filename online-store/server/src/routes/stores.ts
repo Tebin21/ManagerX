@@ -136,23 +136,17 @@ storesRouter.get('/:slug', asyncHandler(async (req, res) => {
     return;
   }
 
-  // This is a read-only catalog, not a shop: unpublished (owner-hidden) and
-  // out-of-stock products are excluded entirely, not just flagged, and stock counts
-  // are never exposed publicly.
+  // Return all published products (including 0-quantity items so merchant's full catalog is always visible)
   const products = store.products
-    .filter((p) => p.isPublished && p.quantity > 0)
+    .filter((p) => p.isPublished !== false)
     .map((p) => ({
       productId: p.productId,
       name: p.name,
-      // Coalesce, don't trust the stored value blindly — products synced before this
-      // field existed have no `category` key at all in the JSON ledger, and `??`
-      // would otherwise surface as a missing key (JSON.stringify drops `undefined`)
-      // that the client's non-optional `category: string` type doesn't expect.
       category: p.category ?? 'General',
       description: p.description ?? null,
       websiteDescription: p.websiteDescription ?? null,
       price: p.price,
-      quantity: p.quantity ?? 999,
+      quantity: typeof p.quantity === 'number' ? p.quantity : 999,
       imageUrl: p.imageUrl,
     }));
 
@@ -173,7 +167,7 @@ storesRouter.get('/:slug/products/:productId', asyncHandler(async (req, res) => 
   }
   const targetId = parseInt(req.params.productId, 10);
   const product = store.products.find(
-    (p) => p.productId === targetId && p.isPublished && p.quantity > 0
+    (p) => p.productId === targetId && p.isPublished !== false
   );
   if (!product) {
     res.status(404).json({ error: 'Product not found in this store' });
