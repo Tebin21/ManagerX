@@ -91,9 +91,10 @@ function mapStore(row: DbStoreRow, products: StoreProduct[] = []): StoreRecord {
 export class PostgresStoreRepository implements StoreRepository {
   async getBySlug(slug: string): Promise<StoreRecord | null> {
     const cleanSlug = (slug || '').trim().toLowerCase();
+    const resolvedSlug = cleanSlug === 'demo' ? 'froshiar' : cleanSlug;
     const storeRes = await pool.query<DbStoreRow>(
       'SELECT * FROM stores WHERE slug = $1 LIMIT 1',
-      [cleanSlug]
+      [resolvedSlug]
     );
     if (storeRes.rows.length === 0) return null;
 

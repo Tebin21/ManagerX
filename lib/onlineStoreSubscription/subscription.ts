@@ -126,6 +126,28 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
       return demoInfo;
     }
 
+    // Check Admin Portal Online Store Activation (real-time toggle from admin panel)
+    try {
+      const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+      const adminActive = await isOnlineStoreActivatedByAdmin();
+      if (adminActive) {
+        const adminInfo: SubscriptionInfo = {
+          plan: 'lifetime',
+          deviceId,
+          subscriptionCode: 'ADMIN-ACTIVATED-PRO',
+          activatedAt: new Date().toISOString(),
+          expiresAt: null,
+          isActive: true,
+          expired: false,
+        };
+        cachedInfo = adminInfo;
+        cachedAt = Date.now();
+        return adminInfo;
+      }
+    } catch (err) {
+      if (__DEV__) console.warn('[onlineStoreSubscription] admin check error:', err);
+    }
+
     // Check Cloud user subscription in Firebase Firestore (approved by admin)
     if (email) {
       try {
@@ -243,7 +265,14 @@ export async function activateSubscription(rawCode: string): Promise<Subscriptio
 }
 
 export async function hasActiveOnlineStoreSubscription(): Promise<boolean> {
-  return (await loadSubscriptionFromDb()).isActive;
+  const fromDb = await loadSubscriptionFromDb();
+  if (fromDb.isActive) return true;
+  try {
+    const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+    return await isOnlineStoreActivatedByAdmin();
+  } catch {
+    return false;
+  }
 }
 
 // For lib/onlineStore/api.ts to attach as request headers — null (not empty strings)
@@ -257,6 +286,11 @@ export async function getOnlineStoreSubscriptionHeaders(): Promise<{ code: strin
     if (email === 'demo@froshiar.store') {
       if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders: DEMO-STORE-PREVIEW attached');
       return { code: 'DEMO-STORE-PREVIEW', deviceId };
+    }
+    const { isOnlineStoreActivatedByAdmin } = await import('@/lib/onlineStore/storeActivationService');
+    const adminActive = await isOnlineStoreActivatedByAdmin();
+    if (adminActive) {
+      return { code: 'ADMIN-ACTIVATED-PRO', deviceId };
     }
   } catch (err) {
     if (__DEV__) console.warn('[onlineStoreSubscription] getOnlineStoreSubscriptionHeaders error:', err);

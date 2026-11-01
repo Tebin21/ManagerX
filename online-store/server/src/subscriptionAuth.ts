@@ -36,6 +36,10 @@ export function checkSubscriptionHeaders(req: Request): SubscriptionCheckResult 
   if (code === 'DEMO-STORE-PREVIEW') {
     return { status: 'valid' };
   }
+  // Admin-activated accounts and Cloud subscriptions
+  if (code === 'ADMIN-ACTIVATED-PRO' || code.startsWith('CLOUD-')) {
+    return { status: 'valid' };
+  }
   const result = subscriptionCore.verifySubscriptionCode(code, deviceId);
   persistSubscriptionSnapshot(req, {
     status: result.status,

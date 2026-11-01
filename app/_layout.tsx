@@ -139,6 +139,9 @@ export default function RootLayout() {
     // Telemetry tracking & Google Drive auto-backup lifecycle triggers
     import('@/lib/telemetry').then((m) => m.trackAppInstallOrOpen()).catch(() => {});
     import('@/lib/googleDriveBackup').then((m) => m.triggerGoogleDriveAutoBackup('app_open')).catch(() => {});
+    import('@/lib/onlineStore/storeActivationService')
+      .then((m) => m.startStoreActivationRealtimeListener())
+      .catch(() => {});
 
     const { AppState } = require('react-native');
     const appStateSub = AppState.addEventListener('change', (state: string) => {

@@ -26,9 +26,10 @@ const repo: StoreRepository = new Proxy({} as StoreRepository, {
 
 export const storesRouter = Router();
 
-// Param middleware: normalize slug to lowercase
+// Param middleware: normalize slug to lowercase and alias demo -> froshiar
 storesRouter.param('slug', (req, _res, next, slug) => {
-  req.params.slug = (slug || '').trim().toLowerCase();
+  const clean = (slug || '').trim().toLowerCase();
+  req.params.slug = clean === 'demo' ? 'froshiar' : clean;
   next();
 });
 
