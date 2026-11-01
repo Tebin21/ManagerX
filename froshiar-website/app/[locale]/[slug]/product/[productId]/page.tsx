@@ -74,7 +74,7 @@ export default async function ProductDetailsPage({
   );
 
   return (
-    <CartProvider storeSlug={clean}>
+    <CartProvider storeSlug={clean} products={store.products}>
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
         className={`min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${

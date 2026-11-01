@@ -35,14 +35,26 @@ const CartContext = createContext<CartContextValue | null>(null);
 interface CartProviderProps {
   children: React.ReactNode;
   storeSlug: string;
+  products?: StoreProduct[];
 }
 
-export function CartProvider({ children, storeSlug }: CartProviderProps) {
+export function CartProvider({ children, storeSlug, products = [] }: CartProviderProps) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fast map to get live backend warehouse stock for any product
+  const productsStockMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (Array.isArray(products)) {
+      for (const p of products) {
+        map.set(p.productId, typeof p.quantity === 'number' ? p.quantity : 9999);
+      }
+    }
+    return map;
+  }, [products]);
 
   const showToast = useCallback((message: string) => {
     if (toastTimerRef.current) {
@@ -51,7 +63,7 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
     setToastMessage(message);
     toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
-    }, 2800);
+    }, 3200);
   }, []);
 
   // Store-isolated storage key to prevent any cross-store data leakage!
@@ -87,6 +99,30 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
     }
   }, [items, storageKey, isHydrated]);
 
+  // Sync loaded items with live backend warehouse stock
+  useEffect(() => {
+    if (!isHydrated || productsStockMap.size === 0) return;
+
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (!productsStockMap.has(item.productId)) return item;
+        const liveStock = productsStockMap.get(item.productId)!;
+        const cappedQty = Math.min(item.quantity, Math.max(1, liveStock));
+        if (item.stock !== liveStock || item.quantity !== cappedQty) {
+          changed = true;
+          return {
+            ...item,
+            stock: liveStock,
+            quantity: cappedQty,
+          };
+        }
+        return item;
+      });
+      return changed ? next : prev;
+    });
+  }, [isHydrated, productsStockMap]);
+
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
   const toggleCart = useCallback(() => setIsOpen((prev) => !prev), []);
@@ -94,7 +130,9 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
   const addItem = useCallback(
     (product: StoreProduct, qty: number = 1): boolean => {
       if (qty <= 0) return false;
-      const stockLimit = product.quantity !== undefined ? product.quantity : 9999;
+      const stockLimit =
+        productsStockMap.get(product.productId) ??
+        (typeof product.quantity === 'number' ? product.quantity : 9999);
 
       if (stockLimit <= 0) {
         showToast('ئەم کاڵایە لە کۆگادا بەردەست نییە');
@@ -163,7 +201,7 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
 
       return success;
     },
-    [showToast]
+    [productsStockMap, showToast]
   );
 
   const toggleSelect = useCallback(
@@ -173,7 +211,7 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
         // Deselect
         setItems((prev) => prev.filter((i) => i.productId !== product.productId));
       } else {
-        // Select (adds 1 respecting stock)
+        // Select (adds 1 respecting warehouse stock)
         addItem(product, 1);
       }
     },
@@ -192,20 +230,23 @@ export function CartProvider({ children, storeSlug }: CartProviderProps) {
         return prev.map((item) => {
           if (item.productId !== productId) return item;
 
-          const stockLimit = item.stock !== undefined ? item.stock : 9999;
+          const stockLimit =
+            productsStockMap.get(productId) ??
+            (item.stock !== undefined ? item.stock : 9999);
+
           if (quantity > stockLimit) {
             showToast(`تەنها تا ${stockLimit} دانە دەتوانیت داوا بکەیت، لە کۆگادا نەماوە`);
             allowed = false;
-            return { ...item, quantity: stockLimit };
+            return { ...item, quantity: stockLimit, stock: stockLimit };
           }
 
-          return { ...item, quantity };
+          return { ...item, quantity, stock: stockLimit };
         });
       });
 
       return allowed;
     },
-    [showToast]
+    [productsStockMap, showToast]
   );
 
   const removeItem = useCallback((productId: number) => {

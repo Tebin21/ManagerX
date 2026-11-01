@@ -215,6 +215,13 @@ export function CartDrawer({ businessName, info }: Props) {
                             {formatIQD(item.price * item.quantity)}
                           </span>
                         </div>
+
+                        {/* Stock ceiling warning if customer reached warehouse limit */}
+                        {item.stock !== undefined && item.quantity >= item.stock && (
+                          <p className="mt-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                            تەنها تا {item.stock} دانە دەتوانیت داوا بکەیت، لە کۆگادا نەماوە
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}

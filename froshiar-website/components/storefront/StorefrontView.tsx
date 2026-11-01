@@ -65,9 +65,8 @@ export function StorefrontView({ store, slug }: Props) {
     <CartProvider storeSlug={slug || 'demo'}>
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
-        className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${
-          isRTL ? 'font-kurdish' : 'font-sans'
-        }`}
+        className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${isRTL ? 'font-kurdish' : 'font-sans'
+          }`}
         style={brandStyle}
       >
         {/* 1. Main Cover Banner + Store Name & Actions (Aligned directly with Store Name) + Expandable Search + Compact Social Banner */}
