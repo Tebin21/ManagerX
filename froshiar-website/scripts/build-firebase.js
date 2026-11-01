@@ -10,8 +10,20 @@ const origProduct = fs.readFileSync(productPage, 'utf8');
 
 try {
   console.log('[build-firebase] Preparing dynamic routes for static export...');
-  fs.writeFileSync(slugPage, origSlug.replace('export const dynamicParams = true;', 'export const dynamicParams = false;'), 'utf8');
-  fs.writeFileSync(productPage, origProduct.replace('export const dynamicParams = true;', 'export const dynamicParams = false;'), 'utf8');
+  fs.writeFileSync(
+    slugPage,
+    origSlug
+      .replace("export const dynamic = 'force-dynamic';", "export const dynamic = 'auto';")
+      .replace('export const dynamicParams = true;', 'export const dynamicParams = false;'),
+    'utf8'
+  );
+  fs.writeFileSync(
+    productPage,
+    origProduct
+      .replace("export const dynamic = 'force-dynamic';", "export const dynamic = 'auto';")
+      .replace('export const dynamicParams = true;', 'export const dynamicParams = false;'),
+    'utf8'
+  );
 
   console.log('[build-firebase] Running next build with OUTPUT_EXPORT=true...');
   execSync('next build', {

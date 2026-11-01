@@ -33,7 +33,7 @@ export async function fetchStorefront(slug: string): Promise<StoreResponse | nul
   const clean = (slug || '').trim().toLowerCase();
   try {
     const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${encodeURIComponent(clean)}`, {
-      cache: 'no-store',
+      next: { revalidate: 10 },
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Failed to load store (${res.status})`);

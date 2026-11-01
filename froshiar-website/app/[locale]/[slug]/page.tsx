@@ -4,6 +4,7 @@ import { fetchStorefront } from '@/lib/storefront/storeApi';
 import { DEMO_STORE } from '@/lib/storefront/demoStore';
 import { StorefrontView } from '@/components/storefront/StorefrontView';
 
+export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
 const RESERVED_SLUGS = ['admin', 'privacy', 'terms', 'delete-account', 'api', '_next'];

@@ -8,6 +8,7 @@ import { getBrandCssVars } from '@/lib/storefront/theme';
 import { formatIQD } from '@/lib/storefront/format';
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter';
 
+export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
 export function generateStaticParams() {
