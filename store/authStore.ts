@@ -361,15 +361,24 @@ export async function adoptSignedInUser(
   set: (state: Partial<AuthState>) => void,
   auto: boolean = false
 ) {
+  const appUser = firebaseUserToAppUser(user);
+  // Optimistically set user immediately so UI and layout guards recognize the signed-in state
+  set({ user: appUser });
+
   if (adoptingUid === user.uid && adoptingPromise) {
-    set({ user: firebaseUserToAppUser(user), isLoading: false });
+    set({ user: appUser, isLoading: false });
     return adoptingPromise;
   }
   adoptingUid = user.uid;
-  adoptingPromise = adoptSignedInUserInner(user, set, auto).finally(() => {
-    adoptingUid = null;
-    adoptingPromise = null;
-  });
+  adoptingPromise = adoptSignedInUserInner(user, set, auto)
+    .catch((err) => {
+      console.warn('[Froshiar] adoptSignedInUserInner error:', err);
+    })
+    .finally(() => {
+      adoptingUid = null;
+      adoptingPromise = null;
+      set({ user: firebaseUserToAppUser(user), isLoading: false });
+    });
   return adoptingPromise;
 }
 
@@ -379,7 +388,9 @@ export async function adoptSignedInUser(
 // stale continuation re-establish cloud sync, set ownerUserId, or flag a cloud
 // conflict for an account that's no longer (or not yet) actually signed in.
 function isCurrentAuthUser(uid: string): boolean {
-  return useAuthStore.getState().user?.id === uid;
+  const currentUser = useAuthStore.getState().user;
+  if (!currentUser && !adoptingUid) return false;
+  return currentUser?.id === uid || adoptingUid === uid;
 }
 
 async function adoptSignedInUserInner(
@@ -444,7 +455,10 @@ async function adoptSignedInUserInner(
 
     const [localHasData, cloudHasData] = await Promise.all([
       localBusinessDataExists(),
-      cloudBusinessDataExists(user.uid),
+      Promise.race([
+        cloudBusinessDataExists(user.uid),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
+      ]).catch(() => false),
     ]);
 
     if (!isCurrentAuthUser(user.uid)) return;
@@ -452,17 +466,23 @@ async function adoptSignedInUserInner(
     if (!localHasData && cloudHasData) {
       // User has existing store data in Cloud Firestore: restore it!
       try {
-        await restoreFromCloudBulk(user.uid);
+        await Promise.race([
+          restoreFromCloudBulk(user.uid),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud restore timeout')), 8000)),
+        ]);
       } catch (e) {
-        console.error('[Froshiar] Cloud restore failed:', e);
+        console.error('[Froshiar] Cloud restore failed or timed out:', e);
       }
       if (!isCurrentAuthUser(user.uid)) return;
     } else if (localHasData && !cloudHasData) {
       // Local has data from this user but Cloud is empty: push initial snapshot
       try {
-        await pushFullLocalSnapshot(user.uid);
+        await Promise.race([
+          pushFullLocalSnapshot(user.uid),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud push timeout')), 6000)),
+        ]);
       } catch (e) {
-        console.error('[Froshiar] Initial cloud push failed:', e);
+        console.error('[Froshiar] Initial cloud push failed or timed out:', e);
       }
       if (!isCurrentAuthUser(user.uid)) return;
     } else if (localHasData && cloudHasData) {
@@ -740,6 +760,7 @@ export const useAuthStore = create<AuthState>()(
           const { user } = await signInWithCredential(getFirebaseAuth(), credential);
 
           await adoptSignedInUser(user, set);
+          set({ isLoading: false });
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
@@ -813,6 +834,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           await adoptSignedInUser(user, set);
+          set({ isLoading: false });
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
@@ -882,6 +904,7 @@ export const useAuthStore = create<AuthState>()(
           }
           set({ pendingVerificationEmail: null });
           await adoptSignedInUser(user, set, false);
+          set({ isLoading: false });
           return { error: null };
         } catch (e: any) {
           set({ isLoading: false });
@@ -1077,7 +1100,9 @@ export const useAuthStore = create<AuthState>()(
           const { useBusinessStore } = await import('@/store/businessStore');
           useBusinessStore.getState().clearBusiness();
         } catch {}
-        set({ user: null });
+        adoptingUid = null;
+        adoptingPromise = null;
+        set({ user: null, isLoading: false });
       },
 
       deleteFirebaseAccount: async () => {

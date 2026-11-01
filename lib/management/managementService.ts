@@ -526,9 +526,14 @@ export async function authenticateEmployee(
     const db = getFirebaseFirestore();
     const docId = getCleanDocId(email);
     const docRef = doc(db, COLLECTION_NAME, docId);
-    const snap = await getDoc(docRef);
 
-    if (!snap.exists()) {
+    // Timeout after 3.5 seconds so slow Firestore network doesn't delay standard user sign-ins
+    const snap = await Promise.race([
+      getDoc(docRef),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+    ]);
+
+    if (!snap || !snap.exists()) {
       return { success: false, error: 'ACCOUNT_NOT_FOUND' };
     }
 

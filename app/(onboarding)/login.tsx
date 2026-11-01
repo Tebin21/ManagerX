@@ -129,109 +129,124 @@ export default function LoginScreen() {
       return;
     }
     setAuthError(null);
+    useAuthStore.setState({ isLoading: true });
 
-    // 1. Check if this is an employee account managed via Management Hub
     try {
-      const { authenticateEmployee, recordEmployeeLogin } = await import('@/lib/management/managementService');
-      const empResult = await authenticateEmployee(email.trim(), password);
-      if (empResult.success && empResult.account) {
-        const emp = empResult.account;
-        const { useManagementStore } = await import('@/store/managementStore');
-        // Clean reset of all management state before binding employee
-        useManagementStore.getState().resetAllManagementState();
-        useManagementStore.getState().setCurrentEmployee(emp);
-        useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
+      // 1. Check if this is an employee account managed via Management Hub
+      try {
+        const { authenticateEmployee, recordEmployeeLogin } = await import('@/lib/management/managementService');
+        const empResult = await authenticateEmployee(email.trim(), password);
+        if (empResult.success && empResult.account) {
+          const emp = empResult.account;
+          const { useManagementStore } = await import('@/store/managementStore');
+          // Clean reset of all management state before binding employee
+          useManagementStore.getState().resetAllManagementState();
+          useManagementStore.getState().setCurrentEmployee(emp);
+          useManagementStore.getState().initEmployeeLiveSubscription(emp.email);
 
-        await recordEmployeeLogin(emp.email);
+          await recordEmployeeLogin(emp.email);
 
-        const appUser = {
-          id: emp.id,
-          uid: emp.id,
-          email: emp.email,
-          displayName: emp.displayName,
-        };
-        useAuthStore.setState({ user: appUser as any, isLoading: false });
+          const appUser = {
+            id: emp.id,
+            uid: emp.id,
+            email: emp.email,
+            displayName: emp.displayName,
+          };
+          useAuthStore.setState({ user: appUser as any, isLoading: false });
 
-        // Direct business sync to manager's email namespace with complete data bleed prevention
-        const { useBusinessStore } = await import('@/store/businessStore');
-        const prevOwner = useBusinessStore.getState().ownerUserId;
-        const targetOwner = (emp.managerEmail || emp.email).trim().toLowerCase();
+          // Direct business sync to manager's email namespace with complete data bleed prevention
+          const { useBusinessStore } = await import('@/store/businessStore');
+          const prevOwner = useBusinessStore.getState().ownerUserId;
+          const targetOwner = (emp.managerEmail || emp.email).trim().toLowerCase();
 
-        if (prevOwner && prevOwner.toLowerCase() !== targetOwner.toLowerCase()) {
-          // Device has data from a different manager or account — wipe completely to isolate
-          const { wipeAllBusinessData } = await import('@/lib/sqlite');
-          await wipeAllBusinessData();
-          useBusinessStore.getState().clearBusiness();
-          try {
-            const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
-            await clearStoreApiKey();
-          } catch {}
+          if (prevOwner && prevOwner.toLowerCase() !== targetOwner.toLowerCase()) {
+            // Device has data from a different manager or account — wipe completely to isolate
+            const { wipeAllBusinessData } = await import('@/lib/sqlite');
+            await wipeAllBusinessData();
+            useBusinessStore.getState().clearBusiness();
+            try {
+              const { clearStoreApiKey } = await import('@/lib/onlineStore/storage');
+              await clearStoreApiKey();
+            } catch {}
+          }
+          useBusinessStore.getState().setOwnerUserId(targetOwner);
+
+          useOnboardingStore.getState().completeOnboarding();
+          router.replace('/(app)/dashboard');
+          return;
+        } else if (empResult.error === 'ACCOUNT_SUSPENDED') {
+          setAuthError(isRTL ? 'ئەم ئەکاونتە ڕاگیراوە لەلایەن بەڕێوەبەرەوە.' : 'This account has been suspended by management.');
+          return;
         }
-        useBusinessStore.getState().setOwnerUserId(targetOwner);
-
-        useOnboardingStore.getState().completeOnboarding();
-        router.replace('/(app)/dashboard');
-        return;
-      } else if (empResult.error === 'ACCOUNT_SUSPENDED') {
-        setAuthError(isRTL ? 'ئەم ئەکاونتە ڕاگیراوە لەلایەن بەڕێوەبەرەوە.' : 'This account has been suspended by management.');
-        return;
+      } catch (e) {
+        console.warn('[Login] Employee auth check failed:', e);
       }
-    } catch (e) {
-      console.warn('[Login] Employee auth check failed:', e);
-    }
 
-    // 2. Standard Firebase auth fallback
-    const { error, needsVerification } = await signInWithEmail(email.trim(), password);
-    if (error) {
-      setAuthError(error);
-    } else if (needsVerification) {
-      router.replace('/(onboarding)/verify-email' as never);
-    } else {
-      const { useManagementStore } = await import('@/store/managementStore');
-      useManagementStore.getState().clearEmployeeSession();
-      useOnboardingStore.getState().completeOnboarding();
-      const isComplete = useBusinessStore.getState().isSetupComplete;
-      if (!isComplete) {
-        router.replace('/(onboarding)/setup' as never);
+      // 2. Standard Firebase auth fallback
+      const { error, needsVerification } = await signInWithEmail(email.trim(), password);
+      if (error) {
+        setAuthError(error);
+      } else if (needsVerification) {
+        router.replace('/(onboarding)/verify-email' as never);
       } else {
-        router.replace('/(app)/dashboard');
+        const { useManagementStore } = await import('@/store/managementStore');
+        useManagementStore.getState().clearEmployeeSession();
+        useOnboardingStore.getState().completeOnboarding();
+        const isComplete = useBusinessStore.getState().isSetupComplete;
+        if (!isComplete) {
+          router.replace('/(onboarding)/setup' as never);
+        } else {
+          router.replace('/(app)/dashboard');
+        }
       }
+    } finally {
+      useAuthStore.setState({ isLoading: false });
     }
   };
 
   const handleGoogle = async () => {
     setAuthError(null);
-    const { error } = await signInWithGoogle();
-    if (error) {
-      setAuthError(error);
-    } else {
-      const { useManagementStore } = await import('@/store/managementStore');
-      useManagementStore.getState().clearEmployeeSession();
-      useOnboardingStore.getState().completeOnboarding();
-      const isComplete = useBusinessStore.getState().isSetupComplete;
-      if (!isComplete) {
-        router.replace('/(onboarding)/setup' as never);
+    useAuthStore.setState({ isLoading: true });
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setAuthError(error);
       } else {
-        router.replace('/(app)/dashboard');
+        const { useManagementStore } = await import('@/store/managementStore');
+        useManagementStore.getState().clearEmployeeSession();
+        useOnboardingStore.getState().completeOnboarding();
+        const isComplete = useBusinessStore.getState().isSetupComplete;
+        if (!isComplete) {
+          router.replace('/(onboarding)/setup' as never);
+        } else {
+          router.replace('/(app)/dashboard');
+        }
       }
+    } finally {
+      useAuthStore.setState({ isLoading: false });
     }
   };
 
   const handleApple = async () => {
     setAuthError(null);
-    const { error } = await signInWithApple();
-    if (error) {
-      setAuthError(error);
-    } else {
-      const { useManagementStore } = await import('@/store/managementStore');
-      useManagementStore.getState().clearEmployeeSession();
-      useOnboardingStore.getState().completeOnboarding();
-      const isComplete = useBusinessStore.getState().isSetupComplete;
-      if (!isComplete) {
-        router.replace('/(onboarding)/setup' as never);
+    useAuthStore.setState({ isLoading: true });
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        setAuthError(error);
       } else {
-        router.replace('/(app)/dashboard');
+        const { useManagementStore } = await import('@/store/managementStore');
+        useManagementStore.getState().clearEmployeeSession();
+        useOnboardingStore.getState().completeOnboarding();
+        const isComplete = useBusinessStore.getState().isSetupComplete;
+        if (!isComplete) {
+          router.replace('/(onboarding)/setup' as never);
+        } else {
+          router.replace('/(app)/dashboard');
+        }
       }
+    } finally {
+      useAuthStore.setState({ isLoading: false });
     }
   };
 

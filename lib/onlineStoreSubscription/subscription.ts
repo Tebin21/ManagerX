@@ -142,9 +142,9 @@ export async function loadSubscriptionFromDb(): Promise<SubscriptionInfo> {
         const snap = await getDoc(doc(db, 'store_activations', subDocId));
         if (snap && (typeof snap.exists === 'function' ? snap.exists() : (snap as any).exists)) {
           const data = snap.data();
-          if (parseStoreActiveFromData(data)) {
+          if (data && parseStoreActiveFromData(data)) {
             const isLifetime = data.planId === 'lifetime' || !data.expiresAt;
-            const isNotExpired = isLifetime || new Date(data.expiresAt).getTime() > Date.now();
+            const isNotExpired = isLifetime || (data.expiresAt ? new Date(data.expiresAt).getTime() > Date.now() : true);
             if (isNotExpired) {
               const cloudInfo: SubscriptionInfo = {
                 plan: (data.planId as SubscriptionPlan) ?? 'lifetime',
