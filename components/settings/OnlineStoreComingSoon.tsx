@@ -112,7 +112,7 @@ export function OnlineStoreComingSoon() {
         ]}
       >
         <View style={[styles.contactHeader, { flexDirection }]}>
-          <Ionicons name="call" size={17} color={primaryAccent} />
+          <Ionicons name="call-outline" size={17} color={primaryAccent} />
           <Text
             style={[
               styles.contactPrompt,
@@ -123,32 +123,67 @@ export function OnlineStoreComingSoon() {
             {isAr
               ? 'لطلب تفعيل الموقع الإلكتروني، تواصل مع الإدارة:'
               : isKu
-              ? 'بۆ داواکاری چالاککردنی وێبسایت، پەیوەندی بە ئەدمینەوە بکە:'
-              : 'To request online store activation, contact the Admin:'}
+              ? 'بۆ داواکاری و چالاککردنی وێبسایت، پەیوەندی بە ئەدمینەوە بکە:'
+              : 'To request website activation, contact Admin:'}
           </Text>
         </View>
+
+        {/* Clean Minimalist Phone Display */}
+        <TouchableOpacity
+          onPress={handleCall}
+          activeOpacity={0.7}
+          style={[
+            styles.phoneDisplay,
+            {
+              backgroundColor: isDark ? '#0F172A' : '#F1F5F9',
+              borderColor: isDark ? '#334155' : '#E2E8F0',
+            },
+          ]}
+        >
+          <Ionicons name="call-outline" size={16} color={isDark ? '#94A3B8' : '#64748B'} />
+          <Text
+            style={[
+              styles.phoneText,
+              { color: isDark ? '#FFFFFF' : '#0F172A' },
+            ]}
+          >
+            {SUPPORT_PHONE}
+          </Text>
+        </TouchableOpacity>
 
         {/* Action Buttons Row: Call & WhatsApp */}
         <View style={[styles.actionButtonsRow, { flexDirection }]}>
           <TouchableOpacity
             onPress={handleCall}
             activeOpacity={0.8}
-            style={[styles.callBtn, { flexDirection }]}
+            style={[
+              styles.callBtn,
+              {
+                backgroundColor: isDark ? '#334155' : '#1E293B',
+                flexDirection,
+              },
+            ]}
           >
-            <Ionicons name="call" size={16} color="#FFFFFF" />
+            <Ionicons name="call" size={15} color="#FFFFFF" />
             <Text style={[styles.actionBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {isAr ? 'اتصال هاتفي' : isKu ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
+              {isAr ? 'اتصال هاتفي' : isKu ? 'پەیوەندی تەلەفۆنی' : 'Call'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleWhatsApp}
             activeOpacity={0.8}
-            style={[styles.whatsappBtn, { flexDirection }]}
+            style={[
+              styles.whatsappBtn,
+              {
+                backgroundColor: '#10B981',
+                flexDirection,
+              },
+            ]}
           >
-            <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+            <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
             <Text style={[styles.actionBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-              {isAr ? 'واتساب' : isKu ? 'واتسئەپ' : 'WhatsApp'}
+              {isAr ? 'واتساب' : isKu ? 'نامە لە واتسئەپ' : 'WhatsApp'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -207,20 +242,39 @@ const styles = StyleSheet.create({
   },
   contactCard: {
     width: '100%',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
     alignItems: 'center',
   },
   contactHeader: {
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    gap: 7,
+    marginBottom: 10,
+    width: '100%',
   },
   contactPrompt: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     flex: 1,
+  },
+  phoneDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+    width: '100%',
+  },
+  phoneText: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   actionButtonsRow: {
     width: '100%',
@@ -228,18 +282,16 @@ const styles = StyleSheet.create({
   },
   callBtn: {
     flex: 1,
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   whatsappBtn: {
     flex: 1,
-    backgroundColor: '#25D366',
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
@@ -247,6 +299,6 @@ const styles = StyleSheet.create({
   actionBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12.5,
   },
 });

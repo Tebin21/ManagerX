@@ -490,59 +490,89 @@ export function CreateWebsiteCtaButton({ style }: Props) {
               </View>
             </View>
 
-            {/* Contact Admin to Activate Section */}
+            {/* Contact Admin to Activate Section - Clean Minimalist */}
             <View
               style={[
                 styles.contactCard,
                 {
-                  backgroundColor: isDark ? '#1E1B4B' : '#F5F3FF',
-                  borderColor: isDark ? '#6366F1' : '#C7D2FE',
+                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                  borderColor: isDark ? '#334155' : '#E2E8F0',
                 },
               ]}
             >
               <View style={[styles.contactHeader, { flexDirection }]}>
-                <Ionicons name="call" size={18} color="#6366F1" />
+                <Ionicons name="call-outline" size={17} color={primaryAccent} />
                 <Text
                   style={[
                     styles.contactPrompt,
-                    { color: isDark ? '#FFFFFF' : '#1E1B4B', textAlign },
+                    { color: isDark ? '#FFFFFF' : '#0F172A', textAlign },
                     (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD },
                   ]}
                 >
                   {isAr
-                    ? 'لإنشاء وتفعيل موقع إلكتروني لمتجرك، تواصل مع الإدارة:'
+                    ? 'لطلب تفعيل الموقع الإلكتروني، تواصل مع الإدارة:'
                     : isKu
-                    ? 'بۆ دروستکردن و چالاککردنی وێبسایت بۆ بزنسەکەت، پەیوەندی بە ئەدمینەوە بکە:'
-                    : 'To create and activate a website for your business, contact the Admin:'}
+                    ? 'بۆ داواکاری و چالاککردنی وێبسایت، پەیوەندی بە ئەدمینەوە بکە:'
+                    : 'To request website activation, contact Admin:'}
                 </Text>
               </View>
 
-              {/* Big Phone Number Display */}
-              <View style={styles.phoneDisplay}>
-                <Text style={styles.phoneText}>{SUPPORT_PHONE}</Text>
-              </View>
+              {/* Clean Minimalist Phone Display */}
+              <TouchableOpacity
+                onPress={handleCall}
+                activeOpacity={0.7}
+                style={[
+                  styles.phoneDisplay,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E8F0',
+                  },
+                ]}
+              >
+                <Ionicons name="call-outline" size={16} color={isDark ? '#94A3B8' : '#64748B'} />
+                <Text
+                  style={[
+                    styles.phoneText,
+                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                  ]}
+                >
+                  {SUPPORT_PHONE}
+                </Text>
+              </TouchableOpacity>
 
-              {/* Action Buttons: Call & WhatsApp */}
+              {/* Action Buttons: Call & WhatsApp with Clean Simple Styling */}
               <View style={[styles.actionButtonsRow, { flexDirection }]}>
                 <TouchableOpacity
                   onPress={handleCall}
                   activeOpacity={0.8}
-                  style={[styles.callBtn, { flexDirection }]}
+                  style={[
+                    styles.callBtn,
+                    {
+                      backgroundColor: isDark ? '#334155' : '#1E293B',
+                      flexDirection,
+                    },
+                  ]}
                 >
-                  <Ionicons name="call" size={16} color="#FFFFFF" />
+                  <Ionicons name="call" size={15} color="#FFFFFF" />
                   <Text style={[styles.callBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isAr ? 'اتصال هاتفي' : isKu ? 'پەیوەندی تەلەفۆنی' : 'Call Admin'}
+                    {isAr ? 'اتصال هاتفي' : isKu ? 'پەیوەندی تەلەفۆنی' : 'Call'}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={handleWhatsApp}
                   activeOpacity={0.8}
-                  style={[styles.whatsappBtn, { flexDirection }]}
+                  style={[
+                    styles.whatsappBtn,
+                    {
+                      backgroundColor: '#10B981',
+                      flexDirection,
+                    },
+                  ]}
                 >
-                  <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+                  <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
                   <Text style={[styles.whatsappBtnText, (isKu || isAr) && { fontFamily: SETTINGS_KURDISH_FONT_BOLD }]}>
-                    {isAr ? 'مراسلة واتساب' : isKu ? 'نامە لە واتسئەپ' : 'WhatsApp'}
+                    {isAr ? 'واتساب' : isKu ? 'نامە لە واتسئەپ' : 'WhatsApp'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -670,15 +700,17 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   contactCard: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 13,
     alignItems: 'center',
+    marginTop: 4,
   },
   contactHeader: {
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 7,
+    marginBottom: 10,
+    width: '100%',
   },
   contactPrompt: {
     fontSize: 12.5,
@@ -706,17 +738,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   phoneDisplay: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    paddingHorizontal: 18,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 10,
-    marginBottom: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    width: '100%',
   },
   phoneText: {
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: '#6366F1',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   actionButtonsRow: {
@@ -725,8 +761,7 @@ const styles = StyleSheet.create({
   },
   callBtn: {
     flex: 1,
-    backgroundColor: '#6366F1',
-    borderRadius: 11,
+    borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -735,12 +770,11 @@ const styles = StyleSheet.create({
   callBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 12.5,
   },
   whatsappBtn: {
     flex: 1,
-    backgroundColor: '#25D366',
-    borderRadius: 11,
+    borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -749,7 +783,7 @@ const styles = StyleSheet.create({
   whatsappBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 12.5,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/settings/SettingsText';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -33,6 +33,8 @@ import { useBusinessStore } from '@/store/businessStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useLicenseStore } from '@/store/licenseStore';
+import { isOnlineStoreActivatedByAdmin } from '@/lib/onlineStore/storeActivationService';
+import { useOnlineStoreStore } from '@/store/onlineStoreStore';
 import { Colors } from '@/constants/colors';
 import { PRIVACY_POLICY_URL } from '@/constants/config';
 import { fmtExchangeRate } from '@/utils/formatters';
@@ -64,6 +66,23 @@ export default function SettingsScreen() {
   const tileColors = getSettingsTileColors(isDark);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const [isAdminActivated, setIsAdminActivated] = useState(false);
+  const isStoreEnabled = useOnlineStoreStore((s) => s.enabled);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      isOnlineStoreActivatedByAdmin().then((active) => {
+        if (mounted) setIsAdminActivated(active);
+      });
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
+
+  const showOnlineStore = Boolean(isAdminActivated || isStoreEnabled);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -171,6 +190,7 @@ export default function SettingsScreen() {
             isDark={isDark}
             toggleTheme={toggle}
             userEmail={userEmail}
+            showOnlineStore={showOnlineStore}
             onLogoutPress={() => setShowLogoutModal(true)}
             onDeleteAccountPress={() => setShowDeleteModal(true)}
           />
@@ -298,16 +318,18 @@ export default function SettingsScreen() {
               />
             </SettingSection>
 
-            {/* Online Store */}
-            <SettingSection title={t('settings.onlineStore')}>
-              <SettingRow
-                icon="storefront"
-                color={tileColors.store}
-                label={t('settings.onlineStore')}
-                sub={t('settings.onlineStoreSub')}
-                onPress={() => router.push('/(app)/settings/online-store' as never)}
-              />
-            </SettingSection>
+            {/* Online Store - only visible when explicitly activated by admin */}
+            {showOnlineStore && (
+              <SettingSection title={t('settings.onlineStore')}>
+                <SettingRow
+                  icon="storefront"
+                  color={tileColors.store}
+                  label={t('settings.onlineStore')}
+                  sub={t('settings.onlineStoreSub')}
+                  onPress={() => router.push('/(app)/settings/online-store' as never)}
+                />
+              </SettingSection>
+            )}
 
             {/* Expiry Tracking */}
             <SettingSection title={t('settings.expiry', 'بەسەرچوون')}>

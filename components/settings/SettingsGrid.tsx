@@ -28,6 +28,7 @@ interface SettingsGridProps {
   isDark: boolean;
   toggleTheme: () => void;
   userEmail?: string | null;
+  showOnlineStore?: boolean;
   onLogoutPress: () => void;
   onDeleteAccountPress: () => void;
 }
@@ -177,6 +178,7 @@ export function SettingsGrid({
   isDark,
   toggleTheme,
   userEmail,
+  showOnlineStore = false,
   onLogoutPress,
   onDeleteAccountPress,
 }: SettingsGridProps) {
@@ -355,13 +357,17 @@ export function SettingsGrid({
           sub={isKu ? 'بەشەکانی ئەپ' : 'Dashboard Grid'}
           onPress={() => router.push('/(app)/settings/modules' as never)}
         />
-        <SettingsGridTile
-          icon="storefront"
-          color={tileColors.store}
-          title={isKu ? 'فرۆشگا' : 'Online Store'}
-          sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
-          onPress={() => router.push('/(app)/settings/online-store' as never)}
-        />
+        {showOnlineStore ? (
+          <SettingsGridTile
+            icon="storefront"
+            color={tileColors.store}
+            title={isKu ? 'فرۆشگا' : 'Online Store'}
+            sub={isKu ? 'ڕێکخستنی وێب' : 'Web Storefront'}
+            onPress={() => router.push('/(app)/settings/online-store' as never)}
+          />
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
       </View>
 
       {/* Row 2: Expiry Date Tracking & Thermal Receipts */}
