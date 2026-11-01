@@ -76,14 +76,14 @@ function toSyncChange(item: PendingSyncItem): SyncChange | null {
   return {
     productId: item.productId,
     operation: 'upsert',
-    name: p.name,
-    category: p.category,
-    description: p.description,
-    websiteDescription: p.websiteDescription,
-    price: p.sellingPrice,
-    quantity: p.quantity,
+    name: p.name || 'Product',
+    category: p.category || 'General',
+    description: p.description ?? null,
+    websiteDescription: p.websiteDescription ?? null,
+    price: Number(p.sellingPrice) || 0,
+    quantity: Math.max(0, Number(p.quantity) || 0),
     imageUrl: p.imageRemoteUrl ?? (isLocalUri ? null : p.imageUri),
-    isPublished: p.storeVisible,
+    isPublished: p.storeVisible !== undefined ? Boolean(p.storeVisible) : true,
     updatedAt: p.updatedAt,
   };
 }
@@ -220,36 +220,61 @@ export async function processQueue(
     }
     if (__DEV__) console.log(`[onlineStore] processQueue: ${pending.length} pending change(s)`);
 
-    // Chunk the network push instead of one request for every pending product —
-    // bounds request body size and gives callers (e.g. the Inventory bulk-sync modal)
-    // real incremental progress on catalogs in the thousands. BATCH_SIZE=250 keeps
-    // round-trip count reasonable (~40 requests for 10,000 products) while keeping a
-    // single slow/failed batch's blast radius small.
-    const BATCH_SIZE = 250;
+    // Chunk the network push into moderate batches (BATCH_SIZE=100) for fast, smooth progress feedback
+    const BATCH_SIZE = 100;
+    const IMAGE_CONCURRENCY = 4;
     const total = pending.length;
     let done = 0;
 
     for (let i = 0; i < pending.length; i += BATCH_SIZE) {
       const batch = pending.slice(i, i + BATCH_SIZE);
 
-      // Upload any local images first (sequentially — avoid bursting concurrent
-      // multipart uploads at a single-core backend instance). An item whose upload
-      // fails is left out of this round entirely; its queue row stays put and it's
-      // retried on the next sync cycle without blocking everything else.
-      const ready: PendingSyncItem[] = [];
-      for (const item of batch) {
-        if (await ensureRemoteImage(item, slug, apiKey)) ready.push(item);
+      // 1. Gather all items in this batch that have a local image waiting to be uploaded
+      const itemsWithLocalImage = batch.filter(
+        (item) =>
+          item.operation === 'upsert' &&
+          item.product &&
+          !!item.product.imageUri &&
+          LOCAL_URI_PATTERN.test(item.product.imageUri) &&
+          !item.product.imageRemoteUrl
+      );
+
+      // 2. Upload images concurrently with bounded pool so it's super fast without overloading connection
+      if (itemsWithLocalImage.length > 0) {
+        const pool = new Set<Promise<void>>();
+        for (const item of itemsWithLocalImage) {
+          const task = (async () => {
+            try {
+              await ensureRemoteImage(item, slug, apiKey);
+            } catch (err) {
+              if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
+                throw err;
+              }
+              // Transient or rate error: keep going, product will still be pushed, image retries later
+            }
+          })();
+          pool.add(task);
+          task.finally(() => pool.delete(task));
+          if (pool.size >= IMAGE_CONCURRENCY) {
+            await Promise.race(pool);
+          }
+        }
+        await Promise.all(pool);
       }
 
-      if (ready.length > 0) {
-        const changes = ready.map(toSyncChange).filter((c): c is SyncChange => c !== null);
-        if (changes.length > 0) {
-          if (__DEV__) console.log('[onlineStore] pushing sync batch:', changes.length);
-          const result = await pushSync(slug, apiKey, changes);
-          await setLastSyncAt(result.syncedAt);
-        }
-        await clearSyncQueue(ready.map((p) => p.queueId));
+      // 3. Push all products in this batch to online store!
+      // IMPORTANT: Products are NEVER dropped if an image failed — they still sync with full name,
+      // price, category, stock, and descriptions!
+      const changes = batch.map(toSyncChange).filter((c): c is SyncChange => c !== null);
+
+      if (changes.length > 0) {
+        if (__DEV__) console.log('[onlineStore] pushing sync batch:', changes.length);
+        const result = await pushSync(slug, apiKey, changes);
+        await setLastSyncAt(result.syncedAt);
       }
+
+      // 4. Mark all items in this batch as processed from queue
+      await clearSyncQueue(batch.map((p) => p.queueId));
 
       done += batch.length;
       onProgress?.(done, total);

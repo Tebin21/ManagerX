@@ -54,32 +54,46 @@ export class OnlineStoreApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 15000): Promise<T> {
   const method = init?.method ?? 'GET';
   if (__DEV__) console.log(`[onlineStore] → ${method} ${path}`, init?.body ?? '');
-  const res = await fetch(`${STORE_API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    if (__DEV__) console.warn(`[onlineStore] ← ${method} ${path} FAILED (${res.status}):`, body);
-    throw new OnlineStoreApiError(
-      `${method} ${path} failed (${res.status}): ${body || res.statusText}`,
-      res.status
-    );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${STORE_API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      if (__DEV__) console.warn(`[onlineStore] ← ${method} ${path} FAILED (${res.status}):`, body);
+      throw new OnlineStoreApiError(
+        `${method} ${path} failed (${res.status}): ${body || res.statusText}`,
+        res.status
+      );
+    }
+    if (res.status === 204) {
+      if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK (204)`);
+      return undefined as T;
+    }
+    const json = await res.json();
+    if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK:`, json);
+    return json as T;
+  } catch (err) {
+    if (err && typeof err === 'object' && (err as any).name === 'AbortError') {
+      throw new OnlineStoreApiError(`Request ${method} ${path} timed out after ${timeoutMs}ms`, 408);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  if (res.status === 204) {
-    if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK (204)`);
-    return undefined as T;
-  }
-  const json = await res.json();
-  if (__DEV__) console.log(`[onlineStore] ← ${method} ${path} OK:`, json);
-  return json as T;
 }
 
 function authHeaders(apiKey: string) {
@@ -172,25 +186,39 @@ export async function deleteStore(slug: string, apiKey: string): Promise<void> {
 export async function uploadStoreImage(
   slug: string,
   apiKey: string,
-  localUri: string
+  localUri: string,
+  timeoutMs = 12000
 ): Promise<{ url: string }> {
   const ext = (localUri.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
   const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
   const form = new FormData();
   form.append('image', { uri: localUri, name: `upload.${ext}`, type: mime } as unknown as Blob);
 
-  if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${localUri})`);
-  const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
-    method: 'POST',
-    headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
-    body: form,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    if (__DEV__) console.warn(`[onlineStore] ← image upload FAILED (${res.status}):`, body);
-    throw new OnlineStoreApiError(`Image upload failed (${res.status}): ${body || res.statusText}`, res.status);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    if (__DEV__) console.log(`[onlineStore] → POST /api/stores/${slug}/images (${localUri})`);
+    const res = await fetch(`${STORE_API_BASE_URL}/api/stores/${slug}/images`, {
+      method: 'POST',
+      headers: { ...authHeaders(apiKey), ...(await subscriptionHeaders()) },
+      body: form,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      if (__DEV__) console.warn(`[onlineStore] ← image upload FAILED (${res.status}):`, body);
+      throw new OnlineStoreApiError(`Image upload failed (${res.status}): ${body || res.statusText}`, res.status);
+    }
+    const json = await res.json();
+    if (__DEV__) console.log('[onlineStore] ← image upload OK:', json);
+    return json;
+  } catch (err) {
+    if (err && typeof err === 'object' && (err as any).name === 'AbortError') {
+      throw new OnlineStoreApiError(`Image upload timed out after ${timeoutMs}ms`, 408);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  const json = await res.json();
-  if (__DEV__) console.log('[onlineStore] ← image upload OK:', json);
-  return json;
 }

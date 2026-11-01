@@ -9,12 +9,10 @@ function slugOrIpKey(req: Request): string {
 }
 
 // Applied to per-store write endpoints (sync, info update, image upload, status
-// change). Generous enough for normal offline-first sync bursts and manual admin
-// edits, tight enough to stop a leaked/abused API key from monopolizing the shared
-// JSON ledger + disk (see storeLock.ts) at another store's expense.
+// change). Generous enough for bulk inventory syncs and image bursts (600 requests/minute).
 export const storeWriteLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 30,
+  limit: 600,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: slugOrIpKey,

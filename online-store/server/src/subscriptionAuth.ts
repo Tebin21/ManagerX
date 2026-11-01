@@ -37,7 +37,7 @@ export function checkSubscriptionHeaders(req: Request): SubscriptionCheckResult 
     return { status: 'valid' };
   }
   // Admin-activated accounts and Cloud subscriptions
-  if (code === 'ADMIN-ACTIVATED-PRO' || code.startsWith('CLOUD-')) {
+  if (code === 'ADMIN-ACTIVATED-PRO' || code.startsWith('ADMIN-') || code.startsWith('CLOUD-')) {
     return { status: 'valid' };
   }
   const result = subscriptionCore.verifySubscriptionCode(code, deviceId);

@@ -79,8 +79,24 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
     const db = getFirebaseFirestore();
     const docId = email.replace(/[^a-z0-9_]/gi, '_');
 
-    // Check employee_accounts (Admin management portal writes here for all accounts)
-    const empSnap = await getDoc(doc(db, 'employee_accounts', docId));
+    // Check store_activations, employee_accounts, and user_subscriptions in parallel for maximum speed
+    const [storeSnap, empSnap, subSnap] = await Promise.all([
+      getDoc(doc(db, 'store_activations', docId)).catch(() => null),
+      getDoc(doc(db, 'employee_accounts', docId)).catch(() => null),
+      getDoc(doc(db, 'user_subscriptions', docId)).catch(() => null),
+    ]);
+
+    // 1. Check store_activations (Primary online store activation record)
+    if (storeSnap && (typeof storeSnap.exists === 'function' ? storeSnap.exists() : (storeSnap as any).exists)) {
+      const data = storeSnap.data();
+      if (parseStoreActiveFromData(data)) {
+        isStoreActiveCache = true;
+        lastCheckTime = now;
+        return true;
+      }
+    }
+
+    // 2. Check employee_accounts
     if (empSnap && (typeof empSnap.exists === 'function' ? empSnap.exists() : (empSnap as any).exists)) {
       const data = empSnap.data();
       if (parseStoreActiveFromData(data)) {
@@ -90,21 +106,9 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
       }
     }
 
-    // Check user_subscriptions (Admin payment portal writes here)
-    const subSnap = await getDoc(doc(db, 'user_subscriptions', docId));
+    // 3. Check user_subscriptions
     if (subSnap && (typeof subSnap.exists === 'function' ? subSnap.exists() : (subSnap as any).exists)) {
       const data = subSnap.data();
-      if (parseStoreActiveFromData(data)) {
-        isStoreActiveCache = true;
-        lastCheckTime = now;
-        return true;
-      }
-    }
-
-    // Check store_activations
-    const storeSnap = await getDoc(doc(db, 'store_activations', docId));
-    if (storeSnap && (typeof storeSnap.exists === 'function' ? storeSnap.exists() : (storeSnap as any).exists)) {
-      const data = storeSnap.data();
       if (parseStoreActiveFromData(data)) {
         isStoreActiveCache = true;
         lastCheckTime = now;
@@ -148,8 +152,14 @@ export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreC
     const db = getFirebaseFirestore();
     const docId = email.replace(/[^a-z0-9_]/gi, '_');
 
+    // Run parallel lookup across collections for instant config retrieval
+    const [storeSnap, empSnap, subSnap] = await Promise.all([
+      getDoc(doc(db, 'store_activations', docId)).catch(() => null),
+      getDoc(doc(db, 'employee_accounts', docId)).catch(() => null),
+      getDoc(doc(db, 'user_subscriptions', docId)).catch(() => null),
+    ]);
+
     // 1. Check store_activations (Primary online store activation record)
-    const storeSnap = await getDoc(doc(db, 'store_activations', docId));
     if (storeSnap && (typeof storeSnap.exists === 'function' ? storeSnap.exists() : (storeSnap as any).exists)) {
       const data = storeSnap.data();
       if (parseStoreActiveFromData(data) && data?.subdomain) {
@@ -163,7 +173,6 @@ export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreC
     }
 
     // 2. Check employee_accounts
-    const empSnap = await getDoc(doc(db, 'employee_accounts', docId));
     if (empSnap && (typeof empSnap.exists === 'function' ? empSnap.exists() : (empSnap as any).exists)) {
       const data = empSnap.data();
       if (parseStoreActiveFromData(data) && data?.onlineStore?.subdomain) {
@@ -177,7 +186,6 @@ export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreC
     }
 
     // 3. Check user_subscriptions
-    const subSnap = await getDoc(doc(db, 'user_subscriptions', docId));
     if (subSnap && (typeof subSnap.exists === 'function' ? subSnap.exists() : (subSnap as any).exists)) {
       const data = subSnap.data();
       if (parseStoreActiveFromData(data) && data?.onlineStore?.subdomain) {
@@ -227,6 +235,11 @@ export function startStoreActivationRealtimeListener(): () => void {
         } catch {}
 
         const active = await isOnlineStoreActivatedByAdmin(true);
+
+        try {
+          const { useOnlineStoreSubscriptionStore } = await import('@/store/onlineStoreSubscriptionStore');
+          await useOnlineStoreSubscriptionStore.getState().loadSubscription();
+        } catch {}
 
         try {
           const { useOnlineStoreStore } = await import('@/store/onlineStoreStore');

@@ -31,6 +31,14 @@ export function BulkSyncModal({ visible, onClose }: Props) {
 
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
+  React.useEffect(() => {
+    if (visible) {
+      // Force refresh subscription and store info on open so new activations reflect instantly
+      useOnlineStoreSubscriptionStore.getState().loadSubscription();
+      useOnlineStoreStore.getState().load();
+    }
+  }, [visible]);
+
   const runBulkToggle = async (enabled: boolean) => {
     setProgress({ done: 0, total: totalProducts });
     try {

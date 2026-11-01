@@ -362,7 +362,21 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
   setBulkPublishEnabled: async (enabled, onProgress) => {
     // Same gating asymmetry as enable()/disable(): turning everything OFF must
     // always succeed, even with an expired/missing subscription.
-    if (enabled && !(await hasActiveOnlineStoreSubscription())) return { status: 'locked' };
+    if (enabled) {
+      try {
+        const { invalidateSubscriptionCache } = await import('@/lib/onlineStoreSubscription/subscription');
+        invalidateSubscriptionCache();
+        const { invalidateStoreActivationCache } = await import('@/lib/onlineStore/storeActivationService');
+        invalidateStoreActivationCache();
+      } catch {}
+
+      const hasActive = await hasActiveOnlineStoreSubscription();
+      if (!hasActive) return { status: 'locked' };
+
+      // Ensure store is marked enabled in storage and reactive state
+      await setStoreEnabled(true);
+      set({ enabled: true });
+    }
 
     set({ isBulkPublishing: true });
     try {
