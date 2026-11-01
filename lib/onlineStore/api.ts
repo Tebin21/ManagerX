@@ -101,11 +101,11 @@ async function subscriptionHeaders(): Promise<Record<string, string>> {
 // reissued a credential for it, rather than creating a new one — e.g. after a
 // reinstall wiped the locally-cached slug/apiKey. Callers don't need to branch on
 // this; it's surfaced only for diagnostics.
-export async function registerStore(businessName: string): Promise<{ slug: string; apiKey: string; recovered?: boolean }> {
+export async function registerStore(businessName: string, desiredSlug?: string): Promise<{ slug: string; apiKey: string; recovered?: boolean }> {
   return request('/api/stores', {
     method: 'POST',
     headers: await subscriptionHeaders(),
-    body: JSON.stringify({ businessName }),
+    body: JSON.stringify({ businessName, desiredSlug }),
   });
 }
 

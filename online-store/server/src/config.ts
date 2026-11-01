@@ -23,7 +23,12 @@ export interface LocalConfig {
 
 const DEFAULTS: LocalConfig = {
   port: 4100,
-  allowedOrigin: ['https://froshiar.store', 'https://www.froshiar.store'],
+  allowedOrigin: [
+    'https://froshiar.store',
+    'https://www.froshiar.store',
+    'https://managerx-bac3a.web.app',
+    'https://managerx-bac3a.firebaseapp.com',
+  ],
   publicApiUrl: 'https://api.froshiar.store',
   adminApiKey: '',
 };

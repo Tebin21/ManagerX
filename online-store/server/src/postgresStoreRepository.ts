@@ -161,6 +161,7 @@ export class PostgresStoreRepository implements StoreRepository {
 
   async registerOrRecover(input: {
     businessName: string;
+    desiredSlug?: string;
     deviceId?: string;
     apiKeyHash: string;
     isDemoPreview?: boolean;
@@ -168,6 +169,43 @@ export class PostgresStoreRepository implements StoreRepository {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // 0. Explicit desiredSlug from Admin panel binding
+      if (input.desiredSlug?.trim()) {
+        const cleanDesired = input.desiredSlug.trim().toLowerCase();
+        const desiredRes = await client.query<DbStoreRow>(
+          'SELECT * FROM stores WHERE slug = $1 ORDER BY created_at ASC LIMIT 1 FOR UPDATE',
+          [cleanDesired]
+        );
+        if (desiredRes.rows.length > 0) {
+          const row = desiredRes.rows[0];
+          await client.query(
+            'UPDATE stores SET api_key_hash = $1, business_name = $2, device_id = COALESCE($3, device_id), updated_at = NOW() WHERE id = $4',
+            [input.apiKeyHash, input.businessName, input.deviceId ?? null, row.id]
+          );
+          const productsRes = await client.query<DbProductRow>(
+            'SELECT * FROM products WHERE store_id = $1 ORDER BY product_id ASC',
+            [row.id]
+          );
+          await client.query('COMMIT');
+          return {
+            record: mapStore({ ...row, business_name: input.businessName, api_key_hash: input.apiKeyHash }, productsRes.rows.map(mapProduct)),
+            recovered: true,
+          };
+        } else {
+          const insertRes = await client.query<DbStoreRow>(
+            `INSERT INTO stores (slug, business_name, api_key_hash, device_id, enabled)
+             VALUES ($1, $2, $3, $4, true)
+             RETURNING *`,
+            [cleanDesired, input.businessName, input.apiKeyHash, input.deviceId ?? null]
+          );
+          await client.query('COMMIT');
+          return {
+            record: mapStore(insertRes.rows[0], []),
+            recovered: false,
+          };
+        }
+      }
 
       // 1. Check recovery by deviceId
       if (input.deviceId) {

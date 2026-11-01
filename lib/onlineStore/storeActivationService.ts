@@ -102,6 +102,82 @@ export async function isOnlineStoreActivatedByAdmin(forceRefresh = false): Promi
   return false;
 }
 
+export interface AdminOnlineStoreConfig {
+  isActive: boolean;
+  subdomain?: string;
+  storeName?: string;
+  status?: string;
+}
+
+export async function getOnlineStoreConfigFromAdmin(): Promise<AdminOnlineStoreConfig | null> {
+  const { isEmployee, currentEmployeeAccount } = useManagementStore.getState();
+  if (isEmployee && currentEmployeeAccount?.onlineStore) {
+    const store = currentEmployeeAccount.onlineStore;
+    const active = !!(store?.enabled && store?.status === 'active');
+    return {
+      isActive: active,
+      subdomain: store.subdomain,
+      storeName: store.storeName,
+      status: store.status,
+    };
+  }
+
+  const user = useAuthStore.getState().user;
+  const email = user?.email?.trim().toLowerCase();
+  if (!email) return null;
+
+  try {
+    const db = getFirebaseFirestore();
+    const docId = email.replace(/[^a-z0-9_]/gi, '_');
+
+    // 1. Check store_activations (Primary online store activation record)
+    const storeSnap = await getDoc(doc(db, 'store_activations', docId));
+    if (storeSnap && (typeof storeSnap.exists === 'function' ? storeSnap.exists() : (storeSnap as any).exists)) {
+      const data = storeSnap.data();
+      if (parseStoreActiveFromData(data) && data?.subdomain) {
+        return {
+          isActive: true,
+          subdomain: data.subdomain,
+          storeName: data.storeName,
+          status: data.status,
+        };
+      }
+    }
+
+    // 2. Check employee_accounts
+    const empSnap = await getDoc(doc(db, 'employee_accounts', docId));
+    if (empSnap && (typeof empSnap.exists === 'function' ? empSnap.exists() : (empSnap as any).exists)) {
+      const data = empSnap.data();
+      if (parseStoreActiveFromData(data) && data?.onlineStore?.subdomain) {
+        return {
+          isActive: true,
+          subdomain: data.onlineStore.subdomain,
+          storeName: data.onlineStore.storeName,
+          status: data.onlineStore.status,
+        };
+      }
+    }
+
+    // 3. Check user_subscriptions
+    const subSnap = await getDoc(doc(db, 'user_subscriptions', docId));
+    if (subSnap && (typeof subSnap.exists === 'function' ? subSnap.exists() : (subSnap as any).exists)) {
+      const data = subSnap.data();
+      if (parseStoreActiveFromData(data) && data?.onlineStore?.subdomain) {
+        return {
+          isActive: true,
+          subdomain: data.onlineStore.subdomain,
+          storeName: data.onlineStore.storeName,
+          status: data.onlineStore.status,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[storeActivationService] Failed to load config:', err);
+  }
+
+  return null;
+}
+
 let unsubEmployee: (() => void) | null = null;
 let unsubSubscription: (() => void) | null = null;
 let unsubStoreActivation: (() => void) | null = null;

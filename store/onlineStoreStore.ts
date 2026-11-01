@@ -183,7 +183,22 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
     // perfectly good, already-computed URL.
     let slug: string | null = null;
     try {
-      slug = await getStoreSlug();
+      // 1. Check if admin explicitly assigned a subdomain for this account
+      try {
+        const { getOnlineStoreConfigFromAdmin } = await import('@/lib/onlineStore/storeActivationService');
+        const adminConfig = await getOnlineStoreConfigFromAdmin();
+        if (adminConfig?.subdomain && adminConfig.subdomain.trim()) {
+          slug = adminConfig.subdomain.trim().toLowerCase();
+          await setStoreSlug(slug);
+        }
+      } catch (err) {
+        if (__DEV__) console.warn('[onlineStore] admin config lookup warning:', err);
+      }
+
+      // 2. Fall back to local SQLite slug or business name slug
+      if (!slug) {
+        slug = await getStoreSlug();
+      }
       if (!slug) {
         await waitForBusinessHydration();
         const businessName = useBusinessStore.getState().name?.trim();
@@ -251,7 +266,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
       if (!slug || !apiKey) {
         // Never successfully registered with the backend yet — try now.
         try {
-          const res = await completeStoreRegistration(businessName);
+          const res = await completeStoreRegistration(businessName, slug || undefined);
           slug = res.slug;
           apiKey = await getStoreApiKey();
         } catch (err) {
@@ -264,7 +279,7 @@ export const useOnlineStoreStore = create<OnlineStoreState>((set, get) => ({
           if (err instanceof OnlineStoreApiError && (err.status === 404 || err.status === 401)) {
             await clearStoreApiKey();
             try {
-              const res = await completeStoreRegistration(businessName);
+              const res = await completeStoreRegistration(businessName, slug || undefined);
               slug = res.slug;
               apiKey = await getStoreApiKey();
             } catch {}

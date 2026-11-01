@@ -18,6 +18,10 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export function requireAdminAuth(req: Request, res: Response, next: NextFunction): void {
+  if (req.method === 'OPTIONS') {
+    next();
+    return;
+  }
   // An empty configured key must never match an empty/missing header — refuse
   // everything rather than accidentally leaving the admin API open because
   // ADMIN_API_KEY was never set.
@@ -26,7 +30,10 @@ export function requireAdminAuth(req: Request, res: Response, next: NextFunction
     return;
   }
   const header = req.headers.authorization ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  let token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token && typeof req.headers['x-admin-key'] === 'string') {
+    token = req.headers['x-admin-key'];
+  }
   if (!token || !timingSafeEqual(token, config.adminApiKey)) {
     res.status(401).json({ error: 'Invalid admin key' });
     return;

@@ -263,13 +263,43 @@ export class JsonStoreRepository implements StoreRepository {
   // otherwise create a fresh store under a guaranteed-unique slug.
   async registerOrRecover(input: {
     businessName: string;
+    desiredSlug?: string;
     deviceId?: string;
     apiKeyHash: string;
     isDemoPreview?: boolean;
   }): Promise<{ record: StoreRecord; recovered: boolean }> {
-    const { businessName, deviceId, apiKeyHash } = input;
+    const { businessName, desiredSlug, deviceId, apiKeyHash } = input;
     return withStoreLock(async () => {
       const records = readLedger();
+
+      if (desiredSlug?.trim()) {
+        const cleanDesired = desiredSlug.trim().toLowerCase();
+        const idx = records.findIndex((s) => s.slug === cleanDesired);
+        if (idx !== -1) {
+          records[idx] = {
+            ...records[idx],
+            businessName,
+            apiKeyHash,
+            ...(deviceId ? { deviceId } : {}),
+          };
+          await writeLedger(records);
+          return { record: records[idx], recovered: true };
+        } else {
+          const record: StoreRecord = {
+            slug: cleanDesired,
+            businessName,
+            enabled: true,
+            apiKeyHash,
+            ...(deviceId ? { deviceId } : {}),
+            createdAt: new Date().toISOString(),
+            lastSyncAt: null,
+            products: [],
+          };
+          records.push(record);
+          await writeLedger(records);
+          return { record, recovered: false };
+        }
+      }
 
       if (deviceId) {
         const idx = records.findIndex((s) => s.deviceId === deviceId);

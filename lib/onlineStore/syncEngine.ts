@@ -148,9 +148,12 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
   }
 }
 
-export async function completeStoreRegistration(businessName: string): Promise<{ slug: string }> {
-  if (__DEV__) console.log('[onlineStore] registering store, businessName =', businessName);
-  const { slug, apiKey, recovered } = await registerStore(businessName);
+export async function completeStoreRegistration(businessName: string, desiredSlug?: string): Promise<{ slug: string }> {
+  if (!desiredSlug) {
+    desiredSlug = (await getStoreSlug()) || undefined;
+  }
+  if (__DEV__) console.log('[onlineStore] registering store, businessName =', businessName, 'desiredSlug =', desiredSlug);
+  const { slug, apiKey, recovered } = await registerStore(businessName, desiredSlug);
   if (__DEV__) console.log('[onlineStore] registration succeeded, slug =', slug, 'recovered =', !!recovered);
   await setStoreSlug(slug);
   await setStoreApiKey(apiKey);
@@ -187,7 +190,7 @@ export async function processQueue(
       const { useBusinessStore } = await import('@/store/businessStore');
       const businessName = useBusinessStore.getState().name || 'My Store';
       try {
-        const result = await completeStoreRegistration(businessName);
+        const result = await completeStoreRegistration(businessName, slug || undefined);
         slug = result.slug;
         apiKey = await getStoreApiKey();
       } catch (err) {

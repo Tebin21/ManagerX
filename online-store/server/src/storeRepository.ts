@@ -115,6 +115,7 @@ export interface StoreRepository {
   // isSlugTaken/create yourself for a registration attempt.
   registerOrRecover(input: {
     businessName: string;
+    desiredSlug?: string;
     deviceId?: string;
     apiKeyHash: string;
     isDemoPreview?: boolean;

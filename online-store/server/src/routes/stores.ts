@@ -70,7 +70,7 @@ const blockIfAdminSuspended = asyncHandler(async (req, res, next) => {
 // URL/products permanent across a reinstall that wiped the locally-cached slug/apiKey,
 // instead of silently spawning a second, empty, differently-slugged store.
 storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHandler(async (req, res) => {
-  const { businessName } = req.body ?? {};
+  const { businessName, desiredSlug } = req.body ?? {};
   if (!businessName?.trim()) {
     res.status(400).json({ error: 'businessName is required' });
     return;
@@ -93,6 +93,7 @@ storesRouter.post('/', registrationLimiter, requireActiveSubscription, asyncHand
   try {
     ({ record, recovered } = await repo.registerOrRecover({
       businessName: businessName.trim(),
+      desiredSlug: typeof desiredSlug === 'string' && desiredSlug.trim() ? desiredSlug.trim().toLowerCase() : undefined,
       deviceId,
       apiKeyHash: hashApiKey(apiKey),
       isDemoPreview,

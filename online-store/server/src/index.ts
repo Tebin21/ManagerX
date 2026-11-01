@@ -15,7 +15,26 @@ const app = express();
 // Trust proxy headers from Vercel / Cloudflare edge proxies so client IP is accurately captured
 app.set('trust proxy', 1);
 
-app.use(cors({ origin: config.allowedOrigin }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    const allowed = Array.isArray(config.allowedOrigin) ? config.allowedOrigin : [config.allowedOrigin];
+    if (
+      allowed.includes(origin) ||
+      origin.includes('froshiar.store') ||
+      origin.includes('managerx-bac3a.web.app') ||
+      origin.includes('managerx-bac3a.firebaseapp.com') ||
+      origin.includes('localhost')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Store-Key', 'X-Device-Id', 'X-OSS-Subscription', 'X-Admin-Key'],
+  credentials: true,
+}));
 app.use(express.json());
 
 // Root endpoint: quick status check

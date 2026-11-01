@@ -58,6 +58,7 @@ import {
   ChevronUp,
   TrendingUp,
   ArrowUpRight,
+  ExternalLink,
 } from 'lucide-react';
 import { getClientFirestore } from '@/lib/firebase';
 import {
@@ -66,6 +67,8 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
+  updateDoc,
+  deleteField,
   onSnapshot,
   query,
 } from 'firebase/firestore';
@@ -680,6 +683,102 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   // Official Receipt Preview Modal State
   const [viewingReceiptEmployee, setViewingReceiptEmployee] = useState<EmployeeAccount | null>(null);
 
+  // Online Store Activation Table Modal State (25s countdown, trilingual)
+  interface StoreActivationModalData {
+    employee: EmployeeAccount;
+    storeName: string;
+    subdomain: string;
+    url: string;
+    email: string;
+    phone?: string;
+    activatedAt: string;
+  }
+  const [storeActivationData, setStoreActivationData] = useState<StoreActivationModalData | null>(null);
+  const [activationCountdown, setActivationCountdown] = useState<number>(25);
+  const [activationModalLang, setActivationModalLang] = useState<'ku' | 'ar' | 'en'>('ku');
+  const [copiedStoreUrl, setCopiedStoreUrl] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!storeActivationData) return;
+    setActivationCountdown(25);
+    const interval = setInterval(() => {
+      setActivationCountdown((prev) => {
+        if (prev <= 1) {
+          setStoreActivationData(null);
+          return 25;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [storeActivationData]);
+
+  const storeActivationI18n = {
+    ku: {
+      title: 'وەسڵی فەرمیی چالاککردنی وێبسایت',
+      badge: 'چالاک کراوە 🟢',
+      customerName: 'ناوی کڕیار / مارکێت:',
+      storeName: 'ناوی فرۆشگا:',
+      email: 'ئیمەیڵی فەرمی:',
+      phone: 'ژمارەی مۆبایل:',
+      subdomain: 'دۆمەینی تەرخانکراو:',
+      storeUrl: 'بەستەری فەرمیی ماڵپەڕ:',
+      status: 'دۆخی وێبسایت:',
+      statusValue: 'چالاکە و ئامادەیە بۆ کڕین',
+      activatedAt: 'کاتی چالاککردن:',
+      copyBtn: 'کۆپیکردن',
+      openBtn: 'کردنەوە',
+      copied: 'کۆپی کرا!',
+      sendWhatsapp: 'ناردنی زانیاری بە واتسئەپ',
+      close: 'داخستن',
+      countdown: (sec: number) => `داخستنی خۆکار لەماوەی (${sec}) چرکەدا...`,
+      waMsg: (s: any) =>
+        `سڵاو بەڕێز ${s.employee?.displayName || s.storeName}\n\n پیرۆزە! فرۆشگای ئۆنلاینی تایبەت بە مارکێتەکەت بە سەرکەوتوویی لەسەر پلاتفۆرمی فرۆشیار چالاککرا.\n\n ناوی فرۆشگا: ${s.storeName}\n بەستەری ماڵپەڕەکەت:\n${s.url}\n\nدەتوانیت لەناو ئەپی فرۆشیار لە بەشی (ستۆری ئۆنلاین) کاڵاکانت ڕاستەوخۆ هاوکات (Sync) بکەیت.`,
+    },
+    ar: {
+      title: 'إيصال تفعيل المتجر الإلكتروني',
+      badge: 'مفعل بنجاح 🟢',
+      customerName: 'اسم العميل / المتجر:',
+      storeName: 'اسم المتجر:',
+      email: 'البريد الرسمي:',
+      phone: 'رقم الهاتف:',
+      subdomain: 'النطاق المخصص:',
+      storeUrl: 'رابط المتجر الرسمي:',
+      status: 'حالة المتجر:',
+      statusValue: 'مفعل وجاهز للطلبات',
+      activatedAt: 'وقت التفعيل:',
+      copyBtn: 'نسخ الرابط',
+      openBtn: 'زيارة المتجر',
+      copied: 'تم النسخ!',
+      sendWhatsapp: 'إرسال التفاصيل عبر واتساب',
+      close: 'إغلاق',
+      countdown: (sec: number) => `الإغلاق التلقائي خلال (${sec}) ثانية...`,
+      waMsg: (s: any) =>
+        `مرحباً بك ${s.employee?.displayName || s.storeName}\n\n مبروك! تم تفعيل متجرك الإلكتروني بنجاح على منصة فروشيار.\n\n اسم المتجر: ${s.storeName}\n رابط متجرك:\n${s.url}\n\nيمكنك الآن مزامنة المنتجات مباشرة من تطبيق فروشيار.`,
+    },
+    en: {
+      title: 'Official Storefront Activation Receipt',
+      badge: 'Active & Verified 🟢',
+      customerName: 'Customer / Business:',
+      storeName: 'Store Name:',
+      email: 'Official Email:',
+      phone: 'Phone Number:',
+      subdomain: 'Assigned Subdomain:',
+      storeUrl: 'Official Storefront URL:',
+      status: 'Storefront Status:',
+      statusValue: 'Active & Ready for Orders',
+      activatedAt: 'Activation Timestamp:',
+      copyBtn: 'Copy URL',
+      openBtn: 'Open Storefront',
+      copied: 'Copied!',
+      sendWhatsapp: 'Send via WhatsApp',
+      close: 'Close',
+      countdown: (sec: number) => `Auto-closing in (${sec}) seconds...`,
+      waMsg: (s: any) =>
+        `Hello ${s.employee?.displayName || s.storeName},\n\nCongratulations! Your official online store has been activated on Froshiar.\n\nStore Name: ${s.storeName}\nStorefront URL:\n${s.url}\n\nYou can now sync your catalog directly from the Froshiar app.`,
+    },
+  };
+
   // Live Subscription
   useEffect(() => {
     setLoading(true);
@@ -1125,78 +1224,236 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     }
   };
 
-  // Toggle Online Store status
-  const handleToggleOnlineStore = async (emp: EmployeeAccount) => {
+  // Activate Online Store and show 25s Receipt Table Modal
+  const handleActivateOnlineStore = async (emp: EmployeeAccount) => {
     const db = getClientFirestore();
     if (!db) return;
 
     const docId = getCleanDocId(emp.email) || emp.id;
     const cleanEmail = (emp.email || '').trim().toLowerCase();
     const finalStoreName = (emp.onlineStore?.storeName || emp.displayName || cleanEmail.split('@')[0] || 'store').trim();
-    const finalSubdomain = (emp.onlineStore?.subdomain || slugifyStoreName(finalStoreName) || docId || 'store').trim();
-    const nextStatus = (emp.onlineStore?.status === 'active') ? 'suspended' : 'active';
-    const isNowActive = nextStatus === 'active';
+    const finalSubdomain = (emp.onlineStore?.subdomain || slugifyStoreName(finalStoreName) || docId || 'store').trim().toLowerCase();
+    const activatedAt = new Date().toISOString();
 
     const storePayload = {
-      enabled: isNowActive,
+      enabled: true,
       storeName: finalStoreName,
       subdomain: finalSubdomain,
-      status: nextStatus,
-      activatedAt: emp.onlineStore?.activatedAt || new Date().toISOString(),
+      status: 'active' as const,
+      activatedAt,
     };
 
     try {
-      const docRef = doc(db, 'employee_accounts', docId);
+      // 1. Update employee_accounts
       await setDoc(
-        docRef,
-        {
-          onlineStore: stripUndefined(storePayload),
-        },
+        doc(db, 'employee_accounts', docId),
+        { onlineStore: stripUndefined(storePayload) },
         { merge: true }
       );
 
-      // Also mirror to user_subscriptions so app reflects the online store state
+      // 2. Mirror to user_subscriptions
       try {
         await setDoc(
           doc(db, 'user_subscriptions', docId),
           stripUndefined({
-            storefront_enabled: isNowActive,
-            onlineStoreActive: isNowActive,
+            storefront_enabled: true,
+            onlineStoreActive: true,
             onlineStore: storePayload,
-            updatedAt: new Date().toISOString(),
+            updatedAt: activatedAt,
           }),
           { merge: true }
         );
 
-        if (isNowActive) {
-          await setDoc(
-            doc(db, 'store_activations', docId),
-            stripUndefined({
-              email: cleanEmail,
-              enabled: true,
-              status: 'active',
-              storeName: finalStoreName,
-              subdomain: finalSubdomain,
-              activatedAt: new Date().toISOString(),
-            }),
-            { merge: true }
-          );
-        } else {
-          await setDoc(
-            doc(db, 'store_activations', docId),
-            {
-              enabled: false,
-              status: 'suspended',
-            },
-            { merge: true }
-          );
-        }
+        // 3. Mirror to store_activations
+        await setDoc(
+          doc(db, 'store_activations', docId),
+          stripUndefined({
+            email: cleanEmail,
+            enabled: true,
+            status: 'active',
+            storeName: finalStoreName,
+            subdomain: finalSubdomain,
+            activatedAt,
+          }),
+          { merge: true }
+        );
       } catch (syncErr) {
         console.warn('Sync to user_subscriptions/store_activations warning:', syncErr);
       }
+
+      // 4. Notify backend API to unsuspend if existing
+      try {
+        await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(finalSubdomain)}/suspend`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+          },
+          body: JSON.stringify({ suspended: false }),
+        });
+      } catch (apiErr) {
+        console.warn('Backend unsuspend warning:', apiErr);
+      }
+
+      // 5. Open the 25-second official activation receipt table modal!
+      const storeUrl = `https://froshiar.store/${finalSubdomain}`;
+      setStoreActivationData({
+        employee: emp,
+        storeName: finalStoreName,
+        subdomain: finalSubdomain,
+        url: storeUrl,
+        email: emp.email,
+        phone: emp.phone,
+        activatedAt,
+      });
+      setActivationCountdown(25);
+      setActivationModalLang(isKu ? 'ku' : 'en');
     } catch (e: any) {
-      console.error('Failed to toggle online store:', e);
-      alert(isKu ? `هەڵەیەک ڕوویدا لە گۆڕینی ستۆری ئۆنلاین: ${e?.message || ''}` : `Failed to update store: ${e?.message || ''}`);
+      console.error('Failed to activate online store:', e);
+      alert(isKu ? `هەڵەیەک ڕوویدا لە چالاککردنی وێبسایت: ${e?.message || ''}` : `Failed to activate store: ${e?.message || ''}`);
+    }
+  };
+
+  // Suspend Online Store
+  const handleSuspendOnlineStore = async (emp: EmployeeAccount) => {
+    const db = getClientFirestore();
+    if (!db) return;
+
+    const docId = getCleanDocId(emp.email) || emp.id;
+    const finalSubdomain = (emp.onlineStore?.subdomain || '').trim().toLowerCase();
+
+    try {
+      // 1. Update employee_accounts
+      await setDoc(
+        doc(db, 'employee_accounts', docId),
+        {
+          onlineStore: {
+            ...(emp.onlineStore || {}),
+            enabled: false,
+            status: 'suspended',
+          },
+        },
+        { merge: true }
+      );
+
+      // 2. Mirror to user_subscriptions
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          {
+            storefront_enabled: false,
+            onlineStoreActive: false,
+            'onlineStore.enabled': false,
+            'onlineStore.status': 'suspended',
+          },
+          { merge: true }
+        );
+
+        // 3. Mirror to store_activations
+        await setDoc(
+          doc(db, 'store_activations', docId),
+          {
+            enabled: false,
+            status: 'suspended',
+          },
+          { merge: true }
+        );
+      } catch (syncErr) {
+        console.warn('Sync to user_subscriptions/store_activations warning:', syncErr);
+      }
+
+      // 4. Notify backend API to suspend
+      if (finalSubdomain) {
+        try {
+          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(finalSubdomain)}/suspend`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+            },
+            body: JSON.stringify({ suspended: true }),
+          });
+        } catch (apiErr) {
+          console.warn('Backend suspend warning:', apiErr);
+        }
+      }
+
+      alert(isKu ? 'وێبسایتەکە بە سەرکەوتوویی وەستێنرا (ناچالاککرا).' : 'Storefront successfully suspended.');
+    } catch (e: any) {
+      console.error('Failed to suspend online store:', e);
+      alert(isKu ? `هەڵە: ${e?.message || ''}` : `Error: ${e?.message || ''}`);
+    }
+  };
+
+  // Delete Online Store and free domain
+  const handleDeleteOnlineStore = async (emp: EmployeeAccount) => {
+    const storeName = emp.onlineStore?.storeName || emp.displayName || 'store';
+    const subdomain = (emp.onlineStore?.subdomain || '').trim().toLowerCase();
+
+    const confirmMsg = isKu
+      ? `ئایا دڵنیایت لە سڕینەوەی یەکجارەکی ئەم ماڵپەڕە و بەتاڵکردنەوەی دۆمەینەکەی؟\n\n🔹 ناوی فرۆشگا: ${storeName}\n🔹 دۆمەین: ${subdomain || '—'}\n\n⚠️ هەموو کاڵا و وێنەکانی سەر سێرڤەر بە تەواوی دەسڕدرێنەوە و ئەم دۆمەینە ئازاد دەبێت.`
+      : `Are you sure you want to permanently delete this online store and free up its domain?\n\nStore: ${storeName}\nSubdomain: ${subdomain}\n\nAll products and images on the server will be permanently deleted.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const db = getClientFirestore();
+    if (!db) return;
+
+    const docId = getCleanDocId(emp.email) || emp.id;
+
+    try {
+      // 1. Delete on backend API if subdomain exists
+      if (subdomain) {
+        try {
+          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(subdomain)}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+            },
+            body: JSON.stringify({ confirm: 'DELETE' }),
+          });
+        } catch (apiErr) {
+          console.warn('Backend delete store error (might not exist yet):', apiErr);
+        }
+      }
+
+      // 2. Clear from employee_accounts
+      try {
+        await updateDoc(doc(db, 'employee_accounts', docId), {
+          onlineStore: deleteField(),
+        });
+      } catch (delEmpErr) {
+        await setDoc(doc(db, 'employee_accounts', docId), { onlineStore: null }, { merge: true });
+      }
+
+      // 3. Clear from user_subscriptions
+      try {
+        await updateDoc(doc(db, 'user_subscriptions', docId), {
+          onlineStore: deleteField(),
+          storefront_enabled: false,
+          onlineStoreActive: false,
+        });
+      } catch {}
+
+      // 4. Clear from store_activations
+      try {
+        await deleteDoc(doc(db, 'store_activations', docId));
+      } catch {}
+
+      alert(isKu ? 'ماڵپەڕەکە و دۆمەینەکەی بە سەرکەوتوویی سڕدرانەوە و ئازاد کران.' : 'Online store and domain deleted successfully.');
+    } catch (e: any) {
+      console.error('Failed to delete online store:', e);
+      alert(isKu ? `هەڵەیەک ڕوویدا لە سڕینەوە: ${e?.message || ''}` : `Failed to delete store: ${e?.message || ''}`);
+    }
+  };
+
+  // Toggle Online Store status
+  const handleToggleOnlineStore = async (emp: EmployeeAccount) => {
+    if (emp.onlineStore?.status === 'active') {
+      await handleSuspendOnlineStore(emp);
+    } else {
+      await handleActivateOnlineStore(emp);
     }
   };
 
@@ -2789,34 +3046,94 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                         <span>{isKu ? 'ستۆری ئۆنلاین (Storefront):' : 'Online Store:'}</span>
                       </span>
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Status Badge */}
                         <span
-                          className={`text-[11px] px-2.5 py-0.5 rounded-md font-bold border ${
+                          className={`text-[11px] px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1.5 ${
                             emp.onlineStore?.enabled && emp.onlineStore?.status === 'active'
                               ? isDarkMode
                                 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                                 : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                              : emp.onlineStore?.status === 'suspended'
+                              ? isDarkMode
+                                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                : 'bg-amber-100 text-amber-900 border-amber-300'
                               : isDarkMode
                               ? 'bg-slate-800 text-slate-400 border-slate-700'
                               : 'bg-slate-100 text-slate-700 border-slate-300 font-semibold'
                           }`}
                         >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              emp.onlineStore?.enabled && emp.onlineStore?.status === 'active'
+                                ? 'bg-emerald-400 animate-pulse'
+                                : emp.onlineStore?.status === 'suspended'
+                                ? 'bg-amber-400'
+                                : 'bg-slate-400'
+                            }`}
+                          />
                           {emp.onlineStore?.enabled && emp.onlineStore?.status === 'active'
                             ? (emp.onlineStore?.storeName || (isKu ? 'چالاکە' : 'Active'))
+                            : emp.onlineStore?.status === 'suspended'
+                            ? (isKu ? 'ڕاگیراوە (وەستێنراو)' : 'Suspended')
                             : (isKu ? 'ناچالاکە' : 'Disabled')}
                         </span>
 
-                        <button
-                          onClick={() => handleToggleOnlineStore(emp)}
-                          className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold cursor-pointer border transition ${
-                            emp.onlineStore?.status === 'active'
-                              ? isDarkMode ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200 font-bold'
-                              : isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 font-bold'
-                          }`}
-                        >
-                          {emp.onlineStore?.status === 'active'
-                            ? (isKu ? 'وەستاندنی وێبسایت' : 'Suspend Web')
-                            : (isKu ? 'چالاککردنی وێبسایت' : 'Activate Web')}
-                        </button>
+                        {/* Subdomain pill link preview */}
+                        {emp.onlineStore?.subdomain && (
+                          <a
+                            href={`https://froshiar.store/${emp.onlineStore.subdomain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-700 text-cyan-400 border border-slate-700 flex items-center gap-1 transition"
+                            title={isKu ? 'سەردانکردنی وێبسایت' : 'Open Storefront'}
+                          >
+                            <span>/{emp.onlineStore.subdomain}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+
+                        {/* Activate button (if not active) */}
+                        {emp.onlineStore?.status !== 'active' ? (
+                          <button
+                            onClick={() => handleActivateOnlineStore(emp)}
+                            className={`px-3 py-1 rounded-lg text-[11px] font-bold cursor-pointer border transition flex items-center gap-1.5 ${
+                              isDarkMode
+                                ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                            }`}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>{isKu ? 'چالاککردنی وێبسایت ⚡' : 'Activate Web ⚡'}</span>
+                          </button>
+                        ) : (
+                          /* Suspend button (if active) */
+                          <button
+                            onClick={() => handleSuspendOnlineStore(emp)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer border transition ${
+                              isDarkMode
+                                ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border-amber-500/30'
+                                : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 font-bold'
+                            }`}
+                          >
+                            {isKu ? 'وەستاندنی وێبسایت' : 'Suspend Web'}
+                          </button>
+                        )}
+
+                        {/* Delete Store & Domain Button */}
+                        {emp.onlineStore?.subdomain && (
+                          <button
+                            onClick={() => handleDeleteOnlineStore(emp)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer border transition flex items-center gap-1 ${
+                              isDarkMode
+                                ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border-rose-500/30'
+                                : 'bg-rose-100 hover:bg-rose-200 text-rose-800 border-rose-300 font-bold'
+                            }`}
+                            title={isKu ? 'سڕینەوەی وێبسایت و ئازادکردنی دۆمەین' : 'Delete Store & Free Domain'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{isKu ? 'سڕینەوە' : 'Delete'}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -3092,6 +3409,197 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-700 text-slate-300 hover:text-white cursor-pointer"
               >
                 {isKu ? 'داخستن' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL: ONLINE STORE ACTIVATION RECEIPT (وەسڵی فەرمیی چالاککردنی وێبسایت) ── */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {storeActivationData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-md rounded-3xl border border-[#D4AF37]/50 shadow-2xl p-6 space-y-4 ${
+              isDarkMode ? 'bg-[#0F172A] text-slate-100 shadow-[#D4AF37]/15' : 'bg-white text-slate-900 shadow-2xl'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center font-bold">
+                  <Globe className="w-5 h-5 text-[#D4AF37]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {storeActivationI18n[activationModalLang].title}
+                  </h3>
+                  <span className="font-mono text-xs text-emerald-400 font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    {storeActivationI18n[activationModalLang].badge}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStoreActivationData(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Trilingual Language Switcher (Kurdish / Arabic / English) */}
+            <div className="flex items-center justify-center gap-1.5 p-1 rounded-xl bg-[#141C2E] border border-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setActivationModalLang('ku')}
+                className={`flex-1 py-1 px-2.5 rounded-lg transition cursor-pointer ${
+                  activationModalLang === 'ku'
+                    ? 'bg-[#D4AF37] text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                کوردی
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivationModalLang('ar')}
+                className={`flex-1 py-1 px-2.5 rounded-lg transition cursor-pointer ${
+                  activationModalLang === 'ar'
+                    ? 'bg-[#D4AF37] text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                العربية
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivationModalLang('en')}
+                className={`flex-1 py-1 px-2.5 rounded-lg transition cursor-pointer ${
+                  activationModalLang === 'en'
+                    ? 'bg-[#D4AF37] text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                English
+              </button>
+            </div>
+
+            {/* 25-Second Countdown Bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-[#D4AF37] font-bold">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 animate-spin" />
+                  {storeActivationI18n[activationModalLang].countdown(activationCountdown)}
+                </span>
+                <span className="font-mono bg-[#D4AF37]/15 border border-[#D4AF37]/30 px-2 py-0.5 rounded-md text-[10px]">
+                  {activationCountdown}s / 25s
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#D4AF37] via-amber-400 to-emerald-400 transition-all duration-1000 ease-linear rounded-full"
+                  style={{ width: `${(activationCountdown / 25) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Receipt Table */}
+            <div className="rounded-2xl border border-slate-800 bg-[#141C2E] p-4 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].customerName}</span>
+                <span className="font-bold text-white">{storeActivationData.employee.displayName || storeActivationData.storeName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].storeName}</span>
+                <span className="font-bold text-[#D4AF37]">{storeActivationData.storeName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].email}</span>
+                <span className="font-mono text-slate-300">{storeActivationData.email}</span>
+              </div>
+              {storeActivationData.phone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">{storeActivationI18n[activationModalLang].phone}</span>
+                  <span className="font-mono text-slate-300" dir="ltr">{storeActivationData.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].subdomain}</span>
+                <span className="font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  {storeActivationData.subdomain}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 pt-1">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].storeUrl}</span>
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800">
+                  <span className="font-mono text-[11px] text-amber-300 truncate select-all" dir="ltr">
+                    {storeActivationData.url}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(storeActivationData.url);
+                        setCopiedStoreUrl(true);
+                        setTimeout(() => setCopiedStoreUrl(false), 2000);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                      title={storeActivationI18n[activationModalLang].copyBtn}
+                    >
+                      {copiedStoreUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <a
+                      href={storeActivationData.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                      title={storeActivationI18n[activationModalLang].openBtn}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].status}</span>
+                <span className="font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  {storeActivationI18n[activationModalLang].statusValue}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">{storeActivationI18n[activationModalLang].activatedAt}</span>
+                <span className="font-mono text-slate-300">{formatDate(storeActivationData.activatedAt)}</span>
+              </div>
+            </div>
+
+            {/* Bottom Actions: WhatsApp Send & Close */}
+            <div className="pt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const cleanPhone = (storeActivationData.phone || '').replace(/[^0-9]/g, '');
+                  const msg = storeActivationI18n[activationModalLang].waMsg(storeActivationData);
+                  if (cleanPhone) {
+                    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                  } else {
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition cursor-pointer shadow-lg shadow-emerald-950/40"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{storeActivationI18n[activationModalLang].sendWhatsapp}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStoreActivationData(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-700 text-slate-300 hover:text-white cursor-pointer hover:bg-slate-800 transition"
+              >
+                {storeActivationI18n[activationModalLang].close}
               </button>
             </div>
           </div>
