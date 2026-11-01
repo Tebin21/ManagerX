@@ -92,6 +92,24 @@ export interface OnlineStoreConfig {
   expiresAt?: string;
 }
 
+export interface OnlineStoreActivation {
+  id: string;
+  email: string;
+  customerName?: string;
+  phone?: string;
+  storeName: string;
+  subdomain: string;
+  enabled: boolean;
+  status: 'active' | 'suspended';
+  priceAmount?: string;
+  currency?: string;
+  durationDays?: number | 'unlimited';
+  startDate?: string;
+  expiresAt?: string | null;
+  activatedAt?: string;
+  updatedAt?: string;
+}
+
 export interface EmployeePermissions {
   // Modules
   sales: PermissionState;
@@ -669,11 +687,42 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
   } | null>(null);
   const previousPasswordsRef = useRef<Map<string, string>>(new Map());
 
-  // ── Accounting (حسابات و داهات) Section State ──
-  const [adminSection, setAdminSection] = useState<'accounts' | 'financials'>('accounts');
+  // ── Admin Sections: 1. Accounts | 2. Financials | 3. Online Stores ──
+  const [adminSection, setAdminSection] = useState<'accounts' | 'financials' | 'online_stores'>('accounts');
   const [financialSearch, setFinancialSearch] = useState('');
   const [financialFilter, setFinancialFilter] = useState<'all' | 'paid' | 'managers' | 'custom'>('all');
   const [expandedManagerEmails, setExpandedManagerEmails] = useState<Set<string>>(new Set());
+
+  // ── Online Stores (وێب ستۆرەکان) Section State ──
+  const [storeActivations, setStoreActivations] = useState<OnlineStoreActivation[]>([]);
+  const [storeSearchTerm, setStoreSearchTerm] = useState('');
+  const [storeStatusFilter, setStoreStatusFilter] = useState<'all' | 'active' | 'suspended' | 'expired'>('all');
+
+  // Dedicated New Store Modal State
+  const [showNewStoreModal, setShowNewStoreModal] = useState(false);
+  const [newStoreAccountSearch, setNewStoreAccountSearch] = useState('');
+  const [newStoreEmail, setNewStoreEmail] = useState('');
+  const [newStoreCustomerName, setNewStoreCustomerName] = useState('');
+  const [newStorePhone, setNewStorePhone] = useState('');
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreSubdomain, setNewStoreSubdomain] = useState('');
+  const [newStorePrice, setNewStorePrice] = useState('');
+  const [newStoreDuration, setNewStoreDuration] = useState<number | 'unlimited'>(30);
+  const [newStoreStartDate, setNewStoreStartDate] = useState('');
+  const [newStoreCustomExpiry, setNewStoreCustomExpiry] = useState('');
+  const [newStoreSubmitting, setNewStoreSubmitting] = useState(false);
+  const [newStoreError, setNewStoreError] = useState<string | null>(null);
+
+  // Dedicated Edit / Renew Store Modal State
+  const [editingStoreData, setEditingStoreData] = useState<OnlineStoreActivation | null>(null);
+  const [editStoreName, setEditStoreName] = useState('');
+  const [editStoreSubdomain, setEditStoreSubdomain] = useState('');
+  const [editStorePhone, setEditStorePhone] = useState('');
+  const [editStorePrice, setEditStorePrice] = useState('');
+  const [editStoreDuration, setEditStoreDuration] = useState<number | 'unlimited'>(30);
+  const [editStoreStartDate, setEditStoreStartDate] = useState('');
+  const [editStoreCustomExpiry, setEditStoreCustomExpiry] = useState('');
+  const [editStoreSubmitting, setEditStoreSubmitting] = useState(false);
 
   // Quick Price Edit Modal State
   const [quickPriceEmployee, setQuickPriceEmployee] = useState<EmployeeAccount | null>(null);
@@ -883,6 +932,244 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
       return email.includes(q) || name.includes(q) || bName.includes(q) || phone.includes(q);
     });
   }, [registeredUsers, userSearchTerm]);
+
+  // ── Online Store Activations Realtime Listener ──
+  useEffect(() => {
+    const db = getClientFirestore();
+    if (!db) return;
+
+    try {
+      const colRef = collection(db, 'store_activations');
+      const unsubscribe = onSnapshot(
+        colRef,
+        (snapshot) => {
+          const list: OnlineStoreActivation[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data) {
+              list.push({
+                id: docSnap.id,
+                email: data.email || '',
+                customerName: data.customerName || data.name || data.displayName || '',
+                phone: data.phone || '',
+                storeName: data.storeName || '',
+                subdomain: data.subdomain || '',
+                enabled: data.enabled !== false,
+                status: data.status === 'suspended' ? 'suspended' : 'active',
+                priceAmount: data.priceAmount || '',
+                currency: data.currency || '',
+                durationDays: data.durationDays,
+                startDate: data.startDate || data.activatedAt || '',
+                expiresAt: data.expiresAt || null,
+                activatedAt: data.activatedAt || '',
+                updatedAt: data.updatedAt || '',
+              });
+            }
+          });
+          setStoreActivations(list);
+        },
+        (err) => {
+          console.warn('store_activations onSnapshot error:', err);
+        }
+      );
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('store_activations init error:', e);
+    }
+  }, []);
+
+  // ── Unified Online Stores (merging store_activations and employee accounts) ──
+  const allOnlineStores = useMemo(() => {
+    const map = new Map<string, OnlineStoreActivation>();
+
+    // 1. From store_activations
+    storeActivations.forEach((st) => {
+      const key = (st.email || st.id || '').trim().toLowerCase();
+      if (key) map.set(key, st);
+    });
+
+    // 2. From employees who have onlineStore configured
+    employees.forEach((emp) => {
+      const key = (emp.email || emp.id || '').trim().toLowerCase();
+      if (emp.onlineStore && (emp.onlineStore.enabled || emp.onlineStore.subdomain)) {
+        const existing = map.get(key);
+        if (!existing) {
+          map.set(key, {
+            id: getCleanDocId(emp.email) || emp.id,
+            email: emp.email || '',
+            customerName: emp.displayName || '',
+            phone: emp.phone || '',
+            storeName: emp.onlineStore.storeName || emp.displayName || 'Store',
+            subdomain: emp.onlineStore.subdomain || '',
+            enabled: emp.onlineStore.enabled !== false,
+            status: emp.onlineStore.status === 'suspended' ? 'suspended' : 'active',
+            priceAmount: emp.priceAmount || '',
+            durationDays: emp.durationDays,
+            startDate: emp.startedAt || emp.createdAt || '',
+            expiresAt: emp.expiresAt || null,
+            activatedAt: emp.onlineStore.activatedAt || emp.createdAt || '',
+          });
+        } else {
+          map.set(key, {
+            ...existing,
+            customerName: existing.customerName || emp.displayName || '',
+            phone: existing.phone || emp.phone || '',
+            priceAmount: existing.priceAmount || emp.priceAmount || '',
+            expiresAt: existing.expiresAt || emp.expiresAt || null,
+            startDate: existing.startDate || emp.startedAt || emp.createdAt || '',
+          });
+        }
+      }
+    });
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => new Date(b.activatedAt || b.startDate || 0).getTime() - new Date(a.activatedAt || a.startDate || 0).getTime());
+    return list;
+  }, [storeActivations, employees]);
+
+  // ── Financial Stats for Online Stores ──
+  const storeFinancialStats = useMemo(() => {
+    let totalUsd = 0;
+    let totalIqd = 0;
+    let paidCount = 0;
+    let activeCount = 0;
+    let suspendedCount = 0;
+    let expiredCount = 0;
+
+    allOnlineStores.forEach((st) => {
+      const isExp = st.expiresAt ? new Date(st.expiresAt).getTime() < Date.now() : false;
+      const isSusp = st.status === 'suspended' || !st.enabled;
+
+      if (isSusp) {
+        suspendedCount++;
+      } else if (isExp) {
+        expiredCount++;
+      } else {
+        activeCount++;
+      }
+
+      const price = (st.priceAmount || '').trim();
+      if (price) {
+        paidCount++;
+        const isUsd =
+          price.includes('$') ||
+          /usd/i.test(price) ||
+          (!price.includes('IQD') && !price.includes('دینار') && (parseFloat(price.replace(/[^0-9.]/g, '')) || 0) <= 500);
+        const numericVal = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
+        if (numericVal > 0) {
+          if (isUsd) totalUsd += numericVal;
+          else totalIqd += numericVal;
+        }
+      }
+    });
+
+    return {
+      totalStores: allOnlineStores.length,
+      activeCount,
+      suspendedCount,
+      expiredCount,
+      paidCount,
+      totalUsd,
+      totalIqd,
+    };
+  }, [allOnlineStores]);
+
+  // ── Selectable Accounts for Store Activation (Deduplicated: Employees + Registered Users) ──
+  const selectableAccounts = useMemo(() => {
+    const map = new Map<string, {
+      email: string;
+      displayName: string;
+      phone: string;
+      accountType: 'employee' | 'registered' | 'both';
+      hasStore: boolean;
+      currentSubdomain?: string;
+    }>();
+
+    // 1. Employees / Custom Staff
+    employees.forEach((emp) => {
+      const em = (emp.email || '').trim().toLowerCase();
+      if (!em) return;
+      map.set(em, {
+        email: em,
+        displayName: emp.displayName || em.split('@')[0],
+        phone: emp.phone || '',
+        accountType: emp.accountType === 'registered' ? 'registered' : 'employee',
+        hasStore: Boolean(emp.onlineStore?.enabled || emp.onlineStore?.subdomain),
+        currentSubdomain: emp.onlineStore?.subdomain,
+      });
+    });
+
+    // 2. Registered Users (Google / Apple / Email from app_telemetry_users)
+    registeredUsers.forEach((u) => {
+      const em = (u.email || u.user_id || '').trim().toLowerCase();
+      if (!em) return;
+      const existing = map.get(em);
+      if (existing) {
+        existing.displayName = existing.displayName || u.display_name || u.business_name || em.split('@')[0];
+        existing.phone = existing.phone || u.phone || '';
+        existing.accountType = 'both';
+      } else {
+        map.set(em, {
+          email: em,
+          displayName: u.display_name || u.business_name || em.split('@')[0],
+          phone: u.phone || '',
+          accountType: 'registered',
+          hasStore: false,
+        });
+      }
+    });
+
+    // Cross-check with store activations
+    allOnlineStores.forEach((st) => {
+      const em = (st.email || '').trim().toLowerCase();
+      if (em && map.has(em)) {
+        const item = map.get(em)!;
+        item.hasStore = true;
+        item.currentSubdomain = st.subdomain;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [employees, registeredUsers, allOnlineStores]);
+
+  const filteredSelectableAccounts = useMemo(() => {
+    if (!newStoreAccountSearch.trim()) return selectableAccounts.slice(0, 15);
+    const q = newStoreAccountSearch.toLowerCase().trim();
+    return selectableAccounts
+      .filter((acc) => {
+        return (
+          acc.email.toLowerCase().includes(q) ||
+          acc.displayName.toLowerCase().includes(q) ||
+          acc.phone.toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 25);
+  }, [selectableAccounts, newStoreAccountSearch]);
+
+  // ── Filtered Online Stores for Table/Grid ──
+  const filteredOnlineStores = useMemo(() => {
+    return allOnlineStores.filter((st) => {
+      const q = storeSearchTerm.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        (st.storeName || '').toLowerCase().includes(q) ||
+        (st.subdomain || '').toLowerCase().includes(q) ||
+        (st.email || '').toLowerCase().includes(q) ||
+        (st.customerName || '').toLowerCase().includes(q) ||
+        (st.phone || '').toLowerCase().includes(q) ||
+        (st.priceAmount || '').toLowerCase().includes(q);
+
+      const isExp = st.expiresAt ? new Date(st.expiresAt).getTime() < Date.now() : false;
+      const isSusp = st.status === 'suspended' || !st.enabled;
+
+      let matchStatus = true;
+      if (storeStatusFilter === 'active') matchStatus = !isSusp && !isExp;
+      else if (storeStatusFilter === 'suspended') matchStatus = isSusp;
+      else if (storeStatusFilter === 'expired') matchStatus = isExp;
+
+      return matchSearch && matchStatus;
+    });
+  }, [allOnlineStores, storeSearchTerm, storeStatusFilter]);
 
   // Select a registered user in Upgrade Modal
   const handleSelectRegisteredUser = (user: any) => {
@@ -1455,6 +1742,430 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
     } else {
       await handleActivateOnlineStore(emp);
     }
+  };
+
+  // ── Dedicated Online Store Management Handlers ──
+  const handleOpenNewStoreModal = () => {
+    setNewStoreAccountSearch('');
+    setNewStoreEmail('');
+    setNewStoreCustomerName('');
+    setNewStorePhone('');
+    setNewStoreName('');
+    setNewStoreSubdomain('');
+    setNewStorePrice('');
+    setNewStoreDuration(30);
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    setNewStoreStartDate(todayStr);
+    const nextMonth = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    setNewStoreCustomExpiry(nextMonth.toISOString().split('T')[0]);
+    setNewStoreError(null);
+    setShowNewStoreModal(true);
+  };
+
+  const handleSelectAccountForNewStore = (acc: { email: string; displayName: string; phone: string }) => {
+    setNewStoreEmail(acc.email);
+    setNewStoreCustomerName(acc.displayName);
+    setNewStorePhone(acc.phone || '');
+    const suggestedStoreName = acc.displayName || acc.email.split('@')[0];
+    setNewStoreName(suggestedStoreName);
+    setNewStoreSubdomain(slugifyStoreName(suggestedStoreName || acc.email.split('@')[0]));
+  };
+
+  const handleNewStoreDurationPreset = (days: number | 'unlimited') => {
+    setNewStoreDuration(days);
+    if (days === 'unlimited') {
+      setNewStoreCustomExpiry('');
+      return;
+    }
+    const base = newStoreStartDate ? new Date(newStoreStartDate) : new Date();
+    base.setDate(base.getDate() + days);
+    setNewStoreCustomExpiry(base.toISOString().split('T')[0]);
+  };
+
+  const handleActivateNewStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStoreEmail.trim()) {
+      setNewStoreError(isKu ? 'تکایە ئیمەیڵی خاوەنی فڕۆشگا بنووسە یان هەڵبژێرە' : 'Please select or enter the account email');
+      return;
+    }
+    const cleanEmail = newStoreEmail.trim().toLowerCase();
+    const docId = getCleanDocId(cleanEmail);
+    const finalStoreName = (newStoreName.trim() || newStoreCustomerName.trim() || cleanEmail.split('@')[0] || 'Store').trim();
+    const finalSubdomain = (newStoreSubdomain.trim() || slugifyStoreName(finalStoreName) || docId || 'store')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-');
+
+    if (!finalSubdomain) {
+      setNewStoreError(isKu ? 'تکایە ناوی بەستەر (Subdomain) بنووسە' : 'Please enter a valid subdomain');
+      return;
+    }
+
+    const db = getClientFirestore();
+    if (!db) return;
+
+    setNewStoreSubmitting(true);
+    setNewStoreError(null);
+
+    const startIso = newStoreStartDate ? new Date(newStoreStartDate).toISOString() : new Date().toISOString();
+    let expIso: string | null = null;
+    if (newStoreDuration === 'unlimited') {
+      expIso = null;
+    } else if (newStoreCustomExpiry) {
+      expIso = new Date(newStoreCustomExpiry).toISOString();
+    } else if (typeof newStoreDuration === 'number' && newStoreDuration > 0) {
+      expIso = new Date(new Date(startIso).getTime() + newStoreDuration * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    const storePayload = {
+      enabled: true,
+      storeName: finalStoreName,
+      subdomain: finalSubdomain,
+      status: 'active' as const,
+      activatedAt: new Date().toISOString(),
+    };
+
+    try {
+      // 1. Write to store_activations
+      await setDoc(
+        doc(db, 'store_activations', docId),
+        stripUndefined({
+          id: docId,
+          email: cleanEmail,
+          customerName: newStoreCustomerName.trim() || finalStoreName,
+          phone: newStorePhone.trim() || null,
+          storeName: finalStoreName,
+          subdomain: finalSubdomain,
+          enabled: true,
+          status: 'active',
+          priceAmount: newStorePrice.trim() || null,
+          durationDays: newStoreDuration === 'unlimited' ? null : newStoreDuration,
+          startDate: startIso,
+          expiresAt: expIso,
+          activatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+        { merge: true }
+      );
+
+      // 2. Mirror to employee_accounts
+      try {
+        await setDoc(
+          doc(db, 'employee_accounts', docId),
+          stripUndefined({
+            onlineStore: storePayload,
+            phone: newStorePhone.trim() || undefined,
+          }),
+          { merge: true }
+        );
+      } catch (empErr) {
+        console.warn('employee_accounts mirror warning:', empErr);
+      }
+
+      // 3. Mirror to user_subscriptions
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          stripUndefined({
+            storefront_enabled: true,
+            onlineStoreActive: true,
+            onlineStore: storePayload,
+            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+      } catch (subErr) {
+        console.warn('user_subscriptions mirror warning:', subErr);
+      }
+
+      // 4. Notify backend API to unsuspend
+      try {
+        await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(finalSubdomain)}/suspend`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+          },
+          body: JSON.stringify({ suspended: false }),
+        });
+      } catch (apiErr) {
+        console.warn('Backend unsuspend warning:', apiErr);
+      }
+
+      setShowNewStoreModal(false);
+
+      // 5. Open Official 25s Receipt Table Modal
+      const storeUrl = `https://froshiar.store/${finalSubdomain}`;
+      setStoreActivationData({
+        employee: {
+          id: docId,
+          email: cleanEmail,
+          displayName: newStoreCustomerName.trim() || finalStoreName,
+          managerEmail: cleanEmail,
+          phone: newStorePhone.trim(),
+          createdAt: new Date().toISOString(),
+          status: 'active',
+          permissions: ALL_ACTIVE_PERMISSIONS,
+        },
+        storeName: finalStoreName,
+        subdomain: finalSubdomain,
+        url: storeUrl,
+        email: cleanEmail,
+        phone: newStorePhone.trim(),
+        activatedAt: new Date().toISOString(),
+      });
+      setActivationCountdown(25);
+      setActivationModalLang(isKu ? 'ku' : 'en');
+    } catch (err: any) {
+      console.error('Failed to activate new store:', err);
+      setNewStoreError(err?.message || (isKu ? 'هەڵەیەک ڕوویدا لە چالاککردنی وێب ستۆر' : 'Failed to activate store'));
+    } finally {
+      setNewStoreSubmitting(false);
+    }
+  };
+
+  const handleToggleOnlineStoreByDoc = async (store: OnlineStoreActivation) => {
+    const db = getClientFirestore();
+    if (!db) return;
+    const docId = store.id || getCleanDocId(store.email);
+    const newStatus = store.status === 'active' && store.enabled ? 'suspended' : 'active';
+    const isSusp = newStatus === 'suspended';
+
+    try {
+      // 1. Update store_activations
+      await setDoc(
+        doc(db, 'store_activations', docId),
+        {
+          enabled: !isSusp,
+          status: newStatus,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      // 2. Update employee_accounts
+      try {
+        await setDoc(
+          doc(db, 'employee_accounts', docId),
+          {
+            onlineStore: {
+              enabled: !isSusp,
+              status: newStatus,
+              storeName: store.storeName,
+              subdomain: store.subdomain,
+            },
+          },
+          { merge: true }
+        );
+      } catch {}
+
+      // 3. Update user_subscriptions
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          {
+            storefront_enabled: !isSusp,
+            onlineStoreActive: !isSusp,
+            'onlineStore.enabled': !isSusp,
+            'onlineStore.status': newStatus,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch {}
+
+      // 4. Notify backend API
+      if (store.subdomain) {
+        try {
+          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(store.subdomain)}/suspend`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+            },
+            body: JSON.stringify({ suspended: isSusp }),
+          });
+        } catch (apiErr) {
+          console.warn('Backend suspend/unsuspend error:', apiErr);
+        }
+      }
+
+      alert(
+        isSusp
+          ? (isKu ? 'وێب ستۆرەکە بە سەرکەوتوویی ڕاگیرا (موعەتەل کرا).' : 'Online store suspended successfully.')
+          : (isKu ? 'وێب ستۆرەکە بە سەرکەوتوویی کارا کرایەوە!' : 'Online store unsuspended successfully!')
+      );
+    } catch (e: any) {
+      console.error('Toggle store error:', e);
+      alert(isKu ? `هەڵە: ${e?.message || ''}` : `Error: ${e?.message || ''}`);
+    }
+  };
+
+  const handleDeleteOnlineStoreByDoc = async (store: OnlineStoreActivation) => {
+    const confirmMsg = isKu
+      ? `ئایا دڵنیایت لە سڕینەوەی یەکجارەکی ئەم ماڵپەڕە و بەتاڵکردنەوەی دۆمەینەکەی؟\n\n🔹 ناوی فرۆشگا: ${store.storeName}\n🔹 بەستەر: https://froshiar.store/${store.subdomain}\n🔹 ئیمەیڵ: ${store.email}\n\n⚠️ هەموو کاڵا و وێنەکانی سەر سێرڤەر بە تەواوی دەسڕدرێنەوە و ئەم بەستەرە ئازاد دەبێت.`
+      : `Are you sure you want to permanently delete this online store?\n\nStore: ${store.storeName}\nSubdomain: ${store.subdomain}\n\nAll data will be permanently deleted.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const db = getClientFirestore();
+    if (!db) return;
+    const docId = store.id || getCleanDocId(store.email);
+
+    try {
+      // 1. Delete on backend API
+      if (store.subdomain) {
+        try {
+          await fetch(`https://api.froshiar.store/api/admin/stores/${encodeURIComponent(store.subdomain)}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ae436b2edb88e0003304a1b01a9080b00a6e410b717c9bc43aaf00c95cf88d96',
+            },
+            body: JSON.stringify({ confirm: 'DELETE' }),
+          });
+        } catch (apiErr) {
+          console.warn('Backend delete store error:', apiErr);
+        }
+      }
+
+      // 2. Delete from store_activations
+      await deleteDoc(doc(db, 'store_activations', docId));
+
+      // 3. Clear from employee_accounts
+      try {
+        await updateDoc(doc(db, 'employee_accounts', docId), {
+          onlineStore: deleteField(),
+        });
+      } catch {
+        try {
+          await setDoc(doc(db, 'employee_accounts', docId), { onlineStore: null }, { merge: true });
+        } catch {}
+      }
+
+      // 4. Clear from user_subscriptions
+      try {
+        await updateDoc(doc(db, 'user_subscriptions', docId), {
+          onlineStore: deleteField(),
+          storefront_enabled: false,
+          onlineStoreActive: false,
+        });
+      } catch {}
+
+      alert(isKu ? 'وێب ستۆرەکە بە سەرکەوتوویی سڕدرایەوە و بەستەرەکەی ئازاد کرا.' : 'Online store deleted successfully.');
+    } catch (e: any) {
+      console.error('Delete store error:', e);
+      alert(isKu ? `هەڵەیەک ڕوویدا لە سڕینەوە: ${e?.message || ''}` : `Failed to delete store: ${e?.message || ''}`);
+    }
+  };
+
+  const handleOpenEditStore = (store: OnlineStoreActivation) => {
+    setEditingStoreData(store);
+    setEditStoreName(store.storeName || '');
+    setEditStoreSubdomain(store.subdomain || '');
+    setEditStorePhone(store.phone || '');
+    setEditStorePrice(store.priceAmount || '');
+    setEditStoreDuration(store.durationDays || 30);
+    const startStr = store.startDate ? store.startDate.split('T')[0] : new Date().toISOString().split('T')[0];
+    setEditStoreStartDate(startStr);
+    const expStr = store.expiresAt ? store.expiresAt.split('T')[0] : '';
+    setEditStoreCustomExpiry(expStr);
+  };
+
+  const handleSaveEditStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStoreData) return;
+    const db = getClientFirestore();
+    if (!db) return;
+
+    setEditStoreSubmitting(true);
+    const docId = editingStoreData.id || getCleanDocId(editingStoreData.email);
+    const finalStoreName = (editStoreName.trim() || editingStoreData.storeName).trim();
+    const finalSubdomain = (editStoreSubdomain.trim() || editingStoreData.subdomain)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-');
+
+    const startIso = editStoreStartDate ? new Date(editStoreStartDate).toISOString() : editingStoreData.startDate || new Date().toISOString();
+    let expIso: string | null = null;
+    if (editStoreDuration === 'unlimited') {
+      expIso = null;
+    } else if (editStoreCustomExpiry) {
+      expIso = new Date(editStoreCustomExpiry).toISOString();
+    } else if (typeof editStoreDuration === 'number' && editStoreDuration > 0) {
+      expIso = new Date(new Date(startIso).getTime() + editStoreDuration * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    try {
+      // 1. Update store_activations
+      await setDoc(
+        doc(db, 'store_activations', docId),
+        stripUndefined({
+          storeName: finalStoreName,
+          subdomain: finalSubdomain,
+          phone: editStorePhone.trim() || null,
+          priceAmount: editStorePrice.trim() || null,
+          durationDays: editStoreDuration === 'unlimited' ? null : editStoreDuration,
+          startDate: startIso,
+          expiresAt: expIso,
+          updatedAt: new Date().toISOString(),
+        }),
+        { merge: true }
+      );
+
+      // 2. Update employee_accounts
+      try {
+        await setDoc(
+          doc(db, 'employee_accounts', docId),
+          stripUndefined({
+            phone: editStorePhone.trim() || undefined,
+            'onlineStore.storeName': finalStoreName,
+            'onlineStore.subdomain': finalSubdomain,
+          }),
+          { merge: true }
+        );
+      } catch {}
+
+      // 3. Update user_subscriptions
+      try {
+        await setDoc(
+          doc(db, 'user_subscriptions', docId),
+          stripUndefined({
+            'onlineStore.storeName': finalStoreName,
+            'onlineStore.subdomain': finalSubdomain,
+            updatedAt: new Date().toISOString(),
+          }),
+          { merge: true }
+        );
+      } catch {}
+
+      setEditingStoreData(null);
+      alert(isKu ? 'زانیاری و بەرواری وێب ستۆر بە سەرکەوتوویی نوێکرایەوە!' : 'Store details updated successfully!');
+    } catch (e: any) {
+      console.error('Edit store error:', e);
+      alert(isKu ? `هەڵە: ${e?.message || ''}` : `Error: ${e?.message || ''}`);
+    } finally {
+      setEditStoreSubmitting(false);
+    }
+  };
+
+  const handleSendStoreWhatsAppReceipt = (store: OnlineStoreActivation) => {
+    if (!store.phone) {
+      alert(isKu ? 'ژمارەی مۆبایل تۆمار نەکراوە بۆ ئەم فرۆشگایە' : 'No phone number available for this store');
+      return;
+    }
+    const cleanPhone = store.phone.replace(/[^0-9]/g, '');
+    const url = `https://froshiar.store/${store.subdomain}`;
+    const expiry = store.expiresAt ? formatDate(store.expiresAt) : (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited (Lifetime)');
+    const price = store.priceAmount ? `\n💳 بڕی پارەی دراو: ${store.priceAmount}` : '';
+    const text = isKu
+      ? `سڵاو بەڕێز ${store.customerName || store.storeName} 🌟\n\n🎉 وێب ستۆرەکەت (فڕۆشگای ئۆنلاین) لە سیستەمی فرۆشیار بە سەرکەوتوویی چالاک کرا!\n\n🏪 ناوی فرۆشگا: ${store.storeName}\n🔗 بەستەری فرۆشگا:\n${url}\n📅 بەرواری بەسەرچوون: ${expiry}${price}\n\n✅ دەتوانیت لە ڕێگەی ئەپی فرۆشیارەوە کاڵاکانت ڕاستەوخۆ بەرزبکەیتەوە و لەم بەستەرەوە بەردەست دەبن بۆ کڕیارەکانت.\n\nتیمی پشتگیریی فەرمیی فرۆشیار ✨`
+      : `Hello ${store.customerName || store.storeName} 🌟\n\nYour online store has been activated on Froshiar!\n\nStore: ${store.storeName}\nURL: ${url}\nExpires: ${expiry}${price}\n\nFroshiar Support Team`;
+
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   // Open Edit Modal
@@ -2059,9 +2770,22 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
           </div>
         </div>
 
-        {/* Action Buttons: 1. Upgrade Registered User | 2. Create Account with Password */}
+        {/* Action Buttons: 1. Dedicated Store Activation | 2. Upgrade Registered User | 3. Create Account with Password */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-          {/* Button 1: Upgrade Registered User */}
+          {/* Button 1: Dedicated Online Store Activation */}
+          <button
+            type="button"
+            onClick={handleOpenNewStoreModal}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 cursor-pointer shrink-0 border border-emerald-400/50"
+          >
+            <Globe className="w-4 h-4 text-slate-950" />
+            <span>{isKu ? '+ چالاککردنی وێب ستۆر' : '+ Activate Web Store'}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-950/20 font-mono font-extrabold hidden md:inline">
+              {isKu ? 'فڕۆشگا' : 'Store'}
+            </span>
+          </button>
+
+          {/* Button 2: Upgrade Registered User */}
           <button
             type="button"
             onClick={handleOpenUpgradeUser}
@@ -2074,7 +2798,7 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
             </span>
           </button>
 
-          {/* Button 2: Create Custom Account with Password */}
+          {/* Button 3: Create Custom Account with Password */}
           <button
             type="button"
             onClick={handleOpenCreateCustom}
@@ -2089,8 +2813,8 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
         </div>
       </div>
 
-      {/* ── Section View Switcher: 1. ئەکاونتەکان و دەسەڵاتەکان | 2. حسابات و داهات ── */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/40 dark:bg-slate-950/60 border border-slate-800/80 backdrop-blur-md">
+      {/* ── Section View Switcher: 1. ئەکاونتەکان | 2. حسابات و داهات | 3. وێب ستۆرەکان ── */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/40 dark:bg-slate-950/60 border border-slate-800/80 backdrop-blur-md flex-wrap">
         <button
           type="button"
           onClick={() => setAdminSection('accounts')}
@@ -2124,9 +2848,419 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
               : `${financialStats.totalIqd.toLocaleString()} IQD`}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setAdminSection('online_stores')}
+          className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            adminSection === 'online_stores'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-lg shadow-emerald-500/30 border border-emerald-300/50'
+              : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800/50'
+          }`}
+        >
+          <Globe className="w-4 h-4 text-inherit" />
+          <span>{isKu ? 'وێب ستۆرەکان (Online Stores)' : 'Online Stores'}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-black bg-slate-950/20 text-inherit border border-current/20">
+            {storeFinancialStats.totalStores}
+          </span>
+        </button>
       </div>
 
-      {adminSection === 'financials' ? (
+      {adminSection === 'online_stores' ? (
+        /* ═════════════════════════════════════════════════════════════════════ */
+        /* ── ONLINE STORES MANAGEMENT PORTAL (بەشی وێب ستۆرەکان) ──           */
+        /* ═════════════════════════════════════════════════════════════════════ */
+        <div className="space-y-5 animate-in fade-in duration-300">
+          {/* Top Online Stores KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            {/* KPI 1: Total Store Revenue */}
+            <div
+              className={`p-5 rounded-3xl border relative overflow-hidden transition-all shadow-lg ${
+                isDarkMode
+                  ? 'bg-gradient-to-br from-[#122420] via-[#101D24] to-[#0D161F] border-emerald-500/50 shadow-emerald-500/10'
+                  : 'bg-gradient-to-br from-[#F0FDF4] via-[#ECFDF5] to-[#E6FFFA] border-emerald-500 shadow-emerald-500/10'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-emerald-400' : 'text-emerald-800'}`}>
+                  {isKu ? '💰 کۆی داهاتی وێب ستۆرەکان' : '💰 Store Revenue'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-sm">
+                  <Coins className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  {storeFinancialStats.totalUsd > 0 && `$${storeFinancialStats.totalUsd.toLocaleString()}`}
+                  {storeFinancialStats.totalUsd > 0 && storeFinancialStats.totalIqd > 0 && ' + '}
+                  {storeFinancialStats.totalIqd > 0 && `${storeFinancialStats.totalIqd.toLocaleString()} IQD`}
+                  {storeFinancialStats.totalUsd === 0 && storeFinancialStats.totalIqd === 0 && '$0'}
+                </span>
+              </div>
+              <div className={`text-xs mt-2 font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {storeFinancialStats.paidCount} {isKu ? 'فرۆشگای پارەدراو هەن' : 'Paid Stores'}
+                </span>
+              </div>
+            </div>
+
+            {/* KPI 2: Total Stores */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'کۆی گشتی وێب ستۆرەکان' : 'Total Web Stores'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/15 text-teal-400 border border-teal-500/30 flex items-center justify-center">
+                  <Store className="w-5 h-5" />
+                </div>
+              </div>
+              <div className={`mt-3 text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {storeFinancialStats.totalStores}
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {isKu ? 'هەموو فرۆشگا تۆمارکراوەکان' : 'All Registered Storefronts'}
+              </div>
+            </div>
+
+            {/* KPI 3: Active Stores */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'فرۆشگا چالاکەکان' : 'Active Stores'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                <span className={`text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                  {storeFinancialStats.activeCount}
+                </span>
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {isKu ? 'ئۆنلاینن و ئامادەی کڕینن' : 'Live & Open for Customers'}
+              </div>
+            </div>
+
+            {/* KPI 4: Suspended & Expired */}
+            <div
+              className={`p-5 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#141C2E] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {isKu ? 'ڕاگیراو / بەسەرچوو' : 'Suspended / Expired'}
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+              </div>
+              <div className={`mt-3 text-2xl sm:text-3xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {storeFinancialStats.suspendedCount + storeFinancialStats.expiredCount}
+              </div>
+              <div className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                {storeFinancialStats.suspendedCount} {isKu ? 'ڕاگیراو' : 'Suspended'} • {storeFinancialStats.expiredCount} {isKu ? 'بەسەرچوو' : 'Expired'}
+              </div>
+            </div>
+          </div>
+
+          {/* Search, Filter & Quick Action Bar */}
+          <div className="p-4 rounded-3xl bg-slate-900/40 dark:bg-slate-950/60 border border-slate-800/80 backdrop-blur-md flex items-center justify-between gap-3 flex-wrap">
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(['all', 'active', 'suspended', 'expired'] as const).map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStoreStatusFilter(st)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    storeStatusFilter === st
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-black'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <span>
+                    {st === 'all'
+                      ? (isKu ? 'هەموو' : 'All')
+                      : st === 'active'
+                      ? (isKu ? 'چالاکەکان' : 'Active')
+                      : st === 'suspended'
+                      ? (isKu ? 'ڕاگیراوەکان' : 'Suspended')
+                      : (isKu ? 'بەسەرچووەکان' : 'Expired')}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-mono">
+                    {st === 'all'
+                      ? allOnlineStores.length
+                      : st === 'active'
+                      ? storeFinancialStats.activeCount
+                      : st === 'suspended'
+                      ? storeFinancialStats.suspendedCount
+                      : storeFinancialStats.expiredCount}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input & Button */}
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial min-w-[280px]">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder={isKu ? 'گەڕان بەپێی ناوی فرۆشگا، بەستەر، ئیمەیڵ، ژمارە...' : 'Search store, slug, email, phone...'}
+                  value={storeSearchTerm}
+                  onChange={(e) => setStoreSearchTerm(e.target.value)}
+                  className={`w-full pr-9 pl-3 py-2 rounded-xl text-xs border outline-none font-bold ${
+                    isDarkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-950'
+                  }`}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenNewStoreModal}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>{isKu ? '+ فرۆشگای نوێ' : '+ New Store'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Online Stores List */}
+          {filteredOnlineStores.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl border border-dashed border-slate-800 space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/20">
+                <Store className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-black text-white">
+                {isKu ? 'هیچ وێب ستۆرێک بەم تایبەتمەندییە نەدۆزرایەوە' : 'No online stores match this query'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {isKu ? 'دەتوانیت هەر ئێستا یەکەمین وێب ستۆر بۆ هەر بەکارهێنەرێک یان کارمەندێک چالاک بکەیت' : 'You can activate a web store for any user or staff member right now.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenNewStoreModal}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs inline-flex items-center gap-2 cursor-pointer transition shadow-lg shadow-emerald-600/30"
+              >
+                <Globe className="w-4 h-4" />
+                <span>{isKu ? '+ چالاککردنی وێب ستۆر' : '+ Activate Web Store'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredOnlineStores.map((store) => {
+                const isExp = store.expiresAt ? new Date(store.expiresAt).getTime() < Date.now() : false;
+                const isSusp = store.status === 'suspended' || !store.enabled;
+                const daysRemaining = store.expiresAt
+                  ? Math.ceil((new Date(store.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : null;
+
+                return (
+                  <div
+                    key={store.id || store.email || store.subdomain}
+                    className={`p-5 rounded-3xl border transition-all relative overflow-hidden flex flex-col justify-between gap-4 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-br from-[#121927] via-[#101724] to-[#0D1420] border-slate-800 hover:border-emerald-500/40'
+                        : 'bg-white border-slate-200 hover:border-emerald-500/60 shadow-sm'
+                    }`}
+                  >
+                    {/* Top Row: Store Avatar, Name, Status Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20 font-black">
+                          <Store className="w-6 h-6" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className={`text-base sm:text-lg font-black truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            {store.storeName}
+                          </h3>
+                          <div className="text-xs text-slate-400 truncate flex items-center gap-1.5">
+                            <span>{store.customerName || (isKu ? 'خاوەن هەژمار' : 'Owner')}</span>
+                            <span>•</span>
+                            <span className="font-mono text-[11px] truncate">{store.email}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge */}
+                      <span
+                        className={`text-[11px] px-2.5 py-1 rounded-xl font-bold border shrink-0 flex items-center gap-1.5 ${
+                          isSusp
+                            ? isDarkMode ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-amber-100 text-amber-900 border-amber-300'
+                            : isExp
+                            ? isDarkMode ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-rose-100 text-rose-900 border-rose-300'
+                            : isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isSusp ? 'bg-amber-400' : isExp ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'
+                          }`}
+                        />
+                        <span>
+                          {isSusp
+                            ? (isKu ? 'ڕاگیراوە (وەستێنراو)' : 'Suspended')
+                            : isExp
+                            ? (isKu ? 'بەسەرچووە' : 'Expired')
+                            : (isKu ? 'چالاکە' : 'Active')}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Storefront Link Bar */}
+                    <div className="p-3 rounded-2xl bg-slate-900/80 dark:bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0" dir="ltr">
+                        <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="font-mono text-xs font-bold text-cyan-300 truncate select-all">
+                          https://froshiar.store/{store.subdomain}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = `https://froshiar.store/${store.subdomain}`;
+                            navigator.clipboard?.writeText(url);
+                            alert(isKu ? `بەستەری فرۆشگا کۆپیکرا:\n${url}` : `Store URL copied:\n${url}`);
+                          }}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                          title={isKu ? 'کۆپیکردنی بەستەر' : 'Copy URL'}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <a
+                          href={`https://froshiar.store/${store.subdomain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 hover:text-white transition cursor-pointer"
+                          title={isKu ? 'کردنەوەی فرۆشگا لە وێبگەڕ' : 'Open in browser'}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Details Info Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {/* Phone */}
+                      <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800/60">
+                        <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
+                          {isKu ? 'ژمارەی مۆبایل:' : 'Phone:'}
+                        </span>
+                        <span className="font-mono font-bold text-slate-200" dir="ltr">
+                          {store.phone || (isKu ? 'دیارینەکراو' : 'Not set')}
+                        </span>
+                      </div>
+
+                      {/* Price / Fee */}
+                      <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-800/60">
+                        <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
+                          {isKu ? 'بڕی پارەی دراو:' : 'Store Fee:'}
+                        </span>
+                        <span className="font-mono font-black text-amber-400">
+                          {store.priceAmount && store.priceAmount.trim() ? store.priceAmount : (isKu ? 'بێبەرامبەر (0)' : 'Free')}
+                        </span>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="col-span-2 p-2.5 rounded-xl bg-slate-800/40 border border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-slate-300">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-[11px]">
+                            {isKu ? 'دەستپێک:' : 'Start:'}{' '}
+                            <strong className="font-mono text-white">{formatDate(store.startDate || store.activatedAt)}</strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-[11px] text-slate-300">
+                            {isKu ? 'کۆتایی:' : 'End:'}{' '}
+                            <strong className={`font-mono ${isExp ? 'text-rose-400' : 'text-emerald-300'}`}>
+                              {store.expiresAt ? formatDate(store.expiresAt) : (isKu ? 'بێ سنوور (هەمیشەیی)' : 'Unlimited')}
+                            </strong>
+                          </span>
+                          {store.expiresAt && (
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                              isExp ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              {isExp ? (isKu ? 'بەسەرچووە' : 'Expired') : `${daysRemaining} ${isKu ? 'ڕۆژ ماوە' : 'd left'}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Buttons */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Toggle Suspend / Unsuspend */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOnlineStoreByDoc(store)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                            isSusp
+                              ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border-emerald-500/40'
+                              : 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border-amber-500/40'
+                          }`}
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                          <span>{isSusp ? (isKu ? 'کاراکردنەوە' : 'Unsuspend') : (isKu ? 'ڕاگرتن (وەستاندن)' : 'Suspend')}</span>
+                        </button>
+
+                        {/* Renew & Edit Modal */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditStore(store)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-700 hover:border-slate-600 bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>{isKu ? 'نوێکردنەوە / دەستکاری' : 'Renew / Edit'}</span>
+                        </button>
+
+                        {/* WhatsApp Send Receipt */}
+                        {store.phone && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendStoreWhatsAppReceipt(store)}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 transition cursor-pointer flex items-center gap-1"
+                            title={isKu ? 'ناردنی وەسڵ بە واتسئەپ' : 'Send receipt via WhatsApp'}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{isKu ? 'واتسئەپ' : 'WhatsApp'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Delete Store */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOnlineStoreByDoc(store)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 transition cursor-pointer"
+                        title={isKu ? 'سڕینەوەی وێب ستۆر' : 'Delete store'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : adminSection === 'financials' ? (
         /* ═════════════════════════════════════════════════════════════════════ */
         /* ── FINANCIAL ACCOUNTING & REVENUE PORTAL (بەشی حسابات و داهات) ──    */
         /* ═════════════════════════════════════════════════════════════════════ */
@@ -4401,149 +5535,20 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
               </div>
 
-              {/* Section 4: Online Storefront Section */}
+              {/* Online Store Note */}
               <div
-                className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
-                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
+                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    <span>{isKu ? 'ستۆری ئۆنلاین (Online Storefront):' : 'Online Storefront:'}</span>
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs text-slate-300 font-bold">
+                    {isKu
+                      ? '💡 چالاککردنی وێب ستۆر (فڕۆشگای ئۆنلاین) لە بەشی تایبەتی «وێب ستۆرەکان» ئەنجام دەدرێت بە داتا و نرخی جیاواز.'
+                      : '💡 Online store activation is handled separately in the dedicated "Online Stores" tab.'}
                   </span>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-bold">
-                    <input
-                      type="checkbox"
-                      checked={storeEnabled}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setStoreEnabled(checked);
-                        if (checked && !storeSubdomain) {
-                          setStoreSubdomain(slugifyStoreName(storeName || formName));
-                        }
-                      }}
-                      className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
-                    />
-                    <span className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>{isKu ? 'چالاککردنی ستۆری ئۆنلاین' : 'Enable Storefront'}</span>
-                  </label>
                 </div>
-
-                {storeEnabled && (
-                  <div className="space-y-3 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {/* Store Name */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                            {isKu ? 'ناوی فرۆشگا / مارکێت' : 'Store Display Name'}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const generated = slugifyStoreName(storeName || formName);
-                              if (generated) setStoreSubdomain(generated);
-                            }}
-                            className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer"
-                          >
-                            {isKu ? '🪄 دروستکردنی ناوی بەستەر' : '🪄 Generate Slug'}
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store name'}
-                          value={storeName}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setStoreName(val);
-                            if (!storeSubdomain) {
-                              setStoreSubdomain(slugifyStoreName(val));
-                            }
-                          }}
-                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-bold ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-950 shadow-2xs'
-                          }`}
-                          style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
-                        />
-                      </div>
-
-                      {/* Subdomain with Fixed Domain Prefix */}
-                      <div>
-                        <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                          {isKu ? 'ناوی بەستەر / Subdomain (بەستەری فرۆشیار جێگیرە)' : 'Subdomain / Link (Locked Prefix)'}
-                        </label>
-                        <div
-                          className={`flex items-center rounded-xl border overflow-hidden transition focus-within:ring-2 focus-within:ring-emerald-500 shadow-2xs ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700' : 'bg-white border-slate-300'
-                          }`}
-                          dir="ltr"
-                        >
-                          {/* Locked Prefix */}
-                          <div className={`px-3 py-2.5 font-mono text-xs font-bold select-none shrink-0 flex items-center gap-1 border-r ${
-                            isDarkMode
-                              ? 'bg-slate-800 text-purple-300 border-slate-700'
-                              : 'bg-slate-100 text-purple-800 border-slate-300'
-                          }`}>
-                            <Globe className="w-3.5 h-3.5 text-purple-500" />
-                            <span>froshiar.com/store/</span>
-                          </div>
-                          {/* User-editable Slug */}
-                          <input
-                            type="text"
-                            required={storeEnabled}
-                            placeholder="aram-market"
-                            value={storeSubdomain}
-                            onChange={(e) => {
-                              const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-                              setStoreSubdomain(clean);
-                            }}
-                            className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
-                              isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
-                            }`}
-                            style={{ color: isDarkMode ? '#FFFFFF' : '#000000', opacity: 1 }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Live Storefront Link Preview Box */}
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 text-xs flex-wrap ${
-                      isDarkMode
-                        ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-200'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                    }`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Globe className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
-                            {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
-                          </span>
-                          <span
-                            className="font-mono text-xs font-black truncate block select-all"
-                            style={{ color: isDarkMode ? '#6EE7B7' : '#064E3B' }}
-                          >
-                            https://froshiar.com/store/{storeSubdomain || 'my-shop'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = `https://froshiar.com/store/${storeSubdomain || 'store'}`;
-                          navigator.clipboard?.writeText(url);
-                          alert(isKu ? `بەستەری وێبسایت کۆپیکرا:\n${url}` : `Link copied:\n${url}`);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{isKu ? 'کۆپیکردنی لینک' : 'Copy URL'}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Submit / Cancel Buttons */}
@@ -5097,149 +6102,20 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 </div>
               </div>
 
-              {/* Section 4: Online Storefront Section */}
+              {/* Online Store Note */}
               <div
-                className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 ${
-                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50/90 border-slate-200'
+                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                  isDarkMode ? 'bg-[#0E1524] border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    <span>{isKu ? 'ستۆری ئۆنلاین (Online Storefront):' : 'Online Storefront:'}</span>
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs text-slate-300 font-bold">
+                    {isKu
+                      ? '💡 چالاککردنی وێب ستۆر (فڕۆشگای ئۆنلاین) لە بەشی تایبەتی «وێب ستۆرەکان» ئەنجام دەدرێت بە داتا و نرخی جیاواز.'
+                      : '💡 Online store activation is handled separately in the dedicated "Online Stores" tab.'}
                   </span>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-bold">
-                    <input
-                      type="checkbox"
-                      checked={storeEnabled}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setStoreEnabled(checked);
-                        if (checked && !storeSubdomain) {
-                          setStoreSubdomain(slugifyStoreName(storeName || formName));
-                        }
-                      }}
-                      className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
-                    />
-                    <span className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>{isKu ? 'چالاککردنی ستۆری ئۆنلاین' : 'Enable Storefront'}</span>
-                  </label>
                 </div>
-
-                {storeEnabled && (
-                  <div className="space-y-3 pt-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {/* Store Name */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                            {isKu ? 'ناوی فرۆشگا / مارکێت' : 'Store Display Name'}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const generated = slugifyStoreName(storeName || formName);
-                              if (generated) setStoreSubdomain(generated);
-                            }}
-                            className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer"
-                          >
-                            {isKu ? '🪄 دروستکردنی ناوی بەستەر' : '🪄 Generate Slug'}
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store name'}
-                          value={storeName}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setStoreName(val);
-                            if (!storeSubdomain) {
-                              setStoreSubdomain(slugifyStoreName(val));
-                            }
-                          }}
-                          className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm border outline-none font-bold ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-950 shadow-2xs'
-                          }`}
-                          style={{ color: isDarkMode ? '#FFFFFF' : '#0F172A' }}
-                        />
-                      </div>
-
-                      {/* Subdomain with Fixed Domain Prefix */}
-                      <div>
-                        <label className={`block text-xs font-bold mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
-                          {isKu ? 'ناوی بەستەر / Subdomain (بەستەری فرۆشیار جێگیرە)' : 'Subdomain / Link (Locked Prefix)'}
-                        </label>
-                        <div
-                          className={`flex items-center rounded-xl border overflow-hidden transition focus-within:ring-2 focus-within:ring-emerald-500 shadow-2xs ${
-                            isDarkMode ? 'bg-[#10182B] border-slate-700' : 'bg-white border-slate-300'
-                          }`}
-                          dir="ltr"
-                        >
-                          {/* Locked Prefix */}
-                          <div className={`px-3 py-2.5 font-mono text-xs font-bold select-none shrink-0 flex items-center gap-1 border-r ${
-                            isDarkMode
-                              ? 'bg-slate-800 text-purple-300 border-slate-700'
-                              : 'bg-slate-100 text-purple-800 border-slate-300'
-                          }`}>
-                            <Globe className="w-3.5 h-3.5 text-purple-500" />
-                            <span>froshiar.com/store/</span>
-                          </div>
-                          {/* User-editable Slug */}
-                          <input
-                            type="text"
-                            required={storeEnabled}
-                            placeholder="aram-market"
-                            value={storeSubdomain}
-                            onChange={(e) => {
-                              const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-                              setStoreSubdomain(clean);
-                            }}
-                            className={`w-full px-3 py-2.5 bg-transparent text-xs sm:text-sm font-mono font-black outline-none ${
-                              isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-950 placeholder-slate-400'
-                            }`}
-                            style={{ color: isDarkMode ? '#FFFFFF' : '#000000', opacity: 1 }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Live Storefront Link Preview Box */}
-                    <div className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 text-xs flex-wrap ${
-                      isDarkMode
-                        ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-200'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                    }`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Globe className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-[11px] font-extrabold block text-emerald-700 dark:text-emerald-300">
-                            {isKu ? 'بەستەری تەواوی ستۆری ئۆنلاین بۆ ئەم کارمەندە:' : 'Live Online Storefront URL:'}
-                          </span>
-                          <span
-                            className="font-mono text-xs font-black truncate block select-all"
-                            style={{ color: isDarkMode ? '#6EE7B7' : '#064E3B' }}
-                          >
-                            https://froshiar.com/store/{storeSubdomain || 'my-shop'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = `https://froshiar.com/store/${storeSubdomain || 'store'}`;
-                          navigator.clipboard?.writeText(url);
-                          alert(isKu ? `بەستەری وێبسایت کۆپیکرا:\n${url}` : `Link copied:\n${url}`);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{isKu ? 'کۆپیکردنی لینک' : 'Copy URL'}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Submit Buttons */}
@@ -5779,6 +6655,551 @@ export default function EmployeeManagement({ isDarkMode, language }: EmployeeMan
                 <span>{isKu ? 'پاشەکەوتکردنی دەسەڵاتەکان' : 'Save Changes'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 5: DEDICATED ONLINE STORE ACTIVATION MODAL ──              */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {showNewStoreModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className={`w-full max-w-2xl sm:max-w-3xl rounded-3xl border shadow-2xl p-5 sm:p-8 space-y-6 max-h-[94vh] overflow-y-auto ${
+              isDarkMode ? 'bg-[#101726] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/20 font-black">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black">
+                    {isKu ? 'چالاککردنی وێب ستۆری نوێ (Online Store)' : 'Activate New Online Store'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400">
+                    {isKu ? 'تەرخانکردنی دۆمەین و حسابی جیاواز بۆ وێبسایت بۆ هەژمارە تۆمارکراوەکان یان کارمەندەکان' : 'Assign domain, duration, and pricing for registered users or staff'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewStoreModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {newStoreError && (
+              <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{newStoreError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleActivateNewStore} className="space-y-5">
+              {/* Step 1: Account Picker */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-bold text-emerald-400 flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    <span>{isKu ? '١. دیاریکردنی هەژمار (هەموو بەکارهێنەران و کارمەندەکان):' : '1. Select Account:'}</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {selectableAccounts.length} {isKu ? 'هەژمار بەردەستە' : 'accounts available'}
+                  </span>
+                </div>
+
+                {/* Account Search */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder={isKu ? 'گەڕان لە نێوان ناوی کارمەند، بەکارهێنەری گووگڵ، ئیمەیڵ، ژمارە...' : 'Search by user name, google email, phone...'}
+                    value={newStoreAccountSearch}
+                    onChange={(e) => setNewStoreAccountSearch(e.target.value)}
+                    className="w-full pr-9 pl-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white outline-none font-bold"
+                  />
+                </div>
+
+                {/* Scrollable Account Cards */}
+                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                  {filteredSelectableAccounts.map((acc) => {
+                    const isSelected = newStoreEmail.toLowerCase() === acc.email.toLowerCase();
+                    return (
+                      <div
+                        key={acc.email}
+                        onClick={() => handleSelectAccountForNewStore(acc)}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 ${
+                          isSelected
+                            ? 'bg-emerald-500/20 border-emerald-500/50 text-white shadow-sm'
+                            : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-300'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black truncate">{acc.displayName}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
+                              acc.accountType === 'registered'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                            }`}>
+                              {acc.accountType === 'registered' ? (isKu ? 'گووگڵ/ئەپڵ' : 'Registered') : (isKu ? 'کارمەند' : 'Staff')}
+                            </span>
+                            {acc.hasStore && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">
+                                {isKu ? 'وێب ستۆری هەیە' : 'Has store'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] font-mono text-slate-400 truncate">
+                            {acc.email} {acc.phone ? `• ${acc.phone}` : ''}
+                          </div>
+                        </div>
+
+                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border shrink-0 ${
+                          isSelected
+                            ? 'bg-emerald-500 text-slate-950 font-black border-emerald-400'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}>
+                          {isSelected ? (isKu ? '✓ هەڵبژێردرا' : '✓ Selected') : (isKu ? 'هەڵبژاردن' : 'Select')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Direct Manual Email & Name inputs (in case admin wants custom) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      {isKu ? 'ئیمەیڵی هەژمار (پێویستە):' : 'Account Email (Required):'}
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="owner@gmail.com"
+                      value={newStoreEmail}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewStoreEmail(val);
+                        if (!newStoreName) {
+                          setNewStoreName(val.split('@')[0]);
+                          setNewStoreSubdomain(slugifyStoreName(val.split('@')[0]));
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      {isKu ? 'ناوی کڕیار / خاوەن هەژمار:' : 'Customer / Owner Name:'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={isKu ? 'ناوی خاوەن' : 'Owner Name'}
+                      value={newStoreCustomerName}
+                      onChange={(e) => setNewStoreCustomerName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white outline-none font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Store Details */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-bold text-emerald-400 flex items-center gap-2">
+                    <Store className="w-4 h-4" />
+                    <span>{isKu ? '٢. زانیارییەکانی وێب ستۆر (فڕۆشگای ئۆنلاین):' : '2. Store Details:'}</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Store Name */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-300">
+                        {isKu ? 'ناوی فرۆشگا / مارکێت:' : 'Store Name:'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s = slugifyStoreName(newStoreName || newStoreCustomerName || newStoreEmail.split('@')[0]);
+                          if (s) setNewStoreSubdomain(s);
+                        }}
+                        className="text-[10px] text-teal-400 font-bold hover:underline cursor-pointer"
+                      >
+                        {isKu ? '🪄 دروستکردنی ناوی بەستەر' : '🪄 Generate Slug'}
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder={isKu ? 'نموونە: مارکێتی ئارام' : 'Store display name'}
+                      value={newStoreName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewStoreName(val);
+                        if (!newStoreSubdomain) {
+                          setNewStoreSubdomain(slugifyStoreName(val));
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-950 border border-slate-800 text-white font-bold outline-none"
+                    />
+                  </div>
+
+                  {/* Subdomain */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      {isKu ? 'ناوی بەستەر (Subdomain):' : 'Subdomain / Slug:'}
+                    </label>
+                    <div className="flex items-center rounded-xl border border-slate-800 bg-slate-950 overflow-hidden" dir="ltr">
+                      <span className="px-2.5 py-2 text-xs font-mono font-bold bg-slate-800 text-emerald-400 border-r border-slate-700 select-none">
+                        froshiar.store/
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="aram-market"
+                        value={newStoreSubdomain}
+                        onChange={(e) => {
+                          const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+                          setNewStoreSubdomain(clean);
+                        }}
+                        className="w-full px-2.5 py-2 text-xs font-mono font-bold text-white bg-transparent outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      {isKu ? 'ژمارەی مۆبایل (بۆ پەیوەندی و وەرگرتنی داواکاری لە واتسئەپ):' : 'Phone Number (for orders):'}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="07708229696"
+                      value={newStorePhone}
+                      onChange={(e) => setNewStorePhone(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Live URL Preview Pill */}
+                <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 truncate" dir="ltr">
+                    <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="font-mono text-xs font-bold text-emerald-300 truncate select-all">
+                      https://froshiar.store/{newStoreSubdomain || 'your-shop'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-extrabold uppercase shrink-0">
+                    {isKu ? 'بەستەری ڕاستەوخۆ' : 'Live URL'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Step 3: Pricing & Revenue */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-bold text-amber-400 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    <span>{isKu ? '٣. حسابات و نرخی بەشداریکردنی وێب ستۆر:' : '3. Pricing & Store Fee:'}</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {['Free (0)', '$25', '$50', '$100', '35,000 IQD', '50,000 IQD', '75,000 IQD'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setNewStorePrice(preset === 'Free (0)' ? '0' : preset)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer transition"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder={isKu ? 'نموونە: $50 یان 50000 IQD' : 'e.g. $50 or 50,000 IQD'}
+                    value={newStorePrice}
+                    onChange={(e) => setNewStorePrice(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Step 4: Duration & Expiry */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-bold text-teal-400 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>{isKu ? '٤. ماوە و بەرواری بەسەرچوونی فرۆشگا:' : '4. Duration & Expiry:'}</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { label: isKu ? '١ مانگ (30 ڕۆژ)' : '1 Month', days: 30 },
+                    { label: isKu ? '٣ مانگ (90 ڕۆژ)' : '3 Months', days: 90 },
+                    { label: isKu ? '٦ مانگ (180 ڕۆژ)' : '6 Months', days: 180 },
+                    { label: isKu ? '١ ساڵ (365 ڕۆژ)' : '1 Year', days: 365 },
+                    { label: isKu ? '∞ بێ سنوور' : '∞ Unlimited', days: 'unlimited' as const },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => handleNewStoreDurationPreset(item.days)}
+                      className={`p-2 rounded-xl text-xs font-bold border transition cursor-pointer text-center ${
+                        newStoreDuration === item.days
+                          ? 'bg-teal-600 text-white border-teal-400 font-black shadow-md'
+                          : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Dates pickers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      {isKu ? 'بەرواری دەستپێکردن:' : 'Start Date:'}
+                    </label>
+                    <input
+                      type="date"
+                      value={newStoreStartDate}
+                      onChange={(e) => setNewStoreStartDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      {isKu ? 'بەرواری بەسەرچوون:' : 'Expiry Date:'}
+                    </label>
+                    {newStoreDuration === 'unlimited' ? (
+                      <div className="px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-emerald-400 font-extrabold">
+                        {isKu ? '∞ بێ سنوور (هەمیشەیی)' : '∞ Unlimited (Lifetime)'}
+                      </div>
+                    ) : (
+                      <input
+                        type="date"
+                        value={newStoreCustomExpiry}
+                        onChange={(e) => setNewStoreCustomExpiry(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNewStoreModal(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={newStoreSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                >
+                  {newStoreSubmitting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>{isKu ? 'خەریکی چالاککردنە...' : 'Activating...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      <span>{isKu ? '🚀 چالاککردنی وێب ستۆر و دەرهێنانی وەسڵ' : 'Activate Store & Generate Receipt'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 6: DEDICATED RENEW / EDIT ONLINE STORE MODAL ──            */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {editingStoreData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className={`w-full max-w-xl rounded-3xl border shadow-2xl p-5 sm:p-8 space-y-5 max-h-[94vh] overflow-y-auto ${
+              isDarkMode ? 'bg-[#101726] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-400 border border-teal-500/40 flex items-center justify-center font-black">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black">
+                    {isKu ? 'نوێکردنەوە و دەستکاریکردنی وێب ستۆر' : 'Renew / Edit Online Store'}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    {editingStoreData.storeName} ({editingStoreData.subdomain})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingStoreData(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditStore} className="space-y-4">
+              {/* Store Name & Subdomain */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    {isKu ? 'ناوی فرۆشگا:' : 'Store Name:'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editStoreName}
+                    onChange={(e) => setEditStoreName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    {isKu ? 'ناوی بەستەر (Subdomain):' : 'Subdomain:'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editStoreSubdomain}
+                    onChange={(e) => setEditStoreSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Phone & Price */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    {isKu ? 'ژمارەی مۆبایل:' : 'Phone Number:'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={editStorePhone}
+                    onChange={(e) => setEditStorePhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    {isKu ? 'بڕی پارەی دراو:' : 'Price Amount:'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editStorePrice}
+                    onChange={(e) => setEditStorePrice(e.target.value)}
+                    placeholder="e.g. $50"
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono font-bold outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Duration Presets to Extend / Renew */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="block text-xs font-bold text-teal-400">
+                  {isKu ? 'نوێکردنەوە و درێژکردنەوەی ماوە:' : 'Renew / Extend Validity:'}
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label: isKu ? '+٣٠ ڕۆژ' : '+30 Days', days: 30 },
+                    { label: isKu ? '+٩٠ ڕۆژ' : '+90 Days', days: 90 },
+                    { label: isKu ? '+١ ساڵ' : '+1 Year', days: 365 },
+                    { label: isKu ? '∞ بێ سنوور' : '∞ Unlimited', days: 'unlimited' as const },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setEditStoreDuration(preset.days);
+                        if (preset.days === 'unlimited') {
+                          setEditStoreCustomExpiry('');
+                        } else {
+                          const base = new Date();
+                          base.setDate(base.getDate() + preset.days);
+                          setEditStoreCustomExpiry(base.toISOString().split('T')[0]);
+                        }
+                      }}
+                      className="p-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer transition text-center"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Expiry Date */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  {isKu ? 'بەرواری نوێی بەسەرچوون:' : 'New Expiry Date:'}
+                </label>
+                {editStoreDuration === 'unlimited' ? (
+                  <div className="px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-emerald-400 font-extrabold">
+                    {isKu ? '∞ بێ سنوور (هەمیشەیی)' : '∞ Unlimited (Lifetime)'}
+                  </div>
+                ) : (
+                  <input
+                    type="date"
+                    value={editStoreCustomExpiry}
+                    onChange={(e) => setEditStoreCustomExpiry(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-950 border border-slate-800 text-white font-mono outline-none"
+                  />
+                )}
+              </div>
+
+              {/* Submit / Cancel */}
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingStoreData(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  {isKu ? 'پاشگەزبوونەوە' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={editStoreSubmitting}
+                  className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-teal-600/20"
+                >
+                  {editStoreSubmitting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>{isKu ? 'پاشەکەوتکردنی گۆڕانکارییەکان' : 'Save Changes'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
