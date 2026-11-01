@@ -19,6 +19,8 @@ export interface StoreInfo {
   instagramUrl?: string;
   tiktokUrl?: string;
   whatsappNumber?: string;
+  telegramUrl?: string;
+  snapchatUrl?: string;
   themeColor?: string;
 }
 
