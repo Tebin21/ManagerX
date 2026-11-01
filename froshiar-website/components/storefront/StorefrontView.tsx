@@ -1,10 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { StoreProduct, StoreResponse } from '@/lib/storefront/storeApi';
+import type { StoreResponse } from '@/lib/storefront/storeApi';
 import { getBrandCssVars } from '@/lib/storefront/theme';
 import { ProductCard } from './ProductCard';
+import { StoreNavbar } from './StoreNavbar';
 import { StoreHeader } from './StoreHeader';
+import { SocialIcons } from './SocialIcons';
 import { SearchBar } from './SearchBar';
 import { CategoryFilterBar } from './CategoryFilterBar';
 import { StorefrontFooter } from './StorefrontFooter';
@@ -43,22 +45,47 @@ export function StorefrontView({ store, slug }: Props) {
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     return store.products.filter((p) => {
-      const matchesQuery = !q || p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q));
+      const matchesQuery =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q));
       const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
       return matchesQuery && matchesCategory;
     });
   }, [store, query, selectedCategory]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900" style={brandStyle}>
+    <div className="flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900" style={brandStyle}>
+      {/* 1. Top Sticky Navigation Bar with Theme Switcher & Store Name */}
+      <StoreNavbar
+        businessName={store.businessName}
+        logoUrl={store.info.logoUrl}
+        slug={slug}
+      />
+
+      {/* 2. Main Store Header Card (Froshiar Dashboard Aesthetic) */}
       <StoreHeader businessName={store.businessName} info={store.info} />
 
-      <main className="mx-auto max-w-5xl px-4 py-8 flex-1 w-full">
+      {/* 3. Social Media Links Under Banner (Strictly shown only if links are configured) */}
+      <SocialIcons
+        facebookUrl={store.info.facebookUrl}
+        instagramUrl={store.info.instagramUrl}
+        tiktokUrl={store.info.tiktokUrl}
+        whatsappNumber={store.info.whatsappNumber}
+      />
+
+      {/* 4. Product Catalog & Search */}
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
         {!store.enabled ? (
-          <div className="mx-auto my-12 max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm dark:bg-slate-800 dark:border-amber-500/30">
+          <div className="mx-auto my-12 max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-slate-800">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-500 ring-8 ring-amber-50/50 dark:bg-amber-950 dark:ring-amber-900/30">
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
@@ -71,7 +98,7 @@ export function StorefrontView({ store, slug }: Props) {
               خاوەنی فڕۆشگاکە لە ئێستادا پێشاندانی کاڵاکانی ڕاگرتووە. تکایە دواتر سەردان بکەرەوە.
             </p>
             {store.info.phone || store.info.whatsappNumber ? (
-              <p className="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 بۆ پەیوەندیکردن، دەتوانیت پەیوەندی بە ژمارەی فڕۆشگاکە بکەیت لە سەرەوە.
               </p>
             ) : null}
@@ -80,11 +107,15 @@ export function StorefrontView({ store, slug }: Props) {
           <CenteredMessage>هیچ کاڵایەک لەم فڕۆشگایە دانەنراوە.</CenteredMessage>
         ) : (
           <>
-            <div className="sticky top-0 z-20 mb-6 bg-slate-50/95 py-3 backdrop-blur-sm dark:bg-slate-900/95">
+            <div className="sticky top-14 z-20 mb-6 bg-slate-50/95 py-3 backdrop-blur-sm dark:bg-slate-900/95">
               <SearchBar value={query} onChange={setQuery} />
               {categories.length > 1 && (
                 <div className="mt-3">
-                  <CategoryFilterBar categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
+                  <CategoryFilterBar
+                    categories={categories}
+                    selected={selectedCategory}
+                    onSelect={setSelectedCategory}
+                  />
                 </div>
               )}
             </div>

@@ -56,3 +56,4 @@ export function ProductCard({ product, slug }: Props) {
     </Link>
   );
 }
+

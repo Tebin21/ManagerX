@@ -32,3 +32,4 @@ export function CategoryFilterBar({ categories, selected, onSelect }: Props) {
     </div>
   );
 }
+

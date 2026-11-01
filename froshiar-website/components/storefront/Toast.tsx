@@ -29,3 +29,4 @@ export function Toast({ message, durationMs = 2500 }: Props) {
     </div>
   );
 }
+

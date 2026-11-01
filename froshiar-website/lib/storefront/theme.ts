@@ -64,3 +64,4 @@ export function getBrandCssVars(hex: string | undefined): CSSProperties | undefi
   }
   return vars as CSSProperties;
 }
+

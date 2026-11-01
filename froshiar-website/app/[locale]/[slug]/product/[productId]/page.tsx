@@ -6,6 +6,7 @@ import { fetchStorefront, type StoreProduct } from '@/lib/storefront/storeApi';
 import { DEMO_STORE } from '@/lib/storefront/demoStore';
 import { getBrandCssVars } from '@/lib/storefront/theme';
 import { formatIQD } from '@/lib/storefront/format';
+import { StoreNavbar } from '@/components/storefront/StoreNavbar';
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter';
 
 export const dynamic = 'force-dynamic';
@@ -64,7 +65,13 @@ export default async function ProductDetailsPage({
     : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900" style={brandStyle}>
+    <div className="min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900" style={brandStyle}>
+      <StoreNavbar
+        businessName={store.businessName}
+        logoUrl={store.info.logoUrl}
+        slug={clean}
+      />
+
       <main className="mx-auto max-w-4xl px-4 py-8 flex-1 w-full">
         <Link
           href={`/${clean}`}
