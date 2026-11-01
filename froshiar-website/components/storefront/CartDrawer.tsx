@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight, User, Phone, MapPin } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Trash2, ArrowRight, User, Phone, MapPin } from 'lucide-react';
 import { useCart } from './CartContext';
 import { formatIQD } from '@/lib/storefront/format';
 import type { StoreInfo } from '@/lib/storefront/storeApi';
@@ -109,10 +109,10 @@ export function CartDrawer({ businessName, info }: Props) {
             <button
               type="button"
               onClick={closeCart}
-              aria-label="داخستن"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition cursor-pointer border border-slate-200/80 dark:border-slate-700/80 shrink-0 whitespace-nowrap active:scale-95"
             >
-              <X size={18} />
+              <span>گەڕانەوە بۆ کڕینی تر</span>
+              <ArrowRight size={14} className="rtl:rotate-0 ltr:rotate-180 text-slate-500 dark:text-slate-400" />
             </button>
           </div>
 
