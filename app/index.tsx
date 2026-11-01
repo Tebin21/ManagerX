@@ -13,8 +13,8 @@ import { DEV_FORCE_ONBOARDING_PREVIEW } from '@/constants/devPreview';
 const RECONCILE_TIMEOUT_MS = 10_000;
 
 const TOTAL_SPLASH_MS = 4000; // 4 seconds total as requested
-const START_TYPING_MS = 350;  // Start typing after 350ms
-const TYPING_DURATION_MS = 2200; // All 3 lines type simultaneously across 2.2s
+const START_TYPING_MS = 600;  // Logo appears immediately; typing begins cleanly after 600ms
+const TYPING_DURATION_MS = 2000; // All 3 lines type simultaneously across 2.0s
 
 const KURDISH_TEXT = 'لەگەڵ فرۆشیار، فرۆشتنەکەت ئاسانتر بکە';
 const ENGLISH_TEXT = 'With Froshiar, make your selling easier';
@@ -185,10 +185,11 @@ export default function Index() {
           style={[
             styles.logo,
             {
-              width: isTablet ? 240 : 170,
-              height: isTablet ? 240 : 170,
+              width: isTablet ? 280 : 205,
+              height: isTablet ? 280 : 205,
             },
           ]}
+          fadeDuration={0}
           resizeMode="contain"
         />
 

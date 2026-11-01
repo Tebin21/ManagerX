@@ -181,7 +181,8 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Image
           source={require('@/assets/images/logo.png')}
-          style={{ width: 170, height: 170 }}
+          style={{ width: 205, height: 205 }}
+          fadeDuration={0}
           resizeMode="contain"
         />
       </View>
