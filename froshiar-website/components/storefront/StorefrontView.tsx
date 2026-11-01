@@ -132,11 +132,11 @@ export function StorefrontView({ store, slug }: Props) {
         )}
       </main>
 
-      {/* 3. Bottom Centered Contact & Address Banner */}
+      {/* 3. Bottom Centered Contact & Address Banner + All Social Icons */}
       <StoreContactBanner info={store.info} />
 
       {/* 4. Footer */}
-      <StorefrontFooter />
+      <StorefrontFooter isRTL={isRTL} />
     </div>
   );
 }

@@ -1,15 +1,36 @@
+'use client';
+
 import Link from 'next/link';
 import { Globe, Phone } from 'lucide-react';
+import { useLocale } from 'next-intl';
 
-export function StorefrontFooter() {
+interface Props {
+  isRTL?: boolean;
+}
+
+export function StorefrontFooter({ isRTL }: Props) {
+  let locale = 'ckb';
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    locale = useLocale();
+  } catch {
+    locale = isRTL === false ? 'en' : 'ckb';
+  }
+
+  const isKurdish = isRTL ?? (locale === 'ckb');
+
   return (
     <footer className="bg-slate-950 px-6 py-10 text-slate-300 mt-auto border-t border-slate-800">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">گەشەپێدراوە لەلایەن</p>
-          <p className="mt-1 text-2xl font-extrabold text-white">BexDre</p>
+        <div className={`flex flex-col items-center ${isKurdish ? 'sm:items-start sm:text-right' : 'sm:items-start sm:text-left'}`}>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">
+            {isKurdish ? 'گەشەپێدراوە لەلایەن' : 'DEVELOPED BY'}
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-white tracking-tight">BexDre</p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
-            ئەم ماڵپەڕە بە فەرمی لەلایەن گروپی تەکنەلۆژیای بێکسدرێ دروستکراوە.
+            {isKurdish
+              ? 'ئەم ماڵپەڕە بە فەرمی لەلایەن گرووپی تەکنەلۆژیای بێکسدرێ دروستکراوە.'
+              : 'This storefront is officially powered and developed by BexDre Technology Group.'}
           </p>
           <div className="mt-4 flex items-center justify-center gap-4 text-sm sm:justify-start">
             <Link href="/privacy" className="text-slate-400 transition-colors hover:text-amber-400">
@@ -21,16 +42,25 @@ export function StorefrontFooter() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-3 sm:items-end">
-          <p className="max-w-xs text-sm leading-relaxed text-slate-400 sm:text-right">
-            بۆ دروستکردنی سیستەم و ماڵپەڕ و ئەپڵیکەیشنی تایبەت بە مارکێتەکەت، پەیوەندیمان پێوە بکە:
+        <div className={`flex flex-col items-center gap-3 ${isKurdish ? 'sm:items-end' : 'sm:items-end'}`}>
+          <p className={`max-w-xs text-sm leading-relaxed text-slate-400 ${isKurdish ? 'sm:text-right' : 'sm:text-right'}`}>
+            {isKurdish
+              ? 'بۆ دروستکردنی سیستەم و ماڵپەڕ و ئەپڵیکەیشنی تایبەت بە مارکێتەکەت، پەیوەندیمان پێوە بکە:'
+              : 'To build a custom POS system, website, or mobile application for your business, contact us:'}
           </p>
-          <div className="flex flex-col items-center gap-2 sm:items-end">
+          <div className={`flex flex-col items-center gap-2 ${isKurdish ? 'sm:items-end' : 'sm:items-end'}`}>
             <a
               href="tel:07708229696"
               className="flex items-center gap-2 text-sm font-semibold text-amber-400 transition hover:text-amber-300"
             >
-              <Phone size={15} /> 0770 822 9696
+              <Phone size={15} className="shrink-0" />
+              <span
+                dir="ltr"
+                className="inline-block font-sans tabular-nums font-bold tracking-wider"
+                style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+              >
+                0770 822 9696
+              </span>
             </a>
             <a
               href="https://www.bexdre.com"
@@ -38,16 +68,22 @@ export function StorefrontFooter() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm font-semibold text-amber-400 transition hover:text-amber-300"
             >
-              <Globe size={15} /> www.BexDre.com
+              <Globe size={15} className="shrink-0" />
+              <span
+                dir="ltr"
+                className="inline-block font-sans font-medium"
+                style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+              >
+                www.BexDre.com
+              </span>
             </a>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-5xl border-t border-white/10 pt-5 text-center text-xs text-slate-500">
+      <div className="mx-auto mt-8 max-w-5xl border-t border-white/10 pt-5 text-center text-xs text-slate-500 font-sans">
         © {new Date().getFullYear()} BexDre & Froshiar POS. All rights reserved.
       </div>
     </footer>
   );
 }
-
