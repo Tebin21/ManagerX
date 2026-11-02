@@ -6,6 +6,9 @@ import { ThemeProvider } from "next-themes";
 import { routing } from "@/i18n/routing";
 import { inter, rudaw, bahijJanna } from "@/lib/fonts";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
+import { GlobalBackground } from "@/components/ui/GlobalBackground";
+import { SplashProvider } from "@/contexts/SplashContext";
+import { WebsiteTracker } from "@/components/analytics/WebsiteTracker";
 import "../globals.css";
 
 export function generateStaticParams() {
@@ -27,12 +30,12 @@ export async function generateMetadata({
     alternates: {
       canonical: locale === routing.defaultLocale ? "/" : `/${locale}`,
       languages: {
-        en: "/",
+        en: "/en",
         // Next's built-in hreflang type only accepts known LangCode values
         // or a hyphenated `xx-YY` form; bare "ckb" isn't in its static list,
         // so "ckb-IQ" (Sorani Kurdish, Iraq) is used to satisfy the type
         // while still being a correct, more precise hreflang tag.
-        "ckb-IQ": "/ckb",
+        "ckb-IQ": "/",
       },
     },
     openGraph: {
@@ -75,9 +78,15 @@ export default async function LocaleLayout({
       className={`${inter.variable} ${rudaw.variable} ${bahijJanna.variable} h-full dark`}
       suppressHydrationWarning
     >
-      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass} bg-[#14110a] text-[#f1f5f9]`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
-          <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      <body className={`min-h-full flex flex-col antialiased ${bodyFontClass} bg-[#090C10] text-[#f1f5f9] relative`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <SplashProvider>
+            <GlobalBackground />
+            <NextIntlClientProvider>
+              <WebsiteTracker locale={locale} />
+              {children}
+            </NextIntlClientProvider>
+          </SplashProvider>
         </ThemeProvider>
       </body>
     </html>

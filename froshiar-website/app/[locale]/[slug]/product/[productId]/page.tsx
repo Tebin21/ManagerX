@@ -11,6 +11,7 @@ import { StorefrontFooter } from '@/components/storefront/StorefrontFooter';
 import { CartProvider } from '@/components/storefront/CartContext';
 import { CartDrawer } from '@/components/storefront/CartDrawer';
 import { FloatingCartBar } from '@/components/storefront/FloatingCartBar';
+import { StoreLanguageProvider } from '@/components/storefront/StoreLanguageContext';
 import { ProductAddToCart } from '@/components/storefront/ProductAddToCart';
 import { ProductHeaderBar } from '@/components/storefront/ProductHeaderBar';
 
@@ -76,7 +77,8 @@ export default async function ProductDetailsPage({
   );
 
   return (
-    <CartProvider storeSlug={clean} products={store.products}>
+    <StoreLanguageProvider slug={clean} initialLocale="ku">
+      <CartProvider storeSlug={clean} products={store.products}>
       <div
         dir={isRTL ? 'rtl' : 'ltr'}
         className="min-h-screen flex flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 font-kurdish"
@@ -180,5 +182,6 @@ export default async function ProductDetailsPage({
         <CartDrawer businessName={store.businessName} info={store.info} />
       </div>
     </CartProvider>
+    </StoreLanguageProvider>
   );
 }

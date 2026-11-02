@@ -51,7 +51,7 @@ export default async function Image({
             maxWidth: 900,
           }}
         >
-          {t("title")}
+          {locale === "ckb" ? "فرۆشیار - بەڕێوەبردنی فرۆشگا" : "Froshiar - Smart POS & Store Management"}
         </div>
         <div
           style={{

@@ -146,6 +146,7 @@ export interface StoreInfoPayload {
   tiktokUrl?: string;
   whatsappNumber?: string;
   themeColor?: string;
+  themeMode?: 'dark' | 'light' | 'system';
 }
 
 export async function pushStoreInfo(slug: string, apiKey: string, info: StoreInfoPayload): Promise<void> {

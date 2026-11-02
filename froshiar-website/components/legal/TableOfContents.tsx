@@ -6,10 +6,18 @@ import { List, X } from "lucide-react";
 
 type LegalSectionMeta = { id: string; title: string };
 
-export function TableOfContents({ sections }: { sections: readonly LegalSectionMeta[] }) {
+export function TableOfContents({
+  sections,
+  locale = "en",
+}: {
+  sections: readonly LegalSectionMeta[];
+  locale?: string;
+}) {
   const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
   const [open, setOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+  const isCkb = locale === "ckb";
+  const headingLabel = isCkb ? "لەم پەڕەیەدا" : "On this page";
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -29,7 +37,9 @@ export function TableOfContents({ sections }: { sections: readonly LegalSectionM
   }, [sections]);
 
   const linkClass = (id: string) =>
-    `block border-l-2 py-1.5 pl-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-r-sm ${
+    `block ${
+      isCkb ? "border-r-2 pr-4 rounded-l-sm" : "border-l-2 pl-4 rounded-r-sm"
+    } py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${
       activeId === id
         ? "border-gold-500 font-medium text-gold-600 dark:text-gold-400"
         : "border-gray-200 text-gray-500 hover:text-ink dark:border-gold-900/30 dark:text-gray-400"
@@ -42,7 +52,7 @@ export function TableOfContents({ sections }: { sections: readonly LegalSectionM
         aria-label="Table of contents"
         className="hidden lg:sticky lg:top-28 lg:block lg:max-h-[calc(100vh-8rem)] lg:self-start lg:overflow-y-auto"
       >
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">On this page</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">{headingLabel}</p>
         <ol>
           {sections.map((section) => (
             <li key={section.id}>
@@ -65,7 +75,7 @@ export function TableOfContents({ sections }: { sections: readonly LegalSectionM
         >
           <span className="flex items-center gap-2">
             <List size={16} />
-            On this page
+            {headingLabel}
           </span>
           {open ? <X size={16} /> : <List size={16} className="opacity-0" />}
         </button>

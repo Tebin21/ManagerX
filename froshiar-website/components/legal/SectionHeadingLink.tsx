@@ -40,13 +40,13 @@ export function SectionHeadingLink({
 
   return (
     <h2 className="group flex items-center gap-2 text-lg font-semibold tracking-tight text-ink sm:text-xl">
-      <span className="text-gold-500">{String(number).padStart(2, "0")}.</span>
+      <span className="text-gold-500 font-mono tracking-wider shrink-0" dir="ltr">{String(number).padStart(2, "0")}.</span>
       <span>{title}</span>
       <button
         type="button"
         onClick={handleCopy}
         aria-label={`Copy link to ${title} section`}
-        className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-ink"
+        className="ltr:ml-1 rtl:mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-ink"
       >
         {copied ? <Check size={15} className="text-gold-600 dark:text-gold-400" /> : <Link2 size={15} />}
       </button>

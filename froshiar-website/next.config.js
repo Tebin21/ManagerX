@@ -6,6 +6,12 @@ const isExport = process.env.OUTPUT_EXPORT === 'true' || process.env.FIREBASE_BU
 
 module.exports = withNextIntl({
   ...(isExport ? { output: 'export' } : {}),
-  images: { unoptimized: true },
+  images: {
+    unoptimized: isExport,
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days cache
+  },
+  compress: true,
+  poweredByHeader: false,
   turbopack: { root: path.join(__dirname) },
 });

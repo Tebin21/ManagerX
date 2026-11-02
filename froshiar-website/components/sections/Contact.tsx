@@ -7,6 +7,9 @@ import { InstagramIcon } from "@/components/ui/InstagramIcon";
 export function Contact() {
   const t = useTranslations("contact");
 
+  const cardGlassClass =
+    "group relative flex items-center gap-4 rounded-2xl border border-white/15 dark:border-white/[0.10] bg-white/60 dark:bg-white/[0.03] backdrop-blur-2xl p-5 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.18),0_10px_25px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/40 hover:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.3),0_15px_35px_rgba(248,198,30,0.15)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 overflow-hidden";
+
   return (
     <section id="contact" className="py-16 sm:py-24 lg:py-32">
       <Container>
@@ -17,31 +20,35 @@ export function Contact() {
             href="https://froshiar.store"
             target="_blank"
             rel="noreferrer noopener"
-            className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 dark:border-gold-900/30 dark:bg-white/[0.03]"
+            className={cardGlassClass}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] via-transparent to-transparent pointer-events-none" />
+            <div className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 border border-gold-400/25 text-gold-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] transition-transform duration-300 group-hover:scale-110">
               <Globe size={19} />
             </div>
-            <div className="min-w-0">
+            <div className="relative z-10 min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 {t("websiteLabel")}
               </p>
-              <p className="truncate text-sm font-semibold text-ink">{t("website")}</p>
+              <p className="truncate text-sm font-semibold text-ink dark:text-slate-200 group-hover:text-gold-300 transition-colors">
+                {t("website")}
+              </p>
             </div>
           </a>
 
           <a
             href="tel:+9647708229696"
-            className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 dark:border-gold-900/30 dark:bg-white/[0.03]"
+            className={cardGlassClass}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] via-transparent to-transparent pointer-events-none" />
+            <div className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 border border-gold-400/25 text-gold-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] transition-transform duration-300 group-hover:scale-110">
               <Phone size={19} />
             </div>
-            <div className="min-w-0">
+            <div className="relative z-10 min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 {t("phoneLabel")}
               </p>
-              <p dir="ltr" className="truncate text-sm font-semibold text-ink">
+              <p dir="ltr" className="truncate text-sm font-semibold text-ink dark:text-slate-200 group-hover:text-gold-300 transition-colors">
                 {t("phone")}
               </p>
             </div>
@@ -51,16 +58,19 @@ export function Contact() {
             href="https://www.instagram.com/froshiar.krd/"
             target="_blank"
             rel="noreferrer noopener"
-            className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 dark:border-gold-900/30 dark:bg-white/[0.03]"
+            className={cardGlassClass}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-gold-700 dark:bg-gold-900/40 dark:text-gold-300">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] via-transparent to-transparent pointer-events-none" />
+            <div className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 border border-gold-400/25 text-gold-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] transition-transform duration-300 group-hover:scale-110">
               <InstagramIcon size={19} />
             </div>
-            <div className="min-w-0">
+            <div className="relative z-10 min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 {t("instagramLabel")}
               </p>
-              <p className="truncate text-sm font-semibold text-ink">{t("instagram")}</p>
+              <p className="truncate text-sm font-semibold text-ink dark:text-slate-200 group-hover:text-gold-300 transition-colors">
+                {t("instagram")}
+              </p>
             </div>
           </a>
         </div>

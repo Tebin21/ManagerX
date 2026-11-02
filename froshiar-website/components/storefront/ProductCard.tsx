@@ -5,6 +5,7 @@ import { ImageOff, Plus, Check, ExternalLink } from 'lucide-react';
 import type { StoreProduct } from '@/lib/storefront/storeApi';
 import { formatIQD } from '@/lib/storefront/format';
 import { useCart } from './CartContext';
+import { useStoreLanguage } from './StoreLanguageContext';
 
 interface Props {
   product: StoreProduct;
@@ -13,6 +14,7 @@ interface Props {
 
 export function ProductCard({ product, slug }: Props) {
   const { isItemSelected, getItemQuantity, toggleSelect } = useCart();
+  const { t } = useStoreLanguage();
   const selected = isItemSelected(product.productId);
   const quantity = getItemQuantity(product.productId);
 
@@ -43,20 +45,20 @@ export function ProductCard({ product, slug }: Props) {
             </span>
           )}
 
-          {/* Selected Checkmark Badge (Right corner) */}
+          {/* Selected Checkmark Badge */}
           {selected && (
             <span className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md animate-in zoom-in-75 duration-200">
               <Check size={16} strokeWidth={3} />
             </span>
           )}
 
-          {/* Optional Details Link Icon (Only when slug is present) */}
+          {/* Optional Details Link Icon */}
           {slug && (
             <Link
               href={`/${slug}/product/${product.productId}`}
               onClick={(e) => e.stopPropagation()}
-              title="بینینی زانیاری زیاتر"
-              aria-label="بینینی زانیاری زیاتر"
+              title="Info"
+              aria-label="Product info"
               className="absolute left-2.5 bottom-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 hover:scale-105"
             >
               <ExternalLink size={13} />
@@ -74,7 +76,7 @@ export function ProductCard({ product, slug }: Props) {
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-1 text-slate-400">
               <ImageOff size={28} />
-              <span className="text-xs">بێ وێنە</span>
+              <span className="text-xs">No image</span>
             </div>
           )}
         </div>
@@ -105,7 +107,7 @@ export function ProductCard({ product, slug }: Props) {
         <button
           type="button"
           onClick={handleToggle}
-          aria-label={selected ? 'لابردنی کاڵا لە سەبەتە' : 'زیادکردن بۆ سەبەتە'}
+          aria-label={selected ? t('inCart') : t('addToCart')}
           className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0 ${
             selected
               ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20'
@@ -115,12 +117,12 @@ export function ProductCard({ product, slug }: Props) {
           {selected ? (
             <>
               <Check size={13} strokeWidth={2.5} />
-              <span>هەڵبژێردرا {quantity > 1 ? `(${quantity})` : ''}</span>
+              <span>{t('inCart')} {quantity > 1 ? `(${quantity})` : ''}</span>
             </>
           ) : (
             <>
               <Plus size={13} strokeWidth={2.5} />
-              <span>زیادکردن</span>
+              <span>{t('addToCart')}</span>
             </>
           )}
         </button>

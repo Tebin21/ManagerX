@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import EmployeeManagement from '@/components/admin/EmployeeManagement';
 import HeroBannerManagement from '@/components/admin/HeroBannerManagement';
+import WebsiteAnalyticsManagement from '@/components/admin/WebsiteAnalyticsManagement';
 import { getClientFirestore } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
@@ -307,7 +308,7 @@ export default function AdminDashboardPage() {
   const [authError, setAuthError] = useState(false);
 
   // ─── Dashboard Navigation & Filters ───────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'management' | 'heroBanner'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'installs' | 'feed' | 'management' | 'heroBanner' | 'websiteAnalytics'>('users');
   const [licensesCount, setLicensesCount] = useState<number>(0);
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days' | 'month' | 'year' | 'custom'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -1044,7 +1045,7 @@ export default function AdminDashboardPage() {
               setIsDrawerOpen(false);
             }}
             className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
-              activeTab !== 'management' && activeTab !== 'heroBanner'
+              activeTab !== 'management' && activeTab !== 'heroBanner' && activeTab !== 'websiteAnalytics'
                 ? isDarkMode
                   ? 'bg-[#1C2438] border-blue-500/50 text-white shadow-md'
                   : 'bg-blue-50 border-blue-400 text-blue-950 shadow-sm'
@@ -1056,7 +1057,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-3.5 min-w-0">
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                  activeTab !== 'management' && activeTab !== 'heroBanner'
+                  activeTab !== 'management' && activeTab !== 'heroBanner' && activeTab !== 'websiteAnalytics'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : isDarkMode
                     ? 'bg-slate-800 text-slate-400'
@@ -1071,6 +1072,46 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="text-xs text-slate-400 truncate">
                   {isKu ? 'ئامار و بەکارهێنەران و داگرتنەکان' : 'Main stats & active users'}
+                </div>
+              </div>
+            </div>
+            {isKu ? (
+              <ArrowLeft className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+          </button>
+
+          {/* Button: Website Analytics (وێبسایتی فرۆشیار) */}
+          <button
+            onClick={() => {
+              setActiveTab('websiteAnalytics');
+              setIsDrawerOpen(false);
+            }}
+            className={`w-full p-4 rounded-2xl border text-start transition-all flex items-center justify-between gap-3 cursor-pointer ${
+              activeTab === 'websiteAnalytics'
+                ? isDarkMode
+                  ? 'bg-[#13222B] border-cyan-400 text-white shadow-md shadow-cyan-500/10'
+                  : 'bg-cyan-50 border-cyan-400 text-cyan-950 shadow-sm'
+                : isDarkMode
+                ? 'bg-[#141C2E] border-slate-800 text-slate-300 hover:border-cyan-500/40'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-cyan-500/50'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-cyan-500/20 shrink-0">
+                <Globe className="w-5 h-5 text-slate-950" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-inherit truncate flex items-center gap-2">
+                  <span>{isKu ? 'وێبسایتی فرۆشیار' : 'Website Analytics'}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Live
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 truncate">
+                  {isKu ? 'ئامارەکان، لایڤ، داگرتنی ئەپ و بێکسدر' : 'Live visits, app downloads, Bexdre'}
                 </div>
               </div>
             </div>
@@ -1180,7 +1221,17 @@ export default function AdminDashboardPage() {
 
       {/* ── Main Content Area ── */}
       <main className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {activeTab === 'management' ? (
+        {activeTab === 'websiteAnalytics' ? (
+          /* ═══════════════════════════════════════════════════════════════════ */
+          /* ── FROSHIAR WEBSITE REALTIME TELEMETRY & ANALYTICS PORTAL ──       */
+          /* ═══════════════════════════════════════════════════════════════════ */
+          <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
+            <WebsiteAnalyticsManagement
+              isDarkMode={isDarkMode}
+              language={language}
+            />
+          </div>
+        ) : activeTab === 'management' ? (
           /* ═══════════════════════════════════════════════════════════════════ */
           /* ── EMPLOYEE, RBAC & ACCOUNTING (حسابات) PORTAL ──                 */
           /* ═══════════════════════════════════════════════════════════════════ */

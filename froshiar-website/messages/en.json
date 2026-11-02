@@ -5,6 +5,8 @@
     "download": "Download App",
     "about": "About",
     "contact": "Contact",
+    "privacy": "Privacy",
+    "terms": "Terms",
     "switchLanguage": "Switch language",
     "menu": "Menu"
   },
@@ -17,7 +19,8 @@
     "ctaHeading": "Put Your Store in Your Pocket",
     "ctaSubheading": "Download Froshiar on iOS and Android today to manage your inventory, sales, and debts anywhere.",
     "freeDownload": "Free Download",
-    "instantSetup": "Instant Setup"
+    "instantSetup": "Instant Setup",
+    "note": "iOS 15+ & Android • Free Download • Latest version live on both stores"
   },
   "pricing": {
     "heading": "Pricing & Subscription Plans",
@@ -71,8 +74,8 @@
     "accountHolder": "Account: Tebin Faruq"
   },
   "hero": {
-    "title": "Smart Business Management for Everyone",
-    "subtitle": "Froshiar helps businesses manage products, sales, inventory, customers, reports and online stores from one beautiful application."
+    "title": "With Froshiar, Make Selling Easier",
+    "subtitle": "The modern, all-in-one ecosystem engineered to elevate your business — seamlessly unifying rapid POS, multi-location inventory, customer debt ledgers, financial reports, and branded online storefronts. Operates 100% offline with zero latency, backed by seamless cloud sync."
   },
   "features": {
     "heading": "Everything your business needs",
@@ -85,65 +88,151 @@
         "chips": ["Custom Subdomains", "Instant Sync", "WhatsApp Orders"]
       },
       "inventory": {
-        "title": "Smart Inventory & Barcode",
-        "description": "Real-time stock counts across warehouses, fast barcode scanning, low-stock threshold alerts, and one-tap bulk synchronization.",
+        "title": "Warehouse & Multi-Stock Control",
+        "description": "Real-time stock monitoring, multi-location warehouse tracking, total capital asset evaluation, and smart catalog categorization.",
         "tag": "Inventory",
-        "chips": ["Barcode Scanner", "Low Stock Alert", "One-Tap Bulk Sync"]
+        "chips": ["Multi-Warehouse", "Capital Valuation", "Deep Categorization"]
+      },
+      "bulkSync": {
+        "title": "One-Tap Instant Bulk Sync",
+        "description": "Dedicated bulk synchronization that pushes your entire catalog and product media to your online store with maximum throughput.",
+        "tag": "Bulk Sync",
+        "chips": ["1-Click Bulk Sync", "Ultra-Fast Upload", "Media Sync"]
       },
       "salesPos": {
-        "title": "Fast POS & Smart Receipts",
-        "description": "Lightning-fast counter checkout, custom discounts, multi-tender payments (Cash, Debt, Card), with native PDF and thermal printer receipts.",
-        "tag": "Sales POS",
-        "chips": ["Thermal & PDF Receipts", "Split Payments", "Quick Discounts"]
+        "title": "Fast POS & Counter Checkout",
+        "description": "Seconds-fast counter checkout, barcode scanner support, flexible invoice discounts, optimized for every mobile and tablet.",
+        "tag": "Point of Sale",
+        "chips": ["Rapid POS", "Barcode Scanner", "Inline Discounts"]
+      },
+      "receipts": {
+        "title": "Thermal Printing & PDF Invoices",
+        "description": "Native Bluetooth and WiFi thermal receipt printing (80mm & 58mm), along with standard PDF invoice export and direct WhatsApp sharing.",
+        "tag": "Receipts & Print",
+        "chips": ["Bluetooth & WiFi Print", "Official PDF Invoices", "WhatsApp Share"]
       },
       "debts": {
-        "title": "Customer & Supplier Debt Ledger",
-        "description": "Track total receivables from customers and payables to suppliers, record installment payments, and export professional account statements.",
-        "tag": "Debts",
-        "chips": ["Account Statements", "Supplier Payables", "Payment Receipts"]
+        "title": "Customer Debt & Installments",
+        "description": "Complete customer receivables ledger, partial installment payments, due date reminders, and professional account statement export.",
+        "tag": "Receivables",
+        "chips": ["Installment Plans", "Account Statements", "Payment Receipts"]
+      },
+      "suppliers": {
+        "title": "Supplier Invoices & Payables",
+        "description": "Manage vendor bills, wholesale purchase invoices, outstanding supplier debts, and streamline account reconciliations effortlessly.",
+        "tag": "Suppliers",
+        "chips": ["Purchase Invoices", "Vendor Ledgers", "Quick Settlement"]
       },
       "staff": {
         "title": "Staff Accounts & Permission Roles",
         "description": "Onboard staff and cashiers with tailored permission levels, activity audit logs, and complete management from the super admin dashboard.",
-        "tag": "Security",
+        "tag": "Staff & Roles",
         "chips": ["Custom Roles", "Admin Dashboard", "Audit Trails"]
       },
       "reports": {
-        "title": "Financial Analytics & Profit Margins",
-        "description": "Automated net profit calculations, daily and monthly revenue charts, expense tracking, and deep insights into top-selling products.",
+        "title": "Financial Analytics & Net Profit",
+        "description": "Automated net profit calculations based on cost and retail margins, daily and monthly revenue charts, and top-selling product insights.",
         "tag": "Analytics",
-        "chips": ["Net Profit Calc", "Expense Tracking", "Top Performers"]
+        "chips": ["Net Profit Calc", "Revenue Graphs", "Top Performers"]
+      },
+      "expenses": {
+        "title": "Comprehensive Expense Tracking",
+        "description": "Record and categorize operating outgoings (shop rent, employee payroll, electricity, utilities) to maintain true register balances.",
+        "tag": "Expenses",
+        "chips": ["Payroll & Rent", "Expense Categorization", "Cash Register Balance"]
+      },
+      "offlineMode": {
+        "title": "100% Offline-First Architecture",
+        "description": "The system keeps operating smoothly even with zero internet connectivity. Sales and database changes persist safely on your device.",
+        "tag": "Offline-First",
+        "chips": ["100% Offline Support", "Zero Latency", "Continuous Operation"]
       },
       "cloudSync": {
-        "title": "Cloud Sync & 100% Offline Resilience",
-        "description": "Never stop selling even with zero internet connectivity. Fully reactive offline-first database that seamlessly syncs to the cloud when online.",
-        "tag": "Cloud & Offline",
-        "chips": ["Offline-First", "Automated Cloud Backup", "Zero Data Loss"]
+        "title": "Cloud Backup & Multi-Device Sync",
+        "description": "Keep data resilient against hardware loss with automated cloud synchronization, backup export, and instant one-click data restoration.",
+        "tag": "Cloud & Backup",
+        "chips": ["Automated Cloud Sync", "Snapshot Backup", "Data Protection"]
+      },
+      "currency": {
+        "title": "Multi-Currency IQD & USD",
+        "description": "Native support for Iraqi Dinar (IQD) and US Dollar (USD) with live exchange rate conversion based on current market rates.",
+        "tag": "Currencies",
+        "chips": ["IQD & USD", "Live Market Rate", "Auto-Conversion"]
+      },
+      "stockAlerts": {
+        "title": "Low Stock & Expiry Tracking",
+        "description": "Proactive inventory notifications whenever items cross minimum threshold levels or approach product expiration dates.",
+        "tag": "Alerts",
+        "chips": ["Low Stock Alert", "Expiry Tracking", "Early Reordering"]
       },
       "multiLang": {
-        "title": "Native Kurdish RTL & Dual Currency",
-        "description": "Purpose-built for Kurdish and English with Bahij Janna typography, seamless IQD and USD dual-currency exchange rate conversions.",
-        "tag": "Languages",
-        "chips": ["Bahij Janna Font", "Dual IQD / USD", "Live Exchange Rates"]
+        "title": "Native Kurdish & Bahij Typography",
+        "description": "Purpose-built for Kurdish and English with Bahij Janna typography, right-to-left (RTL) layout, and direct technical pairing.",
+        "tag": "Typography",
+        "chips": ["Bahij Janna Font", "Full RTL Engine", "Continuous Support"]
       }
     }
   },
   "about": {
-    "heading": "About Froshiar",
-    "paragraph": "Froshiar is an all-in-one business management solution designed for shops, restaurants, pharmacies, supermarkets, cafés and many other businesses."
+    "badge": "Our Story & Vision",
+    "heading": "About Froshiar — One Year of Relentless, High-Quality Engineering",
+    "lead": "Froshiar is far more than a standard POS app; it is the culmination of over a year of intensive, non-stop engineering built to the highest architectural standards — empowering business owners to run their entire inventory, sales, and debts straight from their pocket with zero lag and absolute peace of mind.",
+    "stats": {
+      "years": {
+        "value": "1+ Year",
+        "label": "Deep Development"
+      },
+      "offline": {
+        "value": "100%",
+        "label": "Offline-First Reliability"
+      },
+      "performance": {
+        "value": "0ms",
+        "label": "Lag in Operations"
+      },
+      "allInOne": {
+        "value": "All-in-One",
+        "label": "Complete POS Ecosystem"
+      }
+    },
+    "pillars": {
+      "journey": {
+        "title": "A Year of Tireless Craftsmanship",
+        "desc": "For over a full year, the Froshiar team has poured intensive engineering and meticulous care into every detail. Thousands of real-world test cases ensure that transactions never stutter, operations never halt, and financial data is perpetually secure."
+      },
+      "mission": {
+        "title": "What Is Our Core Mission?",
+        "desc": "To eradicate chaotic paper ledgers, fragmented calculations, and clunky software. We built Froshiar to be so intuitive that any shop owner can master their complete inventory and revenue workflow from day one without training."
+      },
+      "vision": {
+        "title": "What Does the Future Hold?",
+        "desc": "We are actively engineering the next frontier of smart commerce: automated cloud synchronization, AI-powered stock forecasts, standalone branded online stores, and intelligent tools tailored specifically for local businesses."
+      },
+      "advanced": {
+        "title": "How Advanced Is Froshiar?",
+        "desc": "Engineered on an ultra-resilient local SQLite architecture that operates 100% offline without dropping a beat. The moment internet is available, your sales and catalogs quietly synchronize with cloud backup and your online storefront."
+      }
+    }
   },
   "businessTypes": {
-    "heading": "Built for every kind of business",
+    "badge": "Built for Every Industry",
+    "heading": "Engineered for Every Kind of Business",
+    "subtitle": "From independent retail shops to mega warehouses and distribution networks",
     "items": {
-      "mobileShops": "Mobile Shops",
-      "restaurants": "Restaurants",
-      "cafes": "Cafés",
-      "pharmacies": "Pharmacies",
-      "markets": "Markets",
-      "clothing": "Clothing Stores",
-      "electronics": "Electronics",
-      "warehouses": "Warehouses",
-      "more": "More..."
+      "markets": "Supermarkets & Grocery",
+      "mobileShops": "Mobile & Tech Shops",
+      "warehouseOwners": "Warehouse Owners",
+      "onlineBusiness": "Online & Social Stores",
+      "salesReps": "Field Sales Reps",
+      "distributionCompanies": "Distribution Companies",
+      "clothing": "Clothing & Boutiques",
+      "pharmacies": "Pharmacies & Healthcare",
+      "watchShops": "Watch & Luxury Stores",
+      "womenAccessories": "Women's Accessories",
+      "autoParts": "Auto Spare Parts",
+      "megaWarehouses": "Mega Warehouses & Depots",
+      "restaurants": "Restaurants & Cafes",
+      "more": "And Many More..."
     }
   },
   "contact": {
@@ -157,6 +246,9 @@
   },
   "footer": {
     "copyright": "© 2026 Froshiar",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "deleteAccount": "Delete Account",
     "designedBy": "Designed & Developed by BexDre"
   }
 }

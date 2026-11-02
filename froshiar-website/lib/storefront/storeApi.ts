@@ -23,6 +23,7 @@ export interface StoreInfo {
   telegramUrl?: string;
   snapchatUrl?: string;
   themeColor?: string;
+  themeMode?: 'dark' | 'light' | 'system';
 }
 
 export interface StoreResponse {

@@ -30,6 +30,7 @@ export interface StoreInfo {
   tiktokUrl?: string;
   whatsappNumber?: string;
   themeColor?: string;
+  themeMode?: 'dark' | 'light' | 'system';
 }
 
 export interface StoreResponse {

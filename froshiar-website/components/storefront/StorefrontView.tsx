@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import type { StoreResponse } from '@/lib/storefront/storeApi';
 import { getBrandCssVars } from '@/lib/storefront/theme';
 import { ProductCard } from './ProductCard';
@@ -11,6 +12,7 @@ import { StorefrontFooter } from './StorefrontFooter';
 import { CartProvider } from './CartContext';
 import { CartDrawer } from './CartDrawer';
 import { FloatingCartBar } from './FloatingCartBar';
+import { StoreLanguageProvider, useStoreLanguage } from './StoreLanguageContext';
 
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
@@ -25,10 +27,23 @@ interface Props {
   slug?: string;
 }
 
-export function StorefrontView({ store, slug }: Props) {
+function StorefrontContent({ store, slug }: Props) {
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const { isRTL, dir, t } = useStoreLanguage();
+  const { setTheme } = useTheme();
+
+  // If merchant has a theme mode (dark or light) and visitor hasn't set a personal preference yet:
+  useEffect(() => {
+    if (store.info.themeMode && (store.info.themeMode === 'light' || store.info.themeMode === 'dark')) {
+      const storedTheme = localStorage.getItem(`froshiar_store_theme_${slug || 'demo'}`);
+      if (!storedTheme) {
+        setTheme(store.info.themeMode);
+      }
+    }
+  }, [store.info.themeMode, slug, setTheme]);
 
   const brandStyle = useMemo(() => getBrandCssVars(store.info.themeColor), [store.info.themeColor]);
 
@@ -56,19 +71,16 @@ export function StorefrontView({ store, slug }: Props) {
     });
   }, [store, query, selectedCategory]);
 
-  const isRTL = useMemo(() => {
-    const sample = `${store.businessName} ${store.info.description || ''} ${store.info.address || ''}`;
-    return /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/.test(sample);
-  }, [store]);
-
   return (
     <CartProvider storeSlug={slug || 'demo'} products={store.products}>
       <div
-        dir={isRTL ? 'rtl' : 'ltr'}
-        className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 font-kurdish`}
+        dir={dir}
+        className={`flex min-h-screen flex-col bg-slate-50 transition-colors duration-200 dark:bg-slate-900 ${
+          isRTL ? 'font-kurdish' : 'font-sans'
+        }`}
         style={brandStyle}
       >
-        {/* 1. Main Cover Banner + Store Name & Actions (Aligned directly with Store Name) + Expandable Search + Compact Social Banner */}
+        {/* 1. Main Cover Banner + Store Name & Actions + Expandable Search */}
         <StoreHeader
           businessName={store.businessName}
           info={store.info}
@@ -93,22 +105,22 @@ export function StorefrontView({ store, slug }: Props) {
                 </svg>
               </div>
               <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                ناچالاک کراوە / Inactive
+                {t('storeInactive')}
               </span>
               <h2 className="mt-4 text-xl font-bold text-slate-800 dark:text-slate-100">
-                ئەم فڕۆشگایە بۆ ماوەیەکی کاتی ناچالاک کراوە
+                {t('storeInactive')}
               </h2>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                خاوەنی فڕۆشگاکە لە ئێستادا پێشاندانی کاڵاکانی ڕاگرتووە. تکایە دواتر سەردان بکەرەوە.
+                {t('storeInactiveSubtitle')}
               </p>
-              {store.info.phone || store.info.whatsappNumber ? (
+              {(store.info.phone || store.info.whatsappNumber) && (
                 <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  بۆ پەیوەندیکردن، دەتوانیت پەیوەندی بە ژمارەی فڕۆشگاکە بکەیت لە خوارەوە.
+                  {t('storeInactiveContact')}
                 </p>
-              ) : null}
+              )}
             </div>
           ) : store.products.length === 0 ? (
-            <CenteredMessage>هیچ کاڵایەک لەم فڕۆشگایە دانەنراوە.</CenteredMessage>
+            <CenteredMessage>{t('noProductsFound')}</CenteredMessage>
           ) : (
             <>
               {categories.length > 1 && (
@@ -122,7 +134,7 @@ export function StorefrontView({ store, slug }: Props) {
               )}
 
               {filteredProducts.length === 0 ? (
-                <CenteredMessage>هیچ کاڵایەک نەدۆزرایەوە کە لەگەڵ گەڕانەکەت بگونجێت.</CenteredMessage>
+                <CenteredMessage>{t('noProductsMatched')}</CenteredMessage>
               ) : (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                   {filteredProducts.map((product) => (
@@ -147,5 +159,13 @@ export function StorefrontView({ store, slug }: Props) {
         <CartDrawer businessName={store.businessName} info={store.info} />
       </div>
     </CartProvider>
+  );
+}
+
+export function StorefrontView({ store, slug }: Props) {
+  return (
+    <StoreLanguageProvider slug={slug || 'demo'} initialLocale="ku">
+      <StorefrontContent store={store} slug={slug} />
+    </StoreLanguageProvider>
   );
 }

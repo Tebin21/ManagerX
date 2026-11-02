@@ -7,6 +7,7 @@ import { AppDownloadSection } from "@/components/sections/AppDownloadSection";
 import { About } from "@/components/sections/About";
 import { BusinessTypes } from "@/components/sections/BusinessTypes";
 import { Contact } from "@/components/sections/Contact";
+import { SplashScreen } from "@/components/ui/SplashScreen";
 import { routing } from "@/i18n/routing";
 
 export function generateStaticParams() {
@@ -23,6 +24,7 @@ export default async function Home({
 
   return (
     <>
+      <SplashScreen />
       <Navbar />
       <main id="main" className="flex-1">
         <Hero />

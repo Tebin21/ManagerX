@@ -4,31 +4,34 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
 import { useCart } from './CartContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { StoreLanguageSwitcher } from './StoreLanguageSwitcher';
+import { useStoreLanguage } from './StoreLanguageContext';
 
 interface Props {
   storeSlug: string;
-  isRTL: boolean;
+  isRTL?: boolean;
 }
 
-export function ProductHeaderBar({ storeSlug, isRTL }: Props) {
+export function ProductHeaderBar({ storeSlug }: Props) {
   const { totalCount, openCart } = useCart();
+  const { t, isRTL } = useStoreLanguage();
 
   return (
     <div className="mb-6 flex items-center justify-between gap-3">
       <Link
         href={`/${storeSlug}`}
-        className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-[var(--brand-600,#D4AF37)] dark:text-slate-300 dark:hover:text-[var(--brand-500,#D4AF37)] transition font-kurdish"
+        className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-[var(--brand-600,#D4AF37)] dark:text-slate-300 dark:hover:text-[var(--brand-500,#D4AF37)] transition"
       >
         {isRTL ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
-        <span>گەڕانەوە بۆ فڕۆشگا</span>
+        <span>{t('returnToShopping')}</span>
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={openCart}
-          aria-label="سەبەتەی کڕین"
-          title="سەبەتەی کڕین"
+          aria-label={t('cart')}
+          title={t('cart')}
           className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/90 bg-slate-100/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-gold-800/40 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white transition-all cursor-pointer"
         >
           <ShoppingBag size={15} />
@@ -40,8 +43,8 @@ export function ProductHeaderBar({ storeSlug, isRTL }: Props) {
         </button>
 
         <ThemeToggle />
+        <StoreLanguageSwitcher />
       </div>
     </div>
   );
 }
-

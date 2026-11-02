@@ -323,6 +323,13 @@ async function notifyPreferencesChanged(): Promise<void> {
       const { scheduleCloudPush } = await import('@/lib/cloudSync');
       scheduleCloudPush(uid);
     }
+    // Also trigger online store info sync so web store reflects new theme & accent color
+    try {
+      const { markStoreInfoDirty } = await import('@/lib/onlineStore/storeInfo');
+      const { processQueue } = await import('@/lib/onlineStore/syncEngine');
+      await markStoreInfoDirty();
+      processQueue();
+    } catch { /* offline or store not yet registered */ }
   } catch { /* non-critical — the next interval-driven push cycle still picks this up */ }
 }
 

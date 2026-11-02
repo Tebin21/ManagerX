@@ -126,7 +126,9 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
     const { useBusinessStore } = await import('@/store/businessStore');
     const { useSettingsStore } = await import('@/store/settingsStore');
     const business = useBusinessStore.getState();
-    const accentColor = useSettingsStore.getState().accentColor;
+    const settings = useSettingsStore.getState();
+    const accentColor = settings.accentColor;
+    const isDarkMode = settings.isDarkMode;
     await pushStoreInfo(slug, apiKey, {
       ...fields,
       businessName: business.name || undefined,
@@ -134,6 +136,7 @@ async function pushStoreInfoOpportunistically(slug: string, apiKey: string): Pro
       address: business.address || undefined,
       logoUrl: logoUrl ?? undefined,
       themeColor: accentColor ?? undefined,
+      themeMode: isDarkMode ? 'dark' : 'light',
     });
     await clearStoreInfoDirty();
   } catch (err) {

@@ -3,19 +3,22 @@
 import { ShoppingBag } from 'lucide-react';
 import { useCart } from './CartContext';
 import { formatIQD } from '@/lib/storefront/format';
+import { useStoreLanguage } from './StoreLanguageContext';
 
 interface Props {
   isRTL?: boolean;
 }
 
-export function FloatingCartBar({ isRTL = true }: Props) {
+export function FloatingCartBar({ isRTL }: Props) {
   const { totalCount, totalPrice, openCart } = useCart();
+  const { t, isRTL: contextIsRTL } = useStoreLanguage();
+  const activeIsRTL = isRTL ?? contextIsRTL;
 
   if (totalCount === 0) return null;
 
   return (
     <aside
-      aria-label="سەبەتەی هەڵبژێردراو"
+      aria-label={t('cart')}
       className="fixed bottom-4 inset-x-3 sm:inset-x-6 z-40 max-w-xl mx-auto pointer-events-none"
     >
       <div
@@ -29,9 +32,9 @@ export function FloatingCartBar({ isRTL = true }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-medium text-slate-300">
-              {totalCount} کاڵا هەڵبژێردراوە
+              {totalCount} {t('cartCountSuffix')}
             </p>
-            <p className="text-sm sm:text-base font-black text-white truncate">
+            <p className="text-sm sm:text-base font-black text-white truncate font-sans">
               {formatIQD(totalPrice)}
             </p>
           </div>
@@ -46,7 +49,7 @@ export function FloatingCartBar({ isRTL = true }: Props) {
           }}
           className="flex items-center gap-2 rounded-xl bg-[var(--brand-500,#D4AF37)] px-4 py-2.5 text-xs sm:text-sm font-black text-slate-950 shadow-md transition hover:brightness-105 active:scale-95 cursor-pointer shrink-0"
         >
-          <span>بینینی سەبەتە و تەواوکردن</span>
+          <span>{t('checkout')}</span>
           <ShoppingBag size={16} />
         </button>
       </div>

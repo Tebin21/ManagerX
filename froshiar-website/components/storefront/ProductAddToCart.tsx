@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Plus, Minus, ShoppingBag, Check } from 'lucide-react';
 import { useCart } from './CartContext';
 import type { StoreProduct } from '@/lib/storefront/storeApi';
+import { useStoreLanguage } from './StoreLanguageContext';
 
 interface Props {
   product: StoreProduct;
@@ -11,6 +12,7 @@ interface Props {
 
 export function ProductAddToCart({ product }: Props) {
   const { addItem, openCart, showToast } = useCart();
+  const { t } = useStoreLanguage();
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
@@ -22,7 +24,7 @@ export function ProductAddToCart({ product }: Props) {
 
   const handlePlus = () => {
     if (qty + 1 > stockLimit) {
-      showToast(`تەنها تا ${stockLimit} دانە دەتوانیت داوا بکەیت، لە کۆگادا نەماوە`);
+      showToast(t('maxStockReached', { count: stockLimit }));
       return;
     }
     setQty((prev) => prev + 1);
@@ -44,7 +46,7 @@ export function ProductAddToCart({ product }: Props) {
         <button
           type="button"
           onClick={handleMinus}
-          aria-label="کەمکردنەوە"
+          aria-label="Minus"
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition cursor-pointer"
         >
           <Minus size={15} />
@@ -60,7 +62,7 @@ export function ProductAddToCart({ product }: Props) {
         <button
           type="button"
           onClick={handlePlus}
-          aria-label="زیادکردن"
+          aria-label="Plus"
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition cursor-pointer"
         >
           <Plus size={15} />
@@ -76,12 +78,12 @@ export function ProductAddToCart({ product }: Props) {
         {justAdded ? (
           <>
             <Check size={18} />
-            <span>زیادکرا بۆ سەبەتە!</span>
+            <span>{t('inCart')}!</span>
           </>
         ) : (
           <>
             <ShoppingBag size={18} />
-            <span>زیادکردن بۆ سەبەتە</span>
+            <span>{t('addToCart')}</span>
           </>
         )}
       </button>

@@ -29,7 +29,7 @@ export function MailLink({ children }: { children: ReactNode }) {
 
 export function List({ items }: { items: ReactNode[] }) {
   return (
-    <ul className="list-disc space-y-1.5 pl-5 marker:text-gold-500">
+    <ul className="list-disc space-y-1.5 pl-5 rtl:pl-0 rtl:pr-5 marker:text-gold-500">
       {items.map((item, i) => (
         <li key={i}>{item}</li>
       ))}

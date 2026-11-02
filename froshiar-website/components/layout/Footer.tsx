@@ -15,26 +15,23 @@ export function Footer() {
         </div>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-start">
           <p>{t("copyright")}</p>
-          {/* Hardcoded English labels, not routed through next-intl: these legal
-              pages are English-only by product decision, so translating just the
-              link label while the destination stays English would be misleading. */}
           <Link
             href="/privacy"
             className="transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm"
           >
-            Privacy Policy
+            {t("privacy")}
           </Link>
           <Link
             href="/terms"
             className="transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm"
           >
-            Terms of Service
+            {t("terms")}
           </Link>
           <Link
             href="/delete-account"
             className="transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:rounded-sm"
           >
-            Delete Account
+            {t("deleteAccount")}
           </Link>
         </div>
         <a

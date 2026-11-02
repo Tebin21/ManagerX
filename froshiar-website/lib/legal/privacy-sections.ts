@@ -24,7 +24,7 @@ export type PrivacySectionMeta = {
   title: string;
 };
 
-export const PRIVACY_SECTIONS: readonly PrivacySectionMeta[] = [
+export const PRIVACY_SECTIONS_EN: readonly PrivacySectionMeta[] = [
   { id: "introduction", title: "Introduction" },
   { id: "information-we-collect", title: "Information We Collect" },
   { id: "how-we-use-information", title: "How We Use Your Information" },
@@ -45,6 +45,34 @@ export const PRIVACY_SECTIONS: readonly PrivacySectionMeta[] = [
   { id: "changes-to-policy", title: "Changes to this Privacy Policy" },
   { id: "contact-information", title: "Contact Information" },
 ];
+
+export const PRIVACY_SECTIONS_CKB: readonly PrivacySectionMeta[] = [
+  { id: "introduction", title: "پێشەکی" },
+  { id: "information-we-collect", title: "ئەو زانیارییانەی کۆیان دەکەینەوە" },
+  { id: "how-we-use-information", title: "چۆنیەتی بەکارهێنانی زانیارییەکانت" },
+  { id: "google-sign-in", title: "چوونەژوورەوە لە ڕێگەی گووگڵ (Google Sign-In)" },
+  { id: "firebase-services", title: "خزمەتگوزارییەکانی فایەربەیس (Firebase)" },
+  { id: "data-storage", title: "هەڵگرتنی داتا و زانیارییەکان" },
+  { id: "security", title: "پاراستن و ئاسایش" },
+  { id: "cloud-synchronization", title: "هاوکاتکردنی هەوری (Cloud Synchronization)" },
+  { id: "third-party-services", title: "خزمەتگوزارییەکانی لایەنی سێیەم" },
+  { id: "business-customer-data", title: "داتای کڕیارانی فرۆشگا و کارەکەت" },
+  { id: "cookies", title: "کووکیز (ماڵپەڕ)" },
+  { id: "user-rights", title: "مافەکانی بەکارهێنەر" },
+  { id: "data-retention", title: "ماوەی هێشتنەوەی داتا" },
+  { id: "childrens-privacy", title: "پاراستنی تایبەتمەندی منداڵان" },
+  { id: "international-transfers", title: "گواستنەوەی نێودەوڵەتی داتا" },
+  { id: "account-deletion", title: "سڕینەوەی هەژمار" },
+  { id: "third-party-links", title: "بەستەرەکانی لایەنی سێیەم" },
+  { id: "changes-to-policy", title: "گۆڕانکاری لە سیاسەتی پاراستنی نهێنی" },
+  { id: "contact-information", title: "زانیاری پەیوەندی" },
+];
+
+export function getPrivacySections(locale?: string): readonly PrivacySectionMeta[] {
+  return locale === "ckb" ? PRIVACY_SECTIONS_CKB : PRIVACY_SECTIONS_EN;
+}
+
+export const PRIVACY_SECTIONS = PRIVACY_SECTIONS_EN;
 
 // ISO date, bump manually whenever the content in privacy-body.tsx changes.
 export const PRIVACY_LAST_UPDATED = "2026-07-25";

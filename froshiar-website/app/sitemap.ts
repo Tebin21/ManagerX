@@ -12,8 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       alternates: {
         languages: {
-          en: SITE_URL,
-          "ckb-IQ": `${SITE_URL}/ckb`,
+          "ckb-IQ": SITE_URL,
+          en: `${SITE_URL}/en`,
         },
       },
     },

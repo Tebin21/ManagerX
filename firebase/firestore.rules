@@ -73,5 +73,14 @@ service cloud.firestore {
     match /user_banner_configs/{docId} {
       allow read, write: if true;
     }
+
+    // Website telemetry: visitor sessions and clickstream events
+    match /website_visitors/{sessionId} {
+      allow read, write: if true;
+    }
+
+    match /website_events/{eventId} {
+      allow read, write: if true;
+    }
   }
 }

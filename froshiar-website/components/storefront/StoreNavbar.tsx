@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { Store as StoreIcon } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { StoreLanguageSwitcher } from './StoreLanguageSwitcher';
+import { useStoreLanguage } from './StoreLanguageContext';
 
 interface Props {
   businessName: string;
@@ -12,11 +14,12 @@ interface Props {
 
 export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
   const homeHref = slug ? `/${slug}` : '#';
+  const { t } = useStoreLanguage();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950/85">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* Corner 1 (Right in Kurdish RTL): Store Name & Logo */}
+        {/* Corner 1 (Right in RTL): Store Name & Logo */}
         <Link
           href={homeHref}
           className="group flex items-center gap-2.5 transition-opacity hover:opacity-90"
@@ -39,7 +42,7 @@ export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
             </span>
             <span
               className="relative flex h-2 w-2 shrink-0"
-              title="فڕۆشگا چالاکە"
+              title={t('activeStore')}
             >
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -47,12 +50,12 @@ export function StoreNavbar({ businessName, logoUrl, slug }: Props) {
           </div>
         </Link>
 
-        {/* Corner 2 (Left in Kurdish RTL): Theme Switcher */}
-        <div className="flex items-center gap-2">
+        {/* Corner 2 (Left in RTL): Dark/Light Theme Switcher + 3-Flag Language Switcher */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <ThemeToggle />
+          <StoreLanguageSwitcher />
         </div>
       </div>
     </header>
   );
 }
-

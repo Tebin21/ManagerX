@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Container } from "@/components/ui/Container";
@@ -6,38 +7,49 @@ import { TableOfContents } from "@/components/legal/TableOfContents";
 import { SectionHeadingLink } from "@/components/legal/SectionHeadingLink";
 import { LegalJsonLd } from "@/components/legal/LegalJsonLd";
 import {
-  TERMS_SECTIONS,
+  getTermsSections,
   TERMS_LAST_UPDATED,
   TERMS_FIRST_PUBLISHED,
 } from "@/lib/legal/terms-sections";
-import { TERMS_BODY } from "@/lib/legal/terms-body";
+import { getTermsBody } from "@/lib/legal/terms-body";
 import { SITE_URL, SITE_NAME } from "@/lib/seo";
+import { routing } from "@/i18n/routing";
 
-const DESCRIPTION =
-  "The terms and conditions that govern your use of Froshiar across Android, iOS, and Web.";
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
-export function generateMetadata(): Metadata {
-  const title = `Terms of Service — ${SITE_NAME}`;
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const isCkb = locale === "ckb";
+  const title = isCkb ? `مەرجەکانی بەکارهێنان — ${SITE_NAME}` : `Terms of Service — ${SITE_NAME}`;
+  const description = isCkb
+    ? "مەرج و یاساکانی بەکارهێنانی سیستەمی فرۆشیار لەسەر ئەندرۆید، ئایفۆن و وێب."
+    : "The terms and conditions that govern your use of Froshiar across Android, iOS, and Web.";
 
   return {
     metadataBase: new URL(SITE_URL),
     title,
-    description: DESCRIPTION,
+    description,
     alternates: {
-      canonical: "/terms",
+      canonical: locale === routing.defaultLocale ? "/terms" : `/${locale}/terms`,
     },
     openGraph: {
       title,
-      description: DESCRIPTION,
-      url: `${SITE_URL}/terms`,
+      description,
+      url: locale === routing.defaultLocale ? `${SITE_URL}/terms` : `${SITE_URL}/${locale}/terms`,
       siteName: SITE_NAME,
       type: "website",
-      locale: "en_US",
+      locale: isCkb ? "ckb_IQ" : "en_US",
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: DESCRIPTION,
+      description,
     },
     robots: {
       index: true,
@@ -46,44 +58,67 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function TermsOfServicePage() {
-  const formattedDate = new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(
-    new Date(TERMS_LAST_UPDATED)
-  );
+export default async function TermsOfServicePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const isCkb = locale === "ckb";
+  const sections = getTermsSections(locale);
+  const body = getTermsBody(locale);
+
+  const formattedDate = isCkb
+    ? "٢٥ی تەمموزی ٢٠٢٦"
+    : new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(
+        new Date(TERMS_LAST_UPDATED)
+      );
+
+  const pageTitle = isCkb ? "مەرجەکانی بەکارهێنان" : "Terms of Service";
+  const legalBadge = isCkb ? "یاسایی" : "Legal";
+  const lastUpdatedLabel = isCkb ? "دواین نوێکردنەوە:" : "Last updated:";
+  const description = isCkb
+    ? "مەرج و ڕێساکانی بەکارهێنانی سیستەمی فرۆشیار."
+    : "The terms and conditions that govern your use of Froshiar across Android, iOS, and Web.";
 
   return (
     <>
       <Navbar />
       <main id="main" className="flex-1">
         <LegalJsonLd
-          path="/terms"
-          name="Terms of Service"
-          description={DESCRIPTION}
+          path={`/${locale}/terms`}
+          name={pageTitle}
+          description={description}
           firstPublished={TERMS_FIRST_PUBLISHED}
           lastUpdated={TERMS_LAST_UPDATED}
         />
 
-        <section className="pb-8 pt-16 sm:pt-20">
+        <section className="pb-8 pt-24 sm:pt-28 lg:pt-32">
           <Container>
             <p className="text-xs font-semibold uppercase tracking-widest text-gold-600 dark:text-gold-400">
-              Legal
+              {legalBadge}
             </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Terms of Service
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl lg:text-5xl">
+              {pageTitle}
             </h1>
             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              Last updated: <time dateTime={TERMS_LAST_UPDATED}>{formattedDate}</time>
+              {lastUpdatedLabel}{" "}
+              <time dateTime={TERMS_LAST_UPDATED} className="font-medium text-slate-300">
+                {formattedDate}
+              </time>
             </p>
           </Container>
         </section>
 
         <section className="pb-24">
           <Container>
-            <div className="lg:grid lg:grid-cols-[240px_1fr] lg:items-start lg:gap-12">
-              <TableOfContents sections={TERMS_SECTIONS} />
+            <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-12">
+              <TableOfContents sections={sections} locale={locale} />
 
               <div className="min-w-0 space-y-6">
-                {TERMS_SECTIONS.map((section, i) => (
+                {sections.map((section, i) => (
                   <article
                     key={section.id}
                     id={section.id}
@@ -93,10 +128,10 @@ export default function TermsOfServicePage() {
                       id={section.id}
                       number={i + 1}
                       title={section.title}
-                      path="/terms"
+                      path={`/${locale}/terms`}
                     />
-                    <div className="mt-4 space-y-4 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-                      {TERMS_BODY[section.id]}
+                    <div className="mt-4 space-y-4 text-sm sm:text-base leading-relaxed text-gray-600 dark:text-gray-300 font-normal">
+                      {body[section.id]}
                     </div>
                   </article>
                 ))}
